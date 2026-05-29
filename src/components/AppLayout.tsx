@@ -306,6 +306,211 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   </p>
 );
 
+/* ============================================================
+ * Sidebar group item — clickable label that expands inline to
+ * reveal child links (expanded sidebar), or opens a flyout
+ * popover (collapsed sidebar), mirroring the topbar dropdown.
+ * ============================================================ */
+function SidebarGroupItem({
+  group,
+  collapsed,
+  renderSideLink,
+  isFirst,
+}: {
+  group: Extract<NavItem, { children: unknown }>;
+  collapsed: boolean;
+  renderSideLink: (
+    to: string,
+    label: string,
+    Icon: never,
+    onClick?: () => void,
+    collapsed?: boolean,
+  ) => React.ReactNode;
+  isFirst: boolean;
+}) {
+  const location = useLocation();
+  const groupActive = group.children.some((c) =>
+    c.to === "/" ? location.pathname === "/" : location.pathname === c.to || location.pathname.startsWith(c.to + "/"),
+  );
+  const storageKey = `exacta:sidebar-group:${group.label}`;
+  const [open, setOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return groupActive;
+    const saved = window.localStorage.getItem(storageKey);
+    if (saved === "1") return true;
+    if (saved === "0") return false;
+    return groupActive;
+  });
+  // Auto-open when a child becomes active via navigation.
+  useEffect(() => {
+    if (groupActive) setOpen(true);
+  }, [groupActive]);
+  useEffect(() => {
+    try { window.localStorage.setItem(storageKey, open ? "1" : "0"); } catch {}
+  }, [open, storageKey]);
+
+  // Collapsed sidebar: render an icon button with a flyout popover on click.
+  const [flyoutOpen, setFlyoutOpen] = useState(false);
+  const flyoutRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!flyoutOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!flyoutRef.current?.contains(e.target as Node)) setFlyoutOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [flyoutOpen]);
+  useEffect(() => { setFlyoutOpen(false); }, [location.pathname]);
+
+  const GroupIcon = group.icon as unknown as React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties }>;
+
+  if (collapsed) {
+    return (
+      <div ref={flyoutRef} className="relative" style={{ marginTop: isFirst ? 0 : 4 }}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setFlyoutOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={flyoutOpen}
+              aria-label={group.label}
+              className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "8px 0",
+                borderRadius: 6,
+                background: groupActive || flyoutOpen ? "hsl(var(--sidebar-accent))" : "transparent",
+                color: groupActive || flyoutOpen
+                  ? "hsl(var(--sidebar-accent-foreground))"
+                  : "hsl(var(--sidebar-muted-foreground))",
+                border: "none",
+                cursor: "pointer",
+                transition: "all 0.12s ease",
+              }}
+            >
+              <GroupIcon size={20} strokeWidth={1.75} style={{ color: "inherit" }} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{group.label}</TooltipContent>
+        </Tooltip>
+        {flyoutOpen && (
+          <div
+            role="menu"
+            className="animate-fade-in"
+            style={{
+              position: "absolute",
+              left: "calc(100% + 6px)",
+              top: 0,
+              minWidth: 200,
+              zIndex: 200,
+              background: "hsl(var(--card))",
+              border: "0.5px solid hsl(var(--border))",
+              borderRadius: 8,
+              boxShadow: "var(--shadow-elevated)",
+              padding: 4,
+            }}
+          >
+            <p
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.07em",
+                color: "hsl(var(--muted-foreground))",
+                padding: "6px 10px 4px",
+              }}
+            >
+              {group.label}
+            </p>
+            {group.children.map((c) => {
+              const childActive =
+                c.to === "/" ? location.pathname === "/" : location.pathname === c.to || location.pathname.startsWith(c.to + "/");
+              const CIcon = c.icon as unknown as React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties }>;
+              return (
+                <NavLink
+                  key={c.to}
+                  to={c.to}
+                  role="menuitem"
+                  onClick={() => setFlyoutOpen(false)}
+                  className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "7px 10px",
+                    borderRadius: 6,
+                    fontSize: 13.5,
+                    textDecoration: "none",
+                    fontWeight: childActive ? 500 : 400,
+                    background: childActive ? "hsl(var(--accent))" : undefined,
+                    color: childActive ? "hsl(var(--accent-foreground))" : "hsl(var(--muted-foreground))",
+                  }}
+                >
+                  <CIcon size={17} strokeWidth={1.75} style={{ color: "inherit", flexShrink: 0 }} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Expanded sidebar: clickable header that toggles inline children.
+  return (
+    <div style={{ marginTop: isFirst ? 0 : 4 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 11,
+          padding: "8px 12px",
+          borderRadius: 6,
+          background: groupActive && !open ? "hsl(var(--sidebar-accent))" : "transparent",
+          color: groupActive
+            ? "hsl(var(--sidebar-accent-foreground))"
+            : "hsl(var(--sidebar-muted-foreground))",
+          border: "none",
+          cursor: "pointer",
+          fontSize: 13.5,
+          fontWeight: groupActive ? 500 : 400,
+          textAlign: "left",
+          transition: "background 0.12s ease",
+        }}
+      >
+        <GroupIcon size={20} strokeWidth={1.75} style={{ color: "inherit", flexShrink: 0 }} />
+        <span style={{ flex: 1, minWidth: 0, color: "inherit" }}>{group.label}</span>
+        <ChevronDown
+          size={14}
+          strokeWidth={2}
+          style={{
+            color: "inherit",
+            flexShrink: 0,
+            transition: "transform 0.15s ease",
+            transform: open ? "rotate(0deg)" : "rotate(-90deg)",
+          }}
+        />
+      </button>
+      {open && (
+        <div style={{ marginTop: 2, marginLeft: 10, paddingLeft: 8, borderLeft: "1px solid hsl(var(--sidebar-border))", display: "flex", flexDirection: "column", gap: 1 }}>
+          {group.children.map((c) =>
+            renderSideLink(c.to, c.label, c.icon as never, undefined, false),
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const AppLayout = () => {
   const { user, roles, signOut } = useAuth();
   // Notificações realtime de fila/devolução para o usuário logado.
@@ -696,7 +901,7 @@ export const AppLayout = () => {
           </Tooltip>
         </div>
 
-        {/* Nav list (grouped with section labels) */}
+        {/* Nav list (collapsible groups, like topbar dropdowns but inline) */}
         <nav
           className="flex-1 overflow-y-auto overflow-x-hidden"
           style={{ padding: sidebarCollapsed ? "8px 6px 12px" : "8px 10px 12px", display: "flex", flexDirection: "column", gap: 1 }}
@@ -706,24 +911,13 @@ export const AppLayout = () => {
               return renderSideLink(item.to, item.label, item.icon as never, undefined, sidebarCollapsed);
             }
             return (
-              <div key={item.label} style={{ marginTop: idx === 0 ? 0 : sidebarCollapsed ? 8 : 6 }}>
-                {sidebarCollapsed ? (
-                  <div
-                    aria-hidden
-                    style={{
-                      height: 1,
-                      margin: "4px 8px 6px",
-                      background: "hsl(var(--sidebar-border))",
-                      opacity: 0.6,
-                    }}
-                  />
-                ) : (
-                  <SectionLabel>{item.label}</SectionLabel>
-                )}
-                {item.children.map((c) =>
-                  renderSideLink(c.to, c.label, c.icon as never, undefined, sidebarCollapsed),
-                )}
-              </div>
+              <SidebarGroupItem
+                key={item.label}
+                group={item}
+                collapsed={sidebarCollapsed}
+                renderSideLink={renderSideLink}
+                isFirst={idx === 0}
+              />
             );
           })}
         </nav>
