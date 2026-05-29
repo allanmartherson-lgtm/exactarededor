@@ -76,7 +76,7 @@ export default function EcgPulseAnimation() {
       ctx.clearRect(0, 0, w, h);
 
       // Grade de fundo sutil
-      ctx.strokeStyle = "rgba(59,130,246,0.06)";
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
       ctx.lineWidth = 0.5;
       const gridSize = Math.round(h / 12);
       for (let x = 0; x < w; x += gridSize) {
@@ -95,9 +95,9 @@ export default function EcgPulseAnimation() {
         const progress = t / ecgEnd; // 0..1 dentro da fase
 
         ctx.beginPath();
-        ctx.strokeStyle = "#3B82F6";
+        ctx.strokeStyle = "rgba(255,255,255,0.88)";
         ctx.lineWidth = 2;
-        ctx.shadowColor = "#3B82F6";
+        ctx.shadowColor = "rgba(255,255,255,0.88)";
         ctx.shadowBlur = 10;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
@@ -116,8 +116,8 @@ export default function EcgPulseAnimation() {
         const dotY = midY + ecgY(progress * 1.0) * amp;
         ctx.beginPath();
         ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
-        ctx.fillStyle = "#93C5FD";
-        ctx.shadowColor = "#93C5FD";
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.shadowColor = "rgba(255,255,255,0.95)";
         ctx.shadowBlur = 16;
         ctx.fill();
         ctx.shadowBlur = 0;
@@ -135,7 +135,7 @@ export default function EcgPulseAnimation() {
         if (ecgAlpha > 0) {
           ctx.globalAlpha = ecgAlpha;
           ctx.beginPath();
-          ctx.strokeStyle = "#3B82F6";
+          ctx.strokeStyle = "rgba(255,255,255,0.88)";
           ctx.lineWidth = 2;
           ctx.moveTo(0, midY);
           for (let px = 0; px <= w; px += 1.5) {
@@ -159,11 +159,11 @@ export default function EcgPulseAnimation() {
         const drawn = ease * total;
 
         ctx.beginPath();
-        ctx.strokeStyle = "#D4A017";
+        ctx.strokeStyle = "#C6A27C";
         ctx.lineWidth = 3;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        ctx.shadowColor = "#D4A017";
+        ctx.shadowColor = "#C6A27C";
         ctx.shadowBlur = 14;
 
         ctx.moveTo(p1[0], p1[1]);
@@ -187,11 +187,11 @@ export default function EcgPulseAnimation() {
 
         // Checkmark fixo
         ctx.beginPath();
-        ctx.strokeStyle = "#D4A017";
+        ctx.strokeStyle = "#C6A27C";
         ctx.lineWidth = 3;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        ctx.shadowColor = "#D4A017";
+        ctx.shadowColor = "#C6A27C";
         ctx.shadowBlur = 12;
         ctx.moveTo(cx - sz, cy + sz * 0.1);
         ctx.lineTo(cx - sz * 0.15, cy + sz * 0.7);
@@ -215,7 +215,7 @@ export default function EcgPulseAnimation() {
         ctx.globalAlpha = alpha;
 
         ctx.beginPath();
-        ctx.strokeStyle = "#D4A017";
+        ctx.strokeStyle = "#C6A27C";
         ctx.lineWidth = 3;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
