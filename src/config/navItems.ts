@@ -87,6 +87,15 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    label: "Atendimento",
+    icon: HeadsetIcon,
+    iconName: "HeadsetIcon",
+    roles: ALL_ROLES,
+    children: [
+      { to: "/pendencias", label: "Pendências", icon: ListChecksIcon, iconName: "ListChecksIcon", roles: ALL_ROLES },
+    ],
+  },
+  {
     label: "Relatórios",
     icon: FileBarChart,
     iconName: "FileBarChart",
