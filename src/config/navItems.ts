@@ -34,6 +34,8 @@ import {
   Megaphone,
   Info,
   BookOpen,
+  HeadsetIcon,
+  ListChecksIcon,
 } from "@/config/icons/navIcons";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
