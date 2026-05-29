@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       // Itens elegíveis: payment_items cujo company_id está entre os participantes reais
       const { data: items } = await supabase
         .from("payment_items")
-        .select("id, company_id, gross_amount, expected_amount")
+        .select("id, company_id, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
         .eq("payment_id", payment_id)
         .in("company_id", participantCompanyIds);
 
