@@ -579,6 +579,7 @@ export const AppLayout = () => {
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
+              <PortalUnreadBadge />
               <NotificationBell />
               <div className="hidden md:flex items-center gap-1">
                 <ThemeToggle />
