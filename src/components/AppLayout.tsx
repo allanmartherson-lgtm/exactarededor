@@ -646,6 +646,7 @@ export const AppLayout = () => {
         ? "hsl(var(--sidebar-accent-foreground))"
         : "hsl(var(--sidebar-muted-foreground))",
       fontWeight: isActive ? 500 : 400,
+      position: "relative",
     };
     const IconCmp = Icon as unknown as React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties; "aria-hidden"?: boolean }>;
     return (
