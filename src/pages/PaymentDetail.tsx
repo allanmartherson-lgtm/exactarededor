@@ -2485,7 +2485,7 @@ const PaymentDetail = () => {
 
           {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
           {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
-          {isAnalista && id && (
+          {isAnalista && id && ["rascunho","em_analise_ia","revisao_analista","concluida_analista","devolvido_analista"].includes(String(payment.status)) && (
             <ProductionValidationPanel
               paymentId={id}
               currentUserId={user!.id}
