@@ -210,13 +210,13 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[14px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 groupActive || isOpen
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <item.icon className="size-4 flex-shrink-0" strokeWidth={1.75} />
+              <item.icon className="size-5 flex-shrink-0" strokeWidth={1.75} />
               <span>{item.label}</span>
               <ChevronDown
                 className={cn(
