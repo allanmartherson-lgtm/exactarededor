@@ -80,14 +80,8 @@ export default function EcgPulseAnimation() {
       return 0;
     }
 
-    // ── Icon draw functions ───────────────────────────────
 
-    const icons: { xFrac: number; triggerProgress: number; draw: (x: number, y: number, size: number, alpha: number) => void }[] = [
-      { xFrac: 0.16, triggerProgress: 0.16, draw: drawHeart },
-      { xFrac: 0.37, triggerProgress: 0.35, draw: drawMedicalCross },
-      { xFrac: 0.58, triggerProgress: 0.54, draw: drawCoin },
-      { xFrac: 0.77, triggerProgress: 0.73, draw: drawInvoice },
-    ];
+
 
     // ── Exacta text ───────────────────────────────────────
     function drawExactaText(cx: number, baseY: number, fontSize: number, alpha: number) {
