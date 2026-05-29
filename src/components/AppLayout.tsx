@@ -12,6 +12,8 @@ import {
   PanelLeft,
   PanelTop,
   ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   Settings,
   Menu,
 } from "lucide-react";
