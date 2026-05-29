@@ -4763,6 +4763,16 @@ export type Database = {
         }[]
       }
       get_portal_home: { Args: { p_doctor_id: string }; Returns: Json }
+      get_portal_item_detail: { Args: { p_item_id: string }; Returns: Json }
+      get_portal_payment_timeline: {
+        Args: { p_payment_id: string }
+        Returns: {
+          changed_at: string
+          changed_by_name: string
+          status_from: string
+          status_to: string
+        }[]
+      }
       get_registration_pending_doctors: {
         Args: never
         Returns: {
