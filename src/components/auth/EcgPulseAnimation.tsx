@@ -39,17 +39,17 @@ export default function EcgPulseAnimation() {
     }
 
     const particles: Particle[] = FINANCIAL_VALUES.map((label, i) => {
-      const xFrac = 0.08 + i * 0.115 + (Math.random() * 0.04 - 0.02);
+      const xFrac = 0.07 + i * 0.115 + (Math.random() * 0.03 - 0.015);
       return {
         label,
         xFrac,
-        yOffset: (i % 2 === 0 ? -1 : 1) * (0.13 + Math.random() * 0.09),
-        floatAmp: 0.012 + Math.random() * 0.01,
-        floatSpeed: 0.8 + Math.random() * 0.6,
+        yOffset: (i % 2 === 0 ? -1 : 1) * (0.14 + Math.random() * 0.08),
+        floatAmp: 0.010 + Math.random() * 0.008,
+        floatSpeed: 0.6 + Math.random() * 0.5,
         floatPhase: Math.random() * Math.PI * 2,
-        fontSize: 0.028 + Math.random() * 0.008,
-        spawnAt: Math.max(0, xFrac - 0.18),
-        mergeAt: xFrac + 0.04,
+        fontSize: 0.026 + Math.random() * 0.007,
+        spawnAt: Math.max(0, xFrac - 0.22),
+        mergeAt: xFrac,
       };
     });
 
