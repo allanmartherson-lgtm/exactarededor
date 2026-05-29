@@ -138,10 +138,10 @@ export default function EcgPulseAnimation() {
     }
 
     // ── Phase timings (ms) ────────────────────────────────
-    const T_ECG_END    = 13000;
-    const T_MORPH_END  = 14800;
-    const T_EXACTA_END = 18500;
-    const T_RISE_END   = 21500;
+    const T_ECG_END    = 10000;
+    const T_MORPH_END  = 11500;
+    const T_EXACTA_END = 15000;
+    const T_RISE_END   = 17500;
 
     function drawParticles(ecgProgress: number, elapsed: number) {
       const w = canvas.width;
