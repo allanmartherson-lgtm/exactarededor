@@ -287,7 +287,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   <p
     style={{
-      fontSize: 9.5,
+      fontSize: 11,
       fontWeight: 500,
       color: "hsl(var(--muted-foreground))",
       letterSpacing: "0.07em",
