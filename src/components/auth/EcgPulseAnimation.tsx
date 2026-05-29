@@ -224,11 +224,7 @@ export default function EcgPulseAnimation() {
         ctx.lineTo(cx + sz, cy - sz * 0.55);
         ctx.stroke();
 
-        ctx.fillStyle = "#ffffff";
-        ctx.font = `500 ${Math.round(w * 0.075)}px system-ui, sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("exacta", cx, cy + sz * 1.5);
+        drawExactaText(cx, cy + sz * 1.5, Math.round(w * 0.075), alpha);
 
         ctx.globalAlpha = 1;
       }
