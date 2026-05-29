@@ -34,6 +34,8 @@ import {
   Megaphone,
   Info,
   BookOpen,
+  HeadsetIcon,
+  ListChecksIcon,
 } from "@/config/icons/navIcons";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -82,6 +84,15 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/notas-fiscais", label: "Pedidos de NF", icon: Receipt, iconName: "Receipt", roles: ALL_ROLES },
       { to: "/ciclo-nf", label: "Ciclo de NF", icon: FileWarning, iconName: "FileWarning", roles: ALL_ROLES },
       { to: "/glosas", label: "Glosas e Conciliação", icon: ShieldX, iconName: "ShieldX", roles: ["diretor", "admin", "analista", "validador"] as const },
+    ],
+  },
+  {
+    label: "Atendimento",
+    icon: HeadsetIcon,
+    iconName: "HeadsetIcon",
+    roles: ALL_ROLES,
+    children: [
+      { to: "/pendencias", label: "Pendências", icon: ListChecksIcon, iconName: "ListChecksIcon", roles: ALL_ROLES },
     ],
   },
   {
@@ -176,6 +187,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Pedidos de NF", iconName: "Receipt" },
   { label: "Ciclo de NF", iconName: "FileWarning" },
   { label: "Glosas e Conciliação", iconName: "ShieldX" },
+  { label: "Pendências", iconName: "ListChecksIcon" },
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Executivo", iconName: "BarChart3" },
   { label: "DRE & Posição em Aberto", iconName: "TrendingUp" },

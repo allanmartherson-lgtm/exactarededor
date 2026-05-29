@@ -47,6 +47,8 @@ import {
   Info as PhInfo,
   ClipboardText,
   SlidersHorizontal as PhSliders,
+  Headset,
+  ListChecks,
   type IconProps,
 } from "@phosphor-icons/react";
 
@@ -101,6 +103,8 @@ export const Info = makeIcon(PhInfo, "Info");
 export const FileBarChart = makeIcon(ChartBar, "FileBarChart");
 export const ClipboardList = makeIcon(ClipboardText, "ClipboardList");
 export const SlidersHorizontal = makeIcon(PhSliders, "SlidersHorizontal");
+export const HeadsetIcon = makeIcon(Headset, "HeadsetIcon");
+export const ListChecksIcon = makeIcon(ListChecks, "ListChecksIcon");
 
 export type NavIconComponent = ReturnType<typeof makeIcon>;
 
