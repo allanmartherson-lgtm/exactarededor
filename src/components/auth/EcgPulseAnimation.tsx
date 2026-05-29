@@ -117,7 +117,7 @@ export default function EcgPulseAnimation() {
         ctx.beginPath();
         ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
         ctx.fillStyle = "rgba(255,255,255,0.95)";
-        ctx.shadowColor = "rgba(255,255,255,0.95)";
+        ctx.shadowColor = "rgba(255,255,255,0.6)";
         ctx.shadowBlur = 16;
         ctx.fill();
         ctx.shadowBlur = 0;
