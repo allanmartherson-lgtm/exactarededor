@@ -127,7 +127,7 @@ export default function EcgPulseAnimation() {
 
       const midY = h * 0.5;
       const amp = h * 0.30;
-      const iconSize = h * 0.065;
+      
       const bigLogoH = h * BIG_LOGO_H_FRAC;
       const slW = SMALL_LOGO_H * LOGO_ASPECT;
       const slCX = 32 + slW / 2;
