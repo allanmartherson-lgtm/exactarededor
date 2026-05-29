@@ -338,6 +338,41 @@ export type Database = {
         }
         Relationships: []
       }
+      company_access_log: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          resource: string
+          resource_id: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          resource: string
+          resource_id: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          resource?: string
+          resource_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_access_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_adjustment_applications: {
         Row: {
           adjustment_id: string
