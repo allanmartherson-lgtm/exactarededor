@@ -41,6 +41,7 @@ const EXPECTED_ORDER = [
   "Glosas e Conciliação",
   "KPIs",
   "Executivo",
+    "DRE &\ Posição em Aberto",
   "Recebíveis",
   "Inteligência Financeira",
   "Regras de Pagamento",
