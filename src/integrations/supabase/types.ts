@@ -5375,6 +5375,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      is_company_portal_user: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_feature_enabled: {
         Args: { _key: string; _user_id: string }
         Returns: boolean
