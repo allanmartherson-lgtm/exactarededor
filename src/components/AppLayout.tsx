@@ -520,7 +520,7 @@ export const AppLayout = () => {
         <header
           className="sticky top-0 z-40"
           style={{
-            height: 48,
+            height: 60,
             background: "hsl(var(--card))",
             borderBottom: "0.5px solid hsl(var(--border))",
           }}
