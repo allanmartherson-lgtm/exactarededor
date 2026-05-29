@@ -49,6 +49,7 @@ import {
   SlidersHorizontal as PhSliders,
   Headset,
   ListChecks,
+  Chats,
   type IconProps,
 } from "@phosphor-icons/react";
 
