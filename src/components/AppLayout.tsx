@@ -197,7 +197,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
   return (
     <nav
       ref={containerRef}
-      className="flex-1 min-w-0 flex items-center gap-0.5"
+      className="flex-1 min-w-0 flex items-center gap-0.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
       aria-label="Navegação principal"
     >
       {items.map((item) => {
