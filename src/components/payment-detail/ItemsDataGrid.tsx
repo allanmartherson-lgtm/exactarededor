@@ -55,6 +55,9 @@ import { AttendanceCoherencePanel } from "./AttendanceCoherencePanel";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { formatSectorName } from "@/lib/sectorDisplay";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole, rawPick } from "@/lib/itemFields";
+import { useSectorAliases } from "@/hooks/useSectorAliases";
+
+const SECTOR_RAW_KEYS = ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"] as const;
 import { authorRoleLabel } from "@/lib/observations";
 
 // ============ TIPOGRAFIA UNIFICADA (tabela + painel expandido) ============
