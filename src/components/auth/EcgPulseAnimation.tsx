@@ -163,7 +163,7 @@ export default function EcgPulseAnimation() {
           ? 2 * driftP * driftP
           : -1 + (4 - 2 * driftP) * driftP;
 
-        const MERGE_DUR = 0.20;
+        const MERGE_DUR = 0.12;
         const mergeRaw  = (ecgProgress - p.mergeAt) / MERGE_DUR;
         const mergeP    = Math.min(1, Math.max(0, mergeRaw));
         const mergeEased = mergeP < 0.5
