@@ -12,6 +12,8 @@ import {
   PanelLeft,
   PanelTop,
   ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   Settings,
   Menu,
 } from "lucide-react";
@@ -52,10 +54,11 @@ function getInitials(name?: string | null, email?: string | null) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-const Logo = () => (
+const Logo = ({ compact = false }: { compact?: boolean }) => (
   <NavLink
     to="/"
     className="flex items-center gap-3 flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+    aria-label="Exacta — início"
   >
     <div
       style={{
@@ -83,29 +86,31 @@ const Logo = () => (
         <polyline points="5 12.5 10 17.5 19 7" />
       </svg>
     </div>
-    <div className="min-w-0 leading-tight">
-      <p
-        className="font-wordmark"
-        style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 400, letterSpacing: "0.04em", color: "hsl(var(--foreground))", lineHeight: 1 }}
-      >
-        E<span className="text-[#8A6830] dark:text-[#C8A96E]">x</span>acta
-      </p>
-      <p
-        style={{
-          fontSize: 9,
-          textTransform: "uppercase",
-          letterSpacing: "0.1em",
-          color: "hsl(var(--muted-foreground))",
-          marginTop: 4,
-          lineHeight: 1.2,
-          whiteSpace: "nowrap",
-        }}
-      >
-        Pagamento Médico
-        <br />
-        Rede D'Or
-      </p>
-    </div>
+    {!compact && (
+      <div className="min-w-0 leading-tight">
+        <p
+          className="font-wordmark"
+          style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 400, letterSpacing: "0.04em", color: "hsl(var(--foreground))", lineHeight: 1 }}
+        >
+          E<span className="text-[#8A6830] dark:text-[#C8A96E]">x</span>acta
+        </p>
+        <p
+          style={{
+            fontSize: 9,
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            color: "hsl(var(--muted-foreground))",
+            marginTop: 4,
+            lineHeight: 1.2,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Pagamento Médico
+          <br />
+          Rede D'Or
+        </p>
+      </div>
+    )}
   </NavLink>
 );
 
@@ -350,6 +355,17 @@ export const AppLayout = () => {
   const groupedSideNav = filterNav(NAV_ITEMS, roles);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // Sidebar collapsed state (persisted in localStorage)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("exacta:sidebar-collapsed") === "1";
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("exacta:sidebar-collapsed", sidebarCollapsed ? "1" : "0");
+    } catch {}
+  }, [sidebarCollapsed]);
+
   // Detect mobile (<768px) to force topbar layout on small screens regardless of saved preference.
   const [isMobile, setIsMobile] = useState<boolean>(
     typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
@@ -364,12 +380,14 @@ export const AppLayout = () => {
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
   const effectiveLayout = isMobile ? "top" : layout;
+  const sidebarWidth = sidebarCollapsed ? 68 : 260;
 
   const renderSideLink = (
     to: string,
     label: string,
     Icon: NavItem extends infer T ? T extends { icon: infer I } ? I : never : never,
     onClick?: () => void,
+    collapsed = false,
   ) => {
     const isActive =
       to === "/"
@@ -379,19 +397,22 @@ export const AppLayout = () => {
       display: "flex",
       flexDirection: "row",
       alignItems: "center",
-      gap: 11,
-      padding: "8px 12px",
-      paddingLeft: isActive ? 9 : 12,
+      gap: collapsed ? 0 : 11,
+      padding: collapsed ? "8px 0" : "8px 12px",
+      paddingLeft: collapsed ? 0 : isActive ? 9 : 12,
+      justifyContent: collapsed ? "center" : "flex-start",
       borderRadius: 6,
-      fontSize: 14,
-      lineHeight: 1.2,
+      fontSize: 13.5,
+      lineHeight: 1.25,
       cursor: "pointer",
       textDecoration: "none",
-      whiteSpace: "nowrap",
       transition: "all 0.12s ease",
-      borderLeft: isActive
-        ? "3px solid hsl(var(--sidebar-primary))"
-        : "3px solid transparent",
+      borderLeft:
+        !collapsed && isActive
+          ? "3px solid hsl(var(--sidebar-primary))"
+          : !collapsed
+            ? "3px solid transparent"
+            : undefined,
       background: isActive ? "hsl(var(--sidebar-accent))" : "transparent",
       color: isActive
         ? "hsl(var(--sidebar-accent-foreground))"
@@ -416,20 +437,27 @@ export const AppLayout = () => {
               aria-hidden
               style={{ width: 20, height: 20, flexShrink: 0, color: "inherit" }}
             />
-            <span
-              style={{
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                minWidth: 0,
-                color: "inherit",
-              }}
-            >
-              {label}
-            </span>
+            {!collapsed && (
+              <span
+                style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  wordBreak: "break-word",
+                  minWidth: 0,
+                  flex: 1,
+                  color: "inherit",
+                }}
+              >
+                {label}
+              </span>
+            )}
           </NavLink>
         </TooltipTrigger>
-        <TooltipContent side="right">{label}</TooltipContent>
+        {(collapsed || label.length > 22) && (
+          <TooltipContent side="right">{label}</TooltipContent>
+        )}
       </Tooltip>
     );
   };
@@ -624,39 +652,74 @@ export const AppLayout = () => {
       <aside
         className="fixed top-0 left-0 h-screen flex flex-col"
         style={{
-          width: 260,
+          width: sidebarWidth,
           background: "hsl(var(--sidebar-background))",
           borderRight: "1px solid hsl(var(--sidebar-border))",
           zIndex: 40,
+          transition: "width 0.18s ease",
         }}
         aria-label="Navegação lateral"
       >
-        {/* Header / Logo */}
+        {/* Header / Logo + collapse toggle */}
         <div
           className="flex items-center"
           style={{
             height: 64,
-            padding: "0 16px",
+            padding: sidebarCollapsed ? "0 8px" : "0 12px 0 16px",
             borderBottom: "1px solid hsl(var(--sidebar-border))",
+            justifyContent: sidebarCollapsed ? "center" : "space-between",
+            gap: 8,
           }}
         >
-          <Logo />
+          {!sidebarCollapsed && <Logo />}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarCollapsed((v) => !v)}
+                aria-label={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md flex-shrink-0"
+              >
+                {sidebarCollapsed ? (
+                  <ChevronsRight className="h-4 w-4" />
+                ) : (
+                  <ChevronsLeft className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Nav list (grouped with section labels) */}
         <nav
-          className="flex-1 overflow-y-auto"
-          style={{ padding: "8px 10px 12px", display: "flex", flexDirection: "column", gap: 1 }}
+          className="flex-1 overflow-y-auto overflow-x-hidden"
+          style={{ padding: sidebarCollapsed ? "8px 6px 12px" : "8px 10px 12px", display: "flex", flexDirection: "column", gap: 1 }}
         >
           {groupedSideNav.map((item, idx) => {
             if (!isGroup(item)) {
-              return renderSideLink(item.to, item.label, item.icon as never);
+              return renderSideLink(item.to, item.label, item.icon as never, undefined, sidebarCollapsed);
             }
             return (
-              <div key={item.label} style={{ marginTop: idx === 0 ? 0 : 6 }}>
-                <SectionLabel>{item.label}</SectionLabel>
+              <div key={item.label} style={{ marginTop: idx === 0 ? 0 : sidebarCollapsed ? 8 : 6 }}>
+                {sidebarCollapsed ? (
+                  <div
+                    aria-hidden
+                    style={{
+                      height: 1,
+                      margin: "4px 8px 6px",
+                      background: "hsl(var(--sidebar-border))",
+                      opacity: 0.6,
+                    }}
+                  />
+                ) : (
+                  <SectionLabel>{item.label}</SectionLabel>
+                )}
                 {item.children.map((c) =>
-                  renderSideLink(c.to, c.label, c.icon as never),
+                  renderSideLink(c.to, c.label, c.icon as never, undefined, sidebarCollapsed),
                 )}
               </div>
             );
@@ -667,10 +730,53 @@ export const AppLayout = () => {
         <div
           className="flex flex-col gap-2"
           style={{
-            padding: 12,
+            padding: sidebarCollapsed ? 8 : 12,
             borderTop: "1px solid hsl(var(--sidebar-border))",
+            alignItems: sidebarCollapsed ? "center" : "stretch",
           }}
         >
+          {sidebarCollapsed ? (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => navigate("/perfil")}
+                    aria-label={displayName || "Meu perfil"}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      background: AVATAR_GRADIENT,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#fff",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                    className="focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {initials}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{displayName}</TooltipContent>
+              </Tooltip>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                aria-label="Sair"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </Button>
+              <ThemeToggle />
+              <LayoutToggle />
+            </>
+          ) : (
+            <>
           <div className="flex items-center gap-2 min-w-0">
             <div
               style={{
@@ -721,12 +827,14 @@ export const AppLayout = () => {
             <LayoutToggle />
           </div>
           <SidebarVersionFooter />
+            </>
+          )}
         </div>
       </aside>
 
       <div
         className="nav-main flex flex-col min-h-screen"
-        style={{ marginLeft: 260, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
+        style={{ marginLeft: sidebarWidth, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
       >
         {/* Slim top bar */}
         <header
