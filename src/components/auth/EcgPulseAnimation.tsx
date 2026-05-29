@@ -25,6 +25,35 @@ export default function EcgPulseAnimation() {
     let startTime: number | null = null;
     let stopped = false;
 
+    // ── Partículas financeiras ────────────────────────────
+    interface Particle {
+      label: string;
+      xFrac: number;
+      yOffset: number;
+      floatAmp: number;
+      floatSpeed: number;
+      floatPhase: number;
+      fontSize: number;
+      spawnAt: number;
+      mergeAt: number;
+    }
+
+    const particles: Particle[] = FINANCIAL_VALUES.map((label, i) => {
+      const xFrac = 0.08 + i * 0.115 + (Math.random() * 0.04 - 0.02);
+      return {
+        label,
+        xFrac,
+        yOffset: (i % 2 === 0 ? -1 : 1) * (0.13 + Math.random() * 0.09),
+        floatAmp: 0.012 + Math.random() * 0.01,
+        floatSpeed: 0.8 + Math.random() * 0.6,
+        floatPhase: Math.random() * Math.PI * 2,
+        fontSize: 0.028 + Math.random() * 0.008,
+        spawnAt: Math.max(0, xFrac - 0.18),
+        mergeAt: xFrac + 0.04,
+      };
+    });
+
+
     // ── Logo preload ──────────────────────────────────────
     const rdorImg = new Image();
     let rdorImgLoaded = false;
