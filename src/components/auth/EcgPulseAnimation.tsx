@@ -154,14 +154,6 @@ export default function EcgPulseAnimation() {
         ctx.shadowColor = "rgba(255,255,255,0.6)"; ctx.shadowBlur = 14;
         ctx.fill(); ctx.shadowBlur = 0;
 
-        icons.forEach(ic => {
-          if (progress > ic.triggerProgress) {
-            const age = (progress - ic.triggerProgress) / (1 - ic.triggerProgress);
-            const a = Math.min(1, age * 3);
-            const rise = Math.min(h * 0.22, age * h * 0.3);
-            ic.draw(ic.xFrac * w, midY - h * 0.1 - rise, iconSize, a * 0.9);
-          }
-        });
 
         drawRedeDOrLogo(slCX, slCY, SMALL_LOGO_H, 0.85);
         drawSubtitle(slCX, slCY + SMALL_LOGO_H / 2 + 14, Math.round(h * 0.019), 0.35);
