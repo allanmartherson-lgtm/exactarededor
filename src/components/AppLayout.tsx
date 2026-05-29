@@ -178,17 +178,6 @@ const ThemeToggle = () => {
 const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnread: number }) => {
   const location = useLocation();
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const containerRef = useRef<HTMLElement | null>(null);
-
-  // Close on outside click
-  useEffect(() => {
-    if (openKey === null) return;
-    const onDown = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpenKey(null);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [openKey]);
 
   // Close on route change
   useEffect(() => {
@@ -197,7 +186,6 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
 
   return (
     <nav
-      ref={containerRef}
       className="flex-1 min-w-0 flex items-center gap-0.5 flex-wrap"
       aria-label="Navegação principal"
     >
@@ -235,7 +223,9 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
             key={item.label}
             item={item}
             isOpen={isOpen}
+            isAnyOpen={openKey !== null}
             groupActive={groupActive}
+            onOpen={() => setOpenKey(item.label)}
             onToggle={() => setOpenKey(isOpen ? null : item.label)}
             onClose={() => setOpenKey(null)}
             currentPath={location.pathname}
@@ -251,20 +241,25 @@ type TopbarGroupItem = Extract<NavItem, { children: unknown }>;
 const TopbarGroup = ({
   item,
   isOpen,
+  isAnyOpen,
   groupActive,
+  onOpen,
   onToggle,
   onClose,
   currentPath,
 }: {
   item: TopbarGroupItem;
   isOpen: boolean;
+  isAnyOpen: boolean;
   groupActive: boolean;
+  onOpen: () => void;
   onToggle: () => void;
   onClose: () => void;
   currentPath: string;
 }) => {
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const openedByHoverRef = useRef(false);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
 
   useLayoutEffect(() => {
@@ -274,7 +269,11 @@ const TopbarGroup = ({
     }
     const update = () => {
       const r = btnRef.current?.getBoundingClientRect();
-      if (r) setPos({ left: r.left, top: r.bottom + 4 });
+      if (r) {
+        const menuWidth = menuRef.current?.offsetWidth ?? 224;
+        const maxLeft = Math.max(8, window.innerWidth - menuWidth - 8);
+        setPos({ left: Math.min(Math.max(8, r.left), maxLeft), top: r.bottom + 4 });
+      }
     };
     update();
     window.addEventListener("resize", update);
@@ -303,7 +302,20 @@ const TopbarGroup = ({
       <button
         ref={btnRef}
         type="button"
-        onClick={onToggle}
+        onMouseEnter={() => {
+          if (isAnyOpen && !isOpen) {
+            openedByHoverRef.current = true;
+            onOpen();
+          }
+        }}
+        onClick={() => {
+          if (isOpen && openedByHoverRef.current) {
+            openedByHoverRef.current = false;
+            return;
+          }
+          openedByHoverRef.current = false;
+          onToggle();
+        }}
         aria-haspopup="menu"
         aria-expanded={isOpen}
         className={cn(
