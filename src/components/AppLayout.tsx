@@ -776,3 +776,18 @@ export const AppLayout = () => {
     </div>
   );
 };
+
+/** Mostra a versão atual do Exacta no rodapé do sidebar, linkando para /sobre. */
+function SidebarVersionFooter() {
+  const { release } = useCurrentVersion();
+  if (!release) return null;
+  return (
+    <Link
+      to="/sobre"
+      className="text-[10px] text-muted-foreground/70 hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted/50"
+      title={`${release.title} — clique para ver o histórico`}
+    >
+      Exacta v{release.version}
+    </Link>
+  );
+}
