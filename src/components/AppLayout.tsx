@@ -411,10 +411,10 @@ export const AppLayout = () => {
             style={linkStyle}
           >
             <IconCmp
-              size={17}
+              size={20}
               strokeWidth={1.75}
               aria-hidden
-              style={{ width: 17, height: 17, flexShrink: 0, color: "inherit" }}
+              style={{ width: 20, height: 20, flexShrink: 0, color: "inherit" }}
             />
             <span
               style={{
