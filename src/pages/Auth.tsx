@@ -140,7 +140,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex">
       {/* Painel esquerdo: animação — visível apenas em lg+ */}
-      <div className="hidden lg:flex lg:w-[55%] relative bg-[#0d1117] overflow-hidden flex-col">
+      <div className="hidden lg:flex lg:w-[55%] relative bg-[#003DA5] overflow-hidden flex-col">
         <div className="absolute inset-0">
           <EcgPulseAnimation />
         </div>
