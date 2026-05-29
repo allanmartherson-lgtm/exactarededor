@@ -223,7 +223,9 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
             key={item.label}
             item={item}
             isOpen={isOpen}
+            isAnyOpen={openKey !== null}
             groupActive={groupActive}
+            onOpen={() => setOpenKey(item.label)}
             onToggle={() => setOpenKey(isOpen ? null : item.label)}
             onClose={() => setOpenKey(null)}
             currentPath={location.pathname}
@@ -239,14 +241,18 @@ type TopbarGroupItem = Extract<NavItem, { children: unknown }>;
 const TopbarGroup = ({
   item,
   isOpen,
+  isAnyOpen,
   groupActive,
+  onOpen,
   onToggle,
   onClose,
   currentPath,
 }: {
   item: TopbarGroupItem;
   isOpen: boolean;
+  isAnyOpen: boolean;
   groupActive: boolean;
+  onOpen: () => void;
   onToggle: () => void;
   onClose: () => void;
   currentPath: string;
@@ -262,7 +268,11 @@ const TopbarGroup = ({
     }
     const update = () => {
       const r = btnRef.current?.getBoundingClientRect();
-      if (r) setPos({ left: r.left, top: r.bottom + 4 });
+      if (r) {
+        const menuWidth = menuRef.current?.offsetWidth ?? 224;
+        const maxLeft = Math.max(8, window.innerWidth - menuWidth - 8);
+        setPos({ left: Math.min(Math.max(8, r.left), maxLeft), top: r.bottom + 4 });
+      }
     };
     update();
     window.addEventListener("resize", update);
@@ -291,6 +301,9 @@ const TopbarGroup = ({
       <button
         ref={btnRef}
         type="button"
+        onMouseEnter={() => {
+          if (isAnyOpen && !isOpen) onOpen();
+        }}
         onClick={onToggle}
         aria-haspopup="menu"
         aria-expanded={isOpen}
