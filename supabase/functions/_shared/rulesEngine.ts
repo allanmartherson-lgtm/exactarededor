@@ -923,7 +923,16 @@ export function selectWinningRule(
 
   const doctorRules  = filterBySpecialty(rules.filter((r) => targetsDoctor(r, item)), "medico");
   const companyRules = filterBySpecialty(rules.filter((r) => targetsCompany(r, item)), "empresa");
-  const groupRules   = filterBySpecialty(rules.filter((r) => targetsGroup(r, item)), "grupo");
+  // Bucket "grupo" dividido em dois níveis:
+  //  - groupDoctorRules: regra de grupo que cita ESTE médico (group_doctors ou link.doctors).
+  //    Vence o nível "grupo amplo" porque a regra é exclusiva do médico,
+  //    independente da PJ pela qual ele esteja faturando no momento.
+  //  - groupCompanyRules: regra de grupo que cobre a PJ inteira (link SEM doctors).
+  //    Só é avaliada se o item não bateu antes em uma regra médico-específica
+  //    — isso "expurga" automaticamente médicos com regra própria.
+  const allGroup     = rules.filter((r) => targetsGroup(r, item));
+  const groupDoctorRules  = filterBySpecialty(allGroup.filter((r) => targetsGroupByDoctor(r, item)), "grupo_doctor");
+  const groupCompanyRules = filterBySpecialty(allGroup.filter((r) => !targetsGroupByDoctor(r, item)), "grupo");
   const sectorRules   = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).length > 0 && intersectsAll(ruleSectors(r).map(s => SECTOR_MAP[normName(s)] || normName(s)), [itemSectorNorm])), "setor");
   const hemoMaster    = isHemo ? filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("hemodinamica")), "setor_hemodinamica_master") : [];
   const generalMaster = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).length === 0), "setor_master_geral");
@@ -934,12 +943,13 @@ export function selectWinningRule(
     withoutCodePriority: RuleMatchPriority;
     enabled?: boolean;
   }> = [
-    { bucket: doctorRules,    withCodePriority: "medico_codigo",  withoutCodePriority: "medico" },
-    { bucket: companyRules,   withCodePriority: "empresa_codigo", withoutCodePriority: "empresa" },
-    { bucket: groupRules,     withCodePriority: "grupo_codigo",   withoutCodePriority: "grupo" },
-    { bucket: sectorRules,    withCodePriority: "setor_codigo",   withoutCodePriority: "setor" },
-    { bucket: hemoMaster,     withCodePriority: "setor_codigo",   withoutCodePriority: "setor_hemodinamica_master", enabled: isHemo },
-    { bucket: generalMaster,  withCodePriority: "setor_codigo",   withoutCodePriority: "setor_master_geral" },
+    { bucket: doctorRules,       withCodePriority: "medico_codigo",        withoutCodePriority: "medico" },
+    { bucket: companyRules,      withCodePriority: "empresa_codigo",       withoutCodePriority: "empresa" },
+    { bucket: groupDoctorRules,  withCodePriority: "grupo_doctor_codigo",  withoutCodePriority: "grupo_doctor" },
+    { bucket: groupCompanyRules, withCodePriority: "grupo_codigo",         withoutCodePriority: "grupo" },
+    { bucket: sectorRules,       withCodePriority: "setor_codigo",         withoutCodePriority: "setor" },
+    { bucket: hemoMaster,        withCodePriority: "setor_codigo",         withoutCodePriority: "setor_hemodinamica_master", enabled: isHemo },
+    { bucket: generalMaster,     withCodePriority: "setor_codigo",         withoutCodePriority: "setor_master_geral" },
   ];
 
   const recordLevel = (
