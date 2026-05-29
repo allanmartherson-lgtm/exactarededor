@@ -189,7 +189,7 @@ export function ConversasDoctorsTab() {
       author_name: authorName || user.email || "Equipe",
       message: reply.trim(),
       payment_id: null,
-    } as never);
+    });
     setSending(false);
     if (!error) {
       setReply("");
