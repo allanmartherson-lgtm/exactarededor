@@ -137,7 +137,6 @@ export default function Pendencias() {
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Pendências"
-        subtitle="Tickets abertos pelas empresas no Portal Parceiro"
         icon={ListChecksIcon as never}
         showBack={false}
       />
