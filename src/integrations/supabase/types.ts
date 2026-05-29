@@ -5013,6 +5013,10 @@ export type Database = {
           type: string
         }[]
       }
+      get_doctor_statement: {
+        Args: { p_competence_month?: string; p_doctor_id: string }
+        Returns: Json
+      }
       get_dre_consolidated: {
         Args: {
           p_company_id?: string
@@ -5153,6 +5157,7 @@ export type Database = {
           esperado: number
           glosas: number
           itens_count: number
+          itens_sem_regra: number
           liquido_estimado: number
           payment_ids: string[]
           status_agregado: string
