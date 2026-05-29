@@ -4599,6 +4599,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_ai_accuracy: {
+        Args: { p_days?: number }
+        Returns: {
+          accuracy_pct: number
+          by_status: Json
+          kept_count: number
+          overridden_count: number
+          total_analyzed: number
+        }[]
+      }
       get_dre_consolidated: {
         Args: {
           p_company_id?: string
@@ -4719,6 +4729,25 @@ export type Database = {
           affected_items: number
           unlinked_pj_pairs: number
           unregistered_doctors: number
+        }[]
+      }
+      get_return_rate: {
+        Args: { p_days?: number }
+        Returns: {
+          return_count: number
+          return_rate_pct: number
+          return_status: string
+          total_in_stage: number
+        }[]
+      }
+      get_stage_dwell_time: {
+        Args: { p_days?: number }
+        Returns: {
+          avg_hours: number
+          p50_hours: number
+          p90_hours: number
+          status: string
+          transitions: number
         }[]
       }
       get_stuck_companies: {
