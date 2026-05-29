@@ -138,10 +138,10 @@ export default function EcgPulseAnimation() {
     }
 
     // ── Phase timings (ms) ────────────────────────────────
-    const T_ECG_END    = 9000;
-    const T_MORPH_END  = 10500;
-    const T_EXACTA_END = 13500;
-    const T_RISE_END   = 16000;
+    const T_ECG_END    = 13000;
+    const T_MORPH_END  = 14800;
+    const T_EXACTA_END = 18500;
+    const T_RISE_END   = 21500;
 
     function drawParticles(ecgProgress: number, elapsed: number) {
       const w = canvas.width;
@@ -159,7 +159,7 @@ export default function EcgPulseAnimation() {
         const driftP      = Math.min(1, Math.max(0, (ecgProgress - p.spawnAt) / driftRange));
         const driftEased  = driftP < 0.5 ? 2*driftP*driftP : -1+(4-2*driftP)*driftP;
 
-        const MERGE_DUR   = 0.15;
+        const MERGE_DUR   = 0.22;
         const mergeP      = Math.min(1, Math.max(0, (ecgProgress - p.mergeAt) / MERGE_DUR));
         const mergeEased  = mergeP < 0.5 ? 2*mergeP*mergeP : -1+(4-2*mergeP)*mergeP;
 
@@ -171,13 +171,10 @@ export default function EcgPulseAnimation() {
         let curXfrac: number;
         let curY: number;
 
-        if (mergeP === 0) {
-          curXfrac = p.xFrac;
-          curY     = startY + floatY + (lineY - startY) * driftEased;
-        } else {
-          curXfrac = p.xFrac + mergeEased * 0.05;
-          curY     = midY + ecgY(curXfrac) * amp;
-        }
+        curXfrac = p.xFrac + mergeEased * 0.07;
+        const driftY = startY + floatY + (lineY - startY) * driftEased;
+        const mergeTargetY = midY + ecgY(curXfrac) * amp;
+        curY = driftY + (mergeTargetY - driftY) * mergeEased;
 
         const curX = curXfrac * w;
 
