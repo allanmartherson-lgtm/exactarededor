@@ -178,7 +178,7 @@ export default function EcgPulseAnimation() {
         for (let px = 0; px <= w; px += 1.5) ctx.lineTo(px, midY + ecgY(px / w) * amp);
         ctx.stroke(); ctx.globalAlpha = 1;
 
-        icons.forEach(ic => ic.draw(ic.xFrac * w, midY - h * 0.32, iconSize, Math.max(0, (1 - ease * 2) * 0.9)));
+        
 
         const cx2 = w / 2, cy2 = midY, sz = Math.min(w, h) * 0.18;
         const p1 = [cx2 - sz, cy2 + sz * 0.1], p2 = [cx2 - sz * 0.15, cy2 + sz * 0.7], p3 = [cx2 + sz, cy2 - sz * 0.55];
