@@ -382,10 +382,6 @@ const TopbarGroup = ({
     </div>
   );
 };
-      })}
-    </nav>
-  );
-};
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   <p
