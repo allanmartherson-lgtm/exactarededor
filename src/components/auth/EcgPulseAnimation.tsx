@@ -232,7 +232,9 @@ export default function EcgPulseAnimation() {
       animId = requestAnimationFrame(draw);
     }
 
-    animId = requestAnimationFrame(draw);
+    document.fonts.ready.then(() => {
+      animId = requestAnimationFrame(draw);
+    });
     return () => {
       cancelAnimationFrame(animId);
       ro.disconnect();
