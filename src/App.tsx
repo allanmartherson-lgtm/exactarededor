@@ -219,6 +219,8 @@ const App = () => (
                   <Route path="/ciclo-nf" element={<NfCycle />} />
                   <Route path="/glosas" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><Glosas /></ProtectedRoute>} />
                   <Route path="/pendencias" element={<Pendencias />} />
+                  <Route path="/pendencias/:id" element={<PendenciaDetail />} />
+                  <Route path="/conversas" element={<Conversas />} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><HealthMonitoring /></ProtectedRoute>} />
                   <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
                   <Route path="/regras/pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
