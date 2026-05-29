@@ -143,6 +143,54 @@ export default function EcgPulseAnimation() {
     const T_EXACTA_END = 5400;
     const T_RISE_END   = 7000;
 
+    function drawParticles(ecgProgress: number, elapsed: number) {
+      particles.forEach(p => {
+        if (ecgProgress < p.spawnAt) return;
+
+        const w = canvas.width;
+        const h = canvas.height;
+        const midY = h * 0.5;
+        const amp = h * 0.30;
+
+        const px = p.xFrac * w;
+
+        const fadeInP = Math.min(1, (ecgProgress - p.spawnAt) / 0.12);
+        const mergeP  = ecgProgress >= p.mergeAt
+          ? Math.min(1, (ecgProgress - p.mergeAt) / 0.08)
+          : 0;
+        const alpha = fadeInP * (1 - mergeP) * 0.82;
+        if (alpha <= 0) return;
+
+        const floatY = Math.sin(elapsed * 0.001 * p.floatSpeed + p.floatPhase) * p.floatAmp * h;
+
+        const targetLineY = midY + ecgY(p.xFrac) * amp;
+        const startY = midY + p.yOffset * h;
+        const convergeFrac = Math.pow(mergeP, 0.6);
+        const curY = startY + floatY + (targetLineY - startY) * convergeFrac;
+
+        if (mergeP > 0.4) {
+          ctx.save();
+          ctx.globalAlpha = (mergeP - 0.4) / 0.6 * 0.35;
+          ctx.fillStyle = 'white';
+          ctx.shadowColor = 'white';
+          ctx.shadowBlur = 18;
+          ctx.beginPath();
+          ctx.arc(px, targetLineY, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#C6A27C';
+        ctx.font = `500 ${Math.round(p.fontSize * h)}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.label, px, curY);
+        ctx.restore();
+      });
+    }
+
     // ── Main draw loop ────────────────────────────────────
     function draw(ts: number) {
       if (stopped) return;
