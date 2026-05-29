@@ -237,21 +237,23 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-2.5 h-9 text-[13px] leading-none font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 min-w-[60px] text-[11px] leading-tight font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 groupActive || isOpen
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <item.icon size={18} weight="regular" strokeWidth={1.5} className="flex-shrink-0" style={{ width: 18, height: 18 }} />
-              <span>{item.label}</span>
-              <ChevronDown
-                className={cn(
-                  "size-3.5 flex-shrink-0 transition-transform duration-150",
-                  isOpen && "rotate-180",
-                )}
-                strokeWidth={1.75}
-              />
+              <item.icon size={20} weight="regular" strokeWidth={1.5} className="flex-shrink-0" style={{ width: 20, height: 20 }} />
+              <span className="inline-flex items-center gap-0.5">
+                {item.label}
+                <ChevronDown
+                  className={cn(
+                    "size-3 flex-shrink-0 transition-transform duration-150",
+                    isOpen && "rotate-180",
+                  )}
+                  strokeWidth={1.75}
+                />
+              </span>
             </button>
 
             {isOpen && (
