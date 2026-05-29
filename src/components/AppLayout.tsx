@@ -210,7 +210,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
               end={item.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "relative inline-flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 min-w-[60px] text-[11px] leading-tight font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "relative inline-flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 min-w-[60px] text-[11px] leading-tight font-bold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -237,7 +237,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={cn(
-                "inline-flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 min-w-[60px] text-[11px] leading-tight font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 min-w-[60px] text-[11px] leading-tight font-bold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 groupActive || isOpen
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
