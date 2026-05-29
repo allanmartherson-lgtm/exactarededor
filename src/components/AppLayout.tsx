@@ -785,7 +785,7 @@ export const AppLayout = () => {
             {MobileNavDrawer}
             <Logo />
             <div className="hidden md:flex flex-1 min-w-0">
-              <TopbarNav items={visibleTopNav} />
+              <TopbarNav items={visibleTopNav} conversasUnread={conversasUnread} />
             </div>
             <div className="flex-1 md:hidden" />
 
