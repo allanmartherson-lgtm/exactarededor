@@ -62,6 +62,7 @@ const loadSystemReleases = () => import("./pages/SystemReleases.tsx");
 const loadFeatureFlagsAdmin = () => import("./pages/FeatureFlagsAdmin.tsx");
 const loadSystemAnnouncementsAdmin = () => import("./pages/SystemAnnouncementsAdmin.tsx");
 const loadFinancialJournal = () => import("./pages/FinancialJournal.tsx");
+const loadDreReport = () => import("./pages/DreReport.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
