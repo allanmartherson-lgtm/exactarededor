@@ -63,6 +63,7 @@ const loadFeatureFlagsAdmin = () => import("./pages/FeatureFlagsAdmin.tsx");
 const loadSystemAnnouncementsAdmin = () => import("./pages/SystemAnnouncementsAdmin.tsx");
 const loadFinancialJournal = () => import("./pages/FinancialJournal.tsx");
 const loadDreReport = () => import("./pages/DreReport.tsx");
+const loadMoneyHealth = () => import("./pages/MoneyHealth.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -109,6 +110,7 @@ const FeatureFlagsAdmin = lazy(loadFeatureFlagsAdmin);
 const SystemAnnouncementsAdmin = lazy(loadSystemAnnouncementsAdmin);
 const FinancialJournal = lazy(loadFinancialJournal);
 const DreReport = lazy(loadDreReport);
+const MoneyHealth = lazy(loadMoneyHealth);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -237,6 +239,7 @@ const App = () => (
                   <Route path="/sistema/avisos" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemAnnouncementsAdmin /></ProtectedRoute>} />
                   <Route path="/sistema/journal" element={<ProtectedRoute roles={["admin", "diretor"]}><FinancialJournal /></ProtectedRoute>} />
                   <Route path="/relatorios/dre" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><DreReport /></ProtectedRoute>} />
+                  <Route path="/relatorios/saude-dinheiro" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><MoneyHealth /></ProtectedRoute>} />
                   <Route path="/wcag-audit" element={<WcagAudit />} />
                   <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
                   <Route path="/diagnostico/overflow" element={<OverflowAudit />} />

@@ -4630,6 +4630,29 @@ export type Database = {
         }
         Returns: number
       }
+      get_money_anomalies: {
+        Args: { p_days?: number }
+        Returns: {
+          anomaly_type: string
+          baseline_value: number
+          details: Json
+          detected_at: string
+          entity_id: string
+          entity_name: string
+          metric_value: number
+          severity: string
+        }[]
+      }
+      get_money_funnel: {
+        Args: { p_end_date?: string; p_start_date?: string }
+        Returns: {
+          avg_age_days: number
+          payment_count: number
+          stage: string
+          stage_order: number
+          total_value: number
+        }[]
+      }
       get_open_position: {
         Args: { p_company_id?: string }
         Returns: {
@@ -4696,6 +4719,17 @@ export type Database = {
           affected_items: number
           unlinked_pj_pairs: number
           unregistered_doctors: number
+        }[]
+      }
+      get_stuck_companies: {
+        Args: { p_limit?: number }
+        Returns: {
+          company_id: string
+          company_name: string
+          max_age_days: number
+          stuck_count: number
+          total_stuck_value: number
+          worst_status: string
         }[]
       }
       has_role: {
