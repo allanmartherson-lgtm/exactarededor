@@ -4773,6 +4773,36 @@ export type Database = {
           status_to: string
         }[]
       }
+      get_portal_thread_messages: {
+        Args: { p_payment_id: string; p_payment_item_id?: string }
+        Returns: {
+          author_name: string
+          author_type: string
+          created_at: string
+          id: string
+          message: string
+          read_by_doctor_at: string
+        }[]
+      }
+      get_portal_threads: {
+        Args: never
+        Returns: {
+          competence_month: string
+          last_author_name: string
+          last_author_type: string
+          last_message: string
+          last_message_at: string
+          payment_id: string
+          payment_item_id: string
+          payment_reference: string
+          procedure_code: string
+          procedure_name: string
+          thread_key: string
+          total_count: number
+          unread_count: number
+        }[]
+      }
+      get_portal_unread_count: { Args: never; Returns: number }
       get_registration_pending_doctors: {
         Args: never
         Returns: {
@@ -4910,6 +4940,10 @@ export type Database = {
         Args: { _ctype: string }
         Returns: string
       }
+      mark_portal_thread_read: {
+        Args: { p_payment_id: string; p_payment_item_id?: string }
+        Returns: number
+      }
       merge_doctors_from_staging: { Args: never; Returns: Json }
       norm_for_hash: { Args: { s: string }; Returns: string }
       norm_name: { Args: { t: string }; Returns: string }
@@ -4922,6 +4956,14 @@ export type Database = {
         Returns: boolean
       }
       portal_current_doctor_id: { Args: never; Returns: string }
+      post_portal_message: {
+        Args: {
+          p_message: string
+          p_payment_id: string
+          p_payment_item_id?: string
+        }
+        Returns: string
+      }
       question_company_group: {
         Args: {
           p_author_id: string
