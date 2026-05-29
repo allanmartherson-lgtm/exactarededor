@@ -77,6 +77,17 @@ export const InvoiceQuestionsThread = ({
   };
 
   useEffect(() => {
+    // Marca as perguntas da empresa (recebedor) como lidas assim que o analista
+    // abre a thread — assim a notificação "Empresa enviou um questionamento na NF"
+    // não renasce a cada refresh (loadPendingCompanyQuestions em useQueueNotifications
+    // filtra por read_at IS NULL).
+    void supabase
+      .from("invoice_questions")
+      .update({ read_at: new Date().toISOString() })
+      .eq("invoice_id", invoiceId)
+      .eq("author_type", "recebedor")
+      .is("read_at", null);
+
     if (initial) {
       loadAttachments(initial.map((q) => q.id));
       return;
