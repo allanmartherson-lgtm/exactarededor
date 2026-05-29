@@ -231,84 +231,157 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
         const isOpen = openKey === item.label;
 
         return (
-          <div key={item.label} className="relative">
-            <button
-              type="button"
-              onClick={() => setOpenKey(isOpen ? null : item.label)}
-              aria-haspopup="menu"
-              aria-expanded={isOpen}
-              className={cn(
-                "inline-flex flex-col items-center justify-center gap-1 rounded-md px-3 py-1 min-w-[72px] text-[11px] leading-tight font-bold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                groupActive || isOpen
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <item.icon size={20} weight="fill" strokeWidth={2.25} className="flex-shrink-0" style={{ width: 20, height: 20 }} />
-              <span className="inline-flex items-center gap-0.5">
-                {item.label}
-                <ChevronDown
-                  className={cn(
-                    "size-3 flex-shrink-0 transition-transform duration-150",
-                    isOpen && "rotate-180",
-                  )}
-                  strokeWidth={1.75}
-                />
-              </span>
-            </button>
+          <TopbarGroup
+            key={item.label}
+            item={item}
+            isOpen={isOpen}
+            groupActive={groupActive}
+            onToggle={() => setOpenKey(isOpen ? null : item.label)}
+            onClose={() => setOpenKey(null)}
+            currentPath={location.pathname}
+          />
+        );
+      })}
+    </nav>
+  );
+};
 
-            {isOpen && (
-              <div
-                role="menu"
-                className="absolute left-0 top-full mt-1 animate-fade-in"
+type TopbarGroupItem = Extract<NavItem, { children: unknown }>;
+
+const TopbarGroup = ({
+  item,
+  isOpen,
+  groupActive,
+  onToggle,
+  onClose,
+  currentPath,
+}: {
+  item: TopbarGroupItem;
+  isOpen: boolean;
+  groupActive: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  currentPath: string;
+}) => {
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setPos(null);
+      return;
+    }
+    const update = () => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (r) setPos({ left: r.left, top: r.bottom + 4 });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [isOpen]);
+
+  // Close on outside click (portal escapes the nav's outside-click handler)
+  useEffect(() => {
+    if (!isOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t)) return;
+      if (menuRef.current?.contains(t)) return;
+      onClose();
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [isOpen, onClose]);
+
+  return (
+    <div className="relative">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={onToggle}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        className={cn(
+          "inline-flex flex-col items-center justify-center gap-1 rounded-md px-3 py-1 min-w-[72px] text-[11px] leading-tight font-bold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          groupActive || isOpen
+            ? "bg-accent text-accent-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        )}
+      >
+        <item.icon size={20} weight="fill" strokeWidth={2.25} className="flex-shrink-0" style={{ width: 20, height: 20 }} />
+        <span className="inline-flex items-center gap-0.5">
+          {item.label}
+          <ChevronDown
+            className={cn(
+              "size-3 flex-shrink-0 transition-transform duration-150",
+              isOpen && "rotate-180",
+            )}
+            strokeWidth={1.75}
+          />
+        </span>
+      </button>
+
+      {isOpen && pos && createPortal(
+        <div
+          ref={menuRef}
+          role="menu"
+          className="animate-fade-in"
+          style={{
+            position: "fixed",
+            left: pos.left,
+            top: pos.top,
+            minWidth: 192,
+            zIndex: 9999,
+            background: "hsl(var(--card))",
+            border: "0.5px solid hsl(var(--border))",
+            borderRadius: 8,
+            boxShadow: "var(--shadow-elevated)",
+            padding: 4,
+          }}
+        >
+          {item.children.map((c) => {
+            const childActive =
+              c.to === "/" ? currentPath === "/" : currentPath.startsWith(c.to);
+            return (
+              <NavLink
+                key={c.to}
+                to={c.to}
+                role="menuitem"
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-2.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  !childActive && "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
                 style={{
-                  minWidth: 192,
-                  zIndex: 200,
-                  background: "hsl(var(--card))",
-                  border: "0.5px solid hsl(var(--border))",
-                  borderRadius: 8,
-                  boxShadow: "var(--shadow-elevated)",
-                  padding: 4,
+                  padding: "7px 10px",
+                  borderRadius: 6,
+                  fontSize: 13.5,
+                  fontWeight: childActive ? 500 : 400,
+                  background: childActive ? "hsl(var(--accent))" : undefined,
+                  color: childActive ? "hsl(var(--accent-foreground))" : undefined,
                 }}
               >
-                {item.children.map((c) => {
-                  const childActive =
-                    c.to === "/"
-                      ? location.pathname === "/"
-                      : location.pathname.startsWith(c.to);
-                  return (
-                    <NavLink
-                      key={c.to}
-                      to={c.to}
-                      role="menuitem"
-                      onClick={() => setOpenKey(null)}
-                      className={cn(
-                        "flex items-center gap-2.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        !childActive && "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      )}
-                      style={{
-                        padding: "7px 10px",
-                        borderRadius: 6,
-                        fontSize: 13.5,
-                        fontWeight: childActive ? 500 : 400,
-                        background: childActive ? "hsl(var(--accent))" : undefined,
-                        color: childActive ? "hsl(var(--accent-foreground))" : undefined,
-                      }}
-                    >
-                      <c.icon
-                        size={17}
-                        strokeWidth={1.75}
-                        className="flex-shrink-0"
-                        style={{ color: "inherit" }}
-                      />
-                      <span className="truncate">{c.label}</span>
-                    </NavLink>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
+                <c.icon
+                  size={17}
+                  strokeWidth={1.75}
+                  className="flex-shrink-0"
+                  style={{ color: "inherit" }}
+                />
+                <span className="truncate">{c.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+};
       })}
     </nav>
   );
