@@ -1324,8 +1324,8 @@ function ItemDetailsRow({
     { label: "Procedimento", value: getProcedureName(it) },
     { label: "Médico", value: it.doctor_name ?? "—" },
     { label: "Função", value: getDoctorRole(it) },
-    { label: "Setor (Planilha)", value: formatSectorName(it.sector) },
-    { label: "Setor (Sistema)", value: formatSectorName((it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? null) },
+    { label: "Setor (Planilha)", value: formatSectorName(rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]) ?? it.sector ?? null) },
+    { label: "Setor (Sistema)", value: formatSectorName((it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]) ?? null) },
   ];
 
   const fmtDate = (d: string | null | undefined) => {
