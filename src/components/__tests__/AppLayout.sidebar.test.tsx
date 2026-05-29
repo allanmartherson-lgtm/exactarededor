@@ -65,6 +65,7 @@ const EXPECTED_ORDER = [
   "Versões e Releases",
   "Feature Flags",
   "Avisos do Sistema",
+  "Livro Contábil",
   "Sobre o Exacta",
 ];
 

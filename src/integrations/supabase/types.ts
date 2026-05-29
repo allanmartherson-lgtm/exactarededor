@@ -1037,6 +1037,84 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_journal: {
+        Row: {
+          company_id: string | null
+          competencia: string | null
+          context: Json
+          cost_center_id: string | null
+          created_at: string
+          created_by: string | null
+          doctor_id: string | null
+          id: string
+          operation_id: string
+          payment_id: string | null
+          payment_item_id: string | null
+          reason: string | null
+          referencia: string | null
+          reversed_by_entry_id: string | null
+          reverses_entry_id: string | null
+          sinal: number
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          company_id?: string | null
+          competencia?: string | null
+          context?: Json
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          id?: string
+          operation_id: string
+          payment_id?: string | null
+          payment_item_id?: string | null
+          reason?: string | null
+          referencia?: string | null
+          reversed_by_entry_id?: string | null
+          reverses_entry_id?: string | null
+          sinal: number
+          tipo: string
+          valor: number
+        }
+        Update: {
+          company_id?: string | null
+          competencia?: string | null
+          context?: Json
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          id?: string
+          operation_id?: string
+          payment_id?: string | null
+          payment_item_id?: string | null
+          reason?: string | null
+          referencia?: string | null
+          reversed_by_entry_id?: string | null
+          reverses_entry_id?: string | null
+          sinal?: number
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_journal_reversed_by_entry_id_fkey"
+            columns: ["reversed_by_entry_id"]
+            isOneToOne: false
+            referencedRelation: "financial_journal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_journal_reverses_entry_id_fkey"
+            columns: ["reverses_entry_id"]
+            isOneToOne: false
+            referencedRelation: "financial_journal"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       glosa_batches: {
         Row: {
           competence_month: string | null
@@ -4521,6 +4599,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_journal_balance: {
+        Args: {
+          p_company_id?: string
+          p_competencia_from?: string
+          p_competencia_to?: string
+          p_doctor_id?: string
+        }
+        Returns: number
+      }
       get_payment_pivot:
         | {
             Args: {
@@ -4686,6 +4773,25 @@ export type Database = {
         Args: { _payment_id: string }
         Returns: undefined
       }
+      record_journal_entry: {
+        Args: {
+          p_company_id?: string
+          p_competencia?: string
+          p_context?: Json
+          p_cost_center_id?: string
+          p_created_by?: string
+          p_doctor_id?: string
+          p_operation_id: string
+          p_payment_id?: string
+          p_payment_item_id?: string
+          p_reason?: string
+          p_referencia?: string
+          p_sinal: number
+          p_tipo: string
+          p_valor: number
+        }
+        Returns: string
+      }
       record_status_anomaly: {
         Args: {
           _context?: Json
@@ -4721,6 +4827,10 @@ export type Database = {
           p_payment_id: string
         }
         Returns: undefined
+      }
+      reverse_journal_entry: {
+        Args: { p_created_by?: string; p_entry_id: string; p_reason: string }
+        Returns: string
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
       show_limit: { Args: never; Returns: number }

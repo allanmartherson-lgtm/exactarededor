@@ -35,6 +35,7 @@ import {
   Flag,
   Megaphone,
   Info,
+  BookOpen,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -157,6 +158,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/sistema/versoes", label: "Versões e Releases", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
       { to: "/sistema/feature-flags", label: "Feature Flags", icon: Flag, iconName: "Flag", roles: ["admin", "diretor"] },
       { to: "/sistema/avisos", label: "Avisos do Sistema", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor"] },
+      { to: "/sistema/journal", label: "Livro Contábil", icon: BookOpen, iconName: "BookOpen", roles: ["admin", "diretor"] },
       { to: "/sobre", label: "Sobre o Exacta", icon: Info, iconName: "Info", roles: ALL_ROLES },
     ],
   },
@@ -199,6 +201,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Versões e Releases", iconName: "Rocket" },
   { label: "Feature Flags", iconName: "Flag" },
   { label: "Avisos do Sistema", iconName: "Megaphone" },
+  { label: "Livro Contábil", iconName: "BookOpen" },
   { label: "Sobre o Exacta", iconName: "Info" },
 ];
 
