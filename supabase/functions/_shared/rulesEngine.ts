@@ -87,8 +87,11 @@ export interface RuleInput {
    */
   group_company_links?: { company_id: string; doctors?: { name?: string; crm?: string }[] }[] | null;
   /**
-   * Médicos avulsos (sem PJ). Casa por nome+CRM em qualquer empresa do item.
-   * Útil para acordos pessoais que seguem o médico independente do CNPJ que faturar.
+   * Médicos específicos da regra. Casa por nome+CRM em qualquer empresa do item.
+   * Útil para acordos pessoais que seguem o médico independente do CNPJ que
+   * faturar. O motor promove regras desse tipo a um nível de prioridade
+   * (`grupo_doctor`) acima das regras de PJ inteira (`grupo`), de modo que o
+   * médico fica automaticamente "expurgado" de regras amplas da PJ dele.
    */
   group_doctors?: { name?: string; crm?: string }[] | null;
   bonus_amount?: number | null;
