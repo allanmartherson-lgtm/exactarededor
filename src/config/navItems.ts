@@ -12,11 +12,9 @@ import {
   Users,
   History,
   Settings,
-  ScrollText,
   Timer,
   BadgeDollarSign,
   Stethoscope,
-  Sparkles,
   AlertTriangle,
   FlaskConical,
   Layers,
@@ -36,7 +34,7 @@ import {
   Megaphone,
   Info,
   BookOpen,
-} from "lucide-react";
+} from "@/config/icons/navIcons";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
 
