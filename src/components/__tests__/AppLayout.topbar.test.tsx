@@ -50,7 +50,7 @@ const EXPECTED_TOPBAR_TOP_LEVEL = [
 
 const EXPECTED_GROUP_CHILDREN: Record<string, string[]> = {
   Financeiro: ["Pagamentos", "Pedidos de NF", "Ciclo de NF", "Glosas e Conciliação"],
-  Relatórios: ["KPIs", "Executivo", "DRE &\ Posição em Aberto", "Recebíveis", "Inteligência Financeira"],
+  Relatórios: ["KPIs", "Executivo", "DRE & Posição em Aberto", "Recebíveis", "Inteligência Financeira"],
   "Inteligência de Regras": [
     "Regras de Pagamento",
     "Regras de Validação",
