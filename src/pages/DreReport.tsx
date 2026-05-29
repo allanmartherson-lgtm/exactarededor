@@ -256,6 +256,50 @@ export default function DreReport() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={drillOpen} onOpenChange={setDrillOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Drill-down — {drillTitle}</DialogTitle>
+          </DialogHeader>
+          {drillLoading ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">Carregando…</p>
+          ) : drillRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">Sem pagamentos para este recorte.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Referência</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Itens</TableHead>
+                  <TableHead className="text-right">Bruto</TableHead>
+                  <TableHead className="text-right">Glosas</TableHead>
+                  <TableHead className="text-right">Líquido</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {drillRows.map((d) => (
+                  <TableRow key={d.payment_id}>
+                    <TableCell className="font-mono text-xs">{d.reference}</TableCell>
+                    <TableCell><Badge variant="outline">{d.status}</Badge></TableCell>
+                    <TableCell className="text-right">{d.items_count}</TableCell>
+                    <TableCell className="text-right">{fmt(d.bruto)}</TableCell>
+                    <TableCell className="text-right text-red-600">{fmt(d.glosas)}</TableCell>
+                    <TableCell className="text-right font-semibold">{fmt(d.liquido)}</TableCell>
+                    <TableCell>
+                      <Link to={`/pagamentos/${d.payment_id}`} className="text-primary inline-flex items-center gap-1 text-xs">
+                        Abrir <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
