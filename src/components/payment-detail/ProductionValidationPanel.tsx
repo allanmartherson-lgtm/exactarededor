@@ -106,7 +106,7 @@ export function ProductionValidationPanel({ paymentId, currentUserId, onChanged 
   const openCount = validations.reduce((s, v) =>
     s + v.feedbacks.filter(f => f.status === "aberto").length, 0);
   const allExpired = validations.every(v => v.status === "expirado");
-  const [sectionOpen, setSectionOpen] = useState(!allExpired || openCount > 0);
+
 
   return (
     <div className="space-y-2">
