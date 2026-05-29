@@ -201,6 +201,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Versões e Releases", iconName: "Rocket" },
   { label: "Feature Flags", iconName: "Flag" },
   { label: "Avisos do Sistema", iconName: "Megaphone" },
+  { label: "Livro Contábil", iconName: "BookOpen" },
   { label: "Sobre o Exacta", iconName: "Info" },
 ];
 
