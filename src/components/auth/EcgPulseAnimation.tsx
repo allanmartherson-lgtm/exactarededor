@@ -189,8 +189,10 @@ export default function EcgPulseAnimation() {
         ctx.shadowColor = "rgba(255,255,255,0.6)"; ctx.shadowBlur = 14;
         ctx.fill(); ctx.shadowBlur = 0;
 
-
+        // Partículas financeiras
+        drawParticles(progress, elapsed);
       }
+
 
       // ── FASE 2: Morph ────────────────────────────────
       if (elapsed >= T_ECG_END && elapsed < T_MORPH_END) {
