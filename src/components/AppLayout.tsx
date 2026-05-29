@@ -259,6 +259,7 @@ const TopbarGroup = ({
 }) => {
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const openedByHoverRef = useRef(false);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
 
   useLayoutEffect(() => {
@@ -302,9 +303,19 @@ const TopbarGroup = ({
         ref={btnRef}
         type="button"
         onMouseEnter={() => {
-          if (isAnyOpen && !isOpen) onOpen();
+          if (isAnyOpen && !isOpen) {
+            openedByHoverRef.current = true;
+            onOpen();
+          }
         }}
-        onClick={onToggle}
+        onClick={() => {
+          if (isOpen && openedByHoverRef.current) {
+            openedByHoverRef.current = false;
+            return;
+          }
+          openedByHoverRef.current = false;
+          onToggle();
+        }}
         aria-haspopup="menu"
         aria-expanded={isOpen}
         className={cn(
