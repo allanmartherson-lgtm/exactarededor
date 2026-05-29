@@ -21,6 +21,36 @@ export default function EcgPulseAnimation() {
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
+    function drawExactaText(cx: number, baseY: number, fontSize: number, alpha: number) {
+      if (alpha <= 0) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+
+      const font = `400 ${fontSize}px 'Playfair Display', Georgia, serif`;
+      ctx.font = font;
+
+      const wE = ctx.measureText("E").width;
+      const wx = ctx.measureText("x").width;
+      const wacta = ctx.measureText("acta").width;
+      const totalW = wE + wx + wacta;
+      let startX = cx - totalW / 2;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText("E", startX, baseY);
+      startX += wE;
+
+      ctx.fillStyle = "#C8A96E";
+      ctx.fillText("x", startX, baseY);
+      startX += wx;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText("acta", startX, baseY);
+
+      ctx.restore();
+    }
+
     // Gera pontos do traçado ECG normalizado (0..1 em x, amplitude em y)
     function ecgY(t: number): number {
       if (t < 0.12) return 0;
@@ -34,6 +64,7 @@ export default function EcgPulseAnimation() {
       if (t < 0.68) return -0.28 * Math.sin(((t - 0.52) / 0.16) * Math.PI); // onda T
       return 0;
     }
+
 
     function draw(ts: number) {
       if (!startTime) startTime = ts;
