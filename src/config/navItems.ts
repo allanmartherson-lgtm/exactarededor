@@ -36,6 +36,7 @@ import {
   BookOpen,
   HeadsetIcon,
   ListChecksIcon,
+  ChatsIcon,
 } from "@/config/icons/navIcons";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
