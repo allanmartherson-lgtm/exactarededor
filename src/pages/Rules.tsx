@@ -1685,8 +1685,8 @@ const Rules = () => {
                                 const nm = co?.name ?? link.company_id.slice(0, 8);
                                 parts.push(`${nm} — ${link.doctors.length === 0 ? "todos os médicos" : `${link.doctors.length} médico(s)`}`);
                               }
-                              if (fGroupDoctors.length > 0) parts.push(`Médicos avulsos: ${fGroupDoctors.map((d) => d.name).join(", ")}`);
-                              return parts.length ? `Aplica para ${parts.join("; ")}` : "Grupo · adicione empresa(s) ou médico(s) avulso(s)";
+                              if (fGroupDoctors.length > 0) parts.push(`Médicos específicos: ${fGroupDoctors.map((d) => d.name).join(", ")}`);
+                              return parts.length ? `Aplica para ${parts.join("; ")}` : "Grupo · adicione empresa(s) ou médico(s) específico(s)";
                             })()
                           : RULE_SCOPE_LABELS[scope];
                       const calc = fNature === "informativo"
@@ -1956,7 +1956,7 @@ const Rules = () => {
                                     </div>
 
                                     {fGroupLinks.length === 0 && (
-                                      <p className="text-xs text-muted-foreground italic">Nenhuma empresa vinculada. Clique em "Adicionar empresa" ou use médicos avulsos abaixo.</p>
+                                      <p className="text-xs text-muted-foreground italic">Nenhuma empresa vinculada. Clique em "Adicionar empresa" ou use médicos específicos abaixo.</p>
                                     )}
 
                                     {fGroupLinks.length > 0 && (
@@ -2178,8 +2178,8 @@ const Rules = () => {
 
                                   <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
                                     <div>
-                                      <Label className="text-sm font-semibold">Médicos avulsos (sem empresa)</Label>
-                                      <p className="text-xs text-muted-foreground">Use quando o acordo segue o médico, independente da PJ que faturar (ex.: Dr. Narcélio recebe o acordo Coluna mesmo faturando por qualquer CNPJ). Casa por nome+CRM em qualquer empresa do item. Pode ser combinado com os vínculos por empresa acima — o motor aceita os dois caminhos (OR).</p>
+                                      <Label className="text-sm font-semibold">Médicos específicos (regra exclusiva para eles)</Label>
+                                      <p className="text-xs text-muted-foreground">Use quando o acordo segue o médico, não a PJ. Os médicos listados aqui recebem ESTA regra em qualquer empresa pela qual estejam faturando — e ficam automaticamente <strong>expurgados</strong> de outras regras que cubram a PJ inteira deles. Casa por nome+CRM em qualquer empresa do item. Pode ser combinado com os vínculos por empresa acima (OR).</p>
                                     </div>
                                     <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
                                   </div>
