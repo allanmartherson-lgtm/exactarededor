@@ -33,6 +33,9 @@ import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/confi
 import { useQueueNotifications } from "@/hooks/useQueueNotifications";
 import { NotificationBell } from "@/components/NotificationBell";
 import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
+import { SystemAnnouncementBanner } from "@/components/SystemAnnouncementBanner";
+import { useCurrentVersion } from "@/hooks/useSystemVersion";
+import { Link } from "react-router-dom";
 
 // Re-export for backward compatibility with existing importers (tests, diagnostic page).
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
@@ -599,6 +602,7 @@ export const AppLayout = () => {
             </div>
           </div>
         </header>
+        <SystemAnnouncementBanner />
 
         <main
           className="flex-1 min-w-0 nav-main"
@@ -716,6 +720,7 @@ export const AppLayout = () => {
             <ThemeToggle />
             <LayoutToggle />
           </div>
+          <SidebarVersionFooter />
         </div>
       </aside>
 
