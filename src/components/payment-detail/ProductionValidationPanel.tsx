@@ -104,20 +104,38 @@ export function ProductionValidationPanel({ paymentId, currentUserId, onChanged 
 
   const openCount = validations.reduce((s, v) =>
     s + v.feedbacks.filter(f => f.status === "aberto").length, 0);
+  const allExpired = validations.every(v => v.status === "expirado");
+  const [sectionOpen, setSectionOpen] = useState(!allExpired || openCount > 0);
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setSectionOpen(o => !o)}
+        className="w-full flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
+      >
         <Building2 className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">Validações da empresa</span>
+        <Badge variant="outline" className="text-[10px]">
+          {validations.length}
+        </Badge>
         {openCount > 0 && (
           <Badge variant="outline" className="bg-warning-soft text-warning-text border-warning/30 text-[10px]">
             {openCount} pendente{openCount > 1 ? "s" : ""}
           </Badge>
         )}
-      </div>
+        {allExpired && openCount === 0 && (
+          <span className="text-[10px] text-muted-foreground">(todas expiradas)</span>
+        )}
+        <span className="ml-auto">
+          {sectionOpen
+            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </span>
+      </button>
 
-      {validations.map(v => {
+      {sectionOpen && validations.map(v => {
+
         const isExpanded = expanded.has(v.id);
         const pendentes = v.feedbacks.filter(f => f.status === "aberto").length;
         return (
