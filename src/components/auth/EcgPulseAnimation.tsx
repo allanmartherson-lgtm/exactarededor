@@ -159,7 +159,7 @@ export default function EcgPulseAnimation() {
         const driftP      = Math.min(1, Math.max(0, (ecgProgress - p.spawnAt) / driftRange));
         const driftEased  = driftP < 0.5 ? 2*driftP*driftP : -1+(4-2*driftP)*driftP;
 
-        const MERGE_DUR   = 0.15;
+        const MERGE_DUR   = 0.22;
         const mergeP      = Math.min(1, Math.max(0, (ecgProgress - p.mergeAt) / MERGE_DUR));
         const mergeEased  = mergeP < 0.5 ? 2*mergeP*mergeP : -1+(4-2*mergeP)*mergeP;
 
