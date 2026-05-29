@@ -824,6 +824,78 @@ export type Database = {
           },
         ]
       }
+      doctor_notification_preferences: {
+        Row: {
+          doctor_id: string
+          email_enabled: boolean
+          notify_new_message: boolean
+          notify_new_payment: boolean
+          notify_status_change: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          doctor_id: string
+          email_enabled?: boolean
+          notify_new_message?: boolean
+          notify_new_payment?: boolean
+          notify_status_change?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          doctor_id?: string
+          email_enabled?: boolean
+          notify_new_message?: boolean
+          notify_new_payment?: boolean
+          notify_status_change?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      doctor_notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          doctor_id: string
+          id: string
+          link_path: string | null
+          payment_id: string | null
+          payment_item_id: string | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          doctor_id: string
+          id?: string
+          link_path?: string | null
+          payment_id?: string | null
+          payment_item_id?: string | null
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          link_path?: string | null
+          payment_id?: string | null
+          payment_item_id?: string | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       doctor_portal_users: {
         Row: {
           accepted_at: string | null
@@ -4547,6 +4619,18 @@ export type Database = {
         Returns: string
       }
       delete_payment_batch: { Args: { p_payment_id: string }; Returns: Json }
+      enqueue_doctor_notification: {
+        Args: {
+          p_body: string
+          p_doctor_id: string
+          p_link_path?: string
+          p_payment_id?: string
+          p_payment_item_id?: string
+          p_title: string
+          p_type: string
+        }
+        Returns: number
+      }
       enqueue_notification: {
         Args: {
           p_debounce_seconds?: number
@@ -4607,6 +4691,30 @@ export type Database = {
           kept_count: number
           overridden_count: number
           total_analyzed: number
+        }[]
+      }
+      get_doctor_notification_preferences: {
+        Args: never
+        Returns: {
+          email_enabled: boolean
+          notify_new_message: boolean
+          notify_new_payment: boolean
+          notify_status_change: boolean
+        }[]
+      }
+      get_doctor_notification_unread_count: { Args: never; Returns: number }
+      get_doctor_notifications: {
+        Args: { p_limit?: number }
+        Returns: {
+          body: string
+          created_at: string
+          id: string
+          link_path: string
+          payment_id: string
+          payment_item_id: string
+          read_at: string
+          title: string
+          type: string
         }[]
       }
       get_dre_consolidated: {
@@ -4940,6 +5048,11 @@ export type Database = {
         Args: { _ctype: string }
         Returns: string
       }
+      mark_all_doctor_notifications_read: { Args: never; Returns: number }
+      mark_doctor_notification_read: {
+        Args: { p_id: string }
+        Returns: boolean
+      }
       mark_portal_thread_read: {
         Args: { p_payment_id: string; p_payment_item_id?: string }
         Returns: number
@@ -5050,6 +5163,15 @@ export type Database = {
       unaccent: { Args: { "": string }; Returns: string }
       undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
       unignore_glosa_debt: { Args: { _debt_id: string }; Returns: undefined }
+      update_doctor_notification_preferences: {
+        Args: {
+          p_email_enabled: boolean
+          p_notify_new_message: boolean
+          p_notify_new_payment: boolean
+          p_notify_status_change: boolean
+        }
+        Returns: undefined
+      }
       validate_rule_save: {
         Args: {
           _group_company_links: Json
