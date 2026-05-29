@@ -5414,6 +5414,10 @@ export type Database = {
         Args: { _key: string; _user_id: string }
         Returns: boolean
       }
+      is_payment_in_analyst_phase: {
+        Args: { p_payment_id: string }
+        Returns: boolean
+      }
       is_valid_status_transition: {
         Args: {
           _from: Database["public"]["Enums"]["payment_status"]
