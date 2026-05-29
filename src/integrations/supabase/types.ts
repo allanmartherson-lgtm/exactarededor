@@ -312,6 +312,7 @@ export type Database = {
           invoice_emails: string[]
           name: string
           notes: string | null
+          tem_pool: boolean
           updated_at: string
         }
         Insert: {
@@ -323,6 +324,7 @@ export type Database = {
           invoice_emails?: string[]
           name: string
           notes?: string | null
+          tem_pool?: boolean
           updated_at?: string
         }
         Update: {
@@ -334,6 +336,7 @@ export type Database = {
           invoice_emails?: string[]
           name?: string
           notes?: string | null
+          tem_pool?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -2339,6 +2342,8 @@ export type Database = {
           doctor_id: string | null
           doctor_name: string
           doctor_role: string | null
+          empresa_liquido_total: number | null
+          empresa_tem_pool: boolean
           exception_attachment_path: string | null
           exception_authorizer: string | null
           exception_marked_at: string | null
@@ -2359,6 +2364,7 @@ export type Database = {
           procedure_date: string | null
           procedure_name: string | null
           quantity: number | null
+          rateio: Json | null
           raw_data: Json | null
           sector: string | null
           specialty: string | null
@@ -2395,6 +2401,8 @@ export type Database = {
           doctor_id?: string | null
           doctor_name: string
           doctor_role?: string | null
+          empresa_liquido_total?: number | null
+          empresa_tem_pool?: boolean
           exception_attachment_path?: string | null
           exception_authorizer?: string | null
           exception_marked_at?: string | null
@@ -2415,6 +2423,7 @@ export type Database = {
           procedure_date?: string | null
           procedure_name?: string | null
           quantity?: number | null
+          rateio?: Json | null
           raw_data?: Json | null
           sector?: string | null
           specialty?: string | null
@@ -2451,6 +2460,8 @@ export type Database = {
           doctor_id?: string | null
           doctor_name?: string
           doctor_role?: string | null
+          empresa_liquido_total?: number | null
+          empresa_tem_pool?: boolean
           exception_attachment_path?: string | null
           exception_authorizer?: string | null
           exception_marked_at?: string | null
@@ -2471,6 +2482,7 @@ export type Database = {
           procedure_date?: string | null
           procedure_name?: string | null
           quantity?: number | null
+          rateio?: Json | null
           raw_data?: Json | null
           sector?: string | null
           specialty?: string | null
