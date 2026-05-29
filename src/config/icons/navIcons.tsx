@@ -18,7 +18,6 @@ import {
   Wallet as PhWallet,
   Receipt as PhReceipt,
   FileX,
-  FileMagnifyingGlass,
   ShieldSlash,
   ChartBar,
   ChartBarHorizontal,
