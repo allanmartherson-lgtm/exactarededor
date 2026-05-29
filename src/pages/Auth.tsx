@@ -144,16 +144,12 @@ const Auth = () => {
         <div className="absolute inset-0">
           <EcgPulseAnimation />
         </div>
-        {/* Branding Rede D'Or no canto inferior esquerdo */}
-        <div className="absolute bottom-8 left-8 flex items-center gap-3">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-            <polygon points="14,2 17.5,10 26,10.5 20,16.5 22,25 14,20.5 6,25 8,16.5 2,10.5 10.5,10" fill="#D4A017" opacity="0.9"/>
-          </svg>
-          <div>
-            <p className="text-white/90 text-sm font-medium leading-tight">Rede D'Or</p>
-            <p className="text-white/50 text-xs leading-tight">Hospital DF Star</p>
-          </div>
+        {/* Logo oficial Rede D'Or no canto inferior esquerdo */}
+        <div className="absolute bottom-8 left-8">
+          <RedeDOrLogo className="h-7 w-auto opacity-90" />
+          <p className="text-white/40 text-xs mt-2 tracking-wide">Hospital DF Star</p>
         </div>
+
         {/* Tagline no centro inferior */}
         <div className="absolute bottom-8 right-8 text-right">
           <p className="text-white/30 text-xs tracking-widest uppercase">Precisão em cada</p>
