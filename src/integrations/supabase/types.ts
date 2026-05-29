@@ -4836,6 +4836,15 @@ export type Database = {
               total: number
             }[]
           }
+      get_portal_company_breakdown: {
+        Args: { p_doctor_id: string; p_months?: number }
+        Returns: {
+          company_id: string
+          company_name: string
+          quantidade: number
+          valor_total: number
+        }[]
+      }
       get_portal_competencia_detail: {
         Args: { p_competencia: string; p_doctor_id: string }
         Returns: Json
@@ -4852,6 +4861,10 @@ export type Database = {
           payment_ids: string[]
           status_agregado: string
         }[]
+      }
+      get_portal_dashboard_kpis: {
+        Args: { p_doctor_id: string }
+        Returns: Json
       }
       get_portal_doctor_debts: {
         Args: { p_doctor_id: string }
@@ -4881,6 +4894,16 @@ export type Database = {
           status_to: string
         }[]
       }
+      get_portal_payment_trend: {
+        Args: { p_doctor_id: string; p_months?: number }
+        Returns: {
+          aprovado: number
+          bruto: number
+          competence_month: string
+          glosa: number
+          pago: number
+        }[]
+      }
       get_portal_thread_messages: {
         Args: { p_payment_id: string; p_payment_item_id?: string }
         Returns: {
@@ -4908,6 +4931,15 @@ export type Database = {
           thread_key: string
           total_count: number
           unread_count: number
+        }[]
+      }
+      get_portal_top_procedures: {
+        Args: { p_doctor_id: string; p_limit?: number; p_months?: number }
+        Returns: {
+          procedure_code: string
+          procedure_name: string
+          quantidade: number
+          valor_total: number
         }[]
       }
       get_portal_unread_count: { Args: never; Returns: number }
