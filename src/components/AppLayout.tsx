@@ -870,6 +870,7 @@ export const AppLayout = () => {
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
+              <PortalUnreadBadge />
               <NotificationBell />
               <LayoutToggle />
             </div>
