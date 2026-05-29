@@ -4599,6 +4599,28 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_dre_consolidated: {
+        Args: {
+          p_company_id?: string
+          p_competencia_from?: string
+          p_competencia_to?: string
+          p_doctor_id?: string
+        }
+        Returns: {
+          bruto: number
+          company_id: string
+          company_name: string
+          competencia: string
+          creditos: number
+          debitos: number
+          doctor_id: string
+          doctor_name: string
+          glosas: number
+          liquido: number
+          payments_count: number
+          pool: number
+        }[]
+      }
       get_journal_balance: {
         Args: {
           p_company_id?: string
@@ -4607,6 +4629,21 @@ export type Database = {
           p_doctor_id?: string
         }
         Returns: number
+      }
+      get_open_position: {
+        Args: { p_company_id?: string }
+        Returns: {
+          age_days: number
+          aging_bucket: string
+          bruto: number
+          company_id: string
+          company_name: string
+          competencia: string
+          liquido: number
+          payment_id: string
+          reference: string
+          status: string
+        }[]
       }
       get_payment_pivot:
         | {
