@@ -190,6 +190,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Ciclo de NF", iconName: "FileWarning" },
   { label: "Glosas e Conciliação", iconName: "ShieldX" },
   { label: "Pendências", iconName: "ListChecksIcon" },
+  { label: "Conversas", iconName: "ChatsIcon" },
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Executivo", iconName: "BarChart3" },
   { label: "DRE & Posição em Aberto", iconName: "TrendingUp" },
