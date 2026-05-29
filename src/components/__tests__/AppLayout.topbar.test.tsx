@@ -78,6 +78,7 @@ const EXPECTED_GROUP_CHILDREN: Record<string, string[]> = {
     "Versões e Releases",
     "Feature Flags",
     "Avisos do Sistema",
+    "Livro Contábil",
     "Sobre o Exacta",
   ],
 };
@@ -174,6 +175,7 @@ describe("AppLayout topbar navigation", () => {
       "Versões e Releases",
       "Feature Flags",
       "Avisos do Sistema",
+    "Livro Contábil",
       "Sobre o Exacta",
     ]);
     expect(collected).toHaveLength(33);
