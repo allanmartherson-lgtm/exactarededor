@@ -45,6 +45,7 @@ const EXPECTED_TOPBAR_TOP_LEVEL = [
   "Cadastros",
   "Parametrização",
   "Acesso",
+  "Sistema",
 ];
 
 const EXPECTED_GROUP_CHILDREN: Record<string, string[]> = {
@@ -72,6 +73,12 @@ const EXPECTED_GROUP_CHILDREN: Record<string, string[]> = {
     "Auditoria",
     "Anomalias de status",
     "Insights de Observações",
+  ],
+  Sistema: [
+    "Versões e Releases",
+    "Feature Flags",
+    "Avisos do Sistema",
+    "Sobre o Exacta",
   ],
 };
 
@@ -164,7 +171,11 @@ describe("AppLayout topbar navigation", () => {
       "Auditoria",
       "Anomalias de status",
       "Insights de Observações",
+      "Versões e Releases",
+      "Feature Flags",
+      "Avisos do Sistema",
+      "Sobre o Exacta",
     ]);
-    expect(collected).toHaveLength(29);
+    expect(collected).toHaveLength(33);
   });
 });

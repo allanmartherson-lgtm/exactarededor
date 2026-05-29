@@ -31,6 +31,10 @@ import {
   BrainCircuit,
   ClipboardList,
   SlidersHorizontal,
+  Rocket,
+  Flag,
+  Megaphone,
+  Info,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -144,6 +148,18 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/insights-observacoes", label: "Insights de Observações", icon: MessageSquare, iconName: "MessageSquare", roles: ["diretor", "admin", "validador"] },
     ],
   },
+  {
+    label: "Sistema",
+    icon: Settings,
+    iconName: "Settings",
+    roles: ["admin", "diretor"],
+    children: [
+      { to: "/sistema/versoes", label: "Versões e Releases", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
+      { to: "/sistema/feature-flags", label: "Feature Flags", icon: Flag, iconName: "Flag", roles: ["admin", "diretor"] },
+      { to: "/sistema/avisos", label: "Avisos do Sistema", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor"] },
+      { to: "/sobre", label: "Sobre o Exacta", icon: Info, iconName: "Info", roles: ALL_ROLES },
+    ],
+  },
 ];
 
 /**
@@ -180,6 +196,10 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Auditoria", iconName: "History" },
   { label: "Anomalias de status", iconName: "AlertTriangle" },
   { label: "Insights de Observações", iconName: "MessageSquare" },
+  { label: "Versões e Releases", iconName: "Rocket" },
+  { label: "Feature Flags", iconName: "Flag" },
+  { label: "Avisos do Sistema", iconName: "Megaphone" },
+  { label: "Sobre o Exacta", iconName: "Info" },
 ];
 
 export const isGroup = (n: NavItem): n is NavGroup => "children" in n;

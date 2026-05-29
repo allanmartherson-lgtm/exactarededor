@@ -57,6 +57,10 @@ const loadFinancialIntelligence = () => import("./pages/FinancialIntelligence.ts
 const loadNfCycle = () => import("./pages/NfCycle.tsx");
 const loadObservationInsights = () => import("./pages/ObservationInsights.tsx");
 const loadAnalystProductivity = () => import("./pages/AnalystProductivity.tsx");
+const loadAbout = () => import("./pages/About.tsx");
+const loadSystemReleases = () => import("./pages/SystemReleases.tsx");
+const loadFeatureFlagsAdmin = () => import("./pages/FeatureFlagsAdmin.tsx");
+const loadSystemAnnouncementsAdmin = () => import("./pages/SystemAnnouncementsAdmin.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -97,6 +101,10 @@ const FinancialIntelligence = lazy(loadFinancialIntelligence);
 const NfCycle = lazy(loadNfCycle);
 const ObservationInsights = lazy(loadObservationInsights);
 const AnalystProductivity = lazy(loadAnalystProductivity);
+const About = lazy(loadAbout);
+const SystemReleases = lazy(loadSystemReleases);
+const FeatureFlagsAdmin = lazy(loadFeatureFlagsAdmin);
+const SystemAnnouncementsAdmin = lazy(loadSystemAnnouncementsAdmin);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -219,6 +227,10 @@ const App = () => (
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
                   <Route path="/anomalias-status" element={<ProtectedRoute roles={["diretor", "admin"]}><StatusAnomalies /></ProtectedRoute>} />
                   <Route path="/insights-observacoes" element={<ProtectedRoute roles={["diretor", "admin"]}><ObservationInsights /></ProtectedRoute>} />
+                  <Route path="/sobre" element={<About />} />
+                  <Route path="/sistema/versoes" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemReleases /></ProtectedRoute>} />
+                  <Route path="/sistema/feature-flags" element={<ProtectedRoute roles={["admin", "diretor"]}><FeatureFlagsAdmin /></ProtectedRoute>} />
+                  <Route path="/sistema/avisos" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemAnnouncementsAdmin /></ProtectedRoute>} />
                   <Route path="/wcag-audit" element={<WcagAudit />} />
                   <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
                   <Route path="/diagnostico/overflow" element={<OverflowAudit />} />
