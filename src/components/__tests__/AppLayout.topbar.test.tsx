@@ -171,7 +171,11 @@ describe("AppLayout topbar navigation", () => {
       "Auditoria",
       "Anomalias de status",
       "Insights de Observações",
+      "Versões e Releases",
+      "Feature Flags",
+      "Avisos do Sistema",
+      "Sobre o Exacta",
     ]);
-    expect(collected).toHaveLength(29);
+    expect(collected).toHaveLength(33);
   });
 });
