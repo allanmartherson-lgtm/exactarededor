@@ -200,6 +200,50 @@ Deno.serve(async (req) => {
           .eq("id", grp.id);
       }
 
+      // Snapshot de rateio em cada payment_item participante (consumido pelo portal médico)
+      const itemsByCompany = new Map<string, typeof elig>();
+      for (const it of elig) {
+        if (!it.company_id) continue;
+        const arr = itemsByCompany.get(it.company_id) ?? [];
+        arr.push(it);
+        itemsByCompany.set(it.company_id, arr);
+      }
+      for (const q of quotas) {
+        if (!q.paga || !q.company_id) continue;
+        const compItems = itemsByCompany.get(q.company_id) ?? [];
+        if (compItems.length === 0) continue;
+        const rateioItens = compItems.map((it: any) => ({
+          id: it.id,
+          data: it.procedure_date ?? null,
+          descricao: it.procedure_name ?? it.description ?? null,
+          valor: Number((it as any)[baseField] ?? 0),
+          paciente: it.patient_name ?? null,
+          convenio: it.agreement_text ?? null,
+          guia: it.attendance_number ?? null,
+        }));
+        const rateioSnapshot = {
+          itens: rateioItens,
+          quota: {
+            percentual: q.percentual,
+            valor: q.quota,
+            pool_id: pool.id,
+            pool_nome: pool.nome,
+            base: round2(base),
+            bolo_liquido: bolo,
+          },
+        };
+        await supabase
+          .from("payment_items")
+          .update({
+            empresa_tem_pool: true,
+            empresa_liquido_total: q.quota,
+            rateio: rateioSnapshot,
+          })
+          .eq("payment_id", payment_id)
+          .eq("company_id", q.company_id);
+      }
+
+
       // Grupo sintético para hospital_nao_paga (auditoria, total=0)
       const retidos = quotas.filter(q => !q.paga);
       for (const r of retidos) {
