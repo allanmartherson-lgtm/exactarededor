@@ -765,6 +765,7 @@ export const AppLayout = () => {
             </div>
           </div>
         </header>
+        <SystemAnnouncementBanner />
 
         <main className="flex-1 min-w-0">
           <div style={{ padding: "20px 28px", maxWidth: 1600, margin: "0 auto" }}>
