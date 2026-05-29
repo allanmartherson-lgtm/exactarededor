@@ -217,7 +217,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
                 )
               }
             >
-              <item.icon size={18} weight="regular" className="flex-shrink-0" style={{ width: 18, height: 18 }} />
+              <item.icon size={18} weight="regular" strokeWidth={1.5} className="flex-shrink-0" style={{ width: 18, height: 18 }} />
               <span>{item.label}</span>
               {showBadge && <ConversasBadgeDot count={conversasUnread} absolute />}
             </NavLink>
