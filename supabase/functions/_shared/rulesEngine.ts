@@ -615,7 +615,7 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
     return false;
   };
 
-  // Match por médico avulso (independente da PJ): segue o médico em qualquer empresa.
+  // Match por médico específico (independente da PJ): segue o médico em qualquer empresa.
   if (looseDoctors.length > 0 && matchDoctorList(looseDoctors)) return true;
 
   // Vínculos por empresa: empresa do item precisa estar na lista; se a lista de
@@ -628,6 +628,42 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
     if (matchDoctorList(ds)) return true;
   }
 
+  return false;
+}
+
+/**
+ * Subconjunto de `targetsGroup`: retorna true SOMENTE quando o match ocorreu
+ * por médico específico (group_doctors OU link.doctors com nome/CRM listado).
+ * Usado para promover regras médico-específicas a uma prioridade mais alta
+ * que as regras de PJ inteira (sem doctors no link).
+ *
+ * Semântica: se o médico está numa regra específica, ele é automaticamente
+ * "expurgado" de qualquer regra de PJ inteira que também cobriria a empresa
+ * dele — porque a regra específica é avaliada primeiro e, ao vencer, encerra
+ * a busca antes de chegar no bucket de grupo amplo.
+ */
+function targetsGroupByDoctor(r: RuleInput, item: ItemInput): boolean {
+  if (r.scope !== "grupo") return false;
+  if (!item.doctor_name) return false;
+
+  const itemNm = normName(item.doctor_name);
+  const itemCrm = onlyDigits(item.doctor_document);
+  const matchInList = (doctors: { name?: string; crm?: string }[] | undefined): boolean => {
+    if (!doctors?.length) return false;
+    for (const d of doctors) {
+      if (d?.name && normName(d.name) === itemNm) return true;
+      if (d?.crm && itemCrm && onlyDigits(d.crm) === itemCrm) return true;
+    }
+    return false;
+  };
+
+  if (matchInList(r.group_doctors ?? [])) return true;
+
+  for (const link of r.group_company_links ?? []) {
+    if (!link?.company_id) continue;
+    if (String(item.company_id) !== String(link.company_id)) continue;
+    if (matchInList(link.doctors)) return true;
+  }
   return false;
 }
 
