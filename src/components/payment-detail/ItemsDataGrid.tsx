@@ -53,7 +53,8 @@ import type {
 import { cn } from "@/lib/utils";
 import { AttendanceCoherencePanel } from "./AttendanceCoherencePanel";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
-import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole } from "@/lib/itemFields";
+import { formatSectorName } from "@/lib/sectorDisplay";
+import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole, rawPick } from "@/lib/itemFields";
 import { authorRoleLabel } from "@/lib/observations";
 
 // ============ TIPOGRAFIA UNIFICADA (tabela + painel expandido) ============
@@ -1018,14 +1019,20 @@ function RowMain({
         <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? it.description ?? ""}>
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
-        {colVis.setor_lido && (
-          <td className={cn(cell, TEXT_META)} title={it.sector ?? ""}>{it.sector ?? "—"}</td>
-        )}
+        {colVis.setor_lido && (() => {
+          // SETOR (PLANILHA): prioriza o valor cru da planilha (raw_data),
+          // pois `it.sector` pode ter sido sobrescrito por um mapeamento de bucket.
+          const rawSetor = rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]) ?? it.sector ?? null;
+          return (
+            <td className={cn(cell, TEXT_META)} title={rawSetor ?? ""}>{formatSectorName(rawSetor)}</td>
+          );
+        })()}
         {colVis.setor_inferido && (
           (() => {
-            const inf = (it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? null;
+            const rawSetor = rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]);
+            const inf = (it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? rawSetor ?? null;
             return (
-              <td className={cn(cell, TEXT_META)} title={inf ?? ""}>{inf ?? "—"}</td>
+              <td className={cn(cell, TEXT_META)} title={inf ?? ""}>{formatSectorName(inf)}</td>
             );
           })()
         )}
@@ -1317,8 +1324,8 @@ function ItemDetailsRow({
     { label: "Procedimento", value: getProcedureName(it) },
     { label: "Médico", value: it.doctor_name ?? "—" },
     { label: "Função", value: getDoctorRole(it) },
-    { label: "Setor (Planilha)", value: it.sector ?? "—" },
-    { label: "Setor (Sistema)", value: (it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? "—" },
+    { label: "Setor (Planilha)", value: formatSectorName(rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]) ?? it.sector ?? null) },
+    { label: "Setor (Sistema)", value: formatSectorName((it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]) ?? null) },
   ];
 
   const fmtDate = (d: string | null | undefined) => {
