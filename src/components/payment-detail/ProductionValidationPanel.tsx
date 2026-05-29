@@ -58,6 +58,7 @@ export function ProductionValidationPanel({ paymentId, currentUserId, onChanged 
   const [validations, setValidations] = useState<Validation[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
+  const [sectionOpen, setSectionOpen] = useState(false);
 
   const load = async () => {
     const { data: vals } = await supabase
@@ -105,7 +106,7 @@ export function ProductionValidationPanel({ paymentId, currentUserId, onChanged 
   const openCount = validations.reduce((s, v) =>
     s + v.feedbacks.filter(f => f.status === "aberto").length, 0);
   const allExpired = validations.every(v => v.status === "expirado");
-  const [sectionOpen, setSectionOpen] = useState(!allExpired || openCount > 0);
+
 
   return (
     <div className="space-y-2">
