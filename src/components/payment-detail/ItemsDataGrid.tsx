@@ -1318,8 +1318,8 @@ function ItemDetailsRow({
     { label: "Procedimento", value: getProcedureName(it) },
     { label: "Médico", value: it.doctor_name ?? "—" },
     { label: "Função", value: getDoctorRole(it) },
-    { label: "Setor (Planilha)", value: it.sector ?? "—" },
-    { label: "Setor (Sistema)", value: (it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? "—" },
+    { label: "Setor (Planilha)", value: formatSectorName(it.sector) },
+    { label: "Setor (Sistema)", value: formatSectorName((it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? null) },
   ];
 
   const fmtDate = (d: string | null | undefined) => {
