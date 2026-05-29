@@ -171,13 +171,10 @@ export default function EcgPulseAnimation() {
         let curXfrac: number;
         let curY: number;
 
-        if (mergeP === 0) {
-          curXfrac = p.xFrac;
-          curY     = startY + floatY + (lineY - startY) * driftEased;
-        } else {
-          curXfrac = p.xFrac + mergeEased * 0.05;
-          curY     = midY + ecgY(curXfrac) * amp;
-        }
+        curXfrac = p.xFrac + mergeEased * 0.07;
+        const driftY = startY + floatY + (lineY - startY) * driftEased;
+        const mergeTargetY = midY + ecgY(curXfrac) * amp;
+        curY = driftY + (mergeTargetY - driftY) * mergeEased;
 
         const curX = curXfrac * w;
 
