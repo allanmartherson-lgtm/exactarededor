@@ -31,22 +31,34 @@ import { AppLayout } from "@/components/AppLayout";
 
 const EXPECTED = [
   "Dashboard",
+  "Meu Perfil",
   "Pagamentos",
-  "Notas Fiscais",
+  "Pedidos de NF",
+  "Ciclo de NF",
+  "Glosas e Conciliação",
   "KPIs",
+  "Executivo",
+  "Recebíveis",
+  "Inteligência Financeira",
   "Regras de Pagamento",
   "Regras de Validação",
   "Simulador de Regras",
   "Tabelas de referência",
   "Empresas",
-  "Apelidos aprendidos",
   "Médicos",
   "Mapa Especialidades",
+  "Setores",
   "Centros de custo",
+  "Tipos de pagamento",
+  "Pools de rateio",
+  "Relatório de pools",
   "Prazos e SLA",
   "Usuários",
+  "Produtividade da Equipe",
+  "Saúde do Motor",
   "Auditoria",
   "Anomalias de status",
+  "Insights de Observações",
 ];
 
 function renderLayout() {
@@ -84,11 +96,9 @@ describe("AppLayout sidebar accessibility", () => {
       const nav = sidebar.querySelector("nav") as HTMLElement;
       const link = within(nav).getByRole("link", { name: label });
 
-      // Radix Tooltip opens on pointer enter / focus. Use both for robustness.
       fireEvent.pointerEnter(link);
       fireEvent.focus(link);
 
-      // Tooltip content lands in a portal under document.body with role="tooltip".
       await waitFor(() => {
         const tooltips = screen.getAllByRole("tooltip");
         expect(tooltips.some((t) => t.textContent?.trim() === label)).toBe(true);

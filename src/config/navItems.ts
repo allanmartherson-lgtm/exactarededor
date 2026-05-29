@@ -13,7 +13,6 @@ import {
   History,
   Settings,
   ScrollText,
-  Bell,
   Timer,
   BadgeDollarSign,
   Stethoscope,
@@ -25,9 +24,13 @@ import {
   TrendingUp,
   ShieldX,
   FileWarning,
+  FileBarChart,
   MessageSquare,
   Tag,
   Split,
+  BrainCircuit,
+  ClipboardList,
+  SlidersHorizontal,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -59,6 +62,9 @@ export const ALL_ROLES = ["analista", "validador", "diretor", "admin"] as const;
  *
  * The flattened order MUST match `EXPECTED_SIDEBAR_ORDER` below — enforced by
  * `scripts/audit-nav.ts` (run via `bun run audit:nav`).
+ *
+ * NOTE: "Apelidos aprendidos" (/empresas/apelidos) é uma rota acessível
+ * via página de Empresas, mas NÃO aparece no menu (decisão de UX).
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, iconName: "LayoutDashboard", roles: ALL_ROLES },
@@ -72,31 +78,53 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/pagamentos", label: "Pagamentos", icon: Wallet, iconName: "Wallet", roles: ALL_ROLES },
       { to: "/notas-fiscais", label: "Pedidos de NF", icon: Receipt, iconName: "Receipt", roles: ALL_ROLES },
       { to: "/ciclo-nf", label: "Ciclo de NF", icon: FileWarning, iconName: "FileWarning", roles: ALL_ROLES },
-      { to: "/kpis", label: "KPIs", icon: BarChart2, iconName: "BarChart2", roles: ALL_ROLES },
-      { to: "/executivo", label: "Executivo", icon: BarChart3, iconName: "BarChart3", roles: ["diretor", "admin"] as const },
-      { to: "/recebiveis", label: "Recebíveis", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
-      { to: "/inteligencia-financeira", label: "Inteligência Financeira", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
       { to: "/glosas", label: "Glosas e Conciliação", icon: ShieldX, iconName: "ShieldX", roles: ["diretor", "admin", "analista", "validador"] as const },
     ],
   },
   {
-    label: "Configurações",
-    icon: ScrollText,
-    iconName: "ScrollText",
+    label: "Relatórios",
+    icon: FileBarChart,
+    iconName: "FileBarChart",
+    roles: ALL_ROLES,
+    children: [
+      { to: "/kpis", label: "KPIs", icon: BarChart2, iconName: "BarChart2", roles: ALL_ROLES },
+      { to: "/executivo", label: "Executivo", icon: BarChart3, iconName: "BarChart3", roles: ["diretor", "admin"] as const },
+      { to: "/recebiveis", label: "Recebíveis", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
+      { to: "/inteligencia-financeira", label: "Inteligência Financeira", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
+    ],
+  },
+  {
+    label: "Inteligência de Regras",
+    icon: BrainCircuit,
+    iconName: "BrainCircuit",
     roles: ["admin"],
     children: [
       { to: "/regras/pagamento", label: "Regras de Pagamento", icon: BadgeDollarSign, iconName: "BadgeDollarSign", roles: ["admin"] },
       { to: "/regras/validacao", label: "Regras de Validação", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin"] },
       { to: "/regras/simulador", label: "Simulador de Regras", icon: FlaskConical, iconName: "FlaskConical", roles: ["admin"] },
-      
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["admin"] },
+    ],
+  },
+  {
+    label: "Cadastros",
+    icon: ClipboardList,
+    iconName: "ClipboardList",
+    roles: ["admin", "diretor"],
+    children: [
       { to: "/empresas", label: "Empresas", icon: Building2, iconName: "Building2", roles: ["admin"] },
-      { to: "/empresas/apelidos", label: "Apelidos aprendidos", icon: Sparkles, iconName: "Sparkles", roles: ["admin"] },
       { to: "/medicos", label: "Médicos", icon: Stethoscope, iconName: "Stethoscope", roles: ["admin"] },
       { to: "/mapa-especialidades", label: "Mapa Especialidades", icon: Stethoscope, iconName: "Stethoscope", roles: ["admin"] },
       { to: "/setores", label: "Setores", icon: Layers, iconName: "Layers", roles: ["admin"] },
       { to: "/centros-de-custo", label: "Centros de custo", icon: Network, iconName: "Network", roles: ALL_ROLES },
       { to: "/tipos-pagamento", label: "Tipos de pagamento", icon: Tag, iconName: "Tag", roles: ["admin", "diretor"] },
+    ],
+  },
+  {
+    label: "Parametrização",
+    icon: SlidersHorizontal,
+    iconName: "SlidersHorizontal",
+    roles: ["admin", "diretor"],
+    children: [
       { to: "/pools", label: "Pools de rateio", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
       { to: "/pools/relatorios", label: "Relatório de pools", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
       { to: "/prazos-sla", label: "Prazos e SLA", icon: Timer, iconName: "Timer", roles: ["admin"] },
@@ -128,23 +156,23 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Pagamentos", iconName: "Wallet" },
   { label: "Pedidos de NF", iconName: "Receipt" },
   { label: "Ciclo de NF", iconName: "FileWarning" },
+  { label: "Glosas e Conciliação", iconName: "ShieldX" },
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Executivo", iconName: "BarChart3" },
   { label: "Recebíveis", iconName: "TrendingDown" },
   { label: "Inteligência Financeira", iconName: "TrendingUp" },
-  { label: "Glosas e Conciliação", iconName: "ShieldX" },
   { label: "Regras de Pagamento", iconName: "BadgeDollarSign" },
   { label: "Regras de Validação", iconName: "ShieldCheck" },
   { label: "Simulador de Regras", iconName: "FlaskConical" },
-  
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Empresas", iconName: "Building2" },
-  { label: "Apelidos aprendidos", iconName: "Sparkles" },
   { label: "Médicos", iconName: "Stethoscope" },
   { label: "Mapa Especialidades", iconName: "Stethoscope" },
   { label: "Setores", iconName: "Layers" },
   { label: "Centros de custo", iconName: "Network" },
   { label: "Tipos de pagamento", iconName: "Tag" },
+  { label: "Pools de rateio", iconName: "Split" },
+  { label: "Relatório de pools", iconName: "Split" },
   { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },
   { label: "Produtividade da Equipe", iconName: "BarChart2" },

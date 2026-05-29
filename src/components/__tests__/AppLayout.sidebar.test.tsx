@@ -34,25 +34,37 @@ import { AppLayout } from "@/components/AppLayout";
 
 const EXPECTED_ORDER = [
   "Dashboard",
+  "Meu Perfil",
   "Pagamentos",
-  "Notas Fiscais",
+  "Pedidos de NF",
+  "Ciclo de NF",
+  "Glosas e Conciliação",
   "KPIs",
+  "Executivo",
+  "Recebíveis",
+  "Inteligência Financeira",
   "Regras de Pagamento",
   "Regras de Validação",
   "Simulador de Regras",
   "Tabelas de referência",
   "Empresas",
-  "Apelidos aprendidos",
   "Médicos",
   "Mapa Especialidades",
+  "Setores",
   "Centros de custo",
+  "Tipos de pagamento",
+  "Pools de rateio",
+  "Relatório de pools",
   "Prazos e SLA",
   "Usuários",
+  "Produtividade da Equipe",
+  "Saúde do Motor",
   "Auditoria",
   "Anomalias de status",
+  "Insights de Observações",
 ];
 
-const EXPECTED_COUNT = 17;
+const EXPECTED_COUNT = EXPECTED_ORDER.length;
 
 function renderLayout() {
   return render(
@@ -69,7 +81,7 @@ function renderLayout() {
 }
 
 describe("AppLayout sidebar navigation", () => {
-  it("renders exactly 16 nav items in the fixed order for admin", () => {
+  it("renders all nav items in the fixed order for admin", () => {
     renderLayout();
     const sidebar = screen.getByLabelText(/navegação lateral/i);
     const nav = sidebar.querySelector("nav") as HTMLElement;
