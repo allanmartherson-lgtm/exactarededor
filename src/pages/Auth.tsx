@@ -15,6 +15,7 @@ import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
 import EcgPulseAnimation from "@/components/auth/EcgPulseAnimation";
+import RedeDOrLogo from "@/components/auth/RedeDOrLogo";
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
 const PASSWORD_RECOVERY_EMAIL_KEY = "exacta-password-recovery-email";
