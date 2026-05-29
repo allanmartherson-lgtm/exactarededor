@@ -456,6 +456,60 @@ export type Database = {
           },
         ]
       }
+      company_messages: {
+        Row: {
+          author_name: string
+          author_type: string
+          author_user_id: string | null
+          company_id: string
+          created_at: string
+          id: string
+          message: string
+          read_by_company_at: string | null
+          read_by_internal_at: string | null
+          thread_id: string
+        }
+        Insert: {
+          author_name: string
+          author_type: string
+          author_user_id?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          message: string
+          read_by_company_at?: string | null
+          read_by_internal_at?: string | null
+          thread_id: string
+        }
+        Update: {
+          author_name?: string
+          author_type?: string
+          author_user_id?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          message?: string
+          read_by_company_at?: string | null
+          read_by_internal_at?: string | null
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "company_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_portal_users: {
         Row: {
           accepted_at: string | null
@@ -542,6 +596,86 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      company_threads: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by_type: string
+          created_by_user_id: string | null
+          id: string
+          invoice_id: string | null
+          last_message_at: string
+          last_message_preview: string | null
+          payment_id: string | null
+          scope: string
+          status: string
+          subject: string
+          unread_for_company: number
+          unread_for_internal: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by_type: string
+          created_by_user_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          last_message_at?: string
+          last_message_preview?: string | null
+          payment_id?: string | null
+          scope: string
+          status?: string
+          subject: string
+          unread_for_company?: number
+          unread_for_internal?: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by_type?: string
+          created_by_user_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          last_message_at?: string
+          last_message_preview?: string | null
+          payment_id?: string | null
+          scope?: string
+          status?: string
+          subject?: string
+          unread_for_company?: number
+          unread_for_internal?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_threads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_threads_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_threads_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "company_threads_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conciliation_bases: {
         Row: {
