@@ -387,6 +387,7 @@ export const AppLayout = () => {
     label: string,
     Icon: NavItem extends infer T ? T extends { icon: infer I } ? I : never : never,
     onClick?: () => void,
+    collapsed = false,
   ) => {
     const isActive =
       to === "/"
@@ -396,19 +397,22 @@ export const AppLayout = () => {
       display: "flex",
       flexDirection: "row",
       alignItems: "center",
-      gap: 11,
-      padding: "8px 12px",
-      paddingLeft: isActive ? 9 : 12,
+      gap: collapsed ? 0 : 11,
+      padding: collapsed ? "8px 0" : "8px 12px",
+      paddingLeft: collapsed ? 0 : isActive ? 9 : 12,
+      justifyContent: collapsed ? "center" : "flex-start",
       borderRadius: 6,
-      fontSize: 14,
-      lineHeight: 1.2,
+      fontSize: 13.5,
+      lineHeight: 1.25,
       cursor: "pointer",
       textDecoration: "none",
-      whiteSpace: "nowrap",
       transition: "all 0.12s ease",
-      borderLeft: isActive
-        ? "3px solid hsl(var(--sidebar-primary))"
-        : "3px solid transparent",
+      borderLeft:
+        !collapsed && isActive
+          ? "3px solid hsl(var(--sidebar-primary))"
+          : !collapsed
+            ? "3px solid transparent"
+            : undefined,
       background: isActive ? "hsl(var(--sidebar-accent))" : "transparent",
       color: isActive
         ? "hsl(var(--sidebar-accent-foreground))"
@@ -433,20 +437,27 @@ export const AppLayout = () => {
               aria-hidden
               style={{ width: 20, height: 20, flexShrink: 0, color: "inherit" }}
             />
-            <span
-              style={{
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                minWidth: 0,
-                color: "inherit",
-              }}
-            >
-              {label}
-            </span>
+            {!collapsed && (
+              <span
+                style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  wordBreak: "break-word",
+                  minWidth: 0,
+                  flex: 1,
+                  color: "inherit",
+                }}
+              >
+                {label}
+              </span>
+            )}
           </NavLink>
         </TooltipTrigger>
-        <TooltipContent side="right">{label}</TooltipContent>
+        {(collapsed || label.length > 22) && (
+          <TooltipContent side="right">{label}</TooltipContent>
+        )}
       </Tooltip>
     );
   };
