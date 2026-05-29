@@ -1001,6 +1001,42 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_flags: {
+        Row: {
+          allowed_roles: string[]
+          created_at: string
+          description: string | null
+          enabled: boolean
+          id: string
+          key: string
+          rollout_pct: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allowed_roles?: string[]
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          key: string
+          rollout_pct?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allowed_roles?: string[]
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          key?: string
+          rollout_pct?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       glosa_batches: {
         Row: {
           competence_month: string | null
@@ -4048,6 +4084,48 @@ export type Database = {
           },
         ]
       }
+      system_announcements: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          dismissible: boolean
+          ends_at: string | null
+          id: string
+          message: string
+          severity: string
+          starts_at: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          dismissible?: boolean
+          ends_at?: string | null
+          id?: string
+          message: string
+          severity?: string
+          starts_at?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          dismissible?: boolean
+          ends_at?: string | null
+          id?: string
+          message?: string
+          severity?: string
+          starts_at?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       system_configurations: {
         Row: {
           created_at: string | null
@@ -4072,6 +4150,48 @@ export type Database = {
           key?: string
           updated_at?: string | null
           value?: Json
+        }
+        Relationships: []
+      }
+      system_releases: {
+        Row: {
+          changelog: string
+          created_at: string
+          id: string
+          is_current: boolean
+          published: boolean
+          release_type: string
+          released_at: string
+          released_by: string | null
+          title: string
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          changelog: string
+          created_at?: string
+          id?: string
+          is_current?: boolean
+          published?: boolean
+          release_type?: string
+          released_at?: string
+          released_by?: string | null
+          title: string
+          updated_at?: string
+          version: string
+        }
+        Update: {
+          changelog?: string
+          created_at?: string
+          id?: string
+          is_current?: boolean
+          published?: boolean
+          release_type?: string
+          released_at?: string
+          released_by?: string | null
+          title?: string
+          updated_at?: string
+          version?: string
         }
         Relationships: []
       }
@@ -4496,6 +4616,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      is_feature_enabled: {
+        Args: { _key: string; _user_id: string }
+        Returns: boolean
       }
       is_valid_status_transition: {
         Args: {
