@@ -138,10 +138,10 @@ export default function EcgPulseAnimation() {
     }
 
     // ── Phase timings (ms) ────────────────────────────────
-    const T_ECG_END    = 5000;
-    const T_MORPH_END  = 6200;
-    const T_EXACTA_END = 9000;
-    const T_RISE_END   = 11000;
+    const T_ECG_END    = 9000;
+    const T_MORPH_END  = 10500;
+    const T_EXACTA_END = 13500;
+    const T_RISE_END   = 16000;
 
     function drawParticles(ecgProgress: number, elapsed: number) {
       const w = canvas.width;
@@ -163,7 +163,7 @@ export default function EcgPulseAnimation() {
           ? 2 * driftP * driftP
           : -1 + (4 - 2 * driftP) * driftP;
 
-        const MERGE_DUR = 0.20;
+        const MERGE_DUR = 0.12;
         const mergeRaw  = (ecgProgress - p.mergeAt) / MERGE_DUR;
         const mergeP    = Math.min(1, Math.max(0, mergeRaw));
         const mergeEased = mergeP < 0.5
