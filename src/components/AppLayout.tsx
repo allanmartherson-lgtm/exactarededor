@@ -731,6 +731,9 @@ export const AppLayout = () => {
               >
                 <item.icon size={20} strokeWidth={1.75} className="flex-shrink-0" />
                 <span className="truncate">{item.label}</span>
+                {item.to === "/conversas" && conversasUnread > 0 && (
+                  <ConversasBadgeDot count={conversasUnread} />
+                )}
               </NavLink>
             );
           })}
