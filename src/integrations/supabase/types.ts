@@ -400,6 +400,70 @@ export type Database = {
           },
         ]
       }
+      company_attachments: {
+        Row: {
+          company_id: string
+          created_at: string
+          file_name: string
+          id: string
+          message_id: string | null
+          mime_type: string
+          pendencia_id: string | null
+          size_bytes: number
+          storage_path: string
+          uploaded_by_type: string
+          uploaded_by_user_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          file_name: string
+          id?: string
+          message_id?: string | null
+          mime_type: string
+          pendencia_id?: string | null
+          size_bytes: number
+          storage_path: string
+          uploaded_by_type?: string
+          uploaded_by_user_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          file_name?: string
+          id?: string
+          message_id?: string | null
+          mime_type?: string
+          pendencia_id?: string | null
+          size_bytes?: number
+          storage_path?: string
+          uploaded_by_type?: string
+          uploaded_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_attachments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "company_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_attachments_pendencia_id_fkey"
+            columns: ["pendencia_id"]
+            isOneToOne: false
+            referencedRelation: "pendencias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_financial_adjustments: {
         Row: {
           ativo: boolean
@@ -3006,6 +3070,104 @@ export type Database = {
         }
         Relationships: []
       }
+      pendencias: {
+        Row: {
+          agreement_name: string
+          assigned_to: string | null
+          attendance_number: string | null
+          company_id: string
+          created_at: string
+          created_by_name: string
+          created_by_user_id: string | null
+          description: string
+          doctor_name: string
+          event_date: string
+          event_type: string
+          id: string
+          patient_name: string
+          payment_id: string | null
+          priority: string
+          resolved_at: string | null
+          status: string
+          subject: string
+          thread_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agreement_name: string
+          assigned_to?: string | null
+          attendance_number?: string | null
+          company_id: string
+          created_at?: string
+          created_by_name: string
+          created_by_user_id?: string | null
+          description: string
+          doctor_name: string
+          event_date: string
+          event_type: string
+          id?: string
+          patient_name: string
+          payment_id?: string | null
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          subject: string
+          thread_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agreement_name?: string
+          assigned_to?: string | null
+          attendance_number?: string | null
+          company_id?: string
+          created_at?: string
+          created_by_name?: string
+          created_by_user_id?: string | null
+          description?: string
+          doctor_name?: string
+          event_date?: string
+          event_type?: string
+          id?: string
+          patient_name?: string
+          payment_id?: string | null
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          subject?: string
+          thread_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pendencias_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "pendencias_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "company_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pool_calculation_runs: {
         Row: {
           base_amount: number
@@ -5337,6 +5499,10 @@ export type Database = {
           p_notify_status_change: boolean
         }
         Returns: undefined
+      }
+      user_belongs_to_company: {
+        Args: { _company_id: string }
+        Returns: boolean
       }
       validate_rule_save: {
         Args: {
