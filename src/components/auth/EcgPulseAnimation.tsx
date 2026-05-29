@@ -80,80 +80,8 @@ export default function EcgPulseAnimation() {
       return 0;
     }
 
-    // ── Icon draw functions ───────────────────────────────
-    function drawHeart(x: number, y: number, size: number, alpha: number) {
-      if (alpha <= 0) return;
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = "#C6A27C";
-      const s = size / 30;
-      ctx.beginPath();
-      ctx.moveTo(x, y + 10 * s);
-      ctx.bezierCurveTo(x - 12 * s, y, x - 15 * s, y - 8 * s, x - 8 * s, y - 13 * s);
-      ctx.bezierCurveTo(x - 4 * s, y - 16 * s, x, y - 12 * s, x, y - 8 * s);
-      ctx.bezierCurveTo(x, y - 12 * s, x + 4 * s, y - 16 * s, x + 8 * s, y - 13 * s);
-      ctx.bezierCurveTo(x + 15 * s, y - 8 * s, x + 12 * s, y, x, y + 10 * s);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
 
-    function drawMedicalCross(x: number, y: number, size: number, alpha: number) {
-      if (alpha <= 0) return;
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = "rgba(255,255,255,0.88)";
-      ctx.lineWidth = size * 0.28;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.44); ctx.lineTo(x, y + size * 0.44);
-      ctx.moveTo(x - size * 0.44, y); ctx.lineTo(x + size * 0.44, y);
-      ctx.stroke();
-      ctx.restore();
-    }
 
-    function drawCoin(x: number, y: number, size: number, alpha: number) {
-      if (alpha <= 0) return;
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = "#C6A27C";
-      ctx.lineWidth = size * 0.1;
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.46, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = "#C6A27C";
-      ctx.font = `700 ${Math.round(size * 0.38)}px system-ui`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("R$", x, y + size * 0.04);
-      ctx.restore();
-    }
-
-    function drawInvoice(x: number, y: number, size: number, alpha: number) {
-      if (alpha <= 0) return;
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = "rgba(255,255,255,0.85)";
-      ctx.lineWidth = size * 0.09;
-      ctx.lineCap = "round";
-      const iw = size * 0.6, ih = size * 0.76;
-      ctx.strokeRect(x - iw / 2, y - ih / 2, iw, ih);
-      [0, 1, 2].forEach(i => {
-        const ly = y - ih * 0.18 + i * ih * 0.22;
-        const lw = i === 2 ? iw * 0.45 : iw * 0.72;
-        ctx.beginPath();
-        ctx.moveTo(x - lw / 2, ly); ctx.lineTo(x + lw / 2, ly);
-        ctx.stroke();
-      });
-      ctx.restore();
-    }
-
-    const icons: { xFrac: number; triggerProgress: number; draw: (x: number, y: number, size: number, alpha: number) => void }[] = [
-      { xFrac: 0.16, triggerProgress: 0.16, draw: drawHeart },
-      { xFrac: 0.37, triggerProgress: 0.35, draw: drawMedicalCross },
-      { xFrac: 0.58, triggerProgress: 0.54, draw: drawCoin },
-      { xFrac: 0.77, triggerProgress: 0.73, draw: drawInvoice },
-    ];
 
     // ── Exacta text ───────────────────────────────────────
     function drawExactaText(cx: number, baseY: number, fontSize: number, alpha: number) {
@@ -199,7 +127,7 @@ export default function EcgPulseAnimation() {
 
       const midY = h * 0.5;
       const amp = h * 0.30;
-      const iconSize = h * 0.065;
+      
       const bigLogoH = h * BIG_LOGO_H_FRAC;
       const slW = SMALL_LOGO_H * LOGO_ASPECT;
       const slCX = 32 + slW / 2;
@@ -226,14 +154,6 @@ export default function EcgPulseAnimation() {
         ctx.shadowColor = "rgba(255,255,255,0.6)"; ctx.shadowBlur = 14;
         ctx.fill(); ctx.shadowBlur = 0;
 
-        icons.forEach(ic => {
-          if (progress > ic.triggerProgress) {
-            const age = (progress - ic.triggerProgress) / (1 - ic.triggerProgress);
-            const a = Math.min(1, age * 3);
-            const rise = Math.min(h * 0.22, age * h * 0.3);
-            ic.draw(ic.xFrac * w, midY - h * 0.1 - rise, iconSize, a * 0.9);
-          }
-        });
 
         drawRedeDOrLogo(slCX, slCY, SMALL_LOGO_H, 0.85);
         drawSubtitle(slCX, slCY + SMALL_LOGO_H / 2 + 14, Math.round(h * 0.019), 0.35);
@@ -250,7 +170,7 @@ export default function EcgPulseAnimation() {
         for (let px = 0; px <= w; px += 1.5) ctx.lineTo(px, midY + ecgY(px / w) * amp);
         ctx.stroke(); ctx.globalAlpha = 1;
 
-        icons.forEach(ic => ic.draw(ic.xFrac * w, midY - h * 0.32, iconSize, Math.max(0, (1 - ease * 2) * 0.9)));
+        
 
         const cx2 = w / 2, cy2 = midY, sz = Math.min(w, h) * 0.18;
         const p1 = [cx2 - sz, cy2 + sz * 0.1], p2 = [cx2 - sz * 0.15, cy2 + sz * 0.7], p3 = [cx2 + sz, cy2 - sz * 0.55];
