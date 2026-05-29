@@ -199,15 +199,9 @@ export default function EcgPulseAnimation() {
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // Texto "exacta" fade in
         const textP = (t - morphEnd) / (0.88 - morphEnd);
-        ctx.globalAlpha = Math.min(1, textP * 2);
-        ctx.fillStyle = "#ffffff";
-        ctx.font = `500 ${Math.round(w * 0.075)}px system-ui, sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("exacta", cx, cy + sz * 1.5);
-        ctx.globalAlpha = 1;
+        const textAlpha = Math.min(1, textP * 2);
+        drawExactaText(cx, cy + sz * 1.5, Math.round(w * 0.075), textAlpha);
       }
 
       // --- FASE 4: fade out geral (t: 0.88 → 1.0) ---
