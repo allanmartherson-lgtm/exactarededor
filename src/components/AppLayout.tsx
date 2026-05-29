@@ -217,7 +217,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
                 )
               }
             >
-              <item.icon className="size-[22px] flex-shrink-0" strokeWidth={1.75} />
+              <item.icon size={20} className="flex-shrink-0" style={{ width: 20, height: 20 }} strokeWidth={1.75} />
               <span>{item.label}</span>
               {showBadge && <ConversasBadgeDot count={conversasUnread} absolute />}
             </NavLink>
@@ -243,7 +243,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <item.icon className="size-[22px] flex-shrink-0" strokeWidth={1.75} />
+              <item.icon size={20} className="flex-shrink-0" style={{ width: 20, height: 20 }} strokeWidth={1.75} />
               <span>{item.label}</span>
               <ChevronDown
                 className={cn(
