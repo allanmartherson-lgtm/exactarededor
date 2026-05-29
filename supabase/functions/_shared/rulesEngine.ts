@@ -293,6 +293,8 @@ export type RuleMatchPriority =
   | "medico"
   | "empresa_codigo"
   | "empresa"
+  | "grupo_doctor_codigo"
+  | "grupo_doctor"
   | "grupo_codigo"
   | "grupo"
   | "setor_codigo"
