@@ -652,39 +652,74 @@ export const AppLayout = () => {
       <aside
         className="fixed top-0 left-0 h-screen flex flex-col"
         style={{
-          width: 260,
+          width: sidebarWidth,
           background: "hsl(var(--sidebar-background))",
           borderRight: "1px solid hsl(var(--sidebar-border))",
           zIndex: 40,
+          transition: "width 0.18s ease",
         }}
         aria-label="Navegação lateral"
       >
-        {/* Header / Logo */}
+        {/* Header / Logo + collapse toggle */}
         <div
           className="flex items-center"
           style={{
             height: 64,
-            padding: "0 16px",
+            padding: sidebarCollapsed ? "0 8px" : "0 12px 0 16px",
             borderBottom: "1px solid hsl(var(--sidebar-border))",
+            justifyContent: sidebarCollapsed ? "center" : "space-between",
+            gap: 8,
           }}
         >
-          <Logo />
+          {!sidebarCollapsed && <Logo />}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarCollapsed((v) => !v)}
+                aria-label={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md flex-shrink-0"
+              >
+                {sidebarCollapsed ? (
+                  <ChevronsRight className="h-4 w-4" />
+                ) : (
+                  <ChevronsLeft className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Nav list (grouped with section labels) */}
         <nav
-          className="flex-1 overflow-y-auto"
-          style={{ padding: "8px 10px 12px", display: "flex", flexDirection: "column", gap: 1 }}
+          className="flex-1 overflow-y-auto overflow-x-hidden"
+          style={{ padding: sidebarCollapsed ? "8px 6px 12px" : "8px 10px 12px", display: "flex", flexDirection: "column", gap: 1 }}
         >
           {groupedSideNav.map((item, idx) => {
             if (!isGroup(item)) {
-              return renderSideLink(item.to, item.label, item.icon as never);
+              return renderSideLink(item.to, item.label, item.icon as never, undefined, sidebarCollapsed);
             }
             return (
-              <div key={item.label} style={{ marginTop: idx === 0 ? 0 : 6 }}>
-                <SectionLabel>{item.label}</SectionLabel>
+              <div key={item.label} style={{ marginTop: idx === 0 ? 0 : sidebarCollapsed ? 8 : 6 }}>
+                {sidebarCollapsed ? (
+                  <div
+                    aria-hidden
+                    style={{
+                      height: 1,
+                      margin: "4px 8px 6px",
+                      background: "hsl(var(--sidebar-border))",
+                      opacity: 0.6,
+                    }}
+                  />
+                ) : (
+                  <SectionLabel>{item.label}</SectionLabel>
+                )}
                 {item.children.map((c) =>
-                  renderSideLink(c.to, c.label, c.icon as never),
+                  renderSideLink(c.to, c.label, c.icon as never, undefined, sidebarCollapsed),
                 )}
               </div>
             );
@@ -695,10 +730,53 @@ export const AppLayout = () => {
         <div
           className="flex flex-col gap-2"
           style={{
-            padding: 12,
+            padding: sidebarCollapsed ? 8 : 12,
             borderTop: "1px solid hsl(var(--sidebar-border))",
+            alignItems: sidebarCollapsed ? "center" : "stretch",
           }}
         >
+          {sidebarCollapsed ? (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => navigate("/perfil")}
+                    aria-label={displayName || "Meu perfil"}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      background: AVATAR_GRADIENT,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#fff",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                    className="focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {initials}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{displayName}</TooltipContent>
+              </Tooltip>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                aria-label="Sair"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </Button>
+              <ThemeToggle />
+              <LayoutToggle />
+            </>
+          ) : (
+            <>
           <div className="flex items-center gap-2 min-w-0">
             <div
               style={{
