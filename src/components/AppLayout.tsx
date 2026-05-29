@@ -463,13 +463,13 @@ export const AppLayout = () => {
                 end={item.to === "/"}
                 onClick={() => setMobileNavOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] transition-colors",
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] transition-colors",
                   isActive
                     ? "bg-accent text-accent-foreground font-medium"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                <item.icon size={18} strokeWidth={1.75} className="flex-shrink-0" />
+                <item.icon size={20} strokeWidth={1.75} className="flex-shrink-0" />
                 <span className="truncate">{item.label}</span>
               </NavLink>
             );
