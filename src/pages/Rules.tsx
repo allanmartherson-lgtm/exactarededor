@@ -1685,8 +1685,8 @@ const Rules = () => {
                                 const nm = co?.name ?? link.company_id.slice(0, 8);
                                 parts.push(`${nm} — ${link.doctors.length === 0 ? "todos os médicos" : `${link.doctors.length} médico(s)`}`);
                               }
-                              if (fGroupDoctors.length > 0) parts.push(`Médicos avulsos: ${fGroupDoctors.map((d) => d.name).join(", ")}`);
-                              return parts.length ? `Aplica para ${parts.join("; ")}` : "Grupo · adicione empresa(s) ou médico(s) avulso(s)";
+                              if (fGroupDoctors.length > 0) parts.push(`Médicos específicos: ${fGroupDoctors.map((d) => d.name).join(", ")}`);
+                              return parts.length ? `Aplica para ${parts.join("; ")}` : "Grupo · adicione empresa(s) ou médico(s) específico(s)";
                             })()
                           : RULE_SCOPE_LABELS[scope];
                       const calc = fNature === "informativo"
