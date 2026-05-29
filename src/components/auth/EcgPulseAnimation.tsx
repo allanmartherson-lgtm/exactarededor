@@ -97,7 +97,7 @@ export default function EcgPulseAnimation() {
         ctx.beginPath();
         ctx.strokeStyle = "rgba(255,255,255,0.88)";
         ctx.lineWidth = 2;
-        ctx.shadowColor = "rgba(255,255,255,0.88)";
+        ctx.shadowColor = "rgba(255,255,255,0.5)";
         ctx.shadowBlur = 10;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
