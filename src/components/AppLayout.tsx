@@ -259,14 +259,14 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
                       style={{
                         padding: "7px 10px",
                         borderRadius: 6,
-                        fontSize: 12.5,
+                        fontSize: 13.5,
                         fontWeight: childActive ? 500 : 400,
                         background: childActive ? "hsl(var(--accent))" : undefined,
                         color: childActive ? "hsl(var(--accent-foreground))" : undefined,
                       }}
                     >
                       <c.icon
-                        size={15}
+                        size={17}
                         strokeWidth={1.75}
                         className="flex-shrink-0"
                         style={{ color: "inherit" }}
