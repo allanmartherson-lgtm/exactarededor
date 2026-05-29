@@ -58,6 +58,7 @@ export function ProductionValidationPanel({ paymentId, currentUserId, onChanged 
   const [validations, setValidations] = useState<Validation[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
+  const [sectionOpen, setSectionOpen] = useState(false);
 
   const load = async () => {
     const { data: vals } = await supabase
