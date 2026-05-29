@@ -175,9 +175,9 @@ describe("AppLayout topbar navigation", () => {
       "Versões e Releases",
       "Feature Flags",
       "Avisos do Sistema",
-    "Livro Contábil",
+      "Livro Contábil",
       "Sobre o Exacta",
     ]);
-    expect(collected).toHaveLength(33);
+    expect(collected).toHaveLength(34);
   });
 });
