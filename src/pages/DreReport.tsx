@@ -71,7 +71,7 @@ export default function DreReport() {
       row.doctor_name ?? null,
     ].filter(Boolean).join(" · ");
     setDrillTitle(label);
-    const { data, error } = await supabase.rpc("get_dre_drilldown" as never, {
+    const { data, error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>)("get_dre_drilldown", {
       p_competencia: row.competencia,
       p_company_id: row.company_id,
       p_doctor_id: row.doctor_id,
