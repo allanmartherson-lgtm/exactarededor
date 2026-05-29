@@ -237,7 +237,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md px-3 py-2 text-[15px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 groupActive || isOpen
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
