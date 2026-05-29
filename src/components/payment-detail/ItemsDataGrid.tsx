@@ -1272,6 +1272,7 @@ function ItemDetailsRow({
   showTipoEntrada?: boolean;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
+  const sectorAliases = useSectorAliases();
   const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
   const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
   const seen = new Set<string>();
