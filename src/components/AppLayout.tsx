@@ -197,7 +197,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
   return (
     <nav
       ref={containerRef}
-      className="flex-1 min-w-0 flex items-center gap-0.5"
+      className="flex-1 min-w-0 flex items-center gap-0.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
       aria-label="Navegação principal"
     >
       {items.map((item) => {
@@ -210,7 +210,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
               end={item.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-[15px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "relative inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -237,7 +237,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md px-3 py-2 text-[15px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 groupActive || isOpen
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
