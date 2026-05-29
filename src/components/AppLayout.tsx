@@ -696,7 +696,7 @@ export const AppLayout = () => {
           </Tooltip>
         </div>
 
-        {/* Nav list (grouped with section labels) */}
+        {/* Nav list (collapsible groups, like topbar dropdowns but inline) */}
         <nav
           className="flex-1 overflow-y-auto overflow-x-hidden"
           style={{ padding: sidebarCollapsed ? "8px 6px 12px" : "8px 10px 12px", display: "flex", flexDirection: "column", gap: 1 }}
@@ -706,24 +706,13 @@ export const AppLayout = () => {
               return renderSideLink(item.to, item.label, item.icon as never, undefined, sidebarCollapsed);
             }
             return (
-              <div key={item.label} style={{ marginTop: idx === 0 ? 0 : sidebarCollapsed ? 8 : 6 }}>
-                {sidebarCollapsed ? (
-                  <div
-                    aria-hidden
-                    style={{
-                      height: 1,
-                      margin: "4px 8px 6px",
-                      background: "hsl(var(--sidebar-border))",
-                      opacity: 0.6,
-                    }}
-                  />
-                ) : (
-                  <SectionLabel>{item.label}</SectionLabel>
-                )}
-                {item.children.map((c) =>
-                  renderSideLink(c.to, c.label, c.icon as never, undefined, sidebarCollapsed),
-                )}
-              </div>
+              <SidebarGroupItem
+                key={item.label}
+                group={item}
+                collapsed={sidebarCollapsed}
+                renderSideLink={renderSideLink}
+                isFirst={idx === 0}
+              />
             );
           })}
         </nav>
