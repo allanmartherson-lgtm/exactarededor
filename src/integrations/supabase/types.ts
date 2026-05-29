@@ -5024,6 +5024,24 @@ export type Database = {
           total_analyzed: number
         }[]
       }
+      get_doctor_activity_log: {
+        Args: { p_doctor_id: string; p_limit?: number }
+        Returns: Json
+      }
+      get_doctor_debt_summary: { Args: { p_doctor_id: string }; Returns: Json }
+      get_doctor_glosas: {
+        Args: {
+          p_company_id?: string
+          p_competencia?: string
+          p_doctor_id: string
+          p_status?: string
+        }
+        Returns: Json
+      }
+      get_doctor_linked_companies: {
+        Args: { p_doctor_id: string }
+        Returns: Json
+      }
       get_doctor_notification_preferences: {
         Args: never
         Returns: {
@@ -5048,6 +5066,7 @@ export type Database = {
           type: string
         }[]
       }
+      get_doctor_profile: { Args: { p_doctor_id: string }; Returns: Json }
       get_doctor_statement: {
         Args: { p_competence_month?: string; p_doctor_id: string }
         Returns: Json
@@ -5542,6 +5561,10 @@ export type Database = {
           p_notify_new_payment: boolean
           p_notify_status_change: boolean
         }
+        Returns: undefined
+      }
+      update_doctor_profile: {
+        Args: { p_email_secundario?: string; p_phone?: string }
         Returns: undefined
       }
       user_belongs_to_company: {
