@@ -47,6 +47,8 @@ import {
   Info as PhInfo,
   ClipboardText,
   SlidersHorizontal as PhSliders,
+  Headset,
+  ListChecks,
   type IconProps,
 } from "@phosphor-icons/react";
 
