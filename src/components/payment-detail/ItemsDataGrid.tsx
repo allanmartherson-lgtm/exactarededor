@@ -948,6 +948,15 @@ function RowMain({
   const expN = expected != null ? Number(expected) : null;
   const diff = expN != null ? expN - grossN : null;
   const diverges = diff != null && Math.abs(diff) > 0.01;
+  const sectorAliases = useSectorAliases();
+  const rawSetor = rawPick(it.raw_data, SECTOR_RAW_KEYS as unknown as string[]) ?? null;
+  // "Setor (Sistema)": resolve via alias map a partir da planilha — assim o display fica
+  // correto mesmo quando `it.sector` foi persistido errado (override antigo do bucket).
+  const resolvedSystemSector =
+    (sectorAliases?.resolve(rawSetor) ??
+      sectorAliases?.resolve(it.sector) ??
+      it.sector ??
+      rawSetor) || null;
 
   const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
   const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
