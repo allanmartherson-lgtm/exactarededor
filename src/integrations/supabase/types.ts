@@ -4728,6 +4728,41 @@ export type Database = {
               total: number
             }[]
           }
+      get_portal_competencia_detail: {
+        Args: { p_competencia: string; p_doctor_id: string }
+        Returns: Json
+      }
+      get_portal_competencias: {
+        Args: { p_doctor_id: string; p_limit?: number }
+        Returns: {
+          bruto: number
+          competence_month: string
+          esperado: number
+          glosas: number
+          itens_count: number
+          liquido_estimado: number
+          payment_ids: string[]
+          status_agregado: string
+        }[]
+      }
+      get_portal_doctor_debts: {
+        Args: { p_doctor_id: string }
+        Returns: {
+          company_id: string
+          created_at: string
+          doctor_crm: string
+          doctor_name: string
+          id: string
+          last_applied_at: string
+          parcelas_default: number
+          resolution_status: string
+          saldo: number
+          status: string
+          total_aplicado: number
+          total_debt: number
+        }[]
+      }
+      get_portal_home: { Args: { p_doctor_id: string }; Returns: Json }
       get_registration_pending_doctors: {
         Args: never
         Returns: {
@@ -4872,6 +4907,11 @@ export type Database = {
       only_digits: { Args: { txt: string }; Returns: string }
       payments_global_stats: { Args: never; Returns: Json }
       payments_kpis: { Args: { _filters?: Json }; Returns: Json }
+      portal_can_access_doctor: {
+        Args: { p_doctor_id: string }
+        Returns: boolean
+      }
+      portal_current_doctor_id: { Args: never; Returns: string }
       question_company_group: {
         Args: {
           p_author_id: string
