@@ -54,10 +54,11 @@ function getInitials(name?: string | null, email?: string | null) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-const Logo = () => (
+const Logo = ({ compact = false }: { compact?: boolean }) => (
   <NavLink
     to="/"
     className="flex items-center gap-3 flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+    aria-label="Exacta — início"
   >
     <div
       style={{
@@ -85,29 +86,31 @@ const Logo = () => (
         <polyline points="5 12.5 10 17.5 19 7" />
       </svg>
     </div>
-    <div className="min-w-0 leading-tight">
-      <p
-        className="font-wordmark"
-        style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 400, letterSpacing: "0.04em", color: "hsl(var(--foreground))", lineHeight: 1 }}
-      >
-        E<span className="text-[#8A6830] dark:text-[#C8A96E]">x</span>acta
-      </p>
-      <p
-        style={{
-          fontSize: 9,
-          textTransform: "uppercase",
-          letterSpacing: "0.1em",
-          color: "hsl(var(--muted-foreground))",
-          marginTop: 4,
-          lineHeight: 1.2,
-          whiteSpace: "nowrap",
-        }}
-      >
-        Pagamento Médico
-        <br />
-        Rede D'Or
-      </p>
-    </div>
+    {!compact && (
+      <div className="min-w-0 leading-tight">
+        <p
+          className="font-wordmark"
+          style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 400, letterSpacing: "0.04em", color: "hsl(var(--foreground))", lineHeight: 1 }}
+        >
+          E<span className="text-[#8A6830] dark:text-[#C8A96E]">x</span>acta
+        </p>
+        <p
+          style={{
+            fontSize: 9,
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            color: "hsl(var(--muted-foreground))",
+            marginTop: 4,
+            lineHeight: 1.2,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Pagamento Médico
+          <br />
+          Rede D'Or
+        </p>
+      </div>
+    )}
   </NavLink>
 );
 
