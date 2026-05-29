@@ -15,7 +15,7 @@ import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
 import EcgPulseAnimation from "@/components/auth/EcgPulseAnimation";
-import RedeDOrLogo from "@/components/auth/RedeDOrLogo";
+
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
 const PASSWORD_RECOVERY_EMAIL_KEY = "exacta-password-recovery-email";
@@ -143,11 +143,6 @@ const Auth = () => {
       <div className="hidden lg:flex lg:w-[55%] relative bg-[#003DA5] overflow-hidden flex-col">
         <div className="absolute inset-0">
           <EcgPulseAnimation />
-        </div>
-        {/* Logo oficial Rede D'Or no canto inferior esquerdo */}
-        <div className="absolute bottom-8 left-8">
-          <RedeDOrLogo className="h-7 w-auto opacity-90" />
-          <p className="text-white/40 text-xs mt-2 tracking-wide">Hospital DF Star</p>
         </div>
 
         {/* Tagline no centro inferior */}
