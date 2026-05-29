@@ -62,6 +62,10 @@ const EXPECTED_ORDER = [
   "Auditoria",
   "Anomalias de status",
   "Insights de Observações",
+  "Versões e Releases",
+  "Feature Flags",
+  "Avisos do Sistema",
+  "Sobre o Exacta",
 ];
 
 const EXPECTED_COUNT = EXPECTED_ORDER.length;
