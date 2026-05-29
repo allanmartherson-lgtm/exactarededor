@@ -155,8 +155,6 @@ export default function EcgPulseAnimation() {
         ctx.fill(); ctx.shadowBlur = 0;
 
 
-        drawRedeDOrLogo(slCX, slCY, SMALL_LOGO_H, 0.85);
-        drawSubtitle(slCX, slCY + SMALL_LOGO_H / 2 + 14, Math.round(h * 0.019), 0.35);
       }
 
       // ── FASE 2: Morph ────────────────────────────────
@@ -183,8 +181,6 @@ export default function EcgPulseAnimation() {
         else { ctx.lineTo(p2[0], p2[1]); const r2 = Math.min(1, (drawn - s1) / s2); ctx.lineTo(p2[0] + (p3[0] - p2[0]) * r2, p2[1] + (p3[1] - p2[1]) * r2); }
         ctx.stroke(); ctx.shadowBlur = 0;
 
-        drawRedeDOrLogo(slCX, slCY, SMALL_LOGO_H, 0.85);
-        drawSubtitle(slCX, slCY + SMALL_LOGO_H / 2 + 14, Math.round(h * 0.019), 0.35);
       }
 
       // ── FASE 3: Exacta ───────────────────────────────
@@ -192,7 +188,7 @@ export default function EcgPulseAnimation() {
         const p = (elapsed - T_MORPH_END) / (T_EXACTA_END - T_MORPH_END);
         const checkAlpha = p > 0.75 ? Math.max(0, 1 - (p - 0.75) / 0.25) : 1;
         const textAlpha = p < 0.15 ? p / 0.15 : p > 0.75 ? Math.max(0, 1 - (p - 0.75) / 0.25) : 1;
-        const logoAlpha = p > 0.75 ? Math.max(0, 1 - (p - 0.75) / 0.25) : 0.85;
+        const cornerLogoAlpha = p > 0.75 ? Math.max(0, 1 - (p - 0.75) / 0.25) : 0.85;
 
         const cx3 = w / 2, cy3 = midY, sz = Math.min(w, h) * 0.18;
         if (checkAlpha > 0) {
@@ -204,8 +200,8 @@ export default function EcgPulseAnimation() {
           ctx.stroke(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
         }
         drawExactaText(cx3, cy3 + sz * 1.5, Math.round(w * 0.075), textAlpha);
-        drawRedeDOrLogo(slCX, slCY, SMALL_LOGO_H, logoAlpha);
-        drawSubtitle(slCX, slCY + SMALL_LOGO_H / 2 + 14, Math.round(h * 0.019), logoAlpha * 0.4);
+        drawRedeDOrLogo(slCX, slCY, SMALL_LOGO_H, cornerLogoAlpha);
+        drawSubtitle(slCX, slCY + SMALL_LOGO_H / 2 + 14, Math.round(h * 0.019), cornerLogoAlpha * 0.4);
       }
 
       // ── FASE 4: Rede D'Or sobe ────────────────────────
