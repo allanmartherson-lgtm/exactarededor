@@ -54,6 +54,33 @@ export default function DreReport() {
   const [dre, setDre] = useState<DreRow[]>([]);
   const [open, setOpen] = useState<OpenRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [drillOpen, setDrillOpen] = useState(false);
+  const [drillLoading, setDrillLoading] = useState(false);
+  const [drillTitle, setDrillTitle] = useState("");
+  const [drillRows, setDrillRows] = useState<Array<{
+    payment_id: string; reference: string; status: string; created_at: string;
+    bruto: number; debitos: number; creditos: number; glosas: number; pool: number; liquido: number; items_count: number;
+  }>>([]);
+
+  const openDrill = async (row: DreRow) => {
+    setDrillOpen(true);
+    setDrillLoading(true);
+    const label = [
+      new Date(row.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }),
+      row.company_name ?? "—",
+      row.doctor_name ?? null,
+    ].filter(Boolean).join(" · ");
+    setDrillTitle(label);
+    const { data, error } = await supabase.rpc("get_dre_drilldown" as never, {
+      p_competencia: row.competencia,
+      p_company_id: row.company_id,
+      p_doctor_id: row.doctor_id,
+    });
+    if (!error && data) setDrillRows(data as typeof drillRows);
+    else setDrillRows([]);
+    setDrillLoading(false);
+  };
+
 
   const load = async () => {
     setLoading(true);
