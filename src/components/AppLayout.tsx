@@ -355,6 +355,17 @@ export const AppLayout = () => {
   const groupedSideNav = filterNav(NAV_ITEMS, roles);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // Sidebar collapsed state (persisted in localStorage)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("exacta:sidebar-collapsed") === "1";
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("exacta:sidebar-collapsed", sidebarCollapsed ? "1" : "0");
+    } catch {}
+  }, [sidebarCollapsed]);
+
   // Detect mobile (<768px) to force topbar layout on small screens regardless of saved preference.
   const [isMobile, setIsMobile] = useState<boolean>(
     typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
@@ -369,6 +380,7 @@ export const AppLayout = () => {
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
   const effectiveLayout = isMobile ? "top" : layout;
+  const sidebarWidth = sidebarCollapsed ? 68 : 260;
 
   const renderSideLink = (
     to: string,
