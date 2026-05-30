@@ -20,7 +20,9 @@ interface PrevBatch {
   totalAmount: number;
   itemsCount: number;
   newDoctors: string[];
-  matchQuality: "exato" | "tipo"; // exato = mesmo tipo + setor; tipo = só payment_type
+  matchQuality: "centro" | "exato" | "tipo"; // centro = mesmo centro de custo; exato = mesmo tipo + setor; tipo = só payment_type
+  prevCostCenter: string | null;
+  currCostCenter: string | null;
 }
 
 function formatCompetence(d: string | null): string {
@@ -49,14 +51,15 @@ export function PreviousBatchComparison({
     setPrev(null);
 
     (async () => {
-      // 1) Tipo/setores do lote atual — chave para evitar comparar pareceres com cirurgia.
+      // 1) Tipo/setores/centro de custo do lote atual — chave para evitar comparar pareceres com cirurgia.
       const { data: curr } = await supabase
         .from("payments")
-        .select("payment_type, sectors, competence_month")
+        .select("payment_type, sectors, competence_month, cost_center_code")
         .eq("id", currentPaymentId)
         .maybeSingle();
       const currType = (curr?.payment_type ?? null) as string | null;
       const currSectors = ((curr?.sectors ?? []) as string[]).map((s) => s.toLowerCase().trim()).filter(Boolean);
+      const currCC = ((curr?.cost_center_code ?? null) as string | null)?.trim() || null;
       if (!cancelled) setCurrentCompetence((curr?.competence_month as string | null) ?? null);
 
       if (!currType) {
@@ -70,12 +73,12 @@ export function PreviousBatchComparison({
       // 2) Candidatos: grupos da mesma empresa em lotes do MESMO payment_type.
       const { data: candidates } = await supabase
         .from("payment_company_groups")
-        .select("payment_id, total_amount, items_count, created_at, payments!inner(reference, competence_month, payment_type, sectors)")
+        .select("payment_id, total_amount, items_count, created_at, payments!inner(reference, competence_month, payment_type, sectors, cost_center_code)")
         .eq("company_name", companyName)
         .neq("payment_id", currentPaymentId)
         .eq("payments.payment_type", currType as "plantao" | "producao" | "remessa" | "valor_fixo")
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (!candidates || candidates.length === 0) {
         if (!cancelled) {
@@ -85,12 +88,25 @@ export function PreviousBatchComparison({
         return;
       }
 
-      // 3) Preferir o primeiro candidato com sobreposição de setores; senão cair pro mais recente do mesmo tipo.
+      // 3) Prioridade de match:
+      //    a) mesmo cost_center_code (centro de custo idêntico) — match "centro"
+      //    b) sobreposição de setores — match "exato"
+      //    c) mais recente do mesmo tipo — match "tipo" (com aviso)
       type Row = (typeof candidates)[number] & {
-        payments: { reference: string; competence_month: string | null; payment_type: string | null; sectors: string[] | null } | null;
+        payments: { reference: string; competence_month: string | null; payment_type: string | null; sectors: string[] | null; cost_center_code: string | null } | null;
       };
-      let chosen: { row: Row; quality: "exato" | "tipo" } | null = null;
-      if (currSectors.length > 0) {
+      let chosen: { row: Row; quality: "centro" | "exato" | "tipo" } | null = null;
+
+      if (currCC) {
+        for (const c of candidates as Row[]) {
+          const cc = (c.payments?.cost_center_code ?? "").trim();
+          if (cc && cc === currCC) {
+            chosen = { row: c, quality: "centro" };
+            break;
+          }
+        }
+      }
+      if (!chosen && currSectors.length > 0) {
         for (const c of candidates as Row[]) {
           const sec = (c.payments?.sectors ?? []).map((s) => (s ?? "").toLowerCase().trim());
           if (sec.some((s) => currSectors.includes(s))) {
@@ -100,7 +116,17 @@ export function PreviousBatchComparison({
         }
       }
       if (!chosen) {
-        chosen = { row: candidates[0] as Row, quality: currSectors.length > 0 ? "tipo" : "tipo" };
+        // Se o lote atual tem centro de custo definido mas nenhum candidato bate, NÃO caímos
+        // para "tipo" cego — comparar com centro de custo diferente é justamente o que o
+        // usuário pediu para evitar. Avisa e sai.
+        if (currCC) {
+          if (!cancelled) {
+            setNoMatchReason(`Nenhum lote anterior do mesmo centro de custo (${currCC}) encontrado para esta empresa. Comparação automática evitada para não cruzar perfis distintos (ex: centro cirúrgico vs parecer).`);
+            setLoading(false);
+          }
+          return;
+        }
+        chosen = { row: candidates[0] as Row, quality: "tipo" };
       }
 
       const prevPaymentId = chosen.row.payment_id as string;
@@ -137,6 +163,8 @@ export function PreviousBatchComparison({
         itemsCount: Number(chosen.row.items_count ?? 0),
         newDoctors,
         matchQuality: chosen.quality,
+        prevCostCenter: (chosen.row.payments?.cost_center_code ?? null) || null,
+        currCostCenter: currCC,
       });
       setLoading(false);
     })();
@@ -175,11 +203,25 @@ export function PreviousBatchComparison({
         <GitCompare className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="font-medium">Comparar com lote anterior</span>
         <Badge variant="muted" className="ml-1">{prev.reference}</Badge>
+        {prev.matchQuality === "centro" && prev.currCostCenter && (
+          <Badge
+            variant="outline"
+            className="text-[10px] gap-1"
+            title={`Mesmo centro de custo (${prev.currCostCenter}) — perfis comparáveis.`}
+          >
+            CC {prev.currCostCenter}
+          </Badge>
+        )}
+        {prev.matchQuality === "exato" && (
+          <Badge variant="outline" className="text-[10px] gap-1" title="Mesmo tipo e sobreposição de setor.">
+            mesmo setor
+          </Badge>
+        )}
         {prev.matchQuality === "tipo" && (
           <Badge
             variant="outline"
             className="text-[10px] gap-1"
-            title="Mesmo tipo de pagamento, mas sem sobreposição de setor — interprete com cautela."
+            title="Mesmo tipo de pagamento, mas sem centro de custo nem setor em comum — interprete com cautela."
           >
             <Info className="h-2.5 w-2.5" /> só por tipo
           </Badge>
