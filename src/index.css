@@ -1123,7 +1123,7 @@ All colors MUST be HSL.
 }
 
 /* Labels dentro do formulário de regras — mais presença */
-.rule-form-context label:not([data-no-style]),
+.rule-form-context label:not([data-no-style]):not([data-checkbox-wrapper]),
 .rule-form-context .form-label {
   font-size: 12px !important;
   font-weight: 600 !important;
