@@ -63,7 +63,12 @@ export function FinancialCompositionStrip({ comp }: { comp: FinancialComposition
                 return `${dedPrefix}${comp.poolDetalhes.map(d => `${d.pool_nome}: quota ${brl(d.quota_empresa)}`).join(" · ")}`;
               })()} />
 
-        <Op icon={<Plus className="h-3.5 w-3.5" />} />
+        <Op icon={
+          <span className="inline-flex flex-col items-center leading-none text-[10px] font-semibold">
+            <Plus className="h-3 w-3" />
+            <Minus className="h-3 w-3 -mt-0.5" />
+          </span>
+        } />
         <Cell label="Conciliação"
               value={comp.conciliacaoAplicada && comp.conciliacao !== 0 ? brl(comp.conciliacao) : "—"}
               icon={<GitCompareArrows className="h-3.5 w-3.5" />}
