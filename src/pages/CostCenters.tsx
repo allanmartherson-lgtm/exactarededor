@@ -210,10 +210,17 @@ const CostCenters = () => {
   return (
     <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
       <PageHeader
-        title="Centros de custo"
-        description="Catálogo importado da controladoria (P12). Apenas centros com status 'Não Bloqueado' são considerados."
+        title="Centros de custo e setores"
+        description="Catálogo de centros de custo (P12) e padronização de setores que vêm da base. Apenas centros com status 'Não Bloqueado' são considerados."
       />
       <div className="p-4 md:p-8 w-full mx-auto space-y-6">
+        <Tabs defaultValue="centros" className="w-full">
+          <TabsList>
+            <TabsTrigger value="centros">Centros de custo</TabsTrigger>
+            <TabsTrigger value="setores">Setores</TabsTrigger>
+          </TabsList>
+          <TabsContent value="centros" className="space-y-6 mt-4">
+
         {canManage && (
           <Card className="shadow-card">
             <CardHeader>
