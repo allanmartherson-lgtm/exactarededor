@@ -44,6 +44,7 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<RuleHealth[]>([]);
+  const [doctorCollisions, setDoctorCollisions] = useState<DoctorMultiRuleProblem[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const analyze = async () => {
