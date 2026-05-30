@@ -34,7 +34,13 @@ export type ImportProfile = {
   supportedModes?: ImportMode[];
   /** Escopo opcional para "replace" (filtra a deleção) */
   replaceScope?: Record<string, any>;
+  /** Linhas de exemplo para o botão "Baixar modelo" no passo de upload.
+   *  Cabeçalhos são derivados dos labels dos `fields`. */
+  templateRows?: Record<string, any>[];
+  /** Nome do arquivo de modelo (sem extensão). Default: entity. */
+  templateFileName?: string;
 };
+
 
 export type ImportMode = "append" | "update" | "replace";
 
@@ -307,6 +313,19 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
             <p className="text-sm text-muted-foreground">
               Selecione um arquivo Excel (.xlsx, .xls) ou CSV. O sistema mostrará uma prévia antes de importar.
             </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => downloadTemplate(profile, title)}
+              >
+                Baixar modelo
+              </Button>
+              <span className="text-xs text-muted-foreground self-center">
+                Use o modelo como referência das colunas esperadas.
+              </span>
+            </div>
             <Input
               ref={fileRef}
               type="file"
@@ -320,6 +339,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
             <FieldsHelp fields={profile.fields} />
           </div>
         )}
+
 
         {step === "preview" && sheet && (
           <div className="space-y-4">
@@ -697,6 +717,21 @@ function FieldsHelp({ fields }: { fields: ImportFieldDef[] }) {
     </div>
   );
 }
+
+function downloadTemplate(profile: ImportProfile, title: string) {
+  const headers = profile.fields.map(f => f.label);
+  const exampleRows = profile.templateRows && profile.templateRows.length > 0
+    ? profile.templateRows
+    : [Object.fromEntries(profile.fields.map(f => [f.label, ""]))];
+  const ws = XLSX.utils.json_to_sheet(exampleRows, { header: headers });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Modelo");
+  const base = (profile.templateFileName ?? profile.entity ?? title ?? "modelo")
+    .toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  XLSX.writeFile(wb, `modelo_${base}.xlsx`);
+}
+
 
 function stepLabel(s: Step) {
   return { upload: "1. Upload", preview: "2. Mapeamento", role_config: "2.5 Funções", validate: "3. Validação", done: "4. Concluído" }[s];

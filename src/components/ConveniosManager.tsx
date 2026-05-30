@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ShieldCheck, Plus, Pencil, X } from "lucide-react";
+import { ShieldCheck, Plus, Pencil, X, Upload, Download } from "lucide-react";
+
 
 type Convenio = {
   slug: string;
@@ -46,6 +48,72 @@ export default function ConveniosManager({ canManage = true }: Props) {
   const [isNew, setIsNew] = useState(false);
   const [aliasInput, setAliasInput] = useState("");
   const [search, setSearch] = useState("");
+  const [importing, setImporting] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
+
+  const downloadTemplate = () => {
+    const rows = [
+      { "Convênio": "Bradesco Saúde", "Alias": "bradesco, bradesco saude, bsaude, bradescosaude" },
+      { "Convênio": "Sul América", "Alias": "sul america, sulamerica, sul américa" },
+    ];
+    const ws = XLSX.utils.json_to_sheet(rows, { header: ["Convênio", "Alias"] });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Convênios");
+    XLSX.writeFile(wb, "modelo_convenios.xlsx");
+  };
+
+  const buildSlugLocal = (s: string) =>
+    s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+
+  const handleImport = async (file: File) => {
+    setImporting(true);
+    try {
+      const isCsv = /\.csv$/i.test(file.name);
+      const wb = isCsv
+        ? XLSX.read(await file.text(), { type: "string" })
+        : XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+      if (rows.length === 0) { toast.error("Planilha vazia"); return; }
+
+      // Detectar colunas (Convênio / Alias) tolerando variações
+      const headers = Object.keys(rows[0]);
+      const norm = (s: string) => s.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const nameCol = headers.find(h => ["convenio", "nome", "nome canonico", "convênio"].includes(norm(h)))
+        ?? headers[0];
+      const aliasCol = headers.find(h => ["alias", "aliases", "variacoes", "variações"].includes(norm(h)))
+        ?? headers[1];
+
+      const payload = rows
+        .map(r => {
+          const name = String(r[nameCol] ?? "").trim();
+          if (!name) return null;
+          const aliases = String(r[aliasCol] ?? "")
+            .split(",").map(a => a.trim()).filter(Boolean);
+          return {
+            slug: buildSlugLocal(name),
+            name,
+            aliases,
+            active: true,
+            sort_order: 50,
+          };
+        })
+        .filter(Boolean) as any[];
+
+      if (payload.length === 0) { toast.error("Nenhuma linha válida"); return; }
+
+      const { error } = await supabase.from("convenios").upsert(payload, { onConflict: "slug" });
+      if (error) { toast.error("Erro ao importar: " + error.message); return; }
+      toast.success(`${payload.length} convênios importados/atualizados`);
+      load();
+    } catch (e: any) {
+      toast.error("Falha ao ler planilha: " + (e?.message ?? e));
+    } finally {
+      setImporting(false);
+    }
+  };
+
 
   const load = async () => {
     setLoading(true);
@@ -129,10 +197,30 @@ export default function ConveniosManager({ canManage = true }: Props) {
           </p>
         </div>
         {canManage && (
-          <Button onClick={openNew}>
-            <Plus className="h-4 w-4 mr-1" />Novo convênio
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={downloadTemplate}>
+              <Download className="h-4 w-4 mr-1" />Baixar modelo
+            </Button>
+            <Button variant="outline" onClick={() => importRef.current?.click()} disabled={importing}>
+              <Upload className="h-4 w-4 mr-1" />{importing ? "Importando…" : "Importar planilha"}
+            </Button>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleImport(f);
+                if (importRef.current) importRef.current.value = "";
+              }}
+            />
+            <Button onClick={openNew}>
+              <Plus className="h-4 w-4 mr-1" />Novo convênio
+            </Button>
+          </div>
         )}
+
       </div>
 
       <Input
