@@ -14,6 +14,7 @@ interface Props {
 }
 
 type MatchCriterion = "centro" | "exato" | "tipo";
+type CandidateCriterion = MatchCriterion | "nenhum";
 
 interface Candidate {
   paymentId: string;
@@ -21,7 +22,7 @@ interface Candidate {
   competenceMonth: string | null;
   costCenter: string | null;
   sectors: string[];
-  criterion: MatchCriterion; // melhor critério que esse candidato satisfaz
+  criterion: CandidateCriterion; // melhor critério que esse candidato satisfaz (ou "nenhum")
   chosen: boolean;
 }
 
