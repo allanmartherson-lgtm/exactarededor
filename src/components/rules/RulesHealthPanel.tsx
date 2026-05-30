@@ -218,12 +218,22 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
 
             {doctorCollisions.length > 0 && (
               <div className="border border-destructive/40 bg-destructive/5 rounded-md p-3 space-y-2">
-                <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
-                  <UserX className="h-4 w-4" />
-                  Médicos vinculados a múltiplas regras sem distinção
-                  <Badge className="bg-destructive/10 text-destructive border border-destructive/30 text-xs ml-1">
-                    {doctorCollisions.length}
-                  </Badge>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                    <UserX className="h-4 w-4" />
+                    Médicos vinculados a múltiplas regras sem distinção
+                    <Badge className="bg-destructive/10 text-destructive border border-destructive/30 text-xs ml-1">
+                      {doctorCollisions.length}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => exportDoctorCollisionsCsv(doctorCollisions)}>
+                      <Download className="h-3 w-3 mr-1" /> CSV
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => exportDoctorCollisionsPdf(doctorCollisions)}>
+                      <FileText className="h-3 w-3 mr-1" /> PDF
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Um médico só pode estar em mais de uma regra ativa se ao menos uma delas tiver restrições (códigos, setor, convênio ou via de acesso) que a outra não tenha. Caso contrário, há ambiguidade no motor.
@@ -234,16 +244,30 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
                       <div className="font-semibold mb-1">{c.doctor_label}</div>
                       <div className="text-muted-foreground mb-1">Regras em conflito:</div>
                       <ul className="space-y-1">
-                        {c.rule_ids.map((id, i) => (
-                          <li key={id} className="flex items-center justify-between gap-2">
-                            <span className="truncate">• {c.rule_names[i]}</span>
-                            {onSelectRule && (
-                              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => onSelectRule(id)}>
-                                Editar
-                              </Button>
-                            )}
-                          </li>
-                        ))}
+                        {c.rule_ids.map((id, i) => {
+                          const fp = c.rule_fingerprints?.[i];
+                          const summary = fp
+                            ? [
+                                fp.codes.length ? `${fp.codes.length} código(s)` : null,
+                                fp.sectors.length ? `${fp.sectors.length} setor(es)` : null,
+                                fp.agreements.length ? `${fp.agreements.length} convênio(s)` : null,
+                                fp.routes.length ? `${fp.routes.length} via(s)` : null,
+                              ].filter(Boolean).join(" · ") || "sem restrições"
+                            : "";
+                          return (
+                            <li key={id} className="flex items-center justify-between gap-2">
+                              <span className="truncate">
+                                • {c.rule_names[i]}
+                                {summary && <span className="text-muted-foreground ml-1">— {summary}</span>}
+                              </span>
+                              {onSelectRule && (
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => onSelectRule(id)}>
+                                  Editar
+                                </Button>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   ))}
