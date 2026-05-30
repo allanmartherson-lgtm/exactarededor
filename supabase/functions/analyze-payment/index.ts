@@ -274,6 +274,10 @@ serve(async (req) => {
             if (r.scope === "master") return true;
             if (r.scope === "especifica") return r.target_company_id === scopedCompanyId;
             if (r.scope === "grupo") {
+              // group_doctors seguem o médico em qualquer PJ — não dá pra filtrar por empresa aqui.
+              // O motor (targetsGroup) faz o match final por médico/PJ.
+              const looseDoctors = Array.isArray(r.group_doctors) ? r.group_doctors : [];
+              if (looseDoctors.length > 0) return true;
               const links = Array.isArray(r.group_company_links) ? r.group_company_links : [];
               return links.some((l: any) => l?.company_id === scopedCompanyId);
             }
@@ -289,8 +293,10 @@ serve(async (req) => {
       // Cache miss → caminho original + grava snapshot ao final.
       let rulesQuery = supabase.from("rules").select(RULES_SELECT).eq("active", true);
       if (scopedCompanyId) {
+        // Carrega master + especifica da PJ + TODAS as regras de grupo (o motor decide
+        // via targetsGroup; group_doctors seguem o médico em qualquer PJ).
         rulesQuery = rulesQuery.or(
-          `scope.eq.master,and(scope.eq.especifica,target_company_id.eq.${scopedCompanyId}),and(scope.eq.grupo,group_company_links.cs.[{"company_id":"${scopedCompanyId}"}])`
+          `scope.eq.master,scope.eq.grupo,and(scope.eq.especifica,target_company_id.eq.${scopedCompanyId})`
         );
       }
 
