@@ -86,9 +86,17 @@ export interface RuleInput {
   /**
    * Vínculos por empresa (escopo "grupo"). Cada item: empresa + (opcional) lista de médicos.
    * Se `doctors` estiver vazio → aplica a todos médicos daquela empresa.
-   * Se preenchido → aplica somente aos médicos listados naquela empresa.
+   * Se preenchido → aplica aos médicos listados E (por padrão) a novos médicos
+   * que entrarem na empresa depois, exceto os que estiverem em `excluded_doctors`.
+   * Defina `auto_include_new_doctors: false` para voltar ao modo allowlist estrita.
    */
-  group_company_links?: { company_id: string; doctors?: { name?: string; crm?: string }[] }[] | null;
+  group_company_links?: {
+    company_id: string;
+    doctors?: { id?: string | null; name?: string; crm?: string }[];
+    excluded_doctors?: { id?: string | null; name?: string; crm?: string }[];
+    auto_include_new_doctors?: boolean;
+  }[] | null;
+
   /**
    * Médicos específicos da regra. Casa por nome+CRM em qualquer empresa do item.
    * Útil para acordos pessoais que seguem o médico independente do CNPJ que
