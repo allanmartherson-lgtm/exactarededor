@@ -19,9 +19,20 @@ type Sector = {
   active: boolean;
   sort_order: number;
   notes: string | null;
+  tasy_code: string | null;
+  classification: string | null;
 };
 
-const empty: Sector = { slug: "", name: "", aliases: [], active: true, sort_order: 50, notes: "" };
+const empty: Sector = {
+  slug: "",
+  name: "",
+  aliases: [],
+  active: true,
+  sort_order: 50,
+  notes: "",
+  tasy_code: "",
+  classification: "",
+};
 
 const norm = (s: string) =>
   (s ?? "")
@@ -70,7 +81,13 @@ export default function SectorsManager({ canManage = true }: Props) {
     if (!editing) return;
     const slug = editing.slug.trim().toLowerCase().replace(/\s+/g, "_");
     if (!slug || !editing.name.trim()) { toast.error("Slug e nome são obrigatórios"); return; }
-    const payload = { ...editing, slug, aliases: editing.aliases.map(a => a.trim()).filter(Boolean) };
+    const payload = {
+      ...editing,
+      slug,
+      aliases: editing.aliases.map(a => a.trim()).filter(Boolean),
+      tasy_code: editing.tasy_code?.trim() || null,
+      classification: editing.classification?.trim() || null,
+    };
     const { error } = isNew
       ? await supabase.from("sectors").insert(payload)
       : await supabase.from("sectors").update(payload).eq("slug", editing.slug);
@@ -102,8 +119,8 @@ export default function SectorsManager({ canManage = true }: Props) {
 
   /**
    * Importação em lote a partir de XLSX/CSV.
-   * Colunas reconhecidas (case/acento-insensitive): slug, nome, aliases, ordem, ativo, notas.
-   * - Se `slug` faltar, é derivado de `nome` (snake_case sem acentos).
+   * Colunas reconhecidas (case/acento-insensitive): codigo, nome, classificacao, aliases, ordem, ativo, notas, slug.
+   * - `codigo` (Tasy) é gravado em `tasy_code`. Se `slug` não vier, é derivado de `codigo` ou `nome`.
    * - `aliases` aceita lista separada por `;` ou `,`.
    * - Upsert por `slug`: aliases existentes são complementados (sem duplicar).
    */
@@ -137,15 +154,18 @@ export default function SectorsManager({ canManage = true }: Props) {
       let skipped = 0;
 
       for (const row of rows) {
-        const nome = pick(row, ["nome", "name", "setor"]);
-        let slug = pick(row, ["slug", "id", "codigo"]);
+        const nome = pick(row, ["nome", "name", "setor", "nomesetor", "nome do setor"]);
+        const codigo = pick(row, ["codigo", "code", "codigotasy", "codigo tasy", "cd_setor", "cd_setor_atendimento"]);
+        const classification = pick(row, ["classificacao", "classification", "classificacaosetor", "classe", "tipo"]);
+        let slug = pick(row, ["slug"]);
+        if (!slug && codigo) slug = buildSlug(codigo);
         if (!slug && nome) slug = buildSlug(nome);
         if (!slug || !nome) { skipped++; continue; }
         slug = buildSlug(slug);
         const aliasesRaw = pick(row, ["aliases", "alias", "variacoes", "variações"]);
         const ordem = Number(pick(row, ["ordem", "sort_order", "order"]) ?? 50) || 50;
-        const ativoRaw = pick(row, ["ativo", "active"]);
-        const ativo = ativoRaw == null ? true : !/^(0|false|nao|não|inativo|n)$/i.test(ativoRaw);
+        const ativoRaw = pick(row, ["ativo", "active", "status"]);
+        const ativo = ativoRaw == null ? true : !/^(0|false|nao|não|inativo|n|i)$/i.test(ativoRaw);
         const notas = pick(row, ["notas", "notes", "observacao", "observações"]);
 
         const existing = existingBySlug.get(slug);
@@ -160,6 +180,8 @@ export default function SectorsManager({ canManage = true }: Props) {
           active: ativo,
           sort_order: ordem,
           notes: notas,
+          tasy_code: codigo,
+          classification,
         });
       }
 
@@ -213,8 +235,10 @@ export default function SectorsManager({ canManage = true }: Props) {
             <CardTitle className="text-base">Importação em lote</CardTitle>
             <CardDescription>
               Aceita <code>.xlsx</code>, <code>.xls</code> ou <code>.csv</code>. Colunas reconhecidas:
-              {" "}<code>slug</code> (opcional), <code>nome</code>, <code>aliases</code> (separados por <code>;</code> ou <code>,</code>),
-              {" "}<code>ordem</code>, <code>ativo</code>, <code>notas</code>. Upsert pelo <code>slug</code> — aliases existentes são preservados.
+              {" "}<code>codigo</code> (Tasy), <code>nome</code>, <code>classificacao</code>,
+              {" "}<code>aliases</code> (separados por <code>;</code> ou <code>,</code>),
+              {" "}<code>ativo</code>, <code>ordem</code>, <code>notas</code>, <code>slug</code> (opcional).
+              Upsert pelo <code>slug</code> — aliases existentes são preservados.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -248,10 +272,16 @@ export default function SectorsManager({ canManage = true }: Props) {
           <Card key={s.slug} className={s.active ? "" : "opacity-60"}>
             <CardContent className="p-4 flex items-start justify-between gap-4">
               <div className="space-y-2 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {s.tasy_code && (
+                    <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono">
+                      {s.tasy_code}
+                    </code>
+                  )}
                   <span className="font-semibold">{s.name}</span>
                   <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{s.slug}</code>
-                  {!s.active && <Badge variant="outline">inativo</Badge>}
+                  {s.classification && <Badge variant="outline" className="text-xs">{s.classification}</Badge>}
+                  {!s.active && <Badge variant="destructive" className="text-xs">inativo</Badge>}
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {s.aliases.length === 0 && <span className="text-xs text-muted-foreground">Sem aliases</span>}
@@ -280,6 +310,26 @@ export default function SectorsManager({ canManage = true }: Props) {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <Label className="text-xs">Código (Tasy)</Label>
+                  <Input value={editing.tasy_code ?? ""}
+                    onChange={e => setEditing({ ...editing, tasy_code: e.target.value })}
+                    placeholder="Ex: 1234" />
+                </div>
+                <div>
+                  <Label className="text-xs">Classificação</Label>
+                  <Input value={editing.classification ?? ""}
+                    onChange={e => setEditing({ ...editing, classification: e.target.value })}
+                    placeholder="Ex: Assistencial" />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Nome do setor</Label>
+                <Input value={editing.name}
+                  onChange={e => setEditing({ ...editing, name: e.target.value })}
+                  placeholder="Centro Cirúrgico" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
                   <Label className="text-xs">Slug (interno)</Label>
                   <Input value={editing.slug} disabled={!isNew}
                     onChange={e => setEditing({ ...editing, slug: e.target.value })}
@@ -290,12 +340,6 @@ export default function SectorsManager({ canManage = true }: Props) {
                   <Input type="number" value={editing.sort_order}
                     onChange={e => setEditing({ ...editing, sort_order: Number(e.target.value) })} />
                 </div>
-              </div>
-              <div>
-                <Label className="text-xs">Nome de exibição</Label>
-                <Input value={editing.name}
-                  onChange={e => setEditing({ ...editing, name: e.target.value })}
-                  placeholder="Centro Cirúrgico" />
               </div>
               <div>
                 <Label className="text-xs">Aliases (variações reconhecidas)</Label>
