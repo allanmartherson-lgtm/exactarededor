@@ -810,20 +810,20 @@ function CalcCard({
                 </div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <label className={cn("flex items-start gap-3", !isPacoteComExtras && "opacity-50")}>
+                <label className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
                   <Checkbox checked={c.package_visits_count} disabled={!isPacoteComExtras}
                     onCheckedChange={(v) => onChange({ package_visits_count: !!v })} />
-                  <span className="text-xs">Visitas somam ao pacote</span>
+                  <span className="text-xs ml-1">Visitas somam ao pacote</span>
                 </label>
-                <label className={cn("flex items-start gap-3", !isPacoteComExtras && "opacity-50")}>
+                <label className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
                   <Checkbox checked={c.package_opinions_count} disabled={!isPacoteComExtras}
                     onCheckedChange={(v) => onChange({ package_opinions_count: !!v })} />
-                  <span className="text-xs">Pareceres somam ao pacote</span>
+                  <span className="text-xs ml-1">Pareceres somam ao pacote</span>
                 </label>
-                <label className={cn("flex items-start gap-3", !isPacoteComExtras && "opacity-50")}>
+                <label className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
                   <Checkbox checked={c.package_auxiliaries_included} disabled={!isPacoteComExtras}
                     onCheckedChange={(v) => onChange({ package_auxiliaries_included: !!v })} />
-                  <span className="text-xs">Auxiliares incluídos no pacote</span>
+                  <span className="text-xs ml-1">Auxiliares incluídos no pacote</span>
                 </label>
               </div>
             </div>
@@ -864,13 +864,13 @@ function CalcCard({
                       <p className="text-[10px] text-muted-foreground leading-tight">Aditivo. Ex.: 20 = +20% sobre o valor calculado, antes do deflator.</p>
                     </div>
                   </div>
-                  <label className="flex items-start gap-3">
+                  <label className="flex items-center gap-2">
                     <Checkbox checked={c.apply_access_route} onCheckedChange={(v) => onChange({ apply_access_route: !!v })} />
-                    <span className="text-xs">Aplicar regra de via de acesso</span>
+                    <span className="text-xs ml-1">Aplicar regra de via de acesso</span>
                   </label>
-                  <label className="flex items-start gap-3">
+                  <label className="flex items-center gap-2">
                     <Checkbox checked={c.include_auxiliaries} onCheckedChange={(v) => onChange({ include_auxiliaries: !!v })} />
-                    <span className="text-xs">Considerar auxiliares</span>
+                    <span className="text-xs ml-1">Considerar auxiliares</span>
                   </label>
                   {c.include_auxiliaries && (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
