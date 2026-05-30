@@ -859,7 +859,13 @@ const Rules = () => {
     setFGroupCompanyIds([]);
     setFGroupDoctors(Array.isArray((r as any).group_doctors) ? (r as any).group_doctors : []);
     setFGroupMode("empresa");
-    setFGroupLinks(glinks.map((l: any) => ({ company_id: l.company_id, doctors: Array.isArray(l.doctors) ? l.doctors : [] })));
+    setFGroupLinks(glinks.map((l: any) => ({
+      company_id: l.company_id,
+      doctors: Array.isArray(l.doctors) ? l.doctors : [],
+      excluded_doctors: Array.isArray(l.excluded_doctors) ? l.excluded_doctors : [],
+      auto_include_new_doctors: l.auto_include_new_doctors !== false,
+    })));
+
     // Colapsa todas as empresas pré-existentes ao carregar uma regra.
     setCollapsedCompanies(new Set(glinks.map((l: any) => l.company_id).filter(Boolean)));
     setCompanyLinksFilter("");
