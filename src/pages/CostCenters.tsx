@@ -13,6 +13,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatDate } from "@/lib/status";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import SectorsManager from "@/components/SectorsManager";
 
 const COST_CENTERS_IMPORT_PROFILE: ImportProfile = {
   entity: "cost_centers",
