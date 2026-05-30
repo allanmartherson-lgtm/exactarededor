@@ -116,6 +116,18 @@ export function RuleListRow({
                 <AlertTriangle className="h-3 w-3" /> Faltam: {missingFields.join(", ")}
               </Badge>
             )}
+            {pendingDoctorsCount && pendingDoctorsCount > 0 ? (
+              <Badge
+                variant="warning"
+                className="font-normal gap-1 cursor-pointer"
+                onClick={onEdit}
+                title="Médicos novos da empresa que ainda não foram confirmados nesta regra. Eles já estão sendo cobertos automaticamente — revise para confirmar ou excluir."
+              >
+                <UserPlus className="h-3 w-3" />
+                {pendingDoctorsCount} médico{pendingDoctorsCount > 1 ? "s" : ""} novo{pendingDoctorsCount > 1 ? "s" : ""} pendente{pendingDoctorsCount > 1 ? "s" : ""}
+              </Badge>
+            ) : null}
+
           </div>
           {description && <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>}
           {ruleText && (
