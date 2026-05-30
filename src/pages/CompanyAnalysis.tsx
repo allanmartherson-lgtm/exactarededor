@@ -565,6 +565,7 @@ export default function CompanyAnalysis() {
     toast.success("Análise concluída", {
       description: "Esta empresa será incluída no próximo envio do lote.",
     });
+    setPostConcluirOpen(true);
     load();
   };
 
