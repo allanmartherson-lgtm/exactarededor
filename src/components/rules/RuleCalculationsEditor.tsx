@@ -263,7 +263,7 @@ function ComplementosBlock({
 
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-3">
-        <label className="flex items-start gap-3 text-sm cursor-pointer">
+        <label data-checkbox-wrapper className="flex items-start gap-3 text-sm cursor-pointer">
           <Checkbox
             checked={hasComplementos}
             onCheckedChange={(v) => toggleComplementos(!!v)}
@@ -577,7 +577,7 @@ function WhenApplySection({
                 <div><Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Horário final</Label><Input type="time" value={c.time_end} onChange={e => onChange({ time_end: e.target.value })} /></div>
               </div>
             )}
-            <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
+            <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
               <Checkbox checked={c.includes_holidays} onCheckedChange={v => onChange({ includes_holidays: !!v, has_conditions: c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || !!v || c.allowed_access_routes.length > 0 })} />
               <span style={{ fontSize: 12 }}>Incluir feriados</span>
             </label>
@@ -710,7 +710,7 @@ function CalcCard({
               <Label className="text-xs">Percentual sobre o convênio (%)</Label>
               <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
                 value={c.convenio_percentage} onChange={(e) => onChange({ convenio_percentage: e.target.value })} />
-              <label className="flex items-center mt-2 cursor-pointer">
+              <label data-checkbox-wrapper className="flex items-center mt-2 cursor-pointer">
                 <Checkbox
                   className="shrink-0"
                   checked={c.force_totalized}
@@ -811,17 +811,17 @@ function CalcCard({
                 </div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <label className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
+                <label data-checkbox-wrapper className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
                   <Checkbox checked={c.package_visits_count} disabled={!isPacoteComExtras}
                     onCheckedChange={(v) => onChange({ package_visits_count: !!v })} />
                   <span className="text-xs ml-1">Visitas somam ao pacote</span>
                 </label>
-                <label className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
+                <label data-checkbox-wrapper className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
                   <Checkbox checked={c.package_opinions_count} disabled={!isPacoteComExtras}
                     onCheckedChange={(v) => onChange({ package_opinions_count: !!v })} />
                   <span className="text-xs ml-1">Pareceres somam ao pacote</span>
                 </label>
-                <label className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
+                <label data-checkbox-wrapper className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
                   <Checkbox checked={c.package_auxiliaries_included} disabled={!isPacoteComExtras}
                     onCheckedChange={(v) => onChange({ package_auxiliaries_included: !!v })} />
                   <span className="text-xs ml-1">Auxiliares incluídos no pacote</span>
@@ -865,11 +865,11 @@ function CalcCard({
                       <p className="text-[10px] text-muted-foreground leading-tight">Aditivo. Ex.: 20 = +20% sobre o valor calculado, antes do deflator.</p>
                     </div>
                   </div>
-                  <label className="flex items-center gap-2">
+                  <label data-checkbox-wrapper className="flex items-center gap-2">
                     <Checkbox checked={c.apply_access_route} onCheckedChange={(v) => onChange({ apply_access_route: !!v })} />
                     <span className="text-xs ml-1">Aplicar regra de via de acesso</span>
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label data-checkbox-wrapper className="flex items-center gap-2">
                     <Checkbox checked={c.include_auxiliaries} onCheckedChange={(v) => onChange({ include_auxiliaries: !!v })} />
                     <span className="text-xs ml-1">Considerar auxiliares</span>
                   </label>
