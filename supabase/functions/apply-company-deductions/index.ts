@@ -72,6 +72,15 @@ Deno.serve(async (req) => {
     }
 
     // ============ GLOSAS ============
+    // Competência do lote para resolver a PJ vigente do médico na data correta
+    const { data: paymentRow } = await supabase
+      .from("payments")
+      .select("competence_month")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const competenceDate: string = (paymentRow?.competence_month as string)
+      || new Date().toISOString().slice(0, 10);
+
     // Doctors with production in this lote/company
     const { data: items } = await supabase
       .from("payment_items")
@@ -102,11 +111,14 @@ Deno.serve(async (req) => {
       for (const debt of debts ?? []) {
         if (existingDebtIds.has(debt.id)) { summary.glosas.skipped_existing++; continue; }
 
-        // Resolve doctor → PJs vinculadas
+        // Resolve doctor → PJs vigentes na competência do pagamento.
+        // Vínculos sem start_date contam como "sempre vigentes" (fallback retroativo).
         const { data: vinculos } = await supabase
-          .from("doctor_companies")
-          .select("company_id")
-          .eq("doctor_id", debt.doctor_id);
+          .rpc("companies_for_doctor_at", {
+            _doctor_id: debt.doctor_id,
+            _on_date: competenceDate,
+          });
+
 
         const vinculadas = (vinculos ?? []).map((v: any) => v.company_id);
         const matchEmpresa = vinculadas.includes(company_id);
