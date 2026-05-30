@@ -50,12 +50,19 @@ export function FinancialCompositionStrip({ comp }: { comp: FinancialComposition
               value={(comp.poolAplicado || comp.poolPreview) && comp.pool !== 0 ? brl(comp.pool) : "—"}
               icon={<Users className="h-3.5 w-3.5" />}
               tone={comp.poolAplicado ? "warning" : comp.poolPreview ? "info" : "muted"}
-              hint={
-                !comp.poolAplicado && !comp.poolPreview ? "Sem pool aplicado" :
-                comp.poolPreview ? `Estimativa · ${comp.poolDetalhes.map(d => `${d.pool_nome} ${d.percentual}% → quota ${brl(d.quota_empresa)}`).join(" · ")}` :
-                comp.pool === 0 ? "Pool sem impacto nesta empresa" :
-                comp.poolDetalhes.map(d => `${d.pool_nome}: quota ${brl(d.quota_empresa)}`).join(" · ")
-              } />
+              hint={(() => {
+                if (!comp.poolAplicado && !comp.poolPreview) return "Sem pool aplicado";
+                const dedTxt = comp.poolDetalhes
+                  .flatMap(d => (d.deducoes ?? []).map(x => `${x.descricao || x.tipo} ${brl(x.valor)}`))
+                  .join(" · ");
+                const dedPrefix = dedTxt ? `Deduções: ${dedTxt} · ` : "";
+                if (comp.poolPreview) {
+                  return `Estimativa · ${dedPrefix}${comp.poolDetalhes.map(d => `${d.pool_nome} ${d.percentual}% → quota ${brl(d.quota_empresa)}`).join(" · ")}`;
+                }
+                if (comp.pool === 0) return `${dedPrefix}Pool sem impacto nesta empresa`;
+                return `${dedPrefix}${comp.poolDetalhes.map(d => `${d.pool_nome}: quota ${brl(d.quota_empresa)}`).join(" · ")}`;
+              })()} />
+
         <Op icon={<Plus className="h-3.5 w-3.5" />} />
         <Cell label="Conciliação"
               value={comp.conciliacaoAplicada && comp.conciliacao !== 0 ? brl(comp.conciliacao) : "—"}
