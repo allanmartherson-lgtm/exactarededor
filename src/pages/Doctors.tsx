@@ -600,7 +600,30 @@ export default function Doctors() {
                         })}
                       </div>
                     )}
+                    {editing.id && (historyByDoctor.get(editing.id)?.length ?? 0) > 0 && (
+                      <div className="pt-2 border-t border-border/40">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                          Histórico de PJs encerradas
+                        </p>
+                        <div className="space-y-1">
+                          {historyByDoctor.get(editing.id)!.map((h, i) => {
+                            const c = companiesById.get(h.company_id);
+                            const fmt = (iso: string | null) => iso ? new Date(iso + "T00:00:00").toLocaleDateString("pt-BR") : "—";
+                            return (
+                              <div key={i} className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span className="truncate">{c?.name ?? "(PJ removida)"}</span>
+                                <span className="font-mono text-[10px] shrink-0 ml-2">
+                                  {fmt(h.start_date)} → {fmt(h.end_date)}
+                                  {h.end_reason && <span className="ml-1 opacity-70">({h.end_reason})</span>}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </section>
+
 
                   {/* Seção 6 — Observações */}
                   <section className="space-y-3">
