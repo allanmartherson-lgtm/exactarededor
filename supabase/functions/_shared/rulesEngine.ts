@@ -13,6 +13,8 @@
  *   9. setor_master_geral (master absoluto de fallback)
  */
 
+import { applyConvenioStems, recordLearnedAlias } from "./convenioStems.ts";
+
 /** Arredonda para 2 casas decimais. */
 const round2 = (n: number) => Number(n.toFixed(2));
 
