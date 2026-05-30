@@ -142,7 +142,8 @@ export function PreviousBatchComparison({
         return "nenhum";
       };
 
-      // 3) Prioridade de match: centro > setor > tipo (com guarda para CC).
+      // 3) Prioridade de match: centro > setor > tipo. Se atual tem CC e nenhum candidato
+      //    bate em CC nem em setor, evitamos cair em "tipo" cego (perfis distintos).
       let chosenIdx = -1;
       const centroIdx = rows.findIndex((r) => classify(r) === "centro");
       if (centroIdx >= 0) chosenIdx = centroIdx;
@@ -151,7 +152,9 @@ export function PreviousBatchComparison({
         if (setorIdx >= 0) chosenIdx = setorIdx;
       }
       if (chosenIdx < 0 && !currCC) {
-        chosenIdx = 0; // sem CC no atual, podemos cair pra mais recente do mesmo tipo
+        // Sem CC no atual: aceita fallback por payment_type.
+        const tipoIdx = rows.findIndex((r) => classify(r) === "tipo");
+        if (tipoIdx >= 0) chosenIdx = tipoIdx;
       }
 
       // Sempre populamos a lista de candidatos (para a UI mostrar critério de cada um).
@@ -167,10 +170,11 @@ export function PreviousBatchComparison({
       if (!cancelled) setCandidates(candList);
 
       if (chosenIdx < 0) {
-        // currCC definido mas nenhum candidato com mesmo CC nem com setor em comum → suprime
         if (!cancelled) {
           setNoMatchReason(
-            `Nenhum lote anterior do mesmo centro de custo (${currCC}) encontrado para esta empresa. Comparação automática evitada para não cruzar perfis distintos (ex: centro cirúrgico vs parecer).`,
+            currCC
+              ? `Nenhum lote anterior do mesmo centro de custo (${currCC}) encontrado para esta empresa. Comparação automática evitada para não cruzar perfis distintos (ex: centro cirúrgico vs parecer).`
+              : `Nenhum lote anterior compatível encontrado para esta empresa.`,
           );
           setLoading(false);
         }
@@ -178,7 +182,8 @@ export function PreviousBatchComparison({
       }
 
       const chosen = rows[chosenIdx];
-      const chosenCrit = classify(chosen);
+      const chosenCritRaw = classify(chosen);
+      const chosenCrit: MatchCriterion = chosenCritRaw === "nenhum" ? "tipo" : chosenCritRaw;
       const prevPaymentId = chosen.payment_id as string;
 
       const [prevItemsRes, currItemsRes] = await Promise.all([
