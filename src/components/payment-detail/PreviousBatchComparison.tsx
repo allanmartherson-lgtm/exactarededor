@@ -45,16 +45,18 @@ function formatCompetence(d: string | null): string {
   return dt.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
-const criterionLabel: Record<MatchCriterion, string> = {
+const criterionLabel: Record<CandidateCriterion, string> = {
   centro: "mesmo centro de custo",
   exato: "mesmo setor",
   tipo: "só por tipo",
+  nenhum: "sem critério",
 };
 
-const criterionBadgeVariant: Record<MatchCriterion, "success" | "info" | "muted"> = {
+const criterionBadgeVariant: Record<CandidateCriterion, "success" | "info" | "muted" | "outline"> = {
   centro: "success",
   exato: "info",
   tipo: "muted",
+  nenhum: "outline",
 };
 
 export function PreviousBatchComparison({
