@@ -2,7 +2,8 @@ import { ReactNode } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Pencil, Copy, FileDown, Trash2 } from "lucide-react";
+import { AlertTriangle, Pencil, Copy, FileDown, Trash2, UserPlus } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 export interface RuleListRowProps {
