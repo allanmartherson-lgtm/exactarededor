@@ -127,6 +127,11 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
         return { id: r.id, name: r.name, active: !!r.active, scope: r.scope, issues };
       });
       setRows(result);
+
+      // Cross-rule: médico em múltiplas regras ativas sem restrições diferenciadoras
+      const activeRules = (rules ?? []).filter((r: any) => !!r.active);
+      const collisions = detectDoctorMultiRule(activeRules as any, byRule as any);
+      setDoctorCollisions(collisions);
     } finally {
       setLoading(false);
     }
