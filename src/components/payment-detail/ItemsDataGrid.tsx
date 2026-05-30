@@ -631,6 +631,12 @@ export function ItemsDataGrid({
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate">
                         <span className="font-mono">{it.procedure_code ?? "—"}</span>
+                        {Number(it.quantity ?? 1) > 1 && (
+                          <>
+                            {" · "}
+                            Qtd <span className="font-mono text-foreground">{Number(it.quantity ?? 1)}</span>
+                          </>
+                        )}
                         {" · "}
                         {it.procedure_name ?? it.description ?? "—"}
                       </p>
@@ -1031,6 +1037,9 @@ function RowMain({
           <td className={cn(cell, TEXT_BODY)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
         <td className={cn(cell, "font-mono", TEXT_META)}>{it.procedure_code ?? "—"}</td>
+        <td className={cn(cellPad, "text-right tabular-nums font-mono border-b whitespace-nowrap", TEXT_META, baseCellBg)}>
+          {Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Number(it.quantity) : 1}
+        </td>
         <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? it.description ?? ""}>
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
