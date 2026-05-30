@@ -2705,8 +2705,11 @@ function finalizeAnalysis(
     ...(calc.breakdown ? { calculation_breakdown: calc.breakdown } : {}),
     ...(calc.application_unit ? { application_unit_used: calc.application_unit } : {}),
     ...(calc.calc_duplicity ? { calc_duplicity: calc.calc_duplicity } : {}),
+    convenio_basis_detected: basisDetected,
+    basis_confidence: basisConfidence,
   };
 }
+
 
 /**
  * Correção C — Pré-passe por atendimento para cálculos de pacote.
