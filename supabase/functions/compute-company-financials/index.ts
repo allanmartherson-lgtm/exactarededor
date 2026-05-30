@@ -94,11 +94,17 @@ Deno.serve(async (req) => {
         const contrib = (meus ?? []).reduce((s: number, it: any) => s + Number(it[baseField] ?? 0), 0);
         const impacto = round2(contrib - Number(minha.quota || 0));
         poolImpactoTotal += impacto;
+        // Deduções cadastradas no pool (fixo mensal, plantão, etc.) — para exibição na UI.
+        const { data: deds } = await supabase
+          .from("pool_deductions").select("tipo, descricao, valor").eq("pool_id", r.pool_id);
         detalhes.push({
           pool_id: r.pool_id, pool_nome: pool?.nome ?? "Pool",
           base: Number(r.base_amount), bolo: Number(r.bolo_liquido),
           contribuicao_empresa: round2(contrib), quota_empresa: Number(minha.quota || 0),
           impacto, percentual: Number(minha.percentual || 0),
+          deducoes: (deds ?? []).map((d: any) => ({
+            tipo: d.tipo, descricao: d.descricao, valor: Number(d.valor || 0),
+          })),
         });
       }
     } else {
@@ -145,6 +151,9 @@ Deno.serve(async (req) => {
             base: round2(base), bolo,
             contribuicao_empresa: round2(contribEmpresa),
             quota_empresa: quota, impacto, percentual: pct,
+            deducoes: (deds ?? []).map((d: any) => ({
+              tipo: d.tipo, descricao: d.descricao, valor: Number(d.valor || 0),
+            })),
           });
         }
       }
