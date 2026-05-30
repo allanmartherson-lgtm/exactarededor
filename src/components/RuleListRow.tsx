@@ -22,12 +22,14 @@ export interface RuleListRowProps {
   calcBadge?: ReactNode;
   selected?: boolean;
   isLast?: boolean;
+  pendingDoctorsCount?: number;
   onToggleSelect?: () => void;
   onEdit?: () => void;
   onDuplicate?: () => void;
   onExportPdf?: () => void;
   onDelete?: () => void;
 }
+
 
 /**
  * Linha reutilizável de regra — segue exatamente o padrão visual da
