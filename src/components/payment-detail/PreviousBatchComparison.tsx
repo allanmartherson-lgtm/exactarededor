@@ -14,6 +14,7 @@ interface Props {
 }
 
 type MatchCriterion = "centro" | "exato" | "tipo";
+type CandidateCriterion = MatchCriterion | "nenhum";
 
 interface Candidate {
   paymentId: string;
@@ -21,7 +22,7 @@ interface Candidate {
   competenceMonth: string | null;
   costCenter: string | null;
   sectors: string[];
-  criterion: MatchCriterion; // melhor critério que esse candidato satisfaz
+  criterion: CandidateCriterion; // melhor critério que esse candidato satisfaz (ou "nenhum")
   chosen: boolean;
 }
 
@@ -44,16 +45,18 @@ function formatCompetence(d: string | null): string {
   return dt.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
-const criterionLabel: Record<MatchCriterion, string> = {
+const criterionLabel: Record<CandidateCriterion, string> = {
   centro: "mesmo centro de custo",
   exato: "mesmo setor",
   tipo: "só por tipo",
+  nenhum: "sem critério",
 };
 
-const criterionBadgeVariant: Record<MatchCriterion, "success" | "info" | "muted"> = {
+const criterionBadgeVariant: Record<CandidateCriterion, "success" | "info" | "muted" | "outline"> = {
   centro: "success",
   exato: "info",
   tipo: "muted",
+  nenhum: "outline",
 };
 
 export function PreviousBatchComparison({
@@ -104,15 +107,17 @@ export function PreviousBatchComparison({
         return;
       }
 
-      // 2) Candidatos: grupos da mesma empresa em lotes do MESMO payment_type.
+      // 2) Candidatos: grupos da mesma empresa em QUALQUER lote anterior.
+      //    Não filtramos por payment_type aqui — o centro de custo é o critério primário
+      //    (pedido explícito do usuário). payment_type vira só tiebreak na classificação,
+      //    porque há lotes antigos com payment_type NULL que ainda têm o CC correto.
       const { data: rawCandidates } = await supabase
         .from("payment_company_groups")
         .select("payment_id, total_amount, items_count, created_at, payments!inner(reference, competence_month, payment_type, sectors, cost_center_code)")
         .eq("company_name", companyName)
         .neq("payment_id", currentPaymentId)
-        .eq("payments.payment_type", currType as "plantao" | "producao" | "remessa" | "valor_fixo")
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
 
       type Row = NonNullable<typeof rawCandidates>[number] & {
         payments: { reference: string; competence_month: string | null; payment_type: string | null; sectors: string[] | null; cost_center_code: string | null } | null;
@@ -121,22 +126,26 @@ export function PreviousBatchComparison({
 
       if (rows.length === 0) {
         if (!cancelled) {
-          setNoMatchReason(`Nenhum lote anterior do tipo "${currType}" encontrado para esta empresa.`);
+          setNoMatchReason(`Nenhum lote anterior encontrado para esta empresa.`);
           setLoading(false);
         }
         return;
       }
 
       // Classifica cada candidato pelo melhor critério que ele satisfaz vs lote atual.
-      const classify = (r: Row): MatchCriterion => {
+      // Ordem: centro de custo > setor em comum > mesmo payment_type > nenhum.
+      const classify = (r: Row): MatchCriterion | "nenhum" => {
         const cc = (r.payments?.cost_center_code ?? "").trim();
         if (currCC && cc && cc === currCC) return "centro";
         const sec = (r.payments?.sectors ?? []).map((s) => (s ?? "").toLowerCase().trim());
         if (currSectors.length > 0 && sec.some((s) => currSectors.includes(s))) return "exato";
-        return "tipo";
+        const t = (r.payments?.payment_type ?? "").trim();
+        if (t && t === currType) return "tipo";
+        return "nenhum";
       };
 
-      // 3) Prioridade de match: centro > setor > tipo (com guarda para CC).
+      // 3) Prioridade de match: centro > setor > tipo. Se atual tem CC e nenhum candidato
+      //    bate em CC nem em setor, evitamos cair em "tipo" cego (perfis distintos).
       let chosenIdx = -1;
       const centroIdx = rows.findIndex((r) => classify(r) === "centro");
       if (centroIdx >= 0) chosenIdx = centroIdx;
@@ -145,7 +154,9 @@ export function PreviousBatchComparison({
         if (setorIdx >= 0) chosenIdx = setorIdx;
       }
       if (chosenIdx < 0 && !currCC) {
-        chosenIdx = 0; // sem CC no atual, podemos cair pra mais recente do mesmo tipo
+        // Sem CC no atual: aceita fallback por payment_type.
+        const tipoIdx = rows.findIndex((r) => classify(r) === "tipo");
+        if (tipoIdx >= 0) chosenIdx = tipoIdx;
       }
 
       // Sempre populamos a lista de candidatos (para a UI mostrar critério de cada um).
@@ -161,10 +172,11 @@ export function PreviousBatchComparison({
       if (!cancelled) setCandidates(candList);
 
       if (chosenIdx < 0) {
-        // currCC definido mas nenhum candidato com mesmo CC nem com setor em comum → suprime
         if (!cancelled) {
           setNoMatchReason(
-            `Nenhum lote anterior do mesmo centro de custo (${currCC}) encontrado para esta empresa. Comparação automática evitada para não cruzar perfis distintos (ex: centro cirúrgico vs parecer).`,
+            currCC
+              ? `Nenhum lote anterior do mesmo centro de custo (${currCC}) encontrado para esta empresa. Comparação automática evitada para não cruzar perfis distintos (ex: centro cirúrgico vs parecer).`
+              : `Nenhum lote anterior compatível encontrado para esta empresa.`,
           );
           setLoading(false);
         }
@@ -172,7 +184,8 @@ export function PreviousBatchComparison({
       }
 
       const chosen = rows[chosenIdx];
-      const chosenCrit = classify(chosen);
+      const chosenCritRaw = classify(chosen);
+      const chosenCrit: MatchCriterion = chosenCritRaw === "nenhum" ? "tipo" : chosenCritRaw;
       const prevPaymentId = chosen.payment_id as string;
 
       const [prevItemsRes, currItemsRes] = await Promise.all([
