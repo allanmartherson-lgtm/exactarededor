@@ -201,12 +201,48 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
               </span>
             </div>
 
-            {!loading && inconsistentRows.length === 0 && rows.length > 0 && (
+            {!loading && inconsistentRows.length === 0 && doctorCollisions.length === 0 && rows.length > 0 && (
               <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded p-3">
                 <CheckCircle2 className="h-4 w-4" />
                 Todas as regras passaram na verificação.
               </div>
             )}
+
+            {doctorCollisions.length > 0 && (
+              <div className="border border-destructive/40 bg-destructive/5 rounded-md p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                  <UserX className="h-4 w-4" />
+                  Médicos vinculados a múltiplas regras sem distinção
+                  <Badge className="bg-destructive/10 text-destructive border border-destructive/30 text-xs ml-1">
+                    {doctorCollisions.length}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Um médico só pode estar em mais de uma regra ativa se ao menos uma delas tiver restrições (códigos, setor, convênio ou via de acesso) que a outra não tenha. Caso contrário, há ambiguidade no motor.
+                </p>
+                <div className="space-y-2">
+                  {doctorCollisions.map((c) => (
+                    <div key={c.doctor_key} className="text-xs rounded border border-destructive/30 bg-background px-2 py-2">
+                      <div className="font-semibold mb-1">{c.doctor_label}</div>
+                      <div className="text-muted-foreground mb-1">Regras em conflito:</div>
+                      <ul className="space-y-1">
+                        {c.rule_ids.map((id, i) => (
+                          <li key={id} className="flex items-center justify-between gap-2">
+                            <span className="truncate">• {c.rule_names[i]}</span>
+                            {onSelectRule && (
+                              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => onSelectRule(id)}>
+                                Editar
+                              </Button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
             {inconsistentRows.map((r) => {
               const isOpen = expanded.has(r.id);
