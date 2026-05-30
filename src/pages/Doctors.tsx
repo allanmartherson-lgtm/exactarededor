@@ -51,7 +51,7 @@ interface Doctor {
   vinculo: string | null;
 }
 interface Company { id: string; name: string; document: string | null; }
-interface Link { doctor_id: string; company_id: string; }
+interface Link { doctor_id: string; company_id: string; start_date: string | null; end_date: string | null; end_reason: string | null; }
 
 const empty: Doctor = {
   id: "", full_name: "", crm: "", crm_uf: "", email: "", phone: "",
