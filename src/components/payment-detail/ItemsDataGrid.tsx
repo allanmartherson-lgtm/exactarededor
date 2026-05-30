@@ -373,7 +373,7 @@ export function ItemsDataGrid({
     // Reduzimos o offset (de 220 → 170) pra dar mais área vertical à tabela e
     // manter o scrollbar horizontal sempre visível, sem precisar rolar até o fim
     // da página em pagamentos grandes.
-    <div className={cn("flex flex-col min-h-0 h-[calc(100vh-170px)] max-h-[calc(100vh-170px)]", className)}>
+    <div className={cn("flex flex-col min-h-0 max-h-[calc(100vh-170px)]", className)}>
 
       {showToolbar && (
         <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 bg-muted/20">
