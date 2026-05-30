@@ -263,7 +263,7 @@ function ComplementosBlock({
 
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-3">
-        <label className="flex items-start gap-3 text-sm cursor-pointer">
+        <label data-checkbox-wrapper className="flex items-start gap-3 text-sm cursor-pointer">
           <Checkbox
             checked={hasComplementos}
             onCheckedChange={(v) => toggleComplementos(!!v)}
