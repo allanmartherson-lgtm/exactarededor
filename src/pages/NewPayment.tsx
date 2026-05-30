@@ -1139,7 +1139,8 @@ const NewPayment = () => {
       patient_name: r.patient_name,
       // Preferir SEMPRE o setor lido da planilha (linha a linha).
       // O sectorMapping do bucket é apenas fallback quando a planilha não trouxe a coluna.
-      sector: r.sector || currentBucket?.sectorMapping || null,
+      // Normaliza para o slug canônico (via tabela `sectors`) antes de persistir.
+      sector: normalizeSector(r.sector || currentBucket?.sectorMapping || null),
       attendance_character: r.attendance_character,
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
