@@ -2826,9 +2826,30 @@ const PaymentDetail = () => {
                   const f = (it as unknown as { validation_findings?: unknown }).validation_findings;
                   return acc + (Array.isArray(f) ? f.length : 0);
                 }, 0);
-              // Empresas com >=1 alerta assistencial sobem acima das sem alerta.
-              // Dentro de cada bloco, ordena por risco financeiro (desc).
+              // Status "pendentes" para o papel do usuário atual. Empresas cujo
+              // status já passou da sua etapa saem do topo (mesmo mantendo
+              // score e alertas visíveis) — o foco vai para o que ele ainda
+              // não tratou. Quando o lote avança para o próximo papel, a
+              // priorização reaparece para esse próximo papel.
+              const pendingStatusesForMe = new Set<string>();
+              if (isAnalista) {
+                ["revisao_analista", "devolvido_analista", "revisao_pos_aprovacao"].forEach((s) => pendingStatusesForMe.add(s));
+              }
+              if (isValidador) {
+                ["aguardando_validacao"].forEach((s) => pendingStatusesForMe.add(s));
+              }
+              if (isDiretor) {
+                ["aguardando_aprovacao", "aprovado_em_revisao"].forEach((s) => pendingStatusesForMe.add(s));
+              }
+              const isPendingForMe = (g: typeof visibleGroups[number]) =>
+                pendingStatusesForMe.has(String(g.status));
+              // Ordem: (1) pendentes para o papel atual primeiro,
+              // (2) com alerta assistencial, (3) maior risco financeiro.
+              // Concluídas mantêm score e alertas, mas descem para o fim.
               const sortedGroups = [...visibleGroups].sort((a, b) => {
+                const aPend = isPendingForMe(a) ? 1 : 0;
+                const bPend = isPendingForMe(b) ? 1 : 0;
+                if (aPend !== bPend) return bPend - aPend;
                 const aHas = groupValidationCount(a) > 0 ? 1 : 0;
                 const bHas = groupValidationCount(b) > 0 ? 1 : 0;
                 if (aHas !== bHas) return bHas - aHas;
