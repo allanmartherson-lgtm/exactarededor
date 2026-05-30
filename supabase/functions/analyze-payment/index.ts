@@ -422,7 +422,7 @@ serve(async (req) => {
     const itemsQuery = supabase
       .from("payment_items")
       .select(`
-        id,doctor_name,doctor_document,company_name,company_id,
+        id,doctor_name,doctor_document,doctor_id,company_name,company_id,
         procedure_code,procedure_name,description,access_route,doctor_role,
         procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity,
         authorized_exception,exception_reason,exception_authorizer,exception_note,
