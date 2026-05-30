@@ -115,14 +115,36 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     ] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).abortSignal(ac.signal).single(),
       (async () => {
+        // Paginar itens — PostgREST tem teto server-side (~1000) por requisição,
+        // independente do .limit() solicitado. Sem paginar, lotes grandes ficam
+        // truncados e os contadores por empresa (✓/✕/⚠) sub-reportam.
+        let companyName: string | null = null;
         if (options?.groupId) {
-          // Busca o nome da empresa do grupo primeiro para filtrar itens
-          const { data: g } = await supabase.from("payment_company_groups").select("company_name").eq("id", options.groupId).single();
-          if (g?.company_name) {
-            return supabase.from("payment_items").select("*").eq("payment_id", id).eq("company_name", g.company_name).order("created_at").limit(5000).abortSignal(ac.signal);
-          }
+          const { data: g } = await supabase
+            .from("payment_company_groups")
+            .select("company_name")
+            .eq("id", options.groupId)
+            .single();
+          companyName = g?.company_name ?? null;
         }
-        return supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at").limit(5000).abortSignal(ac.signal);
+        const PAGE = 1000;
+        const all: any[] = [];
+        for (let from = 0; ; from += PAGE) {
+          let q = supabase
+            .from("payment_items")
+            .select("*")
+            .eq("payment_id", id)
+            .order("created_at")
+            .range(from, from + PAGE - 1)
+            .abortSignal(ac.signal);
+          if (companyName) q = q.eq("company_name", companyName);
+          const res = await q;
+          if (res.error) return res;
+          const rows = res.data ?? [];
+          all.push(...rows);
+          if (rows.length < PAGE) return { data: all, error: null } as any;
+          if (all.length >= 20000) return { data: all, error: null } as any; // safety
+        }
       })(),
       supabase
         .from("payment_observations")
