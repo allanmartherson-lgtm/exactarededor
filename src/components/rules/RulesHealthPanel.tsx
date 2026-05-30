@@ -3,9 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Stethoscope, RefreshCw } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Stethoscope, RefreshCw, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { validateCalcOnlyFilters } from "@/../supabase/functions/_shared/rulesEngine";
+import {
+  detectDoctorMultiRule,
+  type DoctorMultiRuleProblem,
+} from "@/../supabase/functions/_shared/doctorMultiRule";
 
 type Severity = "erro" | "aviso";
 type Issue = { severity: Severity; code: string; message: string };
@@ -40,6 +44,7 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<RuleHealth[]>([]);
+  const [doctorCollisions, setDoctorCollisions] = useState<DoctorMultiRuleProblem[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const analyze = async () => {
@@ -122,6 +127,11 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
         return { id: r.id, name: r.name, active: !!r.active, scope: r.scope, issues };
       });
       setRows(result);
+
+      // Cross-rule: médico em múltiplas regras ativas sem restrições diferenciadoras
+      const activeRules = (rules ?? []).filter((r: any) => !!r.active);
+      const collisions = detectDoctorMultiRule(activeRules as any, byRule as any);
+      setDoctorCollisions(collisions);
     } finally {
       setLoading(false);
     }
@@ -173,6 +183,12 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
                 <Badge variant="outline" className="border-amber-500/40 text-amber-700">
                   {stats.warns} avisos
                 </Badge>
+                {doctorCollisions.length > 0 && (
+                  <Badge className="bg-destructive/10 text-destructive border border-destructive/30 flex items-center gap-1">
+                    <UserX className="h-3 w-3" />
+                    {doctorCollisions.length} médico{doctorCollisions.length > 1 ? "s" : ""} em conflito
+                  </Badge>
+                )}
               </>
             )}
             {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -191,12 +207,48 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
               </span>
             </div>
 
-            {!loading && inconsistentRows.length === 0 && rows.length > 0 && (
+            {!loading && inconsistentRows.length === 0 && doctorCollisions.length === 0 && rows.length > 0 && (
               <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded p-3">
                 <CheckCircle2 className="h-4 w-4" />
                 Todas as regras passaram na verificação.
               </div>
             )}
+
+            {doctorCollisions.length > 0 && (
+              <div className="border border-destructive/40 bg-destructive/5 rounded-md p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                  <UserX className="h-4 w-4" />
+                  Médicos vinculados a múltiplas regras sem distinção
+                  <Badge className="bg-destructive/10 text-destructive border border-destructive/30 text-xs ml-1">
+                    {doctorCollisions.length}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Um médico só pode estar em mais de uma regra ativa se ao menos uma delas tiver restrições (códigos, setor, convênio ou via de acesso) que a outra não tenha. Caso contrário, há ambiguidade no motor.
+                </p>
+                <div className="space-y-2">
+                  {doctorCollisions.map((c) => (
+                    <div key={c.doctor_key} className="text-xs rounded border border-destructive/30 bg-background px-2 py-2">
+                      <div className="font-semibold mb-1">{c.doctor_label}</div>
+                      <div className="text-muted-foreground mb-1">Regras em conflito:</div>
+                      <ul className="space-y-1">
+                        {c.rule_ids.map((id, i) => (
+                          <li key={id} className="flex items-center justify-between gap-2">
+                            <span className="truncate">• {c.rule_names[i]}</span>
+                            {onSelectRule && (
+                              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => onSelectRule(id)}>
+                                Editar
+                              </Button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
             {inconsistentRows.map((r) => {
               const isOpen = expanded.has(r.id);
