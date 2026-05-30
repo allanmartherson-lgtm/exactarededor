@@ -2376,6 +2376,7 @@ export type Database = {
           rateio: Json | null
           raw_data: Json | null
           sector: string | null
+          sector_original: string | null
           specialty: string | null
           tipo_item: string | null
           tipo_linha: string | null
@@ -2435,6 +2436,7 @@ export type Database = {
           rateio?: Json | null
           raw_data?: Json | null
           sector?: string | null
+          sector_original?: string | null
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
@@ -2494,6 +2496,7 @@ export type Database = {
           rateio?: Json | null
           raw_data?: Json | null
           sector?: string | null
+          sector_original?: string | null
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
