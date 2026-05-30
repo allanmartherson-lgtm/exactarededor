@@ -217,10 +217,21 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
       const activeRules = (rules ?? []).filter((r: any) => !!r.active);
       const collisions = detectDoctorMultiRule(activeRules as any, byRule as any);
       setDoctorCollisions(collisions);
+
+      // Médicos novos pendentes em regras com allowlist de empresa.
+      const groupRules = (rules ?? []).filter((r: any) => r.active && r.scope === "grupo");
+      const pendingResults = await Promise.all(
+        groupRules.map(async (r: any) => {
+          const { data } = await (supabase as any).rpc("rule_pending_doctors", { p_rule_id: r.id });
+          return (Array.isArray(data) ? data : []).map((row: any) => ({ ...row, rule_id: r.id, rule_name: r.name }));
+        }),
+      );
+      setPendingDoctors(pendingResults.flat());
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     if (open && rows.length === 0) analyze();
