@@ -110,7 +110,7 @@ serve(async (req) => {
       .from("rules")
       .select(`
         id,name,rule_text,description,active,severity,scope,
-        target_type,target_identifier,target_name,target_company_id,
+        target_type,target_identifier,target_name,target_company_id,target_doctor_id,
         valid_from,valid_until,
         calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes,
         package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,package_subtype,

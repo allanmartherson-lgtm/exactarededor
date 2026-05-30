@@ -50,7 +50,7 @@ export interface RuleInput {
   target_identifier: string | null;
   target_name: string | null;
   target_company_id: string | null;
-  target_doctor_id: string | null;
+  target_doctor_id?: string | null;
   procedure_codes: string[] | null;
   valid_from: string | null;
   valid_until: string | null;
