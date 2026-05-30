@@ -701,7 +701,7 @@ export function extendConvenioMap(entries: Array<{ slug: string; aliases: string
   }
 }
 
-import { applyConvenioStems, recordLearnedAlias } from "./convenioStems.ts";
+
 
 /** Normaliza convênio em 3 camadas, da mais específica para a mais permissiva:
  *  1) Match exato via CONVENIO_MAP (aliases do cadastro `convenios`).
