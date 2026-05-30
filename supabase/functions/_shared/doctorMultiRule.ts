@@ -31,6 +31,13 @@ export interface CalcLike {
   allowed_access_routes?: unknown;
 }
 
+export interface RuleFingerprint {
+  codes: string[];
+  sectors: string[];
+  agreements: string[];
+  routes: string[];
+}
+
 export interface DoctorMultiRuleProblem {
   type: "doctor_multi_rule";
   severity: "aviso";
@@ -38,6 +45,7 @@ export interface DoctorMultiRuleProblem {
   doctor_label: string;
   rule_ids: string[];
   rule_names: string[];
+  rule_fingerprints?: RuleFingerprint[];
   message: string;
 }
 
