@@ -58,12 +58,19 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
 
   const linkPj = async (doctorId: string, companyId: string) => {
     setLinking(`${doctorId}|${companyId}`);
-    const { error } = await supabase.from("doctor_companies").insert({ doctor_id: doctorId, company_id: companyId });
+    const today = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase
+      .from("doctor_companies")
+      .insert({ doctor_id: doctorId, company_id: companyId, start_date: today });
     setLinking(null);
-    if (!error) {
-      setRows((prev) => prev.filter((r) => !(r.doctor_id === doctorId && r.company_id === companyId)));
+    if (error) {
+      // Conflito com vigência aberta de outra PJ
+      alert("Não foi possível vincular: este médico já possui PJ vigente em sobreposição. Encerre a anterior primeiro.");
+      return;
     }
+    setRows((prev) => prev.filter((r) => !(r.doctor_id === doctorId && r.company_id === companyId)));
   };
+
 
   return (
     <Card className="overflow-hidden">
