@@ -183,13 +183,19 @@ Deno.serve(async (req) => {
     };
 
     if (mode === "commit" && records.length > 0) {
-      // Pré-carrega mapa de empresas por nome só quando houver vínculo de médicos no lote
-      let companyByName = new Map<string, string>();
+      // Pré-carrega cadastro de empresas (por nome + alias + CNPJ) — usado quando o
+      // import é de médicos com vínculo a empresas.
+      let companyByKey = new Map<string, string>();
       const hasDoctorCompanies = profile.entity === "doctors" && records.some((rec) => Array.isArray(rec.companies_raw) && rec.companies_raw.length > 0);
       if (hasDoctorCompanies) {
-        const { data: comps } = await admin.from("companies").select("id,name");
+        const { data: comps } = await admin.from("companies").select("id,name,aliases,document");
+        const onlyDigits = (s: string) => (s ?? "").replace(/\D/g, "");
         for (const c of (comps ?? []) as any[]) {
-          companyByName.set(String(c.name).toLowerCase().trim(), c.id);
+          if (c.name) companyByKey.set(`name::${String(c.name).toLowerCase().trim()}`, c.id);
+          if (c.document && onlyDigits(c.document)) companyByKey.set(`cnpj::${onlyDigits(c.document)}`, c.id);
+          for (const a of (c.aliases ?? []) as string[]) {
+            if (a) companyByKey.set(`name::${String(a).toLowerCase().trim()}`, c.id);
+          }
         }
       }
 
@@ -256,7 +262,17 @@ Deno.serve(async (req) => {
           const doctorId = doctorByKey.get(`${rec.crm}||${rec.crm_uf}`);
           if (!doctorId) continue;
           const cids = (Array.isArray(rec.companies_raw) ? rec.companies_raw : [])
-            .map((n: string) => companyByName.get(String(n).toLowerCase().trim()))
+            .map((n: string) => {
+              const raw = String(n).trim();
+              if (!raw) return undefined;
+              // Tenta CNPJ primeiro (mais confiável), depois nome/alias
+              const digits = raw.replace(/\D/g, "");
+              if (digits.length >= 11) {
+                const byCnpj = companyByKey.get(`cnpj::${digits}`);
+                if (byCnpj) return byCnpj;
+              }
+              return companyByKey.get(`name::${raw.toLowerCase()}`);
+            })
             .filter(Boolean) as string[];
           for (const cid of [...new Set(cids)]) links.push({ doctor_id: doctorId, company_id: cid });
           if (cids.length) doctorIds.add(doctorId);

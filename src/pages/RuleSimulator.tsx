@@ -460,33 +460,39 @@ function ProcedureCombobox({
 function AgreementCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [items, setItems] = useState<string[]>([]);
+  const [items, setItems] = useState<Array<{ slug: string; name: string }>>([]);
   const [loading, setLoading] = useState(false);
 
+  // Cruza com o cadastro oficial de convênios (não com o texto livre da planilha).
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    const term = search.trim().replace(/[%,]/g, " ");
-    let q = supabase.from("payment_items").select("agreement_text").not("agreement_text", "is", null).limit(500);
-    if (term) q = q.ilike("agreement_text", `%${term}%`);
+    let q = supabase
+      .from("convenios")
+      .select("slug,name,aliases")
+      .eq("active", true)
+      .order("sort_order")
+      .order("name")
+      .limit(500);
+    const term = search.trim();
+    if (term) q = q.or(`name.ilike.%${term}%,slug.ilike.%${term}%`);
     q.then(({ data }) => {
-      const seen = new Set<string>();
-      const out: string[] = [];
-      (data ?? []).forEach((r: any) => {
-        const v = (r.agreement_text || "").trim();
-        if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); out.push(v); }
-      });
-      out.sort((a, b) => a.localeCompare(b, "pt-BR"));
-      setItems(out.slice(0, 50));
+      const out = (data ?? []).map((r: any) => ({ slug: String(r.slug), name: String(r.name) }));
+      setItems(out);
       setLoading(false);
     });
   }, [open, search]);
+
+  const labelFor = (v: string) => {
+    const r = items.find((x) => x.slug === v);
+    return r ? r.name : v;
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !value && "text-muted-foreground")}>
-          <span className="truncate text-left">{value || "Selecionar convênio…"}</span>
+          <span className="truncate text-left">{value ? labelFor(value) : "Selecionar convênio cadastrado…"}</span>
           <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
         </Button>
       </PopoverTrigger>
@@ -494,15 +500,18 @@ function AgreementCombobox({ value, onChange }: { value: string; onChange: (v: s
         <Command shouldFilter={false}>
           <div className="flex items-center border-b px-3">
             <Search className="h-4 w-4 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar convênio…" className="border-0 shadow-none focus-visible:ring-0 h-9" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar convênio cadastrado…" className="border-0 shadow-none focus-visible:ring-0 h-9" />
             {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
           </div>
           <CommandList className="max-h-72">
-            {!loading && items.length === 0 && <CommandEmpty>Nenhum convênio encontrado.</CommandEmpty>}
+            {!loading && items.length === 0 && <CommandEmpty>Nenhum convênio no cadastro.</CommandEmpty>}
             <CommandGroup>
-              {items.map((v) => (
-                <CommandItem key={v} value={v} onSelect={() => { onChange(v); setOpen(false); }}>
-                  {v}
+              {items.map((r) => (
+                <CommandItem key={r.slug} value={r.slug} onSelect={() => { onChange(r.slug); setOpen(false); }}>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium">{r.name}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">{r.slug}</span>
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>

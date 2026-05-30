@@ -4344,6 +4344,7 @@ export type Database = {
           severity: Database["public"]["Enums"]["rule_severity"]
           target_amount: number | null
           target_company_id: string | null
+          target_doctor_id: string | null
           target_identifier: string | null
           target_name: string | null
           target_type: Database["public"]["Enums"]["rule_target_type"] | null
@@ -4409,6 +4410,7 @@ export type Database = {
           severity?: Database["public"]["Enums"]["rule_severity"]
           target_amount?: number | null
           target_company_id?: string | null
+          target_doctor_id?: string | null
           target_identifier?: string | null
           target_name?: string | null
           target_type?: Database["public"]["Enums"]["rule_target_type"] | null
@@ -4474,6 +4476,7 @@ export type Database = {
           severity?: Database["public"]["Enums"]["rule_severity"]
           target_amount?: number | null
           target_company_id?: string | null
+          target_doctor_id?: string | null
           target_identifier?: string | null
           target_name?: string | null
           target_type?: Database["public"]["Enums"]["rule_target_type"] | null
@@ -4498,6 +4501,13 @@ export type Database = {
             columns: ["target_company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rules_target_doctor_id_fkey"
+            columns: ["target_doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
             referencedColumns: ["id"]
           },
         ]

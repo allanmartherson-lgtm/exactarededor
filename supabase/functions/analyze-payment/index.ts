@@ -178,7 +178,12 @@ serve(async (req) => {
     // worker carrega só regras aplicáveis (master + específica daquela empresa
     // + grupos que contêm aquela empresa).
     let scopedCompanyId: string | null = null;
-    if (company_name && typeof company_name === "string") {
+    // 1) Preferencial: company_id explícito no payload (dispatcher pode passar)
+    const payloadCompanyId = (parsedBody as any)?.company_id;
+    if (payloadCompanyId && typeof payloadCompanyId === "string") {
+      scopedCompanyId = payloadCompanyId;
+    } else if (company_name && typeof company_name === "string") {
+      // 2) Cruzamento por nome exato no cadastro
       const { data: companyRow } = await supabase
         .from("companies")
         .select("id")
@@ -186,8 +191,18 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
       scopedCompanyId = (companyRow?.id as string | null) ?? null;
+      // 3) Cruzamento por alias do cadastro (companies.aliases)
       if (!scopedCompanyId) {
-        // Fallback via payment_items (cobre casos onde company_name é alias)
+        const { data: aliasRow } = await supabase
+          .from("companies")
+          .select("id")
+          .contains("aliases", [company_name])
+          .limit(1)
+          .maybeSingle();
+        scopedCompanyId = (aliasRow?.id as string | null) ?? null;
+      }
+      // 4) Fallback via payment_items (último recurso)
+      if (!scopedCompanyId) {
         const { data: itemRow } = await supabase
           .from("payment_items")
           .select("company_id")
@@ -199,13 +214,13 @@ serve(async (req) => {
         scopedCompanyId = (itemRow?.company_id as string | null) ?? null;
       }
       if (!scopedCompanyId) {
-        console.warn(`${__t} company_id não resolvido para "${company_name}" — carregando regras sem filtro de escopo (degrada performance).`);
+        console.warn(`${__t} company_id não resolvido para "${company_name}" — carregando regras sem filtro de escopo (degrada performance). Verifique cadastro/aliases em \`companies\`.`);
       }
     }
 
     const RULES_SELECT = `
         id,name,rule_text,description,active,severity,scope,
-        target_type,target_identifier,target_name,target_company_id,
+        target_type,target_identifier,target_name,target_company_id,target_doctor_id,
         valid_from,valid_until,
         calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes,
         package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,package_subtype,
@@ -407,7 +422,7 @@ serve(async (req) => {
     const itemsQuery = supabase
       .from("payment_items")
       .select(`
-        id,doctor_name,doctor_document,company_name,company_id,
+        id,doctor_name,doctor_document,doctor_id,company_name,company_id,
         procedure_code,procedure_name,description,access_route,doctor_role,
         procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity,
         authorized_exception,exception_reason,exception_authorizer,exception_note,
@@ -584,6 +599,7 @@ serve(async (req) => {
       id: it.id,
       doctor_name: it.doctor_name,
       doctor_document: it.doctor_document,
+      doctor_id: it.doctor_id ?? null,
       company_name: it.company_name,
       company_id: it.company_id,
       company_document: it.company_id ? (companyDocs[it.company_id] ?? null) : null,
