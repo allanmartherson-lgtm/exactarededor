@@ -1796,6 +1796,37 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       console.warn(`${__t} telemetry insert falhou`, (telErr as any)?.message ?? telErr);
     }
 
+
+    // --- Aprendizado: persiste aliases de convênio descobertos durante a análise ---
+    // Sempre que normAgreement resolveu um raw via stem-rule ou startsWith,
+    // o raw foi registrado. Aqui fazemos merge não-destrutivo em convenios.aliases.
+    try {
+      const learned = drainLearnedAliases();
+      if (learned.length) {
+        for (const { slug, aliases } of learned) {
+          if (!slug || !aliases.length) continue;
+          const { data: existing } = await supabase
+            .from("convenios")
+            .select("aliases")
+            .eq("slug", slug)
+            .maybeSingle();
+          const cur: string[] = Array.isArray((existing as any)?.aliases) ? (existing as any).aliases : [];
+          const seen = new Set(cur.map((x) => String(x).trim().toLowerCase()));
+          const fresh = aliases.filter((a) => !seen.has(a.trim().toLowerCase()));
+          if (fresh.length) {
+            const merged = [...cur, ...fresh];
+            await supabase
+              .from("convenios")
+              .update({ aliases: merged, updated_at: new Date().toISOString() })
+              .eq("slug", slug);
+            console.log(`${__t} [learn-convenio] ${slug}: +${fresh.length} alias(es): ${fresh.slice(0, 3).join(" | ")}${fresh.length > 3 ? "..." : ""}`);
+          }
+        }
+      }
+    } catch (learnErr) {
+      console.warn(`${__t} [learn-convenio] falha ao persistir aliases aprendidos`, (learnErr as any)?.message ?? learnErr);
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
