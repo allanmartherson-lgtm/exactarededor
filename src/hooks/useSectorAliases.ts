@@ -13,6 +13,8 @@ const norm = (s: string) =>
 export type SectorAliasMap = {
   /** normalized alias/name/slug -> canonical display name */
   resolve: (raw: string | null | undefined) => string | null;
+  /** normalized alias/name/slug -> canonical slug (formato usado pelo motor de regras) */
+  resolveSlug: (raw: string | null | undefined) => string | null;
 };
 
 let cached: SectorAliasMap | null = null;
@@ -23,7 +25,8 @@ async function load(): Promise<SectorAliasMap> {
   if (inflight) return inflight;
   inflight = (async () => {
     const { data } = await supabase.from("sectors").select("slug,name,aliases");
-    const map = new Map<string, string>();
+    const nameMap = new Map<string, string>();
+    const slugMap = new Map<string, string>();
     for (const row of data ?? []) {
       const name = (row as any).name as string;
       const slug = (row as any).slug as string;
@@ -31,26 +34,31 @@ async function load(): Promise<SectorAliasMap> {
       for (const key of [name, slug, ...aliases]) {
         if (!key) continue;
         const n = norm(key);
-        if (n) map.set(n, name);
-        // also a "prefix" key (strip trailing parentheticals like "(DFStar)")
+        if (!n) continue;
+        nameMap.set(n, name);
+        slugMap.set(n, slug);
       }
     }
-    cached = {
-      resolve: (raw) => {
-        if (!raw) return null;
-        const n = norm(raw);
-        if (!n) return null;
-        if (map.has(n)) return map.get(n)!;
-        // try without trailing parenthetical content e.g. "hemodinamicadfstar" -> match "hemodinamica"
-        for (const [k, v] of map) {
-          if (n.startsWith(k) && k.length >= 4) return v;
-        }
-        return null;
-      },
+    const lookup = <T,>(m: Map<string, T>) => (raw: string | null | undefined): T | null => {
+      if (!raw) return null;
+      const n = norm(raw);
+      if (!n) return null;
+      if (m.has(n)) return m.get(n)!;
+      // tenta sem o trailing parenthetical, ex.: "hemodinamicadfstar" → "hemodinamica"
+      for (const [k, v] of m) {
+        if (n.startsWith(k) && k.length >= 4) return v;
+      }
+      return null;
     };
+    cached = { resolve: lookup(nameMap), resolveSlug: lookup(slugMap) };
     return cached;
   })();
   return inflight;
+}
+
+/** Carrega o mapa de aliases sob demanda (fora de hook) — útil em handlers/save. */
+export async function loadSectorAliases(): Promise<SectorAliasMap> {
+  return load();
 }
 
 export function useSectorAliases(): SectorAliasMap | null {
