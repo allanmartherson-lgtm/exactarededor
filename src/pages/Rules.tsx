@@ -1658,7 +1658,7 @@ const Rules = () => {
             onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}
             title={editingId ? "Editar regra" : "Nova regra"}
             description={editingId ? "Atualize os campos e salve." : undefined}
-            maxWidth="full"
+            maxWidth="5xl"
           >
             <Tabs defaultValue="form" className="w-full">
               {editingId && (
@@ -1777,8 +1777,8 @@ const Rules = () => {
                             {/* Identificação principal */}
                             <div className="field-section">
                               <div className="field-section-title">Identificação</div>
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                                <div style={{ gridColumn: "1 / -1" }} className="space-y-1.5">
+                              <div style={{ display: "grid", gridTemplateColumns: "minmax(0,2fr) minmax(0,1fr) minmax(0,1fr)", gap: 12 }}>
+                                <div className="space-y-1.5">
                                   <Label>Nome *</Label>
                                   <Input required maxLength={100} value={fName} onChange={(e) => setFName(e.target.value)} placeholder="Ex: Repasse Infectologia" />
                                 </div>
@@ -1817,7 +1817,7 @@ const Rules = () => {
                             {/* Vigência */}
                             <div className="field-section">
                               <div className="field-section-title">Vigência</div>
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "minmax(0,220px) minmax(0,220px)", gap: 12 }}>
                                 <div className="space-y-1.5">
                                   <Label>Início</Label>
                                   <Input type="date" value={fValidFrom} onChange={(e) => setFValidFrom(e.target.value)} />
