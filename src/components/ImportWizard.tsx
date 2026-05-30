@@ -718,6 +718,21 @@ function FieldsHelp({ fields }: { fields: ImportFieldDef[] }) {
   );
 }
 
+function downloadTemplate(profile: ImportProfile, title: string) {
+  const headers = profile.fields.map(f => f.label);
+  const exampleRows = profile.templateRows && profile.templateRows.length > 0
+    ? profile.templateRows
+    : [Object.fromEntries(profile.fields.map(f => [f.label, ""]))];
+  const ws = XLSX.utils.json_to_sheet(exampleRows, { header: headers });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Modelo");
+  const base = (profile.templateFileName ?? profile.entity ?? title ?? "modelo")
+    .toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  XLSX.writeFile(wb, `modelo_${base}.xlsx`);
+}
+
+
 function stepLabel(s: Step) {
   return { upload: "1. Upload", preview: "2. Mapeamento", role_config: "2.5 Funções", validate: "3. Validação", done: "4. Concluído" }[s];
 }
