@@ -946,21 +946,30 @@ export type Database = {
           created_at: string
           created_by: string | null
           doctor_id: string
+          end_date: string | null
+          end_reason: string | null
           id: string
+          start_date: string | null
         }
         Insert: {
           company_id: string
           created_at?: string
           created_by?: string | null
           doctor_id: string
+          end_date?: string | null
+          end_reason?: string | null
           id?: string
+          start_date?: string | null
         }
         Update: {
           company_id?: string
           created_at?: string
           created_by?: string | null
           doctor_id?: string
+          end_date?: string | null
+          end_reason?: string | null
           id?: string
+          start_date?: string | null
         }
         Relationships: [
           {
@@ -4950,6 +4959,12 @@ export type Database = {
       calculate_payment_priority: {
         Args: { _payment_id: string }
         Returns: number
+      }
+      companies_for_doctor_at: {
+        Args: { _doctor_id: string; _on_date: string }
+        Returns: {
+          company_id: string
+        }[]
       }
       compute_payment_item_hash: {
         Args: {
