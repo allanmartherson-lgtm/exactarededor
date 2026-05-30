@@ -701,17 +701,34 @@ export function extendConvenioMap(entries: Array<{ slug: string; aliases: string
   }
 }
 
-/** Normaliza removendo acentos, caixa e TODOS os espaços/pontuação.
- *  Se o valor normalizado bater com um alias cadastrado em `convenios`, retorna o slug canônico
- *  (faz com que itens e tags de regras escritos de formas distintas resolvam para a mesma chave). */
+import { applyConvenioStems, recordLearnedAlias } from "./convenioStems.ts";
+
+/** Normaliza convênio em 3 camadas, da mais específica para a mais permissiva:
+ *  1) Match exato via CONVENIO_MAP (aliases do cadastro `convenios`).
+ *  2) Regras de stem hardcoded (rede de segurança — não depende do banco).
+ *  3) Fallback startsWith sobre CONVENIO_MAP (sufixos como "empresarial").
+ *  Camadas (2) e (3) registram o raw como alias aprendido, para enriquecimento futuro. */
 const normAgreement = (s: string | null | undefined): string => {
-  const base = (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase().replace(/[\s_\-./()]+/g, "");
+  const raw = (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const base = raw.replace(/[\s_\-./()]+/g, "");
   if (!base) return "";
+
+  // 1) match exato (cadastro)
   if (CONVENIO_MAP[base]) return CONVENIO_MAP[base];
-  // fallback: startsWith para tolerar sufixos ("bradescosaudeempresarial" → "bradescosaude")
+
+  // 2) stems hardcoded — opera sobre a forma com espaços para precisão dos regex
+  const stem = applyConvenioStems(raw);
+  if (stem) {
+    if (s) recordLearnedAlias(stem, s);
+    return stem;
+  }
+
+  // 3) fallback startsWith — tolera sufixos ("bradescosegurempresarial" → "bradesco_segur")
   for (const [k, v] of Object.entries(CONVENIO_MAP)) {
-    if (k.length >= 4 && base.startsWith(k)) return v;
+    if (k.length >= 4 && base.startsWith(k)) {
+      if (s) recordLearnedAlias(v, s);
+      return v;
+    }
   }
   return base;
 };
