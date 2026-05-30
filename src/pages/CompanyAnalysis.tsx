@@ -1891,6 +1891,24 @@ export default function CompanyAnalysis() {
           initialCompany={group.company_name}
         />
       )}
+      <AlertDialog open={postConcluirOpen} onOpenChange={setPostConcluirOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Análise concluída</AlertDialogTitle>
+            <AlertDialogDescription>
+              Para onde você quer ir agora?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => { setPostConcluirOpen(false); navigate("/dashboard"); }}>
+              Ir para o Dashboard
+            </Button>
+            <Button onClick={() => { setPostConcluirOpen(false); navigate(`/pagamentos/${id}`); }}>
+              Voltar para o Lote
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
