@@ -176,7 +176,61 @@ Deno.serve(async (req) => {
   // 3) Helper TS — Verificação D (calc_overlap intra-regra)
   const calcProblems = detectCalcOverlap(newCalcs);
 
-  const allProblems = [...sqlProblems, ...calcProblems];
+  // 4) Verificação E — médico em múltiplas regras sem restrições diferenciadoras
+  const doctorProblems = await (async () => {
+    try {
+      const candidate: RuleLike = {
+        id: body.rule_id ?? "__candidate__",
+        name: "(regra em edição)",
+        active: true,
+        scope: body.scope,
+        target_type: body.target_type ?? null,
+        target_identifier: body.target_identifier ?? null,
+        group_doctors: (body.group_doctors as DoctorRef[] | null) ?? null,
+        group_company_links:
+          (body.group_company_links as { company_id?: string; doctors?: DoctorRef[] | null }[] | null) ?? null,
+      };
+      const candidateDoctors = extractDoctors(candidate);
+      if (candidateDoctors.length === 0) return [];
+
+      const query = supabase
+        .from("rules")
+        .select("id, name, active, scope, target_type, target_identifier, group_doctors, group_company_links")
+        .eq("active", true);
+      if (body.rule_id) query.neq("id", body.rule_id);
+      const { data: peerRules, error: peerErr } = await query;
+      if (peerErr || !peerRules) return [];
+
+      const candidateKeys = new Set(
+        candidateDoctors.map(doctorKey).filter((k): k is string => !!k),
+      );
+      const relevantPeers = (peerRules as RuleLike[]).filter((r) =>
+        extractDoctors(r).some((d) => {
+          const k = doctorKey(d);
+          return k && candidateKeys.has(k);
+        }),
+      );
+      if (relevantPeers.length === 0) return [];
+
+      const peerIds = relevantPeers.map((r) => r.id);
+      const { data: peerCalcRows } = await supabase
+        .from("rule_calculations")
+        .select("*")
+        .in("rule_id", peerIds);
+      const calcsByRule = new Map<string, RuleCalculationItem[]>();
+      calcsByRule.set(candidate.id, newCalcs);
+      for (const row of (peerCalcRows ?? []) as Array<RuleCalculationItem & { rule_id: string }>) {
+        const list = calcsByRule.get(row.rule_id) ?? [];
+        list.push(row);
+        calcsByRule.set(row.rule_id, list);
+      }
+      return detectDoctorMultiRule([candidate, ...relevantPeers], calcsByRule);
+    } catch {
+      return [];
+    }
+  })();
+
+  const allProblems = [...sqlProblems, ...calcProblems, ...doctorProblems];
   return new Response(
     JSON.stringify({ valid: allProblems.length === 0, problems: allProblems }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
