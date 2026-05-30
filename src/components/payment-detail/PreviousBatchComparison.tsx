@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { GitCompare, ChevronDown, ChevronRight, ArrowRight, TrendingUp, TrendingDown, Info } from "lucide-react";
+import { GitCompare, ChevronDown, ChevronRight, ArrowRight, TrendingUp, TrendingDown, Info, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +13,18 @@ interface Props {
   currentItemsCount: number;
 }
 
+type MatchCriterion = "centro" | "exato" | "tipo";
+
+interface Candidate {
+  paymentId: string;
+  reference: string;
+  competenceMonth: string | null;
+  costCenter: string | null;
+  sectors: string[];
+  criterion: MatchCriterion; // melhor critério que esse candidato satisfaz
+  chosen: boolean;
+}
+
 interface PrevBatch {
   paymentId: string;
   reference: string;
@@ -20,7 +32,7 @@ interface PrevBatch {
   totalAmount: number;
   itemsCount: number;
   newDoctors: string[];
-  matchQuality: "centro" | "exato" | "tipo"; // centro = mesmo centro de custo; exato = mesmo tipo + setor; tipo = só payment_type
+  matchQuality: MatchCriterion;
   prevCostCenter: string | null;
   currCostCenter: string | null;
 }
@@ -32,6 +44,18 @@ function formatCompetence(d: string | null): string {
   return dt.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
+const criterionLabel: Record<MatchCriterion, string> = {
+  centro: "mesmo centro de custo",
+  exato: "mesmo setor",
+  tipo: "só por tipo",
+};
+
+const criterionBadgeVariant: Record<MatchCriterion, "success" | "info" | "muted"> = {
+  centro: "success",
+  exato: "info",
+  tipo: "muted",
+};
+
 export function PreviousBatchComparison({
   companyName,
   currentPaymentId,
@@ -41,14 +65,19 @@ export function PreviousBatchComparison({
   const [loading, setLoading] = useState(true);
   const [prev, setPrev] = useState<PrevBatch | null>(null);
   const [currentCompetence, setCurrentCompetence] = useState<string | null>(null);
+  const [currentCostCenter, setCurrentCostCenter] = useState<string | null>(null);
+  const [currentSectors, setCurrentSectors] = useState<string[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [noMatchReason, setNoMatchReason] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [candOpen, setCandOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setNoMatchReason(null);
     setPrev(null);
+    setCandidates([]);
 
     (async () => {
       // 1) Tipo/setores/centro de custo do lote atual — chave para evitar comparar pareceres com cirurgia.
@@ -58,9 +87,14 @@ export function PreviousBatchComparison({
         .eq("id", currentPaymentId)
         .maybeSingle();
       const currType = (curr?.payment_type ?? null) as string | null;
-      const currSectors = ((curr?.sectors ?? []) as string[]).map((s) => s.toLowerCase().trim()).filter(Boolean);
+      const currSectorsRaw = ((curr?.sectors ?? []) as string[]).filter(Boolean);
+      const currSectors = currSectorsRaw.map((s) => s.toLowerCase().trim()).filter(Boolean);
       const currCC = ((curr?.cost_center_code ?? null) as string | null)?.trim() || null;
-      if (!cancelled) setCurrentCompetence((curr?.competence_month as string | null) ?? null);
+      if (!cancelled) {
+        setCurrentCompetence((curr?.competence_month as string | null) ?? null);
+        setCurrentCostCenter(currCC);
+        setCurrentSectors(currSectorsRaw);
+      }
 
       if (!currType) {
         if (!cancelled) {
@@ -71,7 +105,7 @@ export function PreviousBatchComparison({
       }
 
       // 2) Candidatos: grupos da mesma empresa em lotes do MESMO payment_type.
-      const { data: candidates } = await supabase
+      const { data: rawCandidates } = await supabase
         .from("payment_company_groups")
         .select("payment_id, total_amount, items_count, created_at, payments!inner(reference, competence_month, payment_type, sectors, cost_center_code)")
         .eq("company_name", companyName)
@@ -80,7 +114,12 @@ export function PreviousBatchComparison({
         .order("created_at", { ascending: false })
         .limit(20);
 
-      if (!candidates || candidates.length === 0) {
+      type Row = NonNullable<typeof rawCandidates>[number] & {
+        payments: { reference: string; competence_month: string | null; payment_type: string | null; sectors: string[] | null; cost_center_code: string | null } | null;
+      };
+      const rows = (rawCandidates ?? []) as Row[];
+
+      if (rows.length === 0) {
         if (!cancelled) {
           setNoMatchReason(`Nenhum lote anterior do tipo "${currType}" encontrado para esta empresa.`);
           setLoading(false);
@@ -88,48 +127,53 @@ export function PreviousBatchComparison({
         return;
       }
 
-      // 3) Prioridade de match:
-      //    a) mesmo cost_center_code (centro de custo idêntico) — match "centro"
-      //    b) sobreposição de setores — match "exato"
-      //    c) mais recente do mesmo tipo — match "tipo" (com aviso)
-      type Row = (typeof candidates)[number] & {
-        payments: { reference: string; competence_month: string | null; payment_type: string | null; sectors: string[] | null; cost_center_code: string | null } | null;
+      // Classifica cada candidato pelo melhor critério que ele satisfaz vs lote atual.
+      const classify = (r: Row): MatchCriterion => {
+        const cc = (r.payments?.cost_center_code ?? "").trim();
+        if (currCC && cc && cc === currCC) return "centro";
+        const sec = (r.payments?.sectors ?? []).map((s) => (s ?? "").toLowerCase().trim());
+        if (currSectors.length > 0 && sec.some((s) => currSectors.includes(s))) return "exato";
+        return "tipo";
       };
-      let chosen: { row: Row; quality: "centro" | "exato" | "tipo" } | null = null;
 
-      if (currCC) {
-        for (const c of candidates as Row[]) {
-          const cc = (c.payments?.cost_center_code ?? "").trim();
-          if (cc && cc === currCC) {
-            chosen = { row: c, quality: "centro" };
-            break;
-          }
-        }
+      // 3) Prioridade de match: centro > setor > tipo (com guarda para CC).
+      let chosenIdx = -1;
+      const centroIdx = rows.findIndex((r) => classify(r) === "centro");
+      if (centroIdx >= 0) chosenIdx = centroIdx;
+      if (chosenIdx < 0) {
+        const setorIdx = rows.findIndex((r) => classify(r) === "exato");
+        if (setorIdx >= 0) chosenIdx = setorIdx;
       }
-      if (!chosen && currSectors.length > 0) {
-        for (const c of candidates as Row[]) {
-          const sec = (c.payments?.sectors ?? []).map((s) => (s ?? "").toLowerCase().trim());
-          if (sec.some((s) => currSectors.includes(s))) {
-            chosen = { row: c, quality: "exato" };
-            break;
-          }
-        }
-      }
-      if (!chosen) {
-        // Se o lote atual tem centro de custo definido mas nenhum candidato bate, NÃO caímos
-        // para "tipo" cego — comparar com centro de custo diferente é justamente o que o
-        // usuário pediu para evitar. Avisa e sai.
-        if (currCC) {
-          if (!cancelled) {
-            setNoMatchReason(`Nenhum lote anterior do mesmo centro de custo (${currCC}) encontrado para esta empresa. Comparação automática evitada para não cruzar perfis distintos (ex: centro cirúrgico vs parecer).`);
-            setLoading(false);
-          }
-          return;
-        }
-        chosen = { row: candidates[0] as Row, quality: "tipo" };
+      if (chosenIdx < 0 && !currCC) {
+        chosenIdx = 0; // sem CC no atual, podemos cair pra mais recente do mesmo tipo
       }
 
-      const prevPaymentId = chosen.row.payment_id as string;
+      // Sempre populamos a lista de candidatos (para a UI mostrar critério de cada um).
+      const candList: Candidate[] = rows.map((r, i) => ({
+        paymentId: r.payment_id as string,
+        reference: r.payments?.reference ?? "—",
+        competenceMonth: r.payments?.competence_month ?? null,
+        costCenter: (r.payments?.cost_center_code ?? null) || null,
+        sectors: (r.payments?.sectors ?? []) as string[],
+        criterion: classify(r),
+        chosen: i === chosenIdx,
+      }));
+      if (!cancelled) setCandidates(candList);
+
+      if (chosenIdx < 0) {
+        // currCC definido mas nenhum candidato com mesmo CC nem com setor em comum → suprime
+        if (!cancelled) {
+          setNoMatchReason(
+            `Nenhum lote anterior do mesmo centro de custo (${currCC}) encontrado para esta empresa. Comparação automática evitada para não cruzar perfis distintos (ex: centro cirúrgico vs parecer).`,
+          );
+          setLoading(false);
+        }
+        return;
+      }
+
+      const chosen = rows[chosenIdx];
+      const chosenCrit = classify(chosen);
+      const prevPaymentId = chosen.payment_id as string;
 
       const [prevItemsRes, currItemsRes] = await Promise.all([
         supabase
@@ -157,13 +201,13 @@ export function PreviousBatchComparison({
       if (cancelled) return;
       setPrev({
         paymentId: prevPaymentId,
-        reference: chosen.row.payments?.reference ?? "—",
-        competenceMonth: chosen.row.payments?.competence_month ?? null,
-        totalAmount: Number(chosen.row.total_amount ?? 0),
-        itemsCount: Number(chosen.row.items_count ?? 0),
+        reference: chosen.payments?.reference ?? "—",
+        competenceMonth: chosen.payments?.competence_month ?? null,
+        totalAmount: Number(chosen.total_amount ?? 0),
+        itemsCount: Number(chosen.items_count ?? 0),
         newDoctors,
-        matchQuality: chosen.quality,
-        prevCostCenter: (chosen.row.payments?.cost_center_code ?? null) || null,
+        matchQuality: chosenCrit,
+        prevCostCenter: (chosen.payments?.cost_center_code ?? null) || null,
         currCostCenter: currCC,
       });
       setLoading(false);
@@ -174,12 +218,72 @@ export function PreviousBatchComparison({
 
   if (loading) return <Skeleton className="h-8 w-full" />;
 
+  // Painel reutilizável: lista de candidatos avaliados (com critério de cada um).
+  const candidatesPanel = candidates.length > 0 && (
+    <div className="rounded border bg-background">
+      <button
+        type="button"
+        onClick={() => setCandOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-2 py-1.5 text-[11px] hover:bg-muted/40 transition-colors"
+        aria-expanded={candOpen}
+      >
+        {candOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        <span className="font-medium">Lotes avaliados ({candidates.length})</span>
+        <span className="text-muted-foreground">
+          · CC atual:{" "}
+          <span className="text-foreground tabular-nums">{currentCostCenter ?? "—"}</span>
+          {currentSectors.length > 0 && (
+            <> · setor(es): <span className="text-foreground">{currentSectors.join(", ")}</span></>
+          )}
+        </span>
+      </button>
+      {candOpen && (
+        <ul className="border-t divide-y">
+          {candidates.map((c) => (
+            <li
+              key={c.paymentId}
+              className={`flex items-center gap-2 px-2 py-1.5 text-[11px] ${c.chosen ? "bg-success-soft/30" : ""}`}
+            >
+              {c.chosen ? (
+                <CheckCircle2 className="h-3 w-3 text-[hsl(var(--success))] shrink-0" />
+              ) : (
+                <span className="h-3 w-3 shrink-0" />
+              )}
+              <Badge variant="muted" className="text-[10px]">{c.reference}</Badge>
+              <span className="text-muted-foreground">{formatCompetence(c.competenceMonth)}</span>
+              <Badge variant={criterionBadgeVariant[c.criterion]} className="text-[10px]">
+                {criterionLabel[c.criterion]}
+              </Badge>
+              <span className="text-muted-foreground truncate">
+                CC <span className="text-foreground tabular-nums">{c.costCenter ?? "—"}</span>
+                {c.sectors.length > 0 && (
+                  <> · <span className="text-foreground">{c.sectors.join(", ")}</span></>
+                )}
+              </span>
+              <Link
+                to={`/pagamentos/${c.paymentId}`}
+                className="ml-auto text-primary hover:underline shrink-0"
+              >
+                abrir
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
   if (!prev) {
-    if (!noMatchReason) return null;
+    if (!noMatchReason && candidates.length === 0) return null;
     return (
-      <div className="rounded-md border border-dashed bg-muted/20 px-3 py-2 text-xs text-muted-foreground flex items-start gap-2">
-        <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-        <span>{noMatchReason} Sem base comparável, evitamos cruzar lotes de natureza diferente (ex: pareceres vs cirurgia).</span>
+      <div className="rounded-md border border-dashed bg-muted/20 px-3 py-2 text-xs space-y-2">
+        {noMatchReason && (
+          <div className="text-muted-foreground flex items-start gap-2">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>{noMatchReason}</span>
+          </div>
+        )}
+        {candidatesPanel}
       </div>
     );
   }
@@ -203,29 +307,21 @@ export function PreviousBatchComparison({
         <GitCompare className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="font-medium">Comparar com lote anterior</span>
         <Badge variant="muted" className="ml-1">{prev.reference}</Badge>
-        {prev.matchQuality === "centro" && prev.currCostCenter && (
-          <Badge
-            variant="outline"
-            className="text-[10px] gap-1"
-            title={`Mesmo centro de custo (${prev.currCostCenter}) — perfis comparáveis.`}
-          >
-            CC {prev.currCostCenter}
-          </Badge>
-        )}
-        {prev.matchQuality === "exato" && (
-          <Badge variant="outline" className="text-[10px] gap-1" title="Mesmo tipo e sobreposição de setor.">
-            mesmo setor
-          </Badge>
-        )}
-        {prev.matchQuality === "tipo" && (
-          <Badge
-            variant="outline"
-            className="text-[10px] gap-1"
-            title="Mesmo tipo de pagamento, mas sem centro de custo nem setor em comum — interprete com cautela."
-          >
-            <Info className="h-2.5 w-2.5" /> só por tipo
-          </Badge>
-        )}
+        <Badge
+          variant={criterionBadgeVariant[prev.matchQuality]}
+          className="text-[10px] gap-1"
+          title={
+            prev.matchQuality === "centro"
+              ? `Critério: mesmo centro de custo (${prev.currCostCenter}).`
+              : prev.matchQuality === "exato"
+              ? "Critério: mesmo tipo e sobreposição de setor."
+              : "Critério: só mesmo tipo de pagamento — interprete com cautela."
+          }
+        >
+          {prev.matchQuality === "tipo" && <Info className="h-2.5 w-2.5" />}
+          {criterionLabel[prev.matchQuality]}
+          {prev.matchQuality === "centro" && prev.currCostCenter ? ` ${prev.currCostCenter}` : ""}
+        </Badge>
         <span className={`ml-auto inline-flex items-center gap-1 ${deltaColor}`}>
           <DeltaIcon className="h-3 w-3" />
           {up ? "+" : ""}{deltaPct.toFixed(1)}%
@@ -284,6 +380,8 @@ export function PreviousBatchComparison({
               </div>
             </div>
           )}
+
+          {candidatesPanel}
 
           <Link
             to={`/pagamentos/${prev.paymentId}`}
