@@ -110,7 +110,7 @@ export default function Doctors() {
       // Carregamento de empresas e vínculos primeiro (são menores)
       const [c, l, countResp] = await Promise.all([
         supabase.from("companies").select("id,name,document").order("name").limit(5000),
-        supabase.from("doctor_companies").select("doctor_id,company_id").limit(50000),
+        supabase.from("doctor_companies").select("doctor_id,company_id,start_date,end_date,end_reason").limit(50000),
         supabase.from("doctors").select("*", { count: 'exact', head: true })
       ]);
       
