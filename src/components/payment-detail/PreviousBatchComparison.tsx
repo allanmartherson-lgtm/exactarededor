@@ -203,11 +203,25 @@ export function PreviousBatchComparison({
         <GitCompare className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="font-medium">Comparar com lote anterior</span>
         <Badge variant="muted" className="ml-1">{prev.reference}</Badge>
+        {prev.matchQuality === "centro" && prev.currCostCenter && (
+          <Badge
+            variant="outline"
+            className="text-[10px] gap-1"
+            title={`Mesmo centro de custo (${prev.currCostCenter}) — perfis comparáveis.`}
+          >
+            CC {prev.currCostCenter}
+          </Badge>
+        )}
+        {prev.matchQuality === "exato" && (
+          <Badge variant="outline" className="text-[10px] gap-1" title="Mesmo tipo e sobreposição de setor.">
+            mesmo setor
+          </Badge>
+        )}
         {prev.matchQuality === "tipo" && (
           <Badge
             variant="outline"
             className="text-[10px] gap-1"
-            title="Mesmo tipo de pagamento, mas sem sobreposição de setor — interprete com cautela."
+            title="Mesmo tipo de pagamento, mas sem centro de custo nem setor em comum — interprete com cautela."
           >
             <Info className="h-2.5 w-2.5" /> só por tipo
           </Badge>
