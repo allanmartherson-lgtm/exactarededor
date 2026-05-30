@@ -820,6 +820,16 @@ const Rules = () => {
 
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
     setEditingId(isDuplicate ? null : r.id);
+    setEditingRuleId(isDuplicate ? null : r.id);
+    // Busca médicos novos pendentes desta regra (só quando editando, não duplicando).
+    if (!isDuplicate && r.id) {
+      (supabase as any).rpc("rule_pending_doctors", { p_rule_id: r.id }).then(({ data }: any) => {
+        setPendingDoctors(Array.isArray(data) ? data : []);
+      });
+    } else {
+      setPendingDoctors([]);
+    }
+
     
     setFName(isDuplicate ? `Cópia de ${r.name ?? ""}` : (r.name ?? ""));
     setFActive(isDuplicate ? true : (r.active !== false));
