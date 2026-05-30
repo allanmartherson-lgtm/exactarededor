@@ -50,6 +50,7 @@ export interface RuleInput {
   target_identifier: string | null;
   target_name: string | null;
   target_company_id: string | null;
+  target_doctor_id: string | null;
   procedure_codes: string[] | null;
   valid_from: string | null;
   valid_until: string | null;
@@ -238,6 +239,8 @@ export interface ItemInput {
   id: string;
   doctor_name: string | null;
   doctor_document: string | null;
+  /** Vínculo direto com o cadastro de médicos (preferencial para matching de regras). */
+  doctor_id?: string | null;
   company_name: string | null;
   company_id: string | null;
   company_document: string | null;
@@ -438,19 +441,12 @@ export function inferItemSector(item: ItemInput, ctx?: PaymentContext): string {
     return ctx.sectors[0];
   }
 
-  // 3. Classificação determinística pré-aplicada (ex.: tabela_procedimentos_hemodinamica)
+  // 3. Classificação determinística pré-aplicada (procedure_classifications)
   if (item.classification_sector) return item.classification_sector;
 
-  // 4. Heurística baseada em nomes
-  const txt = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
-  if (/(hemodin|cateter|angiopl|stent|coronari)/.test(txt)) return "hemodinamica";
-  if (/(cirurg|operac|herni|colecist|laparo|artrosc|tue\b)/.test(txt)) return "cirurgia";
-  if (/parecer/.test(txt)) return "parecer";
-  if (/visita/.test(txt)) return "visita";
-  if (/consulta/.test(txt)) return "consulta";
-  if (/procediment/.test(txt)) return "procedimento";
-
-  // 5. Fallback final: se o pagamento tem múltiplos setores, usa o primeiro como palpite
+  // 4. Fallback final: se o pagamento tem múltiplos setores, usa o primeiro como palpite
+  //    Heurísticas hardcoded por nome foram removidas — a classificação correta
+  //    deve vir do cadastro `procedure_classifications` (motor cruza no banco).
   if (ctx && Array.isArray(ctx.sectors) && ctx.sectors.length > 0) {
     return ctx.sectors[0];
   }
@@ -574,19 +570,26 @@ function hasCodeRestriction(r: RuleInput): boolean {
 
 function targetsDoctor(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "especifica" || r.target_type !== "medico") return false;
+  // 1) Match por ID do cadastro (preferencial — não quebra por variação de nome)
+  if (r.target_doctor_id && item.doctor_id && r.target_doctor_id === item.doctor_id) return true;
+  // 2) Match por CRM (digits-only)
   const ruleDoc = onlyDigits(r.target_identifier);
   const itemDoc = onlyDigits(item.doctor_document);
   if (ruleDoc && itemDoc && ruleDoc === itemDoc) return true;
+  // 3) Fallback por nome — só quando nem id nem CRM bateram
   if (r.target_name && item.doctor_name && normName(r.target_name) === normName(item.doctor_name)) return true;
   return false;
 }
 
 function targetsCompany(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "especifica" || r.target_type !== "empresa") return false;
+  // 1) Match por ID do cadastro (preferencial)
   if (r.target_company_id && item.company_id && r.target_company_id === item.company_id) return true;
+  // 2) Match por CNPJ (digits-only)
   const ruleDoc = onlyDigits(r.target_identifier);
   const itemDoc = onlyDigits(item.company_document);
   if (ruleDoc && itemDoc && ruleDoc === itemDoc) return true;
+  // 3) Fallback por nome
   if (r.target_name && item.company_name && normName(r.target_name) === normName(item.company_name)) return true;
   return false;
 }
@@ -613,24 +616,33 @@ function classifyDoctorRole(role: string | null | undefined): DoctorRole {
   return "outro";
 }
 
+/** Match um médico do item contra uma lista que pode trazer { id, name, crm }. */
+function matchDoctorInList(
+  doctors: { id?: string | null; name?: string; crm?: string }[] | undefined,
+  item: ItemInput,
+): boolean {
+  if (!doctors?.length) return false;
+  const itemNm = item.doctor_name ? normName(item.doctor_name) : "";
+  const itemCrm = onlyDigits(item.doctor_document);
+  const itemId = item.doctor_id ? String(item.doctor_id) : "";
+  for (const d of doctors) {
+    // 1) ID do cadastro (preferencial)
+    if (d?.id && itemId && String(d.id) === itemId) return true;
+    // 2) CRM digits
+    if (d?.crm && itemCrm && onlyDigits(d.crm) === itemCrm) return true;
+    // 3) Nome normalizado (fallback)
+    if (d?.name && itemNm && normName(d.name) === itemNm) return true;
+  }
+  return false;
+}
+
 function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "grupo") return false;
   const links = r.group_company_links ?? [];
   const looseDoctors = r.group_doctors ?? [];
 
-  const matchDoctorList = (doctors: { name?: string; crm?: string }[]): boolean => {
-    if (!doctors.length || !item.doctor_name) return false;
-    const itemNm = normName(item.doctor_name);
-    const itemCrm = onlyDigits(item.doctor_document);
-    for (const d of doctors) {
-      if (d?.name && normName(d.name) === itemNm) return true;
-      if (d?.crm && itemCrm && onlyDigits(d.crm) === itemCrm) return true;
-    }
-    return false;
-  };
-
   // Match por médico específico (independente da PJ): segue o médico em qualquer empresa.
-  if (looseDoctors.length > 0 && matchDoctorList(looseDoctors)) return true;
+  if (looseDoctors.length > 0 && matchDoctorInList(looseDoctors as any, item)) return true;
 
   // Vínculos por empresa: empresa do item precisa estar na lista; se a lista de
   // médicos do link estiver vazia, vale para toda a equipe da PJ.
@@ -639,7 +651,7 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
     if (String(item.company_id) !== String(link.company_id)) continue;
     const ds = link.doctors ?? [];
     if (ds.length === 0) return true;
-    if (matchDoctorList(ds)) return true;
+    if (matchDoctorInList(ds as any, item)) return true;
   }
 
   return false;
@@ -647,36 +659,18 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
 
 /**
  * Subconjunto de `targetsGroup`: retorna true SOMENTE quando o match ocorreu
- * por médico específico (group_doctors OU link.doctors com nome/CRM listado).
- * Usado para promover regras médico-específicas a uma prioridade mais alta
- * que as regras de PJ inteira (sem doctors no link).
- *
- * Semântica: se o médico está numa regra específica, ele é automaticamente
- * "expurgado" de qualquer regra de PJ inteira que também cobriria a empresa
- * dele — porque a regra específica é avaliada primeiro e, ao vencer, encerra
- * a busca antes de chegar no bucket de grupo amplo.
+ * por médico específico (group_doctors OU link.doctors com id/CRM/nome listado).
  */
 function targetsGroupByDoctor(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "grupo") return false;
-  if (!item.doctor_name) return false;
+  if (!item.doctor_id && !item.doctor_name) return false;
 
-  const itemNm = normName(item.doctor_name);
-  const itemCrm = onlyDigits(item.doctor_document);
-  const matchInList = (doctors: { name?: string; crm?: string }[] | undefined): boolean => {
-    if (!doctors?.length) return false;
-    for (const d of doctors) {
-      if (d?.name && normName(d.name) === itemNm) return true;
-      if (d?.crm && itemCrm && onlyDigits(d.crm) === itemCrm) return true;
-    }
-    return false;
-  };
-
-  if (matchInList(r.group_doctors ?? [])) return true;
+  if (matchDoctorInList((r.group_doctors ?? []) as any, item)) return true;
 
   for (const link of r.group_company_links ?? []) {
     if (!link?.company_id) continue;
     if (String(item.company_id) !== String(link.company_id)) continue;
-    if (matchInList(link.doctors)) return true;
+    if (matchDoctorInList((link.doctors ?? []) as any, item)) return true;
   }
   return false;
 }
