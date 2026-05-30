@@ -812,9 +812,15 @@ function CalcCard({
               )}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <label data-checkbox-wrapper className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
-...
+                  <Checkbox checked={c.package_visits_count} disabled={!isPacoteComExtras}
+                    onCheckedChange={(v) => onChange({ package_visits_count: !!v })} />
+                  <span className="text-xs ml-1">Visitas somam ao pacote</span>
+                </label>
                 <label data-checkbox-wrapper className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
-...
+                  <Checkbox checked={c.package_opinions_count} disabled={!isPacoteComExtras}
+                    onCheckedChange={(v) => onChange({ package_opinions_count: !!v })} />
+                  <span className="text-xs ml-1">Pareceres somam ao pacote</span>
+                </label>
                 <label data-checkbox-wrapper className={cn("flex items-center gap-2", !isPacoteComExtras && "opacity-50")}>
                   <Checkbox checked={c.package_auxiliaries_included} disabled={!isPacoteComExtras}
                     onCheckedChange={(v) => onChange({ package_auxiliaries_included: !!v })} />
