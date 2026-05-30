@@ -84,7 +84,7 @@ export function extractDoctors(r: RuleLike): DoctorRef[] {
 }
 
 /** Fingerprint de restrições da regra (agregado entre seus cálculos). */
-function restrictionFingerprint(calcs: CalcLike[]): {
+export function restrictionFingerprint(calcs: CalcLike[]): {
   codes: Set<string>;
   sectors: Set<string>;
   agreements: Set<string>;
