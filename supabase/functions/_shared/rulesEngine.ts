@@ -655,17 +655,27 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   if (looseDoctors.length > 0 && matchDoctorInList(looseDoctors as any, item)) return true;
 
   // Vínculos por empresa: empresa do item precisa estar na lista; se a lista de
-  // médicos do link estiver vazia, vale para toda a equipe da PJ.
+  // médicos do link estiver vazia, vale para toda a equipe da PJ. Se a lista tem
+  // médicos, novos médicos da PJ entram automaticamente (auto-include) — exceto
+  // quando explicitamente listados em excluded_doctors, ou quando o link tiver
+  // auto_include_new_doctors === false (modo allowlist estrita legado).
   for (const link of links) {
     if (!link?.company_id) continue;
     if (String(item.company_id) !== String(link.company_id)) continue;
-    const ds = link.doctors ?? [];
+    const ds = (link.doctors ?? []) as any;
     if (ds.length === 0) return true;
-    if (matchDoctorInList(ds as any, item)) return true;
+    if (matchDoctorInList(ds, item)) return true;
+    // Allowlist estrita explícita
+    if (link.auto_include_new_doctors === false) continue;
+    // Auto-include: respeita exclusão explícita
+    const excluded = (link.excluded_doctors ?? []) as any;
+    if (matchDoctorInList(excluded, item)) continue;
+    return true;
   }
 
   return false;
 }
+
 
 /**
  * Subconjunto de `targetsGroup`: retorna true SOMENTE quando o match ocorreu
