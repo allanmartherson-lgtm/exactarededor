@@ -11,6 +11,7 @@ import {
   extendConvenioMap,
   inferItemSector,
   normName,
+  drainLearnedAliases,
   type ItemInput,
   type RuleInput,
   type PaymentContext,
