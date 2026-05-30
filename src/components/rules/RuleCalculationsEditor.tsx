@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { RULE_SECTOR_LABELS } from "@/lib/status";
+import { SectorMultiSelect } from "@/components/rules/SectorMultiSelect";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
