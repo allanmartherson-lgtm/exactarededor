@@ -185,6 +185,15 @@ export function detectDoctorMultiRule(
     }
     if (!collides) continue;
     const names = ids.map((id) => ruleById.get(id)?.name ?? id);
+    const fingerprints: RuleFingerprint[] = ids.map((id) => {
+      const fp = restrictionFingerprint(calcsByRule.get(id) ?? []);
+      return {
+        codes: [...fp.codes].sort(),
+        sectors: [...fp.sectors].sort(),
+        agreements: [...fp.agreements].sort(),
+        routes: [...fp.routes].sort(),
+      };
+    });
     out.push({
       type: "doctor_multi_rule",
       severity: "aviso",
@@ -192,6 +201,7 @@ export function detectDoctorMultiRule(
       doctor_label: entry.label,
       rule_ids: ids,
       rule_names: names,
+      rule_fingerprints: fingerprints,
       message: `Médico ${entry.label} está vinculado a ${ids.length} regras ativas sem restrições diferenciadoras: ${names.join(" | ")}. Remova o vínculo de uma delas ou adicione filtros (códigos, setor, convênio, via) que as distingam.`,
     });
   }
