@@ -25,6 +25,7 @@ import { fetchCompanyRiskProfiles } from "@/lib/companyRiskProfile";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { normalizeNumericValue } from "@/lib/utils";
+import { loadSectorAliases } from "@/hooks/useSectorAliases";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -1104,6 +1105,17 @@ const NewPayment = () => {
       return null;
     };
 
+    // Normaliza o setor lido (ou herdado do bucket) para o slug canônico via
+    // tabela `sectors` + aliases. Garante que "Hemodinâmica (DFStar)" e variações
+    // virem `hemodinamica` no banco, formato esperado pelo motor de regras.
+    const sectorAliases = await loadSectorAliases();
+    const normalizeSector = (raw: string | null | undefined): string | null => {
+      if (!raw) return null;
+      const slug = sectorAliases.resolveSlug(raw);
+      return slug ?? (String(raw).trim().toLowerCase() || null);
+    };
+
+
     // Constrói uma linha de payment_items para uma row "matched"
     const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => ({
       payment_id: payment.id,
@@ -1127,7 +1139,8 @@ const NewPayment = () => {
       patient_name: r.patient_name,
       // Preferir SEMPRE o setor lido da planilha (linha a linha).
       // O sectorMapping do bucket é apenas fallback quando a planilha não trouxe a coluna.
-      sector: r.sector || currentBucket?.sectorMapping || null,
+      // Normaliza para o slug canônico (via tabela `sectors`) antes de persistir.
+      sector: normalizeSector(r.sector || currentBucket?.sectorMapping || null),
       attendance_character: r.attendance_character,
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
@@ -1158,7 +1171,7 @@ const NewPayment = () => {
       quantity: r.quantity,
       procedure_date: r.procedure_date,
       patient_name: r.patient_name,
-      sector: r.sector || b.sectorMapping || null,
+      sector: normalizeSector(r.sector || b.sectorMapping || null),
       attendance_character: r.attendance_character,
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
