@@ -52,12 +52,14 @@ export function RuleListRow({
   calcBadge,
   selected,
   isLast,
+  pendingDoctorsCount,
   onToggleSelect,
   onEdit,
   onDuplicate,
   onExportPdf,
   onDelete,
 }: RuleListRowProps) {
+
   const renderThresholds = () => {
     const aVal = thresholdAlert?.value;
     const aType = thresholdAlert?.type;
