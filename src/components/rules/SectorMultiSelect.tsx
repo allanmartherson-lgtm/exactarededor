@@ -17,10 +17,16 @@ async function loadSectors(): Promise<SectorRow[]> {
   _pending = (async () => {
     const { data, error } = await supabase
       .from("sectors")
-      .select("slug,name,codigo,classificacao,active")
+      .select("slug,name,tasy_code,classification,active")
       .order("name");
     if (error) throw error;
-    _cache = (data || []) as SectorRow[];
+    _cache = ((data || []) as Array<{ slug: string; name: string; tasy_code: string | null; classification: string | null; active: boolean }>).map((r) => ({
+      slug: r.slug,
+      name: r.name,
+      codigo: r.tasy_code,
+      classificacao: r.classification,
+      active: r.active,
+    }));
     return _cache;
   })();
   return _pending;
