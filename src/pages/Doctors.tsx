@@ -284,8 +284,17 @@ export default function Doctors() {
             description: "Encerre o vínculo anterior antes de iniciar um novo na mesma data.",
             variant: "destructive",
           });
+        } else {
+          // Notificação em tempo real: vínculo MANUAL pela UI → avisa supervisores
+          // se a PJ tem regra ativa com allowlist específica (modo híbrido).
+          for (const cid of toAdd) {
+            supabase.functions.invoke("notify-rule-pending-doctors", {
+              body: { mode: "realtime", doctor_id: savedId, company_id: cid },
+            }).catch((e) => console.warn("[notify-rule-pending] falhou", e));
+          }
         }
       }
+
     }
 
 
