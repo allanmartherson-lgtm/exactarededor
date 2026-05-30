@@ -1878,21 +1878,14 @@ const Rules = () => {
                                       <div className="space-y-1.5"><Label>CNPJ</Label>
                                         <Input
                                           value={fTargetIdentifier}
-                                          onChange={(e) => setFTargetIdentifier(formatCNPJ(e.target.value))}
-                                          placeholder="00.000.000/0000-00"
-                                          inputMode="numeric"
-                                          maxLength={18}
-                                          aria-invalid={!!fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)}
-                                          className={cn(
-                                            fTargetIdentifier && !isValidCNPJ(fTargetIdentifier) && "border-destructive focus-visible:ring-destructive"
-                                          )}
+                                          readOnly
+                                          placeholder="Preenchido pelo cadastro"
+                                          className="bg-muted/40 cursor-not-allowed"
                                         />
-                                        {fTargetIdentifier && !isValidCNPJ(fTargetIdentifier) && (
-                                          <p className="text-xs text-destructive">CNPJ inválido — confira os 14 dígitos.</p>
-                                        )}
+                                        <p className="text-[10px] text-muted-foreground">Vem do cadastro. Para alterar, escolha outra empresa acima.</p>
                                       </div>
                                       <div className="space-y-1.5"><Label>Nome</Label>
-                                        <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                                        <Input value={fTargetName} readOnly className="bg-muted/40 cursor-not-allowed" />
                                       </div>
                                     </div>
                                   </div>
@@ -1913,10 +1906,11 @@ const Rules = () => {
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                       <div className="space-y-1.5"><Label>CRM (ou Identificador)</Label>
-                                        <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                                        <Input value={fTargetIdentifier} readOnly className="bg-muted/40 cursor-not-allowed" />
+                                        <p className="text-[10px] text-muted-foreground">Vem do cadastro. Para alterar, escolha outro médico acima.</p>
                                       </div>
                                       <div className="space-y-1.5"><Label>Nome</Label>
-                                        <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                                        <Input value={fTargetName} readOnly className="bg-muted/40 cursor-not-allowed" />
                                       </div>
                                     </div>
                                   </div>
@@ -2621,14 +2615,29 @@ const Rules = () => {
                           className="w-full"
                         />
                       ) : (
-                        <Input value={d.target_name ?? ""} onChange={(e) => updateDraft(i, { target_name: e.target.value })} />
+                        <DoctorCombobox
+                          value={
+                            d.target_name || d.target_identifier
+                              ? { id: "", name: d.target_name ?? "", crm: d.target_identifier ?? null, crm_uf: null }
+                              : null
+                          }
+                          onChange={(doc) =>
+                            updateDraft(i, {
+                              target_name: doc?.name ?? "",
+                              target_identifier: doc?.crm ?? "",
+                            })
+                          }
+                          placeholder="Buscar médico cadastrado…"
+                          className="w-full"
+                        />
                       )}
                     </div>
-                    <div className="space-y-1 col-span-3"><Label className="text-xs">CPF/CNPJ</Label>
+                    <div className="space-y-1 col-span-3"><Label className="text-xs">CPF/CNPJ/CRM</Label>
                       <Input
                         value={d.target_identifier ?? ""}
-                        onChange={(e) => updateDraft(i, { target_identifier: e.target.value })}
-                        placeholder={d.target_type === "empresa" ? "Preenchido ao selecionar a empresa" : ""}
+                        readOnly
+                        placeholder="Preenchido pelo cadastro"
+                        className="bg-muted/40 cursor-not-allowed"
                       />
                     </div>
                   </>}

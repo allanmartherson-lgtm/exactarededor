@@ -98,21 +98,24 @@ export function MultiSelectChips({ values, onChange, options, placeholder = "Sel
 
 import { DoctorCombobox, type DoctorOption } from "./DoctorCombobox";
 
-/** Editor de médicos nomeados (nome + CRM). */
-export function DoctorsEditor({ value, onChange }: { value: { name: string; crm?: string }[]; onChange: (next: { name: string; crm?: string }[]) => void }) {
+/**
+ * Editor de médicos nomeados. Guarda { id, name, crm } no payload — o `id`
+ * é o vínculo com `doctors` e tem prioridade no matching de regras.
+ */
+export function DoctorsEditor({ value, onChange }: { value: { id?: string | null; name: string; crm?: string }[]; onChange: (next: { id?: string | null; name: string; crm?: string }[]) => void }) {
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorOption | null>(null);
 
   const add = () => {
     if (!selectedDoctor) return;
     const crmStr = selectedDoctor.crm ? `${selectedDoctor.crm}${selectedDoctor.crm_uf ? `/${selectedDoctor.crm_uf}` : ""}` : undefined;
-    
-    // Evita duplicados
-    if (value.some(v => v.name === selectedDoctor.name && v.crm === crmStr)) {
+
+    // Evita duplicados (preferir id; cair para name+crm)
+    if (value.some(v => (selectedDoctor.id && v.id === selectedDoctor.id) || (v.name === selectedDoctor.name && v.crm === crmStr))) {
       setSelectedDoctor(null);
       return;
     }
 
-    onChange([...value, { name: selectedDoctor.name, crm: crmStr }]);
+    onChange([...value, { id: selectedDoctor.id ?? null, name: selectedDoctor.name, crm: crmStr }]);
     setSelectedDoctor(null);
   };
 
@@ -120,8 +123,9 @@ export function DoctorsEditor({ value, onChange }: { value: { name: string; crm?
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1">
         {value.map((d, i) => (
-          <Badge key={`${d.name}-${i}`} variant="secondary" className="gap-1 pr-1">
+          <Badge key={`${d.id ?? d.name}-${i}`} variant="secondary" className="gap-1 pr-1">
             {d.name}{d.crm ? ` · CRM ${d.crm}` : ""}
+            {!d.id && <span className="ml-1 text-[10px] text-warning" title="Médico legado sem vínculo ao cadastro — match só por nome/CRM">⚠</span>}
             <button type="button" onClick={() => onChange(value.filter((_, idx) => idx !== i))} className="rounded-sm hover:bg-muted-foreground/20 p-0.5" aria-label="Remover">
               <X className="h-3 w-3" />
             </button>

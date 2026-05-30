@@ -776,6 +776,9 @@ function targetsAgreement(r: RuleInput, item: ItemInput): boolean {
   if (tags.length === 0) return true;
   const mode = r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
   const itemAg = normAgreement(item.agreement_name);
+  // Match exato (já normalizado via CONVENIO_MAP — cadastro oficial cobre aliases).
+  // Removido o fallback startsWith por gerar falsos positivos (ex.: "bradesco"
+  // batendo com "bradesco_segur").
   if (mode === "whitelist") return !!itemAg && tags.includes(itemAg);
   // blacklist
   if (!itemAg) return true;
