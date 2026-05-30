@@ -710,7 +710,7 @@ function CalcCard({
               <Label className="text-xs">Percentual sobre o convênio (%)</Label>
               <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
                 value={c.convenio_percentage} onChange={(e) => onChange({ convenio_percentage: e.target.value })} />
-              <label className="flex items-center mt-2 cursor-pointer">
+              <label data-checkbox-wrapper className="flex items-center mt-2 cursor-pointer">
                 <Checkbox
                   className="shrink-0"
                   checked={c.force_totalized}
