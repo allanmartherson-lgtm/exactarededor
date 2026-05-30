@@ -1,6 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+export type PoolDeducaoDetail = {
+  tipo: string;
+  descricao: string | null;
+  valor: number;
+};
+
 export type PoolPreviewDetail = {
   pool_id: string;
   pool_nome: string;
@@ -10,6 +16,7 @@ export type PoolPreviewDetail = {
   quota_empresa: number;
   impacto: number;
   percentual: number;
+  deducoes?: PoolDeducaoDetail[];
 };
 
 export type FinancialComposition = {
