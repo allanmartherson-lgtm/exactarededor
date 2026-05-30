@@ -356,7 +356,18 @@ export interface AnalysisResult {
     }>;
     resolution_stale?: boolean;
   };
+  /**
+   * Base de cálculo detectada stateless quando qty>1:
+   * - 'unit'      : valor convênio é unitário; esperado = base × qty
+   * - 'total'     : valor convênio já vem totalizado; esperado = base
+   * - 'ambiguous' : ambas hipóteses casam com o pago dentro da tolerância
+   * - 'na'        : qty=1, sem regra calculável, ou tabela diferenciada (qty_already_applied)
+   */
+  convenio_basis_detected?: "unit" | "total" | "ambiguous" | "na";
+  /** Desvio percentual da hipótese escolhida vs valor pago (0 = casa exato). */
+  basis_confidence?: number | null;
 }
+
 
 export interface CalculationBreakdownEntry {
   calc_id?: string | null;
