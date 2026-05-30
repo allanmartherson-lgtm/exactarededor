@@ -28,6 +28,7 @@ export interface CalcLike {
   code_match_mode?: string | null;
   sectors?: unknown;
   agreement_aliases?: unknown;
+  agreement_match_mode?: string | null;
   allowed_access_routes?: unknown;
 }
 
@@ -96,21 +97,23 @@ export function restrictionFingerprint(calcs: CalcLike[]): {
   const agreements = new Set<string>();
   const routes = new Set<string>();
   for (const c of calcs) {
-    const mode = (c.code_match_mode ?? "whitelist") as string;
-    const list = Array.isArray(c.procedure_codes) ? (c.procedure_codes as unknown[]) : [];
-    if (mode === "whitelist") {
-      for (const x of list) {
-        const s = String(x ?? "").trim();
-        if (s) codes.add(s);
-      }
+    // Códigos: prefixa o modo (whitelist/blacklist) para que regras complementares
+    // (mesma lista, modos opostos) NÃO sejam consideradas idênticas.
+    const codeMode = (c.code_match_mode ?? "whitelist") as string;
+    const codeList = Array.isArray(c.procedure_codes) ? (c.procedure_codes as unknown[]) : [];
+    for (const x of codeList) {
+      const s = String(x ?? "").trim();
+      if (s) codes.add(`${codeMode}:${s}`);
     }
     for (const x of (Array.isArray(c.sectors) ? c.sectors : []) as unknown[]) {
       const s = norm(String(x));
       if (s) sectors.add(s);
     }
+    // Convênios: idem — modo faz parte do fingerprint.
+    const agMode = (c.agreement_match_mode ?? "whitelist") as string;
     for (const x of (Array.isArray(c.agreement_aliases) ? c.agreement_aliases : []) as unknown[]) {
       const s = norm(String(x));
-      if (s) agreements.add(s);
+      if (s) agreements.add(`${agMode}:${s}`);
     }
     for (const x of (Array.isArray(c.allowed_access_routes) ? c.allowed_access_routes : []) as unknown[]) {
       const s = norm(String(x));
