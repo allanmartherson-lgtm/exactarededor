@@ -1714,7 +1714,56 @@ const Rules = () => {
                 </>
               )}
               <TabsContent value="form" className="mt-0">
+                {editingRuleId && pendingDoctors.length > 0 && (
+                  <div className="mb-3 rounded-md border border-warning/40 bg-warning/5 p-3">
+                    <div className="flex items-start gap-2 mb-2">
+                      <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">
+                          {pendingDoctors.length} médico{pendingDoctors.length > 1 ? "s" : ""} novo{pendingDoctors.length > 1 ? "s" : ""} pendente{pendingDoctors.length > 1 ? "s" : ""} de revisão
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Estes médicos entraram em empresas vinculadas à regra depois da última edição. Eles já estão sendo cobertos automaticamente — confirme a inclusão ou exclua da regra. (As alterações são salvas ao clicar em Salvar regra.)
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {pendingDoctors.map((d) => (
+                        <div key={`${d.company_id}-${d.doctor_id}`} className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs">
+                          <span className="font-medium">{d.doctor_name}</span>
+                          {d.doctor_crm && <span className="text-muted-foreground">· {d.doctor_crm}</span>}
+                          <span className="text-muted-foreground">· {d.company_name}</span>
+                          <Button
+                            type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs text-success hover:text-success"
+                            onClick={() => {
+                              setFGroupLinks((prev) => prev.map((l) => l.company_id === d.company_id
+                                ? { ...l, doctors: [...l.doctors, { id: d.doctor_id, name: d.doctor_name, crm: d.doctor_crm ?? undefined }] }
+                                : l));
+                              setPendingDoctors((p) => p.filter((x) => !(x.company_id === d.company_id && x.doctor_id === d.doctor_id)));
+                            }}
+                            title="Confirmar inclusão na regra"
+                          >
+                            ✓ Incluir
+                          </Button>
+                          <Button
+                            type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                            onClick={() => {
+                              setFGroupLinks((prev) => prev.map((l) => l.company_id === d.company_id
+                                ? { ...l, excluded_doctors: [...(l.excluded_doctors ?? []), { id: d.doctor_id, name: d.doctor_name, crm: d.doctor_crm ?? undefined }] }
+                                : l));
+                              setPendingDoctors((p) => p.filter((x) => !(x.company_id === d.company_id && x.doctor_id === d.doctor_id)));
+                            }}
+                            title="Excluir desta regra"
+                          >
+                            ✕ Excluir
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <form id="rule-form" onSubmit={submitRule} className="rule-form-context">
+
                   <RuleFormStepper
                     isEditing={!!editingId}
                     saving={saving}
