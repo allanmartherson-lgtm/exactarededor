@@ -133,11 +133,13 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
         {linked.map((d) => (
           <Badge key={d.id} variant="secondary" className="gap-1">
             {d.full_name} <span className="text-muted-foreground text-[10px]">{d.crm}/{d.crm_uf}</span>
-            <button onClick={() => remove(d.id)} aria-label={`Remover ${d.full_name}`}>
+            <span className="text-muted-foreground text-[10px]">desde {fmtBR(d.start_date)}</span>
+            <button onClick={() => end(d.id)} aria-label={`Encerrar vínculo de ${d.full_name}`} title="Encerrar vínculo (hoje)">
               <X className="h-3 w-3" />
             </button>
           </Badge>
         ))}
+
       </div>
       {!showPicker ? (
         <Button type="button" size="sm" variant="outline" onClick={() => setShowPicker(true)}>
