@@ -42,6 +42,84 @@ function severityTone(sev: Severity) {
     : "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400";
 }
 
+function fpCell(values: string[], max = 8): string {
+  if (!values || values.length === 0) return "—";
+  const shown = values.slice(0, max).join(", ");
+  return values.length > max ? `${shown} (+${values.length - max})` : shown;
+}
+
+function buildCollisionRows(collisions: DoctorMultiRuleProblem[]) {
+  const rows: { doctor: string; ruleA: string; ruleB: string; codesA: string; codesB: string; sectorsA: string; sectorsB: string; agreementsA: string; agreementsB: string; routesA: string; routesB: string; diff: string }[] = [];
+  for (const c of collisions) {
+    const ids = c.rule_ids;
+    const fps = c.rule_fingerprints ?? [];
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const a = fps[i] ?? { codes: [], sectors: [], agreements: [], routes: [] };
+        const b = fps[j] ?? { codes: [], sectors: [], agreements: [], routes: [] };
+        const diffs: string[] = [];
+        const sameArr = (x: string[], y: string[]) => x.length === y.length && x.every((v, k) => v === y[k]);
+        if (!sameArr(a.codes, b.codes)) diffs.push("códigos");
+        if (!sameArr(a.sectors, b.sectors)) diffs.push("setores");
+        if (!sameArr(a.agreements, b.agreements)) diffs.push("convênios");
+        if (!sameArr(a.routes, b.routes)) diffs.push("vias");
+        rows.push({
+          doctor: c.doctor_label,
+          ruleA: c.rule_names[i],
+          ruleB: c.rule_names[j],
+          codesA: fpCell(a.codes), codesB: fpCell(b.codes),
+          sectorsA: fpCell(a.sectors), sectorsB: fpCell(b.sectors),
+          agreementsA: fpCell(a.agreements), agreementsB: fpCell(b.agreements),
+          routesA: fpCell(a.routes), routesB: fpCell(b.routes),
+          diff: diffs.length ? diffs.join(" · ") : "nenhuma (ambíguo)",
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+function exportDoctorCollisionsCsv(collisions: DoctorMultiRuleProblem[]) {
+  const rows = buildCollisionRows(collisions);
+  const headers = ["Médico", "Regra A", "Regra B", "Códigos A", "Códigos B", "Setores A", "Setores B", "Convênios A", "Convênios B", "Vias A", "Vias B", "Campos que diferem"];
+  const esc = (s: string) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+  const csv = [headers.join(";"), ...rows.map((r) => [r.doctor, r.ruleA, r.ruleB, r.codesA, r.codesB, r.sectorsA, r.sectorsB, r.agreementsA, r.agreementsB, r.routesA, r.routesB, r.diff].map(esc).join(";"))].join("\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `medicos-multi-regras-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportDoctorCollisionsPdf(collisions: DoctorMultiRuleProblem[]) {
+  const rows = buildCollisionRows(collisions);
+  const doc = new jsPDF({ orientation: "landscape" });
+  doc.setFontSize(14);
+  doc.text("Médicos vinculados a múltiplas regras sem distinção", 14, 14);
+  doc.setFontSize(9);
+  doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} · ${collisions.length} médico(s) · ${rows.length} par(es) de regras`, 14, 20);
+  autoTable(doc, {
+    startY: 26,
+    head: [["Médico", "Regra A", "Regra B", "Códigos A | B", "Setores A | B", "Convênios A | B", "Vias A | B", "Diferem em"]],
+    body: rows.map((r) => [
+      r.doctor,
+      r.ruleA,
+      r.ruleB,
+      `${r.codesA}\n— vs —\n${r.codesB}`,
+      `${r.sectorsA}\n— vs —\n${r.sectorsB}`,
+      `${r.agreementsA}\n— vs —\n${r.agreementsB}`,
+      `${r.routesA}\n— vs —\n${r.routesB}`,
+      r.diff,
+    ]),
+    styles: { fontSize: 7, cellWidth: "wrap", valign: "top" },
+    headStyles: { fillColor: [220, 38, 38], textColor: 255, fontSize: 8 },
+    columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 32 }, 2: { cellWidth: 32 }, 7: { cellWidth: 28, fontStyle: "bold" } },
+  });
+  doc.save(`medicos-multi-regras-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
 export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
