@@ -3129,3 +3129,6 @@ export const _test_only = {
 };
 export const calcTabelaDiferenciadaForTest = calcTabelaDiferenciada;
 
+// Re-export helpers de aprendizado de convênios para uso no analyze-payment.
+export { drainLearnedAliases, peekLearnedAliases } from "./convenioStems.ts";
+
