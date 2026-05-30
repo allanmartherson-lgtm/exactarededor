@@ -162,15 +162,34 @@ export default function Doctors() {
     }
   };
 
+  // Vínculos ATIVOS por médico (end_date IS NULL). Histórico fica separado.
   const linksByDoctor = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const l of links) {
+      if (l.end_date) continue;
       const arr = m.get(l.doctor_id) ?? [];
       arr.push(l.company_id);
       m.set(l.doctor_id, arr);
     }
     return m;
   }, [links]);
+
+  // Histórico (vínculos encerrados) por médico
+  const historyByDoctor = useMemo(() => {
+    const m = new Map<string, Link[]>();
+    for (const l of links) {
+      if (!l.end_date) continue;
+      const arr = m.get(l.doctor_id) ?? [];
+      arr.push(l);
+      m.set(l.doctor_id, arr);
+    }
+    for (const arr of m.values()) {
+      arr.sort((a, b) => (b.end_date ?? "").localeCompare(a.end_date ?? ""));
+    }
+    return m;
+  }, [links]);
+
+
 
   const companiesById = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
 
