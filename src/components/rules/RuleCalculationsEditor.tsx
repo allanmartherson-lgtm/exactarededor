@@ -869,7 +869,7 @@ function CalcCard({
                     <Checkbox checked={c.apply_access_route} onCheckedChange={(v) => onChange({ apply_access_route: !!v })} />
                     <span className="text-xs ml-1">Aplicar regra de via de acesso</span>
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label data-checkbox-wrapper className="flex items-center gap-2">
                     <Checkbox checked={c.include_auxiliaries} onCheckedChange={(v) => onChange({ include_auxiliaries: !!v })} />
                     <span className="text-xs ml-1">Considerar auxiliares</span>
                   </label>
