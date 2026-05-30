@@ -251,7 +251,7 @@ export default function SectorsManager({ canManage = true }: Props) {
               type="file"
               accept=".xlsx,.xls,.csv"
               className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) parseFile(f); }}
             />
             <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={importing}>
               {importing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
