@@ -590,7 +590,7 @@ function WhenApplySection({
                 <div><Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Horário final</Label><Input type="time" value={c.time_end} onChange={e => onChange({ time_end: e.target.value })} /></div>
               </div>
             )}
-            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
               <Checkbox checked={c.includes_holidays} onCheckedChange={v => onChange({ includes_holidays: !!v, has_conditions: c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || !!v || c.allowed_access_routes.length > 0 })} />
               <span style={{ fontSize: 12 }}>Incluir feriados</span>
             </label>
