@@ -1171,7 +1171,7 @@ const NewPayment = () => {
       quantity: r.quantity,
       procedure_date: r.procedure_date,
       patient_name: r.patient_name,
-      sector: r.sector || b.sectorMapping || null,
+      sector: normalizeSector(r.sector || b.sectorMapping || null),
       attendance_character: r.attendance_character,
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
