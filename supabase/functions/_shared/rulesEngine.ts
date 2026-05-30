@@ -2595,20 +2595,80 @@ function finalizeAnalysis(
   // Aplica a TODOS os tipos de cálculo: o esperado é por unidade × qtd.
   // PULA se o item já veio com valor totalizado (convenio_value_totalized) OU se a regra forçar totalização.
   const qty = Number(item.quantity ?? 1);
-  const isTotalized = item.convenio_value_totalized === true || calc.force_totalized === true;
-  // Onda 1 — Tabela Diferenciada já aplica quantidade internamente; pula aqui.
+  const qtyValid = Number.isFinite(qty) && qty > 0 ? qty : 1;
+  const flagTotalized = item.convenio_value_totalized === true || calc.force_totalized === true;
+
+  // ─── Detecção stateless da base de cálculo (unit vs total) ───
+  // Quando qty>1 e há valor esperado calculável, testa as duas hipóteses
+  // contra o valor pago e escolhe a que casa melhor. Não memoriza nada
+  // entre lotes/itens — decisão isolada por linha.
+  let basisDetected: "unit" | "total" | "ambiguous" | "na" = "na";
+  let basisConfidence: number | null = null;
+
   if (calc.qty_already_applied === true) {
-    // no-op: não multiplica de novo
-  } else if (isTotalized) {
-    if (qty > 1 && calc.explanation) {
-      const reason = item.convenio_value_totalized === true ? "importação" : "regra";
-      calc.explanation = `${calc.explanation} (qtd ${qty} ignorada no cálculo pois valor já é totalizado via ${reason})`;
+    // Tabela Diferenciada — quantidade já foi aplicada internamente; não há ambiguidade.
+    basisDetected = "na";
+  } else if (calc.expected != null && qtyValid > 1) {
+    // calc.expected aqui é o valor PRÉ-qty (por unidade).
+    const base = calc.expected;
+    const expectedUnit = round2(base * qtyValid);
+    const expectedTotal = round2(base);
+    const paid = Number(item.gross_amount);
+    const TOL = 0.01; // 1% — alinhado ao classifyDiff
+    const diff = (exp: number) =>
+      paid > 0 ? Math.abs(exp - paid) / paid : (exp === paid ? 0 : 1);
+    const dUnit = diff(expectedUnit);
+    const dTotal = diff(expectedTotal);
+    const unitOk = dUnit <= TOL;
+    const totalOk = dTotal <= TOL;
+
+    let chosen: "unit" | "total";
+    if (unitOk && totalOk) {
+      // Ambas casam (caso raro: base*qty ≈ base, ou paid ≈ ambos). Mantém o flag do analista.
+      chosen = flagTotalized ? "total" : "unit";
+      basisDetected = "ambiguous";
+    } else if (unitOk && !totalOk) {
+      chosen = "unit";
+      basisDetected = "unit";
+    } else if (totalOk && !unitOk) {
+      chosen = "total";
+      basisDetected = "total";
+    } else {
+      // Nenhuma casa — escolhe a hipótese de menor desvio e segue (vai gerar alerta normal).
+      chosen = dUnit <= dTotal ? "unit" : "total";
+      basisDetected = chosen;
     }
-  } else if (calc.expected != null && Number.isFinite(qty) && qty > 0 && qty !== 1) {
+    basisConfidence = chosen === "unit" ? dUnit : dTotal;
+
+    if (chosen === "unit") {
+      calc.expected = expectedUnit;
+      if (qtyValid !== 1) {
+        calc.explanation = `${calc.explanation} × qtd ${qtyValid} = R$ ${expectedUnit.toFixed(2)}`;
+      }
+    } else {
+      calc.expected = expectedTotal;
+      calc.explanation = `${calc.explanation} (qtd ${qtyValid} ignorada — valor convênio detectado como já totalizado)`;
+    }
+
+    // Se a escolha do motor divergiu do flag do analista, registra observação no explain.
+    if (!flagTotalized && chosen === "total") {
+      calc.explanation += " [motor detectou base totalizada apesar do flag unitário]";
+    } else if (flagTotalized && chosen === "unit") {
+      calc.explanation += " [motor detectou base unitária apesar do flag totalizado]";
+    }
+  } else if (flagTotalized) {
+    // qty=1 ou expected nulo, mas flag totalized estava ligado — comportamento antigo.
+    if (qtyValid > 1 && calc.explanation) {
+      const reason = item.convenio_value_totalized === true ? "importação" : "regra";
+      calc.explanation = `${calc.explanation} (qtd ${qtyValid} ignorada no cálculo pois valor já é totalizado via ${reason})`;
+    }
+  } else if (calc.expected != null && qtyValid !== 1) {
+    // qty=1 (sem ambiguidade) ou caminho legado.
     const before = calc.expected;
-    calc.expected = Number((before * qty).toFixed(2));
-    calc.explanation = `${calc.explanation} × qtd ${qty} = R$ ${calc.expected.toFixed(2)}`;
+    calc.expected = Number((before * qtyValid).toFixed(2));
+    calc.explanation = `${calc.explanation} × qtd ${qtyValid} = R$ ${calc.expected.toFixed(2)}`;
   }
+
 
   let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount, rule, ctx);
   if (priority === "conflito") status = "alerta";
