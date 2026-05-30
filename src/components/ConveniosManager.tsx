@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ShieldCheck, Plus, Pencil, X } from "lucide-react";
+import { ShieldCheck, Plus, Pencil, X, Upload, Download } from "lucide-react";
+
 
 type Convenio = {
   slug: string;
