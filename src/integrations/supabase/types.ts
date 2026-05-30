@@ -2339,9 +2339,11 @@ export type Database = {
           attendance_group_key: string | null
           attendance_number: string | null
           authorized_exception: boolean
+          basis_confidence: number | null
           company_id: string | null
           company_name: string | null
           complement_reason: string | null
+          convenio_basis_detected: string | null
           convenio_value_totalized: boolean
           cost_center_code: string | null
           created_at: string
@@ -2399,9 +2401,11 @@ export type Database = {
           attendance_group_key?: string | null
           attendance_number?: string | null
           authorized_exception?: boolean
+          basis_confidence?: number | null
           company_id?: string | null
           company_name?: string | null
           complement_reason?: string | null
+          convenio_basis_detected?: string | null
           convenio_value_totalized?: boolean
           cost_center_code?: string | null
           created_at?: string
@@ -2459,9 +2463,11 @@ export type Database = {
           attendance_group_key?: string | null
           attendance_number?: string | null
           authorized_exception?: boolean
+          basis_confidence?: number | null
           company_id?: string | null
           company_name?: string | null
           complement_reason?: string | null
+          convenio_basis_detected?: string | null
           convenio_value_totalized?: boolean
           cost_center_code?: string | null
           created_at?: string
