@@ -2542,6 +2542,7 @@ const Rules = () => {
                                 calcBadge={renderCalcBadge(r)}
                                 selected={selected.has(r.id)}
                                 isLast
+                                pendingDoctorsCount={pendingByRule[r.id] ?? 0}
                                 onToggleSelect={() => toggleSelect(r.id)}
                                 onEdit={() => openEdit(r)}
                                 onDuplicate={() => openDuplicate(r)}
@@ -2550,6 +2551,7 @@ const Rules = () => {
                               />
                             </CardContent>
                           </Card>
+
                         );
                       })}
                     </div>
