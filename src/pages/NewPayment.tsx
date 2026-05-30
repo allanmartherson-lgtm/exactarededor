@@ -1105,6 +1105,17 @@ const NewPayment = () => {
       return null;
     };
 
+    // Normaliza o setor lido (ou herdado do bucket) para o slug canônico via
+    // tabela `sectors` + aliases. Garante que "Hemodinâmica (DFStar)" e variações
+    // virem `hemodinamica` no banco, formato esperado pelo motor de regras.
+    const sectorAliases = await loadSectorAliases();
+    const normalizeSector = (raw: string | null | undefined): string | null => {
+      if (!raw) return null;
+      const slug = sectorAliases.resolveSlug(raw);
+      return slug ?? (String(raw).trim().toLowerCase() || null);
+    };
+
+
     // Constrói uma linha de payment_items para uma row "matched"
     const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => ({
       payment_id: payment.id,
