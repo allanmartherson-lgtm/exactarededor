@@ -183,6 +183,12 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
                 <Badge variant="outline" className="border-amber-500/40 text-amber-700">
                   {stats.warns} avisos
                 </Badge>
+                {doctorCollisions.length > 0 && (
+                  <Badge className="bg-destructive/10 text-destructive border border-destructive/30 flex items-center gap-1">
+                    <UserX className="h-3 w-3" />
+                    {doctorCollisions.length} médico{doctorCollisions.length > 1 ? "s" : ""} em conflito
+                  </Badge>
+                )}
               </>
             )}
             {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
