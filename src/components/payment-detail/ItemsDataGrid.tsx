@@ -631,6 +631,12 @@ export function ItemsDataGrid({
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate">
                         <span className="font-mono">{it.procedure_code ?? "—"}</span>
+                        {Number(it.quantity ?? 1) > 1 && (
+                          <>
+                            {" · "}
+                            Qtd <span className="font-mono text-foreground">{Number(it.quantity ?? 1)}</span>
+                          </>
+                        )}
                         {" · "}
                         {it.procedure_name ?? it.description ?? "—"}
                       </p>
@@ -693,6 +699,7 @@ export function ItemsDataGrid({
               {colVis.convenio && <col style={{ width: 140 }} />}
               {colVis.via && <col style={{ width: 140 }} />}
               <col style={{ width: 96 }} />
+              <col style={{ width: 64 }} />
               <col style={{ width: 240 }} />
               {colVis.setor_lido && <col style={{ width: 140 }} />}
               {colVis.setor_inferido && <col style={{ width: 140 }} />}
@@ -713,6 +720,7 @@ export function ItemsDataGrid({
                 {colVis.convenio && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Convênio</th>}
                 {colVis.via && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Via</th>}
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>TUSS</th>
+                <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Qtd</th>
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>
                 {colVis.setor_lido && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)</th>}
                 {colVis.setor_inferido && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Sistema)</th>}
@@ -753,7 +761,7 @@ export function ItemsDataGrid({
                 const obsCount = observations.filter((o) => o.item_id === it.id).length;
 
                 const totalCols =
-                  6 + 1 +
+                  7 + 1 +
                   (colVis.atendimento ? 1 : 0) +
                   (colVis.convenio ? 1 : 0) +
                   (colVis.via ? 1 : 0) +
@@ -832,6 +840,7 @@ export function ItemsDataGrid({
                 (colVis.convenio ? 1 : 0) +
                 (colVis.via ? 1 : 0) +
                 1 /* tuss */ +
+                1 /* qtd */ +
                 1 /* procedimento */ +
                 (colVis.setor_lido ? 1 : 0) +
                 (colVis.setor_inferido ? 1 : 0) +
@@ -1028,6 +1037,9 @@ function RowMain({
           <td className={cn(cell, TEXT_BODY)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
         <td className={cn(cell, "font-mono", TEXT_META)}>{it.procedure_code ?? "—"}</td>
+        <td className={cn(cellPad, "text-right tabular-nums font-mono border-b whitespace-nowrap", TEXT_META, baseCellBg)}>
+          {Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Number(it.quantity) : 1}
+        </td>
         <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? it.description ?? ""}>
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>

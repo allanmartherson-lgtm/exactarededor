@@ -488,6 +488,47 @@ Deno.test("ONDA 1 BUGFIX — Tabela Diferenciada via rule.calculations[] não du
   assertEquals(matches.length, 1, `Explicação deveria ter exatamente 1 "× qtd 3", encontrou ${matches.length}: ${explanation}`);
 });
 
+Deno.test("Tabela Diferenciada — toggle valor convênio totalizado não cancela quantidade de tabela de referência", () => {
+  const tableId = "table-totalized-flag";
+  const code = "30729203";
+  const lookup = (tid: string, c: string, _role?: string | null, roleSpecific?: boolean) => {
+    if (tid !== tableId || c !== code || roleSpecific === true) return null;
+    return 100;
+  };
+
+  const rule = makeRule({
+    id: "rule-td-totalized-flag",
+    name: "TD deve respeitar quantidade",
+    calculation_type: "tabela_diferenciada",
+    reference_table_id: null as any,
+    multiplier: null as any,
+    calculations: [
+      {
+        id: "calc-td-totalized-flag",
+        label: "Tabela referência",
+        calculation_type: "tabela_diferenciada",
+        reference_table_id: tableId,
+        multiplier: 1,
+        apply_access_route: false,
+      },
+    ],
+  });
+
+  const item = makeItem({
+    id: "item-td-totalized-flag",
+    procedure_code: code,
+    quantity: 4,
+    procedure_amount: 100,
+    gross_amount: 400,
+    convenio_value_totalized: true,
+  });
+
+  const [result] = analyzePaymentItems([item], [rule], baseCtx, { referenceLookup: lookup });
+  assertEquals(result.expected_amount, 400);
+  assertEquals(result.status, "aprovado");
+  assert(result.calculation_explanation?.includes("× qtd 4"));
+});
+
 // --- FIX Pacotes — escopo de códigos em calcItemMatches ---
 import { calcItemMatches } from "./rulesEngine.ts";
 
