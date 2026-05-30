@@ -51,7 +51,7 @@ interface Doctor {
   vinculo: string | null;
 }
 interface Company { id: string; name: string; document: string | null; }
-interface Link { doctor_id: string; company_id: string; }
+interface Link { doctor_id: string; company_id: string; start_date: string | null; end_date: string | null; end_reason: string | null; }
 
 const empty: Doctor = {
   id: "", full_name: "", crm: "", crm_uf: "", email: "", phone: "",
@@ -110,7 +110,7 @@ export default function Doctors() {
       // Carregamento de empresas e vínculos primeiro (são menores)
       const [c, l, countResp] = await Promise.all([
         supabase.from("companies").select("id,name,document").order("name").limit(5000),
-        supabase.from("doctor_companies").select("doctor_id,company_id").limit(50000),
+        supabase.from("doctor_companies").select("doctor_id,company_id,start_date,end_date,end_reason").limit(50000),
         supabase.from("doctors").select("*", { count: 'exact', head: true })
       ]);
       
@@ -162,15 +162,34 @@ export default function Doctors() {
     }
   };
 
+  // Vínculos ATIVOS por médico (end_date IS NULL). Histórico fica separado.
   const linksByDoctor = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const l of links) {
+      if (l.end_date) continue;
       const arr = m.get(l.doctor_id) ?? [];
       arr.push(l.company_id);
       m.set(l.doctor_id, arr);
     }
     return m;
   }, [links]);
+
+  // Histórico (vínculos encerrados) por médico
+  const historyByDoctor = useMemo(() => {
+    const m = new Map<string, Link[]>();
+    for (const l of links) {
+      if (!l.end_date) continue;
+      const arr = m.get(l.doctor_id) ?? [];
+      arr.push(l);
+      m.set(l.doctor_id, arr);
+    }
+    for (const arr of m.values()) {
+      arr.sort((a, b) => (b.end_date ?? "").localeCompare(a.end_date ?? ""));
+    }
+    return m;
+  }, [links]);
+
+
 
   const companiesById = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
 
@@ -581,7 +600,30 @@ export default function Doctors() {
                         })}
                       </div>
                     )}
+                    {editing.id && (historyByDoctor.get(editing.id)?.length ?? 0) > 0 && (
+                      <div className="pt-2 border-t border-border/40">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                          Histórico de PJs encerradas
+                        </p>
+                        <div className="space-y-1">
+                          {historyByDoctor.get(editing.id)!.map((h, i) => {
+                            const c = companiesById.get(h.company_id);
+                            const fmt = (iso: string | null) => iso ? new Date(iso + "T00:00:00").toLocaleDateString("pt-BR") : "—";
+                            return (
+                              <div key={i} className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span className="truncate">{c?.name ?? "(PJ removida)"}</span>
+                                <span className="font-mono text-[10px] shrink-0 ml-2">
+                                  {fmt(h.start_date)} → {fmt(h.end_date)}
+                                  {h.end_reason && <span className="ml-1 opacity-70">({h.end_reason})</span>}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </section>
+
 
                   {/* Seção 6 — Observações */}
                   <section className="space-y-3">
