@@ -236,15 +236,39 @@ export default function Doctors() {
       savedId = data.id;
     }
 
-    // Vínculos: substitui pelo set atual
+    // Vínculos: diff incremental preservando histórico (vigência).
+    // Removidos → encerra com end_date = hoje. Adicionados → cria com start_date = hoje.
     if (savedId) {
-      await supabase.from("doctor_companies").delete().eq("doctor_id", savedId);
-      if (editingCompanyIds.length > 0) {
-        await supabase.from("doctor_companies").insert(
-          editingCompanyIds.map((cid) => ({ doctor_id: savedId!, company_id: cid })),
+      const today = new Date().toISOString().slice(0, 10);
+      const previousIds = linksByDoctor.get(savedId) ?? [];
+      const toEnd = previousIds.filter((cid) => !editingCompanyIds.includes(cid));
+      const toAdd = editingCompanyIds.filter((cid) => !previousIds.includes(cid));
+
+      if (toEnd.length > 0) {
+        // Encerra apenas os vínculos abertos (end_date IS NULL) das PJs removidas
+        await supabase
+          .from("doctor_companies")
+          .update({ end_date: today, end_reason: "desvinculo_manual" })
+          .eq("doctor_id", savedId)
+          .in("company_id", toEnd)
+          .is("end_date", null);
+      }
+
+      if (toAdd.length > 0) {
+        const { error: linkErr } = await supabase.from("doctor_companies").insert(
+          toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today })),
         );
+        if (linkErr) {
+          // Constraint de não-sobreposição: médico já tem outra PJ vigente.
+          toast({
+            title: "Vínculo conflita com PJ atual",
+            description: "Encerre o vínculo anterior antes de iniciar um novo na mesma data.",
+            variant: "destructive",
+          });
+        }
       }
     }
+
 
     toast({ title: editing.id ? "Médico atualizado" : "Médico criado" });
     setOpen(false);

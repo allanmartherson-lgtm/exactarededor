@@ -16,16 +16,26 @@ interface Doctor {
   active: boolean;
 }
 
+interface LinkRow {
+  doctor_id: string;
+  start_date: string | null;
+  end_date: string | null;
+}
+
 const norm = (s: string) =>
   (s ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
+const fmtBR = (iso: string | null) =>
+  iso ? new Date(iso + "T00:00:00").toLocaleDateString("pt-BR") : "—";
+
 /**
- * Lista, adiciona e remove vínculos de médicos a uma empresa.
- * Salva imediatamente em doctor_companies (autônomo do form pai).
+ * Lista, adiciona e encerra vínculos de médicos a uma empresa.
+ * Vínculo tem vigência (start_date / end_date). Encerrar = setar end_date,
+ * preserva histórico para auditoria e para o motor de pagamento/glosa.
  */
 export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
   const [allDoctors, setAllDoctors] = useState<Doctor[]>([]);
-  const [linkedIds, setLinkedIds] = useState<string[]>([]);
+  const [links, setLinks] = useState<LinkRow[]>([]);
   const [search, setSearch] = useState("");
   const [showPicker, setShowPicker] = useState(false);
 
@@ -34,42 +44,68 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
     (async () => {
       const [d, l] = await Promise.all([
         supabase.from("doctors").select("id,full_name,crm,crm_uf,active").order("full_name").limit(20000),
-        supabase.from("doctor_companies").select("doctor_id").eq("company_id", companyId),
+        supabase
+          .from("doctor_companies")
+          .select("doctor_id,start_date,end_date")
+          .eq("company_id", companyId),
       ]);
       setAllDoctors((d.data ?? []) as Doctor[]);
-      setLinkedIds(((l.data ?? []) as { doctor_id: string }[]).map((x) => x.doctor_id));
+      setLinks((l.data ?? []) as LinkRow[]);
     })();
   }, [companyId]);
 
+  // Vínculos ativos = end_date IS NULL (em aberto)
+  const activeLinks = useMemo(() => links.filter((l) => !l.end_date), [links]);
+  const activeIds = useMemo(() => new Set(activeLinks.map((l) => l.doctor_id)), [activeLinks]);
+
   const linked = useMemo(
-    () => allDoctors.filter((d) => linkedIds.includes(d.id)),
-    [allDoctors, linkedIds],
+    () =>
+      activeLinks
+        .map((l) => {
+          const d = allDoctors.find((x) => x.id === l.doctor_id);
+          return d ? { ...d, start_date: l.start_date } : null;
+        })
+        .filter(Boolean) as (Doctor & { start_date: string | null })[],
+    [allDoctors, activeLinks],
   );
 
   const available = useMemo(() => {
     const q = norm(search);
     return allDoctors
-      .filter((d) => !linkedIds.includes(d.id))
+      .filter((d) => !activeIds.has(d.id))
       .filter((d) => !q || norm(`${d.full_name} ${d.crm} ${d.crm_uf}`).includes(q));
-  }, [allDoctors, linkedIds, search]);
+  }, [allDoctors, activeIds, search]);
 
   const add = async (doctorId: string) => {
+    const today = new Date().toISOString().slice(0, 10);
     const { error } = await supabase
       .from("doctor_companies")
-      .insert({ doctor_id: doctorId, company_id: companyId });
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    setLinkedIds([...linkedIds, doctorId]);
+      .insert({ doctor_id: doctorId, company_id: companyId, start_date: today });
+    if (error) {
+      toast({
+        title: "Não foi possível vincular",
+        description: "Este médico já possui PJ vigente em sobreposição. Encerre a anterior primeiro.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLinks([...links, { doctor_id: doctorId, start_date: today, end_date: null }]);
   };
 
-  const remove = async (doctorId: string) => {
+  const end = async (doctorId: string) => {
+    const today = new Date().toISOString().slice(0, 10);
     const { error } = await supabase
       .from("doctor_companies")
-      .delete()
+      .update({ end_date: today, end_reason: "desvinculo_manual" })
       .eq("doctor_id", doctorId)
-      .eq("company_id", companyId);
+      .eq("company_id", companyId)
+      .is("end_date", null);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    setLinkedIds(linkedIds.filter((id) => id !== doctorId));
+    setLinks(links.map((l) =>
+      l.doctor_id === doctorId && !l.end_date ? { ...l, end_date: today } : l,
+    ));
   };
+
 
   if (!companyId) {
     return (
@@ -97,11 +133,13 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
         {linked.map((d) => (
           <Badge key={d.id} variant="secondary" className="gap-1">
             {d.full_name} <span className="text-muted-foreground text-[10px]">{d.crm}/{d.crm_uf}</span>
-            <button onClick={() => remove(d.id)} aria-label={`Remover ${d.full_name}`}>
+            <span className="text-muted-foreground text-[10px]">desde {fmtBR(d.start_date)}</span>
+            <button onClick={() => end(d.id)} aria-label={`Encerrar vínculo de ${d.full_name}`} title="Encerrar vínculo (hoje)">
               <X className="h-3 w-3" />
             </button>
           </Badge>
         ))}
+
       </div>
       {!showPicker ? (
         <Button type="button" size="sm" variant="outline" onClick={() => setShowPicker(true)}>
