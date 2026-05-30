@@ -237,7 +237,7 @@ export default function SectorsManager({ canManage = true }: Props) {
             <CardDescription>
               Aceita <code>.xlsx</code>, <code>.xls</code> ou <code>.csv</code>. Colunas reconhecidas:
               {" "}<code>codigo</code> (Tasy), <code>nome</code>, <code>classificacao</code>,
-              {" "}<code>aliases</code> (separados por <code>;</code> ou <code>,</code>),
+              {" "}<code>aliases</code> (separados por <code>|</code>, <code>;</code> ou <code>,</code>),
               {" "}<code>ativo</code>, <code>ordem</code>, <code>notas</code>, <code>slug</code> (opcional).
               Upsert pelo <code>slug</code> — aliases existentes são preservados.
             </CardDescription>
