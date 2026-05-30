@@ -1900,7 +1900,7 @@ export default function CompanyAnalysis() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <Button variant="outline" onClick={() => { setPostConcluirOpen(false); navigate("/dashboard"); }}>
+            <Button variant="outline" onClick={() => { setPostConcluirOpen(false); navigate("/"); }}>
               Ir para o Dashboard
             </Button>
             <Button onClick={() => { setPostConcluirOpen(false); navigate(`/pagamentos/${id}`); }}>
