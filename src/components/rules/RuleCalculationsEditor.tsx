@@ -117,7 +117,7 @@ export function makeEmptyCalc(): CalcItem {
     force_totalized: false,
     application_unit: "por_item",
     procedure_codes: [],
-    code_match_mode: "whitelist",
+    code_match_mode: "any",
     agreement_aliases: [],
     agreement_match_mode: "whitelist",
     doctor_roles: [],
