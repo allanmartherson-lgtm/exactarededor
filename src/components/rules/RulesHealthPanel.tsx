@@ -125,7 +125,12 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<RuleHealth[]>([]);
   const [doctorCollisions, setDoctorCollisions] = useState<DoctorMultiRuleProblem[]>([]);
+  const [pendingDoctors, setPendingDoctors] = useState<Array<{
+    rule_id: string; rule_name: string; company_id: string; company_name: string;
+    doctor_id: string; doctor_name: string; doctor_crm: string | null;
+  }>>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
 
   const analyze = async () => {
     setLoading(true);
