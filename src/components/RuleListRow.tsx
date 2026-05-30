@@ -2,7 +2,8 @@ import { ReactNode } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Pencil, Copy, FileDown, Trash2 } from "lucide-react";
+import { AlertTriangle, Pencil, Copy, FileDown, Trash2, UserPlus } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 export interface RuleListRowProps {
@@ -21,12 +22,14 @@ export interface RuleListRowProps {
   calcBadge?: ReactNode;
   selected?: boolean;
   isLast?: boolean;
+  pendingDoctorsCount?: number;
   onToggleSelect?: () => void;
   onEdit?: () => void;
   onDuplicate?: () => void;
   onExportPdf?: () => void;
   onDelete?: () => void;
 }
+
 
 /**
  * Linha reutilizável de regra — segue exatamente o padrão visual da
@@ -49,12 +52,14 @@ export function RuleListRow({
   calcBadge,
   selected,
   isLast,
+  pendingDoctorsCount,
   onToggleSelect,
   onEdit,
   onDuplicate,
   onExportPdf,
   onDelete,
 }: RuleListRowProps) {
+
   const renderThresholds = () => {
     const aVal = thresholdAlert?.value;
     const aType = thresholdAlert?.type;
@@ -111,6 +116,18 @@ export function RuleListRow({
                 <AlertTriangle className="h-3 w-3" /> Faltam: {missingFields.join(", ")}
               </Badge>
             )}
+            {pendingDoctorsCount && pendingDoctorsCount > 0 ? (
+              <Badge
+                variant="warning"
+                className="font-normal gap-1 cursor-pointer"
+                onClick={onEdit}
+                title="Médicos novos da empresa que ainda não foram confirmados nesta regra. Eles já estão sendo cobertos automaticamente — revise para confirmar ou excluir."
+              >
+                <UserPlus className="h-3 w-3" />
+                {pendingDoctorsCount} médico{pendingDoctorsCount > 1 ? "s" : ""} novo{pendingDoctorsCount > 1 ? "s" : ""} pendente{pendingDoctorsCount > 1 ? "s" : ""}
+              </Badge>
+            ) : null}
+
           </div>
           {description && <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>}
           {ruleText && (

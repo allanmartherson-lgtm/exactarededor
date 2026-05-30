@@ -1,75 +1,66 @@
-# Cruzamento obrigatório com bases de cadastro
+# Auto-incluir novos médicos + aviso
 
-Auditoria identificou 16 pontos onde o sistema ainda compara por texto livre em vez de cruzar com as tabelas de cadastro (`convenios`, `sectors`, `doctors`, `companies`). Proposta em 3 ondas, priorizando os pontos onde regras falham silenciosamente.
+## Problema
 
----
+Regras de grupo vinculadas a empresa com **lista específica de médicos** (allowlist em `group_company_links[].doctors`) não cobrem médicos que entraram na empresa depois da criação da regra. Resultado: médicos novos ficam fora da regra silenciosamente (caso COTE).
 
-## Onda 1 — P1: pontos onde regras silenciosamente não disparam
+## Decisão (já confirmada)
 
-### 1.1 Médico por ID (não por nome)
-- `rule_calculations.group_doctors[]` e `group_company_links[].doctors[]` passam a guardar `{ id, name, crm }`.
-- `MultiSelectChips.tsx` / `DoctorCombobox` injetam `id` no payload.
-- `rulesEngine.ts` (linhas 580, 619–679): comparar por `doctor_id` primeiro; nome só como fallback com aviso em log.
-- `rules.target_doctor_id` adicionada (já existe `target_company_id` análogo) e usada quando `scope=especifica/medico`.
+- **Comportamento:** Auto-incluir + aviso. Médico novo passa a ser coberto pela regra automaticamente, mas o sistema sinaliza para revisão.
+- **Surfaces do aviso:** Card da regra na lista, Painel de Saúde, Notificação ao supervisor.
 
-### 1.2 Empresa por ID no analyze-payment
-- `analyze-payment/index.ts` (182–202): receber `company_id` do payload em vez de resolver por `.eq("name", company_name)`. Cair para resolução por nome só se id não vier.
-- Backfill: migration que popula `rules.target_company_id` a partir de `target_name` quando vazio (matching exato + alias de `companies.aliases`).
+## Mudanças
 
-### 1.3 Simulador puxa da tabela de convênios
-- `RuleSimulator.tsx` (460–510): `AgreementCombobox` consulta `convenios` (slug + nome) em vez de `payment_items.agreement_text`. Usuário escolhe um convênio cadastrado; simulador normaliza item via `CONVENIO_MAP` antes de comparar.
+### 1. Motor de regras — auto-inclusão (`supabase/functions/_shared/rulesEngine.ts`)
 
----
+Hoje `matchDoctorInList` exige que o médico esteja na allowlist. Mudança:
 
-## Onda 2 — P2: travar UI para não sobrescrever escolha do cadastro
+- Adicionar novo campo opcional `auto_include_new_doctors: boolean` (default `true`) em cada `group_company_links[]`.
+- Em `matchScope`/matching de link: se o item bate na `company_id` do link **e** o doctor não está na lista, ainda assim aplica quando `auto_include_new_doctors !== false`.
+- Idem para `analyze-payment/index.ts` (filtro candidato).
+- Marcar o match como `auto_included = true` para o item retornar essa info (campo informativo no `payment_items.exception_note` ou novo `match_meta`).
 
-### 2.1 Rules.tsx — campos read-only após combobox
-- `CompanyCombobox` (1863–1895): CNPJ + Nome ficam `readOnly` após seleção. Botão "limpar" para reescolher.
-- `DoctorCombobox` (1895, 1916, 1919): mesmo tratamento para Nome + CRM.
-- Import draft (linha 2624): substituir `<Input target_name>` por `CompanyCombobox`.
+### 2. Detecção de "pendentes de revisão"
 
-### 2.2 SectorMultiSelect — só aceitar slug cadastrado
-- Bloquear adição de texto livre; texto legado entra como badge âmbar (igual ConvenioMultiSelect).
+Função SQL `public.rule_pending_doctors(rule_id uuid)`:
+- Para cada link da regra com lista não-vazia, retornar médicos de `doctor_companies` (ativos) da `company_id` que **não estão** na lista do link.
+- Resultado: `{ company_id, company_name, doctor_id, full_name, crm, since }`.
 
----
+Usada por:
+- Card da regra (contagem)
+- Painel de Saúde (lista detalhada)
+- Worker de notificação
 
-## Onda 3 — P3: limpeza de fallbacks permissivos
+### 3. UI — Card da regra (`src/pages/Rules.tsx`)
 
-### 3.1 Convênio — legacy `agreement_name`
-- Em `convert-rules` e save de regra, coagir `agreement_name`/`agreement_aliases` para slug oficial quando houver match no registro; manter texto livre só quando nenhum convênio bate (com alerta visível no editor).
-- `targetsAgreement()` (rulesEngine 767–790): remover fallback `startsWith`; exigir match exato de slug após normalização (o `CONVENIO_MAP` já cobre aliases). Reduz falsos positivos.
+Quando `pending_doctors_count > 0`, mostrar badge âmbar no card: `"N médico(s) novo(s) pendente(s) de revisão"`. Click abre o editor da regra na aba de empresas com os novos médicos pré-marcados em destaque.
 
-### 3.2 Setor — reduzir heurística regex
-- `inferItemSector()` (443–457): manter passos 1–3 (campo direto, alias, `procedure_classifications`); remover regex hardcoded das etapas 4–6 — itens não classificados viram `sem_setor` com alerta, forçando cadastro no `procedure_classifications`.
+Dentro do editor (modo "médicos específicos"), seção nova **"Médicos novos pendentes de revisão"** com cada nome + 2 botões: **Confirmar inclusão** (adiciona à allowlist) / **Excluir desta regra** (adiciona ao novo array `link.excluded_doctors` para não disparar aviso de novo).
 
-### 3.3 Import wizard — empresa por CNPJ
-- `import-wizard/index.ts` (186–265): tentar match por `document` (CNPJ) antes de `name.toLowerCase()`.
+### 4. Painel de Saúde (`src/components/rules/RulesHealthPanel.tsx`)
 
----
+Nova seção **"Médicos pendentes de revisão em regras"** listando: regra → empresa → médicos novos. Botão "Revisar" leva direto ao editor.
 
-## Migrations necessárias
+### 5. Notificação ao supervisor
 
-1. `ALTER TABLE rules ADD COLUMN target_doctor_id uuid REFERENCES doctors(id)` + index.
-2. Backfill `rules.target_company_id` por nome/alias.
-3. Backfill `rules.target_doctor_id` por nome+CRM.
-4. (Opcional) Backfill `rule_calculations.group_doctors[].id` via match nome+CRM.
+- Nova edge function `notify-rule-pending-doctors` (cron diário ou trigger ao criar `doctor_companies`).
+- Usa `enqueue_notification` para enfileirar notificação aos roles `admin` e `diretor` quando há pendências.
+- Debounce: agrupa por regra, no máximo 1 notificação por regra a cada 24h.
 
----
+### 6. Migração (`supabase/migrations/...`)
 
-## Arquivos a editar
+- Função `public.rule_pending_doctors(uuid)` retornando `TABLE(...)`.
+- View opcional `public.rules_health_pending` para agregação no painel.
+- Sem alterar schema de `rules` (o `auto_include_new_doctors` vive dentro do JSONB `group_company_links`, já flexível).
 
-**Edge functions:** `supabase/functions/_shared/rulesEngine.ts`, `supabase/functions/analyze-payment/index.ts`, `supabase/functions/import-wizard/index.ts`, `supabase/functions/convert-rules/index.ts`
+## Ordem de execução
 
-**UI:** `src/pages/Rules.tsx`, `src/pages/RuleSimulator.tsx`, `src/components/MultiSelectChips.tsx`, `src/components/rules/SectorMultiSelect.tsx`, `src/components/rules/RuleCalculationsEditor.tsx`
+1. Migration: função `rule_pending_doctors`.
+2. Motor (`rulesEngine.ts` + `analyze-payment`): auto-inclusão.
+3. UI: badge no card + seção no editor + painel de saúde.
+4. Edge function de notificação + cron.
 
----
+## Fora de escopo
 
-## O que NÃO muda
-
-- ConvenioMultiSelect (já migrado).
-- Estrutura de `payment_items` (a base tratada continua chegando como texto — só a interpretação cruza com cadastro).
-- Lógica de cálculo de regras (só o matching alvo/escopo muda).
-
----
-
-Quer que eu execute as 3 ondas em sequência, ou prefere aprovar onda por onda (cada uma fecha uma classe de bug)?
+- Não tocamos em regras com `doctors = []` ("Todos os médicos") — já cobrem novos automaticamente.
+- Não tocamos em `group_doctors` (allowlist global da regra, sem empresa) — comportamento atual mantido por enquanto; se você quiser também aplicar lá, dá pra estender depois.

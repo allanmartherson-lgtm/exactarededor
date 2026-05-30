@@ -15,14 +15,14 @@ export async function claimPayment(
   note?: string,
 ): Promise<{ ok: true; created: boolean } | { ok: false; error: string }> {
   // Last assignment para inferir transferência vs. assumir.
-  const { data: last } = await (supabase.from as unknown as (t: string) => ReturnType<typeof supabase.from>)(
-    "payment_assignments",
-  )
+  const { data: last } = await supabase
+    .from("payment_assignments")
     .select("analyst_id")
     .eq("payment_id", paymentId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+
 
   const previous = (last as { analyst_id?: string | null } | null)?.analyst_id ?? null;
   if (previous && previous === userId) {
@@ -31,17 +31,18 @@ export async function claimPayment(
   }
 
   const action = previous && previous !== userId ? "transferiu" : "assumiu";
-  const { error } = await (supabase as unknown as { from: (t: string) => { insert: (v: Record<string, unknown>) => Promise<{ error: { message: string } | null }> } })
+  const { error } = await supabase
     .from("payment_assignments")
     .insert({
-    payment_id: paymentId,
-    analyst_id: userId,
-    previous_analyst_id: previous,
-    action,
-    source,
-    note: note ?? null,
-    created_by: userId,
-  });
+      payment_id: paymentId,
+      analyst_id: userId,
+      previous_analyst_id: previous,
+      action,
+      source,
+      note: note ?? null,
+      created_by: userId,
+    });
+
   if (error) return { ok: false, error: error.message };
   return { ok: true, created: true };
 }

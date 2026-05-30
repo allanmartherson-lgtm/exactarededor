@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Stethoscope, RefreshCw, UserX, Download, FileText } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Stethoscope, RefreshCw, UserX, Download, FileText, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { validateCalcOnlyFilters } from "@/../supabase/functions/_shared/rulesEngine";
 import {
@@ -125,7 +125,12 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<RuleHealth[]>([]);
   const [doctorCollisions, setDoctorCollisions] = useState<DoctorMultiRuleProblem[]>([]);
+  const [pendingDoctors, setPendingDoctors] = useState<Array<{
+    rule_id: string; rule_name: string; company_id: string; company_name: string;
+    doctor_id: string; doctor_name: string; doctor_crm: string | null;
+  }>>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
 
   const analyze = async () => {
     setLoading(true);
@@ -212,10 +217,21 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
       const activeRules = (rules ?? []).filter((r: any) => !!r.active);
       const collisions = detectDoctorMultiRule(activeRules as any, byRule as any);
       setDoctorCollisions(collisions);
+
+      // Médicos novos pendentes em regras com allowlist de empresa.
+      const groupRules = (rules ?? []).filter((r: any) => r.active && r.scope === "grupo");
+      const pendingResults = await Promise.all(
+        groupRules.map(async (r: any) => {
+          const { data } = await (supabase as any).rpc("rule_pending_doctors", { p_rule_id: r.id });
+          return (Array.isArray(data) ? data : []).map((row: any) => ({ ...row, rule_id: r.id, rule_name: r.name }));
+        }),
+      );
+      setPendingDoctors(pendingResults.flat());
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     if (open && rows.length === 0) analyze();
@@ -269,8 +285,15 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
                     {doctorCollisions.length} médico{doctorCollisions.length > 1 ? "s" : ""} em conflito
                   </Badge>
                 )}
+                {pendingDoctors.length > 0 && (
+                  <Badge variant="outline" className="border-warning/40 text-warning flex items-center gap-1">
+                    <UserPlus className="h-3 w-3" />
+                    {pendingDoctors.length} médico{pendingDoctors.length > 1 ? "s" : ""} novo{pendingDoctors.length > 1 ? "s" : ""}
+                  </Badge>
+                )}
               </>
             )}
+
             {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </div>
         </button>
@@ -352,6 +375,54 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
                 </div>
               </div>
             )}
+
+            {pendingDoctors.length > 0 && (() => {
+              const byRule = new Map<string, typeof pendingDoctors>();
+              for (const p of pendingDoctors) {
+                const arr = byRule.get(p.rule_id) ?? [];
+                arr.push(p);
+                byRule.set(p.rule_id, arr);
+              }
+              return (
+                <div className="border border-warning/40 bg-warning/5 rounded-md p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-warning">
+                    <UserPlus className="h-4 w-4" />
+                    Médicos novos pendentes de revisão
+                    <Badge variant="outline" className="border-warning/40 text-warning text-xs ml-1">
+                      {pendingDoctors.length}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Médicos que entraram em empresas vinculadas a regras com lista específica de médicos. Eles já estão sendo cobertos automaticamente — revise cada regra para confirmar a inclusão ou excluir explicitamente.
+                  </p>
+                  <div className="space-y-2">
+                    {Array.from(byRule.entries()).map(([ruleId, items]) => (
+                      <div key={ruleId} className="text-xs rounded border border-warning/30 bg-background px-2 py-2">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-semibold truncate">{items[0].rule_name}</span>
+                          {onSelectRule && (
+                            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => onSelectRule(ruleId)}>
+                              Revisar
+                            </Button>
+                          )}
+                        </div>
+                        <ul className="space-y-0.5 text-muted-foreground">
+                          {items.map((d) => (
+                            <li key={`${d.company_id}-${d.doctor_id}`} className="truncate">
+                              • <span className="text-foreground">{d.doctor_name}</span>
+                              {d.doctor_crm && <span> · {d.doctor_crm}</span>}
+                              <span> · {d.company_name}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+
 
 
             {inconsistentRows.map((r) => {

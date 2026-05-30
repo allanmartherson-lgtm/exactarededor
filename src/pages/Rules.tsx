@@ -209,7 +209,18 @@ const Rules = () => {
   const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
   const [fGroupMode, setFGroupMode] = useState<"empresa" | "medico">("empresa");
   // Novo modelo: vínculos por empresa em linhas (cada linha = empresa + médicos opcionais).
-  const [fGroupLinks, setFGroupLinks] = useState<{ company_id: string; doctors: { name: string; crm?: string }[] }[]>([]);
+  const [fGroupLinks, setFGroupLinks] = useState<{
+    company_id: string;
+    doctors: { id?: string | null; name: string; crm?: string }[];
+    excluded_doctors?: { id?: string | null; name: string; crm?: string }[];
+    auto_include_new_doctors?: boolean;
+  }[]>([]);
+  // Médicos novos da PJ não confirmados/excluídos da regra em edição.
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [pendingDoctors, setPendingDoctors] = useState<Array<{
+    company_id: string; company_name: string; doctor_id: string; doctor_name: string; doctor_crm: string | null;
+  }>>([]);
+
   // UI local: empresas colapsadas (por company_id) e filtro de busca.
   const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set());
   const [companyLinksFilter, setCompanyLinksFilter] = useState("");
@@ -341,7 +352,19 @@ const Rules = () => {
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
+  const [pendingByRule, setPendingByRule] = useState<Record<string, number>>({});
+  const load = async () => {
+    const { data } = await supabase.from("rules").select("*").order("created_at", { ascending: false });
+    setRules(data ?? []);
+    // Carrega contagem de médicos novos pendentes por regra (auto-include + aviso).
+    const { data: pend } = await (supabase as any)
+      .from("rules_pending_doctors_summary")
+      .select("rule_id,pending_count");
+    const map: Record<string, number> = {};
+    (pend ?? []).forEach((r: any) => { if (r?.rule_id) map[r.rule_id] = Number(r.pending_count) || 0; });
+    setPendingByRule(map);
+  };
+
   const loadGlobalThresholds = () => supabase.from("system_configurations").select("value").eq("key", "divergence_thresholds").maybeSingle().then(({ data }) => {
     if (data?.value) {
       const v = data.value as any;
@@ -797,6 +820,16 @@ const Rules = () => {
 
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
     setEditingId(isDuplicate ? null : r.id);
+    setEditingRuleId(isDuplicate ? null : r.id);
+    // Busca médicos novos pendentes desta regra (só quando editando, não duplicando).
+    if (!isDuplicate && r.id) {
+      (supabase as any).rpc("rule_pending_doctors", { p_rule_id: r.id }).then(({ data }: any) => {
+        setPendingDoctors(Array.isArray(data) ? data : []);
+      });
+    } else {
+      setPendingDoctors([]);
+    }
+
     
     setFName(isDuplicate ? `Cópia de ${r.name ?? ""}` : (r.name ?? ""));
     setFActive(isDuplicate ? true : (r.active !== false));
@@ -847,7 +880,13 @@ const Rules = () => {
     setFGroupCompanyIds([]);
     setFGroupDoctors(Array.isArray((r as any).group_doctors) ? (r as any).group_doctors : []);
     setFGroupMode("empresa");
-    setFGroupLinks(glinks.map((l: any) => ({ company_id: l.company_id, doctors: Array.isArray(l.doctors) ? l.doctors : [] })));
+    setFGroupLinks(glinks.map((l: any) => ({
+      company_id: l.company_id,
+      doctors: Array.isArray(l.doctors) ? l.doctors : [],
+      excluded_doctors: Array.isArray(l.excluded_doctors) ? l.excluded_doctors : [],
+      auto_include_new_doctors: l.auto_include_new_doctors !== false,
+    })));
+
     // Colapsa todas as empresas pré-existentes ao carregar uma regra.
     setCollapsedCompanies(new Set(glinks.map((l: any) => l.company_id).filter(Boolean)));
     setCompanyLinksFilter("");
@@ -1675,7 +1714,56 @@ const Rules = () => {
                 </>
               )}
               <TabsContent value="form" className="mt-0">
+                {editingRuleId && pendingDoctors.length > 0 && (
+                  <div className="mb-3 rounded-md border border-warning/40 bg-warning/5 p-3">
+                    <div className="flex items-start gap-2 mb-2">
+                      <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">
+                          {pendingDoctors.length} médico{pendingDoctors.length > 1 ? "s" : ""} novo{pendingDoctors.length > 1 ? "s" : ""} pendente{pendingDoctors.length > 1 ? "s" : ""} de revisão
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Estes médicos entraram em empresas vinculadas à regra depois da última edição. Eles já estão sendo cobertos automaticamente — confirme a inclusão ou exclua da regra. (As alterações são salvas ao clicar em Salvar regra.)
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {pendingDoctors.map((d) => (
+                        <div key={`${d.company_id}-${d.doctor_id}`} className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs">
+                          <span className="font-medium">{d.doctor_name}</span>
+                          {d.doctor_crm && <span className="text-muted-foreground">· {d.doctor_crm}</span>}
+                          <span className="text-muted-foreground">· {d.company_name}</span>
+                          <Button
+                            type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs text-success hover:text-success"
+                            onClick={() => {
+                              setFGroupLinks((prev) => prev.map((l) => l.company_id === d.company_id
+                                ? { ...l, doctors: [...l.doctors, { id: d.doctor_id, name: d.doctor_name, crm: d.doctor_crm ?? undefined }] }
+                                : l));
+                              setPendingDoctors((p) => p.filter((x) => !(x.company_id === d.company_id && x.doctor_id === d.doctor_id)));
+                            }}
+                            title="Confirmar inclusão na regra"
+                          >
+                            ✓ Incluir
+                          </Button>
+                          <Button
+                            type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                            onClick={() => {
+                              setFGroupLinks((prev) => prev.map((l) => l.company_id === d.company_id
+                                ? { ...l, excluded_doctors: [...(l.excluded_doctors ?? []), { id: d.doctor_id, name: d.doctor_name, crm: d.doctor_crm ?? undefined }] }
+                                : l));
+                              setPendingDoctors((p) => p.filter((x) => !(x.company_id === d.company_id && x.doctor_id === d.doctor_id)));
+                            }}
+                            title="Excluir desta regra"
+                          >
+                            ✕ Excluir
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <form id="rule-form" onSubmit={submitRule} className="rule-form-context">
+
                   <RuleFormStepper
                     isEditing={!!editingId}
                     saving={saving}
@@ -2530,6 +2618,7 @@ const Rules = () => {
                                 calcBadge={renderCalcBadge(r)}
                                 selected={selected.has(r.id)}
                                 isLast
+                                pendingDoctorsCount={pendingByRule[r.id] ?? 0}
                                 onToggleSelect={() => toggleSelect(r.id)}
                                 onEdit={() => openEdit(r)}
                                 onDuplicate={() => openDuplicate(r)}
@@ -2538,6 +2627,7 @@ const Rules = () => {
                               />
                             </CardContent>
                           </Card>
+
                         );
                       })}
                     </div>
