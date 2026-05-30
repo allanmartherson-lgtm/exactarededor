@@ -2560,6 +2560,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_items_applied_rule_id_fkey"
+            columns: ["applied_rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules_pending_doctors_summary"
+            referencedColumns: ["rule_id"]
+          },
+          {
             foreignKeyName: "payment_items_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -4287,6 +4294,13 @@ export type Database = {
             referencedRelation: "rules"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "rule_calculations_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules_pending_doctors_summary"
+            referencedColumns: ["rule_id"]
+          },
         ]
       }
       rules: {
@@ -4906,6 +4920,15 @@ export type Database = {
           has_open_question?: never
           is_overdue?: never
           payment_id?: string | null
+        }
+        Relationships: []
+      }
+      rules_pending_doctors_summary: {
+        Row: {
+          pending_companies: number | null
+          pending_count: number | null
+          rule_id: string | null
+          rule_name: string | null
         }
         Relationships: []
       }
@@ -5632,6 +5655,19 @@ export type Database = {
         Returns: string
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
+      rule_pending_doctors: {
+        Args: { p_rule_id: string }
+        Returns: {
+          company_id: string
+          company_name: string
+          doctor_crm: string
+          doctor_crm_uf: string
+          doctor_id: string
+          doctor_name: string
+          linked_since: string
+          rule_id: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       unaccent: { Args: { "": string }; Returns: string }
