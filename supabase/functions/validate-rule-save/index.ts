@@ -13,6 +13,13 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { detectCalcOverlap, detectCrossRuleOverlap } from "../_shared/calcOverlap.ts";
 import type { RuleCalculationItem } from "../_shared/rulesEngine.ts";
+import {
+  detectDoctorMultiRule,
+  doctorKey,
+  extractDoctors,
+  type DoctorRef,
+  type RuleLike,
+} from "../_shared/doctorMultiRule.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
