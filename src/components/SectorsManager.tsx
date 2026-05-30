@@ -146,7 +146,7 @@ export default function SectorsManager({ canManage = true }: Props) {
 
       const splitAliases = (raw: string | null): string[] => {
         if (!raw) return [];
-        return raw.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+        return raw.split(/[|;,]/).map((s) => s.trim()).filter(Boolean);
       };
 
       const existingBySlug = new Map(list.map((s) => [s.slug, s] as const));
@@ -154,15 +154,16 @@ export default function SectorsManager({ canManage = true }: Props) {
       let skipped = 0;
 
       for (const row of rows) {
-        const nome = pick(row, ["nome", "name", "setor", "nomesetor", "nome do setor"]);
-        const codigo = pick(row, ["codigo", "code", "codigotasy", "codigo tasy", "cd_setor", "cd_setor_atendimento"]);
-        const classification = pick(row, ["classificacao", "classification", "classificacaosetor", "classe", "tipo"]);
+        const nome = pick(row, ["nome", "name", "setor", "nomesetor", "nome do setor", "setor (nome oficial)", "nome oficial"]);
+        const codigo = pick(row, ["codigo", "code", "cod", "cod.", "codigotasy", "codigo tasy", "cd_setor", "cd_setor_atendimento"]);
+        const classification = pick(row, ["classificacao", "classification", "classificacaosetor", "classe", "tipo", "classif setor", "classif. setor", "classif"]);
         let slug = pick(row, ["slug"]);
         if (!slug && codigo) slug = buildSlug(codigo);
         if (!slug && nome) slug = buildSlug(nome);
         if (!slug || !nome) { skipped++; continue; }
         slug = buildSlug(slug);
-        const aliasesRaw = pick(row, ["aliases", "alias", "variacoes", "variações"]);
+        const aliasesRaw = pick(row, ["aliases", "alias", "variacoes", "variações", "aliases (separados por |)", "aliases separados por"]);
+
         const ordem = Number(pick(row, ["ordem", "sort_order", "order"]) ?? 50) || 50;
         const ativoRaw = pick(row, ["ativo", "active", "status"]);
         const ativo = ativoRaw == null ? true : !/^(0|false|nao|não|inativo|n|i)$/i.test(ativoRaw);
