@@ -416,6 +416,11 @@ const CostCenters = () => {
             </CollapsibleContent>
           </Collapsible>
         </Card>
+          </TabsContent>
+          <TabsContent value="setores" className="mt-4">
+            <SectorsManager canManage={canManage} />
+          </TabsContent>
+        </Tabs>
       </div>
       <ImportWizard
         open={importOpen}
