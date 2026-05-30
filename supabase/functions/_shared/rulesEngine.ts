@@ -2214,13 +2214,17 @@ function calcTabelaDiferenciada(
   if (funcLabel) parts.push(`${funcLabel} = R$ ${value.toFixed(2)}`);
 
   // 6) × quantidade (Onda 1: quantidade entra DENTRO da Tabela Diferenciada)
+  // IMPORTANTE: `convenio_value_totalized` descreve a coluna de valor do convênio
+  // importada da planilha. Tabela diferenciada usa tabela de referência vinculada,
+  // então esse flag do item NÃO pode cancelar a quantidade aqui.
   const qtyRaw = Number(item.quantity ?? 1);
   const qtyValid = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
-  const isTotalized = item.convenio_value_totalized === true;
+  const isTotalized = rule.force_totalized === true;
   const qtyToApply = isTotalized ? 1 : qtyValid;
   value = round2(value * qtyToApply);
   steps.push({ label: "quantidade", value });
   if (qtyToApply !== 1) parts.push(`× qtd ${qtyToApply} = R$ ${value.toFixed(2)}`);
+  else if (qtyValid !== 1 && isTotalized) parts.push(`(qtd ${qtyValid} ignorada por configuração da regra)`);
 
   // 6.5) × (1 + acréscimo) — aditivo, antes do deflator
   if (acrescimo !== 0) {
