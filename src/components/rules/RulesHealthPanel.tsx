@@ -285,8 +285,15 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
                     {doctorCollisions.length} médico{doctorCollisions.length > 1 ? "s" : ""} em conflito
                   </Badge>
                 )}
+                {pendingDoctors.length > 0 && (
+                  <Badge variant="outline" className="border-warning/40 text-warning flex items-center gap-1">
+                    <UserPlus className="h-3 w-3" />
+                    {pendingDoctors.length} médico{pendingDoctors.length > 1 ? "s" : ""} novo{pendingDoctors.length > 1 ? "s" : ""}
+                  </Badge>
+                )}
               </>
             )}
+
             {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </div>
         </button>
