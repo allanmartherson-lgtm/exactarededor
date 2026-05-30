@@ -28,6 +28,7 @@ export interface CalcLike {
   code_match_mode?: string | null;
   sectors?: unknown;
   agreement_aliases?: unknown;
+  agreement_match_mode?: string | null;
   allowed_access_routes?: unknown;
 }
 
