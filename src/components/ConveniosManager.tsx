@@ -131,10 +131,30 @@ export default function ConveniosManager({ canManage = true }: Props) {
           </p>
         </div>
         {canManage && (
-          <Button onClick={openNew}>
-            <Plus className="h-4 w-4 mr-1" />Novo convênio
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={downloadTemplate}>
+              <Download className="h-4 w-4 mr-1" />Baixar modelo
+            </Button>
+            <Button variant="outline" onClick={() => importRef.current?.click()} disabled={importing}>
+              <Upload className="h-4 w-4 mr-1" />{importing ? "Importando…" : "Importar planilha"}
+            </Button>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleImport(f);
+                if (importRef.current) importRef.current.value = "";
+              }}
+            />
+            <Button onClick={openNew}>
+              <Plus className="h-4 w-4 mr-1" />Novo convênio
+            </Button>
+          </div>
         )}
+
       </div>
 
       <Input
