@@ -151,6 +151,9 @@ Deno.serve(async (req) => {
             base: round2(base), bolo,
             contribuicao_empresa: round2(contribEmpresa),
             quota_empresa: quota, impacto, percentual: pct,
+            deducoes: (deds ?? []).map((d: any) => ({
+              tipo: d.tipo, descricao: d.descricao, valor: Number(d.valor || 0),
+            })),
           });
         }
       }
