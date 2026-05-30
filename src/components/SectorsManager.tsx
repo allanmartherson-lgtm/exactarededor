@@ -146,7 +146,7 @@ export default function SectorsManager({ canManage = true }: Props) {
 
       const splitAliases = (raw: string | null): string[] => {
         if (!raw) return [];
-        return raw.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+        return raw.split(/[|;,]/).map((s) => s.trim()).filter(Boolean);
       };
 
       const existingBySlug = new Map(list.map((s) => [s.slug, s] as const));
@@ -154,15 +154,16 @@ export default function SectorsManager({ canManage = true }: Props) {
       let skipped = 0;
 
       for (const row of rows) {
-        const nome = pick(row, ["nome", "name", "setor", "nomesetor", "nome do setor"]);
-        const codigo = pick(row, ["codigo", "code", "codigotasy", "codigo tasy", "cd_setor", "cd_setor_atendimento"]);
-        const classification = pick(row, ["classificacao", "classification", "classificacaosetor", "classe", "tipo"]);
+        const nome = pick(row, ["nome", "name", "setor", "nomesetor", "nome do setor", "setor (nome oficial)", "nome oficial"]);
+        const codigo = pick(row, ["codigo", "code", "cod", "cod.", "codigotasy", "codigo tasy", "cd_setor", "cd_setor_atendimento"]);
+        const classification = pick(row, ["classificacao", "classification", "classificacaosetor", "classe", "tipo", "classif setor", "classif. setor", "classif"]);
         let slug = pick(row, ["slug"]);
         if (!slug && codigo) slug = buildSlug(codigo);
         if (!slug && nome) slug = buildSlug(nome);
         if (!slug || !nome) { skipped++; continue; }
         slug = buildSlug(slug);
-        const aliasesRaw = pick(row, ["aliases", "alias", "variacoes", "variações"]);
+        const aliasesRaw = pick(row, ["aliases", "alias", "variacoes", "variações", "aliases (separados por |)", "aliases separados por"]);
+
         const ordem = Number(pick(row, ["ordem", "sort_order", "order"]) ?? 50) || 50;
         const ativoRaw = pick(row, ["ativo", "active", "status"]);
         const ativo = ativoRaw == null ? true : !/^(0|false|nao|não|inativo|n|i)$/i.test(ativoRaw);
@@ -236,7 +237,7 @@ export default function SectorsManager({ canManage = true }: Props) {
             <CardDescription>
               Aceita <code>.xlsx</code>, <code>.xls</code> ou <code>.csv</code>. Colunas reconhecidas:
               {" "}<code>codigo</code> (Tasy), <code>nome</code>, <code>classificacao</code>,
-              {" "}<code>aliases</code> (separados por <code>;</code> ou <code>,</code>),
+              {" "}<code>aliases</code> (separados por <code>|</code>, <code>;</code> ou <code>,</code>),
               {" "}<code>ativo</code>, <code>ordem</code>, <code>notas</code>, <code>slug</code> (opcional).
               Upsert pelo <code>slug</code> — aliases existentes são preservados.
             </CardDescription>
