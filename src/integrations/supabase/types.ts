@@ -4461,31 +4461,37 @@ export type Database = {
         Row: {
           active: boolean
           aliases: string[]
+          classification: string | null
           created_at: string
           name: string
           notes: string | null
           slug: string
           sort_order: number
+          tasy_code: string | null
           updated_at: string
         }
         Insert: {
           active?: boolean
           aliases?: string[]
+          classification?: string | null
           created_at?: string
           name: string
           notes?: string | null
           slug: string
           sort_order?: number
+          tasy_code?: string | null
           updated_at?: string
         }
         Update: {
           active?: boolean
           aliases?: string[]
+          classification?: string | null
           created_at?: string
           name?: string
           notes?: string | null
           slug?: string
           sort_order?: number
+          tasy_code?: string | null
           updated_at?: string
         }
         Relationships: []
