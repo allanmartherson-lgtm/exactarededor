@@ -2006,6 +2006,31 @@ function DivergenceCard({
                   Esperado: <span className="tabular-nums text-foreground">{formatCurrency(Number(expected))}</span>
                 </span>
               )}
+              {(() => {
+                const basis = (it as any).convenio_basis_detected as string | null | undefined;
+                const qty = Number((it as any).quantity ?? 1);
+                if (!basis || basis === "na" || qty <= 1) return null;
+                const label =
+                  basis === "unit" ? `Base: unitário × ${qty}` :
+                  basis === "total" ? "Base: já totalizado" :
+                  "Base: ambígua";
+                const cls =
+                  basis === "ambiguous"
+                    ? "border-warning/40 bg-warning/10 text-warning"
+                    : "border-border bg-muted text-foreground";
+                return (
+                  <span
+                    title="Detecção automática (stateless) da base do valor convênio com base no que casa com o pago."
+                    className={cn(
+                      "inline-flex items-center rounded border px-1.5 py-[1px] text-[10px] font-medium",
+                      cls,
+                    )}
+                  >
+                    {label}
+                  </span>
+                );
+              })()}
+
             </div>
           </div>
           <span
