@@ -209,7 +209,18 @@ const Rules = () => {
   const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
   const [fGroupMode, setFGroupMode] = useState<"empresa" | "medico">("empresa");
   // Novo modelo: vínculos por empresa em linhas (cada linha = empresa + médicos opcionais).
-  const [fGroupLinks, setFGroupLinks] = useState<{ company_id: string; doctors: { name: string; crm?: string }[] }[]>([]);
+  const [fGroupLinks, setFGroupLinks] = useState<{
+    company_id: string;
+    doctors: { id?: string | null; name: string; crm?: string }[];
+    excluded_doctors?: { id?: string | null; name: string; crm?: string }[];
+    auto_include_new_doctors?: boolean;
+  }[]>([]);
+  // Médicos novos da PJ não confirmados/excluídos da regra em edição.
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [pendingDoctors, setPendingDoctors] = useState<Array<{
+    company_id: string; company_name: string; doctor_id: string; doctor_name: string; doctor_crm: string | null;
+  }>>([]);
+
   // UI local: empresas colapsadas (por company_id) e filtro de busca.
   const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set());
   const [companyLinksFilter, setCompanyLinksFilter] = useState("");
