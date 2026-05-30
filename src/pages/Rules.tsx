@@ -341,7 +341,19 @@ const Rules = () => {
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
+  const [pendingByRule, setPendingByRule] = useState<Record<string, number>>({});
+  const load = async () => {
+    const { data } = await supabase.from("rules").select("*").order("created_at", { ascending: false });
+    setRules(data ?? []);
+    // Carrega contagem de médicos novos pendentes por regra (auto-include + aviso).
+    const { data: pend } = await (supabase as any)
+      .from("rules_pending_doctors_summary")
+      .select("rule_id,pending_count");
+    const map: Record<string, number> = {};
+    (pend ?? []).forEach((r: any) => { if (r?.rule_id) map[r.rule_id] = Number(r.pending_count) || 0; });
+    setPendingByRule(map);
+  };
+
   const loadGlobalThresholds = () => supabase.from("system_configurations").select("value").eq("key", "divergence_thresholds").maybeSingle().then(({ data }) => {
     if (data?.value) {
       const v = data.value as any;
