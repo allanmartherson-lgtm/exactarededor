@@ -104,15 +104,17 @@ export function PreviousBatchComparison({
         return;
       }
 
-      // 2) Candidatos: grupos da mesma empresa em lotes do MESMO payment_type.
+      // 2) Candidatos: grupos da mesma empresa em QUALQUER lote anterior.
+      //    Não filtramos por payment_type aqui — o centro de custo é o critério primário
+      //    (pedido explícito do usuário). payment_type vira só tiebreak na classificação,
+      //    porque há lotes antigos com payment_type NULL que ainda têm o CC correto.
       const { data: rawCandidates } = await supabase
         .from("payment_company_groups")
         .select("payment_id, total_amount, items_count, created_at, payments!inner(reference, competence_month, payment_type, sectors, cost_center_code)")
         .eq("company_name", companyName)
         .neq("payment_id", currentPaymentId)
-        .eq("payments.payment_type", currType as "plantao" | "producao" | "remessa" | "valor_fixo")
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
 
       type Row = NonNullable<typeof rawCandidates>[number] & {
         payments: { reference: string; competence_month: string | null; payment_type: string | null; sectors: string[] | null; cost_center_code: string | null } | null;
@@ -121,19 +123,22 @@ export function PreviousBatchComparison({
 
       if (rows.length === 0) {
         if (!cancelled) {
-          setNoMatchReason(`Nenhum lote anterior do tipo "${currType}" encontrado para esta empresa.`);
+          setNoMatchReason(`Nenhum lote anterior encontrado para esta empresa.`);
           setLoading(false);
         }
         return;
       }
 
       // Classifica cada candidato pelo melhor critério que ele satisfaz vs lote atual.
-      const classify = (r: Row): MatchCriterion => {
+      // Ordem: centro de custo > setor em comum > mesmo payment_type > nenhum.
+      const classify = (r: Row): MatchCriterion | "nenhum" => {
         const cc = (r.payments?.cost_center_code ?? "").trim();
         if (currCC && cc && cc === currCC) return "centro";
         const sec = (r.payments?.sectors ?? []).map((s) => (s ?? "").toLowerCase().trim());
         if (currSectors.length > 0 && sec.some((s) => currSectors.includes(s))) return "exato";
-        return "tipo";
+        const t = (r.payments?.payment_type ?? "").trim();
+        if (t && t === currType) return "tipo";
+        return "nenhum";
       };
 
       // 3) Prioridade de match: centro > setor > tipo (com guarda para CC).
