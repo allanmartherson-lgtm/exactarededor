@@ -163,6 +163,8 @@ export function PreviousBatchComparison({
         itemsCount: Number(chosen.row.items_count ?? 0),
         newDoctors,
         matchQuality: chosen.quality,
+        prevCostCenter: (chosen.row.payments?.cost_center_code ?? null) || null,
+        currCostCenter: currCC,
       });
       setLoading(false);
     })();
