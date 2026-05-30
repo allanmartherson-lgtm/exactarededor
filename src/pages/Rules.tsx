@@ -1178,9 +1178,21 @@ const Rules = () => {
       toast({ title: "Erro na validação", description: valErr.message, variant: "destructive" });
       return;
     }
-    const problems = (validation?.problems ?? []) as ConflictProblem[];
+    const allProblems = (validation?.problems ?? []) as Array<ConflictProblem | { type: string; doctor_label?: string; rule_names?: string[]; message?: string }>;
+    // doctor_multi_rule é aviso de cadastro — não bloqueia, exibe toast persistente.
+    const doctorWarnings = allProblems.filter((p) => p.type === "doctor_multi_rule") as Array<{ doctor_label?: string; rule_names?: string[]; message?: string }>;
+    const problems = allProblems.filter((p) => p.type !== "doctor_multi_rule") as ConflictProblem[];
+    if (doctorWarnings.length > 0) {
+      for (const w of doctorWarnings) {
+        toast({
+          title: `Médico em múltiplas regras: ${w.doctor_label ?? ""}`,
+          description: w.message ?? `Vinculado a: ${(w.rule_names ?? []).join(" | ")}`,
+          variant: "destructive",
+        });
+      }
+    }
 
-    // 2) Sem problemas → save direto via RPC
+    // 2) Sem problemas bloqueantes → save direto via RPC
     if (problems.length === 0) {
       await applyRuleSaveRpc(ruleData, calcsForRpc, [], { wasEditing: !!editingId, auditCompany });
       return;
