@@ -865,7 +865,7 @@ function CalcCard({
                       <p className="text-[10px] text-muted-foreground leading-tight">Aditivo. Ex.: 20 = +20% sobre o valor calculado, antes do deflator.</p>
                     </div>
                   </div>
-                  <label className="flex items-center gap-2">
+                  <label data-checkbox-wrapper className="flex items-center gap-2">
                     <Checkbox checked={c.apply_access_route} onCheckedChange={(v) => onChange({ apply_access_route: !!v })} />
                     <span className="text-xs ml-1">Aplicar regra de via de acesso</span>
                   </label>
