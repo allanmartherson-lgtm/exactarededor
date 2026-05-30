@@ -34,7 +34,13 @@ export type ImportProfile = {
   supportedModes?: ImportMode[];
   /** Escopo opcional para "replace" (filtra a deleção) */
   replaceScope?: Record<string, any>;
+  /** Linhas de exemplo para o botão "Baixar modelo" no passo de upload.
+   *  Cabeçalhos são derivados dos labels dos `fields`. */
+  templateRows?: Record<string, any>[];
+  /** Nome do arquivo de modelo (sem extensão). Default: entity. */
+  templateFileName?: string;
 };
+
 
 export type ImportMode = "append" | "update" | "replace";
 
