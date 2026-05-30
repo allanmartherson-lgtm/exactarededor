@@ -1417,7 +1417,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_calc_method: appliedCalcMethod,
         expected_amount: isCalcDuplicityBlock ? null : (r.expected_amount ?? null),
         applied_at: isCalcDuplicityBlock ? null : new Date().toISOString(),
+        convenio_basis_detected: r.convenio_basis_detected ?? null,
+        basis_confidence: r.basis_confidence ?? null,
       });
+
 
       if (finalStatus === "alerta") alerts++;
       if (
