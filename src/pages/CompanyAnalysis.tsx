@@ -275,6 +275,7 @@ export default function CompanyAnalysis() {
   const [deleteItem, setDeleteItem] = useState<PaymentItemRow | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
+  const [postConcluirOpen, setPostConcluirOpen] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
   const [reopenOpen, setReopenOpen] = useState(false);
@@ -564,6 +565,7 @@ export default function CompanyAnalysis() {
     toast.success("Análise concluída", {
       description: "Esta empresa será incluída no próximo envio do lote.",
     });
+    setPostConcluirOpen(true);
     load();
   };
 
@@ -1889,6 +1891,24 @@ export default function CompanyAnalysis() {
           initialCompany={group.company_name}
         />
       )}
+      <AlertDialog open={postConcluirOpen} onOpenChange={setPostConcluirOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Análise concluída</AlertDialogTitle>
+            <AlertDialogDescription>
+              Para onde você quer ir agora?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => { setPostConcluirOpen(false); navigate("/"); }}>
+              Ir para o Dashboard
+            </Button>
+            <Button onClick={() => { setPostConcluirOpen(false); navigate(`/pagamentos/${id}`); }}>
+              Voltar para o Lote
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
