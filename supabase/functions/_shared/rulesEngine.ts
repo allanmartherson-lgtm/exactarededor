@@ -684,10 +684,43 @@ function targetsGroupByDoctor(r: RuleInput, item: ItemInput): boolean {
 
 
 // ---------- match por convênio ----------
-/** Normaliza removendo acentos, caixa e TODOS os espaços para tolerar variações
- *  de escrita ("Sul América" = "SUL AMERICA" = "sulamerica"). */
-const normAgreement = (s: string | null | undefined): string =>
-  (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, "");
+/**
+ * Mapa dinâmico de aliases de convênio. Fonte de verdade: tabela `public.convenios`.
+ * Hidratado por `extendConvenioMap` (chamado pelo analyze-payment no boot).
+ * Chave: forma normalizada (sem acentos/espaços/pontuação). Valor: slug canônico.
+ */
+export const CONVENIO_MAP: Record<string, string> = {};
+
+export function extendConvenioMap(entries: Array<{ slug: string; aliases: string[]; name?: string }>) {
+  for (const e of entries) {
+    const slug = (e.slug || "").trim();
+    if (!slug) continue;
+    const normKey = (s: string) =>
+      (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase().replace(/[\s_\-./()]+/g, "");
+    CONVENIO_MAP[normKey(slug)] = slug;
+    if (e.name) CONVENIO_MAP[normKey(e.name)] = slug;
+    for (const a of e.aliases || []) {
+      const k = normKey(a);
+      if (k) CONVENIO_MAP[k] = slug;
+    }
+  }
+}
+
+/** Normaliza removendo acentos, caixa e TODOS os espaços/pontuação.
+ *  Se o valor normalizado bater com um alias cadastrado em `convenios`, retorna o slug canônico
+ *  (faz com que itens e tags de regras escritos de formas distintas resolvam para a mesma chave). */
+const normAgreement = (s: string | null | undefined): string => {
+  const base = (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[\s_\-./()]+/g, "");
+  if (!base) return "";
+  if (CONVENIO_MAP[base]) return CONVENIO_MAP[base];
+  // fallback: startsWith para tolerar sufixos ("bradescosaudeempresarial" → "bradescosaude")
+  for (const [k, v] of Object.entries(CONVENIO_MAP)) {
+    if (k.length >= 4 && base.startsWith(k)) return v;
+  }
+  return base;
+};
 
 /**
  * Normaliza vias de acesso para tolerar variações de escrita e abreviações comuns.

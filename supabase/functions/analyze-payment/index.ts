@@ -8,6 +8,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   analyzePaymentItems,
   extendSectorMap,
+  extendConvenioMap,
   inferItemSector,
   normName,
   type ItemInput,
@@ -95,6 +96,12 @@ serve(async (req) => {
       const { data: secs } = await supabase.from("sectors").select("slug,name,aliases").eq("active", true);
       if (secs?.length) extendSectorMap(secs as Array<{ slug: string; name: string; aliases: string[] }>);
     } catch (_e) { /* fallback ao SECTOR_MAP estático */ }
+
+    // Hidrata aliases de convênio a partir do cadastro (tabela `convenios`)
+    try {
+      const { data: convs } = await supabase.from("convenios").select("slug,name,aliases").eq("active", true);
+      if (convs?.length) extendConvenioMap(convs as Array<{ slug: string; name: string; aliases: string[] }>);
+    } catch (_e) { /* fallback à normalização pura */ }
 
     // [Sprint 2 - Tier 3.I] Idempotência: se a empresa já foi processada
     // neste job (group em status != em_analise_ia e atualizado após o job
