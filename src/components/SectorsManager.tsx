@@ -118,13 +118,32 @@ export default function SectorsManager({ canManage = true }: Props) {
   };
 
   /**
-   * Importação em lote a partir de XLSX/CSV.
-   * Colunas reconhecidas (case/acento-insensitive): codigo, nome, classificacao, aliases, ordem, ativo, notas, slug.
-   * - `codigo` (Tasy) é gravado em `tasy_code`. Se `slug` não vier, é derivado de `codigo` ou `nome`.
-   * - `aliases` aceita lista separada por `;` ou `,`.
-   * - Upsert por `slug`: aliases existentes são complementados (sem duplicar).
+   * Importação em lote a partir de XLSX/CSV — fluxo em 2 etapas:
+   * 1. `parseFile` lê a planilha, detecta o mapeamento de colunas e monta o payload em memória.
+   * 2. `confirmImport` faz upsert no Supabase após o usuário revisar o preview.
    */
-  const handleFile = async (file: File) => {
+  type PreviewState = {
+    fileName: string;
+    totalRows: number;
+    skipped: number;
+    mapping: Record<string, string | null>;
+    detectedColumns: string[];
+    payload: Sector[];
+  };
+  const [preview, setPreview] = useState<PreviewState | null>(null);
+
+  const COLUMN_ALIASES: Record<string, string[]> = {
+    nome: ["nome", "name", "setor", "nomesetor", "nome do setor", "setor (nome oficial)", "nome oficial"],
+    codigo: ["codigo", "code", "cod", "cod.", "codigotasy", "codigo tasy", "cd_setor", "cd_setor_atendimento"],
+    classificacao: ["classificacao", "classification", "classificacaosetor", "classe", "tipo", "classif setor", "classif. setor", "classif"],
+    slug: ["slug"],
+    aliases: ["aliases", "alias", "variacoes", "variações", "aliases (separados por |)", "aliases separados por"],
+    ordem: ["ordem", "sort_order", "order"],
+    ativo: ["ativo", "active", "status"],
+    notas: ["notas", "notes", "observacao", "observações"],
+  };
+
+  const parseFile = async (file: File) => {
     setImporting(true);
     try {
       const buf = await file.arrayBuffer();
@@ -132,18 +151,28 @@ export default function SectorsManager({ canManage = true }: Props) {
       const sheet = wb.Sheets[wb.SheetNames[0]];
       if (!sheet) throw new Error("Planilha sem aba legível");
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+      if (rows.length === 0) throw new Error("Planilha vazia");
 
-      const pick = (row: Record<string, unknown>, keys: string[]) => {
+      const detectedColumns = Object.keys(rows[0]);
+
+      // Detecta a coluna original para cada campo lógico
+      const detectColumn = (keys: string[]): string | null => {
         const wanted = keys.map(norm);
-        for (const k of Object.keys(row)) {
-          if (wanted.includes(norm(k))) {
-            const v = row[k];
-            return v == null || v === "" ? null : String(v).trim();
-          }
+        for (const col of detectedColumns) {
+          if (wanted.includes(norm(col))) return col;
         }
         return null;
       };
+      const mapping: Record<string, string | null> = {};
+      for (const [field, keys] of Object.entries(COLUMN_ALIASES)) {
+        mapping[field] = detectColumn(keys);
+      }
 
+      const pickByCol = (row: Record<string, unknown>, col: string | null) => {
+        if (!col) return null;
+        const v = row[col];
+        return v == null || v === "" ? null : String(v).trim();
+      };
       const splitAliases = (raw: string | null): string[] => {
         if (!raw) return [];
         return raw.split(/[|;,]/).map((s) => s.trim()).filter(Boolean);
@@ -154,20 +183,19 @@ export default function SectorsManager({ canManage = true }: Props) {
       let skipped = 0;
 
       for (const row of rows) {
-        const nome = pick(row, ["nome", "name", "setor", "nomesetor", "nome do setor", "setor (nome oficial)", "nome oficial"]);
-        const codigo = pick(row, ["codigo", "code", "cod", "cod.", "codigotasy", "codigo tasy", "cd_setor", "cd_setor_atendimento"]);
-        const classification = pick(row, ["classificacao", "classification", "classificacaosetor", "classe", "tipo", "classif setor", "classif. setor", "classif"]);
-        let slug = pick(row, ["slug"]);
+        const nome = pickByCol(row, mapping.nome);
+        const codigo = pickByCol(row, mapping.codigo);
+        const classification = pickByCol(row, mapping.classificacao);
+        let slug = pickByCol(row, mapping.slug);
         if (!slug && codigo) slug = buildSlug(codigo);
         if (!slug && nome) slug = buildSlug(nome);
         if (!slug || !nome) { skipped++; continue; }
         slug = buildSlug(slug);
-        const aliasesRaw = pick(row, ["aliases", "alias", "variacoes", "variações", "aliases (separados por |)", "aliases separados por"]);
-
-        const ordem = Number(pick(row, ["ordem", "sort_order", "order"]) ?? 50) || 50;
-        const ativoRaw = pick(row, ["ativo", "active", "status"]);
+        const aliasesRaw = pickByCol(row, mapping.aliases);
+        const ordem = Number(pickByCol(row, mapping.ordem) ?? 50) || 50;
+        const ativoRaw = pickByCol(row, mapping.ativo);
         const ativo = ativoRaw == null ? true : !/^(0|false|nao|não|inativo|n|i)$/i.test(ativoRaw);
-        const notas = pick(row, ["notas", "notes", "observacao", "observações"]);
+        const notas = pickByCol(row, mapping.notas);
 
         const existing = existingBySlug.get(slug);
         const mergedAliases = Array.from(
@@ -175,26 +203,18 @@ export default function SectorsManager({ canManage = true }: Props) {
         );
 
         payload.push({
-          slug,
-          name: nome,
-          aliases: mergedAliases,
-          active: ativo,
-          sort_order: ordem,
-          notes: notas,
-          tasy_code: codigo,
-          classification,
+          slug, name: nome, aliases: mergedAliases,
+          active: ativo, sort_order: ordem, notes: notas,
+          tasy_code: codigo, classification,
         });
       }
 
       if (payload.length === 0) {
-        toast.error(`Nenhuma linha válida encontrada${skipped ? ` (${skipped} ignoradas).` : "."}`);
+        toast.error(`Nenhuma linha válida encontrada${skipped ? ` (${skipped} ignoradas)` : ""}. Verifique se as colunas "nome" e "codigo/slug" estão presentes.`);
         return;
       }
 
-      const { error } = await supabase.from("sectors").upsert(payload, { onConflict: "slug" });
-      if (error) { toast.error("Erro ao importar: " + error.message); return; }
-      toast.success(`${payload.length} setor(es) importado(s)${skipped ? ` · ${skipped} ignorado(s)` : ""}`);
-      await load();
+      setPreview({ fileName: file.name, totalRows: rows.length, skipped, mapping, detectedColumns, payload });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Falha ao processar planilha");
     } finally {
@@ -202,6 +222,18 @@ export default function SectorsManager({ canManage = true }: Props) {
       if (fileRef.current) fileRef.current.value = "";
     }
   };
+
+  const confirmImport = async () => {
+    if (!preview) return;
+    setImporting(true);
+    const { error } = await supabase.from("sectors").upsert(preview.payload, { onConflict: "slug" });
+    setImporting(false);
+    if (error) { toast.error("Erro ao importar: " + error.message); return; }
+    toast.success(`${preview.payload.length} setor(es) importado(s)${preview.skipped ? ` · ${preview.skipped} ignorado(s)` : ""}`);
+    setPreview(null);
+    await load();
+  };
+
 
   return (
     <div className="space-y-6">
@@ -219,7 +251,7 @@ export default function SectorsManager({ canManage = true }: Props) {
               type="file"
               accept=".xlsx,.xls,.csv"
               className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) parseFile(f); }}
             />
             <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={importing}>
               {importing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
@@ -377,6 +409,91 @@ export default function SectorsManager({ canManage = true }: Props) {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditing(null)}>Cancelar</Button>
             <Button onClick={save}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Pré-visualização da importação</DialogTitle>
+          </DialogHeader>
+          {preview && (
+            <div className="space-y-4">
+              <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                <span>Arquivo: <code className="bg-muted px-1 rounded">{preview.fileName}</code></span>
+                <span>Linhas lidas: <b>{preview.totalRows}</b></span>
+                <span className="text-emerald-600 dark:text-emerald-500">Válidas: <b>{preview.payload.length}</b></span>
+                {preview.skipped > 0 && <span className="text-destructive">Ignoradas: <b>{preview.skipped}</b></span>}
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold mb-2">Mapeamento de colunas</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  {Object.entries(preview.mapping).map(([field, col]) => (
+                    <div key={field} className="border rounded p-2">
+                      <div className="font-medium capitalize">{field}</div>
+                      {col ? (
+                        <code className="text-[11px] bg-muted px-1 rounded break-all">{col}</code>
+                      ) : (
+                        <span className="text-muted-foreground italic">não encontrada</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {preview.detectedColumns.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    Colunas detectadas no arquivo: {preview.detectedColumns.map(c => <code key={c} className="bg-muted px-1 rounded mr-1">{c}</code>)}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold mb-2">
+                  Pré-visualização ({Math.min(preview.payload.length, 20)} de {preview.payload.length})
+                </h4>
+                <div className="border rounded max-h-[360px] overflow-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted sticky top-0">
+                      <tr className="text-left">
+                        <th className="p-2">Código</th>
+                        <th className="p-2">Nome</th>
+                        <th className="p-2">Slug</th>
+                        <th className="p-2">Classificação</th>
+                        <th className="p-2">Aliases</th>
+                        <th className="p-2">Ativo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.payload.slice(0, 20).map((p, i) => (
+                        <tr key={p.slug + i} className="border-t align-top">
+                          <td className="p-2 font-mono">{p.tasy_code ?? "—"}</td>
+                          <td className="p-2">{p.name}</td>
+                          <td className="p-2"><code className="bg-muted px-1 rounded">{p.slug}</code></td>
+                          <td className="p-2">{p.classification ?? "—"}</td>
+                          <td className="p-2">
+                            <div className="flex flex-wrap gap-1 max-w-[320px]">
+                              {p.aliases.slice(0, 6).map(a => (
+                                <Badge key={a} variant="secondary" className="text-[10px]">{a}</Badge>
+                              ))}
+                              {p.aliases.length > 6 && <span className="text-muted-foreground">+{p.aliases.length - 6}</span>}
+                            </div>
+                          </td>
+                          <td className="p-2">{p.active ? "sim" : "não"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPreview(null)} disabled={importing}>Cancelar</Button>
+            <Button onClick={confirmImport} disabled={importing}>
+              {importing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Confirmar importação ({preview?.payload.length ?? 0})
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
