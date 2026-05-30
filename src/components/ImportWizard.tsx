@@ -313,6 +313,19 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
             <p className="text-sm text-muted-foreground">
               Selecione um arquivo Excel (.xlsx, .xls) ou CSV. O sistema mostrará uma prévia antes de importar.
             </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => downloadTemplate(profile, title)}
+              >
+                Baixar modelo
+              </Button>
+              <span className="text-xs text-muted-foreground self-center">
+                Use o modelo como referência das colunas esperadas.
+              </span>
+            </div>
             <Input
               ref={fileRef}
               type="file"
@@ -326,6 +339,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
             <FieldsHelp fields={profile.fields} />
           </div>
         )}
+
 
         {step === "preview" && sheet && (
           <div className="space-y-4">
