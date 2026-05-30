@@ -3,13 +3,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Stethoscope, RefreshCw, UserX } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Stethoscope, RefreshCw, UserX, Download, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { validateCalcOnlyFilters } from "@/../supabase/functions/_shared/rulesEngine";
 import {
   detectDoctorMultiRule,
   type DoctorMultiRuleProblem,
 } from "@/../supabase/functions/_shared/doctorMultiRule";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type Severity = "erro" | "aviso";
 type Issue = { severity: Severity; code: string; message: string };
@@ -38,6 +40,84 @@ function severityTone(sev: Severity) {
   return sev === "erro"
     ? "border-destructive/40 bg-destructive/5 text-destructive"
     : "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400";
+}
+
+function fpCell(values: string[], max = 8): string {
+  if (!values || values.length === 0) return "—";
+  const shown = values.slice(0, max).join(", ");
+  return values.length > max ? `${shown} (+${values.length - max})` : shown;
+}
+
+function buildCollisionRows(collisions: DoctorMultiRuleProblem[]) {
+  const rows: { doctor: string; ruleA: string; ruleB: string; codesA: string; codesB: string; sectorsA: string; sectorsB: string; agreementsA: string; agreementsB: string; routesA: string; routesB: string; diff: string }[] = [];
+  for (const c of collisions) {
+    const ids = c.rule_ids;
+    const fps = c.rule_fingerprints ?? [];
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const a = fps[i] ?? { codes: [], sectors: [], agreements: [], routes: [] };
+        const b = fps[j] ?? { codes: [], sectors: [], agreements: [], routes: [] };
+        const diffs: string[] = [];
+        const sameArr = (x: string[], y: string[]) => x.length === y.length && x.every((v, k) => v === y[k]);
+        if (!sameArr(a.codes, b.codes)) diffs.push("códigos");
+        if (!sameArr(a.sectors, b.sectors)) diffs.push("setores");
+        if (!sameArr(a.agreements, b.agreements)) diffs.push("convênios");
+        if (!sameArr(a.routes, b.routes)) diffs.push("vias");
+        rows.push({
+          doctor: c.doctor_label,
+          ruleA: c.rule_names[i],
+          ruleB: c.rule_names[j],
+          codesA: fpCell(a.codes), codesB: fpCell(b.codes),
+          sectorsA: fpCell(a.sectors), sectorsB: fpCell(b.sectors),
+          agreementsA: fpCell(a.agreements), agreementsB: fpCell(b.agreements),
+          routesA: fpCell(a.routes), routesB: fpCell(b.routes),
+          diff: diffs.length ? diffs.join(" · ") : "nenhuma (ambíguo)",
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+function exportDoctorCollisionsCsv(collisions: DoctorMultiRuleProblem[]) {
+  const rows = buildCollisionRows(collisions);
+  const headers = ["Médico", "Regra A", "Regra B", "Códigos A", "Códigos B", "Setores A", "Setores B", "Convênios A", "Convênios B", "Vias A", "Vias B", "Campos que diferem"];
+  const esc = (s: string) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+  const csv = [headers.join(";"), ...rows.map((r) => [r.doctor, r.ruleA, r.ruleB, r.codesA, r.codesB, r.sectorsA, r.sectorsB, r.agreementsA, r.agreementsB, r.routesA, r.routesB, r.diff].map(esc).join(";"))].join("\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `medicos-multi-regras-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportDoctorCollisionsPdf(collisions: DoctorMultiRuleProblem[]) {
+  const rows = buildCollisionRows(collisions);
+  const doc = new jsPDF({ orientation: "landscape" });
+  doc.setFontSize(14);
+  doc.text("Médicos vinculados a múltiplas regras sem distinção", 14, 14);
+  doc.setFontSize(9);
+  doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} · ${collisions.length} médico(s) · ${rows.length} par(es) de regras`, 14, 20);
+  autoTable(doc, {
+    startY: 26,
+    head: [["Médico", "Regra A", "Regra B", "Códigos A | B", "Setores A | B", "Convênios A | B", "Vias A | B", "Diferem em"]],
+    body: rows.map((r) => [
+      r.doctor,
+      r.ruleA,
+      r.ruleB,
+      `${r.codesA}\n— vs —\n${r.codesB}`,
+      `${r.sectorsA}\n— vs —\n${r.sectorsB}`,
+      `${r.agreementsA}\n— vs —\n${r.agreementsB}`,
+      `${r.routesA}\n— vs —\n${r.routesB}`,
+      r.diff,
+    ]),
+    styles: { fontSize: 7, cellWidth: "wrap", valign: "top" },
+    headStyles: { fillColor: [220, 38, 38], textColor: 255, fontSize: 8 },
+    columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 32 }, 2: { cellWidth: 32 }, 7: { cellWidth: 28, fontStyle: "bold" } },
+  });
+  doc.save(`medicos-multi-regras-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string) => void }) {
@@ -216,12 +296,22 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
 
             {doctorCollisions.length > 0 && (
               <div className="border border-destructive/40 bg-destructive/5 rounded-md p-3 space-y-2">
-                <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
-                  <UserX className="h-4 w-4" />
-                  Médicos vinculados a múltiplas regras sem distinção
-                  <Badge className="bg-destructive/10 text-destructive border border-destructive/30 text-xs ml-1">
-                    {doctorCollisions.length}
-                  </Badge>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                    <UserX className="h-4 w-4" />
+                    Médicos vinculados a múltiplas regras sem distinção
+                    <Badge className="bg-destructive/10 text-destructive border border-destructive/30 text-xs ml-1">
+                      {doctorCollisions.length}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => exportDoctorCollisionsCsv(doctorCollisions)}>
+                      <Download className="h-3 w-3 mr-1" /> CSV
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => exportDoctorCollisionsPdf(doctorCollisions)}>
+                      <FileText className="h-3 w-3 mr-1" /> PDF
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Um médico só pode estar em mais de uma regra ativa se ao menos uma delas tiver restrições (códigos, setor, convênio ou via de acesso) que a outra não tenha. Caso contrário, há ambiguidade no motor.
@@ -232,16 +322,30 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
                       <div className="font-semibold mb-1">{c.doctor_label}</div>
                       <div className="text-muted-foreground mb-1">Regras em conflito:</div>
                       <ul className="space-y-1">
-                        {c.rule_ids.map((id, i) => (
-                          <li key={id} className="flex items-center justify-between gap-2">
-                            <span className="truncate">• {c.rule_names[i]}</span>
-                            {onSelectRule && (
-                              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => onSelectRule(id)}>
-                                Editar
-                              </Button>
-                            )}
-                          </li>
-                        ))}
+                        {c.rule_ids.map((id, i) => {
+                          const fp = c.rule_fingerprints?.[i];
+                          const summary = fp
+                            ? [
+                                fp.codes.length ? `${fp.codes.length} código(s)` : null,
+                                fp.sectors.length ? `${fp.sectors.length} setor(es)` : null,
+                                fp.agreements.length ? `${fp.agreements.length} convênio(s)` : null,
+                                fp.routes.length ? `${fp.routes.length} via(s)` : null,
+                              ].filter(Boolean).join(" · ") || "sem restrições"
+                            : "";
+                          return (
+                            <li key={id} className="flex items-center justify-between gap-2">
+                              <span className="truncate">
+                                • {c.rule_names[i]}
+                                {summary && <span className="text-muted-foreground ml-1">— {summary}</span>}
+                              </span>
+                              {onSelectRule && (
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => onSelectRule(id)}>
+                                  Editar
+                                </Button>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   ))}
