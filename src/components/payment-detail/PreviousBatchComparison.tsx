@@ -20,7 +20,9 @@ interface PrevBatch {
   totalAmount: number;
   itemsCount: number;
   newDoctors: string[];
-  matchQuality: "exato" | "tipo"; // exato = mesmo tipo + setor; tipo = só payment_type
+  matchQuality: "centro" | "exato" | "tipo"; // centro = mesmo centro de custo; exato = mesmo tipo + setor; tipo = só payment_type
+  prevCostCenter: string | null;
+  currCostCenter: string | null;
 }
 
 function formatCompetence(d: string | null): string {
