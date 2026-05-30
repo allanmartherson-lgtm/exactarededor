@@ -515,29 +515,14 @@ function WhenApplySection({
         )}
 
         <FilterBtn id="convenio" label="Convênio" active={hasConvenioFilter}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-            <Label className="text-xs">Modo</Label>
-            <Select value={c.agreement_match_mode} onValueChange={(v) => onChange({ agreement_match_mode: v as CalcItem["agreement_match_mode"] })}>
-              <SelectTrigger className="h-7 w-[180px] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="whitelist">Apenas estes convênios</SelectItem>
-                <SelectItem value="blacklist">Todos exceto estes</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Input placeholder="Digite o convênio e pressione Enter (ex: Unimed)" className="h-8 text-xs"
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); const t = e.target as HTMLInputElement; const v = t.value.trim(); if (v && !c.agreement_aliases.includes(v)) onChange({ agreement_aliases: [...c.agreement_aliases, v] }); t.value = ""; } }} />
-          {c.agreement_aliases.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
-              {c.agreement_aliases.map(a => (
-                <button key={a} type="button" onClick={() => onChange({ agreement_aliases: c.agreement_aliases.filter(x => x !== a) })}
-                  style={{ fontSize: 10, borderRadius: 20, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))", padding: "2px 8px", cursor: "pointer" }}>
-                  {a} ✕
-                </button>
-              ))}
-            </div>
-          )}
+          <ConvenioMultiSelect
+            values={c.agreement_aliases}
+            onChange={(next) => onChange({ agreement_aliases: next })}
+            matchMode={c.agreement_match_mode}
+            onMatchModeChange={(v) => onChange({ agreement_match_mode: v })}
+          />
         </FilterBtn>
+
 
         <FilterBtn id="funcao" label="Função do médico" active={hasFuncaoFilter}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
