@@ -1658,7 +1658,7 @@ const Rules = () => {
             onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}
             title={editingId ? "Editar regra" : "Nova regra"}
             description={editingId ? "Atualize os campos e salve." : undefined}
-            maxWidth="full"
+            maxWidth="5xl"
           >
             <Tabs defaultValue="form" className="w-full">
               {editingId && (
