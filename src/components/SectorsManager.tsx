@@ -412,6 +412,91 @@ export default function SectorsManager({ canManage = true }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Pré-visualização da importação</DialogTitle>
+          </DialogHeader>
+          {preview && (
+            <div className="space-y-4">
+              <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                <span>Arquivo: <code className="bg-muted px-1 rounded">{preview.fileName}</code></span>
+                <span>Linhas lidas: <b>{preview.totalRows}</b></span>
+                <span className="text-emerald-600 dark:text-emerald-500">Válidas: <b>{preview.payload.length}</b></span>
+                {preview.skipped > 0 && <span className="text-destructive">Ignoradas: <b>{preview.skipped}</b></span>}
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold mb-2">Mapeamento de colunas</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  {Object.entries(preview.mapping).map(([field, col]) => (
+                    <div key={field} className="border rounded p-2">
+                      <div className="font-medium capitalize">{field}</div>
+                      {col ? (
+                        <code className="text-[11px] bg-muted px-1 rounded break-all">{col}</code>
+                      ) : (
+                        <span className="text-muted-foreground italic">não encontrada</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {preview.detectedColumns.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    Colunas detectadas no arquivo: {preview.detectedColumns.map(c => <code key={c} className="bg-muted px-1 rounded mr-1">{c}</code>)}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold mb-2">
+                  Pré-visualização ({Math.min(preview.payload.length, 20)} de {preview.payload.length})
+                </h4>
+                <div className="border rounded max-h-[360px] overflow-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted sticky top-0">
+                      <tr className="text-left">
+                        <th className="p-2">Código</th>
+                        <th className="p-2">Nome</th>
+                        <th className="p-2">Slug</th>
+                        <th className="p-2">Classificação</th>
+                        <th className="p-2">Aliases</th>
+                        <th className="p-2">Ativo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.payload.slice(0, 20).map((p, i) => (
+                        <tr key={p.slug + i} className="border-t align-top">
+                          <td className="p-2 font-mono">{p.tasy_code ?? "—"}</td>
+                          <td className="p-2">{p.name}</td>
+                          <td className="p-2"><code className="bg-muted px-1 rounded">{p.slug}</code></td>
+                          <td className="p-2">{p.classification ?? "—"}</td>
+                          <td className="p-2">
+                            <div className="flex flex-wrap gap-1 max-w-[320px]">
+                              {p.aliases.slice(0, 6).map(a => (
+                                <Badge key={a} variant="secondary" className="text-[10px]">{a}</Badge>
+                              ))}
+                              {p.aliases.length > 6 && <span className="text-muted-foreground">+{p.aliases.length - 6}</span>}
+                            </div>
+                          </td>
+                          <td className="p-2">{p.active ? "sim" : "não"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPreview(null)} disabled={importing}>Cancelar</Button>
+            <Button onClick={confirmImport} disabled={importing}>
+              {importing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Confirmar importação ({preview?.payload.length ?? 0})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
