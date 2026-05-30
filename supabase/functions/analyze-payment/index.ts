@@ -966,80 +966,94 @@ NUNCA mude status ou valores. Sua saída auxilia a decisão humana.
 ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${correctionContext}${historyText}`;
 
       // A IA é apenas justificativa textual; o motor determinístico já decidiu.
-      // Mantemos timeout curto para nunca prender a consolidação da empresa.
-      const aiAbort = new AbortController();
-      const aiTimer = setTimeout(() => aiAbort.abort(), 35_000);
-      let aiResp: Response | null = null;
-      try {
-        aiResp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        signal: aiAbort.signal,
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY!,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5",
-          max_tokens: 4096,
-          system: systemPrompt,
-          messages: [
-            { role: "user", content: `Itens marcados pelo motor (JSON):\n${JSON.stringify(itemsForAi, null, 2)}` },
-          ],
-          tools: [{
-            name: "report_justifications",
-            description: "Justifica cada item já analisado pelo motor",
-            input_schema: {
-              type: "object",
-              properties: {
-                summary: { type: "string", description: "Resumo OBJETIVO em pt-BR, máx. 2 frases, focado no que o gestor precisa decidir." },
-                items: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      id: { type: "string" },
-                      ai_note: { type: "string", description: "Justificativa curta do alerta/reprovação." },
-                      extra_alerts: { type: "array", items: { type: "string" }, description: "Alertas EXTRAS que o motor não capturou. Vazio se nada a acrescentar." },
-                    },
-                    required: ["id", "ai_note", "extra_alerts"],
-                    additionalProperties: false,
-                  },
-                },
-              },
-              required: ["summary", "items"],
-              additionalProperties: false,
-            },
-          }],
-          tool_choice: { type: "tool", name: "report_justifications" },
-        }),
-      });
+      // Para empresas grandes (>25 itens) dividimos em chunks sequenciais para
+      // caber dentro do timeout por chamada e evitar rate-limit do Anthropic.
+      const AI_CHUNK_SIZE = 25;
+      const AI_TIMEOUT_MS = 60_000;
+      const aiChunks: typeof itemsForAi[] = [];
+      for (let i = 0; i < itemsForAi.length; i += AI_CHUNK_SIZE) {
+        aiChunks.push(itemsForAi.slice(i, i + AI_CHUNK_SIZE));
+      }
+      const summaries: string[] = [];
 
-      if (aiResp && aiResp.ok) {
-        const aiData = await aiResp.json();
-        const tc = aiData.content?.find((b: any) => b.type === "tool_use");
-        if (tc) {
-          const parsed = tc.input;
-          for (const it of parsed.items ?? []) {
-            aiJustifications[it.id] = {
-              extra_alerts: Array.isArray(it.extra_alerts) ? it.extra_alerts : [],
-              ai_note: typeof it.ai_note === "string" ? it.ai_note : "",
-            };
+      for (let ci = 0; ci < aiChunks.length; ci++) {
+        const chunk = aiChunks[ci];
+        const aiAbort = new AbortController();
+        const aiTimer = setTimeout(() => aiAbort.abort(), AI_TIMEOUT_MS);
+        let aiResp: Response | null = null;
+        try {
+          aiResp = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            signal: aiAbort.signal,
+            headers: {
+              "x-api-key": ANTHROPIC_API_KEY!,
+              "anthropic-version": "2023-06-01",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-5",
+              max_tokens: 4096,
+              system: systemPrompt,
+              messages: [
+                { role: "user", content: `Itens marcados pelo motor (JSON) — chunk ${ci + 1}/${aiChunks.length}:\n${JSON.stringify(chunk, null, 2)}` },
+              ],
+              tools: [{
+                name: "report_justifications",
+                description: "Justifica cada item já analisado pelo motor",
+                input_schema: {
+                  type: "object",
+                  properties: {
+                    summary: { type: "string", description: "Resumo OBJETIVO em pt-BR, máx. 2 frases, focado no que o gestor precisa decidir." },
+                    items: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          ai_note: { type: "string", description: "Justificativa curta do alerta/reprovação." },
+                          extra_alerts: { type: "array", items: { type: "string" }, description: "Alertas EXTRAS que o motor não capturou. Vazio se nada a acrescentar." },
+                        },
+                        required: ["id", "ai_note", "extra_alerts"],
+                        additionalProperties: false,
+                      },
+                    },
+                  },
+                  required: ["summary", "items"],
+                  additionalProperties: false,
+                },
+              }],
+              tool_choice: { type: "tool", name: "report_justifications" },
+            }),
+          });
+
+          if (aiResp && aiResp.ok) {
+            const aiData = await aiResp.json();
+            const tc = aiData.content?.find((b: any) => b.type === "tool_use");
+            if (tc) {
+              const parsed = tc.input;
+              for (const it of parsed.items ?? []) {
+                aiJustifications[it.id] = {
+                  extra_alerts: Array.isArray(it.extra_alerts) ? it.extra_alerts : [],
+                  ai_note: typeof it.ai_note === "string" ? it.ai_note : "",
+                };
+              }
+              if (parsed.summary) summaries.push(parsed.summary);
+            }
+          } else if (aiResp) {
+            const txt = await aiResp.text();
+            console.error(`${__t} AI justification error chunk ${ci + 1}/${aiChunks.length}`, aiResp.status, txt);
+            // Falha de IA não derruba a análise — motor já decidiu tudo.
           }
-          (aiJustifications as any).__summary = parsed.summary ?? "";
+        } catch (aiErr: any) {
+          // Timeout/abort ou erro de rede — segue só com o motor determinístico.
+          console.error(`${__t} chamada_ia falhou (chunk ${ci + 1}/${aiChunks.length}):`, aiErr?.message ?? aiErr);
+        } finally {
+          clearTimeout(aiTimer);
         }
-      } else if (aiResp) {
-        const txt = await aiResp.text();
-        console.error("AI justification error", aiResp.status, txt);
-        // Falha de IA não derruba a análise — motor já decidiu tudo.
       }
-      } catch (aiErr: any) {
-        // Timeout/abort ou erro de rede — segue só com o motor determinístico.
-        console.error(`${__t} chamada_ia falhou:`, aiErr?.message ?? aiErr);
-      } finally {
-        clearTimeout(aiTimer);
-      }
+      (aiJustifications as any).__summary = summaries.join(" ");
     }
+
     console.timeEnd(`${__t} chamada_ia`);
     __telemetry.ai_ms = Date.now() - __aiStart;
 
