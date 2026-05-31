@@ -184,7 +184,13 @@ const PaymentDetail = () => {
     setItems,
     load,
   } = usePaymentDetailData(id);
-  const { byGroup: privateNotes, setNote: setPrivateNote, setMarker: setPrivateMarker } = useUserCompanyNotes(id);
+  const {
+    byGroup: privateNotes,
+    setNote: setPrivateNote,
+    setMarker: setPrivateMarker,
+    setWaitingInfo: setPrivateWaitingInfo,
+  } = useUserCompanyNotes(id);
+  const [markerFilter, setMarkerFilter] = useState<"all" | "pinned" | "waiting" | "reviewed">("all");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
@@ -2688,6 +2694,25 @@ const PaymentDetail = () => {
                 <AlertTriangle className="h-4 w-4" />
                 Pend. cadastro {regIssueItemIds.size > 0 && `(${regIssueItemIds.size})`}
               </Button>
+
+              {/* Filtro pessoal — só você vê seus marcadores */}
+              <Select value={markerFilter} onValueChange={(v) => setMarkerFilter(v as any)}>
+                <SelectTrigger
+                  className={cn(
+                    "h-8 w-auto gap-1.5 border-dashed text-xs px-3",
+                    markerFilter !== "all" && "bg-muted",
+                  )}
+                  title="Filtrar pelos seus marcadores pessoais (só você vê)"
+                >
+                  <SelectValue placeholder="Meus marcadores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">Todos os marcadores</SelectItem>
+                  <SelectItem value="pinned" className="text-xs">📌 Fixados por mim</SelectItem>
+                  <SelectItem value="waiting" className="text-xs">⏳ Aguardando info</SelectItem>
+                  <SelectItem value="reviewed" className="text-xs">✓ Já revisei</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
@@ -2771,6 +2796,11 @@ const PaymentDetail = () => {
 
               const paymentSpec = ((payment.specialties ?? []) as string[]).join(" ").toLowerCase();
               const visibleGroups = groups.filter((g) => {
+                // Filtro pessoal de marcador (Fixado / Aguardando info / Já revisei).
+                if (markerFilter !== "all") {
+                  const m = privateNotes[g.id]?.marker ?? null;
+                  if (m !== markerFilter) return false;
+                }
                 const sqItem = itemSearch.trim().toLowerCase();
                 const sqComp = companySearch.trim().toLowerCase();
                 
@@ -2921,11 +2951,12 @@ const PaymentDetail = () => {
               if (itemSearch.trim() && !groupNameMatches && matchedItems.length === 0) return null;
               if (isErrorOnly && visibleByFilters.length === 0) return null;
               const marker = privateNotes[g.id]?.marker ?? null;
+              const waitingInfoText = (privateNotes[g.id]?.waiting_info ?? "").trim();
               const markerBadge =
                 marker === "pinned"
                   ? { label: "Fixado", cls: "bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning-text))] border-[hsl(var(--warning-soft))]", icon: "📌" }
                   : marker === "waiting"
-                  ? { label: "Aguardando info", cls: "bg-[hsl(var(--info-soft))] text-[hsl(var(--info-text))] border-[hsl(var(--info-soft))]", icon: "⏳" }
+                  ? { label: waitingInfoText ? `Aguardando: ${waitingInfoText}` : "Aguardando info", cls: "bg-[hsl(var(--info-soft))] text-[hsl(var(--info-text))] border-[hsl(var(--info-soft))]", icon: "⏳" }
                   : marker === "reviewed"
                   ? { label: "Revisado por você", cls: "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-text))] border-[hsl(var(--success-soft))]", icon: "✓" }
                   : null;
@@ -2972,8 +3003,10 @@ const PaymentDetail = () => {
                     <PrivateCompanyNote
                       note={privateNotes[g.id]?.note ?? ""}
                       marker={privateNotes[g.id]?.marker ?? null}
+                      waitingInfo={privateNotes[g.id]?.waiting_info ?? ""}
                       onNoteChange={(v) => setPrivateNote(g.id, v)}
                       onMarkerChange={(m) => setPrivateMarker(g.id, m)}
+                      onWaitingInfoChange={(v) => setPrivateWaitingInfo(g.id, v)}
                     />
                   )}
                 </div>

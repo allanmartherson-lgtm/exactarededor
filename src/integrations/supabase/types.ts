@@ -4782,6 +4782,7 @@ export type Database = {
           payment_id: string
           updated_at: string
           user_id: string
+          waiting_info: string
         }
         Insert: {
           created_at?: string
@@ -4792,6 +4793,7 @@ export type Database = {
           payment_id: string
           updated_at?: string
           user_id: string
+          waiting_info?: string
         }
         Update: {
           created_at?: string
@@ -4802,6 +4804,7 @@ export type Database = {
           payment_id?: string
           updated_at?: string
           user_id?: string
+          waiting_info?: string
         }
         Relationships: [
           {
