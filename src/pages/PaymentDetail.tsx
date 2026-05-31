@@ -2944,12 +2944,14 @@ const PaymentDetail = () => {
                     hasReconciliationRun={hasReconciliationRun}
                     onOpenConciliation={() => openCompanyConciliation(g.company_name)}
                   />
-                  <PrivateCompanyNote
-                    note={privateNotes[g.id]?.note ?? ""}
-                    marker={privateNotes[g.id]?.marker ?? null}
-                    onNoteChange={(v) => setPrivateNote(g.id, v)}
-                    onMarkerChange={(m) => setPrivateMarker(g.id, m)}
-                  />
+                  {expandedGroups.has(g.id) && (
+                    <PrivateCompanyNote
+                      note={privateNotes[g.id]?.note ?? ""}
+                      marker={privateNotes[g.id]?.marker ?? null}
+                      onNoteChange={(v) => setPrivateNote(g.id, v)}
+                      onMarkerChange={(m) => setPrivateMarker(g.id, m)}
+                    />
+                  )}
                 </div>
               );
               });
