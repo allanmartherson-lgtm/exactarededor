@@ -184,6 +184,7 @@ const PaymentDetail = () => {
     setItems,
     load,
   } = usePaymentDetailData(id);
+  const { byGroup: privateNotes, setNote: setPrivateNote, setMarker: setPrivateMarker } = useUserCompanyNotes(id);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
