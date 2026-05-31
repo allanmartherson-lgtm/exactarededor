@@ -51,6 +51,8 @@ import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPa
 import { ProductionValidationButton } from "@/components/payment-detail/ProductionValidationButton";
 import { ProductionValidationPanel } from "@/components/payment-detail/ProductionValidationPanel";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
+import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
+import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
 import type {
   PaymentItemRow as PaymentItemRowType,
   GroupRow,
