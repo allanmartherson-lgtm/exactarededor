@@ -2777,6 +2777,11 @@ const PaymentDetail = () => {
 
               const paymentSpec = ((payment.specialties ?? []) as string[]).join(" ").toLowerCase();
               const visibleGroups = groups.filter((g) => {
+                // Filtro pessoal de marcador (Fixado / Aguardando info / Já revisei).
+                if (markerFilter !== "all") {
+                  const m = privateNotes[g.id]?.marker ?? null;
+                  if (m !== markerFilter) return false;
+                }
                 const sqItem = itemSearch.trim().toLowerCase();
                 const sqComp = companySearch.trim().toLowerCase();
                 
