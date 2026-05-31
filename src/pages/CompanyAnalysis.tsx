@@ -1520,6 +1520,18 @@ export default function CompanyAnalysis() {
       {/* Faixa de composição financeira: Bruto − Débitos − Glosas − Pool ± Conciliação = Líquido */}
       {id && group?.company_id && <FinancialCompositionStrip comp={composition} />}
 
+      {/* Notas pessoais + marcadores (Fixar / Aguardando info / Já revisei) — visíveis apenas para você. */}
+      {id && groupId && (
+        <PrivateCompanyNote
+          note={privateNotes[groupId]?.note ?? ""}
+          marker={privateNotes[groupId]?.marker ?? null}
+          waitingInfo={privateNotes[groupId]?.waiting_info ?? ""}
+          onNoteChange={(v) => setPrivateNote(groupId, v)}
+          onMarkerChange={(m) => setPrivateMarker(groupId, m)}
+          onWaitingInfoChange={(v) => setPrivateWaitingInfo(groupId, v)}
+        />
+      )}
+
 
 
 
