@@ -67,6 +67,8 @@ import { calculateFinancialRisk } from "@/lib/riskScore";
 import { cn, normalizeString } from "@/lib/utils";
 
 import { Info, ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon } from "lucide-react";
+import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
+import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
 
 const HighlightBanner = ({
   observations,
@@ -203,6 +205,14 @@ export default function CompanyAnalysis() {
     load,
     setItems,
   } = usePaymentDetailData(id, { groupId });
+
+  // Notas pessoais + marcadores (mesmos do PaymentDetail) — agora também no painel da empresa.
+  const {
+    byGroup: privateNotes,
+    setNote: setPrivateNote,
+    setMarker: setPrivateMarker,
+    setWaitingInfo: setPrivateWaitingInfo,
+  } = useUserCompanyNotes(id);
 
   // Exportação unificada: usa o mesmo PaymentReportModal do lote (mesmas
   // colunas, mesmas regras, validação assistencial sintetizada), só que
@@ -1509,6 +1519,18 @@ export default function CompanyAnalysis() {
 
       {/* Faixa de composição financeira: Bruto − Débitos − Glosas − Pool ± Conciliação = Líquido */}
       {id && group?.company_id && <FinancialCompositionStrip comp={composition} />}
+
+      {/* Notas pessoais + marcadores (Fixar / Aguardando info / Já revisei) — visíveis apenas para você. */}
+      {id && groupId && (
+        <PrivateCompanyNote
+          note={privateNotes[groupId]?.note ?? ""}
+          marker={privateNotes[groupId]?.marker ?? null}
+          waitingInfo={privateNotes[groupId]?.waiting_info ?? ""}
+          onNoteChange={(v) => setPrivateNote(groupId, v)}
+          onMarkerChange={(m) => setPrivateMarker(groupId, m)}
+          onWaitingInfoChange={(v) => setPrivateWaitingInfo(groupId, v)}
+        />
+      )}
 
 
 
