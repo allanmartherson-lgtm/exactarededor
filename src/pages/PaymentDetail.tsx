@@ -2914,8 +2914,26 @@ const PaymentDetail = () => {
               
               if (itemSearch.trim() && !groupNameMatches && matchedItems.length === 0) return null;
               if (isErrorOnly && visibleByFilters.length === 0) return null;
+              const marker = privateNotes[g.id]?.marker ?? null;
+              const markerBadge =
+                marker === "pinned"
+                  ? { label: "Fixado", cls: "bg-warning/15 text-warning-foreground border-warning/40", icon: "📌" }
+                  : marker === "waiting"
+                  ? { label: "Aguardando info", cls: "bg-info/15 text-info-foreground border-info/40", icon: "⏳" }
+                  : marker === "reviewed"
+                  ? { label: "Revisado por você", cls: "bg-success/15 text-success-foreground border-success/40", icon: "✓" }
+                  : null;
               return (
-                <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20 space-y-2">
+                <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20 space-y-2 relative">
+                  {markerBadge && (
+                    <div
+                      className={`absolute -top-2 right-3 z-10 inline-flex items-center gap-1 rounded-full border px-2 py-[2px] text-[10.5px] font-medium shadow-sm ${markerBadge.cls}`}
+                      title={`Marcador pessoal: ${markerBadge.label} (só você vê)`}
+                    >
+                      <span>{markerBadge.icon}</span>
+                      <span>{markerBadge.label}</span>
+                    </div>
+                  )}
                   <PaymentGroupCard
                     g={g}
                     groupItems={groupItemsAll}
