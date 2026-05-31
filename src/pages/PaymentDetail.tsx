@@ -2932,11 +2932,12 @@ const PaymentDetail = () => {
               if (itemSearch.trim() && !groupNameMatches && matchedItems.length === 0) return null;
               if (isErrorOnly && visibleByFilters.length === 0) return null;
               const marker = privateNotes[g.id]?.marker ?? null;
+              const waitingInfoText = (privateNotes[g.id]?.waiting_info ?? "").trim();
               const markerBadge =
                 marker === "pinned"
                   ? { label: "Fixado", cls: "bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning-text))] border-[hsl(var(--warning-soft))]", icon: "📌" }
                   : marker === "waiting"
-                  ? { label: "Aguardando info", cls: "bg-[hsl(var(--info-soft))] text-[hsl(var(--info-text))] border-[hsl(var(--info-soft))]", icon: "⏳" }
+                  ? { label: waitingInfoText ? `Aguardando: ${waitingInfoText}` : "Aguardando info", cls: "bg-[hsl(var(--info-soft))] text-[hsl(var(--info-text))] border-[hsl(var(--info-soft))]", icon: "⏳" }
                   : marker === "reviewed"
                   ? { label: "Revisado por você", cls: "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-text))] border-[hsl(var(--success-soft))]", icon: "✓" }
                   : null;
