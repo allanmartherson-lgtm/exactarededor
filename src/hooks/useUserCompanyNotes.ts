@@ -104,9 +104,7 @@ export function useUserCompanyNotes(paymentId: string | undefined) {
   const setNote = useCallback(
     (groupId: string, note: string) => {
       optimistic(groupId, { note });
-      const key = debounceKey(groupId, "note");
-      if (debounceRefs.current[key]) clearTimeout(debounceRefs.current[key]);
-      debounceRefs.current[key] = setTimeout(() => persist(groupId, { note }), 800);
+      persist(groupId, { note });
     },
     [persist, optimistic],
   );
@@ -114,9 +112,7 @@ export function useUserCompanyNotes(paymentId: string | undefined) {
   const setWaitingInfo = useCallback(
     (groupId: string, waiting_info: string) => {
       optimistic(groupId, { waiting_info });
-      const key = debounceKey(groupId, "waiting_info");
-      if (debounceRefs.current[key]) clearTimeout(debounceRefs.current[key]);
-      debounceRefs.current[key] = setTimeout(() => persist(groupId, { waiting_info }), 800);
+      persist(groupId, { waiting_info });
     },
     [persist, optimistic],
   );

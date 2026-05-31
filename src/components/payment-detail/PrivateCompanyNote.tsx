@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pin, Clock, Check, StickyNote } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -17,9 +17,11 @@ interface Props {
 
 /**
  * Bloco compacto de nota privada + 3 marcadores pessoais.
- * - Só o próprio usuário enxerga.
- * - Marker controla prioridade na fila (pinned ↑ topo, reviewed = concluído).
- * - "Aguardando Info" abre campo livre "de quem / qual setor".
+ *
+ * Performance: textareas/inputs mantêm estado LOCAL e só propagam para o
+ * pai após 700ms de digitação ociosa. Sem isso, cada tecla disparava
+ * setByGroup no hook, que re-renderizava toda a PaymentDetail (cálculo de
+ * visibleGroups/sortedGroups/pivot/etc.) e travava a digitação.
  */
 export function PrivateCompanyNote({
   note,
@@ -32,8 +34,56 @@ export function PrivateCompanyNote({
   const [localNote, setLocalNote] = useState(note);
   const [localWaiting, setLocalWaiting] = useState(waitingInfo);
   const [open, setOpen] = useState(!!note);
-  useEffect(() => setLocalNote(note), [note]);
-  useEffect(() => setLocalWaiting(waitingInfo), [waitingInfo]);
+
+  // Sincroniza com props quando mudam por fora (carga inicial, save remoto).
+  // Só sobrescreve o local se o usuário não tem digitação em buffer.
+  const dirtyNoteRef = useRef(false);
+  const dirtyWaitingRef = useRef(false);
+  useEffect(() => {
+    if (!dirtyNoteRef.current) setLocalNote(note);
+  }, [note]);
+  useEffect(() => {
+    if (!dirtyWaitingRef.current) setLocalWaiting(waitingInfo);
+  }, [waitingInfo]);
+
+  // Debounce upstream — só chama onNoteChange após o usuário parar de digitar.
+  const noteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleNoteChange = (v: string) => {
+    setLocalNote(v);
+    dirtyNoteRef.current = true;
+    if (noteTimerRef.current) clearTimeout(noteTimerRef.current);
+    noteTimerRef.current = setTimeout(() => {
+      dirtyNoteRef.current = false;
+      onNoteChange(v);
+    }, 700);
+  };
+
+  const handleWaitingChange = (v: string) => {
+    setLocalWaiting(v);
+    dirtyWaitingRef.current = true;
+    if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current);
+    waitingTimerRef.current = setTimeout(() => {
+      dirtyWaitingRef.current = false;
+      onWaitingInfoChange(v);
+    }, 700);
+  };
+
+  // Flush ao desmontar para não perder o que foi digitado.
+  useEffect(() => {
+    return () => {
+      if (noteTimerRef.current) {
+        clearTimeout(noteTimerRef.current);
+        if (dirtyNoteRef.current) onNoteChange(localNote);
+      }
+      if (waitingTimerRef.current) {
+        clearTimeout(waitingTimerRef.current);
+        if (dirtyWaitingRef.current) onWaitingInfoChange(localWaiting);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggle = (m: UserCompanyMarker) => onMarkerChange(marker === m ? null : m);
 
@@ -99,10 +149,7 @@ export function PrivateCompanyNote({
           <span className="text-[11px] text-muted-foreground whitespace-nowrap">Aguardando:</span>
           <Input
             value={localWaiting}
-            onChange={(e) => {
-              setLocalWaiting(e.target.value);
-              onWaitingInfoChange(e.target.value);
-            }}
+            onChange={(e) => handleWaitingChange(e.target.value)}
             placeholder="Ex.: Faturamento — confirmar lançamento; Dra. Ana — autorização"
             className="h-7 text-[12px] bg-background"
           />
@@ -112,10 +159,7 @@ export function PrivateCompanyNote({
       {open && (
         <Textarea
           value={localNote}
-          onChange={(e) => {
-            setLocalNote(e.target.value);
-            onNoteChange(e.target.value);
-          }}
+          onChange={(e) => handleNoteChange(e.target.value)}
           placeholder="Anote o que viu aqui — só você verá esta nota."
           className="mt-2 min-h-[56px] text-[12.5px] bg-background"
         />
