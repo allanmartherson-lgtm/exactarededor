@@ -186,9 +186,14 @@ const PaymentDetail = () => {
   } = usePaymentDetailData(id);
   const {
     byGroup: privateNotes,
+    attachmentsByGroup: privateAttachments,
+    saveStatus: privateSaveStatus,
     setNote: setPrivateNote,
     setMarker: setPrivateMarker,
     setWaitingInfo: setPrivateWaitingInfo,
+    uploadAttachment: uploadPrivateAttachment,
+    deleteAttachment: deletePrivateAttachment,
+    downloadAttachment: downloadPrivateAttachment,
   } = useUserCompanyNotes(id);
   const [markerFilter, setMarkerFilter] = useState<"all" | "pinned" | "waiting" | "reviewed">("all");
   const [comment, setComment] = useState("");
