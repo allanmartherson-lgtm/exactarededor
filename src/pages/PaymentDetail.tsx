@@ -2923,11 +2923,11 @@ const PaymentDetail = () => {
               const marker = privateNotes[g.id]?.marker ?? null;
               const markerBadge =
                 marker === "pinned"
-                  ? { label: "Fixado", cls: "bg-warning/15 text-warning-foreground border-warning/40", icon: "📌" }
+                  ? { label: "Fixado", cls: "bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning-text))] border-[hsl(var(--warning-soft))]", icon: "📌" }
                   : marker === "waiting"
-                  ? { label: "Aguardando info", cls: "bg-info/15 text-info-foreground border-info/40", icon: "⏳" }
+                  ? { label: "Aguardando info", cls: "bg-[hsl(var(--info-soft))] text-[hsl(var(--info-text))] border-[hsl(var(--info-soft))]", icon: "⏳" }
                   : marker === "reviewed"
-                  ? { label: "Revisado por você", cls: "bg-success/15 text-success-foreground border-success/40", icon: "✓" }
+                  ? { label: "Revisado por você", cls: "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-text))] border-[hsl(var(--success-soft))]", icon: "✓" }
                   : null;
               return (
                 <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20 space-y-2 relative">
