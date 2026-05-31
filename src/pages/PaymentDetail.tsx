@@ -2826,20 +2826,34 @@ const PaymentDetail = () => {
                   const f = (it as unknown as { validation_findings?: unknown }).validation_findings;
                   return acc + (Array.isArray(f) ? f.length : 0);
                 }, 0);
-              // Status "pendentes" para o papel do usuário atual. Empresas cujo
-              // status já passou da sua etapa saem do topo (mesmo mantendo
-              // score e alertas visíveis) — o foco vai para o que ele ainda
-              // não tratou. Quando o lote avança para o próximo papel, a
-              // priorização reaparece para esse próximo papel.
+              // Status "pendentes" por papel — cobrem o ciclo inteiro até a
+              // emissão/conciliação da NF. Sempre que o lote troca de etapa,
+              // a priorização reaparece automaticamente para o novo dono.
+              //   - analista: revisão inicial + ciclo de NF pós-aprovação
+              //   - validador: aguardando validação
+              //   - diretor: aguardando aprovação
               const pendingStatusesForMe = new Set<string>();
               if (isAnalista) {
-                ["revisao_analista", "devolvido_analista", "revisao_pos_aprovacao"].forEach((s) => pendingStatusesForMe.add(s));
+                [
+                  "revisao_analista",
+                  "devolvido_analista",
+                  "revisao_pos_aprovacao",
+                  "aprovado_em_revisao",
+                  "aprovado",
+                  "aprovado_com_ressalva",
+                  "aprovado_parcial",
+                  "pedido_nf_enviado",
+                  "nf_recebida",
+                  "nf_questionada",
+                  "nf_divergente",
+                  "nf_conciliada",
+                ].forEach((s) => pendingStatusesForMe.add(s));
               }
               if (isValidador) {
                 ["aguardando_validacao"].forEach((s) => pendingStatusesForMe.add(s));
               }
               if (isDiretor) {
-                ["aguardando_aprovacao", "aprovado_em_revisao"].forEach((s) => pendingStatusesForMe.add(s));
+                ["aguardando_aprovacao"].forEach((s) => pendingStatusesForMe.add(s));
               }
               const isPendingForMe = (g: typeof visibleGroups[number]) =>
                 pendingStatusesForMe.has(String(g.status));

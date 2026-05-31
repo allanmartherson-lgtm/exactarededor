@@ -84,8 +84,28 @@ const delayLevel = (status: PaymentStatus, ms: number): "none" | "leve" | "criti
 
 type OwnerGroup = "all" | "analista" | "validador" | "diretor";
 
+// Status "pendentes" para cada papel — define quem precisa agir AGORA.
+// O analista é dono do ciclo de NF (do `aprovado` até `lancado`), portanto a
+// prioridade dele reaparece automaticamente assim que o lote retorna para
+// qualquer status pós-aprovação do diretor.
 const STATUSES_BY_OWNER: Record<Exclude<OwnerGroup, "all">, PaymentStatus[]> = {
-  analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista", "aprovado_em_revisao", "lancado"],
+  analista: [
+    "rascunho",
+    "em_analise_ia",
+    "revisao_analista",
+    "devolvido_analista",
+    "revisao_pos_aprovacao",
+    "aprovado_em_revisao",
+    "aprovado",
+    "aprovado_com_ressalva",
+    "aprovado_parcial",
+    "pedido_nf_enviado",
+    "nf_recebida",
+    "nf_questionada",
+    "nf_divergente",
+    "nf_conciliada",
+    "lancado",
+  ],
   validador: ["aguardando_validacao"],
   diretor: ["aguardando_aprovacao"],
 };
