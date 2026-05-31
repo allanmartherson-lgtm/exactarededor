@@ -2694,6 +2694,25 @@ const PaymentDetail = () => {
                 <AlertTriangle className="h-4 w-4" />
                 Pend. cadastro {regIssueItemIds.size > 0 && `(${regIssueItemIds.size})`}
               </Button>
+
+              {/* Filtro pessoal — só você vê seus marcadores */}
+              <Select value={markerFilter} onValueChange={(v) => setMarkerFilter(v as any)}>
+                <SelectTrigger
+                  className={cn(
+                    "h-8 w-auto gap-1.5 border-dashed text-xs px-3",
+                    markerFilter !== "all" && "bg-muted",
+                  )}
+                  title="Filtrar pelos seus marcadores pessoais (só você vê)"
+                >
+                  <SelectValue placeholder="Meus marcadores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">Todos os marcadores</SelectItem>
+                  <SelectItem value="pinned" className="text-xs">📌 Fixados por mim</SelectItem>
+                  <SelectItem value="waiting" className="text-xs">⏳ Aguardando info</SelectItem>
+                  <SelectItem value="reviewed" className="text-xs">✓ Já revisei</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
