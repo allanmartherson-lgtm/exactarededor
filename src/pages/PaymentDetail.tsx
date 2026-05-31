@@ -2862,14 +2862,15 @@ const PaymentDetail = () => {
                 pendingStatusesForMe.has(String(g.status));
               // Prioridade por papel + marcadores pessoais:
               // 4 = fixado (📌 pinned) — sobe acima de tudo
-              // 3 = pendente para o papel atual e SEM marker waiting/reviewed
-              // 2 = tem alerta assistencial (e não waiting/reviewed)
+              // 3 = pendente para o papel atual
+              // 2 = tem alerta assistencial
               // 1 = default
-              // 0 = waiting/reviewed (descem para o fim)
+              // 0 = já revisei (desce para o fim, mantém score/alertas)
+              // ⏳ "Aguardando Info" é apenas badge informativo — não altera ordem.
               const priorityOf = (g: typeof visibleGroups[number]) => {
                 const m = privateNotes[g.id]?.marker ?? null;
                 if (m === "pinned") return 4;
-                if (m === "waiting" || m === "reviewed") return 0;
+                if (m === "reviewed") return 0;
                 if (isPendingForMe(g)) return 3;
                 if (groupValidationCount(g) > 0) return 2;
                 return 1;
@@ -2943,12 +2944,14 @@ const PaymentDetail = () => {
                     hasReconciliationRun={hasReconciliationRun}
                     onOpenConciliation={() => openCompanyConciliation(g.company_name)}
                   />
-                  <PrivateCompanyNote
-                    note={privateNotes[g.id]?.note ?? ""}
-                    marker={privateNotes[g.id]?.marker ?? null}
-                    onNoteChange={(v) => setPrivateNote(g.id, v)}
-                    onMarkerChange={(m) => setPrivateMarker(g.id, m)}
-                  />
+                  {expandedGroups.has(g.id) && (
+                    <PrivateCompanyNote
+                      note={privateNotes[g.id]?.note ?? ""}
+                      marker={privateNotes[g.id]?.marker ?? null}
+                      onNoteChange={(v) => setPrivateNote(g.id, v)}
+                      onMarkerChange={(m) => setPrivateMarker(g.id, m)}
+                    />
+                  )}
                 </div>
               );
               });
