@@ -2978,8 +2978,10 @@ const PaymentDetail = () => {
                     <PrivateCompanyNote
                       note={privateNotes[g.id]?.note ?? ""}
                       marker={privateNotes[g.id]?.marker ?? null}
+                      waitingInfo={privateNotes[g.id]?.waiting_info ?? ""}
                       onNoteChange={(v) => setPrivateNote(g.id, v)}
                       onMarkerChange={(m) => setPrivateMarker(g.id, m)}
+                      onWaitingInfoChange={(v) => setPrivateWaitingInfo(g.id, v)}
                     />
                   )}
                 </div>
