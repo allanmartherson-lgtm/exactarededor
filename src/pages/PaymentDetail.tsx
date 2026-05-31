@@ -184,7 +184,13 @@ const PaymentDetail = () => {
     setItems,
     load,
   } = usePaymentDetailData(id);
-  const { byGroup: privateNotes, setNote: setPrivateNote, setMarker: setPrivateMarker } = useUserCompanyNotes(id);
+  const {
+    byGroup: privateNotes,
+    setNote: setPrivateNote,
+    setMarker: setPrivateMarker,
+    setWaitingInfo: setPrivateWaitingInfo,
+  } = useUserCompanyNotes(id);
+  const [markerFilter, setMarkerFilter] = useState<"all" | "pinned" | "waiting" | "reviewed">("all");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
