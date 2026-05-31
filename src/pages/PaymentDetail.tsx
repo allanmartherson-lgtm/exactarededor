@@ -2867,10 +2867,16 @@ const PaymentDetail = () => {
               // 1 = default
               // 0 = já revisei (desce para o fim, mantém score/alertas)
               // ⏳ "Aguardando Info" é apenas badge informativo — não altera ordem.
+              // Prioridade por papel + marcadores pessoais:
+              // 4 = fixado (📌 pinned) — sobe acima de tudo
+              // 3 = pendente para o papel atual (e não marcado como já revisei)
+              // 2 = tem alerta assistencial (e não marcado como já revisei)
+              // 1 = default / concluído / ✅ já revisei (mesmo peso da conclusão oficial)
+              // ⏳ "Aguardando Info" é apenas badge informativo — não altera ordem.
               const priorityOf = (g: typeof visibleGroups[number]) => {
                 const m = privateNotes[g.id]?.marker ?? null;
                 if (m === "pinned") return 4;
-                if (m === "reviewed") return 0;
+                if (m === "reviewed") return 1;
                 if (isPendingForMe(g)) return 3;
                 if (groupValidationCount(g) > 0) return 2;
                 return 1;
