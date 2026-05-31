@@ -206,12 +206,17 @@ export default function CompanyAnalysis() {
     setItems,
   } = usePaymentDetailData(id, { groupId });
 
-  // Notas pessoais + marcadores (mesmos do PaymentDetail) — agora também no painel da empresa.
+  // Notas pessoais + marcadores + anexos (mesmos do PaymentDetail) — agora também no painel da empresa.
   const {
     byGroup: privateNotes,
+    attachmentsByGroup: privateAttachments,
+    saveStatus: privateSaveStatus,
     setNote: setPrivateNote,
     setMarker: setPrivateMarker,
     setWaitingInfo: setPrivateWaitingInfo,
+    uploadAttachment: uploadPrivateAttachment,
+    deleteAttachment: deletePrivateAttachment,
+    downloadAttachment: downloadPrivateAttachment,
   } = useUserCompanyNotes(id);
 
   // Exportação unificada: usa o mesmo PaymentReportModal do lote (mesmas
@@ -1526,9 +1531,14 @@ export default function CompanyAnalysis() {
           note={privateNotes[groupId]?.note ?? ""}
           marker={privateNotes[groupId]?.marker ?? null}
           waitingInfo={privateNotes[groupId]?.waiting_info ?? ""}
+          attachments={privateAttachments[groupId] ?? []}
+          saveStatus={privateSaveStatus[groupId] ?? "idle"}
           onNoteChange={(v) => setPrivateNote(groupId, v)}
           onMarkerChange={(m) => setPrivateMarker(groupId, m)}
           onWaitingInfoChange={(v) => setPrivateWaitingInfo(groupId, v)}
+          onUploadAttachment={(file) => uploadPrivateAttachment(groupId, file)}
+          onDeleteAttachment={(attId) => deletePrivateAttachment(groupId, attId)}
+          onDownloadAttachment={(att) => downloadPrivateAttachment(att)}
         />
       )}
 

@@ -4772,6 +4772,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_company_note_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          group_id: string
+          id: string
+          mime_type: string | null
+          payment_id: string
+          size_bytes: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          group_id: string
+          id?: string
+          mime_type?: string | null
+          payment_id: string
+          size_bytes?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          group_id?: string
+          id?: string
+          mime_type?: string | null
+          payment_id?: string
+          size_bytes?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_company_notes: {
         Row: {
           created_at: string

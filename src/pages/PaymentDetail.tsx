@@ -186,9 +186,14 @@ const PaymentDetail = () => {
   } = usePaymentDetailData(id);
   const {
     byGroup: privateNotes,
+    attachmentsByGroup: privateAttachments,
+    saveStatus: privateSaveStatus,
     setNote: setPrivateNote,
     setMarker: setPrivateMarker,
     setWaitingInfo: setPrivateWaitingInfo,
+    uploadAttachment: uploadPrivateAttachment,
+    deleteAttachment: deletePrivateAttachment,
+    downloadAttachment: downloadPrivateAttachment,
   } = useUserCompanyNotes(id);
   const [markerFilter, setMarkerFilter] = useState<"all" | "pinned" | "waiting" | "reviewed">("all");
   const [comment, setComment] = useState("");
@@ -3004,9 +3009,14 @@ const PaymentDetail = () => {
                       note={privateNotes[g.id]?.note ?? ""}
                       marker={privateNotes[g.id]?.marker ?? null}
                       waitingInfo={privateNotes[g.id]?.waiting_info ?? ""}
+                      attachments={privateAttachments[g.id] ?? []}
+                      saveStatus={privateSaveStatus[g.id] ?? "idle"}
                       onNoteChange={(v) => setPrivateNote(g.id, v)}
                       onMarkerChange={(m) => setPrivateMarker(g.id, m)}
                       onWaitingInfoChange={(v) => setPrivateWaitingInfo(g.id, v)}
+                      onUploadAttachment={(file) => uploadPrivateAttachment(g.id, file)}
+                      onDeleteAttachment={(attId) => deletePrivateAttachment(g.id, attId)}
+                      onDownloadAttachment={(att) => downloadPrivateAttachment(att)}
                     />
                   )}
                 </div>
