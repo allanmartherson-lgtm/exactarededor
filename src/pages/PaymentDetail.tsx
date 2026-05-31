@@ -2914,7 +2914,7 @@ const PaymentDetail = () => {
               if (itemSearch.trim() && !groupNameMatches && matchedItems.length === 0) return null;
               if (isErrorOnly && visibleByFilters.length === 0) return null;
               return (
-                <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20">
+                <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20 space-y-2">
                   <PaymentGroupCard
                     g={g}
                     groupItems={groupItemsAll}
@@ -2942,6 +2942,12 @@ const PaymentDetail = () => {
                     }
                     hasReconciliationRun={hasReconciliationRun}
                     onOpenConciliation={() => openCompanyConciliation(g.company_name)}
+                  />
+                  <PrivateCompanyNote
+                    note={privateNotes[g.id]?.note ?? ""}
+                    marker={privateNotes[g.id]?.marker ?? null}
+                    onNoteChange={(v) => setPrivateNote(g.id, v)}
+                    onMarkerChange={(m) => setPrivateMarker(g.id, m)}
                   />
                 </div>
               );
