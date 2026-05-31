@@ -8,8 +8,8 @@ import {
   Download,
   Trash2,
   Loader2,
-  CloudUpload as CloudCheck,
-  CloudOff as CloudAlert,
+  CheckCircle2 as CloudCheck,
+  AlertCircle as CloudAlert,
   FileText,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
