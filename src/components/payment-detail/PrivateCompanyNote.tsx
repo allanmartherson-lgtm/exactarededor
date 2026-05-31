@@ -54,9 +54,9 @@ export function PrivateCompanyNote({ note, marker, onNoteChange, onMarkerChange 
           Privado (só você vê)
         </div>
         <div className="flex items-center gap-1 ml-auto">
-          {markerBtn("pinned", Pin, "Fixar", "bg-warning/15 border-warning text-warning-foreground")}
-          {markerBtn("waiting", Clock, "Aguardando Info", "bg-info/15 border-info text-info-foreground")}
-          {markerBtn("reviewed", Check, "Já revisei", "bg-success/15 border-success text-success-foreground")}
+          {markerBtn("pinned", Pin, "Fixar", "bg-[hsl(var(--warning-soft))] border-[hsl(var(--warning-soft))] text-[hsl(var(--warning-text))] hover:bg-[hsl(var(--warning-soft))]")}
+          {markerBtn("waiting", Clock, "Aguardando Info", "bg-[hsl(var(--info-soft))] border-[hsl(var(--info-soft))] text-[hsl(var(--info-text))] hover:bg-[hsl(var(--info-soft))]")}
+          {markerBtn("reviewed", Check, "Já revisei", "bg-[hsl(var(--success-soft))] border-[hsl(var(--success-soft))] text-[hsl(var(--success-text))] hover:bg-[hsl(var(--success-soft))]")}
           <Button
             type="button"
             size="sm"
