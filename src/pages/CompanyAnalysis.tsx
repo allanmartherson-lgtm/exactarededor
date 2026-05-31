@@ -206,12 +206,17 @@ export default function CompanyAnalysis() {
     setItems,
   } = usePaymentDetailData(id, { groupId });
 
-  // Notas pessoais + marcadores (mesmos do PaymentDetail) — agora também no painel da empresa.
+  // Notas pessoais + marcadores + anexos (mesmos do PaymentDetail) — agora também no painel da empresa.
   const {
     byGroup: privateNotes,
+    attachmentsByGroup: privateAttachments,
+    saveStatus: privateSaveStatus,
     setNote: setPrivateNote,
     setMarker: setPrivateMarker,
     setWaitingInfo: setPrivateWaitingInfo,
+    uploadAttachment: uploadPrivateAttachment,
+    deleteAttachment: deletePrivateAttachment,
+    downloadAttachment: downloadPrivateAttachment,
   } = useUserCompanyNotes(id);
 
   // Exportação unificada: usa o mesmo PaymentReportModal do lote (mesmas
