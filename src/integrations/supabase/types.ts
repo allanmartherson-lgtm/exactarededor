@@ -4772,6 +4772,61 @@ export type Database = {
         }
         Relationships: []
       }
+      user_company_notes: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          marker: Database["public"]["Enums"]["user_company_marker"] | null
+          note: string
+          payment_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          marker?: Database["public"]["Enums"]["user_company_marker"] | null
+          note?: string
+          payment_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          marker?: Database["public"]["Enums"]["user_company_marker"] | null
+          note?: string
+          payment_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_company_notes_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "payment_company_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_company_notes_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "user_company_notes_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_notification_settings: {
         Row: {
           created_at: string | null
@@ -5796,6 +5851,7 @@ export type Database = {
       rule_severity: "info" | "aviso" | "bloqueio"
       rule_target_type: "medico" | "empresa"
       threshold_type: "percentual" | "absoluto"
+      user_company_marker: "pinned" | "waiting" | "reviewed"
       validation_action: "informar" | "alerta" | "alerta_forte" | "bloquear"
       validation_kind:
         | "duplicidade_exata"
@@ -6033,6 +6089,7 @@ export const Constants = {
       rule_severity: ["info", "aviso", "bloqueio"],
       rule_target_type: ["medico", "empresa"],
       threshold_type: ["percentual", "absoluto"],
+      user_company_marker: ["pinned", "waiting", "reviewed"],
       validation_action: ["informar", "alerta", "alerta_forte", "bloquear"],
       validation_kind: [
         "duplicidade_exata",

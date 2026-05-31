@@ -51,6 +51,8 @@ import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPa
 import { ProductionValidationButton } from "@/components/payment-detail/ProductionValidationButton";
 import { ProductionValidationPanel } from "@/components/payment-detail/ProductionValidationPanel";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
+import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
+import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
 import type {
   PaymentItemRow as PaymentItemRowType,
   GroupRow,
@@ -182,6 +184,7 @@ const PaymentDetail = () => {
     setItems,
     load,
   } = usePaymentDetailData(id);
+  const { byGroup: privateNotes, setNote: setPrivateNote, setMarker: setPrivateMarker } = useUserCompanyNotes(id);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
@@ -2857,16 +2860,24 @@ const PaymentDetail = () => {
               }
               const isPendingForMe = (g: typeof visibleGroups[number]) =>
                 pendingStatusesForMe.has(String(g.status));
-              // Ordem: (1) pendentes para o papel atual primeiro,
-              // (2) com alerta assistencial, (3) maior risco financeiro.
-              // Concluídas mantêm score e alertas, mas descem para o fim.
+              // Prioridade por papel + marcadores pessoais:
+              // 4 = fixado (📌 pinned) — sobe acima de tudo
+              // 3 = pendente para o papel atual e SEM marker waiting/reviewed
+              // 2 = tem alerta assistencial (e não waiting/reviewed)
+              // 1 = default
+              // 0 = waiting/reviewed (descem para o fim)
+              const priorityOf = (g: typeof visibleGroups[number]) => {
+                const m = privateNotes[g.id]?.marker ?? null;
+                if (m === "pinned") return 4;
+                if (m === "waiting" || m === "reviewed") return 0;
+                if (isPendingForMe(g)) return 3;
+                if (groupValidationCount(g) > 0) return 2;
+                return 1;
+              };
               const sortedGroups = [...visibleGroups].sort((a, b) => {
-                const aPend = isPendingForMe(a) ? 1 : 0;
-                const bPend = isPendingForMe(b) ? 1 : 0;
-                if (aPend !== bPend) return bPend - aPend;
-                const aHas = groupValidationCount(a) > 0 ? 1 : 0;
-                const bHas = groupValidationCount(b) > 0 ? 1 : 0;
-                if (aHas !== bHas) return bHas - aHas;
+                const pa = priorityOf(a);
+                const pb = priorityOf(b);
+                if (pa !== pb) return pb - pa;
                 return groupMaxScore(b) - groupMaxScore(a);
               });
               return sortedGroups.map((g) => {
@@ -2903,7 +2914,7 @@ const PaymentDetail = () => {
               if (itemSearch.trim() && !groupNameMatches && matchedItems.length === 0) return null;
               if (isErrorOnly && visibleByFilters.length === 0) return null;
               return (
-                <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20">
+                <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20 space-y-2">
                   <PaymentGroupCard
                     g={g}
                     groupItems={groupItemsAll}
@@ -2931,6 +2942,12 @@ const PaymentDetail = () => {
                     }
                     hasReconciliationRun={hasReconciliationRun}
                     onOpenConciliation={() => openCompanyConciliation(g.company_name)}
+                  />
+                  <PrivateCompanyNote
+                    note={privateNotes[g.id]?.note ?? ""}
+                    marker={privateNotes[g.id]?.marker ?? null}
+                    onNoteChange={(v) => setPrivateNote(g.id, v)}
+                    onMarkerChange={(m) => setPrivateMarker(g.id, m)}
                   />
                 </div>
               );
