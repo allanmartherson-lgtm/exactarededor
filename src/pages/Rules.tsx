@@ -1514,19 +1514,53 @@ const Rules = () => {
   const filtered = useMemo(() => {
     const term = filterTarget.trim();
     const tokens = term ? norm(term).split(/\s+/).filter(Boolean) : [];
+    // Index para resolver company_id → nome/CNPJ rapidamente (regras de grupo).
+    const companyById = new Map<string, { name?: string; cnpj?: string }>();
+    for (const c of companies as any[]) {
+      if (c?.id) companyById.set(c.id, { name: c.name, cnpj: c.cnpj });
+    }
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
       if (tokens.length) {
-        const haystack = norm([
+        const parts: (string | null | undefined)[] = [
           r.name, r.description, r.rule_text,
           r.target_name, r.target_identifier,
-        ].filter(Boolean).join(" "));
+        ];
+
+        // Regras de grupo: incluir empresas e médicos vinculados no haystack.
+        if (r.scope === "grupo") {
+          const links = Array.isArray(r.group_company_links) ? r.group_company_links : [];
+          for (const l of links) {
+            const co = l?.company_id ? companyById.get(l.company_id) : null;
+            parts.push(co?.name, co?.cnpj, l?.company_name);
+            const docs = Array.isArray(l?.doctors) ? l.doctors : [];
+            for (const d of docs) parts.push(d?.name, d?.crm);
+            const exDocs = Array.isArray(l?.excluded_doctors) ? l.excluded_doctors : [];
+            for (const d of exDocs) parts.push(d?.name, d?.crm);
+          }
+          const coIds = Array.isArray(r.group_company_ids) ? r.group_company_ids : [];
+          for (const id of coIds) {
+            const co = companyById.get(id);
+            parts.push(co?.name, co?.cnpj);
+          }
+          const gDocs = Array.isArray(r.group_doctors) ? r.group_doctors : [];
+          for (const d of gDocs) parts.push(d?.name, d?.crm);
+        }
+
+        // Empresa específica: garantir que o nome da empresa do cadastro entre,
+        // mesmo quando target_name foi salvo só com CNPJ ou abreviado.
+        if (r.scope === "especifica" && r.target_type === "empresa" && r.target_company_id) {
+          const co = companyById.get(r.target_company_id);
+          parts.push(co?.name, co?.cnpj);
+        }
+
+        const haystack = norm(parts.filter(Boolean).join(" "));
         if (!tokens.every((t) => haystack.includes(t))) return false;
       }
       return true;
     });
-  }, [rules, filterScope, filterTarget, onlyIncomplete]);
+  }, [rules, filterScope, filterTarget, onlyIncomplete, companies]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
