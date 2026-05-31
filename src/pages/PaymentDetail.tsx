@@ -2860,16 +2860,24 @@ const PaymentDetail = () => {
               }
               const isPendingForMe = (g: typeof visibleGroups[number]) =>
                 pendingStatusesForMe.has(String(g.status));
-              // Ordem: (1) pendentes para o papel atual primeiro,
-              // (2) com alerta assistencial, (3) maior risco financeiro.
-              // Concluídas mantêm score e alertas, mas descem para o fim.
+              // Prioridade por papel + marcadores pessoais:
+              // 4 = fixado (📌 pinned) — sobe acima de tudo
+              // 3 = pendente para o papel atual e SEM marker waiting/reviewed
+              // 2 = tem alerta assistencial (e não waiting/reviewed)
+              // 1 = default
+              // 0 = waiting/reviewed (descem para o fim)
+              const priorityOf = (g: typeof visibleGroups[number]) => {
+                const m = privateNotes[g.id]?.marker ?? null;
+                if (m === "pinned") return 4;
+                if (m === "waiting" || m === "reviewed") return 0;
+                if (isPendingForMe(g)) return 3;
+                if (groupValidationCount(g) > 0) return 2;
+                return 1;
+              };
               const sortedGroups = [...visibleGroups].sort((a, b) => {
-                const aPend = isPendingForMe(a) ? 1 : 0;
-                const bPend = isPendingForMe(b) ? 1 : 0;
-                if (aPend !== bPend) return bPend - aPend;
-                const aHas = groupValidationCount(a) > 0 ? 1 : 0;
-                const bHas = groupValidationCount(b) > 0 ? 1 : 0;
-                if (aHas !== bHas) return bHas - aHas;
+                const pa = priorityOf(a);
+                const pb = priorityOf(b);
+                if (pa !== pb) return pb - pa;
                 return groupMaxScore(b) - groupMaxScore(a);
               });
               return sortedGroups.map((g) => {
