@@ -55,7 +55,7 @@ export function PrivateCompanyNote({ note, marker, onNoteChange, onMarkerChange 
         </div>
         <div className="flex items-center gap-1 ml-auto">
           {markerBtn("pinned", Pin, "Fixar", "bg-warning/15 border-warning text-warning-foreground")}
-          {markerBtn("waiting", Clock, "Aguardando 3º", "bg-info/15 border-info text-info-foreground")}
+          {markerBtn("waiting", Clock, "Aguardando Info", "bg-info/15 border-info text-info-foreground")}
           {markerBtn("reviewed", Check, "Já revisei", "bg-success/15 border-success text-success-foreground")}
           <Button
             type="button"
