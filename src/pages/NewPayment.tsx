@@ -367,6 +367,7 @@ const matrixToJson = (matrix: unknown[][], headerIdx: number): Record<string, un
 
 const NewPayment = () => {
   const { user } = useAuth();
+  const { hospital } = useHospital();
   const navigate = useNavigate();
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
