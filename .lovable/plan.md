@@ -1,140 +1,137 @@
-# Multi-Tenant — Plano de Implementação
+## Objetivo
+Habilitar notificações multi-canal (e-mail corporativo + WhatsApp Business) em cada transição do fluxo de aprovação, com aprovação por magic link assinado direto do e-mail (sem login). Pronto antes do go-live do formulário de acordos.
 
-Baseado nas decisões: **híbrido** (cadastros compartilhados + operacional isolado), **estadual com override local**, **roles globais + escopo opcional**, **DF Star migrado in-place**.
-
----
-
-## 1. Modelo de Dados
-
-### 1.1 Novas tabelas
-
-```sql
-hospitals (
-  id uuid pk,
-  slug text unique,        -- 'df_star'
-  name text,
-  state_uf char(2),        -- 'DF' — chave de compartilhamento
-  cnpj text,
-  active bool,
-  created_at, updated_at
-)
-
-user_hospitals (
-  user_id uuid,
-  hospital_id uuid,
-  role app_role,           -- analista/validador (diretor/admin = global, ignoram esta tabela)
-  primary key (user_id, hospital_id)
-)
-
--- Override local de cadastro estadual
-doctor_hospital_overrides (
-  doctor_id uuid,
-  hospital_id uuid,
-  override_data jsonb,     -- aliases, vínculos PJ, repasse default específicos
-  primary key (doctor_id, hospital_id)
-)
-company_hospital_overrides (...mesma forma...)
-```
-
-### 1.2 Cadastros estaduais (compartilhados)
-
-Adicionar `state_uf` em: `doctors`, `companies`, `convenios`, `sectors`, `doctor_aliases`, `convenio_aliases`, `sector_aliases`.
-RLS: leitura liberada para qualquer usuário cujo hospital ativo esteja no mesmo `state_uf`; escrita exige role admin/diretor estadual.
-
-### 1.3 Operacional (isolado por hospital_id)
-
-Adicionar `hospital_id NOT NULL` em:
-`payments`, `payment_items`, `payment_company_groups`, `payment_observations`, `payment_status_history`, `payment_assignments`, `payment_unmatched_items`, `payment_processing_jobs`, `ai_analysis_versions`, `payment_pivot_cache`, `invoices`, `invoice_questions`, `reconciliation_runs`, `reconciliation_items`, `conciliation_bases`, `glosa_batches`, `glosa_items`, `glosa_debts`, `rules`, `rule_calculations`, `validation_rules`, `reference_tables`, `cost_centers`, `sla_settings`, `system_configurations`, `audit_log`, `notification_queue`, `access_requests`.
-
-Regras podem ser **estaduais** (`hospital_id IS NULL` + `state_uf`) ou **locais** (`hospital_id` definido). Motor resolve com prioridade local → estadual → master.
+## Decisões já tomadas
+- **E-mail**: caixa corporativa via conector (Microsoft Outlook ou Gmail) — envio + inbox monitoring opcional.
+- **WhatsApp**: Twilio WhatsApp Business API com templates aprovados pela Meta.
+- **Aprovação**: magic link com token JWT de uso único e expiração curta.
+- **Eventos no go-live**: atribuição (validador/diretor), perguntas/respostas internas, devoluções, ciclo de NF (recebida/questionada/divergente).
 
 ---
 
-## 2. Permissões & RLS
+## Arquitetura
 
-```sql
--- Helpers SECURITY DEFINER
-public.user_hospital_ids(_uid) returns uuid[]
-public.user_state_ufs(_uid)    returns text[]
-public.is_global_role(_uid)    returns boolean  -- admin/diretor
-public.can_access_hospital(_uid, _hid) returns boolean
-```
-
-Policy pattern por tabela operacional:
-```sql
-USING (public.is_global_role(auth.uid()) 
-       OR hospital_id = ANY(public.user_hospital_ids(auth.uid())))
-```
-
-Pattern cadastros estaduais (leitura):
-```sql
-USING (public.is_global_role(auth.uid())
-       OR state_uf = ANY(public.user_state_ufs(auth.uid())))
+```text
+  Evento de fluxo (trigger DB / edge fn)
+            │
+            ▼
+   ┌──────────────────────┐
+   │ notification_queue   │  (já existe — debounce + retry)
+   └──────────┬───────────┘
+              │
+   notification-queue-worker (existente, estendido)
+              │
+        ┌─────┴─────────────────┐
+        ▼                       ▼
+  channel: email          channel: whatsapp
+  send-email-corporate    send-whatsapp-twilio
+  (conector M365/Gmail)   (Twilio gateway)
+        │                       │
+        └──────┬────────────────┘
+               ▼
+        notification_deliveries
+        (audit por tentativa)
+               │
+   Magic link (e-mail) ──► approve-via-magic-link
+                            (valida JWT, registra aprovação)
 ```
 
 ---
 
-## 3. Migração DF Star (in-place)
+## Mudanças de Banco
 
-Migration em fases, mesmo arquivo:
-1. Criar `hospitals` + seed `df_star` (UF=DF).
-2. ALTER TABLE adicionando `hospital_id` nullable em todas as tabelas operacionais.
-3. UPDATE preenchendo com o id do DF Star.
-4. ALTER ... SET NOT NULL.
-5. ALTER cadastros adicionando `state_uf` com default 'DF'.
-6. Criar `user_hospitals` e seedar todos os usuários atuais como vinculados ao DF Star.
-7. Recriar policies (drop + create) seguindo os patterns acima.
-8. Índices: `(hospital_id, created_at desc)` em payments/items/invoices; `(state_uf, name)` em doctors/companies.
+### Novas tabelas
+- **`notification_channels`** — preferência por usuário×evento (email / whatsapp / ambos / off).
+- **`notification_deliveries`** — log por tentativa: canal, destino, status (enviado/falhou/lido), provider_message_id, erro.
+- **`magic_link_tokens`** — token JWT hash, tipo de ação (aprovar/rejeitar/devolver), payload (payment_id, company_group_id), expira_at, used_at, used_by_ip.
+- **`whatsapp_templates`** — cadastro dos templates aprovados na Meta (sid, nome, variáveis esperadas, evento mapeado).
 
----
+### Extensões
+- `profiles`: `phone_e164` (validado), `whatsapp_opt_in boolean`.
+- `notification_queue`: adicionar `channel` (enum), `template_key`, `target_address`.
 
-## 4. Resolução de Hospital Ativo (App)
-
-- Novo contexto `HospitalContext` em `src/contexts/HospitalContext.tsx`.
-- Hook `useActiveHospital()` retorna `{ hospital, switchHospital, availableHospitals }`.
-- Persistir seleção em `localStorage` + validar contra `user_hospitals` no boot.
-- Header global ganha **seletor de hospital** (visível apenas se usuário tem >1 ou é global).
-- Todas as queries do app filtram por `hospital_id` do contexto (exceto telas globais de admin).
+### RLS
+- `notification_deliveries`: admin vê tudo; usuário vê só os próprios.
+- `magic_link_tokens`: nenhum acesso via API pública (só via edge function service role).
+- `notification_channels`: usuário gerencia os próprios.
 
 ---
 
-## 5. Motor de Regras & Edge Functions
+## Backend (Edge Functions)
 
-- `analyze-payment`, `dispatch-payment-analysis`, `orchestrate-analysis`: receber `hospital_id` no payload; resolver regras com prioridade hospital → estadual → master.
-- `registryLookup.ts`: aceitar `hospital_id`/`state_uf` para escopar lookup; aplicar overrides de `doctor_hospital_overrides` quando houver.
-- `import-wizard`: validar que o lote pertence ao hospital ativo; bloquear se médico/empresa não estiver no mesmo `state_uf`.
-- Auto-aprendizado de aliases: alias gravado com `state_uf` do hospital ativo (compartilhado no estado).
+| Function | Responsabilidade |
+|---|---|
+| `send-email-corporate` (novo) | Envia via conector M365/Gmail. Inclui CTA com magic link quando aplicável. |
+| `send-whatsapp-twilio` (novo) | Envia via Twilio gateway usando template aprovado. Form-encoded. |
+| `notification-queue-worker` (estender) | Despacha por canal de acordo com preferência do usuário. |
+| `approve-via-magic-link` (novo, **público, verify_jwt=false**) | Valida token, executa transição de status, marca `used_at`, redireciona para tela de confirmação. |
+| `whatsapp-inbound-webhook` (novo, público) | Recebe respostas do WhatsApp (futuro). Por ora só loga em `notification_deliveries`. |
+| `email-inbound-poller` (opcional, cron) | Lê inbox via conector para detectar respostas — feature de fase 2, deixar stub. |
 
----
-
-## 6. UI
-
-- Tela `/hospitals` (admin only): CRUD de hospitais.
-- Tela `/users/:id/hospitals`: gerenciar vínculos user × hospital × role.
-- Componente `HospitalSwitcher` no header.
-- Telas de cadastro (Doctors/Convenios/Sectors): mostrar badge "Estadual (DF)" e botão "Override local" quando aplicável.
-- Dashboard ganha filtro de hospital para roles globais.
-
----
-
-## 7. Entregáveis em ordem
-
-1. **Migration 1** — `hospitals`, `user_hospitals`, seed DF Star, vincular usuários existentes.
-2. **Migration 2** — `hospital_id` + `state_uf` em todas as tabelas + backfill + NOT NULL.
-3. **Migration 3** — Helpers SECURITY DEFINER + drop/recreate de todas as RLS policies afetadas.
-4. **Migration 4** — Tabelas de override (`doctor_hospital_overrides`, `company_hospital_overrides`).
-5. **App** — `HospitalContext`, `HospitalSwitcher`, filtros nas queries existentes.
-6. **Edge functions** — propagar `hospital_id` no pipeline de análise.
-7. **Lookup & motor** — escopar por estado e aplicar overrides.
-8. **UI admin** — CRUD de hospitais + gestão de vínculos.
+### Segurança magic link
+- JWT assinado com `MAGIC_LINK_SECRET` (novo runtime secret).
+- Single-use (marca `used_at`), TTL 72h.
+- IP + user-agent registrados na confirmação.
+- Validação cruza `payment_status_history` para evitar aprovação de lote já em outra etapa.
 
 ---
 
-## 8. Riscos & Mitigações
+## Frontend
 
-- **RLS quebrada em produção** → testar cada policy com usuário de hospital diferente antes de promover.
-- **Performance**: `user_hospital_ids()` chamada em toda query — marcar como STABLE e cobrir com índice em `user_hospitals(user_id)`.
-- **Aliases estaduais conflitantes** entre hospitais do mesmo estado → unique `(state_uf, alias_normalized, canonical_id)`; override local sobrescreve.
-- **Edge functions com cache** (pivot, processing_jobs) — invalidar por `hospital_id`.
+- **`/aprovar/:token`** — landing page pública: valida token via edge fn, mostra resumo do lote, botões Aprovar/Rejeitar/Devolver. Confirmação visual + auditoria.
+- **`/configuracoes/notificacoes`** — usuário escolhe canal por tipo de evento, cadastra telefone, faz opt-in WhatsApp.
+- **`/admin/integracoes`** — admin gerencia: status dos conectores (M365/Gmail/Twilio), templates WhatsApp ativos, histórico de entregas, reenvio manual.
+- **Componente `NotificationDeliveryLog`** — timeline na tela do pagamento mostrando o que foi enviado/lido por canal.
 
-Confirma o plano para eu começar pela **Migration 1**? Se quiser ajustar (ex.: começar só pela estrutura sem mexer em RLS), me diz antes.
+---
+
+## Templates iniciais (WhatsApp + e-mail HTML)
+
+| Evento | E-mail | WhatsApp template |
+|---|---|---|
+| Atribuição validador | sim (com link login) | `lote_atribuido_v1` |
+| Atribuição diretor | sim (com **magic link aprovar/rejeitar**) | `aprovacao_pendente_v1` |
+| Pergunta interna | sim | `nova_pergunta_v1` |
+| Resposta de pergunta | sim | `resposta_pergunta_v1` |
+| Devolução | sim | `lote_devolvido_v1` |
+| NF recebida | sim | `nf_recebida_v1` |
+| NF questionada/divergente | sim | `nf_alerta_v1` |
+
+---
+
+## Conectores e secrets necessários
+
+1. **Microsoft Outlook** ou **Gmail** — conectar caixa corporativa via `standard_connectors--connect`.
+2. **Twilio** — conectar com API Key que tenha permissão de envio WhatsApp.
+3. **Novo runtime secret**: `MAGIC_LINK_SECRET` (HS256 para JWT).
+4. **Variáveis de config** (system_configurations): número WhatsApp From, e-mail From, domínio base do magic link.
+
+---
+
+## Plano de entrega (sequência)
+
+1. **Conexões** — linkar conector de e-mail (Outlook/Gmail) e Twilio; cadastrar `MAGIC_LINK_SECRET`.
+2. **Schema** — migration com as 4 novas tabelas, extensões em `profiles` e `notification_queue`, RLS + grants.
+3. **Edge functions de envio** — `send-email-corporate` e `send-whatsapp-twilio` isolados e testáveis via `curl_edge_functions`.
+4. **Magic link** — edge fn `approve-via-magic-link` + página `/aprovar/:token` + integração com `is_valid_status_transition`.
+5. **Worker** — estender `notification-queue-worker` para roteamento por canal + log em `notification_deliveries`.
+6. **Templates** — cadastrar 7 templates no Twilio Console (lado humano) e em `whatsapp_templates`; HTML branded para e-mail.
+7. **UI** — preferências do usuário, painel admin de integrações, timeline de entregas no PaymentDetail.
+8. **Smoke test end-to-end** — disparar cada um dos 7 eventos em DF Star com usuário de teste.
+
+---
+
+## Pendências do usuário (fora do escopo de código)
+
+- Aprovar 7 templates WhatsApp na Meta via Twilio Console (~2–5 dias úteis de aprovação Meta).
+- Decidir qual caixa corporativa será conectada (Outlook ou Gmail) e fornecer no fluxo de OAuth.
+- Definir e-mail/telefone de remetente oficial.
+- Validar com jurídico/LGPD o uso de magic link para aprovação financeira.
+
+---
+
+## Riscos
+- **Aprovação Meta dos templates** é gargalo externo — começar essa esteira em paralelo ao desenvolvimento.
+- **Caixa corporativa OAuth**: token expira; gateway refresh resolve mas requer reconexão se TI revogar.
+- **LGPD/auditoria**: aprovação por link precisa registro robusto (IP, UA, timestamp) — já contemplado.
+- **Reply parsing por e-mail** foi descartado em favor do magic link — mais confiável e auditável.
