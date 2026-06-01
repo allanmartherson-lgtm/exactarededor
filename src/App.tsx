@@ -193,6 +193,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+          <HospitalProvider>
           <IdlePrefetcher />
           <ErrorBoundary>
             <Suspense fallback={<PageLoader />}>
