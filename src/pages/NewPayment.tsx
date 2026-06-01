@@ -38,6 +38,7 @@ import {
   resolveDoctor,
   resolveConvenio,
   resolveSector,
+  learnAliasesFromResolvedRows,
   type DoctorRegistry,
   type ConvenioRegistry,
   type SectorRegistry,
