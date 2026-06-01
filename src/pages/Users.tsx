@@ -34,8 +34,9 @@ const Users = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "",
-    roles: [] as AppRole[], send_invite: true,
+    roles: [] as AppRole[], send_invite: true, primary_hospital_id: "" as string,
   });
+  const [hospitalsList, setHospitalsList] = useState<{ id: string; name: string; state_uf: string }[]>([]);
   const [accessRequestId, setAccessRequestId] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
   const [rejecting, setRejecting] = useState<{ id: string; reason: string } | null>(null);
@@ -354,7 +355,7 @@ const Users = () => {
     }
   };
   const resetForm = () => {
-    setForm({ email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true });
+    setForm({ email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true, primary_hospital_id: "" });
     setAccessRequestId(null);
     setTempPwd(null);
   };
@@ -382,6 +383,7 @@ const Users = () => {
           send_invite: form.send_invite,
           app_origin: getPasswordRecoveryOrigin(),
           access_request_id: accessRequestId,
+          primary_hospital_id: form.primary_hospital_id || null,
         },
       });
       if (error) throw error;
