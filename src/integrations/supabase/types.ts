@@ -2872,7 +2872,7 @@ export type Database = {
           id: string
           kind: string
           last_event_at: string
-          payment_id: string
+          payment_id: string | null
           sender_ids: string[]
           sent_at: string | null
           sent_meta: Json | null
@@ -2891,7 +2891,7 @@ export type Database = {
           id?: string
           kind: string
           last_event_at?: string
-          payment_id: string
+          payment_id?: string | null
           sender_ids?: string[]
           sent_at?: string | null
           sent_meta?: Json | null
@@ -2910,7 +2910,7 @@ export type Database = {
           id?: string
           kind?: string
           last_event_at?: string
-          payment_id?: string
+          payment_id?: string | null
           sender_ids?: string[]
           sent_at?: string | null
           sent_meta?: Json | null
