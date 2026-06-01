@@ -986,6 +986,7 @@ MOTOR DETERMINÍSTICO já decidiu a regra e o valor. Sua missão é APONTAR FALH
 - O procedimento faz sentido para o contexto?
 - Identifique duplicidades de cobrança no mesmo atendimento.
 - Setor é filtro OPCIONAL. Nunca peça para cadastrar setor se a regra não o exige.
+- SETOR DA PLANILHA É VERDADE: a coluna "Setor" enviada pelo analista é fonte de verdade. NUNCA infira setor pelo tipo de procedimento (ex.: cateterismo → "deve ser Centro Cirúrgico") nem sobrescreva o que está declarado. Se o setor declarado parecer inconsistente com o procedimento, apenas registre como observação informativa — jamais como alerta de regra ou divergência de cálculo.
 NUNCA mude status ou valores. Sua saída auxilia a decisão humana.
 ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${correctionContext}${historyText}`;
 

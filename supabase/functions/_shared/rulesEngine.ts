@@ -15,6 +15,7 @@
 
 import { applyConvenioStems, recordLearnedAlias } from "./convenioStems.ts";
 import { isBrazilianNationalHoliday } from "./brHolidays.ts";
+import { applySectorStems } from "./sectorStems.ts";
 
 /** Arredonda para 2 casas decimais. */
 const round2 = (n: number) => Number(n.toFixed(2));
@@ -428,8 +429,22 @@ export function extendSectorMap(entries: Array<{ slug: string; aliases: string[]
 }
 
 export function inferItemSector(item: ItemInput, ctx?: PaymentContext): string {
-  // 1. Prioridade máxima: setor informado na planilha (se for um valor útil)
+  // 1. Prioridade máxima: setor informado na planilha (se for um valor útil).
+  //
+  //    REGRA DE OURO: o setor declarado pelo analista na coluna "Setor" é
+  //    fonte de verdade. NUNCA pode ser sobrescrito por inferência baseada
+  //    no procedimento (procedure_classifications), que só atua quando a
+  //    planilha NÃO traz setor (caso legado).
   if (item.sector) {
+    // 1a. Stems determinísticos primeiro — garantem que termos canônicos
+    //     ("Hemodinâmica", "Centro Cirúrgico", "UTI", "Parecer", "RPA", ...)
+    //     resolvam para a CATEGORIA canônica do motor, mesmo quando a tabela
+    //     `sectors` usa slug numérico (ex.: "1574" para Hemodinâmica DFStar)
+    //     ou está vazia/desatualizada. Sem isso, planilhas com "Hemodinâmica"
+    //     caíam erroneamente no bucket de Centro Cirúrgico.
+    const stem = applySectorStems(item.sector);
+    if (stem) return stem;
+
     const s = normName(item.sector);
     if (s !== "outro" && s !== "outros") {
       const resolved = SECTOR_MAP[s];
