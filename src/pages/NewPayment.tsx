@@ -1356,6 +1356,31 @@ const NewPayment = () => {
       } catch (e) {
         console.warn("[enrich_doctor_documents] falhou (não-bloqueante):", e);
       }
+      // Auto-aprendizado: quando o motor casou via CRM/CPF/slug mas o texto bruto
+      // diverge do canônico, cria alias auto. Próximas importações resolvem direto.
+      try {
+        const learnRows = matchedItems.map((it: any) => ({
+          doctor_id: it.doctor_id,
+          doctor_matched_by: it.doctor_matched_by,
+          doctor_name: it.doctor_name,
+          convenio_slug: it.convenio_slug,
+          convenio_matched_by: it.convenio_matched_by,
+          agreement_text: it.agreement_text,
+          sector_slug: it.sector_slug,
+          sector_matched_by: it.sector_matched_by,
+          sector_raw: it.sector,
+        }));
+        const learned = await learnAliasesFromResolvedRows(learnRows, { doctorReg, convenioReg, sectorReg });
+        const total = learned.doctor + learned.convenio + learned.sector;
+        if (total > 0) {
+          toast({
+            title: `Motor aprendeu ${total} apelido${total === 1 ? "" : "s"}`,
+            description: `Médicos: ${learned.doctor} · Convênios: ${learned.convenio} · Setores: ${learned.sector}. Próximas importações vão reconhecer essas variações automaticamente.`,
+          });
+        }
+      } catch (e) {
+        console.warn("[learn-alias] falhou (não-bloqueante):", e);
+      }
     }
 
     if (unmatchedItems.length > 0) {
