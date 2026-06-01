@@ -41,6 +41,7 @@ import { SystemAnnouncementBanner } from "@/components/SystemAnnouncementBanner"
 import { useCurrentVersion } from "@/hooks/useSystemVersion";
 import { useConversasUnread } from "@/hooks/useConversasUnread";
 import { Link } from "react-router-dom";
+import { HospitalSwitcher } from "@/components/HospitalSwitcher";
 
 /** Bolinha vermelha de não lidas para o item Conversas. */
 const ConversasBadgeDot = ({ count, absolute = false }: { count: number; absolute?: boolean }) => {
@@ -897,6 +898,7 @@ export const AppLayout = () => {
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
+              <HospitalSwitcher className="hidden md:inline-flex" />
               <PortalUnreadBadge />
               <NotificationBell />
               <div className="hidden md:flex items-center gap-1">

@@ -13,6 +13,7 @@ import { CostCenterCombobox } from "@/components/CostCenterCombobox";
 import { MonthMultiSelect } from "@/components/MonthMultiSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
 import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentType, type PaymentKind } from "@/lib/status";
@@ -366,6 +367,7 @@ const matrixToJson = (matrix: unknown[][], headerIdx: number): Record<string, un
 
 const NewPayment = () => {
   const { user } = useAuth();
+  const { hospital } = useHospital();
   const navigate = useNavigate();
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
@@ -1190,6 +1192,7 @@ const NewPayment = () => {
         items_count: allRows.length,
         source_file_path: uploadedPaths[0] ?? null,
         created_by: user!.id,
+        hospital_id: hospital?.id ?? null,
         competence_month: `${[...competenceMonths].sort()[0]}-01`,
         competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         payment_due_date: paymentDueDate || null,
