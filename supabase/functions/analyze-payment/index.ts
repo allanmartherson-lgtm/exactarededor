@@ -1822,6 +1822,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
               .eq("slug", slug);
             console.log(`${__t} [learn-convenio] ${slug}: +${fresh.length} alias(es): ${fresh.slice(0, 3).join(" | ")}${fresh.length > 3 ? "..." : ""}`);
           }
+          // Espelha em convenio_aliases (source='auto') para o pipeline estrito
+          // aprender junto com a tabela legada. Idempotente: ignora duplicidade
+          // do índice único alias_normalized.
+          if (aliases.length) {
+            const rows = aliases.map((a) => ({ convenio_slug: slug, alias_text: a, source: "auto" as const }));
+            const { error: aliasErr } = await supabase.from("convenio_aliases").insert(rows);
+            if (aliasErr && !/duplicate|unique|conflict/i.test(aliasErr.message ?? "")) {
+              console.warn(`${__t} [learn-convenio] convenio_aliases insert falhou: ${aliasErr.message}`);
+            }
+          }
         }
       }
     } catch (learnErr) {
