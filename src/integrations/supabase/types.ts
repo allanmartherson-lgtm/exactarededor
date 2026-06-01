@@ -841,6 +841,44 @@ export type Database = {
           },
         ]
       }
+      convenio_aliases: {
+        Row: {
+          alias_normalized: string | null
+          alias_text: string
+          convenio_slug: string
+          created_at: string
+          created_by: string | null
+          id: string
+          source: string
+        }
+        Insert: {
+          alias_normalized?: string | null
+          alias_text: string
+          convenio_slug: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          source?: string
+        }
+        Update: {
+          alias_normalized?: string | null
+          alias_text?: string
+          convenio_slug?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "convenio_aliases_convenio_slug_fkey"
+            columns: ["convenio_slug"]
+            isOneToOne: false
+            referencedRelation: "convenios"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
       convenios: {
         Row: {
           active: boolean
@@ -975,6 +1013,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      doctor_aliases: {
+        Row: {
+          alias_normalized: string | null
+          alias_text: string
+          created_at: string
+          created_by: string | null
+          doctor_id: string
+          id: string
+          source: string
+        }
+        Insert: {
+          alias_normalized?: string | null
+          alias_text: string
+          created_at?: string
+          created_by?: string | null
+          doctor_id: string
+          id?: string
+          source?: string
+        }
+        Update: {
+          alias_normalized?: string | null
+          alias_text?: string
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string
+          id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_aliases_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       doctor_companies: {
         Row: {
@@ -2380,6 +2456,8 @@ export type Database = {
           company_name: string | null
           complement_reason: string | null
           convenio_basis_detected: string | null
+          convenio_matched_by: string | null
+          convenio_slug: string | null
           convenio_value_totalized: boolean
           cost_center_code: string | null
           created_at: string
@@ -2387,6 +2465,7 @@ export type Database = {
           doctor_document: string | null
           doctor_email: string | null
           doctor_id: string | null
+          doctor_matched_by: string | null
           doctor_name: string
           doctor_role: string | null
           empresa_liquido_total: number | null
@@ -2414,7 +2493,9 @@ export type Database = {
           rateio: Json | null
           raw_data: Json | null
           sector: string | null
+          sector_matched_by: string | null
           sector_original: string | null
+          sector_slug: string | null
           specialty: string | null
           tipo_item: string | null
           tipo_linha: string | null
@@ -2442,6 +2523,8 @@ export type Database = {
           company_name?: string | null
           complement_reason?: string | null
           convenio_basis_detected?: string | null
+          convenio_matched_by?: string | null
+          convenio_slug?: string | null
           convenio_value_totalized?: boolean
           cost_center_code?: string | null
           created_at?: string
@@ -2449,6 +2532,7 @@ export type Database = {
           doctor_document?: string | null
           doctor_email?: string | null
           doctor_id?: string | null
+          doctor_matched_by?: string | null
           doctor_name: string
           doctor_role?: string | null
           empresa_liquido_total?: number | null
@@ -2476,7 +2560,9 @@ export type Database = {
           rateio?: Json | null
           raw_data?: Json | null
           sector?: string | null
+          sector_matched_by?: string | null
           sector_original?: string | null
+          sector_slug?: string | null
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
@@ -2504,6 +2590,8 @@ export type Database = {
           company_name?: string | null
           complement_reason?: string | null
           convenio_basis_detected?: string | null
+          convenio_matched_by?: string | null
+          convenio_slug?: string | null
           convenio_value_totalized?: boolean
           cost_center_code?: string | null
           created_at?: string
@@ -2511,6 +2599,7 @@ export type Database = {
           doctor_document?: string | null
           doctor_email?: string | null
           doctor_id?: string | null
+          doctor_matched_by?: string | null
           doctor_name?: string
           doctor_role?: string | null
           empresa_liquido_total?: number | null
@@ -2538,7 +2627,9 @@ export type Database = {
           rateio?: Json | null
           raw_data?: Json | null
           sector?: string | null
+          sector_matched_by?: string | null
           sector_original?: string | null
+          sector_slug?: string | null
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
@@ -2574,6 +2665,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_items_convenio_slug_fkey"
+            columns: ["convenio_slug"]
+            isOneToOne: false
+            referencedRelation: "convenios"
+            referencedColumns: ["slug"]
+          },
+          {
             foreignKeyName: "payment_items_doctor_id_fkey"
             columns: ["doctor_id"]
             isOneToOne: false
@@ -2600,6 +2698,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_sector_slug_fkey"
+            columns: ["sector_slug"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["slug"]
           },
         ]
       }
@@ -4526,6 +4631,44 @@ export type Database = {
           },
         ]
       }
+      sector_aliases: {
+        Row: {
+          alias_normalized: string | null
+          alias_text: string
+          created_at: string
+          created_by: string | null
+          id: string
+          sector_slug: string
+          source: string
+        }
+        Insert: {
+          alias_normalized?: string | null
+          alias_text: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          sector_slug: string
+          source?: string
+        }
+        Update: {
+          alias_normalized?: string | null
+          alias_text?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          sector_slug?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sector_aliases_sector_slug_fkey"
+            columns: ["sector_slug"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
       sectors: {
         Row: {
           active: boolean
@@ -5651,6 +5794,7 @@ export type Database = {
       merge_doctors_from_staging: { Args: never; Returns: Json }
       norm_for_hash: { Args: { s: string }; Returns: string }
       norm_name: { Args: { t: string }; Returns: string }
+      normalize_alias: { Args: { t: string }; Returns: string }
       normalize_sector: { Args: { input: string }; Returns: string }
       only_digits: { Args: { txt: string }; Returns: string }
       payments_global_stats: { Args: never; Returns: Json }
