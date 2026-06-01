@@ -6438,6 +6438,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      hospital_scope_allows: {
+        Args: { _hospital_id: string }
+        Returns: boolean
+      }
       ignore_glosa_debt: {
         Args: { _debt_id: string; _reason: string }
         Returns: undefined
@@ -6475,6 +6479,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      is_any_company_portal_user: { Args: { _uid: string }; Returns: boolean }
+      is_any_doctor_portal_user: { Args: { _uid: string }; Returns: boolean }
       is_company_portal_user: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
@@ -6488,6 +6494,7 @@ export type Database = {
         Args: { p_payment_id: string }
         Returns: boolean
       }
+      is_portal_user: { Args: { _uid: string }; Returns: boolean }
       is_valid_status_transition: {
         Args: {
           _from: Database["public"]["Enums"]["payment_status"]
@@ -6651,6 +6658,7 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      state_scope_allows: { Args: { _state_uf: string }; Returns: boolean }
       unaccent: { Args: { "": string }; Returns: string }
       undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
       unignore_glosa_debt: { Args: { _debt_id: string }; Returns: undefined }
