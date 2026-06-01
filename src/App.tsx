@@ -72,6 +72,7 @@ const loadPendenciaDetail = () => import("./pages/PendenciaDetail.tsx");
 const loadConversas = () => import("./pages/Conversas.tsx");
 const loadHospitals = () => import("./pages/Hospitals.tsx");
 const loadSelectHospital = () => import("./pages/SelectHospital.tsx");
+const loadPortalUsers = () => import("./pages/PortalUsers.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -126,6 +127,7 @@ const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
 const Hospitals = lazy(loadHospitals);
 const SelectHospital = lazy(loadSelectHospital);
+const PortalUsers = lazy(loadPortalUsers);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -250,6 +252,7 @@ const App = () => (
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
                   <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
+                  <Route path="/portal-usuarios" element={<ProtectedRoute roles={["admin"]}><PortalUsers /></ProtectedRoute>} />
                   <Route path="/produtividade-analistas" element={<ProtectedRoute roles={["diretor", "admin"]}><AnalystProductivity /></ProtectedRoute>} />
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
