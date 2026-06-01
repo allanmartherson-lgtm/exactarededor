@@ -78,20 +78,18 @@ Deno.serve(async (req) => {
     if (elapsed >= budget) {
       const tbl = TABLE_BY_CHANNEL[t.channel];
       await supa.from(tbl).update({ sla_alerted_at: now.toISOString() }).eq("id", t.thread_id);
-      if (t.payment_id) {
-        await supa.from("notification_queue").insert({
-          kind: "comm_sla_breached",
-          payment_id: t.payment_id,
-          hospital_id: t.hospital_id,
-          events: [{
-            channel: t.channel,
-            thread_id: t.thread_id,
-            assigned_to: t.assigned_to,
-            elapsed_hours: Number(elapsed.toFixed(2)),
-            budget_hours: budget,
-          }],
-        });
-      }
+      await supa.from("notification_queue").insert({
+        kind: "comm_sla_breached",
+        payment_id: t.payment_id,
+        hospital_id: t.hospital_id,
+        events: [{
+          channel: t.channel,
+          thread_id: t.thread_id,
+          assigned_to: t.assigned_to,
+          elapsed_hours: Number(elapsed.toFixed(2)),
+          budget_hours: budget,
+        }],
+      });
       alerted += 1;
     }
   }
