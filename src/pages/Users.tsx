@@ -34,8 +34,9 @@ const Users = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "",
-    roles: [] as AppRole[], send_invite: true,
+    roles: [] as AppRole[], send_invite: true, primary_hospital_id: "" as string,
   });
+  const [hospitalsList, setHospitalsList] = useState<{ id: string; name: string; state_uf: string }[]>([]);
   const [accessRequestId, setAccessRequestId] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
   const [rejecting, setRejecting] = useState<{ id: string; reason: string } | null>(null);
@@ -224,12 +225,19 @@ const Users = () => {
     setRequests(data ?? []);
   };
   useEffect(() => { document.title = "Usuários | Exacta"; load(); loadRequests(); }, [isAdmin]);
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase.from("hospitals").select("id, name, state_uf").eq("active", true).order("name").then(({ data }) => {
+      setHospitalsList((data ?? []) as { id: string; name: string; state_uf: string }[]);
+    });
+  }, [isAdmin]);
 
   const openCreateFromRequest = (r: any) => {
     setForm({
       email: r.email, full_name: r.full_name, phone: r.phone, role_title: r.role_title,
       department: r.department, birth_date: r.birth_date,
       roles: (r.requested_roles ?? ["analista"]) as AppRole[], send_invite: true,
+      primary_hospital_id: "",
     });
     setAccessRequestId(r.id);
     setOpen(true);
@@ -354,7 +362,7 @@ const Users = () => {
     }
   };
   const resetForm = () => {
-    setForm({ email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true });
+    setForm({ email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true, primary_hospital_id: "" });
     setAccessRequestId(null);
     setTempPwd(null);
   };
@@ -382,6 +390,7 @@ const Users = () => {
           send_invite: form.send_invite,
           app_origin: getPasswordRecoveryOrigin(),
           access_request_id: accessRequestId,
+          primary_hospital_id: form.primary_hospital_id || null,
         },
       });
       if (error) throw error;
@@ -461,6 +470,22 @@ const Users = () => {
                   <div className="space-y-2">
                     <Label>Data de nascimento *</Label>
                     <Input type="date" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Hospital principal</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.primary_hospital_id}
+                      onChange={(e) => setForm({ ...form, primary_hospital_id: e.target.value })}
+                    >
+                      <option value="">— Não definir agora —</option>
+                      {hospitalsList.map((h) => (
+                        <option key={h.id} value={h.id}>{h.name} ({h.state_uf})</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      Hospital pré-selecionado quando o usuário fizer login. Ele pode trocar a qualquer momento pelo seletor do topo. O vínculo de acesso ao hospital é criado automaticamente.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label>Papéis</Label>

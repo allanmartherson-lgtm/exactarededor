@@ -45,6 +45,7 @@ serve(async (req) => {
     const roles: string[] = Array.isArray(body.roles) ? body.roles : [];
     const sendInvite = body.send_invite !== false; // default true
     const accessRequestId = body.access_request_id ? String(body.access_request_id) : null;
+    const primaryHospitalId = body.primary_hospital_id ? String(body.primary_hospital_id) : null;
     const rawOrigin = String(body.app_origin ?? "").trim();
     // Sanitiza origem para evitar open-redirect: aceita apenas ambientes Lovable e localhost.
     const isAllowedOrigin = (o: string) => {
@@ -146,6 +147,17 @@ serve(async (req) => {
       await admin.from("user_roles").insert(
         filtered.map((role) => ({ user_id: newUserId, role }))
       );
+    }
+
+    // Hospital principal (cria vínculo em user_hospitals + grava em profiles)
+    if (primaryHospitalId) {
+      const primaryRole = filtered.includes("validador") ? "validador" : "analista";
+      const { error: hospErr } = await admin.rpc("set_primary_hospital_for_user", {
+        _user_id: newUserId,
+        _hospital_id: primaryHospitalId,
+        _role: primaryRole,
+      });
+      if (hospErr) console.error("set_primary_hospital_for_user failed", hospErr);
     }
 
     if (accessRequestId) {

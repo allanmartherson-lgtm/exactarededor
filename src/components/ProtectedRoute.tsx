@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import type { AppRole } from "@/lib/status";
 
 interface ProtectedRouteProps {
@@ -9,9 +10,10 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children, roles }: ProtectedRouteProps) => {
   const { user, roles: userRoles, loading, rolesLoading } = useAuth();
+  const { needsSelection, loading: hospitalLoading } = useHospital();
   const location = useLocation();
 
-  if (loading || (user && roles && rolesLoading)) {
+  if (loading || (user && roles && rolesLoading) || (user && hospitalLoading)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -23,10 +25,14 @@ export const ProtectedRoute = ({ children, roles }: ProtectedRouteProps) => {
     return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
   }
 
-  // Força troca de senha temporária no primeiro acesso (reset feito por admin)
   const mustReset = (user.user_metadata as Record<string, unknown> | undefined)?.must_reset_password === true;
   if (mustReset && location.pathname !== "/trocar-senha") {
     return <Navigate to="/trocar-senha" replace />;
+  }
+
+  // Redireciona para seleção de hospital quando o usuário tem +1 e nenhum escolhido.
+  if (needsSelection && location.pathname !== "/selecionar-hospital") {
+    return <Navigate to="/selecionar-hospital" state={{ from: location.pathname }} replace />;
   }
 
   if (roles && !roles.some((r) => userRoles.includes(r))) {

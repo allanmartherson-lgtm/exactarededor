@@ -4438,6 +4438,7 @@ export type Database = {
           id: string
           phone: string | null
           preferences: Json
+          primary_hospital_id: string | null
           role_title: string | null
           updated_at: string
         }
@@ -4450,6 +4451,7 @@ export type Database = {
           id: string
           phone?: string | null
           preferences?: Json
+          primary_hospital_id?: string | null
           role_title?: string | null
           updated_at?: string
         }
@@ -4462,10 +4464,19 @@ export type Database = {
           id?: string
           phone?: string | null
           preferences?: Json
+          primary_hospital_id?: string | null
           role_title?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_primary_hospital_id_fkey"
+            columns: ["primary_hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reconciliation_items: {
         Row: {
@@ -6674,6 +6685,14 @@ export type Database = {
           linked_since: string
           rule_id: string
         }[]
+      }
+      set_primary_hospital_for_user: {
+        Args: {
+          _hospital_id: string
+          _role?: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: undefined
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }

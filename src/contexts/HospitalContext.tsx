@@ -14,8 +14,15 @@ export interface Hospital {
 interface HospitalContextValue {
   hospital: Hospital | null;
   availableHospitals: Hospital[];
+  primaryHospitalId: string | null;
   isGlobal: boolean;
   loading: boolean;
+  /**
+   * True quando o usuário tem +1 hospital acessível, nenhum escolhido ainda
+   * (localStorage vazio e sem primary_hospital_id resolvido). Sinaliza para
+   * o ProtectedRoute redirecionar à tela /selecionar-hospital.
+   */
+  needsSelection: boolean;
   switchHospital: (hospitalId: string) => void;
   refresh: () => Promise<void>;
 }
@@ -28,7 +35,9 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
   const { user, hasRole, loading: authLoading } = useAuth();
   const [availableHospitals, setAvailableHospitals] = useState<Hospital[]>([]);
   const [hospital, setHospital] = useState<Hospital | null>(null);
+  const [primaryHospitalId, setPrimaryHospitalId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsSelection, setNeedsSelection] = useState(false);
 
   const isGlobal = hasRole("admin") || hasRole("diretor");
 
@@ -36,17 +45,26 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     if (!user) {
       setHospital(null);
       setAvailableHospitals([]);
+      setPrimaryHospitalId(null);
+      setNeedsSelection(false);
       setLoading(false);
       return;
     }
     setLoading(true);
 
-    // Usa RPC que já considera: global role, user_hospitals e hospitais derivados
-    // dos portais (company_portal_users / doctor_portal_users).
+    // Hospital principal cadastrado no perfil (default pós-login)
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("primary_hospital_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    const primary = (profile?.primary_hospital_id as string | null) ?? null;
+    setPrimaryHospitalId(primary);
+
+    // Hospitais acessíveis (considera global role, user_hospitals e portais)
     const { data, error } = await supabase.rpc("my_accessible_hospitals");
     let hospitals: Hospital[] = [];
     if (error) {
-      // Fallback: tenta listar diretamente (admin/diretor passam por aqui se a RPC falhar)
       const { data: fallback } = await supabase
         .from("hospitals")
         .select("*")
@@ -56,20 +74,24 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     } else {
       hospitals = ((data ?? []) as Hospital[]).filter((h) => h.active);
     }
-
     setAvailableHospitals(hospitals);
 
-    // Resolve hospital ativo: localStorage → primeiro disponível
+    // Resolução:
+    //  1) localStorage (escolha explícita prévia)
+    //  2) primary_hospital_id do perfil (default cadastrado pelo admin)
+    //  3) único disponível → auto
+    //  4) +1 disponível → null + needsSelection = true (UI redireciona p/ /selecionar-hospital)
     const stored = localStorage.getItem(STORAGE_KEY);
-    const active =
-      hospitals.find((h) => h.id === stored) ??
-      hospitals.find((h) => h.slug === "df_star") ??
-      hospitals[0] ??
-      null;
+    let active: Hospital | null = null;
+    if (stored) active = hospitals.find((h) => h.id === stored) ?? null;
+    if (!active && primary) active = hospitals.find((h) => h.id === primary) ?? null;
+    if (!active && hospitals.length === 1) active = hospitals[0];
+
     setHospital(active);
+    setNeedsSelection(!active && hospitals.length > 1);
     if (active) localStorage.setItem(STORAGE_KEY, active.id);
     setLoading(false);
-  }, [user, isGlobal]);
+  }, [user]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -81,6 +103,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
       const next = availableHospitals.find((h) => h.id === hospitalId);
       if (!next) return;
       setHospital(next);
+      setNeedsSelection(false);
       localStorage.setItem(STORAGE_KEY, next.id);
     },
     [availableHospitals],
@@ -88,7 +111,16 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <HospitalContext.Provider
-      value={{ hospital, availableHospitals, isGlobal, loading, switchHospital, refresh: load }}
+      value={{
+        hospital,
+        availableHospitals,
+        primaryHospitalId,
+        isGlobal,
+        loading,
+        needsSelection,
+        switchHospital,
+        refresh: load,
+      }}
     >
       {children}
     </HospitalContext.Provider>
@@ -101,7 +133,6 @@ export const useHospital = () => {
   return ctx;
 };
 
-/** Helper para inserts: retorna o id do hospital ativo ou lança erro claro. */
 export const useActiveHospitalId = (): string | null => {
   const { hospital } = useHospital();
   return hospital?.id ?? null;

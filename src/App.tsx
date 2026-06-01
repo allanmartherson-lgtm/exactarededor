@@ -71,6 +71,7 @@ const loadPendencias = () => import("./pages/Pendencias.tsx");
 const loadPendenciaDetail = () => import("./pages/PendenciaDetail.tsx");
 const loadConversas = () => import("./pages/Conversas.tsx");
 const loadHospitals = () => import("./pages/Hospitals.tsx");
+const loadSelectHospital = () => import("./pages/SelectHospital.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -124,6 +125,7 @@ const Pendencias = lazy(loadPendencias);
 const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
 const Hospitals = lazy(loadHospitals);
+const SelectHospital = lazy(loadSelectHospital);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -209,6 +211,7 @@ const App = () => (
                 <Route path="/trocar-senha" element={<ForceChangePassword />} />
                 <Route path="/preview-paletas" element={<PreviewPalettes />} />
                 <Route path="/preview-design-systems" element={<PreviewDesignSystems />} />
+                <Route path="/selecionar-hospital" element={<ProtectedRoute><SelectHospital /></ProtectedRoute>} />
                 
                 <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                   <Route path="/" element={<Dashboard />} />
