@@ -81,6 +81,7 @@ const loadHospitalSwitchLog = () => import("./pages/HospitalSwitchLog.tsx");
 const loadApproveMagicLink = () => import("./pages/ApproveMagicLink.tsx");
 const loadNotificationPreferences = () => import("./pages/NotificationPreferences.tsx");
 const loadIntegrationsAdmin = () => import("./pages/IntegrationsAdmin.tsx");
+const loadCommunicationSupervision = () => import("./pages/CommunicationSupervision.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
