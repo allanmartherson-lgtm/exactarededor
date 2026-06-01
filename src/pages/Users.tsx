@@ -231,6 +231,7 @@ const Users = () => {
       email: r.email, full_name: r.full_name, phone: r.phone, role_title: r.role_title,
       department: r.department, birth_date: r.birth_date,
       roles: (r.requested_roles ?? ["analista"]) as AppRole[], send_invite: true,
+      primary_hospital_id: "",
     });
     setAccessRequestId(r.id);
     setOpen(true);
