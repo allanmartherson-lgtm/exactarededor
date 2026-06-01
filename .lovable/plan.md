@@ -1,86 +1,140 @@
-# Lookup Estrito com Tabelas de Cadastro
+# Multi-Tenant — Plano de Implementação
 
-## Objetivo
-Eliminar inferência livre de médicos, convênios e setores. Toda linha importada precisa casar com um registro do cadastro — diretamente, via alias ou via documento (CRM/CNPJ). Sem match = linha bloqueada até o analista resolver.
+Baseado nas decisões: **híbrido** (cadastros compartilhados + operacional isolado), **estadual com override local**, **roles globais + escopo opcional**, **DF Star migrado in-place**.
 
-Resolve o bug "pacientes como médicos" da Leal e Arratia: como o nome do paciente não existe no cadastro de médicos nem como alias, a linha vai parar na fila de resolução em vez de ser aceita silenciosamente.
+---
 
-## 1. Schema — tabelas de alias
+## 1. Modelo de Dados
 
-Criar três tabelas espelhadas:
+### 1.1 Novas tabelas
 
-- `doctor_aliases` (id, doctor_id → doctors, alias_text, alias_normalized UNIQUE, created_by, created_at)
-- `convenio_aliases` (id, convenio_id → convenios, alias_text, alias_normalized UNIQUE, source: 'manual'|'auto', created_by, created_at)
-- `sector_aliases` (id, sector_id → sectors, alias_text, alias_normalized UNIQUE, created_by, created_at)
+```sql
+hospitals (
+  id uuid pk,
+  slug text unique,        -- 'df_star'
+  name text,
+  state_uf char(2),        -- 'DF' — chave de compartilhamento
+  cnpj text,
+  active bool,
+  created_at, updated_at
+)
 
-Para convênios, migrar aliases auto-aprendidos existentes (se houver) para a nova tabela mantendo o pipeline já em produção.
+user_hospitals (
+  user_id uuid,
+  hospital_id uuid,
+  role app_role,           -- analista/validador (diretor/admin = global, ignoram esta tabela)
+  primary key (user_id, hospital_id)
+)
 
-GRANTs + RLS: leitura para `authenticated`, escrita restrita a `analista|admin` via `has_role`.
-
-Função SQL `normalize_alias(text)` (lowercase + sem acento + trim) usada nos UNIQUE indexes e nos lookups.
-
-## 2. Resolvers compartilhados
-
-Novo módulo `supabase/functions/_shared/registryLookup.ts` com três funções puras:
-
-- `resolveDoctor({name, crm, cpf}, registry) → { doctor_id | null, matched_by: 'crm'|'cpf'|'name'|'alias'|null }`
-- `resolveConvenio(text, registry) → { convenio_id | null, matched_by }`
-- `resolveSector(text, registry) → { sector_id | null, matched_by }`
-
-Ordem de match (em todos):
-1. Documento/ID exato (CRM, CPF, código)
-2. Nome exato normalizado
-3. Alias exato normalizado
-4. → null (não inferir, não fuzzy-match)
-
-Os stems atuais (`convenioStems`, `sectorStems`) continuam, mas o resultado é considerado **sugestão** — só aceito automaticamente se gerar match único contra o registry. Caso contrário, vira candidato a ser confirmado.
-
-## 3. Pipeline de importação
-
-Em `NewPayment.tsx`, após `mapJsonToRows`:
-
-1. Carregar registries (doctors + aliases, convenios + aliases, sectors + aliases) — uma query por tipo.
-2. Para cada linha, popular `doctor_id`, `convenio_id`, `sector_id` + flags `*_matched_by`.
-3. Linhas com algum `*_id === null` entram em `unresolvedRows` agrupadas por (tipo, texto bruto).
-4. O wizard ganha uma nova etapa **"Resolução de cadastros"** entre parsing e análise IA. Não é possível avançar enquanto houver pendência.
-
-## 4. UI — Tela de resolução
-
-Para cada texto não reconhecido:
-```
-"BALDOMERO MARTINEZ" (12 ocorrências, médico)
-[ Vincular a cadastro existente ▾ ] [ Criar alias ] [ Cadastrar novo médico ]
+-- Override local de cadastro estadual
+doctor_hospital_overrides (
+  doctor_id uuid,
+  hospital_id uuid,
+  override_data jsonb,     -- aliases, vínculos PJ, repasse default específicos
+  primary key (doctor_id, hospital_id)
+)
+company_hospital_overrides (...mesma forma...)
 ```
 
-- Vincular a existente → cria alias automaticamente e aplica em todas as ocorrências do lote.
-- Criar alias → atalho quando o registro existe e o usuário já escolheu.
-- Cadastrar novo → abre modal mínimo (nome + CRM/CNPJ/código) e cria registro + alias.
+### 1.2 Cadastros estaduais (compartilhados)
 
-Visual: cards por tipo (Médicos / Convênios / Setores) com contador e progresso. Bloqueio de "Continuar" enquanto `unresolved > 0`.
+Adicionar `state_uf` em: `doctors`, `companies`, `convenios`, `sectors`, `doctor_aliases`, `convenio_aliases`, `sector_aliases`.
+RLS: leitura liberada para qualquer usuário cujo hospital ativo esteja no mesmo `state_uf`; escrita exige role admin/diretor estadual.
 
-## 5. Gestão dedicada de aliases
+### 1.3 Operacional (isolado por hospital_id)
 
-Nas páginas de cadastro existentes (Médicos, Convênios, Setores), adicionar aba/seção **Aliases** mostrando lista, com ações criar/editar/remover. Reaproveita os mesmos endpoints da tela de import.
+Adicionar `hospital_id NOT NULL` em:
+`payments`, `payment_items`, `payment_company_groups`, `payment_observations`, `payment_status_history`, `payment_assignments`, `payment_unmatched_items`, `payment_processing_jobs`, `ai_analysis_versions`, `payment_pivot_cache`, `invoices`, `invoice_questions`, `reconciliation_runs`, `reconciliation_items`, `conciliation_bases`, `glosa_batches`, `glosa_items`, `glosa_debts`, `rules`, `rule_calculations`, `validation_rules`, `reference_tables`, `cost_centers`, `sla_settings`, `system_configurations`, `audit_log`, `notification_queue`, `access_requests`.
 
-## 6. Edge functions
+Regras podem ser **estaduais** (`hospital_id IS NULL` + `state_uf`) ou **locais** (`hospital_id` definido). Motor resolve com prioridade local → estadual → master.
 
-- `analyze-payment` / `rulesEngine.ts`: passar a confiar em `doctor_id`, `convenio_id`, `sector_id` quando presentes. Texto livre vira apenas fallback informativo, nunca operacional.
-- `submit-invoice` e demais saídas externas: continuam expondo só os campos já validados (sem mudanças sensíveis).
+---
 
-## 7. Testes
+## 2. Permissões & RLS
 
-- Unit: `registryLookup_test.ts` cobrindo ordem de match, normalização, ausência de fuzzy.
-- Regressão: caso Leal e Arratia — nome de paciente não pode resolver como médico.
-- Migração: aliases legados de convênio continuam funcionando.
+```sql
+-- Helpers SECURITY DEFINER
+public.user_hospital_ids(_uid) returns uuid[]
+public.user_state_ufs(_uid)    returns text[]
+public.is_global_role(_uid)    returns boolean  -- admin/diretor
+public.can_access_hospital(_uid, _hid) returns boolean
+```
 
-## Detalhes técnicos
+Policy pattern por tabela operacional:
+```sql
+USING (public.is_global_role(auth.uid()) 
+       OR hospital_id = ANY(public.user_hospital_ids(auth.uid())))
+```
 
-**Normalização**: `lower(unaccent(trim(regexp_replace(text, '\s+', ' ', 'g'))))`.
+Pattern cadastros estaduais (leitura):
+```sql
+USING (public.is_global_role(auth.uid())
+       OR state_uf = ANY(public.user_state_ufs(auth.uid())))
+```
 
-**Performance**: registries cacheados em memória durante o parse (lotes grandes podem ter 10k+ linhas, mas só ~poucas centenas de médicos/convênios/setores distintos).
+---
 
-**Auto-aprendizado de convênio**: mantém-se, mas grava em `convenio_aliases` com `source = 'auto'` e exige confirmação do analista na primeira ocorrência (vira `manual` ao confirmar).
+## 3. Migração DF Star (in-place)
 
-**Médicos sem CRM**: aceitos via nome exato + alias, mas a linha herda alerta "médico sem documento" para revisão do validador (não bloqueia).
+Migration em fases, mesmo arquivo:
+1. Criar `hospitals` + seed `df_star` (UF=DF).
+2. ALTER TABLE adicionando `hospital_id` nullable em todas as tabelas operacionais.
+3. UPDATE preenchendo com o id do DF Star.
+4. ALTER ... SET NOT NULL.
+5. ALTER cadastros adicionando `state_uf` com default 'DF'.
+6. Criar `user_hospitals` e seedar todos os usuários atuais como vinculados ao DF Star.
+7. Recriar policies (drop + create) seguindo os patterns acima.
+8. Índices: `(hospital_id, created_at desc)` em payments/items/invoices; `(state_uf, name)` em doctors/companies.
 
-**Ordem de implementação**: schema → resolvers → pipeline import → UI de resolução → gestão de aliases nos cadastros → ajustes no motor → testes.
+---
+
+## 4. Resolução de Hospital Ativo (App)
+
+- Novo contexto `HospitalContext` em `src/contexts/HospitalContext.tsx`.
+- Hook `useActiveHospital()` retorna `{ hospital, switchHospital, availableHospitals }`.
+- Persistir seleção em `localStorage` + validar contra `user_hospitals` no boot.
+- Header global ganha **seletor de hospital** (visível apenas se usuário tem >1 ou é global).
+- Todas as queries do app filtram por `hospital_id` do contexto (exceto telas globais de admin).
+
+---
+
+## 5. Motor de Regras & Edge Functions
+
+- `analyze-payment`, `dispatch-payment-analysis`, `orchestrate-analysis`: receber `hospital_id` no payload; resolver regras com prioridade hospital → estadual → master.
+- `registryLookup.ts`: aceitar `hospital_id`/`state_uf` para escopar lookup; aplicar overrides de `doctor_hospital_overrides` quando houver.
+- `import-wizard`: validar que o lote pertence ao hospital ativo; bloquear se médico/empresa não estiver no mesmo `state_uf`.
+- Auto-aprendizado de aliases: alias gravado com `state_uf` do hospital ativo (compartilhado no estado).
+
+---
+
+## 6. UI
+
+- Tela `/hospitals` (admin only): CRUD de hospitais.
+- Tela `/users/:id/hospitals`: gerenciar vínculos user × hospital × role.
+- Componente `HospitalSwitcher` no header.
+- Telas de cadastro (Doctors/Convenios/Sectors): mostrar badge "Estadual (DF)" e botão "Override local" quando aplicável.
+- Dashboard ganha filtro de hospital para roles globais.
+
+---
+
+## 7. Entregáveis em ordem
+
+1. **Migration 1** — `hospitals`, `user_hospitals`, seed DF Star, vincular usuários existentes.
+2. **Migration 2** — `hospital_id` + `state_uf` em todas as tabelas + backfill + NOT NULL.
+3. **Migration 3** — Helpers SECURITY DEFINER + drop/recreate de todas as RLS policies afetadas.
+4. **Migration 4** — Tabelas de override (`doctor_hospital_overrides`, `company_hospital_overrides`).
+5. **App** — `HospitalContext`, `HospitalSwitcher`, filtros nas queries existentes.
+6. **Edge functions** — propagar `hospital_id` no pipeline de análise.
+7. **Lookup & motor** — escopar por estado e aplicar overrides.
+8. **UI admin** — CRUD de hospitais + gestão de vínculos.
+
+---
+
+## 8. Riscos & Mitigações
+
+- **RLS quebrada em produção** → testar cada policy com usuário de hospital diferente antes de promover.
+- **Performance**: `user_hospital_ids()` chamada em toda query — marcar como STABLE e cobrir com índice em `user_hospitals(user_id)`.
+- **Aliases estaduais conflitantes** entre hospitais do mesmo estado → unique `(state_uf, alias_normalized, canonical_id)`; override local sobrescreve.
+- **Edge functions com cache** (pivot, processing_jobs) — invalidar por `hospital_id`.
+
+Confirma o plano para eu começar pela **Migration 1**? Se quiser ajustar (ex.: começar só pela estrutura sem mexer em RLS), me diz antes.
