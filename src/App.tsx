@@ -127,6 +127,7 @@ const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
 const Hospitals = lazy(loadHospitals);
 const SelectHospital = lazy(loadSelectHospital);
+const PortalUsers = lazy(loadPortalUsers);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
