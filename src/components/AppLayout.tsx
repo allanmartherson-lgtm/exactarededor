@@ -898,6 +898,7 @@ export const AppLayout = () => {
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
+              <HospitalSwitcher className="hidden md:inline-flex" />
               <PortalUnreadBadge />
               <NotificationBell />
               <div className="hidden md:flex items-center gap-1">
