@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { lazy, Suspense, useEffect } from "react";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
+import { HospitalProvider } from "./contexts/HospitalContext.tsx";
 import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import { NavLayoutProvider } from "./contexts/NavLayoutContext.tsx";
 import { ProtectedRoute } from "./components/ProtectedRoute.tsx";
