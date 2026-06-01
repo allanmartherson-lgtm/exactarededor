@@ -212,6 +212,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Relatório de pools", iconName: "Split" },
   { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },
+  { label: "Acessos dos Portais", iconName: "Building2" },
   { label: "Produtividade da Equipe", iconName: "BarChart2" },
   { label: "Saúde do Motor", iconName: "Activity" },
   { label: "Auditoria", iconName: "History" },
