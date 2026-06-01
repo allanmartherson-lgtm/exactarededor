@@ -651,9 +651,13 @@ export default function Doctors() {
           <TabsList>
             <TabsTrigger value="list">Cadastro de médicos</TabsTrigger>
             <TabsTrigger value="pending">Pendências de cadastro</TabsTrigger>
+            <TabsTrigger value="aliases">Aliases</TabsTrigger>
           </TabsList>
           <TabsContent value="pending" className="mt-4">
             <DoctorRegistrationPendingPanel />
+          </TabsContent>
+          <TabsContent value="aliases" className="mt-4">
+            <RegistryAliasesPanel kind="doctor" />
           </TabsContent>
           <TabsContent value="list" className="mt-4">
         <Card className="overflow-hidden">
