@@ -1,66 +1,86 @@
-# Auto-incluir novos médicos + aviso
+# Lookup Estrito com Tabelas de Cadastro
 
-## Problema
+## Objetivo
+Eliminar inferência livre de médicos, convênios e setores. Toda linha importada precisa casar com um registro do cadastro — diretamente, via alias ou via documento (CRM/CNPJ). Sem match = linha bloqueada até o analista resolver.
 
-Regras de grupo vinculadas a empresa com **lista específica de médicos** (allowlist em `group_company_links[].doctors`) não cobrem médicos que entraram na empresa depois da criação da regra. Resultado: médicos novos ficam fora da regra silenciosamente (caso COTE).
+Resolve o bug "pacientes como médicos" da Leal e Arratia: como o nome do paciente não existe no cadastro de médicos nem como alias, a linha vai parar na fila de resolução em vez de ser aceita silenciosamente.
 
-## Decisão (já confirmada)
+## 1. Schema — tabelas de alias
 
-- **Comportamento:** Auto-incluir + aviso. Médico novo passa a ser coberto pela regra automaticamente, mas o sistema sinaliza para revisão.
-- **Surfaces do aviso:** Card da regra na lista, Painel de Saúde, Notificação ao supervisor.
+Criar três tabelas espelhadas:
 
-## Mudanças
+- `doctor_aliases` (id, doctor_id → doctors, alias_text, alias_normalized UNIQUE, created_by, created_at)
+- `convenio_aliases` (id, convenio_id → convenios, alias_text, alias_normalized UNIQUE, source: 'manual'|'auto', created_by, created_at)
+- `sector_aliases` (id, sector_id → sectors, alias_text, alias_normalized UNIQUE, created_by, created_at)
 
-### 1. Motor de regras — auto-inclusão (`supabase/functions/_shared/rulesEngine.ts`)
+Para convênios, migrar aliases auto-aprendidos existentes (se houver) para a nova tabela mantendo o pipeline já em produção.
 
-Hoje `matchDoctorInList` exige que o médico esteja na allowlist. Mudança:
+GRANTs + RLS: leitura para `authenticated`, escrita restrita a `analista|admin` via `has_role`.
 
-- Adicionar novo campo opcional `auto_include_new_doctors: boolean` (default `true`) em cada `group_company_links[]`.
-- Em `matchScope`/matching de link: se o item bate na `company_id` do link **e** o doctor não está na lista, ainda assim aplica quando `auto_include_new_doctors !== false`.
-- Idem para `analyze-payment/index.ts` (filtro candidato).
-- Marcar o match como `auto_included = true` para o item retornar essa info (campo informativo no `payment_items.exception_note` ou novo `match_meta`).
+Função SQL `normalize_alias(text)` (lowercase + sem acento + trim) usada nos UNIQUE indexes e nos lookups.
 
-### 2. Detecção de "pendentes de revisão"
+## 2. Resolvers compartilhados
 
-Função SQL `public.rule_pending_doctors(rule_id uuid)`:
-- Para cada link da regra com lista não-vazia, retornar médicos de `doctor_companies` (ativos) da `company_id` que **não estão** na lista do link.
-- Resultado: `{ company_id, company_name, doctor_id, full_name, crm, since }`.
+Novo módulo `supabase/functions/_shared/registryLookup.ts` com três funções puras:
 
-Usada por:
-- Card da regra (contagem)
-- Painel de Saúde (lista detalhada)
-- Worker de notificação
+- `resolveDoctor({name, crm, cpf}, registry) → { doctor_id | null, matched_by: 'crm'|'cpf'|'name'|'alias'|null }`
+- `resolveConvenio(text, registry) → { convenio_id | null, matched_by }`
+- `resolveSector(text, registry) → { sector_id | null, matched_by }`
 
-### 3. UI — Card da regra (`src/pages/Rules.tsx`)
+Ordem de match (em todos):
+1. Documento/ID exato (CRM, CPF, código)
+2. Nome exato normalizado
+3. Alias exato normalizado
+4. → null (não inferir, não fuzzy-match)
 
-Quando `pending_doctors_count > 0`, mostrar badge âmbar no card: `"N médico(s) novo(s) pendente(s) de revisão"`. Click abre o editor da regra na aba de empresas com os novos médicos pré-marcados em destaque.
+Os stems atuais (`convenioStems`, `sectorStems`) continuam, mas o resultado é considerado **sugestão** — só aceito automaticamente se gerar match único contra o registry. Caso contrário, vira candidato a ser confirmado.
 
-Dentro do editor (modo "médicos específicos"), seção nova **"Médicos novos pendentes de revisão"** com cada nome + 2 botões: **Confirmar inclusão** (adiciona à allowlist) / **Excluir desta regra** (adiciona ao novo array `link.excluded_doctors` para não disparar aviso de novo).
+## 3. Pipeline de importação
 
-### 4. Painel de Saúde (`src/components/rules/RulesHealthPanel.tsx`)
+Em `NewPayment.tsx`, após `mapJsonToRows`:
 
-Nova seção **"Médicos pendentes de revisão em regras"** listando: regra → empresa → médicos novos. Botão "Revisar" leva direto ao editor.
+1. Carregar registries (doctors + aliases, convenios + aliases, sectors + aliases) — uma query por tipo.
+2. Para cada linha, popular `doctor_id`, `convenio_id`, `sector_id` + flags `*_matched_by`.
+3. Linhas com algum `*_id === null` entram em `unresolvedRows` agrupadas por (tipo, texto bruto).
+4. O wizard ganha uma nova etapa **"Resolução de cadastros"** entre parsing e análise IA. Não é possível avançar enquanto houver pendência.
 
-### 5. Notificação ao supervisor
+## 4. UI — Tela de resolução
 
-- Nova edge function `notify-rule-pending-doctors` (cron diário ou trigger ao criar `doctor_companies`).
-- Usa `enqueue_notification` para enfileirar notificação aos roles `admin` e `diretor` quando há pendências.
-- Debounce: agrupa por regra, no máximo 1 notificação por regra a cada 24h.
+Para cada texto não reconhecido:
+```
+"BALDOMERO MARTINEZ" (12 ocorrências, médico)
+[ Vincular a cadastro existente ▾ ] [ Criar alias ] [ Cadastrar novo médico ]
+```
 
-### 6. Migração (`supabase/migrations/...`)
+- Vincular a existente → cria alias automaticamente e aplica em todas as ocorrências do lote.
+- Criar alias → atalho quando o registro existe e o usuário já escolheu.
+- Cadastrar novo → abre modal mínimo (nome + CRM/CNPJ/código) e cria registro + alias.
 
-- Função `public.rule_pending_doctors(uuid)` retornando `TABLE(...)`.
-- View opcional `public.rules_health_pending` para agregação no painel.
-- Sem alterar schema de `rules` (o `auto_include_new_doctors` vive dentro do JSONB `group_company_links`, já flexível).
+Visual: cards por tipo (Médicos / Convênios / Setores) com contador e progresso. Bloqueio de "Continuar" enquanto `unresolved > 0`.
 
-## Ordem de execução
+## 5. Gestão dedicada de aliases
 
-1. Migration: função `rule_pending_doctors`.
-2. Motor (`rulesEngine.ts` + `analyze-payment`): auto-inclusão.
-3. UI: badge no card + seção no editor + painel de saúde.
-4. Edge function de notificação + cron.
+Nas páginas de cadastro existentes (Médicos, Convênios, Setores), adicionar aba/seção **Aliases** mostrando lista, com ações criar/editar/remover. Reaproveita os mesmos endpoints da tela de import.
 
-## Fora de escopo
+## 6. Edge functions
 
-- Não tocamos em regras com `doctors = []` ("Todos os médicos") — já cobrem novos automaticamente.
-- Não tocamos em `group_doctors` (allowlist global da regra, sem empresa) — comportamento atual mantido por enquanto; se você quiser também aplicar lá, dá pra estender depois.
+- `analyze-payment` / `rulesEngine.ts`: passar a confiar em `doctor_id`, `convenio_id`, `sector_id` quando presentes. Texto livre vira apenas fallback informativo, nunca operacional.
+- `submit-invoice` e demais saídas externas: continuam expondo só os campos já validados (sem mudanças sensíveis).
+
+## 7. Testes
+
+- Unit: `registryLookup_test.ts` cobrindo ordem de match, normalização, ausência de fuzzy.
+- Regressão: caso Leal e Arratia — nome de paciente não pode resolver como médico.
+- Migração: aliases legados de convênio continuam funcionando.
+
+## Detalhes técnicos
+
+**Normalização**: `lower(unaccent(trim(regexp_replace(text, '\s+', ' ', 'g'))))`.
+
+**Performance**: registries cacheados em memória durante o parse (lotes grandes podem ter 10k+ linhas, mas só ~poucas centenas de médicos/convênios/setores distintos).
+
+**Auto-aprendizado de convênio**: mantém-se, mas grava em `convenio_aliases` com `source = 'auto'` e exige confirmação do analista na primeira ocorrência (vira `manual` ao confirmar).
+
+**Médicos sem CRM**: aceitos via nome exato + alias, mas a linha herda alerta "médico sem documento" para revisão do validador (não bloqueia).
+
+**Ordem de implementação**: schema → resolvers → pipeline import → UI de resolução → gestão de aliases nos cadastros → ajustes no motor → testes.
