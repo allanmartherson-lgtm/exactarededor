@@ -78,6 +78,9 @@ const loadHospitals = () => import("./pages/Hospitals.tsx");
 const loadSelectHospital = () => import("./pages/SelectHospital.tsx");
 const loadPortalUsers = () => import("./pages/PortalUsers.tsx");
 const loadHospitalSwitchLog = () => import("./pages/HospitalSwitchLog.tsx");
+const loadApproveMagicLink = () => import("./pages/ApproveMagicLink.tsx");
+const loadNotificationPreferences = () => import("./pages/NotificationPreferences.tsx");
+const loadIntegrationsAdmin = () => import("./pages/IntegrationsAdmin.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -134,6 +137,9 @@ const Hospitals = lazy(loadHospitals);
 const SelectHospital = lazy(loadSelectHospital);
 const PortalUsers = lazy(loadPortalUsers);
 const HospitalSwitchLog = lazy(loadHospitalSwitchLog);
+const ApproveMagicLink = lazy(loadApproveMagicLink);
+const NotificationPreferences = lazy(loadNotificationPreferences);
+const IntegrationsAdmin = lazy(loadIntegrationsAdmin);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -217,6 +223,7 @@ const App = () => (
                 <Route path="/definir-senha" element={<SetPassword />} />
                 <Route path="/reset-password" element={<SetPassword />} />
                 <Route path="/portal/nota/:token" element={<InvoicePortal />} />
+                <Route path="/aprovar/:token" element={<ApproveMagicLink />} />
                 <Route path="/trocar-senha" element={<ForceChangePassword />} />
                 <Route path="/preview-paletas" element={<PreviewPalettes />} />
                 <Route path="/preview-design-systems" element={<PreviewDesignSystems />} />
@@ -274,6 +281,8 @@ const App = () => (
                   <Route path="/relatorios/dre" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><DreReport /></ProtectedRoute>} />
                   <Route path="/relatorios/saude-dinheiro" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><MoneyHealth /></ProtectedRoute>} />
                   <Route path="/relatorios/observabilidade" element={<ProtectedRoute roles={["diretor", "admin"]}><BusinessObservability /></ProtectedRoute>} />
+                  <Route path="/sistema/integracoes" element={<ProtectedRoute roles={["admin", "diretor"]}><IntegrationsAdmin /></ProtectedRoute>} />
+                  <Route path="/configuracoes/notificacoes" element={<NotificationPreferences />} />
                   <Route path="/wcag-audit" element={<WcagAudit />} />
                   <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
                   <Route path="/diagnostico/overflow" element={<OverflowAudit />} />
