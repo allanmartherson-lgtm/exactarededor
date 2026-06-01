@@ -49,7 +49,8 @@ function matchAll(re: RegExp, s: string): string[] {
   return out;
 }
 
-const tablesQueried = matchAll(/\.from\(\s*["']([^"']+)["']\s*\)/g, GET_BLOCK);
+// Ignora `.storage.from(...)` (bucket de storage) — só queremos tabelas do Data API.
+const tablesQueried = matchAll(/(?<!\.storage)\.from\(\s*["']([^"']+)["']\s*\)/g, GET_BLOCK);
 const selects = matchAll(/\.select\(\s*["']([^"']+)["']\s*\)/g, GET_BLOCK);
 
 // --- Allowlists. Atualize com cautela; cada adição precisa de revisão.
