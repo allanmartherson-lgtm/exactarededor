@@ -51,7 +51,7 @@ const CONFIG: Record<Kind, {
     linkTable: "doctor_portal_user_hospitals",
     parentTable: "doctors",
     parentFk: "doctor_id",
-    parentNameCol: "name",
+    parentNameCol: "full_name",
     parentDocCol: "crm",
     label: "Médico",
     icon: Stethoscope,
