@@ -26,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { normalizeNumericValue } from "@/lib/utils";
 import { loadSectorAliases } from "@/hooks/useSectorAliases";
+import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -186,6 +187,8 @@ interface ColumnOverrides {
   doctor?: string;
   gross?: string;
   repasse?: string;
+  /** Override manual da coluna que carrega o setor de cada linha. */
+  sectorColumn?: string;
 }
 
 interface FileBucket {
@@ -208,6 +211,10 @@ interface FileBucket {
   rawMatrix?: unknown[][];
   /** Índice (0-based) da linha de cabeçalho atualmente usada. */
   headerRowIndex?: number;
+  /** Resultado da detecção da coluna "setor" (candidatos sugeridos para o usuário confirmar). */
+  sectorColumnDetection?: SectorColumnDetection;
+  /** Coluna efetivamente usada como setor (auto OU escolhida pelo usuário). */
+  sectorColumnUsed?: string | null;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
@@ -409,6 +416,7 @@ const NewPayment = () => {
     company: CompanyRow | null,
     filenameTrusted: boolean,
     rawCompanyName: string,
+    sectorColumnOverride?: string | null,
   ): ParsedRow[] => {
     return json.map((row, rowIndex) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
@@ -430,7 +438,16 @@ const NewPayment = () => {
         const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
         if (s >= MATCH_AUTO_THRESHOLD) rowMatchedCompany = matched;
       }
-      const rawSector = toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"]));
+      const rawSector = sectorColumnOverride
+        ? toStr(row[sectorColumnOverride])
+        : toStr(pick(row, [
+            "setor do pagamento", "setor", "setores",
+            "unidade de atendimento", "unidade", "unidades",
+            "departamento", "departamentos", "depto",
+            "servico", "serviço",
+            "lotacao", "lotação",
+            "ala", "posto", "area", "área", "local", "localizacao", "localização",
+          ]));
       const resolvedCompany = filenameTrusted ? company : (rowMatchedCompany || company);
       const resolvedName = resolvedCompany?.name
         ?? (filenameTrusted ? company!.name : (rowCompanyNameRaw || rawCompanyName))
@@ -575,7 +592,14 @@ const NewPayment = () => {
     const { company, score } = matchCompany(rawCompanyName, companies);
     const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
 
-    const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName);
+    // Detecta a coluna "setor" cruzando cabeçalho + valores com sectores cadastrados.
+    // Só auto-aplica quando o NOME do cabeçalho bate explicitamente (ex.: "Setor",
+    // "Unidade de Atendimento"). Quando a detecção foi por valores, deixamos
+    // para o usuário confirmar manualmente — nunca inferimos sozinhos.
+    const sectorAliasesMap = await loadSectorAliases();
+    const detection = detectSectorColumn(headerNames, json, sectorAliasesMap.resolveSlug);
+    const autoSectorColumn = detection.confidence === "header" ? detection.recommended : null;
+    const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName, autoSectorColumn);
 
     // 6) Colunas obrigatórias presentes
     const hasDoctor = rows.some((r) => r.doctor_name && r.doctor_name.trim().length > 0);
@@ -635,6 +659,8 @@ const NewPayment = () => {
       sectorMissing,
       rawMatrix: matrix,
       headerRowIndex: headerIdx,
+      sectorColumnDetection: detection,
+      sectorColumnUsed: autoSectorColumn,
     };
   };
 
@@ -653,7 +679,7 @@ const NewPayment = () => {
       const company = bucket.matchedCompany
         ? (companies.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
-      const rows = mapJsonToRows(json, bucket.file, newHeaderIdx, company, filenameTrusted, bucket.rawCompanyName);
+      const rows = mapJsonToRows(json, bucket.file, newHeaderIdx, company, filenameTrusted, bucket.rawCompanyName, bucket.sectorColumnUsed ?? null);
       const sc: Record<string, number> = {};
       for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
       const dominantRaw = Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
@@ -662,6 +688,35 @@ const NewPayment = () => {
       return { ...bucket, rows, headerRowIndex: newHeaderIdx, sectorMissing, sectorMapping: bucket.sectorMapping ?? dominantMapped };
     }));
     toast({ title: "Cabeçalho atualizado", description: `Linha ${newHeaderIdx + 1} usada como cabeçalho.` });
+  };
+
+  /**
+   * Aplica/troca a coluna usada como SETOR em um bucket e reprocessa as linhas
+   * lendo o valor dali. Mantém o usuário no controle — nada é inferido sozinho.
+   */
+  const applySectorColumn = (idx: number, columnName: string | null) => {
+    setBuckets((prev) => prev.map((bucket, bIdx) => {
+      if (bIdx !== idx) return bucket;
+      const matrix = bucket.rawMatrix;
+      const headerIdx = bucket.headerRowIndex ?? 0;
+      if (!matrix) return { ...bucket, sectorColumnUsed: columnName };
+      const json = matrixToJson(matrix, headerIdx);
+      const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
+      const company = bucket.matchedCompany
+        ? (companies.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
+        : null;
+      const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, columnName);
+      const sc: Record<string, number> = {};
+      for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
+      const dominantRaw = Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      const dominantMapped = mapSectorFromRaw(dominantRaw);
+      const sectorMissing = rows.length > 0 && (Object.keys(sc).length === 0 || dominantMapped === null);
+      return { ...bucket, rows, sectorColumnUsed: columnName, sectorMissing, sectorMapping: bucket.sectorMapping ?? dominantMapped };
+    }));
+    toast({
+      title: columnName ? `Coluna de setor: "${columnName}"` : "Coluna de setor: detecção automática",
+      description: columnName ? "Os itens deste arquivo passaram a ler o setor desta coluna." : "Voltando ao detector automático por sinônimos.",
+    });
   };
 
 
@@ -1702,28 +1757,99 @@ const NewPayment = () => {
                                   : `Setor: ${b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}`}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-64 p-3" align="end">
+                            <PopoverContent className="w-[min(420px,calc(100vw-2rem))] p-3" align="end">
                               <div className="space-y-3">
                                 <div className="space-y-1">
-                                  <h4 className="text-sm font-medium">Mapear setor</h4>
-                                  <p className="text-xs text-muted-foreground">Forçar um setor para todos os itens deste arquivo.</p>
+                                  <h4 className="text-sm font-medium">Coluna e mapeamento de setor</h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    O sistema procura pelo cabeçalho (Setor, Unidade, Departamento, Lotação…) e, quando não acha, compara os valores com os setores cadastrados.
+                                    A decisão final é sempre sua.
+                                  </p>
                                 </div>
-                                <Select 
-                                  value={b.sectorMapping || "auto"} 
-                                  onValueChange={(v) => {
-                                    setBuckets(prev => prev.map((x, i) => i === idx ? { ...x, sectorMapping: v === "auto" ? null : v } : x));
-                                  }}
-                                >
-                                  <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="auto" className="text-xs italic">Detectar automaticamente</SelectItem>
-                                    {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map(s => (
-                                      <SelectItem key={s} value={s} className="text-xs">{RULE_SECTOR_LABELS[s]}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+
+                                {/* --- Coluna identificada como Setor --- */}
+                                {(() => {
+                                  const det = b.sectorColumnDetection;
+                                  const headers = Array.from(new Set(b.rows.flatMap(r => Object.keys(r.raw_data || {})))).filter(Boolean);
+                                  const used = b.sectorColumnUsed ?? null;
+                                  return (
+                                    <div className="space-y-2 rounded-md border border-border p-2">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <Label className="text-xs">Coluna lida como setor</Label>
+                                        {det && det.confidence === "header" && (
+                                          <Badge variant="outline" className="h-4 text-[9px] border-emerald-500/40 text-emerald-600">cabeçalho reconhecido</Badge>
+                                        )}
+                                        {det && det.confidence === "values" && !used && (
+                                          <Badge variant="outline" className="h-4 text-[9px] border-amber-500/40 text-amber-600 animate-pulse">confirme</Badge>
+                                        )}
+                                        {det && det.confidence === "none" && (
+                                          <Badge variant="outline" className="h-4 text-[9px] border-destructive/50 text-destructive">não encontrada</Badge>
+                                        )}
+                                      </div>
+                                      <Select
+                                        value={used ?? "__auto__"}
+                                        onValueChange={(v) => applySectorColumn(idx, v === "__auto__" ? null : v)}
+                                      >
+                                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Detectar por sinônimos" /></SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="__auto__" className="text-xs italic">Detectar por sinônimos (Setor / Unidade / Depto…)</SelectItem>
+                                          {headers.map((h) => (
+                                            <SelectItem key={h} value={h} className="text-xs">{h}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+
+                                      {det && det.candidates.length > 0 && (
+                                        <div className="space-y-1.5">
+                                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Sugestões da IA</p>
+                                          {det.candidates.slice(0, 4).map((c) => {
+                                            const isUsed = used === c.header;
+                                            return (
+                                              <button
+                                                key={c.header}
+                                                type="button"
+                                                onClick={() => applySectorColumn(idx, c.header)}
+                                                className={`w-full text-left rounded border px-2 py-1.5 text-[11px] transition-colors ${isUsed ? "border-primary/60 bg-primary/5" : "border-border hover:bg-muted/40"}`}
+                                              >
+                                                <div className="flex items-center justify-between gap-2">
+                                                  <span className="font-medium truncate">{c.header}</span>
+                                                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                                    {c.reason === "header" ? "nome bate" : `${Math.round(c.matchRate * 100)}% dos valores casam`}
+                                                  </span>
+                                                </div>
+                                                {c.sampleValues.length > 0 && (
+                                                  <div className="text-[10px] text-muted-foreground truncate">
+                                                    ex.: {c.sampleValues.join(" · ")}
+                                                  </div>
+                                                )}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+
+                                {/* --- Override do setor canônico --- */}
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Forçar setor (fallback)</Label>
+                                  <Select
+                                    value={b.sectorMapping || "auto"}
+                                    onValueChange={(v) => {
+                                      setBuckets(prev => prev.map((x, i) => i === idx ? { ...x, sectorMapping: v === "auto" ? null : v } : x));
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="auto" className="text-xs italic">Usar o que vier da coluna</SelectItem>
+                                      {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map(s => (
+                                        <SelectItem key={s} value={s} className="text-xs">{RULE_SECTOR_LABELS[s]}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <p className="text-[10px] text-muted-foreground">Aplica este setor a TODAS as linhas que não trouxeram setor reconhecido.</p>
+                                </div>
                               </div>
                             </PopoverContent>
                           </Popover>
