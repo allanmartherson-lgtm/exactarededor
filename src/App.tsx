@@ -265,6 +265,7 @@ const App = () => (
               </Routes>
             </Suspense>
           </ErrorBoundary>
+          </HospitalProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
