@@ -168,10 +168,10 @@ export default function CommunicationSupervision() {
       <PageHeader title="Supervisão de Atendimento" description="Fila unificada de conversas com médicos e empresas — SLA em horas úteis." />
       <div className="p-6 space-y-4">
         <StatTileGrid>
-          <StatCard label="Pendentes" value={String(stats.pendentes)} icon={MessageCircle} />
-          <StatCard label="Vencidos SLA" value={String(stats.vencidos)} icon={AlertTriangle} tone={stats.vencidos > 0 ? "destructive" : undefined} />
-          <StatCard label="Em atenção" value={String(stats.preventivo)} icon={Clock} tone={stats.preventivo > 0 ? "warning" : undefined} />
-          <StatCard label="Tempo médio resp." value={`${stats.avg.toFixed(1)}h`} icon={Timer} />
+          <StatCard label="Pendentes" value={stats.pendentes} icon={MessageCircle} tone="info" />
+          <StatCard label="Vencidos SLA" value={stats.vencidos} icon={AlertTriangle} tone="warning" />
+          <StatCard label="Em atenção" value={stats.preventivo} icon={Clock} tone="warning" />
+          <StatCard label="Tempo médio resp." value={Number(stats.avg.toFixed(1))} hint="horas úteis" icon={Timer} tone="success" />
         </StatTileGrid>
 
         <Card>
