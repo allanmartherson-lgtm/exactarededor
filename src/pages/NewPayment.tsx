@@ -32,6 +32,18 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { AlertTriangle } from "lucide-react";
 import {
+  loadDoctorRegistry,
+  loadConvenioRegistry,
+  loadSectorRegistry,
+  resolveDoctor,
+  resolveConvenio,
+  resolveSector,
+  type DoctorRegistry,
+  type ConvenioRegistry,
+  type SectorRegistry,
+} from "@/lib/registryLookup";
+import { RegistryResolutionPanel, type UnresolvedGroup } from "@/components/RegistryResolutionPanel";
+import {
   similarity,
   extractCompanyFromFilename,
   matchCompany,
