@@ -63,11 +63,11 @@ export default function CommunicationSupervision() {
   const load = async () => {
     setLoading(true);
     const [{ data: threads }, { data: slaCfg }, { data: profs }] = await Promise.all([
-      supabase.from("communication_threads_v" as any).select("*").order("opened_at", { ascending: false }).limit(500),
-      supabase.from("communication_sla_settings").select("*").is("hospital_id", null),
+      (supabase.from("communication_threads_v" as any) as any).select("*").order("opened_at", { ascending: false }).limit(500),
+      (supabase.from("communication_sla_settings" as any) as any).select("*").is("hospital_id", null),
       supabase.from("profiles").select("id,full_name,email").order("full_name"),
     ]);
-    setRows((threads ?? []) as ThreadRow[]);
+    setRows(((threads ?? []) as unknown) as ThreadRow[]);
     const map: any = { doctor: null, company_payment: null, company_invoice: null };
     (slaCfg ?? []).forEach((s: any) => { map[s.channel] = s; });
     setSettings(map);
