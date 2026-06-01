@@ -72,6 +72,7 @@ const loadPendenciaDetail = () => import("./pages/PendenciaDetail.tsx");
 const loadConversas = () => import("./pages/Conversas.tsx");
 const loadHospitals = () => import("./pages/Hospitals.tsx");
 const loadSelectHospital = () => import("./pages/SelectHospital.tsx");
+const loadPortalUsers = () => import("./pages/PortalUsers.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
