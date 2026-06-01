@@ -76,7 +76,7 @@ export default function NotificationPreferences() {
 
   return (
     <div className="container max-w-3xl py-8 space-y-6">
-      <PageHeader title="Notificações" subtitle="Configure por onde você quer ser avisado em cada etapa do fluxo." />
+      <PageHeader title="Notificações" description="Configure por onde você quer ser avisado em cada etapa do fluxo." />
 
       <Card>
         <CardHeader>

@@ -44,7 +44,7 @@ export default function IntegrationsAdmin() {
 
   return (
     <div className="container py-8 space-y-6">
-      <PageHeader title="Integrações de Comunicação" subtitle="Status dos canais, templates e últimas entregas." />
+      <PageHeader title="Integrações de Comunicação" description="Status dos canais, templates e últimas entregas." />
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatusCard
