@@ -1897,6 +1897,39 @@ export type Database = {
         }
         Relationships: []
       }
+      hospitals: {
+        Row: {
+          active: boolean
+          cnpj: string | null
+          created_at: string
+          id: string
+          name: string
+          slug: string
+          state_uf: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+          state_uf: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+          state_uf?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoice_question_attachments: {
         Row: {
           author_id: string | null
@@ -5009,6 +5042,35 @@ export type Database = {
           },
         ]
       }
+      user_hospitals: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_hospitals_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_notification_settings: {
         Row: {
           created_at: string | null
@@ -5280,6 +5342,10 @@ export type Database = {
       calculate_payment_priority: {
         Args: { _payment_id: string }
         Returns: number
+      }
+      can_access_hospital: {
+        Args: { _hid: string; _uid: string }
+        Returns: boolean
       }
       companies_for_doctor_at: {
         Args: { _doctor_id: string; _on_date: string }
@@ -5741,6 +5807,7 @@ export type Database = {
         Args: { _key: string; _user_id: string }
         Returns: boolean
       }
+      is_global_role: { Args: { _uid: string }; Returns: boolean }
       is_payment_in_analyst_phase: {
         Args: { p_payment_id: string }
         Returns: boolean
@@ -5928,6 +5995,8 @@ export type Database = {
         Args: { _company_id: string }
         Returns: boolean
       }
+      user_hospital_ids: { Args: { _uid: string }; Returns: string[] }
+      user_state_ufs: { Args: { _uid: string }; Returns: string[] }
       validate_rule_save: {
         Args: {
           _group_company_links: Json
