@@ -2625,9 +2625,157 @@ export type Database = {
           },
         ]
       }
+      magic_link_tokens: {
+        Row: {
+          action: Database["public"]["Enums"]["magic_link_action"]
+          company_group_id: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          issued_to_email: string
+          issued_to_user_id: string
+          payload: Json
+          payment_id: string | null
+          revoked_at: string | null
+          revoked_reason: string | null
+          token_hash: string
+          used_at: string | null
+          used_by_ip: string | null
+          used_by_user_agent: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["magic_link_action"]
+          company_group_id?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          issued_to_email: string
+          issued_to_user_id: string
+          payload?: Json
+          payment_id?: string | null
+          revoked_at?: string | null
+          revoked_reason?: string | null
+          token_hash: string
+          used_at?: string | null
+          used_by_ip?: string | null
+          used_by_user_agent?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["magic_link_action"]
+          company_group_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          issued_to_email?: string
+          issued_to_user_id?: string
+          payload?: Json
+          payment_id?: string | null
+          revoked_at?: string | null
+          revoked_reason?: string | null
+          token_hash?: string
+          used_at?: string | null
+          used_by_ip?: string | null
+          used_by_user_agent?: string | null
+        }
+        Relationships: []
+      }
+      notification_channels: {
+        Row: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string
+          event_key: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          event_key: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          event_key?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_deliveries: {
+        Row: {
+          attempts: number
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          event_key: string
+          failed_at: string | null
+          id: string
+          payment_id: string | null
+          provider_message_id: string | null
+          provider_response: Json | null
+          queue_id: string | null
+          read_at: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_delivery_status"]
+          target_address: string
+          template_key: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          event_key: string
+          failed_at?: string | null
+          id?: string
+          payment_id?: string | null
+          provider_message_id?: string | null
+          provider_response?: Json | null
+          queue_id?: string | null
+          read_at?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_delivery_status"]
+          target_address: string
+          template_key?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          event_key?: string
+          failed_at?: string | null
+          id?: string
+          payment_id?: string | null
+          provider_message_id?: string | null
+          provider_response?: Json | null
+          queue_id?: string | null
+          read_at?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_delivery_status"]
+          target_address?: string
+          template_key?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       notification_queue: {
         Row: {
           attempts: number
+          channel: Database["public"]["Enums"]["notification_channel"] | null
           created_at: string
           debounce_seconds: number
           events: Json
@@ -2640,10 +2788,13 @@ export type Database = {
           sender_ids: string[]
           sent_at: string | null
           sent_meta: Json | null
+          target_address: string | null
+          template_key: string | null
           updated_at: string
         }
         Insert: {
           attempts?: number
+          channel?: Database["public"]["Enums"]["notification_channel"] | null
           created_at?: string
           debounce_seconds?: number
           events?: Json
@@ -2656,10 +2807,13 @@ export type Database = {
           sender_ids?: string[]
           sent_at?: string | null
           sent_meta?: Json | null
+          target_address?: string | null
+          template_key?: string | null
           updated_at?: string
         }
         Update: {
           attempts?: number
+          channel?: Database["public"]["Enums"]["notification_channel"] | null
           created_at?: string
           debounce_seconds?: number
           events?: Json
@@ -2672,6 +2826,8 @@ export type Database = {
           sender_ids?: string[]
           sent_at?: string | null
           sent_meta?: Json | null
+          target_address?: string | null
+          template_key?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -4567,10 +4723,13 @@ export type Database = {
           id: string
           last_active_hospital_id: string | null
           phone: string | null
+          phone_e164: string | null
           preferences: Json
           primary_hospital_id: string | null
           role_title: string | null
           updated_at: string
+          whatsapp_opt_in: boolean
+          whatsapp_opt_in_at: string | null
         }
         Insert: {
           birth_date?: string | null
@@ -4581,10 +4740,13 @@ export type Database = {
           id: string
           last_active_hospital_id?: string | null
           phone?: string | null
+          phone_e164?: string | null
           preferences?: Json
           primary_hospital_id?: string | null
           role_title?: string | null
           updated_at?: string
+          whatsapp_opt_in?: boolean
+          whatsapp_opt_in_at?: string | null
         }
         Update: {
           birth_date?: string | null
@@ -4595,10 +4757,13 @@ export type Database = {
           id?: string
           last_active_hospital_id?: string | null
           phone?: string | null
+          phone_e164?: string | null
           preferences?: Json
           primary_hospital_id?: string | null
           role_title?: string | null
           updated_at?: string
+          whatsapp_opt_in?: boolean
+          whatsapp_opt_in_at?: string | null
         }
         Relationships: [
           {
@@ -6021,6 +6186,45 @@ export type Database = {
           },
         ]
       }
+      whatsapp_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_key: string
+          id: string
+          is_active: boolean
+          language_code: string
+          provider_template_sid: string
+          template_key: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_key: string
+          id?: string
+          is_active?: boolean
+          language_code?: string
+          provider_template_sid: string
+          template_key: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_key?: string
+          id?: string
+          is_active?: boolean
+          language_code?: string
+          provider_template_sid?: string
+          template_key?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       mv_payments_flags: {
@@ -6895,6 +7099,20 @@ export type Database = {
         | "erro_duplicidade_pagamento"
         | "erro_duplicidade_calculo"
         | "acatado"
+      magic_link_action:
+        | "approve"
+        | "reject"
+        | "return_to_analyst"
+        | "return_to_validator"
+        | "view"
+      notification_channel: "email" | "whatsapp" | "both" | "off"
+      notification_delivery_status:
+        | "queued"
+        | "sent"
+        | "delivered"
+        | "read"
+        | "failed"
+        | "bounced"
       observation_author:
         | "ia"
         | "analista"
@@ -7132,6 +7350,22 @@ export const Constants = {
         "erro_duplicidade_pagamento",
         "erro_duplicidade_calculo",
         "acatado",
+      ],
+      magic_link_action: [
+        "approve",
+        "reject",
+        "return_to_analyst",
+        "return_to_validator",
+        "view",
+      ],
+      notification_channel: ["email", "whatsapp", "both", "off"],
+      notification_delivery_status: [
+        "queued",
+        "sent",
+        "delivered",
+        "read",
+        "failed",
+        "bounced",
       ],
       observation_author: ["ia", "analista", "validador", "diretor", "sistema"],
       observation_type: [
