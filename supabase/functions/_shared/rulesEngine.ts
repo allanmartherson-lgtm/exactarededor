@@ -15,6 +15,7 @@
 
 import { applyConvenioStems, recordLearnedAlias } from "./convenioStems.ts";
 import { isBrazilianNationalHoliday } from "./brHolidays.ts";
+import { applySectorStems } from "./sectorStems.ts";
 
 /** Arredonda para 2 casas decimais. */
 const round2 = (n: number) => Number(n.toFixed(2));
