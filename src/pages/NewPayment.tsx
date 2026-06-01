@@ -1255,35 +1255,46 @@ const NewPayment = () => {
 
 
     // Constrói uma linha de payment_items para uma row "matched"
-    const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => ({
-      payment_id: payment.id,
-      doctor_name: r.doctor_name,
-      doctor_document: r.doctor_document,
-      doctor_email: r.doctor_email,
-      description: r.description,
-      gross_amount: r.gross_amount,
-      company_name: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.name || r.company_name) : r.company_name,
-      company_id: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.id || r.company_id) : r.company_id,
-      attendance_number: r.attendance_number,
-      procedure_code: r.procedure_code,
-      procedure_name: r.procedure_name,
-      access_route: r.access_route,
-      doctor_role: r.doctor_role,
-      agreement_text: r.agreement_text,
-      specialty: resolveSpecialty(r),
-      procedure_amount: r.procedure_amount,
-      quantity: r.quantity,
-      procedure_date: r.procedure_date,
-      patient_name: r.patient_name,
-      // Preferir SEMPRE o setor lido da planilha (linha a linha).
-      // O sectorMapping do bucket é apenas fallback quando a planilha não trouxe a coluna.
-      // Normaliza para o slug canônico (via tabela `sectors`) antes de persistir.
-      sector: normalizeSector(r.sector || currentBucket?.sectorMapping || null),
-      attendance_character: r.attendance_character,
-      raw_data: r.raw_data as never,
-      tipo_linha: r.tipo_linha,
-      convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
-    });
+    const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => {
+      const dRes = doctorReg ? resolveDoctor({ name: r.doctor_name, crm: r.doctor_document, cpf: r.doctor_document }, doctorReg) : { doctor: null, matched_by: null as any };
+      const cRes = convenioReg ? resolveConvenio(r.agreement_text, convenioReg) : { convenio: null, matched_by: null as any };
+      const sRawForLookup = r.sector || currentBucket?.sectorMapping || null;
+      const sRes = sectorReg ? resolveSector(sRawForLookup, sectorReg) : { sector: null, matched_by: null as any };
+      return ({
+        payment_id: payment.id,
+        doctor_name: r.doctor_name,
+        doctor_document: r.doctor_document,
+        doctor_email: r.doctor_email,
+        description: r.description,
+        gross_amount: r.gross_amount,
+        company_name: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.name || r.company_name) : r.company_name,
+        company_id: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.id || r.company_id) : r.company_id,
+        attendance_number: r.attendance_number,
+        procedure_code: r.procedure_code,
+        procedure_name: r.procedure_name,
+        access_route: r.access_route,
+        doctor_role: r.doctor_role,
+        agreement_text: r.agreement_text,
+        specialty: resolveSpecialty(r),
+        procedure_amount: r.procedure_amount,
+        quantity: r.quantity,
+        procedure_date: r.procedure_date,
+        patient_name: r.patient_name,
+        sector: sRes.sector?.slug ?? normalizeSector(sRawForLookup),
+        attendance_character: r.attendance_character,
+        raw_data: r.raw_data as never,
+        tipo_linha: r.tipo_linha,
+        convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
+        // === Vínculos estritos com cadastros (lookup obrigatório) ===
+        doctor_id: dRes.doctor?.id ?? null,
+        doctor_matched_by: dRes.matched_by,
+        convenio_slug: cRes.convenio?.slug ?? null,
+        convenio_matched_by: cRes.matched_by,
+        sector_slug: sRes.sector?.slug ?? null,
+        sector_matched_by: sRes.matched_by,
+      });
+    };
+
 
     // Constrói uma linha de payment_unmatched_items (quarentena — não entra no motor)
     const buildUnmatchedRow = (r: ParsedRow, b: FileBucket) => ({
