@@ -356,6 +356,53 @@ export type Database = {
           },
         ]
       }
+      communication_sla_settings: {
+        Row: {
+          active: boolean
+          channel: string
+          created_at: string
+          first_response_hours: number
+          hospital_id: string | null
+          id: string
+          resolution_hours: number
+          severity: string
+          updated_at: string
+          warning_pct: number
+        }
+        Insert: {
+          active?: boolean
+          channel: string
+          created_at?: string
+          first_response_hours?: number
+          hospital_id?: string | null
+          id?: string
+          resolution_hours?: number
+          severity?: string
+          updated_at?: string
+          warning_pct?: number
+        }
+        Update: {
+          active?: boolean
+          channel?: string
+          created_at?: string
+          first_response_hours?: number
+          hospital_id?: string | null
+          id?: string
+          resolution_hours?: number
+          severity?: string
+          updated_at?: string
+          warning_pct?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_sla_settings_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           aliases: string[]
@@ -1378,11 +1425,13 @@ export type Database = {
       }
       doctor_messages: {
         Row: {
+          assigned_to: string | null
           author_name: string
           author_type: string
           author_user_id: string | null
           created_at: string
           doctor_id: string
+          first_response_at: string | null
           hospital_id: string | null
           id: string
           message: string
@@ -1391,13 +1440,18 @@ export type Database = {
           read_at: string | null
           read_by_doctor_at: string | null
           responded_at: string | null
+          sla_alerted_at: string | null
+          status: string
+          thread_id: string | null
         }
         Insert: {
+          assigned_to?: string | null
           author_name: string
           author_type: string
           author_user_id?: string | null
           created_at?: string
           doctor_id: string
+          first_response_at?: string | null
           hospital_id?: string | null
           id?: string
           message: string
@@ -1406,13 +1460,18 @@ export type Database = {
           read_at?: string | null
           read_by_doctor_at?: string | null
           responded_at?: string | null
+          sla_alerted_at?: string | null
+          status?: string
+          thread_id?: string | null
         }
         Update: {
+          assigned_to?: string | null
           author_name?: string
           author_type?: string
           author_user_id?: string | null
           created_at?: string
           doctor_id?: string
+          first_response_at?: string | null
           hospital_id?: string | null
           id?: string
           message?: string
@@ -1421,8 +1480,18 @@ export type Database = {
           read_at?: string | null
           read_by_doctor_at?: string | null
           responded_at?: string | null
+          sla_alerted_at?: string | null
+          status?: string
+          thread_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "doctor_messages_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "doctor_messages_doctor_id_fkey"
             columns: ["doctor_id"]
@@ -2445,44 +2514,63 @@ export type Database = {
       invoice_questions: {
         Row: {
           answered_at: string | null
+          assigned_to: string | null
           author_id: string | null
           author_name: string | null
           author_type: string
           created_at: string
+          first_response_at: string | null
           hospital_id: string | null
           id: string
           invoice_id: string
           message: string
           payment_id: string
           read_at: string | null
+          sla_alerted_at: string | null
+          status: string
         }
         Insert: {
           answered_at?: string | null
+          assigned_to?: string | null
           author_id?: string | null
           author_name?: string | null
           author_type: string
           created_at?: string
+          first_response_at?: string | null
           hospital_id?: string | null
           id?: string
           invoice_id: string
           message: string
           payment_id: string
           read_at?: string | null
+          sla_alerted_at?: string | null
+          status?: string
         }
         Update: {
           answered_at?: string | null
+          assigned_to?: string | null
           author_id?: string | null
           author_name?: string | null
           author_type?: string
           created_at?: string
+          first_response_at?: string | null
           hospital_id?: string | null
           id?: string
           invoice_id?: string
           message?: string
           payment_id?: string
           read_at?: string | null
+          sla_alerted_at?: string | null
+          status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoice_questions_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoice_questions_hospital_id_fkey"
             columns: ["hospital_id"]
@@ -3704,36 +3792,67 @@ export type Database = {
       }
       payment_questions: {
         Row: {
+          answered_at: string | null
+          assigned_to: string | null
           author_id: string
           author_name: string
+          author_type: string
           company_group_id: string | null
           created_at: string
+          first_response_at: string | null
           hospital_id: string | null
           id: string
           message: string
+          parent_id: string | null
           payment_id: string
+          read_at: string | null
+          sla_alerted_at: string | null
+          status: string
         }
         Insert: {
+          answered_at?: string | null
+          assigned_to?: string | null
           author_id: string
           author_name: string
+          author_type?: string
           company_group_id?: string | null
           created_at?: string
+          first_response_at?: string | null
           hospital_id?: string | null
           id?: string
           message: string
+          parent_id?: string | null
           payment_id: string
+          read_at?: string | null
+          sla_alerted_at?: string | null
+          status?: string
         }
         Update: {
+          answered_at?: string | null
+          assigned_to?: string | null
           author_id?: string
           author_name?: string
+          author_type?: string
           company_group_id?: string | null
           created_at?: string
+          first_response_at?: string | null
           hospital_id?: string | null
           id?: string
           message?: string
+          parent_id?: string | null
           payment_id?: string
+          read_at?: string | null
+          sla_alerted_at?: string | null
+          status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_questions_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_questions_author_id_fkey"
             columns: ["author_id"]
@@ -3753,6 +3872,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_questions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "payment_questions"
             referencedColumns: ["id"]
           },
           {
@@ -6227,6 +6353,27 @@ export type Database = {
       }
     }
     Views: {
+      communication_threads_v: {
+        Row: {
+          answered_at: string | null
+          assigned_to: string | null
+          author_name: string | null
+          channel: string | null
+          first_response_at: string | null
+          hospital_id: string | null
+          last_author_type: string | null
+          last_message_at: string | null
+          opened_at: string | null
+          payment_id: string | null
+          preview: string | null
+          read_at: string | null
+          sla_alerted_at: string | null
+          status: string | null
+          subject_ref: string | null
+          thread_id: string | null
+        }
+        Relationships: []
+      }
       mv_payments_flags: {
         Row: {
           has_divergence: boolean | null
@@ -6375,6 +6522,27 @@ export type Database = {
       can_access_hospital: {
         Args: { _hid: string; _uid: string }
         Returns: boolean
+      }
+      comm_reply_on_behalf: {
+        Args: {
+          p_channel: string
+          p_message: string
+          p_on_behalf_of: string
+          p_thread_id: string
+        }
+        Returns: string
+      }
+      comm_thread_assign: {
+        Args: { p_assignee: string; p_channel: string; p_thread_id: string }
+        Returns: undefined
+      }
+      comm_thread_close: {
+        Args: { p_channel: string; p_thread_id: string }
+        Returns: undefined
+      }
+      comm_thread_mark_read: {
+        Args: { p_channel: string; p_thread_id: string }
+        Returns: undefined
       }
       companies_for_doctor_at: {
         Args: { _doctor_id: string; _on_date: string }

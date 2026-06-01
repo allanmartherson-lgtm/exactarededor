@@ -81,6 +81,7 @@ const loadHospitalSwitchLog = () => import("./pages/HospitalSwitchLog.tsx");
 const loadApproveMagicLink = () => import("./pages/ApproveMagicLink.tsx");
 const loadNotificationPreferences = () => import("./pages/NotificationPreferences.tsx");
 const loadIntegrationsAdmin = () => import("./pages/IntegrationsAdmin.tsx");
+const loadCommunicationSupervision = () => import("./pages/CommunicationSupervision.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -140,6 +141,7 @@ const HospitalSwitchLog = lazy(loadHospitalSwitchLog);
 const ApproveMagicLink = lazy(loadApproveMagicLink);
 const NotificationPreferences = lazy(loadNotificationPreferences);
 const IntegrationsAdmin = lazy(loadIntegrationsAdmin);
+const CommunicationSupervision = lazy(loadCommunicationSupervision);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -246,6 +248,7 @@ const App = () => (
                   <Route path="/pendencias" element={<Pendencias />} />
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
                   <Route path="/conversas" element={<Conversas />} />
+                  <Route path="/comunicacao/supervisao" element={<ProtectedRoute roles={["admin", "diretor"]}><CommunicationSupervision /></ProtectedRoute>} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><HealthMonitoring /></ProtectedRoute>} />
                   <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
                   <Route path="/regras/pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
