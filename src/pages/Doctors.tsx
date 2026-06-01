@@ -18,6 +18,7 @@ import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 import { formatCPF, isValidCPF, onlyDigits as cpfOnlyDigits } from "@/lib/cpf";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DoctorRegistrationPendingPanel } from "@/components/doctors/DoctorRegistrationPendingPanel";
+import { RegistryAliasesPanel } from "@/components/RegistryAliasesPanel";
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
   entity: "doctors",
@@ -651,9 +652,13 @@ export default function Doctors() {
           <TabsList>
             <TabsTrigger value="list">Cadastro de médicos</TabsTrigger>
             <TabsTrigger value="pending">Pendências de cadastro</TabsTrigger>
+            <TabsTrigger value="aliases">Aliases</TabsTrigger>
           </TabsList>
           <TabsContent value="pending" className="mt-4">
             <DoctorRegistrationPendingPanel />
+          </TabsContent>
+          <TabsContent value="aliases" className="mt-4">
+            <RegistryAliasesPanel kind="doctor" />
           </TabsContent>
           <TabsContent value="list" className="mt-4">
         <Card className="overflow-hidden">
