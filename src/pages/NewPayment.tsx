@@ -32,6 +32,18 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { AlertTriangle } from "lucide-react";
 import {
+  loadDoctorRegistry,
+  loadConvenioRegistry,
+  loadSectorRegistry,
+  resolveDoctor,
+  resolveConvenio,
+  resolveSector,
+  type DoctorRegistry,
+  type ConvenioRegistry,
+  type SectorRegistry,
+} from "@/lib/registryLookup";
+import { RegistryResolutionPanel, type UnresolvedGroup } from "@/components/RegistryResolutionPanel";
+import {
   similarity,
   extractCompanyFromFilename,
   matchCompany,
@@ -929,6 +941,77 @@ const NewPayment = () => {
   }, [buckets, paymentKind]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
 
+  // ===== Lookup estrito de cadastros (médicos / convênios / setores) =====
+  const [doctorReg, setDoctorReg] = useState<DoctorRegistry | null>(null);
+  const [convenioReg, setConvenioReg] = useState<ConvenioRegistry | null>(null);
+  const [sectorReg, setSectorReg] = useState<SectorRegistry | null>(null);
+  const [registryVersion, setRegistryVersion] = useState(0);
+
+  const reloadRegistries = async () => {
+    const [d, c, s] = await Promise.all([
+      loadDoctorRegistry(),
+      loadConvenioRegistry(),
+      loadSectorRegistry(),
+    ]);
+    setDoctorReg(d);
+    setConvenioReg(c);
+    setSectorReg(s);
+    setRegistryVersion((v) => v + 1);
+  };
+
+  useEffect(() => {
+    void reloadRegistries();
+  }, []);
+
+  // Para cada linha, resolve (doctor_id, convenio_slug, sector_slug) + matched_by.
+  const resolvedRows = useMemo(() => {
+    if (!doctorReg || !convenioReg || !sectorReg) {
+      return allRows.map((r) => ({ ...r, _resolution: null as any }));
+    }
+    return allRows.map((r) => {
+      const d = resolveDoctor({ name: r.doctor_name, crm: r.doctor_document, cpf: r.doctor_document }, doctorReg);
+      const c = resolveConvenio(r.agreement_text, convenioReg);
+      const s = resolveSector(r.sector, sectorReg);
+      return {
+        ...r,
+        _resolution: {
+          doctor_id: d.doctor?.id ?? null,
+          doctor_matched_by: d.matched_by,
+          convenio_slug: c.convenio?.slug ?? null,
+          convenio_matched_by: c.matched_by,
+          sector_slug: s.sector?.slug ?? null,
+          sector_matched_by: s.matched_by,
+        },
+      };
+    });
+  }, [allRows, doctorReg, convenioReg, sectorReg, registryVersion]);
+
+  // Agrupa não-resolvidos por (kind, texto bruto). Tipo_linha "patient_only"
+  // (linhas sem médico no Excel) é ignorado para evitar falsos positivos.
+  const unresolvedGroups = useMemo<UnresolvedGroup[]>(() => {
+    if (!doctorReg || !convenioReg || !sectorReg) return [];
+    const map = new Map<string, UnresolvedGroup>();
+    const bump = (kind: UnresolvedGroup["kind"], raw: string) => {
+      const text = (raw ?? "").trim();
+      if (!text) return;
+      const key = `${kind}::${text.toLowerCase()}`;
+      const existing = map.get(key);
+      if (existing) existing.count += 1;
+      else map.set(key, { kind, raw: text, count: 1 });
+    };
+    for (const r of resolvedRows) {
+      const res = (r as any)._resolution;
+      if (!res) continue;
+      if (!res.doctor_id && r.doctor_name?.trim()) bump("doctor", r.doctor_name);
+      if (!res.convenio_slug && r.agreement_text?.trim()) bump("convenio", r.agreement_text);
+      if (!res.sector_slug && r.sector?.trim()) bump("sector", r.sector);
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [resolvedRows, doctorReg, convenioReg, sectorReg]);
+
+  const hasUnresolved = unresolvedGroups.length > 0;
+
+
   const uniqueCompanyNames = useMemo(() => {
     const set = new Set<string>();
     for (const r of allRows) {
@@ -1172,35 +1255,46 @@ const NewPayment = () => {
 
 
     // Constrói uma linha de payment_items para uma row "matched"
-    const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => ({
-      payment_id: payment.id,
-      doctor_name: r.doctor_name,
-      doctor_document: r.doctor_document,
-      doctor_email: r.doctor_email,
-      description: r.description,
-      gross_amount: r.gross_amount,
-      company_name: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.name || r.company_name) : r.company_name,
-      company_id: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.id || r.company_id) : r.company_id,
-      attendance_number: r.attendance_number,
-      procedure_code: r.procedure_code,
-      procedure_name: r.procedure_name,
-      access_route: r.access_route,
-      doctor_role: r.doctor_role,
-      agreement_text: r.agreement_text,
-      specialty: resolveSpecialty(r),
-      procedure_amount: r.procedure_amount,
-      quantity: r.quantity,
-      procedure_date: r.procedure_date,
-      patient_name: r.patient_name,
-      // Preferir SEMPRE o setor lido da planilha (linha a linha).
-      // O sectorMapping do bucket é apenas fallback quando a planilha não trouxe a coluna.
-      // Normaliza para o slug canônico (via tabela `sectors`) antes de persistir.
-      sector: normalizeSector(r.sector || currentBucket?.sectorMapping || null),
-      attendance_character: r.attendance_character,
-      raw_data: r.raw_data as never,
-      tipo_linha: r.tipo_linha,
-      convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
-    });
+    const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => {
+      const dRes = doctorReg ? resolveDoctor({ name: r.doctor_name, crm: r.doctor_document, cpf: r.doctor_document }, doctorReg) : { doctor: null, matched_by: null as any };
+      const cRes = convenioReg ? resolveConvenio(r.agreement_text, convenioReg) : { convenio: null, matched_by: null as any };
+      const sRawForLookup = r.sector || currentBucket?.sectorMapping || null;
+      const sRes = sectorReg ? resolveSector(sRawForLookup, sectorReg) : { sector: null, matched_by: null as any };
+      return ({
+        payment_id: payment.id,
+        doctor_name: r.doctor_name,
+        doctor_document: r.doctor_document,
+        doctor_email: r.doctor_email,
+        description: r.description,
+        gross_amount: r.gross_amount,
+        company_name: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.name || r.company_name) : r.company_name,
+        company_id: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.id || r.company_id) : r.company_id,
+        attendance_number: r.attendance_number,
+        procedure_code: r.procedure_code,
+        procedure_name: r.procedure_name,
+        access_route: r.access_route,
+        doctor_role: r.doctor_role,
+        agreement_text: r.agreement_text,
+        specialty: resolveSpecialty(r),
+        procedure_amount: r.procedure_amount,
+        quantity: r.quantity,
+        procedure_date: r.procedure_date,
+        patient_name: r.patient_name,
+        sector: sRes.sector?.slug ?? normalizeSector(sRawForLookup),
+        attendance_character: r.attendance_character,
+        raw_data: r.raw_data as never,
+        tipo_linha: r.tipo_linha,
+        convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
+        // === Vínculos estritos com cadastros (lookup obrigatório) ===
+        doctor_id: dRes.doctor?.id ?? null,
+        doctor_matched_by: dRes.matched_by,
+        convenio_slug: cRes.convenio?.slug ?? null,
+        convenio_matched_by: cRes.matched_by,
+        sector_slug: sRes.sector?.slug ?? null,
+        sector_matched_by: sRes.matched_by,
+      });
+    };
+
 
     // Constrói uma linha de payment_unmatched_items (quarentena — não entra no motor)
     const buildUnmatchedRow = (r: ParsedRow, b: FileBucket) => ({
@@ -2122,13 +2216,24 @@ const NewPayment = () => {
           <CompanyRiskProfileList companyNames={uniqueCompanyNames} />
         )}
 
+        {allRows.length > 0 && doctorReg && convenioReg && sectorReg && (
+          <RegistryResolutionPanel
+            unresolved={unresolvedGroups}
+            doctorReg={doctorReg}
+            convenioReg={convenioReg}
+            sectorReg={sectorReg}
+            onResolved={reloadRegistries}
+          />
+        )}
+
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-            Criar e analisar com IA
+            {hasUnresolved ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar` : "Criar e analisar com IA"}
           </Button>
         </div>
+
       </div>
     </>
   );
