@@ -64,7 +64,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     // Hospitais acessíveis (considera global role, user_hospitals e portais)
     const { data, error } = await supabase.rpc("my_accessible_hospitals");
     let hospitals: Hospital[] = [];
-    if (error) {
+    if (error || !data) {
       const { data: fallback } = await supabase
         .from("hospitals")
         .select("*")
@@ -72,7 +72,17 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
         .order("name");
       hospitals = (fallback ?? []) as Hospital[];
     } else {
-      hospitals = ((data ?? []) as Hospital[]).filter((h) => h.active);
+      // RPC retorna {id,name,uf,city,active,is_primary} — completamos com slug/cnpj
+      const ids = (data as Array<{ id: string }>).map((h) => h.id);
+      if (ids.length) {
+        const { data: full } = await supabase
+          .from("hospitals")
+          .select("*")
+          .in("id", ids)
+          .eq("active", true)
+          .order("name");
+        hospitals = (full ?? []) as Hospital[];
+      }
     }
     setAvailableHospitals(hospitals);
 
