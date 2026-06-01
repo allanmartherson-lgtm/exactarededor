@@ -597,7 +597,7 @@ const NewPayment = () => {
     // "Unidade de Atendimento"). Quando a detecção foi por valores, deixamos
     // para o usuário confirmar manualmente — nunca inferimos sozinhos.
     const sectorAliasesMap = await loadSectorAliases();
-    const detection = detectSectorColumn(headerRow.map((h) => String(h ?? "")), json, sectorAliasesMap.resolveSlug);
+    const detection = detectSectorColumn(headerNames, json, sectorAliasesMap.resolveSlug);
     const autoSectorColumn = detection.confidence === "header" ? detection.recommended : null;
     const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName, autoSectorColumn);
 
