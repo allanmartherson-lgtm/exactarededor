@@ -49,9 +49,11 @@ function matchAll(re: RegExp, s: string): string[] {
   return out;
 }
 
-// Ignora `.storage.from(...)` (bucket de storage) — só queremos tabelas do Data API.
-const tablesQueried = matchAll(/(?<!\.storage)\.from\(\s*["']([^"']+)["']\s*\)/g, GET_BLOCK);
-const selects = matchAll(/\.select\(\s*["']([^"']+)["']\s*\)/g, GET_BLOCK);
+// Remove chamadas a `supabase.storage.from(...)` (bucket de storage) antes de
+// escanear — só nos interessa o Data API (`supabase.from(...)`).
+const DATA_API_BLOCK = GET_BLOCK.replace(/\.storage\s*\.from\(\s*["'][^"']+["']\s*\)/g, ".storage.__bucket__");
+const tablesQueried = matchAll(/\.from\(\s*["']([^"']+)["']\s*\)/g, DATA_API_BLOCK);
+const selects = matchAll(/\.select\(\s*["']([^"']+)["']\s*\)/g, DATA_API_BLOCK);
 
 // --- Allowlists. Atualize com cautela; cada adição precisa de revisão.
 const ALLOWED_TABLES = new Set<string>([
