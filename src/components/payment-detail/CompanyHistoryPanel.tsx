@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, User as UserIcon, UserCheck, FileDown, Info, ShieldAlert, Pencil } from "lucide-react";
+import { History, User as UserIcon, UserCheck, FileDown, Info, ShieldAlert, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import type {
   AiVersionRow,
   AssignmentRow,
@@ -88,6 +88,8 @@ export function CompanyHistoryPanel({
   const [filterItem, setFilterItem] = useState<string>("all");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
+  const [expanded, setExpanded] = useState(false);
+  const DEFAULT_LIMIT = 5;
 
   const entries = useMemo<Entry[]>(() => {
     const out: Entry[] = [];
@@ -368,72 +370,107 @@ export function CompanyHistoryPanel({
             Nenhum registro de histórico para o filtro atual.
           </p>
         ) : (
-          <ul className="space-y-2">
-            {filtered.map((e) => {
-              // Atribuição manual mantém ícone próprio (UserCheck);
-              // demais entradas usam a identidade visual unificada por papel.
-              const visual = getRoleVisual(
-                e.kind === "ai" ? "ia" : e.authorType,
-              );
-              const Icon = e.kind === "assign" ? UserCheck : visual.Icon;
-              const borderClass =
-                e.kind === "assign" ? "border-l-warning" : visual.borderClass;
+          <>
+            {(() => {
+              const hiddenCount = Math.max(0, filtered.length - DEFAULT_LIMIT);
+              const visible = expanded ? filtered : filtered.slice(0, DEFAULT_LIMIT);
               return (
-                <li
-                  key={e.id}
-                  className={cn(
-                    "rounded-md border bg-muted/20 px-3 py-2 text-xs border-l-4",
-                    borderClass,
+                <>
+                  {!expanded && hiddenCount > 0 && (
+                    <p className="text-[11px] text-muted-foreground mb-2">
+                      Exibindo as {DEFAULT_LIMIT} ações mais recentes — {hiddenCount} entrada(s) anterior(es) oculta(s).
+                    </p>
                   )}
-                >
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mb-1">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 uppercase tracking-wide",
-                        e.kind === "assign"
-                          ? "bg-warning-soft text-warning-text border-warning/40"
-                          : visual.badgeClass,
-                      )}
-                    >
-                      <Icon className="h-3 w-3" />
-                      {e.kind === "assign" ? "Atribuição" : authorRoleLabel(e.authorType)}
-                    </span>
-                    {e.kind === "obs" && e.type && e.type !== "informativo" && (
-                      <Badge 
-                        variant="outline" 
-                        className={cn(
-                          "h-5 px-1.5 text-[10px] uppercase tracking-wider font-bold",
-                          e.type === "impacta_aprovacao"
-                            ? "border-amber-500/50 text-amber-700 bg-amber-100"
-                            : "border-success/40 text-success bg-success-soft"
-                        )}
+                  <ul className="space-y-2">
+                    {visible.map((e) => {
+                      const visual = getRoleVisual(
+                        e.kind === "ai" ? "ia" : e.authorType,
+                      );
+                      const Icon = e.kind === "assign" ? UserCheck : visual.Icon;
+                      const borderClass =
+                        e.kind === "assign" ? "border-l-warning" : visual.borderClass;
+                      return (
+                        <li
+                          key={e.id}
+                          className={cn(
+                            "rounded-md border bg-muted/20 px-3 py-2 text-xs border-l-4",
+                            borderClass,
+                          )}
+                        >
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mb-1">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 uppercase tracking-wide",
+                                e.kind === "assign"
+                                  ? "bg-warning-soft text-warning-text border-warning/40"
+                                  : visual.badgeClass,
+                              )}
+                            >
+                              <Icon className="h-3 w-3" />
+                              {e.kind === "assign" ? "Atribuição" : authorRoleLabel(e.authorType)}
+                            </span>
+                            {e.kind === "obs" && e.type && e.type !== "informativo" && (
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "h-5 px-1.5 text-[10px] uppercase tracking-wider font-bold",
+                                  e.type === "impacta_aprovacao"
+                                    ? "border-amber-500/50 text-amber-700 bg-amber-100"
+                                    : "border-success/40 text-success bg-success-soft"
+                                )}
+                              >
+                                {e.type === "impacta_aprovacao" ? (
+                                  <ShieldAlert className="h-2.5 w-2.5 mr-1" />
+                                ) : (
+                                  <Pencil className="h-2.5 w-2.5 mr-1" />
+                                )}
+                                {e.type === "impacta_aprovacao" ? "Impacta Aprovação" : "Justificativa"}
+                              </Badge>
+                            )}
+                            {e.authorName && (
+                              <span className="flex items-center gap-1 text-foreground/80">
+                                <UserIcon className="h-3 w-3" />
+                                {e.authorName}
+                              </span>
+                            )}
+                            <span className="ml-auto tabular-nums">{fmtDate(e.at)}</span>
+                          </div>
+                          {e.itemLabel && (
+                            <div className="text-[11px] text-muted-foreground mb-1">
+                              Item: <span className="text-foreground">{e.itemLabel}</span>
+                            </div>
+                          )}
+                          <div className="text-foreground">{e.body}</div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {hiddenCount > 0 && (
+                    <div className="mt-3 flex justify-center">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 text-xs"
+                        onClick={() => setExpanded((v) => !v)}
                       >
-                        {e.type === "impacta_aprovacao" ? (
-                          <ShieldAlert className="h-2.5 w-2.5 mr-1" />
+                        {expanded ? (
+                          <>
+                            <ChevronUp className="h-3.5 w-3.5 mr-1.5" />
+                            Mostrar apenas as {DEFAULT_LIMIT} mais recentes
+                          </>
                         ) : (
-                          <Pencil className="h-2.5 w-2.5 mr-1" />
+                          <>
+                            <ChevronDown className="h-3.5 w-3.5 mr-1.5" />
+                            Ver histórico completo ({hiddenCount} anterior{hiddenCount === 1 ? "" : "es"})
+                          </>
                         )}
-                        {e.type === "impacta_aprovacao" ? "Impacta Aprovação" : "Justificativa"}
-                      </Badge>
-                    )}
-                    {e.authorName && (
-                      <span className="flex items-center gap-1 text-foreground/80">
-                        <UserIcon className="h-3 w-3" />
-                        {e.authorName}
-                      </span>
-                    )}
-                    <span className="ml-auto tabular-nums">{fmtDate(e.at)}</span>
-                  </div>
-                  {e.itemLabel && (
-                    <div className="text-[11px] text-muted-foreground mb-1">
-                      Item: <span className="text-foreground">{e.itemLabel}</span>
+                      </Button>
                     </div>
                   )}
-                  <div className="text-foreground">{e.body}</div>
-                </li>
+                </>
               );
-            })}
-          </ul>
+            })()}
+          </>
         )}
       </CardContent>
     </Card>
