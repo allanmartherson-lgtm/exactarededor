@@ -212,3 +212,85 @@ export async function createConvenioAlias(convenio_slug: string, alias_text: str
 export async function createSectorAlias(sector_slug: string, alias_text: string, source: AliasSource = "manual") {
   return insertAliasIgnoreDup("sector_aliases", { sector_slug, alias_text, source });
 }
+
+// ====== auto-aprendizado em lote ======
+
+type LearnRow = {
+  doctor_id?: string | null;
+  doctor_matched_by?: MatchedBy;
+  doctor_name?: string | null;
+  convenio_slug?: string | null;
+  convenio_matched_by?: MatchedBy;
+  agreement_text?: string | null;
+  sector_slug?: string | null;
+  sector_matched_by?: MatchedBy;
+  sector_raw?: string | null;
+};
+
+/**
+ * Varre linhas resolvidas e cria aliases auto para variações cujo texto bruto
+ * difere do canônico mas que o motor casou via documento/slug. Próximas
+ * importações resolvem direto via alias — o motor fica mais inteligente sem
+ * intervenção do analista.
+ *
+ * Idempotente: colisões com alias_normalized UNIQUE são ignoradas. Best-effort.
+ */
+export async function learnAliasesFromResolvedRows(
+  rows: LearnRow[],
+  registries: { doctorReg: DoctorRegistry | null; convenioReg: ConvenioRegistry | null; sectorReg: SectorRegistry | null },
+): Promise<{ doctor: number; convenio: number; sector: number }> {
+  const doctor = new Map<string, { doctor_id: string; alias_text: string; source: AliasSource }>();
+  const convenio = new Map<string, { convenio_slug: string; alias_text: string; source: AliasSource }>();
+  const sector = new Map<string, { sector_slug: string; alias_text: string; source: AliasSource }>();
+
+  const doctorById = new Map<string, DoctorRegistryEntry>();
+  if (registries.doctorReg) {
+    for (const d of registries.doctorReg.byAlias.values()) doctorById.set(d.id, d);
+  }
+
+  for (const r of rows) {
+    if (r.doctor_id && (r.doctor_matched_by === "crm" || r.doctor_matched_by === "cpf") && r.doctor_name) {
+      const canN = normalize(doctorById.get(r.doctor_id)?.full_name);
+      const rawN = normalize(r.doctor_name);
+      if (rawN && rawN !== canN) {
+        doctor.set(`${r.doctor_id}::${rawN}`, { doctor_id: r.doctor_id, alias_text: r.doctor_name.trim(), source: "auto" });
+      }
+    }
+    if (r.convenio_slug && r.convenio_matched_by === "slug" && r.agreement_text) {
+      const canN = normalize(registries.convenioReg?.bySlug.get(r.convenio_slug)?.name);
+      const rawN = normalize(r.agreement_text);
+      if (rawN && rawN !== canN && rawN !== r.convenio_slug.toLowerCase()) {
+        convenio.set(`${r.convenio_slug}::${rawN}`, { convenio_slug: r.convenio_slug, alias_text: r.agreement_text.trim(), source: "auto" });
+      }
+    }
+    if (r.sector_slug && r.sector_matched_by === "slug" && r.sector_raw) {
+      const canN = normalize(registries.sectorReg?.bySlug.get(r.sector_slug)?.name);
+      const rawN = normalize(r.sector_raw);
+      if (rawN && rawN !== canN && rawN !== r.sector_slug.toLowerCase()) {
+        sector.set(`${r.sector_slug}::${rawN}`, { sector_slug: r.sector_slug, alias_text: r.sector_raw.trim(), source: "auto" });
+      }
+    }
+  }
+
+  const counts = { doctor: 0, convenio: 0, sector: 0 };
+  const runInsert = async (table: "doctor_aliases" | "convenio_aliases" | "sector_aliases", payload: any[]) => {
+    if (!payload.length) return 0;
+    const { error } = await supabase.from(table as any).insert(payload as any);
+    if (!error) return payload.length;
+    if (/duplicate|unique|conflict/i.test(error.message ?? "")) {
+      // tenta uma a uma para registrar os que passam
+      let ok = 0;
+      for (const row of payload) {
+        const r2 = await supabase.from(table as any).insert(row as any);
+        if (!r2.error || /duplicate|unique|conflict/i.test(r2.error.message ?? "")) ok += r2.error ? 0 : 1;
+      }
+      return ok;
+    }
+    console.warn(`[learn-alias] ${table} insert falhou:`, error.message);
+    return 0;
+  };
+  counts.doctor = await runInsert("doctor_aliases", [...doctor.values()]);
+  counts.convenio = await runInsert("convenio_aliases", [...convenio.values()]);
+  counts.sector = await runInsert("sector_aliases", [...sector.values()]);
+  return counts;
+}
