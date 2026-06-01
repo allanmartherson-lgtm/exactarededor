@@ -6542,6 +6542,25 @@ export type Database = {
         Returns: number
       }
       merge_doctors_from_staging: { Args: never; Returns: Json }
+      my_accessible_hospitals: {
+        Args: never
+        Returns: {
+          active: boolean
+          cnpj: string | null
+          created_at: string
+          id: string
+          name: string
+          slug: string
+          state_uf: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "hospitals"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       norm_for_hash: { Args: { s: string }; Returns: string }
       norm_name: { Args: { t: string }; Returns: string }
       normalize_alias: { Args: { t: string }; Returns: string }
