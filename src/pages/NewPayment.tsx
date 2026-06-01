@@ -438,7 +438,16 @@ const NewPayment = () => {
         const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
         if (s >= MATCH_AUTO_THRESHOLD) rowMatchedCompany = matched;
       }
-      const rawSector = toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"]));
+      const rawSector = sectorColumnOverride
+        ? toStr(row[sectorColumnOverride])
+        : toStr(pick(row, [
+            "setor do pagamento", "setor", "setores",
+            "unidade de atendimento", "unidade", "unidades",
+            "departamento", "departamentos", "depto",
+            "servico", "serviço",
+            "lotacao", "lotação",
+            "ala", "posto", "area", "área", "local", "localizacao", "localização",
+          ]));
       const resolvedCompany = filenameTrusted ? company : (rowMatchedCompany || company);
       const resolvedName = resolvedCompany?.name
         ?? (filenameTrusted ? company!.name : (rowCompanyNameRaw || rawCompanyName))
