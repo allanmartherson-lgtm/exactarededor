@@ -690,6 +690,35 @@ const NewPayment = () => {
     toast({ title: "Cabeçalho atualizado", description: `Linha ${newHeaderIdx + 1} usada como cabeçalho.` });
   };
 
+  /**
+   * Aplica/troca a coluna usada como SETOR em um bucket e reprocessa as linhas
+   * lendo o valor dali. Mantém o usuário no controle — nada é inferido sozinho.
+   */
+  const applySectorColumn = (idx: number, columnName: string | null) => {
+    setBuckets((prev) => prev.map((bucket, bIdx) => {
+      if (bIdx !== idx) return bucket;
+      const matrix = bucket.rawMatrix;
+      const headerIdx = bucket.headerRowIndex ?? 0;
+      if (!matrix) return { ...bucket, sectorColumnUsed: columnName };
+      const json = matrixToJson(matrix, headerIdx);
+      const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
+      const company = bucket.matchedCompany
+        ? (companies.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
+        : null;
+      const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, columnName);
+      const sc: Record<string, number> = {};
+      for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
+      const dominantRaw = Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      const dominantMapped = mapSectorFromRaw(dominantRaw);
+      const sectorMissing = rows.length > 0 && (Object.keys(sc).length === 0 || dominantMapped === null);
+      return { ...bucket, rows, sectorColumnUsed: columnName, sectorMissing, sectorMapping: bucket.sectorMapping ?? dominantMapped };
+    }));
+    toast({
+      title: columnName ? `Coluna de setor: "${columnName}"` : "Coluna de setor: detecção automática",
+      description: columnName ? "Os itens deste arquivo passaram a ler o setor desta coluna." : "Voltando ao detector automático por sinônimos.",
+    });
+  };
+
 
 
   const reportParseError = (fileName: string, e: unknown) => {
