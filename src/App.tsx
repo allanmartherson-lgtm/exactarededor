@@ -78,6 +78,7 @@ const loadHospitals = () => import("./pages/Hospitals.tsx");
 const loadSelectHospital = () => import("./pages/SelectHospital.tsx");
 const loadPortalUsers = () => import("./pages/PortalUsers.tsx");
 const loadHospitalSwitchLog = () => import("./pages/HospitalSwitchLog.tsx");
+const loadApproveMagicLink = () => import("./pages/ApproveMagicLink.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -134,6 +135,7 @@ const Hospitals = lazy(loadHospitals);
 const SelectHospital = lazy(loadSelectHospital);
 const PortalUsers = lazy(loadPortalUsers);
 const HospitalSwitchLog = lazy(loadHospitalSwitchLog);
+const ApproveMagicLink = lazy(loadApproveMagicLink);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -217,6 +219,7 @@ const App = () => (
                 <Route path="/definir-senha" element={<SetPassword />} />
                 <Route path="/reset-password" element={<SetPassword />} />
                 <Route path="/portal/nota/:token" element={<InvoicePortal />} />
+                <Route path="/aprovar/:token" element={<ApproveMagicLink />} />
                 <Route path="/trocar-senha" element={<ForceChangePassword />} />
                 <Route path="/preview-paletas" element={<PreviewPalettes />} />
                 <Route path="/preview-design-systems" element={<PreviewDesignSystems />} />
