@@ -175,6 +175,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/sistema/feature-flags", label: "Feature Flags", icon: Flag, iconName: "Flag", roles: ["admin", "diretor"] },
       { to: "/sistema/avisos", label: "Avisos do Sistema", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor"] },
       { to: "/sistema/journal", label: "Livro Contábil", icon: BookOpen, iconName: "BookOpen", roles: ["admin", "diretor"] },
+      { to: "/sistema/integracoes", label: "Integrações de Comunicação", icon: MessageSquare, iconName: "MessageSquare", roles: ["admin", "diretor"] },
       { to: "/sobre", label: "Sobre o Exacta", icon: Info, iconName: "Info", roles: ALL_ROLES },
     ],
   },
