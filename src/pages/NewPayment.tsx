@@ -187,6 +187,8 @@ interface ColumnOverrides {
   doctor?: string;
   gross?: string;
   repasse?: string;
+  /** Override manual da coluna que carrega o setor de cada linha. */
+  sectorColumn?: string;
 }
 
 interface FileBucket {
@@ -209,6 +211,10 @@ interface FileBucket {
   rawMatrix?: unknown[][];
   /** Índice (0-based) da linha de cabeçalho atualmente usada. */
   headerRowIndex?: number;
+  /** Resultado da detecção da coluna "setor" (candidatos sugeridos para o usuário confirmar). */
+  sectorColumnDetection?: SectorColumnDetection;
+  /** Coluna efetivamente usada como setor (auto OU escolhida pelo usuário). */
+  sectorColumnUsed?: string | null;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
