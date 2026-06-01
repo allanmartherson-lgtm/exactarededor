@@ -748,6 +748,45 @@ export type Database = {
           },
         ]
       }
+      company_portal_user_hospitals: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          id: string
+          is_primary: boolean
+          portal_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          id?: string
+          is_primary?: boolean
+          portal_user_id: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          is_primary?: boolean
+          portal_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_portal_user_hospitals_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_portal_user_hospitals_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "company_portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_portal_users: {
         Row: {
           accepted_at: string | null
@@ -1507,6 +1546,45 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_portal_user_hospitals: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          id: string
+          is_primary: boolean
+          portal_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          id?: string
+          is_primary?: boolean
+          portal_user_id: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          is_primary?: boolean
+          portal_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_portal_user_hospitals_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_portal_user_hospitals_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "doctor_portal_users"
             referencedColumns: ["id"]
           },
         ]
@@ -6557,20 +6635,12 @@ export type Database = {
         Args: never
         Returns: {
           active: boolean
-          cnpj: string | null
-          created_at: string
+          city: string
           id: string
+          is_primary: boolean
           name: string
-          slug: string
-          state_uf: string
-          updated_at: string
+          uf: string
         }[]
-        SetofOptions: {
-          from: "*"
-          to: "hospitals"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
       norm_for_hash: { Args: { s: string }; Returns: string }
       norm_name: { Args: { t: string }; Returns: string }
@@ -6717,7 +6787,7 @@ export type Database = {
         Args: { _company_id: string }
         Returns: boolean
       }
-      user_hospital_ids: { Args: { _uid: string }; Returns: string[] }
+      user_hospital_ids: { Args: { _user_id: string }; Returns: string[] }
       user_state_ufs: { Args: { _uid: string }; Returns: string[] }
       validate_rule_save: {
         Args: {
