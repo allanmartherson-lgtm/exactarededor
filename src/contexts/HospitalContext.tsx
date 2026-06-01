@@ -41,26 +41,20 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     }
     setLoading(true);
 
-    // Admin/diretor enxergam todos. Demais, apenas os vinculados.
+    // Usa RPC que já considera: global role, user_hospitals e hospitais derivados
+    // dos portais (company_portal_users / doctor_portal_users).
+    const { data, error } = await supabase.rpc("my_accessible_hospitals");
     let hospitals: Hospital[] = [];
-    if (isGlobal) {
-      const { data } = await supabase
+    if (error) {
+      // Fallback: tenta listar diretamente (admin/diretor passam por aqui se a RPC falhar)
+      const { data: fallback } = await supabase
         .from("hospitals")
         .select("*")
         .eq("active", true)
         .order("name");
-      hospitals = (data ?? []) as Hospital[];
+      hospitals = (fallback ?? []) as Hospital[];
     } else {
-      const { data } = await supabase
-        .from("user_hospitals")
-        .select("hospital:hospitals(*)")
-        .eq("user_id", user.id);
-      hospitals = ((data ?? []) as Array<{ hospital: Hospital | null }>)
-        .map((r) => r.hospital)
-        .filter((h): h is Hospital => h !== null && h.active);
-      // dedupe (mesmo hospital pode aparecer com roles diferentes)
-      const seen = new Set<string>();
-      hospitals = hospitals.filter((h) => (seen.has(h.id) ? false : (seen.add(h.id), true)));
+      hospitals = ((data ?? []) as Hospital[]).filter((h) => h.active);
     }
 
     setAvailableHospitals(hospitals);
