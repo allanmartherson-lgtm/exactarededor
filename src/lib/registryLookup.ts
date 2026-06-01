@@ -185,12 +185,30 @@ export function resolveSector(
 
 // ====== escritores de alias ======
 
-export async function createDoctorAlias(doctor_id: string, alias_text: string) {
-  return supabase.from("doctor_aliases").insert({ doctor_id, alias_text, source: "manual" });
+/**
+ * Insert idempotente — se o alias já existe (alias_normalized UNIQUE), ignora
+ * silenciosamente. Isso permite que o sistema "abasteça" a tabela de aliases
+ * a cada vínculo aceito sem quebrar em duplicidade.
+ */
+type AliasSource = "manual" | "auto";
+
+async function insertAliasIgnoreDup(
+  table: "doctor_aliases" | "convenio_aliases" | "sector_aliases",
+  payload: Record<string, unknown>,
+) {
+  const res = await supabase.from(table as any).insert(payload as any);
+  if (res.error && /duplicate|unique|conflict/i.test(res.error.message ?? "")) {
+    return { data: null, error: null } as typeof res;
+  }
+  return res;
 }
-export async function createConvenioAlias(convenio_slug: string, alias_text: string) {
-  return supabase.from("convenio_aliases").insert({ convenio_slug, alias_text, source: "manual" });
+
+export async function createDoctorAlias(doctor_id: string, alias_text: string, source: AliasSource = "manual") {
+  return insertAliasIgnoreDup("doctor_aliases", { doctor_id, alias_text, source });
 }
-export async function createSectorAlias(sector_slug: string, alias_text: string) {
-  return supabase.from("sector_aliases").insert({ sector_slug, alias_text, source: "manual" });
+export async function createConvenioAlias(convenio_slug: string, alias_text: string, source: AliasSource = "manual") {
+  return insertAliasIgnoreDup("convenio_aliases", { convenio_slug, alias_text, source });
+}
+export async function createSectorAlias(sector_slug: string, alias_text: string, source: AliasSource = "manual") {
+  return insertAliasIgnoreDup("sector_aliases", { sector_slug, alias_text, source });
 }
