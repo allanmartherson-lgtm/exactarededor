@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, User as UserIcon, UserCheck, FileDown, Info, ShieldAlert, Pencil } from "lucide-react";
+import { History, User as UserIcon, UserCheck, FileDown, Info, ShieldAlert, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import type {
   AiVersionRow,
   AssignmentRow,
