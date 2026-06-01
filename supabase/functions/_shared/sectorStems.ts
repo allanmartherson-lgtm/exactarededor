@@ -58,7 +58,7 @@ export const SECTOR_CATEGORY_STEMS: Array<{ category: string; pattern: RegExp }>
   // --- Ambulatorial / Consulta / Parecer / Visita (atos sem CC) ---
   { category: "ambulatorio",       pattern: /ambulat[oó]rio|ambulatorial/i },
   { category: "consulta",          pattern: /\bconsultas?\b/i },
-  { category: "parecer",           pattern: /\bpareceres?\b|\binterconsultas?\b/i },
+  { category: "parecer",           pattern: /\bparecer(es)?\b|\binterconsultas?\b/i },
   { category: "visita",            pattern: /\bvisitas?\b/i },
 
   // --- SADT (subcategorias quando reconhecíveis; senão genérico) ---
