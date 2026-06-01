@@ -2298,6 +2298,57 @@ export type Database = {
           },
         ]
       }
+      hospital_switch_log: {
+        Row: {
+          id: string
+          new_hospital_id: string
+          new_hospital_name: string | null
+          old_hospital_id: string | null
+          old_hospital_name: string | null
+          switched_at: string
+          user_agent: string | null
+          user_email: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          new_hospital_id: string
+          new_hospital_name?: string | null
+          old_hospital_id?: string | null
+          old_hospital_name?: string | null
+          switched_at?: string
+          user_agent?: string | null
+          user_email?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          new_hospital_id?: string
+          new_hospital_name?: string | null
+          old_hospital_id?: string | null
+          old_hospital_name?: string | null
+          switched_at?: string
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_switch_log_new_hospital_id_fkey"
+            columns: ["new_hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_switch_log_old_hospital_id_fkey"
+            columns: ["old_hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospitals: {
         Row: {
           active: boolean
@@ -4514,6 +4565,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          last_active_hospital_id: string | null
           phone: string | null
           preferences: Json
           primary_hospital_id: string | null
@@ -4527,6 +4579,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          last_active_hospital_id?: string | null
           phone?: string | null
           preferences?: Json
           primary_hospital_id?: string | null
@@ -4540,6 +4593,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          last_active_hospital_id?: string | null
           phone?: string | null
           preferences?: Json
           primary_hospital_id?: string | null
@@ -4547,6 +4601,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_last_active_hospital_id_fkey"
+            columns: ["last_active_hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_primary_hospital_id_fkey"
             columns: ["primary_hospital_id"]
@@ -6616,6 +6677,14 @@ export type Database = {
           _sort?: string
         }
         Returns: Json
+      }
+      log_hospital_switch: {
+        Args: {
+          p_new_hospital_id: string
+          p_old_hospital_id?: string
+          p_user_agent?: string
+        }
+        Returns: string
       }
       map_calculation_type_to_method: {
         Args: { _ctype: string }

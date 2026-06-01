@@ -10,6 +10,10 @@ import { NavLayoutProvider } from "./contexts/NavLayoutContext.tsx";
 import { ProtectedRoute } from "./components/ProtectedRoute.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
+import { HospitalSwitchingOverlay } from "./components/HospitalSwitchingOverlay.tsx";
+
+// Mount precisa estar DENTRO do <HospitalProvider> para acessar o context.
+const HospitalSwitchingOverlayMount = () => <HospitalSwitchingOverlay />;
 
 // Eagerly loaded critical pages
 import NotFound from "./pages/NotFound.tsx";
@@ -73,6 +77,7 @@ const loadConversas = () => import("./pages/Conversas.tsx");
 const loadHospitals = () => import("./pages/Hospitals.tsx");
 const loadSelectHospital = () => import("./pages/SelectHospital.tsx");
 const loadPortalUsers = () => import("./pages/PortalUsers.tsx");
+const loadHospitalSwitchLog = () => import("./pages/HospitalSwitchLog.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -128,6 +133,7 @@ const Conversas = lazy(loadConversas);
 const Hospitals = lazy(loadHospitals);
 const SelectHospital = lazy(loadSelectHospital);
 const PortalUsers = lazy(loadPortalUsers);
+const HospitalSwitchLog = lazy(loadHospitalSwitchLog);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -201,6 +207,7 @@ const App = () => (
           <AuthProvider>
           <HospitalProvider>
           <IdlePrefetcher />
+          <HospitalSwitchingOverlayMount />
           <ErrorBoundary>
             <Suspense fallback={<PageLoader />}>
 
@@ -256,6 +263,7 @@ const App = () => (
                   <Route path="/produtividade-analistas" element={<ProtectedRoute roles={["diretor", "admin"]}><AnalystProductivity /></ProtectedRoute>} />
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
+                  <Route path="/auditoria/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><HospitalSwitchLog /></ProtectedRoute>} />
                   <Route path="/anomalias-status" element={<ProtectedRoute roles={["diretor", "admin"]}><StatusAnomalies /></ProtectedRoute>} />
                   <Route path="/insights-observacoes" element={<ProtectedRoute roles={["diretor", "admin"]}><ObservationInsights /></ProtectedRoute>} />
                   <Route path="/sobre" element={<About />} />

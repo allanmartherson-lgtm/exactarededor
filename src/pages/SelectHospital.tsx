@@ -20,13 +20,14 @@ export default function SelectHospital() {
   useEffect(() => {
     if (loading) return;
     if (availableHospitals.length === 1) {
-      switchHospital(availableHospitals[0].id);
-      navigate(redirectTo, { replace: true });
+      void switchHospital(availableHospitals[0].id).then(() =>
+        navigate(redirectTo, { replace: true }),
+      );
     }
   }, [loading, availableHospitals, switchHospital, navigate, redirectTo]);
 
-  const choose = (id: string) => {
-    switchHospital(id);
+  const choose = async (id: string) => {
+    await switchHospital(id);
     navigate(redirectTo, { replace: true });
   };
 
