@@ -659,6 +659,8 @@ const NewPayment = () => {
       sectorMissing,
       rawMatrix: matrix,
       headerRowIndex: headerIdx,
+      sectorColumnDetection: detection,
+      sectorColumnUsed: autoSectorColumn,
     };
   };
 
