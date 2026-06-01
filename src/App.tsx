@@ -252,6 +252,7 @@ const App = () => (
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
                   <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
+                  <Route path="/portal-usuarios" element={<ProtectedRoute roles={["admin"]}><PortalUsers /></ProtectedRoute>} />
                   <Route path="/produtividade-analistas" element={<ProtectedRoute roles={["diretor", "admin"]}><AnalystProductivity /></ProtectedRoute>} />
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
