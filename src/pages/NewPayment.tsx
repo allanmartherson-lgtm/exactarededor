@@ -941,6 +941,77 @@ const NewPayment = () => {
   }, [buckets, paymentKind]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
 
+  // ===== Lookup estrito de cadastros (médicos / convênios / setores) =====
+  const [doctorReg, setDoctorReg] = useState<DoctorRegistry | null>(null);
+  const [convenioReg, setConvenioReg] = useState<ConvenioRegistry | null>(null);
+  const [sectorReg, setSectorReg] = useState<SectorRegistry | null>(null);
+  const [registryVersion, setRegistryVersion] = useState(0);
+
+  const reloadRegistries = async () => {
+    const [d, c, s] = await Promise.all([
+      loadDoctorRegistry(),
+      loadConvenioRegistry(),
+      loadSectorRegistry(),
+    ]);
+    setDoctorReg(d);
+    setConvenioReg(c);
+    setSectorReg(s);
+    setRegistryVersion((v) => v + 1);
+  };
+
+  useEffect(() => {
+    void reloadRegistries();
+  }, []);
+
+  // Para cada linha, resolve (doctor_id, convenio_slug, sector_slug) + matched_by.
+  const resolvedRows = useMemo(() => {
+    if (!doctorReg || !convenioReg || !sectorReg) {
+      return allRows.map((r) => ({ ...r, _resolution: null as any }));
+    }
+    return allRows.map((r) => {
+      const d = resolveDoctor({ name: r.doctor_name, crm: r.doctor_document, cpf: r.doctor_document }, doctorReg);
+      const c = resolveConvenio(r.agreement_text, convenioReg);
+      const s = resolveSector(r.sector, sectorReg);
+      return {
+        ...r,
+        _resolution: {
+          doctor_id: d.doctor?.id ?? null,
+          doctor_matched_by: d.matched_by,
+          convenio_slug: c.convenio?.slug ?? null,
+          convenio_matched_by: c.matched_by,
+          sector_slug: s.sector?.slug ?? null,
+          sector_matched_by: s.matched_by,
+        },
+      };
+    });
+  }, [allRows, doctorReg, convenioReg, sectorReg, registryVersion]);
+
+  // Agrupa não-resolvidos por (kind, texto bruto). Tipo_linha "patient_only"
+  // (linhas sem médico no Excel) é ignorado para evitar falsos positivos.
+  const unresolvedGroups = useMemo<UnresolvedGroup[]>(() => {
+    if (!doctorReg || !convenioReg || !sectorReg) return [];
+    const map = new Map<string, UnresolvedGroup>();
+    const bump = (kind: UnresolvedGroup["kind"], raw: string) => {
+      const text = (raw ?? "").trim();
+      if (!text) return;
+      const key = `${kind}::${text.toLowerCase()}`;
+      const existing = map.get(key);
+      if (existing) existing.count += 1;
+      else map.set(key, { kind, raw: text, count: 1 });
+    };
+    for (const r of resolvedRows) {
+      const res = (r as any)._resolution;
+      if (!res) continue;
+      if (!res.doctor_id && r.doctor_name?.trim()) bump("doctor", r.doctor_name);
+      if (!res.convenio_slug && r.agreement_text?.trim()) bump("convenio", r.agreement_text);
+      if (!res.sector_slug && r.sector?.trim()) bump("sector", r.sector);
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [resolvedRows, doctorReg, convenioReg, sectorReg]);
+
+  const hasUnresolved = unresolvedGroups.length > 0;
+
+
   const uniqueCompanyNames = useMemo(() => {
     const set = new Set<string>();
     for (const r of allRows) {
