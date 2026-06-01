@@ -21,6 +21,7 @@ export type Database = {
           department: string
           email: string
           full_name: string
+          hospital_id: string | null
           id: string
           message: string | null
           phone: string
@@ -38,6 +39,7 @@ export type Database = {
           department: string
           email: string
           full_name: string
+          hospital_id?: string | null
           id?: string
           message?: string | null
           phone: string
@@ -55,6 +57,7 @@ export type Database = {
           department?: string
           email?: string
           full_name?: string
+          hospital_id?: string | null
           id?: string
           message?: string | null
           phone?: string
@@ -66,7 +69,15 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "access_requests_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_analysis_versions: {
         Row: {
@@ -76,6 +87,7 @@ export type Database = {
           created_at: string
           expected_amount: number | null
           gross_amount_at_time: number | null
+          hospital_id: string | null
           id: string
           item_id: string
           matched_rule_ids: Json
@@ -92,6 +104,7 @@ export type Database = {
           created_at?: string
           expected_amount?: number | null
           gross_amount_at_time?: number | null
+          hospital_id?: string | null
           id?: string
           item_id: string
           matched_rule_ids?: Json
@@ -108,6 +121,7 @@ export type Database = {
           created_at?: string
           expected_amount?: number | null
           gross_amount_at_time?: number | null
+          hospital_id?: string | null
           id?: string
           item_id?: string
           matched_rule_ids?: Json
@@ -118,6 +132,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_analysis_versions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_analysis_versions_payment_id_fkey"
             columns: ["payment_id"]
@@ -140,6 +161,7 @@ export type Database = {
           company_name: string
           created_at: string
           errors: Json
+          hospital_id: string | null
           id: string
           last_error: string | null
           last_job_id: string | null
@@ -155,6 +177,7 @@ export type Database = {
           company_name: string
           created_at?: string
           errors?: Json
+          hospital_id?: string | null
           id?: string
           last_error?: string | null
           last_job_id?: string | null
@@ -170,6 +193,7 @@ export type Database = {
           company_name?: string
           created_at?: string
           errors?: Json
+          hospital_id?: string | null
           id?: string
           last_error?: string | null
           last_job_id?: string | null
@@ -180,7 +204,15 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "analysis_dead_letter_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       analysis_telemetry: {
         Row: {
@@ -190,6 +222,7 @@ export type Database = {
           company_name: string | null
           created_at: string
           error: string | null
+          hospital_id: string | null
           id: string
           items_count: number
           job_id: string | null
@@ -205,6 +238,7 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           error?: string | null
+          hospital_id?: string | null
           id?: string
           items_count?: number
           job_id?: string | null
@@ -220,6 +254,7 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           error?: string | null
+          hospital_id?: string | null
           id?: string
           items_count?: number
           job_id?: string | null
@@ -228,7 +263,15 @@ export type Database = {
           total_ms?: number
           writes_ms?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "analysis_telemetry_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assistance_groups: {
         Row: {
@@ -274,6 +317,7 @@ export type Database = {
           diff: Json
           entity_id: string
           entity_type: string
+          hospital_id: string | null
           id: string
         }
         Insert: {
@@ -286,6 +330,7 @@ export type Database = {
           diff?: Json
           entity_id: string
           entity_type: string
+          hospital_id?: string | null
           id?: string
         }
         Update: {
@@ -298,9 +343,18 @@ export type Database = {
           diff?: Json
           entity_id?: string
           entity_type?: string
+          hospital_id?: string | null
           id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       companies: {
         Row: {
@@ -312,6 +366,7 @@ export type Database = {
           invoice_emails: string[]
           name: string
           notes: string | null
+          state_uf: string | null
           tem_pool: boolean
           updated_at: string
         }
@@ -324,6 +379,7 @@ export type Database = {
           invoice_emails?: string[]
           name: string
           notes?: string | null
+          state_uf?: string | null
           tem_pool?: boolean
           updated_at?: string
         }
@@ -336,6 +392,7 @@ export type Database = {
           invoice_emails?: string[]
           name?: string
           notes?: string | null
+          state_uf?: string | null
           tem_pool?: boolean
           updated_at?: string
         }
@@ -384,6 +441,7 @@ export type Database = {
           company_id: string | null
           confirmed_at: string | null
           confirmed_by: string | null
+          hospital_id: string | null
           id: string
           parcela_numero: number
           payment_id: string
@@ -401,6 +459,7 @@ export type Database = {
           company_id?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
+          hospital_id?: string | null
           id?: string
           parcela_numero: number
           payment_id: string
@@ -418,6 +477,7 @@ export type Database = {
           company_id?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
+          hospital_id?: string | null
           id?: string
           parcela_numero?: number
           payment_id?: string
@@ -436,6 +496,13 @@ export type Database = {
             referencedRelation: "company_financial_adjustments"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "company_adjustment_applications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
         ]
       }
       company_attachments: {
@@ -443,6 +510,7 @@ export type Database = {
           company_id: string
           created_at: string
           file_name: string
+          hospital_id: string | null
           id: string
           message_id: string | null
           mime_type: string
@@ -456,6 +524,7 @@ export type Database = {
           company_id: string
           created_at?: string
           file_name: string
+          hospital_id?: string | null
           id?: string
           message_id?: string | null
           mime_type: string
@@ -469,6 +538,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           file_name?: string
+          hospital_id?: string | null
           id?: string
           message_id?: string | null
           mime_type?: string
@@ -484,6 +554,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_attachments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -510,6 +587,7 @@ export type Database = {
           created_by: string | null
           data_inicio: string
           descricao: string
+          hospital_id: string | null
           id: string
           origem: string | null
           parcelas_pagas: number
@@ -525,6 +603,7 @@ export type Database = {
           created_by?: string | null
           data_inicio?: string
           descricao: string
+          hospital_id?: string | null
           id?: string
           origem?: string | null
           parcelas_pagas?: number
@@ -540,6 +619,7 @@ export type Database = {
           created_by?: string | null
           data_inicio?: string
           descricao?: string
+          hospital_id?: string | null
           id?: string
           origem?: string | null
           parcelas_pagas?: number
@@ -556,6 +636,52 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "company_financial_adjustments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_hospital_overrides: {
+        Row: {
+          company_id: string
+          created_at: string
+          hospital_id: string
+          override_data: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          hospital_id: string
+          override_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          hospital_id?: string
+          override_data?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_hospital_overrides_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_hospital_overrides_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
         ]
       }
       company_messages: {
@@ -565,6 +691,7 @@ export type Database = {
           author_user_id: string | null
           company_id: string
           created_at: string
+          hospital_id: string | null
           id: string
           message: string
           read_by_company_at: string | null
@@ -577,6 +704,7 @@ export type Database = {
           author_user_id?: string | null
           company_id: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           message: string
           read_by_company_at?: string | null
@@ -589,6 +717,7 @@ export type Database = {
           author_user_id?: string | null
           company_id?: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           message?: string
           read_by_company_at?: string | null
@@ -601,6 +730,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_messages_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -667,6 +803,7 @@ export type Database = {
           due_day: number | null
           due_offset_days: number | null
           due_rule: string
+          hospital_id: string | null
           id: string
           inherit_default: boolean
           notes: string | null
@@ -679,6 +816,7 @@ export type Database = {
           due_day?: number | null
           due_offset_days?: number | null
           due_rule?: string
+          hospital_id?: string | null
           id?: string
           inherit_default?: boolean
           notes?: string | null
@@ -691,13 +829,22 @@ export type Database = {
           due_day?: number | null
           due_offset_days?: number | null
           due_rule?: string
+          hospital_id?: string | null
           id?: string
           inherit_default?: boolean
           notes?: string | null
           priority?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_sla_overrides_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_threads: {
         Row: {
@@ -705,6 +852,7 @@ export type Database = {
           created_at: string
           created_by_type: string
           created_by_user_id: string | null
+          hospital_id: string | null
           id: string
           invoice_id: string | null
           last_message_at: string
@@ -721,6 +869,7 @@ export type Database = {
           created_at?: string
           created_by_type: string
           created_by_user_id?: string | null
+          hospital_id?: string | null
           id?: string
           invoice_id?: string | null
           last_message_at?: string
@@ -737,6 +886,7 @@ export type Database = {
           created_at?: string
           created_by_type?: string
           created_by_user_id?: string | null
+          hospital_id?: string | null
           id?: string
           invoice_id?: string | null
           last_message_at?: string
@@ -754,6 +904,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_threads_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -786,6 +943,7 @@ export type Database = {
           competence_month: string | null
           created_at: string | null
           file_name: string | null
+          hospital_id: string | null
           id: string
           raw_data: Json | null
           reference: string
@@ -803,6 +961,7 @@ export type Database = {
           competence_month?: string | null
           created_at?: string | null
           file_name?: string | null
+          hospital_id?: string | null
           id?: string
           raw_data?: Json | null
           reference: string
@@ -820,6 +979,7 @@ export type Database = {
           competence_month?: string | null
           created_at?: string | null
           file_name?: string | null
+          hospital_id?: string | null
           id?: string
           raw_data?: Json | null
           reference?: string
@@ -839,6 +999,13 @@ export type Database = {
             referencedRelation: "conciliation_bases"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "conciliation_bases_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
         ]
       }
       convenio_aliases: {
@@ -850,6 +1017,7 @@ export type Database = {
           created_by: string | null
           id: string
           source: string
+          state_uf: string | null
         }
         Insert: {
           alias_normalized?: string | null
@@ -859,6 +1027,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           source?: string
+          state_uf?: string | null
         }
         Update: {
           alias_normalized?: string | null
@@ -868,6 +1037,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           source?: string
+          state_uf?: string | null
         }
         Relationships: [
           {
@@ -889,6 +1059,7 @@ export type Database = {
           operator_code: string | null
           slug: string
           sort_order: number
+          state_uf: string | null
           updated_at: string
         }
         Insert: {
@@ -900,6 +1071,7 @@ export type Database = {
           operator_code?: string | null
           slug: string
           sort_order?: number
+          state_uf?: string | null
           updated_at?: string
         }
         Update: {
@@ -911,6 +1083,7 @@ export type Database = {
           operator_code?: string | null
           slug?: string
           sort_order?: number
+          state_uf?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -920,6 +1093,7 @@ export type Database = {
           created_count: number
           deactivated_count: number
           file_name: string | null
+          hospital_id: string | null
           id: string
           imported_at: string
           imported_by: string
@@ -934,6 +1108,7 @@ export type Database = {
           created_count?: number
           deactivated_count?: number
           file_name?: string | null
+          hospital_id?: string | null
           id?: string
           imported_at?: string
           imported_by: string
@@ -948,6 +1123,7 @@ export type Database = {
           created_count?: number
           deactivated_count?: number
           file_name?: string | null
+          hospital_id?: string | null
           id?: string
           imported_at?: string
           imported_by?: string
@@ -958,7 +1134,15 @@ export type Database = {
           status?: string
           updated_count?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cost_center_imports_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cost_centers: {
         Row: {
@@ -967,6 +1151,7 @@ export type Database = {
           code_p12: string
           code_pai: string | null
           created_at: string
+          hospital_id: string | null
           id: string
           imported_at: string
           imported_by: string | null
@@ -984,6 +1169,7 @@ export type Database = {
           code_p12: string
           code_pai?: string | null
           created_at?: string
+          hospital_id?: string | null
           id?: string
           imported_at?: string
           imported_by?: string | null
@@ -1001,6 +1187,7 @@ export type Database = {
           code_p12?: string
           code_pai?: string | null
           created_at?: string
+          hospital_id?: string | null
           id?: string
           imported_at?: string
           imported_by?: string | null
@@ -1012,7 +1199,15 @@ export type Database = {
           status?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cost_centers_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       doctor_aliases: {
         Row: {
@@ -1023,6 +1218,7 @@ export type Database = {
           doctor_id: string
           id: string
           source: string
+          state_uf: string | null
         }
         Insert: {
           alias_normalized?: string | null
@@ -1032,6 +1228,7 @@ export type Database = {
           doctor_id: string
           id?: string
           source?: string
+          state_uf?: string | null
         }
         Update: {
           alias_normalized?: string | null
@@ -1041,6 +1238,7 @@ export type Database = {
           doctor_id?: string
           id?: string
           source?: string
+          state_uf?: string | null
         }
         Relationships: [
           {
@@ -1100,6 +1298,45 @@ export type Database = {
           },
         ]
       }
+      doctor_hospital_overrides: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          hospital_id: string
+          override_data: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          hospital_id: string
+          override_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          hospital_id?: string
+          override_data?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_hospital_overrides_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_hospital_overrides_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_messages: {
         Row: {
           author_name: string
@@ -1107,6 +1344,7 @@ export type Database = {
           author_user_id: string | null
           created_at: string
           doctor_id: string
+          hospital_id: string | null
           id: string
           message: string
           payment_id: string | null
@@ -1121,6 +1359,7 @@ export type Database = {
           author_user_id?: string | null
           created_at?: string
           doctor_id: string
+          hospital_id?: string | null
           id?: string
           message: string
           payment_id?: string | null
@@ -1135,6 +1374,7 @@ export type Database = {
           author_user_id?: string | null
           created_at?: string
           doctor_id?: string
+          hospital_id?: string | null
           id?: string
           message?: string
           payment_id?: string | null
@@ -1149,6 +1389,13 @@ export type Database = {
             columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_messages_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -1216,6 +1463,7 @@ export type Database = {
           body: string | null
           created_at: string
           doctor_id: string
+          hospital_id: string | null
           id: string
           link_path: string | null
           payment_id: string | null
@@ -1229,6 +1477,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           doctor_id: string
+          hospital_id?: string | null
           id?: string
           link_path?: string | null
           payment_id?: string | null
@@ -1242,6 +1491,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           doctor_id?: string
+          hospital_id?: string | null
           id?: string
           link_path?: string | null
           payment_id?: string | null
@@ -1251,7 +1501,15 @@ export type Database = {
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "doctor_notifications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       doctor_portal_users: {
         Row: {
@@ -1316,6 +1574,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           specialties: string[]
+          state_uf: string | null
           updated_at: string
           vinculo: string | null
         }
@@ -1333,6 +1592,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           specialties?: string[]
+          state_uf?: string | null
           updated_at?: string
           vinculo?: string | null
         }
@@ -1350,6 +1610,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           specialties?: string[]
+          state_uf?: string | null
           updated_at?: string
           vinculo?: string | null
         }
@@ -1475,6 +1736,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           doctor_id: string | null
+          hospital_id: string | null
           id: string
           operation_id: string
           payment_id: string | null
@@ -1495,6 +1757,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           doctor_id?: string | null
+          hospital_id?: string | null
           id?: string
           operation_id: string
           payment_id?: string | null
@@ -1515,6 +1778,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           doctor_id?: string | null
+          hospital_id?: string | null
           id?: string
           operation_id?: string
           payment_id?: string | null
@@ -1528,6 +1792,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "financial_journal_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "financial_journal_reversed_by_entry_id_fkey"
             columns: ["reversed_by_entry_id"]
@@ -1550,6 +1821,7 @@ export type Database = {
           convenio: string | null
           created_at: string | null
           file_name: string | null
+          hospital_id: string | null
           id: string
           matched_items: number | null
           reference: string
@@ -1565,6 +1837,7 @@ export type Database = {
           convenio?: string | null
           created_at?: string | null
           file_name?: string | null
+          hospital_id?: string | null
           id?: string
           matched_items?: number | null
           reference: string
@@ -1580,6 +1853,7 @@ export type Database = {
           convenio?: string | null
           created_at?: string | null
           file_name?: string | null
+          hospital_id?: string | null
           id?: string
           matched_items?: number | null
           reference?: string
@@ -1590,7 +1864,15 @@ export type Database = {
           uploaded_at?: string | null
           uploaded_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "glosa_batches_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       glosa_debt_items: {
         Row: {
@@ -1599,6 +1881,7 @@ export type Database = {
           created_at: string | null
           debt_id: string
           glosa_item_id: string
+          hospital_id: string | null
           id: string
         }
         Insert: {
@@ -1607,6 +1890,7 @@ export type Database = {
           created_at?: string | null
           debt_id: string
           glosa_item_id: string
+          hospital_id?: string | null
           id?: string
         }
         Update: {
@@ -1615,6 +1899,7 @@ export type Database = {
           created_at?: string | null
           debt_id?: string
           glosa_item_id?: string
+          hospital_id?: string | null
           id?: string
         }
         Relationships: [
@@ -1632,6 +1917,13 @@ export type Database = {
             referencedRelation: "glosa_items"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "glosa_debt_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
         ]
       }
       glosa_debts: {
@@ -1641,6 +1933,7 @@ export type Database = {
           created_at: string | null
           doctor_crm: string | null
           doctor_name: string
+          hospital_id: string | null
           id: string
           ignored_at: string | null
           ignored_by: string | null
@@ -1660,6 +1953,7 @@ export type Database = {
           created_at?: string | null
           doctor_crm?: string | null
           doctor_name: string
+          hospital_id?: string | null
           id?: string
           ignored_at?: string | null
           ignored_by?: string | null
@@ -1679,6 +1973,7 @@ export type Database = {
           created_at?: string | null
           doctor_crm?: string | null
           doctor_name?: string
+          hospital_id?: string | null
           id?: string
           ignored_at?: string | null
           ignored_by?: string | null
@@ -1693,6 +1988,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "glosa_debts_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "glosa_debts_last_payment_id_fkey"
             columns: ["last_payment_id"]
@@ -1720,6 +2022,7 @@ export type Database = {
           created_at: string | null
           doctor_crm: string | null
           doctor_name: string | null
+          hospital_id: string | null
           id: string
           matched_at: string | null
           matched_company_name: string | null
@@ -1745,6 +2048,7 @@ export type Database = {
           created_at?: string | null
           doctor_crm?: string | null
           doctor_name?: string | null
+          hospital_id?: string | null
           id?: string
           matched_at?: string | null
           matched_company_name?: string | null
@@ -1770,6 +2074,7 @@ export type Database = {
           created_at?: string | null
           doctor_crm?: string | null
           doctor_name?: string | null
+          hospital_id?: string | null
           id?: string
           matched_at?: string | null
           matched_company_name?: string | null
@@ -1805,6 +2110,13 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "glosa_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -1846,6 +2158,7 @@ export type Database = {
           confirmed_by: string | null
           doctor_id: string | null
           glosa_debt_id: string
+          hospital_id: string | null
           id: string
           parcela_numero: number
           payment_id: string
@@ -1865,6 +2178,7 @@ export type Database = {
           confirmed_by?: string | null
           doctor_id?: string | null
           glosa_debt_id: string
+          hospital_id?: string | null
           id?: string
           parcela_numero: number
           payment_id: string
@@ -1884,6 +2198,7 @@ export type Database = {
           confirmed_by?: string | null
           doctor_id?: string | null
           glosa_debt_id?: string
+          hospital_id?: string | null
           id?: string
           parcela_numero?: number
           payment_id?: string
@@ -1895,6 +2210,47 @@ export type Database = {
           status?: string
           valor_aplicado?: number
         }
+        Relationships: [
+          {
+            foreignKeyName: "glosa_payment_applications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hospitals: {
+        Row: {
+          active: boolean
+          cnpj: string | null
+          created_at: string
+          id: string
+          name: string
+          slug: string
+          state_uf: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+          state_uf: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+          state_uf?: string
+          updated_at?: string
+        }
         Relationships: []
       }
       invoice_question_attachments: {
@@ -1903,6 +2259,7 @@ export type Database = {
           author_type: string
           created_at: string
           file_name: string
+          hospital_id: string | null
           id: string
           invoice_id: string
           mime_type: string
@@ -1916,6 +2273,7 @@ export type Database = {
           author_type: string
           created_at?: string
           file_name: string
+          hospital_id?: string | null
           id?: string
           invoice_id: string
           mime_type: string
@@ -1929,6 +2287,7 @@ export type Database = {
           author_type?: string
           created_at?: string
           file_name?: string
+          hospital_id?: string | null
           id?: string
           invoice_id?: string
           mime_type?: string
@@ -1938,6 +2297,13 @@ export type Database = {
           storage_path?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoice_question_attachments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoice_question_attachments_question_id_fkey"
             columns: ["question_id"]
@@ -1954,6 +2320,7 @@ export type Database = {
           author_name: string | null
           author_type: string
           created_at: string
+          hospital_id: string | null
           id: string
           invoice_id: string
           message: string
@@ -1966,6 +2333,7 @@ export type Database = {
           author_name?: string | null
           author_type: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           invoice_id: string
           message: string
@@ -1978,6 +2346,7 @@ export type Database = {
           author_name?: string | null
           author_type?: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           invoice_id?: string
           message?: string
@@ -1985,6 +2354,13 @@ export type Database = {
           read_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invoice_questions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoice_questions_payment_id_fkey"
             columns: ["payment_id"]
@@ -2014,6 +2390,7 @@ export type Database = {
           created_at: string
           expected_amount: number
           file_path: string | null
+          hospital_id: string | null
           id: string
           invoice_number: string | null
           items_count: number
@@ -2042,6 +2419,7 @@ export type Database = {
           created_at?: string
           expected_amount: number
           file_path?: string | null
+          hospital_id?: string | null
           id?: string
           invoice_number?: string | null
           items_count?: number
@@ -2070,6 +2448,7 @@ export type Database = {
           created_at?: string
           expected_amount?: number
           file_path?: string | null
+          hospital_id?: string | null
           id?: string
           invoice_number?: string | null
           items_count?: number
@@ -2095,6 +2474,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoices_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoices_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
@@ -2117,6 +2503,7 @@ export type Database = {
           debounce_seconds: number
           events: Json
           first_event_at: string
+          hospital_id: string | null
           id: string
           kind: string
           last_event_at: string
@@ -2132,6 +2519,7 @@ export type Database = {
           debounce_seconds?: number
           events?: Json
           first_event_at?: string
+          hospital_id?: string | null
           id?: string
           kind: string
           last_event_at?: string
@@ -2147,6 +2535,7 @@ export type Database = {
           debounce_seconds?: number
           events?: Json
           first_event_at?: string
+          hospital_id?: string | null
           id?: string
           kind?: string
           last_event_at?: string
@@ -2157,6 +2546,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "notification_queue_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notification_queue_payment_id_fkey"
             columns: ["payment_id"]
@@ -2179,6 +2575,7 @@ export type Database = {
           analyst_id: string
           created_at: string
           created_by: string
+          hospital_id: string | null
           id: string
           note: string | null
           payment_id: string
@@ -2190,6 +2587,7 @@ export type Database = {
           analyst_id: string
           created_at?: string
           created_by: string
+          hospital_id?: string | null
           id?: string
           note?: string | null
           payment_id: string
@@ -2201,6 +2599,7 @@ export type Database = {
           analyst_id?: string
           created_at?: string
           created_by?: string
+          hospital_id?: string | null
           id?: string
           note?: string | null
           payment_id?: string
@@ -2208,6 +2607,13 @@ export type Database = {
           source?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_assignments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_assignments_payment_id_fkey"
             columns: ["payment_id"]
@@ -2236,6 +2642,7 @@ export type Database = {
           creditos: number
           debitos: number
           glosas: number
+          hospital_id: string | null
           id: string
           liquido: number
           payment_id: string
@@ -2256,6 +2663,7 @@ export type Database = {
           creditos?: number
           debitos?: number
           glosas?: number
+          hospital_id?: string | null
           id?: string
           liquido?: number
           payment_id: string
@@ -2276,6 +2684,7 @@ export type Database = {
           creditos?: number
           debitos?: number
           glosas?: number
+          hospital_id?: string | null
           id?: string
           liquido?: number
           payment_id?: string
@@ -2291,6 +2700,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_company_financials_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -2317,6 +2733,7 @@ export type Database = {
           company_id: string | null
           company_name: string
           created_at: string
+          hospital_id: string | null
           id: string
           items_count: number
           liquido_total: number
@@ -2337,6 +2754,7 @@ export type Database = {
           company_id?: string | null
           company_name: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           items_count?: number
           liquido_total?: number
@@ -2357,6 +2775,7 @@ export type Database = {
           company_id?: string | null
           company_name?: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           items_count?: number
           liquido_total?: number
@@ -2379,6 +2798,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_company_groups_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payment_company_groups_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
@@ -2397,6 +2823,7 @@ export type Database = {
       payment_director_notifications: {
         Row: {
           email_results: Json
+          hospital_id: string | null
           id: string
           notified_at: string
           payment_id: string
@@ -2404,6 +2831,7 @@ export type Database = {
         }
         Insert: {
           email_results?: Json
+          hospital_id?: string | null
           id?: string
           notified_at?: string
           payment_id: string
@@ -2411,12 +2839,20 @@ export type Database = {
         }
         Update: {
           email_results?: Json
+          hospital_id?: string | null
           id?: string
           notified_at?: string
           payment_id?: string
           whatsapp_results?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_director_notifications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_director_notifications_payment_id_fkey"
             columns: ["payment_id"]
@@ -2478,6 +2914,7 @@ export type Database = {
           exception_reason: string | null
           expected_amount: number | null
           gross_amount: number
+          hospital_id: string | null
           id: string
           item_hash: string | null
           item_origem: string | null
@@ -2545,6 +2982,7 @@ export type Database = {
           exception_reason?: string | null
           expected_amount?: number | null
           gross_amount?: number
+          hospital_id?: string | null
           id?: string
           item_hash?: string | null
           item_origem?: string | null
@@ -2612,6 +3050,7 @@ export type Database = {
           exception_reason?: string | null
           expected_amount?: number | null
           gross_amount?: number
+          hospital_id?: string | null
           id?: string
           item_hash?: string | null
           item_origem?: string | null
@@ -2679,6 +3118,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payment_items_origem_reconciliation_item_id_fkey"
             columns: ["origem_reconciliation_item_id"]
             isOneToOne: false
@@ -2712,6 +3158,7 @@ export type Database = {
         Row: {
           built_at: string
           context: Json
+          hospital_id: string | null
           is_snapshot: boolean
           job_id: string
           meta: Json
@@ -2721,6 +3168,7 @@ export type Database = {
         Insert: {
           built_at?: string
           context: Json
+          hospital_id?: string | null
           is_snapshot?: boolean
           job_id: string
           meta?: Json
@@ -2730,13 +3178,22 @@ export type Database = {
         Update: {
           built_at?: string
           context?: Json
+          hospital_id?: string | null
           is_snapshot?: boolean
           job_id?: string
           meta?: Json
           payment_id?: string
           size_bytes?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_job_context_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_observations: {
         Row: {
@@ -2745,6 +3202,7 @@ export type Database = {
           author_type: Database["public"]["Enums"]["observation_author"]
           created_at: string
           edited_at: string | null
+          hospital_id: string | null
           id: string
           is_question: boolean
           item_id: string | null
@@ -2762,6 +3220,7 @@ export type Database = {
           author_type: Database["public"]["Enums"]["observation_author"]
           created_at?: string
           edited_at?: string | null
+          hospital_id?: string | null
           id?: string
           is_question?: boolean
           item_id?: string | null
@@ -2779,6 +3238,7 @@ export type Database = {
           author_type?: Database["public"]["Enums"]["observation_author"]
           created_at?: string
           edited_at?: string | null
+          hospital_id?: string | null
           id?: string
           is_question?: boolean
           item_id?: string | null
@@ -2796,6 +3256,13 @@ export type Database = {
             columns: ["answered_by_observation_id"]
             isOneToOne: false
             referencedRelation: "payment_observations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_observations_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -2832,6 +3299,7 @@ export type Database = {
         Row: {
           cache_key: string
           created_at: string
+          hospital_id: string | null
           id: string
           payment_id: string
           rows: Json
@@ -2839,6 +3307,7 @@ export type Database = {
         Insert: {
           cache_key: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           payment_id: string
           rows: Json
@@ -2846,11 +3315,19 @@ export type Database = {
         Update: {
           cache_key?: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           payment_id?: string
           rows?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_pivot_cache_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_pivot_cache_payment_id_fkey"
             columns: ["payment_id"]
@@ -2874,6 +3351,7 @@ export type Database = {
           current_page: number
           failed_companies: Json
           finished_at: string | null
+          hospital_id: string | null
           id: string
           payment_id: string
           processed_companies: number
@@ -2889,6 +3367,7 @@ export type Database = {
           current_page?: number
           failed_companies?: Json
           finished_at?: string | null
+          hospital_id?: string | null
           id?: string
           payment_id: string
           processed_companies?: number
@@ -2904,6 +3383,7 @@ export type Database = {
           current_page?: number
           failed_companies?: Json
           finished_at?: string | null
+          hospital_id?: string | null
           id?: string
           payment_id?: string
           processed_companies?: number
@@ -2914,6 +3394,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_processing_jobs_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_processing_jobs_payment_id_fkey"
             columns: ["payment_id"]
@@ -2936,6 +3423,7 @@ export type Database = {
           author_name: string
           company_group_id: string | null
           created_at: string
+          hospital_id: string | null
           id: string
           message: string
           payment_id: string
@@ -2945,6 +3433,7 @@ export type Database = {
           author_name: string
           company_group_id?: string | null
           created_at?: string
+          hospital_id?: string | null
           id?: string
           message: string
           payment_id: string
@@ -2954,6 +3443,7 @@ export type Database = {
           author_name?: string
           company_group_id?: string | null
           created_at?: string
+          hospital_id?: string | null
           id?: string
           message?: string
           payment_id?: string
@@ -2971,6 +3461,13 @@ export type Database = {
             columns: ["company_group_id"]
             isOneToOne: false
             referencedRelation: "payment_company_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_questions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -2993,6 +3490,7 @@ export type Database = {
         Row: {
           changed_at: string
           changed_by: string | null
+          hospital_id: string | null
           id: string
           payment_id: string
           status_from: Database["public"]["Enums"]["payment_status"] | null
@@ -3001,6 +3499,7 @@ export type Database = {
         Insert: {
           changed_at?: string
           changed_by?: string | null
+          hospital_id?: string | null
           id?: string
           payment_id: string
           status_from?: Database["public"]["Enums"]["payment_status"] | null
@@ -3009,12 +3508,20 @@ export type Database = {
         Update: {
           changed_at?: string
           changed_by?: string | null
+          hospital_id?: string | null
           id?: string
           payment_id?: string
           status_from?: Database["public"]["Enums"]["payment_status"] | null
           status_to?: Database["public"]["Enums"]["payment_status"]
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_status_history_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_status_history_payment_id_fkey"
             columns: ["payment_id"]
@@ -3084,6 +3591,7 @@ export type Database = {
           doctor_name: string | null
           doctor_role: string | null
           gross_amount: number
+          hospital_id: string | null
           id: string
           ignored_reason: string | null
           match_score: number
@@ -3121,6 +3629,7 @@ export type Database = {
           doctor_name?: string | null
           doctor_role?: string | null
           gross_amount?: number
+          hospital_id?: string | null
           id?: string
           ignored_reason?: string | null
           match_score?: number
@@ -3158,6 +3667,7 @@ export type Database = {
           doctor_name?: string | null
           doctor_role?: string | null
           gross_amount?: number
+          hospital_id?: string | null
           id?: string
           ignored_reason?: string | null
           match_score?: number
@@ -3182,7 +3692,15 @@ export type Database = {
           tipo_linha?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_unmatched_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
@@ -3198,6 +3716,7 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          hospital_id: string | null
           id: string
           items_count: number
           liquido_total: number
@@ -3230,6 +3749,7 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          hospital_id?: string | null
           id?: string
           items_count?: number
           liquido_total?: number
@@ -3262,6 +3782,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          hospital_id?: string | null
           id?: string
           items_count?: number
           liquido_total?: number
@@ -3281,7 +3802,15 @@ export type Database = {
           validated_at?: string | null
           validated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pendencias: {
         Row: {
@@ -3296,6 +3825,7 @@ export type Database = {
           doctor_name: string
           event_date: string
           event_type: string
+          hospital_id: string | null
           id: string
           patient_name: string
           payment_id: string | null
@@ -3318,6 +3848,7 @@ export type Database = {
           doctor_name: string
           event_date: string
           event_type: string
+          hospital_id?: string | null
           id?: string
           patient_name: string
           payment_id?: string | null
@@ -3340,6 +3871,7 @@ export type Database = {
           doctor_name?: string
           event_date?: string
           event_type?: string
+          hospital_id?: string | null
           id?: string
           patient_name?: string
           payment_id?: string | null
@@ -3356,6 +3888,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -3390,6 +3929,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           deductions_applied: Json
+          hospital_id: string | null
           id: string
           payment_id: string
           pool_id: string
@@ -3408,6 +3948,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deductions_applied?: Json
+          hospital_id?: string | null
           id?: string
           payment_id: string
           pool_id: string
@@ -3426,6 +3967,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deductions_applied?: Json
+          hospital_id?: string | null
           id?: string
           payment_id?: string
           pool_id?: string
@@ -3437,6 +3979,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pool_calculation_runs_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pool_calculation_runs_pool_id_fkey"
             columns: ["pool_id"]
@@ -3451,6 +4000,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           descricao: string
+          hospital_id: string | null
           id: string
           obrigatoria: boolean
           ordem: number
@@ -3463,6 +4013,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           descricao: string
+          hospital_id?: string | null
           id?: string
           obrigatoria?: boolean
           ordem?: number
@@ -3475,6 +4026,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           descricao?: string
+          hospital_id?: string | null
           id?: string
           obrigatoria?: boolean
           ordem?: number
@@ -3492,6 +4044,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pool_deductions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "pool_deductions_pool_id_fkey"
             columns: ["pool_id"]
             isOneToOne: false
@@ -3504,6 +4063,7 @@ export type Database = {
         Row: {
           company_id: string | null
           created_at: string
+          hospital_id: string | null
           id: string
           ordem_exibicao: number
           participant_type: string
@@ -3513,6 +4073,7 @@ export type Database = {
         Insert: {
           company_id?: string | null
           created_at?: string
+          hospital_id?: string | null
           id?: string
           ordem_exibicao?: number
           participant_type?: string
@@ -3522,6 +4083,7 @@ export type Database = {
         Update: {
           company_id?: string | null
           created_at?: string
+          hospital_id?: string | null
           id?: string
           ordem_exibicao?: number
           participant_type?: string
@@ -3534,6 +4096,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_participants_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -3552,6 +4121,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           descricao: string | null
+          hospital_id: string | null
           id: string
           nome: string
           updated_at: string
@@ -3564,6 +4134,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           descricao?: string | null
+          hospital_id?: string | null
           id?: string
           nome: string
           updated_at?: string
@@ -3576,13 +4147,22 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           descricao?: string | null
+          hospital_id?: string | null
           id?: string
           nome?: string
           updated_at?: string
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pools_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       procedure_classifications: {
         Row: {
@@ -3671,6 +4251,7 @@ export type Database = {
           doctor_name: string | null
           exclusion_detail: string | null
           exclusion_reason: string | null
+          hospital_id: string | null
           id: string
           kind: string
           patient_name: string | null
@@ -3690,6 +4271,7 @@ export type Database = {
           doctor_name?: string | null
           exclusion_detail?: string | null
           exclusion_reason?: string | null
+          hospital_id?: string | null
           id?: string
           kind: string
           patient_name?: string | null
@@ -3709,6 +4291,7 @@ export type Database = {
           doctor_name?: string | null
           exclusion_detail?: string | null
           exclusion_reason?: string | null
+          hospital_id?: string | null
           id?: string
           kind?: string
           patient_name?: string | null
@@ -3721,6 +4304,13 @@ export type Database = {
           validation_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "production_validation_feedbacks_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "production_validation_feedbacks_payment_item_id_fkey"
             columns: ["payment_item_id"]
@@ -3759,6 +4349,7 @@ export type Database = {
           confirmed_by_name: string | null
           created_at: string
           expires_at: string
+          hospital_id: string | null
           id: string
           notes: string | null
           payment_id: string
@@ -3774,6 +4365,7 @@ export type Database = {
           confirmed_by_name?: string | null
           created_at?: string
           expires_at?: string
+          hospital_id?: string | null
           id?: string
           notes?: string | null
           payment_id: string
@@ -3789,6 +4381,7 @@ export type Database = {
           confirmed_by_name?: string | null
           created_at?: string
           expires_at?: string
+          hospital_id?: string | null
           id?: string
           notes?: string | null
           payment_id?: string
@@ -3803,6 +4396,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_validations_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
           {
@@ -3882,6 +4482,7 @@ export type Database = {
           company_name: string | null
           created_at: string
           doctor_name: string | null
+          hospital_id: string | null
           ia_obs: string | null
           id: string
           patient_name: string | null
@@ -3911,6 +4512,7 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           doctor_name?: string | null
+          hospital_id?: string | null
           ia_obs?: string | null
           id?: string
           patient_name?: string | null
@@ -3940,6 +4542,7 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           doctor_name?: string | null
+          hospital_id?: string | null
           ia_obs?: string | null
           id?: string
           patient_name?: string | null
@@ -3992,6 +4595,13 @@ export type Database = {
             referencedColumns: ["item_id"]
           },
           {
+            foreignKeyName: "reconciliation_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "reconciliation_items_payment_item_id_fkey"
             columns: ["payment_item_id"]
             isOneToOne: false
@@ -4021,6 +4631,7 @@ export type Database = {
           created_by: string | null
           divergencia_valor: number
           file_name: string | null
+          hospital_id: string | null
           id: string
           payment_id: string
           risco_mais: number
@@ -4037,6 +4648,7 @@ export type Database = {
           created_by?: string | null
           divergencia_valor?: number
           file_name?: string | null
+          hospital_id?: string | null
           id?: string
           payment_id: string
           risco_mais?: number
@@ -4053,6 +4665,7 @@ export type Database = {
           created_by?: string | null
           divergencia_valor?: number
           file_name?: string | null
+          hospital_id?: string | null
           id?: string
           payment_id?: string
           risco_mais?: number
@@ -4064,6 +4677,13 @@ export type Database = {
           valor_divergente?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "reconciliation_runs_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reconciliation_runs_payment_id_fkey"
             columns: ["payment_id"]
@@ -4087,6 +4707,7 @@ export type Database = {
           code: string
           created_at: string
           description: string | null
+          hospital_id: string | null
           id: string
           notes: string | null
           package_amount: number | null
@@ -4103,6 +4724,7 @@ export type Database = {
           code: string
           created_at?: string
           description?: string | null
+          hospital_id?: string | null
           id?: string
           notes?: string | null
           package_amount?: number | null
@@ -4119,6 +4741,7 @@ export type Database = {
           code?: string
           created_at?: string
           description?: string | null
+          hospital_id?: string | null
           id?: string
           notes?: string | null
           package_amount?: number | null
@@ -4130,6 +4753,13 @@ export type Database = {
           tuss_codes?: string[]
         }
         Relationships: [
+          {
+            foreignKeyName: "reference_table_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reference_table_items_reference_table_id_fkey"
             columns: ["reference_table_id"]
@@ -4143,6 +4773,7 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          hospital_id: string | null
           id: string
           port: string
           reference_table_id: string
@@ -4150,6 +4781,7 @@ export type Database = {
         Insert: {
           amount?: number
           created_at?: string
+          hospital_id?: string | null
           id?: string
           port: string
           reference_table_id: string
@@ -4157,11 +4789,19 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          hospital_id?: string | null
           id?: string
           port?: string
           reference_table_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reference_table_port_values_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reference_table_port_values_reference_table_id_fkey"
             columns: ["reference_table_id"]
@@ -4178,6 +4818,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           exclusion_severity: string
+          hospital_id: string | null
           id: string
           kind: Database["public"]["Enums"]["reference_table_kind"]
           name: string
@@ -4198,6 +4839,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           exclusion_severity?: string
+          hospital_id?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["reference_table_kind"]
           name: string
@@ -4218,6 +4860,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           exclusion_severity?: string
+          hospital_id?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["reference_table_kind"]
           name?: string
@@ -4232,7 +4875,15 @@ export type Database = {
           valid_until?: string | null
           year?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reference_tables_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rule_calculations: {
         Row: {
@@ -4259,6 +4910,7 @@ export type Database = {
           fixed_amount: number | null
           force_totalized: boolean | null
           has_conditions: boolean | null
+          hospital_id: string | null
           id: string
           include_auxiliaries: boolean
           includes_holidays: boolean
@@ -4311,6 +4963,7 @@ export type Database = {
           fixed_amount?: number | null
           force_totalized?: boolean | null
           has_conditions?: boolean | null
+          hospital_id?: string | null
           id?: string
           include_auxiliaries?: boolean
           includes_holidays?: boolean
@@ -4363,6 +5016,7 @@ export type Database = {
           fixed_amount?: number | null
           force_totalized?: boolean | null
           has_conditions?: boolean | null
+          hospital_id?: string | null
           id?: string
           include_auxiliaries?: boolean
           includes_holidays?: boolean
@@ -4392,6 +5046,13 @@ export type Database = {
           weekdays?: number[]
         }
         Relationships: [
+          {
+            foreignKeyName: "rule_calculations_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rule_calculations_rule_id_fkey"
             columns: ["rule_id"]
@@ -4435,6 +5096,7 @@ export type Database = {
           group_company_links: Json
           group_doctors: Json
           has_conditions: boolean | null
+          hospital_id: string | null
           id: string
           include_auxiliaries: boolean
           includes_holidays: boolean
@@ -4501,6 +5163,7 @@ export type Database = {
           group_company_links?: Json
           group_doctors?: Json
           has_conditions?: boolean | null
+          hospital_id?: string | null
           id?: string
           include_auxiliaries?: boolean
           includes_holidays?: boolean
@@ -4567,6 +5230,7 @@ export type Database = {
           group_company_links?: Json
           group_doctors?: Json
           has_conditions?: boolean | null
+          hospital_id?: string | null
           id?: string
           include_auxiliaries?: boolean
           includes_holidays?: boolean
@@ -4609,6 +5273,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "rules_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "rules_reference_table_fk"
             columns: ["reference_table_id"]
             isOneToOne: false
@@ -4640,6 +5311,7 @@ export type Database = {
           id: string
           sector_slug: string
           source: string
+          state_uf: string | null
         }
         Insert: {
           alias_normalized?: string | null
@@ -4649,6 +5321,7 @@ export type Database = {
           id?: string
           sector_slug: string
           source?: string
+          state_uf?: string | null
         }
         Update: {
           alias_normalized?: string | null
@@ -4658,6 +5331,7 @@ export type Database = {
           id?: string
           sector_slug?: string
           source?: string
+          state_uf?: string | null
         }
         Relationships: [
           {
@@ -4679,6 +5353,7 @@ export type Database = {
           notes: string | null
           slug: string
           sort_order: number
+          state_uf: string | null
           tasy_code: string | null
           updated_at: string
         }
@@ -4691,6 +5366,7 @@ export type Database = {
           notes?: string | null
           slug: string
           sort_order?: number
+          state_uf?: string | null
           tasy_code?: string | null
           updated_at?: string
         }
@@ -4703,6 +5379,7 @@ export type Database = {
           notes?: string | null
           slug?: string
           sort_order?: number
+          state_uf?: string | null
           tasy_code?: string | null
           updated_at?: string
         }
@@ -4713,6 +5390,7 @@ export type Database = {
           active: boolean
           business_days: number
           created_at: string
+          hospital_id: string | null
           id: string
           severity: string
           status: Database["public"]["Enums"]["payment_status"]
@@ -4723,6 +5401,7 @@ export type Database = {
           active?: boolean
           business_days?: number
           created_at?: string
+          hospital_id?: string | null
           id?: string
           severity?: string
           status: Database["public"]["Enums"]["payment_status"]
@@ -4733,18 +5412,28 @@ export type Database = {
           active?: boolean
           business_days?: number
           created_at?: string
+          hospital_id?: string | null
           id?: string
           severity?: string
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
           warning_pct?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sla_settings_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       status_anomalies: {
         Row: {
           context: Json
           created_at: string
+          hospital_id: string | null
           id: string
           kind: string
           payment_id: string
@@ -4760,6 +5449,7 @@ export type Database = {
         Insert: {
           context?: Json
           created_at?: string
+          hospital_id?: string | null
           id?: string
           kind: string
           payment_id: string
@@ -4775,6 +5465,7 @@ export type Database = {
         Update: {
           context?: Json
           created_at?: string
+          hospital_id?: string | null
           id?: string
           kind?: string
           payment_id?: string
@@ -4788,6 +5479,13 @@ export type Database = {
           triggered_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "status_anomalies_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "status_anomalies_payment_id_fkey"
             columns: ["payment_id"]
@@ -5009,6 +5707,35 @@ export type Database = {
           },
         ]
       }
+      user_hospitals: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_hospitals_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_notification_settings: {
         Row: {
           created_at: string | null
@@ -5071,6 +5798,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           doctors: Json
+          hospital_id: string | null
           id: string
           kind: Database["public"]["Enums"]["validation_kind"]
           name: string
@@ -5092,6 +5820,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           doctors?: Json
+          hospital_id?: string | null
           id?: string
           kind: Database["public"]["Enums"]["validation_kind"]
           name: string
@@ -5113,6 +5842,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           doctors?: Json
+          hospital_id?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["validation_kind"]
           name?: string
@@ -5130,6 +5860,13 @@ export type Database = {
             columns: ["assistance_group_id"]
             isOneToOne: false
             referencedRelation: "assistance_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "validation_rules_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
         ]
@@ -5280,6 +6017,10 @@ export type Database = {
       calculate_payment_priority: {
         Args: { _payment_id: string }
         Returns: number
+      }
+      can_access_hospital: {
+        Args: { _hid: string; _uid: string }
+        Returns: boolean
       }
       companies_for_doctor_at: {
         Args: { _doctor_id: string; _on_date: string }
@@ -5717,6 +6458,7 @@ export type Database = {
           current_page: number
           failed_companies: Json
           finished_at: string | null
+          hospital_id: string | null
           id: string
           payment_id: string
           processed_companies: number
@@ -5741,6 +6483,7 @@ export type Database = {
         Args: { _key: string; _user_id: string }
         Returns: boolean
       }
+      is_global_role: { Args: { _uid: string }; Returns: boolean }
       is_payment_in_analyst_phase: {
         Args: { p_payment_id: string }
         Returns: boolean
@@ -5928,6 +6671,8 @@ export type Database = {
         Args: { _company_id: string }
         Returns: boolean
       }
+      user_hospital_ids: { Args: { _uid: string }; Returns: string[] }
+      user_state_ufs: { Args: { _uid: string }; Returns: string[] }
       validate_rule_save: {
         Args: {
           _group_company_links: Json

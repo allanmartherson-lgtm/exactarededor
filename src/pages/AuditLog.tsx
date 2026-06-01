@@ -79,7 +79,7 @@ const AuditLog = () => {
         .limit(500);
       // Filtra registros legados `*_via_rpc` (objeto inteiro sem diff antes/depois).
       // A auditoria de regras agora é gravada exclusivamente pelo cliente com buildDiff.
-      const list = ((data ?? []) as Entry[]).filter(
+      const list = ((data ?? []) as unknown as Entry[]).filter(
         (e) => e.action !== "create_via_rpc" && e.action !== "update_via_rpc",
       );
       setEntries(list);
