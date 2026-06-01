@@ -1192,6 +1192,7 @@ const NewPayment = () => {
         items_count: allRows.length,
         source_file_path: uploadedPaths[0] ?? null,
         created_by: user!.id,
+        hospital_id: hospital?.id ?? null,
         competence_month: `${[...competenceMonths].sort()[0]}-01`,
         competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         payment_due_date: paymentDueDate || null,
