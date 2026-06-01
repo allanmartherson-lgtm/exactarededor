@@ -416,6 +416,7 @@ const NewPayment = () => {
     company: CompanyRow | null,
     filenameTrusted: boolean,
     rawCompanyName: string,
+    sectorColumnOverride?: string | null,
   ): ParsedRow[] => {
     return json.map((row, rowIndex) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
