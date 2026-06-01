@@ -165,7 +165,7 @@ function ResolutionRow({
       if (group.kind === "doctor") {
         const { data, error } = await supabase
           .from("doctors")
-          .insert({ full_name: newName.trim(), crm: newDoc.trim() || null, active: true })
+          .insert({ full_name: newName.trim(), crm: newDoc.trim() || "", crm_uf: "", active: true })
           .select("id")
           .single();
         if (error || !data) throw error;
