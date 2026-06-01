@@ -123,6 +123,7 @@ const BusinessObservability = lazy(loadBusinessObservability);
 const Pendencias = lazy(loadPendencias);
 const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
+const Hospitals = lazy(loadHospitals);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -245,6 +246,7 @@ const App = () => (
                   <Route path="/pools/relatorios" element={<ProtectedRoute roles={["diretor", "admin"]}><PoolsReport /></ProtectedRoute>} />
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
+                  <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
                   <Route path="/produtividade-analistas" element={<ProtectedRoute roles={["diretor", "admin"]}><AnalystProductivity /></ProtectedRoute>} />
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
