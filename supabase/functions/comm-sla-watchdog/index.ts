@@ -35,6 +35,7 @@ interface Thread {
   first_response_at: string | null;
   sla_alerted_at: string | null;
   assigned_to: string | null;
+  payment_id: string | null;
 }
 
 const TABLE_BY_CHANNEL: Record<Thread["channel"], string> = {
