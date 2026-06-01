@@ -592,7 +592,14 @@ const NewPayment = () => {
     const { company, score } = matchCompany(rawCompanyName, companies);
     const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
 
-    const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName);
+    // Detecta a coluna "setor" cruzando cabeçalho + valores com sectores cadastrados.
+    // Só auto-aplica quando o NOME do cabeçalho bate explicitamente (ex.: "Setor",
+    // "Unidade de Atendimento"). Quando a detecção foi por valores, deixamos
+    // para o usuário confirmar manualmente — nunca inferimos sozinhos.
+    const sectorAliasesMap = await loadSectorAliases();
+    const detection = detectSectorColumn(headerRow.map((h) => String(h ?? "")), json, sectorAliasesMap.resolveSlug);
+    const autoSectorColumn = detection.confidence === "header" ? detection.recommended : null;
+    const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName, autoSectorColumn);
 
     // 6) Colunas obrigatórias presentes
     const hasDoctor = rows.some((r) => r.doctor_name && r.doctor_name.trim().length > 0);
