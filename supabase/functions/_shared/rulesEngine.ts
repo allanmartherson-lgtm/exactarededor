@@ -14,6 +14,7 @@
  */
 
 import { applyConvenioStems, recordLearnedAlias } from "./convenioStems.ts";
+import { isBrazilianNationalHoliday } from "./brHolidays.ts";
 
 /** Arredonda para 2 casas decimais. */
 const round2 = (n: number) => Number(n.toFixed(2));
@@ -1534,11 +1535,18 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
       // Para fim_de_semana: usamos a DATA do procedimento (sem carry-over de sexta→sábado).
       // Pegamos sempre o dia exato registrado em procedure_date.
       const day = item.procedure_date.includes('T') ? d.getDay() : new Date(item.procedure_date + 'T12:00:00').getDay();
-      const inSet = effectiveWeekdays.includes(day);
+      let inSet = effectiveWeekdays.includes(day);
+      // Feriado nacional conta como "fim de semana" quando o cálculo declara
+      // includes_holidays = true. Cobre o caso em que a regra de bônus de
+      // weekend/feriado deve disparar numa terça-feira que é Tiradentes, p.ex.
+      const isHoliday = c.includes_holidays === true && isBrazilianNationalHoliday(item.procedure_date);
+      if (isHoliday && (tm === "fim_de_semana" || tm === "fora_comercial")) {
+        inSet = true;
+      }
       if (tm === "fora_comercial") {
-        // Fora comercial = (sáb/dom) OU (seg-sex fora 07-19h). Aqui validamos só o dia
+        // Fora comercial = (sáb/dom/feriado) OU (seg-sex fora 07-19h). Aqui validamos só o dia
         // quando não há janela horária; o filtro de horário restante cai no bloco abaixo.
-        if (inSet && !c.time_start && !c.time_end) return { ok: false, reason: "fora_comercial_dia_util" };
+        if (inSet && !c.time_start && !c.time_end && !isHoliday) return { ok: false, reason: "fora_comercial_dia_util" };
       } else if (!inSet) {
         return { ok: false, reason: tm === "fim_de_semana" ? "fim_de_semana" : "dia_da_semana" };
       }
