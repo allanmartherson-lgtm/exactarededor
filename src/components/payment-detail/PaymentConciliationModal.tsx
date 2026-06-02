@@ -2674,7 +2674,83 @@ export function PaymentConciliationModal({
                                                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                                                   Análise IA
                                                 </p>
-                                                <p className="text-[12px]">{it.ia_obs}</p>
+                                                <p className="text-[12px]">{it.ia_obs ?? <span className="text-muted-foreground italic">Sem observação automática.</span>}</p>
+                                                {it.match_diagnostics && (
+                                                  <div className="mt-3 rounded-md border border-border bg-background p-3">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Diagnóstico do match</p>
+                                                      <span className="text-[10px] text-muted-foreground">
+                                                        Decisão: <span className="font-mono">{it.match_diagnostics.decision}</span> · {it.match_diagnostics.candidates_total} candidato(s) Exacta
+                                                      </span>
+                                                    </div>
+                                                    {it.match_diagnostics.fields.length > 0 && (
+                                                      <div className="mb-3">
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Campos comparados (par aceito)</p>
+                                                        <table className="w-full text-[11px]">
+                                                          <thead>
+                                                            <tr className="text-muted-foreground">
+                                                              <th className="text-left font-medium py-0.5">Campo</th>
+                                                              <th className="text-left font-medium py-0.5">Hospital</th>
+                                                              <th className="text-left font-medium py-0.5">Exacta</th>
+                                                              <th className="text-center font-medium py-0.5 w-20">Resultado</th>
+                                                            </tr>
+                                                          </thead>
+                                                          <tbody>
+                                                            {it.match_diagnostics.fields.map((f, idx) => (
+                                                              <tr key={idx} className="border-t border-border/50">
+                                                                <td className="py-1 font-medium">{f.label}</td>
+                                                                <td className="py-1">{f.hospital ?? <span className="text-muted-foreground">—</span>}</td>
+                                                                <td className="py-1">{f.exacta ?? <span className="text-muted-foreground">—</span>}</td>
+                                                                <td className="py-1 text-center">
+                                                                  {f.ok === true && <span className="text-emerald-600 dark:text-emerald-400">✓ igual</span>}
+                                                                  {f.ok === false && <span className="text-destructive">✗ diferente</span>}
+                                                                  {f.ok === null && <span className="text-muted-foreground">— sem dado</span>}
+                                                                </td>
+                                                              </tr>
+                                                            ))}
+                                                          </tbody>
+                                                        </table>
+                                                      </div>
+                                                    )}
+                                                    {it.match_diagnostics.candidates.length > 1 && (
+                                                      <div>
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                                                          Candidatos avaliados ({it.match_diagnostics.candidates.length})
+                                                        </p>
+                                                        <table className="w-full text-[11px]">
+                                                          <thead>
+                                                            <tr className="text-muted-foreground">
+                                                              <th className="text-left font-medium py-0.5">Médico</th>
+                                                              <th className="text-left font-medium py-0.5">Função</th>
+                                                              <th className="text-left font-medium py-0.5">Via</th>
+                                                              <th className="text-right font-medium py-0.5">Valor</th>
+                                                              <th className="text-right font-medium py-0.5">Score</th>
+                                                              <th className="text-left font-medium py-0.5">Resultado</th>
+                                                            </tr>
+                                                          </thead>
+                                                          <tbody>
+                                                            {it.match_diagnostics.candidates.map((c, idx) => (
+                                                              <tr key={idx} className={cn("border-t border-border/50", c.chosen && "bg-primary/5")}>
+                                                                <td className="py-1">{c.doctor_name ?? "—"}</td>
+                                                                <td className="py-1">{c.doctor_role ?? "—"}</td>
+                                                                <td className="py-1">{c.access_route ?? "—"}</td>
+                                                                <td className="py-1 text-right tabular-nums">{formatCurrency(c.valor_exacta)}</td>
+                                                                <td className="py-1 text-right tabular-nums text-muted-foreground">{c.score}</td>
+                                                                <td className="py-1">
+                                                                  {c.chosen ? (
+                                                                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ escolhido</span>
+                                                                  ) : (
+                                                                    <span className="text-muted-foreground">descartado — {c.rejected_reason}</span>
+                                                                  )}
+                                                                </td>
+                                                              </tr>
+                                                            ))}
+                                                          </tbody>
+                                                        </table>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                )}
                                                 {(it.status === "valor_divergente" || it.status === "qtd_divergente") && it.applied_rule_label && (
                                                   <div className="mt-2 flex items-center gap-2">
                                                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Regra Exacta:</span>
