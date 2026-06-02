@@ -49,6 +49,7 @@ import * as XLSX from "xlsx-js-style";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
