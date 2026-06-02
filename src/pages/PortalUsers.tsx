@@ -23,6 +23,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatCPF, isValidCPF, onlyDigits } from "@/lib/cpf";
 import { formatPhone, phoneSchema } from "@/lib/userFields";
+import { formatDateTimeBR } from "@/lib/dateUtils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Hospital = { id: string; name: string; state_uf: string };
 
