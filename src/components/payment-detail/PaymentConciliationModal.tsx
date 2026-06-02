@@ -1156,7 +1156,7 @@ export function PaymentConciliationModal({
           // (ex.: Kleber R$ 1.457) com linha do auxiliar (ex.: Laryssa R$ 437).
           // Mesmo princípio para função e via de acesso.
           let pool = available.map((m) => ({ m, ...scoreCandidate(m) }));
-          pool.forEach((p) => evaluated.push(Object.assign({}, p.m, { __sc: { score: p.score, docOk: p.docOk, roleOk: p.roleOk, routeOk: p.routeOk } })));
+          pool.forEach((p) => evaluated.push(Object.assign({}, p.m, { __sc: { score: p.score, docOk: p.docOk, roleOk: p.roleOk, routeOk: p.routeOk, docConflict: p.docConflict, roleConflict: p.roleConflict, routeConflict: p.routeConflict } })));
           const docFiltered = pool.filter((c) => c.docOk);
           if (docHospN && docFiltered.length > 0) { pool = docFiltered; decision = "filtrado_por_medico"; }
           const roleFiltered = pool.filter((c) => c.roleOk);
