@@ -4841,7 +4841,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active: boolean
           birth_date: string | null
+          cpf: string | null
           created_at: string
           department: string | null
           email: string
@@ -4858,7 +4860,9 @@ export type Database = {
           whatsapp_opt_in_at: string | null
         }
         Insert: {
+          active?: boolean
           birth_date?: string | null
+          cpf?: string | null
           created_at?: string
           department?: string | null
           email: string
@@ -4875,7 +4879,9 @@ export type Database = {
           whatsapp_opt_in_at?: string | null
         }
         Update: {
+          active?: boolean
           birth_date?: string | null
+          cpf?: string | null
           created_at?: string
           department?: string | null
           email?: string

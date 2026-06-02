@@ -35,7 +35,7 @@ const accessRequestSchema = userExtraSchema.extend({
 });
 
 const Auth = () => {
-  const { user, loading, roles, rolesLoading, signIn } = useAuth();
+  const { user, loading, roles, rolesLoading, accountActive, signIn } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -68,19 +68,29 @@ const Auth = () => {
   // só de portal), encerra a sessão e exibe um aviso — evita loop com o
   // ProtectedRoute e deixa claro que o portal usa magic link, não login direto.
   useEffect(() => {
-    if (!loading && user && !rolesLoading && roles.length === 0) {
-      setNoAccess(true);
-      void supabase.auth.signOut();
-      toast({
-        title: "Sem acesso ao Exacta",
-        description: "Este usuário pertence apenas a um portal (empresa ou médico). O acesso é feito pelo link enviado por e-mail.",
-        variant: "destructive",
-      });
+    if (!loading && user && !rolesLoading) {
+      if (roles.length === 0) {
+        setNoAccess(true);
+        void supabase.auth.signOut();
+        toast({
+          title: "Sem acesso ao Exacta",
+          description: "Este usuário pertence apenas a um portal (empresa ou médico). O acesso é feito pelo link enviado por e-mail.",
+          variant: "destructive",
+        });
+      } else if (!accountActive) {
+        setNoAccess(true);
+        void supabase.auth.signOut();
+        toast({
+          title: "Acesso desabilitado",
+          description: "Seu cadastro está inativo. Procure um administrador para reabilitar o acesso.",
+          variant: "destructive",
+        });
+      }
     }
-  }, [loading, user, rolesLoading, roles]);
+  }, [loading, user, rolesLoading, roles, accountActive]);
 
   if (loading) return null;
-  if (user && !noAccess && !rolesLoading && roles.length > 0) return <Navigate to="/" replace />;
+  if (user && !noAccess && !rolesLoading && accountActive && roles.length > 0) return <Navigate to="/" replace />;
 
   const handleForgotPassword = async () => {
     const emailEl = document.getElementById("signin-email") as HTMLInputElement | null;

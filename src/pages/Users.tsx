@@ -13,9 +13,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil, History, Bell } from "lucide-react";
+import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil, History, Bell, Search, UserCheck, UserX } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
+import { formatCPF } from "@/lib/cpf";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
@@ -33,9 +34,12 @@ const Users = () => {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "",
+    email: "", full_name: "", phone: "", cpf: "", role_title: "", department: "", birth_date: "",
     roles: [] as AppRole[], send_invite: true, primary_hospital_id: "" as string,
   });
+  const [search, setSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
+  const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
   const [hospitalsList, setHospitalsList] = useState<{ id: string; name: string; state_uf: string }[]>([]);
   const [accessRequestId, setAccessRequestId] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
@@ -48,7 +52,7 @@ const Users = () => {
   const [resetResult, setResetResult] = useState<{ email: string; emailSent: boolean; warning: string | null; actionLink: string | null } | null>(null);
   const [confirmReset, setConfirmReset] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
-  const [editingUser, setEditingUser] = useState<{ id: string; email: string; full_name: string; phone: string; role_title: string; department: string; birth_date: string } | null>(null);
+  const [editingUser, setEditingUser] = useState<{ id: string; email: string; full_name: string; phone: string; cpf: string; role_title: string; department: string; birth_date: string } | null>(null);
   const [notifyingUser, setNotifyingUser] = useState<{ id: string; name: string } | null>(null);
   const [userSettings, setUserSettings] = useState<any[]>([]);
   const [loadingSettings, setLoadingSettings] = useState(false);
@@ -60,6 +64,7 @@ const Users = () => {
   const FIELD_LABELS: Record<string, string> = {
     full_name: "Nome",
     phone: "Telefone",
+    cpf: "CPF",
     role_title: "Cargo",
     department: "Setor",
     birth_date: "Data de nascimento",
@@ -68,6 +73,7 @@ const Users = () => {
   const formatHistoryValue = (field: string, value: any) => {
     if (value === null || value === undefined || value === "") return "—";
     if (field === "phone") return formatPhone(String(value));
+    if (field === "cpf") return formatCPF(String(value));
     if (field === "birth_date") {
       const s = String(value).slice(0, 10);
       const [y, m, d] = s.split("-");
@@ -108,6 +114,7 @@ const Users = () => {
     const parsed = userExtraSchema.safeParse({
       full_name: editingUser.full_name,
       email: editingUser.email,
+      cpf: editingUser.cpf,
       phone: editingUser.phone,
       role_title: editingUser.role_title,
       department: editingUser.department,
@@ -121,17 +128,48 @@ const Users = () => {
     const { error } = await supabase.from("profiles").update({
       full_name: parsed.data.full_name,
       phone: parsed.data.phone,
+      cpf: parsed.data.cpf,
       role_title: parsed.data.role_title,
       department: parsed.data.department,
       birth_date: parsed.data.birth_date,
     }).eq("id", editingUser.id);
     setSavingUser(false);
     if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      const desc = /duplicate|unique/i.test(error.message)
+        ? "Já existe um usuário com este CPF."
+        : error.message;
+      toast({ title: "Erro ao salvar", description: desc, variant: "destructive" });
       return;
     }
     toast({ title: "Usuário atualizado" });
     setEditingUser(null);
+    load();
+  };
+
+  const toggleActive = async (u: { id: string; email: string; full_name: string | null; active: boolean }) => {
+    const nextActive = !u.active;
+    const action = nextActive ? "habilitar" : "desabilitar";
+    if (!confirm(`Tem certeza que deseja ${action} o acesso de ${u.full_name || u.email}?`)) return;
+    setTogglingActiveId(u.id);
+    const { error } = await supabase.from("profiles").update({ active: nextActive }).eq("id", u.id);
+    if (!error) {
+      const { data: auth } = await supabase.auth.getUser();
+      if (auth?.user) {
+        await supabase.from("audit_log").insert({
+          actor_id: auth.user.id,
+          entity_type: "user",
+          entity_id: u.id,
+          action: nextActive ? "activated" : "deactivated",
+          diff: { email: u.email, active: nextActive },
+        });
+      }
+    }
+    setTogglingActiveId(null);
+    if (error) {
+      toast({ title: "Falha ao alterar status", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: nextActive ? "Acesso habilitado" : "Acesso desabilitado" });
     load();
   };
 
@@ -234,7 +272,7 @@ const Users = () => {
 
   const openCreateFromRequest = (r: any) => {
     setForm({
-      email: r.email, full_name: r.full_name, phone: r.phone, role_title: r.role_title,
+      email: r.email, full_name: r.full_name, phone: r.phone, cpf: r.cpf ?? "", role_title: r.role_title,
       department: r.department, birth_date: r.birth_date,
       roles: (r.requested_roles ?? ["analista"]) as AppRole[], send_invite: true,
       primary_hospital_id: "",
@@ -362,14 +400,14 @@ const Users = () => {
     }
   };
   const resetForm = () => {
-    setForm({ email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true, primary_hospital_id: "" });
+    setForm({ email: "", full_name: "", phone: "", cpf: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true, primary_hospital_id: "" });
     setAccessRequestId(null);
     setTempPwd(null);
   };
 
   const submit = async () => {
     const parsed = userExtraSchema.safeParse({
-      full_name: form.full_name, email: form.email, phone: form.phone,
+      full_name: form.full_name, email: form.email, cpf: form.cpf, phone: form.phone,
       role_title: form.role_title, department: form.department, birth_date: form.birth_date,
     });
     if (!parsed.success) {
@@ -383,6 +421,7 @@ const Users = () => {
           email: parsed.data.email,
           full_name: parsed.data.full_name,
           phone: parsed.data.phone,
+          cpf: parsed.data.cpf,
           role_title: parsed.data.role_title,
           department: parsed.data.department,
           birth_date: parsed.data.birth_date,
@@ -451,11 +490,19 @@ const Users = () => {
                     <Label>E-mail *</Label>
                     <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="maria@empresa.com" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Telefone celular *</Label>
-                    <Input inputMode="numeric" placeholder="(11) 99999-9999"
-                      value={formatPhone(form.phone)}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label>CPF *</Label>
+                      <Input inputMode="numeric" placeholder="000.000.000-00"
+                        value={formatCPF(form.cpf)}
+                        onChange={(e) => setForm({ ...form, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Telefone celular *</Label>
+                      <Input inputMode="numeric" placeholder="(11) 99999-9999"
+                        value={formatPhone(form.phone)}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-2">
@@ -558,98 +605,166 @@ const Users = () => {
             </CardContent>
           </Card>
         )}
-        <Card className="shadow-card"><CardContent className="p-0">
-          <div className="divide-y divide-border">
-            {users.map((u) => (
-              <div key={u.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-                <div className="min-w-0">
-                  <p className="font-medium text-sm">{u.full_name || u.email}</p>
-                  <p className="text-xs text-muted-foreground">{u.email}</p>
-                  {(u.phone || u.role_title || u.department) && (
-                    <p className="text-xs text-muted-foreground">
-                      {[u.phone && formatPhone(u.phone), u.role_title, u.department].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {ROLES.map((r) => {
-                    const has = u.roles.includes(r);
-                    return <Button key={r} size="sm" variant={has ? "default" : "outline"} onClick={() => toggle(u.id, r, has)}>{ROLE_LABELS[r]}</Button>;
-                  })}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => resendInvite({ id: u.id, email: u.email })}
-                      disabled={resendingId === u.id}
-                      title="Reenvia o link de definição/redefinição de senha por e-mail"
-                    >
-                      {resendingId === u.id
-                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                        : <Send className="h-3.5 w-3.5 mr-1.5" />}
-                      Reenviar convite
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setEditingUser({
-                        id: u.id,
-                        email: u.email,
-                        full_name: u.full_name ?? "",
-                        phone: u.phone ?? "",
-                        role_title: u.role_title ?? "",
-                        department: u.department ?? "",
-                        birth_date: u.birth_date ? String(u.birth_date).slice(0, 10) : "",
-                      })}
-                      title="Editar dados do usuário"
-                    >
-                      <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                      Editar
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => openHistory(u)}
-                      title="Ver histórico de alterações deste usuário"
-                    >
-                      <History className="h-3.5 w-3.5 mr-1.5" />
-                      Histórico
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => loadUserSettings(u.id, u.full_name || u.email, u.roles)}
-                      title="Configurar notificações por e-mail/WhatsApp para este usuário"
-                    >
-                      <Bell className="h-3.5 w-3.5 mr-1.5" />
-                      Notificações
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
-                      disabled={resettingId === u.id}
-                      title="Envia e-mail com link para o usuário definir uma nova senha"
-                    >
-                      {resettingId === u.id
-                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                        : <KeyRound className="h-3.5 w-3.5 mr-1.5" />}
-                      Resetar senha
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
+        <Card className="shadow-card">
+          <div className="px-6 py-3 border-b flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="h-4 w-4 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nome, e-mail, CPF, cargo ou setor…"
+                className="pl-8"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
+              <Checkbox checked={showInactive} onCheckedChange={(c) => setShowInactive(!!c)} />
+              Mostrar desabilitados
+            </label>
+            <Badge variant="secondary" className="ml-auto">
+              {(() => {
+                const q = search.trim().toLowerCase();
+                const list = users
+                  .filter((u) => showInactive ? true : u.active !== false)
+                  .filter((u) => {
+                    if (!q) return true;
+                    return [u.full_name, u.email, u.cpf, u.role_title, u.department]
+                      .filter(Boolean)
+                      .some((v: string) => String(v).toLowerCase().includes(q));
+                  });
+                return `${list.length} usuário${list.length === 1 ? "" : "s"}`;
+              })()}
+            </Badge>
           </div>
-        </CardContent></Card>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {users
+                .filter((u) => showInactive ? true : u.active !== false)
+                .filter((u) => {
+                  const q = search.trim().toLowerCase();
+                  if (!q) return true;
+                  return [u.full_name, u.email, u.cpf, u.role_title, u.department]
+                    .filter(Boolean)
+                    .some((v: string) => String(v).toLowerCase().includes(q));
+                })
+                .map((u) => {
+                  const isActive = u.active !== false;
+                  return (
+                    <div key={u.id} className={`px-6 py-4 flex items-center justify-between gap-4 flex-wrap ${!isActive ? "opacity-60" : ""}`}>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm flex items-center gap-2">
+                          {u.full_name || u.email}
+                          {!isActive && <Badge variant="outline" className="text-xs">Desabilitado</Badge>}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                        {(u.phone || u.cpf || u.role_title || u.department) && (
+                          <p className="text-xs text-muted-foreground">
+                            {[
+                              u.cpf && `CPF ${formatCPF(u.cpf)}`,
+                              u.phone && formatPhone(u.phone),
+                              u.role_title,
+                              u.department,
+                            ].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {ROLES.map((r) => {
+                          const has = u.roles.includes(r);
+                          return <Button key={r} size="sm" variant={has ? "default" : "outline"} disabled={!isActive} onClick={() => toggle(u.id, r, has)}>{ROLE_LABELS[r]}</Button>;
+                        })}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant={isActive ? "ghost" : "secondary"}
+                            onClick={() => toggleActive({ id: u.id, email: u.email, full_name: u.full_name, active: isActive })}
+                            disabled={togglingActiveId === u.id}
+                            title={isActive ? "Desabilitar acesso deste usuário" : "Reabilitar acesso deste usuário"}
+                          >
+                            {togglingActiveId === u.id
+                              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              : isActive
+                                ? <UserX className="h-3.5 w-3.5 mr-1.5" />
+                                : <UserCheck className="h-3.5 w-3.5 mr-1.5" />}
+                            {isActive ? "Desabilitar" : "Habilitar"}
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => resendInvite({ id: u.id, email: u.email })}
+                            disabled={resendingId === u.id || !isActive}
+                            title="Reenvia o link de definição/redefinição de senha por e-mail"
+                          >
+                            {resendingId === u.id
+                              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                            Reenviar convite
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingUser({
+                              id: u.id,
+                              email: u.email,
+                              full_name: u.full_name ?? "",
+                              phone: u.phone ?? "",
+                              cpf: u.cpf ?? "",
+                              role_title: u.role_title ?? "",
+                              department: u.department ?? "",
+                              birth_date: u.birth_date ? String(u.birth_date).slice(0, 10) : "",
+                            })}
+                            title="Editar dados do usuário"
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                            Editar
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openHistory(u)}
+                            title="Ver histórico de alterações deste usuário"
+                          >
+                            <History className="h-3.5 w-3.5 mr-1.5" />
+                            Histórico
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => loadUserSettings(u.id, u.full_name || u.email, u.roles)}
+                            title="Configurar notificações por e-mail/WhatsApp para este usuário"
+                          >
+                            <Bell className="h-3.5 w-3.5 mr-1.5" />
+                            Notificações
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
+                            disabled={resettingId === u.id || !isActive}
+                            title="Envia e-mail com link para o usuário definir uma nova senha"
+                          >
+                            {resettingId === u.id
+                              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              : <KeyRound className="h-3.5 w-3.5 mr-1.5" />}
+                            Resetar senha
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
       </div>
       <Dialog open={!!manualLink} onOpenChange={(o) => !o && setManualLink(null)}>
         <DialogContent className="w-[95vw] max-w-lg max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
@@ -701,16 +816,27 @@ const Users = () => {
                 <Label>E-mail (login)</Label>
                 <Input type="email" value={editingUser.email} disabled />
               </div>
-              <div className="space-y-2">
-                <Label>Telefone celular *</Label>
-                <Input
-                  inputMode="numeric"
-                  placeholder="(11) 99999-9999"
-                  value={formatPhone(editingUser.phone)}
-                  onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
-                />
-                <p className="text-xs text-muted-foreground">Também usado para WhatsApp em notificações de aprovação.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <Label>CPF *</Label>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="000.000.000-00"
+                    value={formatCPF(editingUser.cpf)}
+                    onChange={(e) => setEditingUser({ ...editingUser, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone celular *</Label>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="(11) 99999-9999"
+                    value={formatPhone(editingUser.phone)}
+                    onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                  />
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">Telefone usado para WhatsApp em notificações de aprovação. O CPF é usado para validação de identidade e não pode duplicar.</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
                   <Label>Cargo *</Label>

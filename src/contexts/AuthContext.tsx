@@ -8,6 +8,7 @@ interface AuthContextValue {
   user: User | null;
   session: Session | null;
   roles: AppRole[];
+  accountActive: boolean;
   loading: boolean;
   rolesLoading: boolean;
   hasRole: (role: AppRole) => boolean;
@@ -24,6 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
+  const [accountActive, setAccountActive] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(true);
   // Mantemos o último userId cuja role foi carregada para evitar recarregar
@@ -38,8 +40,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const loadRoles = async (userId: string) => {
     setRolesLoading(true);
-    const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    setRoles((data ?? []).map((r) => r.role as AppRole));
+    const [rolesRes, profileRes] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", userId),
+      supabase.from("profiles").select("active").eq("id", userId).maybeSingle(),
+    ]);
+    setRoles((rolesRes.data ?? []).map((r) => r.role as AppRole));
+    setAccountActive((profileRes.data as { active?: boolean } | null)?.active !== false);
     setRolesLoading(false);
     lastLoadedUserIdRef.current = userId;
   };
@@ -126,7 +132,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, roles, loading, rolesLoading, hasRole, signIn, signUp, signOut, refreshRoles }}>
+    <AuthContext.Provider value={{ user, session, roles, accountActive, loading, rolesLoading, hasRole, signIn, signUp, signOut, refreshRoles }}>
       {children}
     </AuthContext.Provider>
   );

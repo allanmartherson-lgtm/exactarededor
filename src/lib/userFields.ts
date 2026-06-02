@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { isValidCPF, onlyDigits } from "@/lib/cpf";
+
 
 // Brasil: DDD (2, 11–99) + 9 (celular) + 8 dígitos = 11 dígitos no total
 const VALID_DDDS = new Set([
@@ -65,9 +67,16 @@ export const birthDateSchema = z
     message: "Data de nascimento inválida (use AAAA-MM-DD, idade entre 14 e 120 anos).",
   });
 
+export const cpfSchema = z
+  .string()
+  .trim()
+  .refine((v) => isValidCPF(v), { message: "CPF inválido (verifique os dígitos)." })
+  .transform((v) => onlyDigits(v));
+
 export const userExtraSchema = z.object({
   full_name: z.string().trim().min(2, "Informe o nome completo").max(120),
   email: z.string().trim().email("E-mail inválido").max(255),
+  cpf: cpfSchema,
   phone: phoneSchema,
   role_title: z.string().trim().min(2, "Informe o cargo").max(80),
   department: z.string().trim().min(2, "Informe o setor").max(80),
@@ -75,3 +84,4 @@ export const userExtraSchema = z.object({
 });
 
 export type UserExtraFields = z.infer<typeof userExtraSchema>;
+

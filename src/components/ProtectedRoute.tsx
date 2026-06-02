@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children, roles }: ProtectedRouteProps) => {
-  const { user, roles: userRoles, loading, rolesLoading } = useAuth();
+  const { user, roles: userRoles, accountActive, loading, rolesLoading } = useAuth();
   const { needsSelection, loading: hospitalLoading } = useHospital();
   const location = useLocation();
 
@@ -36,6 +36,11 @@ export const ProtectedRoute = ({ children, roles }: ProtectedRouteProps) => {
   // magic link e não passa por aqui.
   if (!rolesLoading && userRoles.length === 0) {
     return <Navigate to="/auth?motivo=sem-acesso-exacta" replace />;
+  }
+
+  // Acesso desabilitado por um administrador.
+  if (!rolesLoading && !accountActive) {
+    return <Navigate to="/auth?motivo=acesso-desabilitado" replace />;
   }
 
   // Redireciona para seleção de hospital quando o usuário tem +1 e nenhum escolhido.
