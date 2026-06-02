@@ -410,9 +410,9 @@ export function PaymentReportModal({
    * já filtrados pelo modal. Garante paridade total de colunas, divergências
    * e validações assistenciais entre os relatórios do lote e da empresa.
    */
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     try {
-      const doc = generatePaymentReportPdf({
+      const doc = await generatePaymentReportPdf({
         payment,
         items: filteredItems,
         groups: companyGroups.length === groups.length
