@@ -1193,7 +1193,7 @@ export function PaymentConciliationModal({
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text(
-      `Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Divergência: ${scopedStats.valor_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só Exacta: ${scopedStats.so_exacta}${isScoped ? "  (escopo filtrado)" : ""}`,
+      `Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Valor div.: ${scopedStats.valor_divergente}  ·  Qtd div.: ${scopedStats.qtd_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só Exacta: ${scopedStats.so_exacta}${isScoped ? "  (escopo filtrado)" : ""}`,
       marginX,
       cursorY,
     );
