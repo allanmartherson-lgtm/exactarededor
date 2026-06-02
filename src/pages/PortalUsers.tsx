@@ -18,7 +18,7 @@ import {
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
-import { Building2, Stethoscope, Save, Star, Plus, Check, ChevronsUpDown } from "lucide-react";
+import { Building2, Stethoscope, Save, Star, Plus, Check, ChevronsUpDown, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatCPF, isValidCPF, onlyDigits } from "@/lib/cpf";
@@ -60,7 +60,7 @@ const CONFIG: Record<Kind, {
     parentTable: "companies",
     parentFk: "company_id",
     parentNameCol: "name",
-    parentDocCol: "cnpj",
+    parentDocCol: "document",
     label: "Empresa",
     entityLabel: "empresa",
     icon: Building2,
@@ -343,6 +343,117 @@ function NewPortalUserDialog({
 }
 
 // =============================================================================
+// Diálogo de edição de dados cadastrais do usuário de portal
+// =============================================================================
+function EditPortalUserDialog({
+  row, entityLabel, onSaved,
+}: {
+  row: PortalUserRow;
+  entityLabel: string;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState(row.full_name ?? "");
+  const [cpf, setCpf] = useState(row.cpf ? formatCPF(row.cpf) : "");
+  const [phone, setPhone] = useState(row.phone ? formatPhone(row.phone) : "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setFullName(row.full_name ?? "");
+      setCpf(row.cpf ? formatCPF(row.cpf) : "");
+      setPhone(row.phone ? formatPhone(row.phone) : "");
+    }
+  }, [open, row]);
+
+  const submit = async () => {
+    if (cpf && !isValidCPF(cpf)) {
+      toast.error("CPF inválido. Verifique os 11 dígitos.");
+      return;
+    }
+    let phoneDigits = "";
+    if (phone.trim()) {
+      const r = phoneSchema.safeParse(phone);
+      if (!r.success) {
+        toast.error(r.error.issues[0]?.message ?? "Telefone inválido");
+        return;
+      }
+      phoneDigits = r.data;
+    }
+    setSaving(true);
+    const payload = {
+      full_name: fullName.trim() || null,
+      cpf: cpf ? onlyDigits(cpf) : null,
+      phone: phoneDigits || null,
+    };
+    const { error } = await supabase.from("profiles").update(payload).eq("id", row.user_id);
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Cadastro atualizado");
+    setOpen(false);
+    onSaved();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Pencil className="mr-2 h-4 w-4" />Editar
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar usuário de portal</DialogTitle>
+          <DialogDescription>
+            Atualize os dados cadastrais do usuário vinculado à {entityLabel} <strong>{row.parent_name}</strong>.
+            O e-mail é a identidade de acesso e não pode ser alterado aqui.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>E-mail</Label>
+            <Input value={row.email ?? ""} disabled />
+          </div>
+          <div>
+            <Label>Nome completo</Label>
+            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>CPF</Label>
+              <Input
+                value={cpf}
+                onChange={(e) => setCpf(formatCPF(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                maxLength={14}
+              />
+            </div>
+            <div>
+              <Label>Telefone (celular)</Label>
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(formatPhone(e.target.value))}
+                placeholder="(11) 99999-9999"
+                inputMode="tel"
+                maxLength={15}
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? "Salvando…" : "Salvar alterações"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// =============================================================================
 // Painel principal por tipo
 // =============================================================================
 function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital[] }) {
@@ -567,6 +678,7 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
                         />
                         {row.active ? "Habilitado" : "Desabilitado"}
                       </label>
+                      <EditPortalUserDialog row={row} entityLabel={cfg.entityLabel} onSaved={load} />
                       <Button size="sm" onClick={() => save(row)} disabled={savingId === row.id || !row.active}>
                         <Save className="mr-2 h-4 w-4" />
                         {savingId === row.id ? "Salvando…" : "Salvar"}
