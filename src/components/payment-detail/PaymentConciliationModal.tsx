@@ -2786,6 +2786,34 @@ export function PaymentConciliationModal({
                                             ? formatCurrency(Number(it.valor_hospital))
                                             : "—"}
                                         </TableCell>
+                                        {(() => {
+                                          const vr = Number(it.valor_regra ?? 0);
+                                          const vEx = Number(it.valor_exacta ?? 0);
+                                          const vHo = Number(it.valor_hospital ?? 0);
+                                          const qEx = vr > 0 && vEx > 0 ? Math.round((vEx / vr) * 100) / 100 : null;
+                                          const qHo = vr > 0 && vHo > 0 ? Math.round((vHo / vr) * 100) / 100 : null;
+                                          const diverge = qEx != null && qHo != null && Math.abs(qEx - qHo) >= 0.01;
+                                          const fmtQ = (q: number | null) =>
+                                            q == null ? "—" : Number.isInteger(q) ? String(q) : q.toFixed(2).replace(".", ",");
+                                          return (
+                                            <>
+                                              <TableCell
+                                                className="px-2 py-2 text-[12px] text-center tabular-nums"
+                                                style={{ color: diverge ? 'hsl(var(--warning-text))' : undefined, fontWeight: diverge ? 600 : undefined }}
+                                                title={qEx != null && vr > 0 ? `${formatCurrency(vEx)} ÷ ${formatCurrency(vr)}` : 'Sem valor de regra'}
+                                              >
+                                                {fmtQ(qEx)}
+                                              </TableCell>
+                                              <TableCell
+                                                className="px-2 py-2 text-[12px] text-center tabular-nums"
+                                                style={{ color: diverge ? 'hsl(var(--warning-text))' : undefined, fontWeight: diverge ? 600 : undefined }}
+                                                title={qHo != null && vr > 0 ? `${formatCurrency(vHo)} ÷ ${formatCurrency(vr)}` : 'Sem valor de regra'}
+                                              >
+                                                {fmtQ(qHo)}
+                                              </TableCell>
+                                            </>
+                                          );
+                                        })()}
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums" style={{ color: it.valor_regra ? undefined : 'hsl(var(--muted-foreground))' }}>
                                           {it.valor_regra
                                             ? formatCurrency(Number(it.valor_regra))
