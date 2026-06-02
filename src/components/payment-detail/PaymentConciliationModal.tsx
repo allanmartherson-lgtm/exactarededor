@@ -2082,6 +2082,7 @@ export function PaymentConciliationModal({
                             <Table>
                               <TableHeader>
                                 <TableRow>
+                                  <TableHead className="px-3 py-1.5 text-[10px]">Atendimento</TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px]">Médico</TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px]">
                                     Paciente / Procedimento
@@ -2113,6 +2114,9 @@ export function PaymentConciliationModal({
                                         className="cursor-pointer"
                                         onClick={() => setExpanded(isRowOpen ? null : it.id)}
                                       >
+                                        <TableCell className="px-3 py-2 text-[12px] font-mono tabular-nums" title="Nº do atendimento (chave Tasy)">
+                                          {it.attendance_number ?? "—"}
+                                        </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px]">
                                           {it.doctor_name ?? "—"}
                                         </TableCell>
@@ -2168,7 +2172,7 @@ export function PaymentConciliationModal({
                                       </TableRow>
                                       {isRowOpen && it.ia_obs && (
                                         <TableRow key={`${it.id}-exp`}>
-                                          <TableCell colSpan={9} className="bg-muted/30 px-4 py-3">
+                                          <TableCell colSpan={10} className="bg-muted/30 px-4 py-3">
                                             <div className="flex gap-3">
                                               <Lightbulb className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                                               <div className="flex-1">
