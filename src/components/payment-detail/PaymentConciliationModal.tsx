@@ -691,7 +691,7 @@ export function PaymentConciliationModal({
     try {
       // Empresas que este upload está cobrindo (mapeadas para empresas do lote)
       const currentMappedCompanies = new Set(
-        Object.values(companyMapping).filter(Boolean) as string[],
+        Object.values(srcMapping).filter(Boolean) as string[],
       );
 
       // Persiste o vínculo terceiro→empresa como alias em `companies.aliases`.
@@ -700,7 +700,7 @@ export function PaymentConciliationModal({
       const normForAlias = (s: string) =>
         s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
       const aliasUpdates: Array<{ id: string; aliases: string[]; name: string }> = [];
-      for (const [terceiro, companyName] of Object.entries(companyMapping)) {
+      for (const [terceiro, companyName] of Object.entries(srcMapping)) {
         if (!companyName || !terceiro) continue;
         const ent = companyAliasMap[companyName];
         if (!ent) continue;
@@ -754,7 +754,7 @@ export function PaymentConciliationModal({
           payment_id: paymentId,
           created_by: user?.id ?? null,
           status: "processing",
-          file_name: pendingFileName,
+          file_name: srcFileName,
         })
         .select()
         .single();
@@ -765,7 +765,7 @@ export function PaymentConciliationModal({
         s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 
       const getCell = (row: Record<string, unknown>, field: string): unknown => {
-        const col = parsedColMap[field];
+        const col = srcColMap[field];
         if (!col) return null;
         const v = row[col];
         return v != null && String(v).trim() !== "" ? v : null;
@@ -790,8 +790,8 @@ export function PaymentConciliationModal({
         return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
       };
 
-      console.log('[Conciliação] parsedColMap:', parsedColMap);
-      console.log('[Conciliação] parsedRows[0]:', parsedRows[0]);
+      console.log('[Conciliação] srcColMap:', srcColMap);
+      console.log('[Conciliação] srcRows[0]:', srcRows[0]);
       console.log('[Conciliação] paymentItems sample:', paymentItems.slice(0, 3).map(it => ({
         attendance_number: it.attendance_number,
         procedure_code: it.procedure_code,
@@ -800,29 +800,29 @@ export function PaymentConciliationModal({
       })));
 
       // Fallback: se procCode não foi detectado, tentar encontrar manualmente
-      if (!parsedColMap['procCode'] && parsedRows.length > 0) {
-        const firstRow = parsedRows[0];
+      if (!srcColMap['procCode'] && srcRows.length > 0) {
+        const firstRow = srcRows[0];
         const candidates = Object.keys(firstRow).filter(k => {
           const norm = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
           return norm.includes('tuss') || norm.includes('codigo') || norm.includes('código');
         });
         if (candidates.length > 0) {
-          parsedColMap['procCode'] = candidates[0];
+          srcColMap['procCode'] = candidates[0];
           console.log('[Conciliação] procCode detectado no fallback:', candidates[0]);
         }
       }
 
-      const filteredRows = parsedRows.filter((row) => {
-        const col = parsedColMap["company"];
+      const filteredRows = srcRows.filter((row) => {
+        const col = srcColMap["company"];
         const terceiro = col ? String(row[col] ?? "").trim() : "";
-        return terceiro && companyMapping[terceiro];
+        return terceiro && srcMapping[terceiro];
       });
 
       // Filtro de procedimentos — exclui Consultas/Visitas por padrão
       const GRUPOS_EXCLUIR = new Set(['CONSULTAS', 'VISITAS']);
-      const colGrupo = parsedColMap['grupo'] ?? null;
+      const colGrupo = srcColMap['grupo'] ?? null;
 
-      const rowsParaCruzamento = excludeConsultas && colGrupo
+      const rowsParaCruzamento = srcExcludeConsultas && colGrupo
         ? filteredRows.filter(row => {
             const grupo = String(row[colGrupo] ?? '').trim();
             return !GRUPOS_EXCLUIR.has(grupo.toUpperCase());
@@ -832,8 +832,8 @@ export function PaymentConciliationModal({
       const sampleRow = rowsParaCruzamento[0];
       if (sampleRow) {
         console.log('[Conciliação] sample row filtrada:', sampleRow);
-        console.log('[Conciliação] att col:', parsedColMap['attendance'], '-> valor:', sampleRow[parsedColMap['attendance']]);
-        console.log('[Conciliação] code col:', parsedColMap['procCode'], '-> valor:', sampleRow[parsedColMap['procCode']]);
+        console.log('[Conciliação] att col:', srcColMap['attendance'], '-> valor:', sampleRow[srcColMap['attendance']]);
+        console.log('[Conciliação] code col:', srcColMap['procCode'], '-> valor:', sampleRow[srcColMap['procCode']]);
       }
 
       const normalizeCode = (code: unknown): string => {
@@ -935,9 +935,9 @@ export function PaymentConciliationModal({
         const roleHosp = getCell(row, "role");
         const qtyHosp = getCell(row, "quantity");
         const routeHosp = getCell(row, "accessRoute");
-        const col = parsedColMap["company"];
+        const col = srcColMap["company"];
         const terceiro = col ? String(row[col] ?? "").trim() : "";
-        const mappedCompany = companyMapping[terceiro] ?? terceiro;
+        const mappedCompany = srcMapping[terceiro] ?? terceiro;
         const dateStr = toDateStr(dateRaw);
         const k = makeKey(att, code);
         const candidates = exactaByKey.get(k) ?? [];
@@ -1167,7 +1167,7 @@ export function PaymentConciliationModal({
       }
 
       const mappedLoteCompanies = new Set(
-        Object.values(companyMapping).filter(Boolean) as string[],
+        Object.values(srcMapping).filter(Boolean) as string[],
       );
       for (const it of exactaItemsForRun) {
         if (matchedExactaIds.has(it.id)) continue;
