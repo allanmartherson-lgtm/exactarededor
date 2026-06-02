@@ -2162,7 +2162,12 @@ export function PaymentConciliationModal({
                               )}
                               {counts.valor_divergente > 0 && (
                                 <span className="text-warning-foreground ml-2">
-                                  · {counts.valor_divergente} com divergência
+                                  · {counts.valor_divergente} valor divergente
+                                </span>
+                              )}
+                              {counts.qtd_divergente > 0 && (
+                                <span className="text-warning-foreground ml-2">
+                                  · {counts.qtd_divergente} qtd divergente
                                 </span>
                               )}
                               {counts.so_hospital > 0 && (
