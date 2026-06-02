@@ -1288,13 +1288,14 @@ export function PaymentConciliationModal({
     { key: "todos", label: "Todos", count: scopedStats.total },
     { key: "conciliado", label: "Conciliados", count: scopedStats.conciliado },
     { key: "valor_divergente", label: "Valor divergente", count: scopedStats.valor_divergente },
+    { key: "qtd_divergente", label: "Qtd divergente", count: scopedStats.qtd_divergente },
     { key: "so_hospital", label: "Só no hospital", count: scopedStats.so_hospital },
     { key: "so_exacta", label: "Só no Exacta", count: scopedStats.so_exacta },
   ];
 
   const total = scopedStats.total;
   const pendentes =
-    scopedStats.valor_divergente + scopedStats.so_hospital + scopedStats.so_exacta;
+    scopedStats.valor_divergente + scopedStats.qtd_divergente + scopedStats.so_hospital + scopedStats.so_exacta;
 
   const exactCount = Object.entries(companyMapping).filter(([t, v]) => v && (matchLevels[t] === 'exact' || matchLevels[t] === 'high')).length;
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
