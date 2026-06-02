@@ -349,8 +349,8 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T19:30:00Z";
-const RECONCILIATION_LOGIC_VERSION_LABEL = "conflito duro só quando ambos os lados informam o campo";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T21:00:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "chave empresa+atendimento+TUSS · empresa_ausente como bucket próprio · sem_atendimento tratado";
 
 export function PaymentConciliationModal({
   open,
