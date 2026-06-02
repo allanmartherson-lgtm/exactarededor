@@ -2879,6 +2879,17 @@ export function PaymentConciliationModal({
                     setActiveFilter(activeFilter === "so_exacta" ? "todos" : "so_exacta")
                   }
                 />
+                <KpiCard
+                  icon={AlertTriangle}
+                  tone="muted"
+                  label="Empresa ausente"
+                  value={`${scopedStats.empresa_ausente} itens`}
+                  hint="empresa não está no outro lado"
+                  active={activeFilter === "empresa_ausente"}
+                  onClick={() =>
+                    setActiveFilter(activeFilter === "empresa_ausente" ? "todos" : "empresa_ausente")
+                  }
+                />
               </div>
 
               {/* Impacto financeiro */}
