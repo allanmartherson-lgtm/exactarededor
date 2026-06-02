@@ -121,7 +121,7 @@ type ReconciliationItem = {
   procedure_date: string | null;
   valor_exacta: number;
   valor_hospital: number;
-  status: "conciliado" | "valor_divergente" | "qtd_divergente" | "so_hospital" | "so_exacta";
+  status: "conciliado" | "valor_divergente" | "qtd_divergente" | "so_hospital" | "so_exacta" | "empresa_ausente";
   ia_obs: string | null;
   company_name: string | null;
   agreement_text: string | null;
