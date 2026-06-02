@@ -147,6 +147,7 @@ const COL_FIELDS: Array<{
   { key: "value",      label: "Valor repasse",  required: true, description: "Valor cobrado pelo hospital — base da comparação financeira" },
   { key: "doctor",     label: "Médico executante", required: false, description: "Nome do médico — usado para enriquecer o resultado e filtros futuros" },
   { key: "role",       label: "Função / papel", required: false, description: "Papel do profissional (cirurgião, anestesista…) — diferencia quando o mesmo médico atua em funções distintas" },
+  { key: "accessRoute",label: "Via de acesso",  required: false, description: "Via de acesso (única, mesma via, outra via) — diferencia linhas do mesmo código com valores legítimos distintos" },
   { key: "quantity",   label: "Quantidade",     required: false, description: "Quantidade do procedimento — detecta duplicidades (ex: 1 proc × 3 qty)" },
   { key: "company",    label: "Empresa (PJ)",   required: false, description: "Nome da empresa prestadora — usado no vínculo de empresas" },
   { key: "patient",    label: "Paciente",       required: false, description: "Nome do paciente — enriquecimento" },
@@ -167,6 +168,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     value: ["vl. rep. calc.", "vl rep calc", "vlrepcalc", "valor", "valorbruto"],
     company: ["terceiro", "empresa", "prestador"],
     grupo: ["grupo cbhpm", "grupocbhpm", "grupo", "grupoproc"],
+    accessRoute: ["via", "viaacesso", "via acesso", "via de acesso", "viadeacesso", "viadeacessoproc"],
   };
   const normKey = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
@@ -729,6 +731,18 @@ export function PaymentConciliationModal({
         return n;
       };
 
+      // Normaliza via de acesso para um dos 4 buckets canônicos (espelha rulesEngine.normAccessRoute).
+      // Vital para conciliar quando o mesmo código aparece em vias distintas com valores legítimos diferentes.
+      const normRoute = (s: unknown): string => {
+        const n = normName(s);
+        if (!n) return "";
+        if (n.includes("mesma")) return "mesma_via";
+        if (n.includes("outra") || n.includes("diferente") || /\b2a?\b/.test(n) || n.includes("segunda")) return "outra_via";
+        if (n.includes("unica") || n.includes("principal") || /\b1a?\b/.test(n) || n.includes("primeira")) return "unica_principal";
+        if (n.includes("bonus") || n.includes("complemento") || n === "sem" || n.includes("sem via") || n === "na" || n === "n a") return "sem_via";
+        return n;
+      };
+
       const normQty = (q: unknown): number => {
         const n = Number(String(q ?? "").replace(",", "."));
         return Number.isFinite(n) && n > 0 ? Math.round(n) : 1;
@@ -776,6 +790,7 @@ export function PaymentConciliationModal({
         const dateRaw = getCell(row, "date");
         const roleHosp = getCell(row, "role");
         const qtyHosp = getCell(row, "quantity");
+        const routeHosp = getCell(row, "accessRoute");
         const col = parsedColMap["company"];
         const terceiro = col ? String(row[col] ?? "").trim() : "";
         const mappedCompany = companyMapping[terceiro] ?? terceiro;
@@ -789,27 +804,34 @@ export function PaymentConciliationModal({
         };
 
         // Matching disambiguation: além de atendimento+código, exige coerência
-        // de médico/função/qtd. Sem isso, linhas com mesmo att+code de médicos
-        // diferentes (ex.: principal vs auxiliar) cruzavam valor errado.
+        // de médico/função/via/qtd. Sem isso, linhas com mesmo att+code de médicos
+        // diferentes (ex.: principal vs auxiliar) ou de vias diferentes (única vs
+        // mesma via) cruzavam valor errado e geravam divergência falsa.
         const available = candidates.filter((m) => !matchedExactaIds.has(m.id));
         const docHospN = normName(doctor);
         const roleHospN = normRole(roleHosp);
+        const routeHospN = normRoute(routeHosp);
         const qtyHospN = normQty(qtyHosp);
 
-        const scoreCandidate = (m: PaymentItemRow): { score: number; docOk: boolean; roleOk: boolean } => {
+        const scoreCandidate = (m: PaymentItemRow): { score: number; docOk: boolean; roleOk: boolean; routeOk: boolean } => {
           let s = 0;
           const docMedN = normName((m as any).doctor_name);
           const roleMedN = normRole((m as any).doctor_role);
+          const routeMedN = normRoute((m as any).access_route);
           const qtyMedN = normQty((m as any).quantity);
-          let docOk = false, roleOk = false;
+          let docOk = false, roleOk = false, routeOk = false;
           if (docHospN && docMedN && docHospN === docMedN) { s += 1000; docOk = true; }
           else if (docHospN && docMedN && (docMedN.includes(docHospN) || docHospN.includes(docMedN))) { s += 400; docOk = true; }
           if (roleHospN && roleMedN && roleHospN === roleMedN) { s += 200; roleOk = true; }
           else if (roleHospN && roleMedN) s -= 150;
+          // Via de acesso: forte sinal quando ambos os lados informam — separa
+          // linhas legítimas do mesmo código com valores distintos por via.
+          if (routeHospN && routeMedN && routeHospN === routeMedN) { s += 500; routeOk = true; }
+          else if (routeHospN && routeMedN) s -= 400;
           if (qtyHospN === qtyMedN) s += 50;
           const diff = Math.abs(getConvenioValue(m) - valHosp);
           s += Math.max(0, 30 - Math.min(30, (diff / Math.max(1, valHosp)) * 30));
-          return { score: s, docOk, roleOk };
+          return { score: s, docOk, roleOk, routeOk };
         };
 
         let match: PaymentItemRow | undefined;
@@ -821,8 +843,8 @@ export function PaymentConciliationModal({
             .map((m) => ({ m, ...scoreCandidate(m) }))
             .sort((a, b) => b.score - a.score);
           match = ranked[0].m;
-          // Ambíguo: top sem identidade clara (sem doc nem role coerentes)
-          if (!ranked[0].docOk && !ranked[0].roleOk) ambiguous = true;
+          // Ambíguo: top sem identidade clara (sem doc, role nem via coerentes)
+          if (!ranked[0].docOk && !ranked[0].roleOk && !ranked[0].routeOk) ambiguous = true;
         }
 
         const base: Record<string, unknown> = {
