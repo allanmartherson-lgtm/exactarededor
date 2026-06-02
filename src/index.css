@@ -1194,10 +1194,14 @@ All colors MUST be HSL.
    do grid interno em telas como CompanyAnalysis. Forçamos um track
    visível e fino. */
 .grid-scroll-area {
+  overflow: scroll !important;
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
   scrollbar-width: thin; /* Firefox */
   scrollbar-color: hsl(var(--muted-foreground) / 0.5) hsl(var(--muted) / 0.4);
 }
 .grid-scroll-area::-webkit-scrollbar {
+  display: block;
   width: 12px;
   height: 12px;
   -webkit-appearance: none;
