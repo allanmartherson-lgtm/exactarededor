@@ -1004,8 +1004,18 @@ export function PaymentConciliationModal({
         return str.replace(/\D/g, '');
       };
 
-      const makeKey = (att: unknown, code: unknown): string =>
-        `${normAtt(att)}|${normalizeCode(code)}`;
+      // CHAVE PRIMÁRIA: empresa + atendimento + código TUSS.
+      // Antes a chave era apenas att+code — itens com o mesmo nº de
+      // atendimento em empresas diferentes podiam cruzar erroneamente.
+      const normCompany = (s: unknown): string =>
+        String(s ?? "")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "")
+          .trim();
+      const makeKey = (company: unknown, att: unknown, code: unknown): string =>
+        `${normCompany(company)}|${normAtt(att)}|${normalizeCode(code)}`;
 
       const normName = (s: unknown): string =>
         String(s ?? "")
