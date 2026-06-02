@@ -20,14 +20,14 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Como deseja criar a base?</DialogTitle>
-          <DialogDescription>Escolha o modo antes de continuar</DialogDescription>
+          <DialogTitle className="text-2xl">Como deseja criar a base?</DialogTitle>
+          <DialogDescription className="text-base">Escolha o modo antes de continuar</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4 pt-2">
+        <div className="grid grid-cols-2 gap-5 pt-4">
           <button
             type="button"
             onClick={() => select("analise")}
-            className="flex flex-col items-start gap-3 rounded-lg border border-border p-4 text-left hover:border-primary hover:bg-primary/5 transition-colors"
+            className="flex flex-col items-start gap-4 rounded-lg border border-border p-6 text-left hover:border-primary hover:bg-primary/5 transition-colors"
           >
             <div className="flex w-full items-center justify-between">
               <div className="rounded-md bg-muted p-2">
