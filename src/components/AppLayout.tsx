@@ -42,6 +42,7 @@ import { useCurrentVersion } from "@/hooks/useSystemVersion";
 import { useConversasUnread } from "@/hooks/useConversasUnread";
 import { Link } from "react-router-dom";
 import { HospitalSwitcher } from "@/components/HospitalSwitcher";
+import { PaymentModeSelectModal } from "@/components/PaymentModeSelectModal";
 
 /** Bolinha vermelha de não lidas para o item Conversas. */
 const ConversasBadgeDot = ({ count, absolute = false }: { count: number; absolute?: boolean }) => {
