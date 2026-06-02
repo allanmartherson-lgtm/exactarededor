@@ -99,7 +99,7 @@ type ReconciliationItem = {
   procedure_date: string | null;
   valor_exacta: number;
   valor_hospital: number;
-  status: "conciliado" | "valor_divergente" | "so_hospital" | "so_exacta";
+  status: "conciliado" | "valor_divergente" | "qtd_divergente" | "so_hospital" | "so_exacta";
   ia_obs: string | null;
   company_name: string | null;
   agreement_text: string | null;
@@ -175,6 +175,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
 const STATUS_LABEL: Record<ReconciliationItem["status"], string> = {
   conciliado: "Conciliado",
   valor_divergente: "Valor divergente",
+  qtd_divergente: "Quantidade divergente",
   so_hospital: "Só no hospital",
   so_exacta: "Só no Exacta",
 };
@@ -182,8 +183,31 @@ const STATUS_LABEL: Record<ReconciliationItem["status"], string> = {
 const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
   conciliado: "bg-success/10 text-success border-success/30",
   valor_divergente: "bg-warning/10 text-warning-text border-warning/30",
+  qtd_divergente: "bg-warning/10 text-warning-text border-warning/30",
   so_hospital: "bg-destructive/10 text-destructive border-destructive/30",
   so_exacta: "bg-primary/10 text-primary border-primary/30",
+};
+
+/**
+ * Tipos de cálculo cujo VALOR é fixo por código (tabela diferenciada, pacote,
+ * valor fixo, bônus). Para esses itens, divergência de centavos no valor não
+ * importa — o que importa é a QUANTIDADE de atendimentos por código.
+ * Para tipos proporcionais (% do convênio, complemento, regra de vias) e para
+ * itens sem regra (fallback 100% tabela), mantém comparação valor x valor.
+ */
+const FIXED_CALC_METHODS = new Set([
+  "valor_fixo",
+  "tabela_diferenciada",
+  "pacote",
+  "pacote_fechado",
+  "pacote_com_extras",
+  "pacote_por_atendimento",
+  "bonus",
+]);
+const isFixedCalcMethod = (m: string | null | undefined): boolean => {
+  if (!m) return false;
+  const norm = String(m).toLowerCase().trim().replace(/\s+/g, "_");
+  return FIXED_CALC_METHODS.has(norm);
 };
 
 export function PaymentConciliationModal({
@@ -683,6 +707,7 @@ export function PaymentConciliationModal({
       const toInsert: Array<Record<string, unknown>> = [];
       let conciliado = 0,
         valor_divergente = 0,
+        qtd_divergente = 0,
         so_hospital = 0,
         so_exacta = 0;
       let risco_mais = 0,
@@ -788,7 +813,37 @@ export function PaymentConciliationModal({
           base.valor_regra = (match as any).expected_amount ?? null;
 
           const diff = valHosp - valMed;
-          if (Math.abs(diff) < 0.02) {
+          const calcMethod = (match as any).applied_calc_method as string | null;
+          const valRegra = Number((match as any).expected_amount ?? 0) || 0;
+          const isFixed = isFixedCalcMethod(calcMethod) && valRegra > 0;
+
+          if (isFixed) {
+            // VALOR FIXO POR CÓDIGO (tabela diferenciada, pacote, valor fixo,
+            // bônus): valor não pode variar. O que importa é a quantidade
+            // de atendimentos por código. Comparamos qty informada pelo
+            // hospital com qty do item na Exacta; quando o hospital não
+            // envia coluna de qty, inferimos pela razão valor_hospital/valor_regra.
+            const qtyMed = Number((match as any).quantity ?? 1) || 1;
+            const qtyHospExplicit = Number(String(qtyHosp ?? "").replace(",", ".")) || 0;
+            const qtyHospInferred = valRegra > 0 ? Math.round(valHosp / valRegra) : 0;
+            const qtyHospFinal = qtyHospExplicit > 0 ? qtyHospExplicit : qtyHospInferred;
+            const qtyOk = qtyHospFinal > 0 && qtyHospFinal === qtyMed;
+            const valuePerUnitOk = valRegra > 0 && Math.abs(valHosp - valRegra * qtyMed) < 0.02;
+
+            if (qtyOk || valuePerUnitOk) {
+              base.status = "conciliado";
+              conciliado++;
+            } else {
+              base.status = "qtd_divergente";
+              qtd_divergente++;
+              const qtyTxt = qtyHospFinal > 0 ? `${qtyHospFinal}` : "indefinida";
+              base.ia_obs = `Regra de valor fixo (${calcMethod}). Esperado ${qtyMed}× ${formatCurrency(valRegra)} = ${formatCurrency(valRegra * qtyMed)}. Hospital pagou ${formatCurrency(valHosp)} (qtd ${qtyTxt}). Como o valor unitário é fixo por contrato, a divergência aponta diferença de quantidade de atendimentos para este código — não erro de valor.`;
+              // Divergência aqui é informativa: o valor a pagar é o da regra.
+              divergencia_valor += Math.abs(valHosp - valRegra * qtyMed);
+              if (valHosp > valRegra * qtyMed) risco_mais += valHosp - valRegra * qtyMed;
+              else risco_menos += valRegra * qtyMed - valHosp;
+            }
+          } else if (Math.abs(diff) < 0.02) {
             base.status = "conciliado";
             conciliado++;
           } else {
@@ -926,11 +981,12 @@ export function PaymentConciliationModal({
   }, [items, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
 
   const scopedStats = useMemo(() => {
-    let conciliado = 0, valor_divergente = 0, so_hospital = 0, so_exacta = 0;
+    let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
     for (const it of scopedItems) {
       if (it.status === "conciliado") conciliado++;
       else if (it.status === "valor_divergente") valor_divergente++;
+      else if (it.status === "qtd_divergente") qtd_divergente++;
       else if (it.status === "so_hospital") so_hospital++;
       else if (it.status === "so_exacta") so_exacta++;
       const vm = Number(it.valor_exacta) || 0;
@@ -939,6 +995,15 @@ export function PaymentConciliationModal({
         const diff = vh - vm;
         divergencia_valor += Math.abs(diff);
         if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
+      } else if (it.status === "qtd_divergente") {
+        // Divergência de quantidade: o valor que vamos pagar é o da regra.
+        // Mostramos a diferença vs hospital apenas como exposição informativa.
+        const vr = Number(it.valor_regra) || 0;
+        if (vr > 0) {
+          const diff = vh - vr;
+          divergencia_valor += Math.abs(diff);
+          if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
+        }
       } else if (it.status === "so_hospital") {
         risco_mais += vh;
       } else if (it.status === "so_exacta") {
@@ -947,7 +1012,7 @@ export function PaymentConciliationModal({
     }
     return {
       total: scopedItems.length,
-      conciliado, valor_divergente, so_hospital, so_exacta,
+      conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta,
       risco_mais, risco_menos, divergencia_valor,
     };
   }, [scopedItems]);
@@ -1010,6 +1075,7 @@ export function PaymentConciliationModal({
     const STATUS_COLOR: Record<string, string> = {
       'Conciliado': 'F0FDF4',
       'Valor divergente': 'FFFBEB',
+      'Quantidade divergente': 'FFFBEB',
       'Só no hospital': 'FEF2F2',
       'Só no Exacta': 'EFF6FF',
     };
@@ -1048,6 +1114,7 @@ export function PaymentConciliationModal({
       ["Total de itens", scopedStats.total],
       ["Conciliados", scopedStats.conciliado, `${scopedStats.total ? ((scopedStats.conciliado / scopedStats.total) * 100).toFixed(1) : 0}%`],
       ["Valor divergente", scopedStats.valor_divergente],
+      ["Quantidade divergente", scopedStats.qtd_divergente],
       ["Só no hospital", scopedStats.so_hospital],
       ["Só no Exacta", scopedStats.so_exacta],
       [""],
@@ -1127,7 +1194,7 @@ export function PaymentConciliationModal({
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text(
-      `Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Divergência: ${scopedStats.valor_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só Exacta: ${scopedStats.so_exacta}${isScoped ? "  (escopo filtrado)" : ""}`,
+      `Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Valor div.: ${scopedStats.valor_divergente}  ·  Qtd div.: ${scopedStats.qtd_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só Exacta: ${scopedStats.so_exacta}${isScoped ? "  (escopo filtrado)" : ""}`,
       marginX,
       cursorY,
     );
@@ -1159,6 +1226,7 @@ export function PaymentConciliationModal({
     const STATUS_FILL: Record<string, [number, number, number]> = {
       "Conciliado": [240, 253, 244],
       "Valor divergente": [255, 251, 235],
+      "Quantidade divergente": [255, 251, 235],
       "Só no hospital": [254, 242, 242],
       "Só no Exacta": [239, 246, 255],
     };
@@ -1223,13 +1291,14 @@ export function PaymentConciliationModal({
     { key: "todos", label: "Todos", count: scopedStats.total },
     { key: "conciliado", label: "Conciliados", count: scopedStats.conciliado },
     { key: "valor_divergente", label: "Valor divergente", count: scopedStats.valor_divergente },
+    { key: "qtd_divergente", label: "Qtd divergente", count: scopedStats.qtd_divergente },
     { key: "so_hospital", label: "Só no hospital", count: scopedStats.so_hospital },
     { key: "so_exacta", label: "Só no Exacta", count: scopedStats.so_exacta },
   ];
 
   const total = scopedStats.total;
   const pendentes =
-    scopedStats.valor_divergente + scopedStats.so_hospital + scopedStats.so_exacta;
+    scopedStats.valor_divergente + scopedStats.qtd_divergente + scopedStats.so_hospital + scopedStats.so_exacta;
 
   const exactCount = Object.entries(companyMapping).filter(([t, v]) => v && (matchLevels[t] === 'exact' || matchLevels[t] === 'high')).length;
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
@@ -1873,7 +1942,7 @@ export function PaymentConciliationModal({
               })()}
 
               {/* KPI cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <KpiCard
                   icon={CheckCircle2}
                   tone="success"
@@ -1890,7 +1959,7 @@ export function PaymentConciliationModal({
                   tone="warning"
                   label="Valor divergente"
                   value={`${scopedStats.valor_divergente} itens`}
-                  hint="revisar valor"
+                  hint="acordo proporcional"
                   active={activeFilter === "valor_divergente"}
                   onClick={() =>
                     setActiveFilter(
@@ -1898,6 +1967,20 @@ export function PaymentConciliationModal({
                     )
                   }
                 />
+                <KpiCard
+                  icon={AlertTriangle}
+                  tone="warning"
+                  label="Qtd divergente"
+                  value={`${scopedStats.qtd_divergente} itens`}
+                  hint="acordo valor fixo"
+                  active={activeFilter === "qtd_divergente"}
+                  onClick={() =>
+                    setActiveFilter(
+                      activeFilter === "qtd_divergente" ? "todos" : "qtd_divergente",
+                    )
+                  }
+                />
+
                 <KpiCard
                   icon={XCircle}
                   tone="destructive"
@@ -2044,13 +2127,14 @@ export function PaymentConciliationModal({
                     const counts = {
                       conciliado: companyItems.filter((i) => i.status === "conciliado").length,
                       valor_divergente: companyItems.filter((i) => i.status === "valor_divergente").length,
+                      qtd_divergente: companyItems.filter((i) => i.status === "qtd_divergente").length,
                       so_hospital: companyItems.filter((i) => i.status === "so_hospital").length,
                       so_exacta: companyItems.filter((i) => i.status === "so_exacta").length,
                     };
                     const totalHosp = companyItems.reduce((s, i) => s + Number(i.valor_hospital), 0);
                     const totalMed = companyItems.reduce((s, i) => s + Number(i.valor_exacta), 0);
                     const hasPendencias =
-                      counts.valor_divergente + counts.so_hospital + counts.so_exacta > 0;
+                      counts.valor_divergente + counts.qtd_divergente + counts.so_hospital + counts.so_exacta > 0;
 
                     return (
                       <Card
@@ -2081,7 +2165,12 @@ export function PaymentConciliationModal({
                               )}
                               {counts.valor_divergente > 0 && (
                                 <span className="text-warning-foreground ml-2">
-                                  · {counts.valor_divergente} com divergência
+                                  · {counts.valor_divergente} valor divergente
+                                </span>
+                              )}
+                              {counts.qtd_divergente > 0 && (
+                                <span className="text-warning-foreground ml-2">
+                                  · {counts.qtd_divergente} qtd divergente
                                 </span>
                               )}
                               {counts.so_hospital > 0 && (
@@ -2216,7 +2305,7 @@ export function PaymentConciliationModal({
                                                   Análise IA
                                                 </p>
                                                 <p className="text-[12px]">{it.ia_obs}</p>
-                                                {it.status === "valor_divergente" && it.applied_rule_label && (
+                                                {(it.status === "valor_divergente" || it.status === "qtd_divergente") && it.applied_rule_label && (
                                                   <div className="mt-2 flex items-center gap-2">
                                                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Regra Exacta:</span>
                                                     <span className="text-[11px] font-medium text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
