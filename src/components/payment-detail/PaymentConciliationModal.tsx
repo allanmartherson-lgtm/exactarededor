@@ -731,6 +731,18 @@ export function PaymentConciliationModal({
         return n;
       };
 
+      // Normaliza via de acesso para um dos 4 buckets canônicos (espelha rulesEngine.normAccessRoute).
+      // Vital para conciliar quando o mesmo código aparece em vias distintas com valores legítimos diferentes.
+      const normRoute = (s: unknown): string => {
+        const n = normName(s);
+        if (!n) return "";
+        if (n.includes("mesma")) return "mesma_via";
+        if (n.includes("outra") || n.includes("diferente") || /\b2a?\b/.test(n) || n.includes("segunda")) return "outra_via";
+        if (n.includes("unica") || n.includes("principal") || /\b1a?\b/.test(n) || n.includes("primeira") || n.includes("endonasal")) return "unica_principal";
+        if (n.includes("bonus") || n.includes("complemento") || n.includes("sem")) return "sem_via";
+        return n;
+      };
+
       const normQty = (q: unknown): number => {
         const n = Number(String(q ?? "").replace(",", "."));
         return Number.isFinite(n) && n > 0 ? Math.round(n) : 1;
