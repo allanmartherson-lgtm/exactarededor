@@ -498,6 +498,11 @@ export function PaymentConciliationModal({
     const findMatch = (t: string, candidates: string[]): { company: string | null; level: MatchLevel } => {
       const normT = normFull(t);
       const idsT = getIdentifiers(t);
+      // 1) Alias persistido — vínculo já confirmado pelo analista em rodada anterior.
+      const aliasHit = candidates.find(c =>
+        (companyAliasMap[c]?.aliases ?? []).some(a => normFull(a) === normT)
+      );
+      if (aliasHit) return { company: aliasHit, level: "exact" };
       const exact = candidates.find(c => normFull(c) === normT);
       if (exact) return { company: exact, level: "exact" };
       const sub = candidates.find(c => { const n = normFull(c); return normT.includes(n) || n.includes(normT); });
