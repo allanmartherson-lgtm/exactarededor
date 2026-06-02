@@ -2090,20 +2090,24 @@ export function PaymentConciliationModal({
     setExportStatuses(on ? new Set(ALL_STATUS_KEYS) : new Set());
   };
 
+  // Contagens e exportação usam `scopedItems` (todos os filtros EXCETO o
+  // activeFilter de status). Caso contrário, ao estar com uma aba/KPI ativo
+  // (ex.: "valor_divergente"), marcar "Só Exacta" no modal resultaria em
+  // zero itens, pois `filteredItems` já está restrito ao status da aba.
   const exportCounts: Record<ExportStatusKey, number> = useMemo(() => {
     const acc: Record<ExportStatusKey, number> = {
       conciliado: 0, valor_divergente: 0, qtd_divergente: 0, so_hospital: 0, so_exacta: 0, empresa_ausente: 0,
     };
-    for (const it of filteredItems) acc[it.status] = (acc[it.status] ?? 0) + 1;
+    for (const it of scopedItems) acc[it.status] = (acc[it.status] ?? 0) + 1;
     return acc;
-  }, [filteredItems]);
+  }, [scopedItems]);
 
   const runExport = () => {
     if (exportStatuses.size === 0) {
       toast({ title: "Selecione ao menos um tipo", description: "Marque pelo menos um status para exportar.", variant: "destructive" });
       return;
     }
-    const subset = filteredItems.filter((it) => exportStatuses.has(it.status));
+    const subset = scopedItems.filter((it) => exportStatuses.has(it.status));
     if (subset.length === 0) {
       toast({ title: "Nada para exportar", description: "Nenhum item nos status selecionados (considerando filtros atuais).", variant: "destructive" });
       return;
