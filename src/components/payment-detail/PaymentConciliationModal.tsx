@@ -576,6 +576,12 @@ export function PaymentConciliationModal({
         const normT = normFull(terceiro);
         const idsT = getIdentifiers(terceiro);
 
+        // 1) Alias persistido — vínculo já confirmado pelo analista em rodada anterior.
+        const aliasHit = candidates.find(c =>
+          (companyAliasMap[c]?.aliases ?? []).some(a => normFull(a) === normT)
+        );
+        if (aliasHit) return { company: aliasHit, level: 'exact' };
+
         const exact = candidates.find(c => normFull(c) === normT);
         if (exact) return { company: exact, level: 'exact' };
 
