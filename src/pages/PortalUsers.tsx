@@ -34,6 +34,8 @@ type PortalUserRow = {
   parent_doc: string | null;
   email: string | null;
   full_name: string | null;
+  cpf: string | null;
+  phone: string | null;
   active: boolean;
   hospital_ids: Set<string>;
   primary_hospital_id: string | null;
