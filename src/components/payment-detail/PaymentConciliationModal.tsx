@@ -996,6 +996,20 @@ export function PaymentConciliationModal({
         return str.replace(/\D/g, '');
       };
 
+      // TUSS pode aparecer em 7 dígitos (raiz) ou 8 dígitos (raiz + dígito
+      // verificador). A Exacta normalmente grava com 8 dígitos; bases de
+      // hospital frequentemente exportam só os 7. Geramos TODAS as variantes
+      // razoáveis para que o mesmo código case independente do formato.
+      const codeVariants = (code: unknown): string[] => {
+        const base = normalizeCode(code);
+        if (!base) return [];
+        const set = new Set<string>([base]);
+        // 8 dígitos → também tenta 7 (remove último dígito verificador)
+        if (base.length === 8) set.add(base.slice(0, 7));
+        // 7 dígitos → não tem como reconstruir o verificador; deixa só 7.
+        return Array.from(set);
+      };
+
       const normAtt = (att: unknown): string => {
         if (att == null || att === '') return '';
         const str = String(att).trim();
