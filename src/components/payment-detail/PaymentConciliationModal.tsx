@@ -237,6 +237,7 @@ const STATUS_LABEL: Record<ReconciliationItem["status"], string> = {
   qtd_divergente: "Quantidade divergente",
   so_hospital: "Só no hospital",
   so_exacta: "Só no Exacta",
+  empresa_ausente: "Empresa ausente",
 };
 
 const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
@@ -245,6 +246,7 @@ const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
   qtd_divergente: "bg-warning/10 text-warning-text border-warning/30",
   so_hospital: "bg-destructive/10 text-destructive border-destructive/30",
   so_exacta: "bg-primary/10 text-primary border-primary/30",
+  empresa_ausente: "bg-muted text-muted-foreground border-border",
 };
 
 /**
