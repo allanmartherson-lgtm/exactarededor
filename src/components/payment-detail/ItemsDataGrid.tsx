@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -368,12 +368,41 @@ export function ItemsDataGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, filtered, expandedId]);
 
+  const tableMinWidth = 24 +
+    (colVis.atendimento ? 96 : 0) +
+    200 +
+    (colVis.convenio ? 140 : 0) +
+    (colVis.via ? 140 : 0) +
+    96 +
+    64 +
+    240 +
+    (colVis.setor_lido ? 140 : 0) +
+    (colVis.setor_inferido ? 140 : 0) +
+    180 +
+    (colVis.funcao ? 120 : 0) +
+    (colVis.regra ? 180 : 0) +
+    110 +
+    110 +
+    (colVis.diferenca ? 110 : 0) +
+    110 +
+    (colVis.observacao ? 70 : 0) +
+    (canEdit ? 120 : 0);
+  const topScrollRef = useRef<HTMLDivElement | null>(null);
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  const syncScrollLeft = (source: "top" | "grid", left: number) => {
+    const target = source === "top" ? gridScrollRef.current : topScrollRef.current;
+    if (target && Math.abs(target.scrollLeft - left) > 1) target.scrollLeft = left;
+  };
+
   return (
     // Altura própria pra ativar o scroll interno mesmo dentro de um pai sem altura.
     // Reduzimos o offset (de 220 → 170) pra dar mais área vertical à tabela e
     // manter o scrollbar horizontal sempre visível, sem precisar rolar até o fim
     // da página em pagamentos grandes.
-    <div className={cn("flex flex-col min-h-0 max-h-[calc(100vh-170px)]", className)}>
+    <div
+      className={cn("flex flex-col min-h-[320px]", className)}
+      style={{ height: "min(560px, calc(100vh - 260px))" }}
+    >
 
       {showToolbar && (
         <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 bg-muted/20">
@@ -577,7 +606,19 @@ export function ItemsDataGrid({
 
       {/* Tabela / Lista */}
       <div className="flex-1 min-h-0 overflow-hidden bg-background isolate pb-2">
-        <div className="grid-scroll-area h-full w-full overflow-x-scroll overflow-y-auto isolate pb-4">
+        <div
+          ref={topScrollRef}
+          className="grid-scroll-rail hidden md:block h-4 overflow-x-scroll overflow-y-hidden border-b bg-muted/20"
+          aria-label="Rolagem horizontal da tabela"
+          onScroll={(e) => syncScrollLeft("top", e.currentTarget.scrollLeft)}
+        >
+          <div style={{ width: tableMinWidth, height: 1 }} />
+        </div>
+        <div
+          ref={gridScrollRef}
+          className="grid-scroll-area h-[calc(100%-1rem)] w-full overflow-scroll isolate pb-4"
+          onScroll={(e) => syncScrollLeft("grid", e.currentTarget.scrollLeft)}
+        >
           {/* MOBILE — lista de cards (< md) */}
           <ul className="md:hidden divide-y">
             {filtered.length === 0 && (
@@ -691,7 +732,8 @@ export function ItemsDataGrid({
               normalmente com larguras controladas via colgroup. */}
           <table
             data-density={isCompact ? "compact" : "comfortable"}
-            className={cn("hidden md:table min-w-full border-separate border-spacing-0 table-fixed", tableTextSize)}
+            className={cn("hidden md:table border-separate border-spacing-0 table-fixed", tableTextSize)}
+            style={{ width: tableMinWidth, minWidth: tableMinWidth }}
           >
             <colgroup>
               {colVis.atendimento && <col style={{ width: 96 }} />}
