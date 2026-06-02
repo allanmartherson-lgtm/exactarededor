@@ -21,8 +21,8 @@ import {
 import { Building2, Stethoscope, Save, Star, Plus, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { formatCPF } from "@/lib/cpf";
-import { formatPhone } from "@/lib/userFields";
+import { formatCPF, isValidCPF, onlyDigits } from "@/lib/cpf";
+import { formatPhone, phoneSchema } from "@/lib/userFields";
 
 type Hospital = { id: string; name: string; state_uf: string };
 
@@ -34,6 +34,8 @@ type PortalUserRow = {
   parent_doc: string | null;
   email: string | null;
   full_name: string | null;
+  cpf: string | null;
+  phone: string | null;
   active: boolean;
   hospital_ids: Set<string>;
   primary_hospital_id: string | null;
@@ -157,14 +159,24 @@ function NewPortalUserDialog({
       toast.error("Informe e-mail e selecione a " + cfg.entityLabel);
       return;
     }
+    // Validações obrigatórias de CPF e telefone
+    if (!isValidCPF(cpf)) {
+      toast.error("CPF inválido. Verifique os 11 dígitos.");
+      return;
+    }
+    const phoneCheck = phoneSchema.safeParse(phone);
+    if (!phoneCheck.success) {
+      toast.error(phoneCheck.error.issues[0]?.message ?? "Telefone inválido");
+      return;
+    }
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("admin-create-portal-user", {
       body: {
         kind,
         email: email.trim().toLowerCase(),
         full_name: fullName.trim(),
-        cpf: cpf.replace(/\D/g, ""),
-        phone: phone.replace(/\D/g, ""),
+        cpf: onlyDigits(cpf),
+        phone: phoneCheck.data,
         entity_id: entityId,
         hospital_ids: Array.from(selectedHospitals),
         primary_hospital_id: primaryHospital,
@@ -366,7 +378,7 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
         .in("portal_user_id", (users ?? []).map((u: any) => u.id)),
       supabase
         .from("profiles")
-        .select("id, email, full_name")
+        .select("id, email, full_name, cpf, phone")
         .in("id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
     ]);
 
@@ -391,6 +403,8 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
         parent_doc: parent?.[cfg.parentDocCol] ?? null,
         email: profile?.email ?? null,
         full_name: profile?.full_name ?? null,
+        cpf: profile?.cpf ?? null,
+        phone: profile?.phone ?? null,
         active: u.active,
         hospital_ids: new Set(links.map((l) => l.hospital_id)),
         primary_hospital_id: links.find((l) => l.is_primary)?.hospital_id ?? null,
@@ -475,16 +489,21 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, "");
     return rows
       .filter((r) => showInactive ? true : r.active)
       .filter((r) => {
         if (!q) return true;
-        return (
+        const textMatch =
           r.parent_name.toLowerCase().includes(q) ||
           (r.email ?? "").toLowerCase().includes(q) ||
           (r.full_name ?? "").toLowerCase().includes(q) ||
-          (r.parent_doc ?? "").toLowerCase().includes(q)
+          (r.parent_doc ?? "").toLowerCase().includes(q);
+        const digitMatch = qDigits.length >= 3 && (
+          (r.cpf ?? "").replace(/\D/g, "").includes(qDigits) ||
+          (r.phone ?? "").replace(/\D/g, "").includes(qDigits)
         );
+        return textMatch || digitMatch;
       });
   }, [rows, filter, showInactive]);
 
@@ -493,7 +512,7 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-1 items-center gap-3 min-w-[260px]">
           <Input
-            placeholder={`Buscar por ${cfg.entityLabel}, nome, e-mail ou documento…`}
+            placeholder={`Buscar por ${cfg.entityLabel}, nome, e-mail, CPF, telefone ou documento…`}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             className="max-w-md"
@@ -534,6 +553,8 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
                           {row.full_name && <span>{row.full_name}</span>}
                           {row.parent_doc && <span>{row.parent_doc}</span>}
                           {row.email && <span>{row.email}</span>}
+                          {row.cpf && <span>CPF {formatCPF(row.cpf)}</span>}
+                          {row.phone && <span>{formatPhone(row.phone)}</span>}
                         </div>
                       </div>
                     </div>

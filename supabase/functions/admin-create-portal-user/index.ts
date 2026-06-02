@@ -66,6 +66,8 @@ serve(async (req) => {
 
     // Para médico: importa dados do cadastro automaticamente e bloqueia se inativo
     let linkedDoctorId: string | null = null;
+    let linkedDoctorName: string | null = null;
+    const importedFields: Record<string, unknown> = {};
     if (kind === "doctor") {
       const { data: doc, error: docErr } = await admin
         .from("doctors")
@@ -75,10 +77,11 @@ serve(async (req) => {
       if (docErr || !doc) return json({ error: "Médico não encontrado" }, 404);
       if (!doc.active) return json({ error: "Médico inativo. Reative o cadastro antes de criar acesso ao portal." }, 400);
       linkedDoctorId = doc.id;
-      fullName = fullName || (doc.full_name ?? "");
-      email = email || (doc.email ?? "").trim().toLowerCase();
-      cpf = cpf || (doc.cpf ? String(doc.cpf).replace(/\D/g, "") : "");
-      phone = phone || (doc.phone ? String(doc.phone).replace(/\D/g, "") : "");
+      linkedDoctorName = doc.full_name ?? null;
+      if (!fullName && doc.full_name) { fullName = doc.full_name; importedFields.full_name = doc.full_name; }
+      if (!email && doc.email) { email = (doc.email ?? "").trim().toLowerCase(); importedFields.email = email; }
+      if (!cpf && doc.cpf) { cpf = String(doc.cpf).replace(/\D/g, ""); importedFields.cpf = cpf; }
+      if (!phone && doc.phone) { phone = String(doc.phone).replace(/\D/g, ""); importedFields.phone = phone; }
     }
 
     if (!email) return json({ error: "E-mail obrigatório" }, 400);
@@ -186,13 +189,54 @@ serve(async (req) => {
       if (linkErr) throw linkErr;
     }
 
-    await admin.from("audit_log").insert({
-      actor_id: userData.user.id,
-      entity_type: `portal_user_${kind}`,
-      entity_id: portalRowId,
-      action: "created",
-      diff: { email, full_name: fullName, entity_id: entityId, hospital_ids: hospitalIds },
-    });
+    // Auditoria — entity_types compatíveis com check constraint do audit_log
+    const auditRows: Array<Record<string, unknown>> = [
+      {
+        actor_id: userData.user.id,
+        entity_type: "user",
+        entity_id: newUserId,
+        action: "created",
+        diff: {
+          context: `portal_user_${kind}`,
+          email,
+          full_name: fullName,
+          entity_id: entityId,
+          portal_row_id: portalRowId,
+          hospital_ids: hospitalIds,
+        },
+      },
+    ];
+
+    // Log da importação automática dos dados do médico (quando aplicável)
+    if (kind === "doctor" && Object.keys(importedFields).length > 0 && linkedDoctorId) {
+      auditRows.push({
+        actor_id: userData.user.id,
+        entity_type: "doctor",
+        entity_id: linkedDoctorId,
+        action: "updated",
+        diff: {
+          reason: "portal_user_auto_import",
+          imported_fields: importedFields,
+          portal_user_id: newUserId,
+          portal_row_id: portalRowId,
+          doctor_full_name: linkedDoctorName,
+        },
+      });
+      auditRows.push({
+        actor_id: userData.user.id,
+        entity_type: "user",
+        entity_id: newUserId,
+        action: "updated",
+        diff: {
+          reason: "portal_user_auto_import_from_doctor",
+          doctor_id: linkedDoctorId,
+          doctor_full_name: linkedDoctorName,
+          imported_fields: importedFields,
+        },
+      });
+    }
+
+    await admin.from("audit_log").insert(auditRows);
 
     return json({ success: true, user_id: newUserId, portal_row_id: portalRowId, temp_password: tempPassword });
   } catch (e) {
