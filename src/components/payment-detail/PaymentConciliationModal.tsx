@@ -1277,6 +1277,86 @@ export function PaymentConciliationModal({
     }
   };
 
+  /**
+   * Reprocessa a conciliação atual sem precisar de novo upload.
+   * Reconstrói as "linhas do hospital" a partir dos `reconciliation_items`
+   * da última run (que já preservam doctor/role/quantity/valor/via via
+   * match_diagnostics.hospital). Útil quando o motor/regras mudaram ou
+   * quando vínculos manuais foram salvos como alias e o usuário só quer
+   * que a UI volte a rodar o matching estrito.
+   */
+  const handleReprocessFromCurrent = async () => {
+    if (!run?.id || items.length === 0) {
+      toast({
+        title: "Nada para reprocessar",
+        description: "Não há uma conciliação atual carregada.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Só considera linhas que vieram do hospital (ignora "só Exacta",
+    // que são reinferidas naturalmente no matching).
+    const hospitalItems = items.filter((it) => it.status !== "so_exacta");
+    if (hospitalItems.length === 0) {
+      toast({
+        title: "Sem linhas do hospital",
+        description: "A conciliação atual não tem itens para recruzar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const colMap: Record<string, string> = {
+      company: "__company",
+      attendance: "__att",
+      procCode: "__code",
+      value: "__valor",
+      patient: "__patient",
+      doctor: "__doctor",
+      procName: "__procName",
+      date: "__date",
+      role: "__role",
+      quantity: "__qty",
+      accessRoute: "__route",
+      agreement: "__agreement",
+    };
+
+    const rows: Record<string, unknown>[] = hospitalItems.map((it) => {
+      const hospDiag = it.match_diagnostics?.hospital;
+      return {
+        __company: it.company_name ?? "",
+        __att: it.attendance_number ?? "",
+        __code: it.procedure_code ?? "",
+        __valor: it.valor_hospital ?? 0,
+        __patient: it.patient_name ?? "",
+        __doctor: hospDiag?.doctor ?? it.doctor_name ?? "",
+        __procName: it.procedure_name ?? "",
+        __date: it.procedure_date ?? "",
+        __role: hospDiag?.role ?? (it as any).role ?? "",
+        __qty: (it as any).quantity ?? "",
+        __route: hospDiag?.route ?? "",
+        __agreement: it.agreement_text ?? "",
+      };
+    });
+
+    // Mapping de empresa: identidade (já é o nome canônico no lote).
+    const mapping: Record<string, string> = {};
+    for (const it of hospitalItems) {
+      const c = it.company_name ?? "";
+      if (c) mapping[c] = c;
+    }
+
+    await handleProcessReconciliation("replace", {
+      rows,
+      colMap,
+      mapping,
+      fileName: run.file_name ?? "reprocessamento",
+      excludeConsultas: false, // linhas já vieram filtradas
+    });
+  };
+
+
+
   const doctorOptions = useMemo(() => {
     const base = initialCompany
       ? items.filter((it) => (it.company_name ?? "") === initialCompany)
