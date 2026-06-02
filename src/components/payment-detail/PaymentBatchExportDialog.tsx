@@ -24,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { FileSpreadsheet, FileText, FileDown, Search, Loader2 } from "lucide-react";
+import { FileSpreadsheet, FileText, FileDown, Search, Loader2, Zap, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -194,6 +194,34 @@ export function PaymentBatchExportDialog({
   }, [companies.length, selectedCompanies, selectedStatuses]);
 
   const canExport = selectedCompanies.size > 0 && selectedStatuses.size > 0 && itemsToExport.length > 0;
+
+  // Aplica um preset rápido: define status + seleciona apenas empresas que
+  // contenham itens nesses status. Útil para exportar "tudo", "só divergentes",
+  // "só reprovados" etc. sem ter que marcar manualmente.
+  const applyPreset = (statuses: ItemAiStatus[]) => {
+    const statusSet = new Set<ItemAiStatus>(statuses);
+    setSelectedStatuses(statusSet);
+    const companiesWithMatches = new Set<string>();
+    for (const it of items) {
+      const st = (it.ai_status as ItemAiStatus) ?? "aprovado";
+      if (statusSet.has(st)) {
+        companiesWithMatches.add(it.company_name || "Sem PJ");
+      }
+    }
+    setSelectedCompanies(companiesWithMatches);
+  };
+
+  const presetCounts = useMemo(() => {
+    let aprovado = 0, alerta = 0, reprovado = 0;
+    for (const it of items) {
+      const st = (it.ai_status as ItemAiStatus) ?? "aprovado";
+      if (st === "aprovado") aprovado++;
+      else if (st === "alerta") alerta++;
+      else if (st === "reprovado") reprovado++;
+    }
+    return { aprovado, alerta, reprovado, divergentes: alerta + reprovado, total: items.length };
+  }, [items]);
+
 
   // ============ EXPORTAÇÕES ============
 
@@ -378,9 +406,75 @@ export function PaymentBatchExportDialog({
         </DialogHeader>
 
         <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+          {/* Atalhos rápidos */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Zap className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Atalhos rápidos</span>
+              <span className="text-xs text-muted-foreground">
+                aplica status + empresas automaticamente
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => applyPreset(["aprovado", "alerta", "reprovado"])}
+                className="flex flex-col items-start gap-1 rounded-md border border-border p-2.5 text-left hover:bg-muted/40 transition-colors"
+              >
+                <div className="flex items-center gap-1.5">
+                  <FileDown className="h-3.5 w-3.5" />
+                  <span className="text-sm font-medium">Tudo</span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {presetCounts.total} itens
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset(["alerta", "reprovado"])}
+                className="flex flex-col items-start gap-1 rounded-md border border-amber-500/40 bg-amber-500/5 p-2.5 text-left hover:bg-amber-500/10 transition-colors"
+              >
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                  <span className="text-sm font-medium">Só divergentes</span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {presetCounts.divergentes} itens (alerta + reprovado)
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset(["reprovado"])}
+                className="flex flex-col items-start gap-1 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-left hover:bg-destructive/10 transition-colors"
+              >
+                <div className="flex items-center gap-1.5">
+                  <XCircle className="h-3.5 w-3.5 text-destructive" />
+                  <span className="text-sm font-medium">Só reprovados</span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {presetCounts.reprovado} itens
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset(["aprovado"])}
+                className="flex flex-col items-start gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/5 p-2.5 text-left hover:bg-emerald-500/10 transition-colors"
+              >
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-sm font-medium">Só aprovados</span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {presetCounts.aprovado} itens
+                </span>
+              </button>
+            </div>
+          </div>
+
           {/* Formato */}
           <div>
             <div className="text-sm font-medium mb-2">Formato</div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {formatOptions.map((opt) => {
                 const Icon = opt.icon;
