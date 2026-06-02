@@ -378,7 +378,7 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
         .in("portal_user_id", (users ?? []).map((u: any) => u.id)),
       supabase
         .from("profiles")
-        .select("id, email, full_name")
+        .select("id, email, full_name, cpf, phone")
         .in("id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
     ]);
 
