@@ -707,6 +707,7 @@ export function PaymentConciliationModal({
       const toInsert: Array<Record<string, unknown>> = [];
       let conciliado = 0,
         valor_divergente = 0,
+        qtd_divergente = 0,
         so_hospital = 0,
         so_exacta = 0;
       let risco_mais = 0,
