@@ -30,14 +30,14 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
             className="flex flex-col items-start gap-4 rounded-lg border border-border p-6 text-left hover:border-primary hover:bg-primary/5 transition-colors"
           >
             <div className="flex w-full items-center justify-between">
-              <div className="rounded-md bg-muted p-2">
-                <Search className="h-5 w-5 text-muted-foreground" />
+              <div className="rounded-md bg-muted p-2.5">
+                <Search className="h-6 w-6 text-muted-foreground" />
               </div>
               <Badge variant="outline" className="text-xs">Modo atual</Badge>
             </div>
             <div>
-              <p className="font-medium text-sm">Análise de pagamento</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              <p className="font-semibold text-base">Análise de pagamento</p>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
                 Você já calculou o repasse. O sistema verifica se está correto conforme as regras cadastradas.
               </p>
             </div>
@@ -46,17 +46,17 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
           <button
             type="button"
             onClick={() => select("confeccao")}
-            className="flex flex-col items-start gap-3 rounded-lg border border-border p-4 text-left hover:border-primary hover:bg-primary/5 transition-colors"
+            className="flex flex-col items-start gap-4 rounded-lg border border-border p-6 text-left hover:border-primary hover:bg-primary/5 transition-colors"
           >
             <div className="flex w-full items-center justify-between">
-              <div className="rounded-md bg-primary/10 p-2">
-                <Calculator className="h-5 w-5 text-primary" />
+              <div className="rounded-md bg-primary/10 p-2.5">
+                <Calculator className="h-6 w-6 text-primary" />
               </div>
               <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">Novo</Badge>
             </div>
             <div>
-              <p className="font-medium text-sm">Confecção de pagamento</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              <p className="font-semibold text-base">Confecção de pagamento</p>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
                 Você sobe a base com o valor do convênio. O sistema aplica as regras e calcula o repasse automaticamente.
               </p>
             </div>
