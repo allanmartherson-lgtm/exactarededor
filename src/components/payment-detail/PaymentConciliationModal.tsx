@@ -835,7 +835,16 @@ export function PaymentConciliationModal({
     // rows/colMap/mapping a partir dos itens da última run.
     const srcRows = overrides?.rows ?? parsedRows;
     const srcColMap = overrides?.colMap ?? parsedColMap;
-    const srcMapping = overrides?.mapping ?? companyMapping;
+    const rawMapping = overrides?.mapping ?? companyMapping;
+    // Regra do analista: sugestões "medium" NÃO contam como vínculo até
+    // serem explicitamente confirmadas. No cruzamento elas viram null
+    // (terceiro fica sem empresa mapeada → vai para empresa_ausente em vez
+    // de cruzar com a empresa errada).
+    const srcMapping: Record<string, string | null> = {};
+    for (const [t, v] of Object.entries(rawMapping)) {
+      const lvl = matchLevels[t];
+      srcMapping[t] = v && lvl !== 'medium' ? v : null;
+    }
     const srcFileName = overrides?.fileName ?? pendingFileName;
     const srcExcludeConsultas =
       overrides?.excludeConsultas ?? excludeConsultas;
@@ -2126,7 +2135,7 @@ export function PaymentConciliationModal({
 
   const exactCount = Object.entries(companyMapping).filter(([t, v]) => v && (matchLevels[t] === 'exact' || matchLevels[t] === 'high')).length;
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
-  const pendingCount = hospitalCompanies.filter((t) => !companyMapping[t]).length;
+  const pendingCount = hospitalCompanies.filter((t) => !companyMapping[t] || matchLevels[t] === 'medium').length;
 
   const handleAction = async (
     item: ReconciliationItem,
@@ -2657,6 +2666,19 @@ export function PaymentConciliationModal({
                         {terceiro}
                       </p>
                       {badge}
+                      {level === 'medium' && mapped && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-[11px] border-warning/40 text-warning-text hover:bg-warning/10 shrink-0"
+                          onClick={() =>
+                            setMatchLevels((prev) => ({ ...prev, [terceiro]: 'exact' }))
+                          }
+                          title="Aceitar a sugestão deste vínculo. Sem confirmar, este terceiro NÃO entra no cruzamento."
+                        >
+                          Confirmar
+                        </Button>
+                      )}
                       <select
                         value={mapped ?? "__ignore__"}
                         onChange={(e) => {
@@ -2686,9 +2708,9 @@ export function PaymentConciliationModal({
 
               <div className="flex items-center justify-between pt-3 border-t border-border">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-success font-semibold">{exactCount}</span> auto-vinculadas ·{" "}
-                  <span className="text-warning-foreground font-semibold">{confirmCount}</span> aguardando confirmação ·{" "}
-                  <span className="text-muted-foreground">{pendingCount}</span> não encontradas
+                  <span className="text-success font-semibold">{exactCount}</span> confirmadas ·{" "}
+                  <span className="text-warning-foreground font-semibold">{confirmCount}</span> sugestões pendentes (não entram no cruzamento) ·{" "}
+                  <span className="text-muted-foreground">{pendingCount - confirmCount}</span> sem match
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -2703,7 +2725,7 @@ export function PaymentConciliationModal({
                   </Button>
                   <Button
                     size="sm"
-                    disabled={processing || (exactCount + confirmCount) === 0}
+                    disabled={processing || exactCount === 0}
                     onClick={() => {
                       const mapped = Array.from(
                         new Set(
@@ -2737,7 +2759,7 @@ export function PaymentConciliationModal({
                         Processando...
                       </>
                     ) : (
-                      `Conciliar ${exactCount + confirmCount} empresa(s) →`
+                      `Conciliar ${exactCount} empresa(s) →`
                     )}
                   </Button>
                 </div>
