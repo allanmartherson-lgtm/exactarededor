@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Search, Calculator } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+
 
 interface Props {
   open: boolean;
@@ -31,12 +31,10 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
             onClick={() => select("analise")}
             className="flex flex-col items-start gap-4 rounded-lg border border-border p-5 text-left hover:border-primary hover:bg-primary/5 transition-colors"
           >
-            <div className="flex w-full items-center justify-between">
-              <div className="rounded-md bg-muted p-2.5">
-                <Search className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <Badge variant="outline" className="text-xs">Modo atual</Badge>
+            <div className="rounded-md bg-muted p-2.5">
+              <Search className="h-6 w-6 text-muted-foreground" />
             </div>
+
             <div className="space-y-2">
               <p className="font-semibold text-base sm:text-lg leading-snug">Análise de pagamento</p>
               <p className="text-sm sm:text-[15px] text-muted-foreground leading-relaxed">
@@ -50,12 +48,10 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
             onClick={() => select("confeccao")}
             className="flex flex-col items-start gap-4 rounded-lg border border-border p-5 text-left hover:border-primary hover:bg-primary/5 transition-colors"
           >
-            <div className="flex w-full items-center justify-between">
-              <div className="rounded-md bg-primary/10 p-2.5">
-                <Calculator className="h-6 w-6 text-primary" />
-              </div>
-              <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">Novo</Badge>
+            <div className="rounded-md bg-primary/10 p-2.5">
+              <Calculator className="h-6 w-6 text-primary" />
             </div>
+
             <div className="space-y-2">
               <p className="font-semibold text-base sm:text-lg leading-snug">Confecção de pagamento</p>
               <p className="text-sm sm:text-[15px] text-muted-foreground leading-relaxed">
