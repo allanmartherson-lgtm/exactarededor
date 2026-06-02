@@ -105,7 +105,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     setNeedsSelection(!active && hospitals.length > 1);
     if (active) localStorage.setItem(STORAGE_KEY, active.id);
     setLoading(false);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     if (authLoading) return;
