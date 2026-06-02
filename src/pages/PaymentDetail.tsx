@@ -2630,6 +2630,33 @@ const PaymentDetail = () => {
             </CardContent>
           </Card>
         )}
+        {payment.analysis_mode === "confeccao" && (
+          <Card className="shadow-card border-primary/30 bg-primary/5">
+            <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-start gap-2 flex-1">
+                <Calculator className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-primary">Modo confecção</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    O sistema calculou o repasse de cada item pelas regras cadastradas.
+                    Revise os valores e decida se envia para validação ou exporta a planilha.
+                  </p>
+                </div>
+              </div>
+              {isAnalista && (
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={exportConfeccaoXlsx} className="gap-1.5">
+                    <Download className="h-4 w-4" />
+                    Exportar xlsx
+                  </Button>
+                  <Button size="sm" onClick={sendConfeccaoForValidation} disabled={busy} className="gap-1.5">
+                    Enviar para validação
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
         <div className="flex flex-col gap-4">
           <div className="flex flex-col md:flex-row flex-wrap items-stretch md:items-center gap-2 md:gap-3">
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-1">
