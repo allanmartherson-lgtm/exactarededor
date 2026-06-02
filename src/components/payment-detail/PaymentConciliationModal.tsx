@@ -365,11 +365,60 @@ export function PaymentConciliationModal({
   const [rulesLastUpdate, setRulesLastUpdate] = useState<string | null>(null);
 
   // Busca e filtros adicionais (texto livre, médico, faixa de valor)
+  // Filtros de médico e empresa persistem em sessionStorage por paymentId
+  // — mesma estratégia do PaymentDetail para o modal em si — para que a
+  // troca de aba não derrube a visão de análise.
+  const filtersStorageKey = paymentId ? `conciliation:filters:${paymentId}` : null;
+  const readPersistedFilters = useCallback(() => {
+    if (!filtersStorageKey) return { doctor: "todos", company: "todos" };
+    try {
+      const raw = sessionStorage.getItem(filtersStorageKey);
+      if (!raw) return { doctor: "todos", company: "todos" };
+      const parsed = JSON.parse(raw) as { doctor?: string; company?: string };
+      return {
+        doctor: typeof parsed.doctor === "string" ? parsed.doctor : "todos",
+        company: typeof parsed.company === "string" ? parsed.company : "todos",
+      };
+    } catch {
+      return { doctor: "todos", company: "todos" };
+    }
+  }, [filtersStorageKey]);
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [doctorFilter, setDoctorFilter] = useState<string>("todos");
-  const [companyFilter, setCompanyFilter] = useState<string>("todos");
+  const [doctorFilter, _setDoctorFilter] = useState<string>(() => readPersistedFilters().doctor);
+  const [companyFilter, _setCompanyFilter] = useState<string>(() => readPersistedFilters().company);
   const [minValue, setMinValue] = useState<string>("");
   const [maxValue, setMaxValue] = useState<string>("");
+
+  const persistFilters = useCallback((next: { doctor?: string; company?: string }) => {
+    if (!filtersStorageKey) return;
+    try {
+      const current = readPersistedFilters();
+      const merged = { ...current, ...next };
+      if (merged.doctor === "todos" && merged.company === "todos") {
+        sessionStorage.removeItem(filtersStorageKey);
+      } else {
+        sessionStorage.setItem(filtersStorageKey, JSON.stringify(merged));
+      }
+    } catch {
+      // sessionStorage pode estar indisponível — ignore silenciosamente.
+    }
+  }, [filtersStorageKey, readPersistedFilters]);
+
+  const setDoctorFilter = useCallback((v: string) => {
+    _setDoctorFilter(v);
+    persistFilters({ doctor: v });
+  }, [persistFilters]);
+  const setCompanyFilter = useCallback((v: string) => {
+    _setCompanyFilter(v);
+    persistFilters({ company: v });
+  }, [persistFilters]);
+
+  // Paginação por empresa: cada grupo carrega apenas N linhas inicialmente.
+  // Listas longas (lotes de 5k+) deixavam o DOM travado; o usuário expande
+  // mais via "Carregar mais" ou troca o pageSize para "Todos" quando precisa.
+  const [pageSize, setPageSize] = useState<number>(200);
+  const [shownByCompany, setShownByCompany] = useState<Record<string, number>>({});
 
   const [step, setStep] = useState<Step>("upload");
   const [excludeConsultas, setExcludeConsultas] = useState(true);
