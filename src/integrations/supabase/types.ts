@@ -4932,6 +4932,7 @@ export type Database = {
           hospital_id: string | null
           ia_obs: string | null
           id: string
+          match_diagnostics: Json | null
           patient_name: string | null
           payment_item_id: string | null
           procedure_code: string | null
@@ -4962,6 +4963,7 @@ export type Database = {
           hospital_id?: string | null
           ia_obs?: string | null
           id?: string
+          match_diagnostics?: Json | null
           patient_name?: string | null
           payment_item_id?: string | null
           procedure_code?: string | null
@@ -4992,6 +4994,7 @@ export type Database = {
           hospital_id?: string | null
           ia_obs?: string | null
           id?: string
+          match_diagnostics?: Json | null
           patient_name?: string | null
           payment_item_id?: string | null
           procedure_code?: string | null
