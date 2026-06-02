@@ -42,6 +42,7 @@ import { useCurrentVersion } from "@/hooks/useSystemVersion";
 import { useConversasUnread } from "@/hooks/useConversasUnread";
 import { Link } from "react-router-dom";
 import { HospitalSwitcher } from "@/components/HospitalSwitcher";
+import { PaymentModeSelectModal } from "@/components/PaymentModeSelectModal";
 
 /** Bolinha vermelha de não lidas para o item Conversas. */
 const ConversasBadgeDot = ({ count, absolute = false }: { count: number; absolute?: boolean }) => {
@@ -667,6 +668,7 @@ export const AppLayout = () => {
   // Grouped variant for sidebar with section labels (preserves NAV_ITEMS structure).
   const groupedSideNav = filterNav(NAV_ITEMS, roles);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [modeModalOpen, setModeModalOpen] = useState(false);
 
   // Sidebar collapsed state (persisted in localStorage)
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -884,7 +886,7 @@ export const AppLayout = () => {
             <div className="flex items-center gap-1 md:gap-1.5 flex-shrink-0">
               {canCreate && (
                 <Button
-                  onClick={() => navigate("/pagamentos/novo")}
+                  onClick={() => setModeModalOpen(true)}
                   className="h-8 w-8 md:w-auto md:px-3 text-[12px] font-medium gap-1.5"
                   style={{
                     borderRadius: 6,
@@ -1166,7 +1168,7 @@ export const AppLayout = () => {
             <div className="flex items-center gap-2">
               {canCreate && (
                 <Button
-                  onClick={() => navigate("/pagamentos/novo")}
+                  onClick={() => setModeModalOpen(true)}
                   className="h-11 px-5 text-[14px] font-medium gap-2"
                   style={{
                     borderRadius: 8,
@@ -1193,6 +1195,7 @@ export const AppLayout = () => {
           </div>
         </main>
       </div>
+      <PaymentModeSelectModal open={modeModalOpen} onOpenChange={setModeModalOpen} />
     </div>
   );
 };
