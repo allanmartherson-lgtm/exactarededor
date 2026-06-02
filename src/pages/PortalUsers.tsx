@@ -543,7 +543,7 @@ function EditPortalUserDialog({
           <Pencil className="mr-2 h-4 w-4" />Editar
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Editar usuário de portal</DialogTitle>
           <DialogDescription>
@@ -559,16 +559,16 @@ function EditPortalUserDialog({
           </div>
         )}
 
-        <div className="space-y-3">
-          <div>
-            <Label>E-mail</Label>
-            <Input value={row.email ?? ""} disabled />
-          </div>
-          <div>
-            <Label>Nome completo</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-3">
+            <div>
+              <Label>E-mail</Label>
+              <Input value={row.email ?? ""} disabled />
+            </div>
+            <div>
+              <Label>Nome completo</Label>
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            </div>
             <div>
               <Label>CPF</Label>
               <Input
@@ -590,6 +590,7 @@ function EditPortalUserDialog({
               />
             </div>
           </div>
+          <AuditHistoryPanel userId={row.user_id} doctorId={isDoctor ? row.parent_id : null} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
