@@ -30,6 +30,14 @@ export const ProtectedRoute = ({ children, roles }: ProtectedRouteProps) => {
     return <Navigate to="/trocar-senha" replace />;
   }
 
+  // Blindagem do Exacta: usuário autenticado SEM nenhum papel interno
+  // (ex.: apenas portal de empresa/médico) não pode acessar nenhuma rota
+  // protegida. Redireciona para /auth com aviso — o login pelo portal usa
+  // magic link e não passa por aqui.
+  if (!rolesLoading && userRoles.length === 0) {
+    return <Navigate to="/auth?motivo=sem-acesso-exacta" replace />;
+  }
+
   // Redireciona para seleção de hospital quando o usuário tem +1 e nenhum escolhido.
   if (needsSelection && location.pathname !== "/selecionar-hospital") {
     return <Navigate to="/selecionar-hospital" state={{ from: location.pathname }} replace />;
