@@ -1363,6 +1363,13 @@ export function PaymentConciliationModal({
         if (matchedExactaIds.has(it.id)) continue;
         if (!mappedLoteCompanies.has(it.company_name ?? "")) continue;
         const valMed = Number((it as any).procedure_amount ?? (it as any).gross_amount ?? 0);
+        const itCompNorm = normCompany(it.company_name);
+        // Se a empresa deste item Exacta nem aparece na base do hospital,
+        // classifica como "empresa_ausente" (card próprio) — evita poluir o
+        // só_exacta, que é reservado para itens isolados dentro de empresas
+        // que existem nos dois lados.
+        const isEmpresaAusente = hospitalCompanySet.size > 0 && itCompNorm !== ""
+          && !hospitalCompanySet.has(itCompNorm);
         toInsert.push({
           payment_item_id: it.id,
           attendance_number: it.attendance_number ?? null,
@@ -1374,12 +1381,18 @@ export function PaymentConciliationModal({
           valor_exacta: valMed,
           valor_hospital: 0,
           company_name: it.company_name ?? null,
-          status: "so_exacta",
-          ia_obs: `Item de ${it.company_name ?? "empresa"} presente no Exacta mas ausente no extrato hospitalar — verificar glosa.`,
+          status: isEmpresaAusente ? "empresa_ausente" : "so_exacta",
+          ia_obs: isEmpresaAusente
+            ? `Empresa "${it.company_name ?? "?"}" tem itens no Exacta mas não aparece no extrato do hospital — verifique se a empresa foi mapeada na importação.`
+            : `Item de ${it.company_name ?? "empresa"} (atendimento ${it.attendance_number ?? "?"}, TUSS ${it.procedure_code ?? "?"}) presente no Exacta mas ausente no extrato hospitalar — verificar glosa ou divergência de cadastro.`,
           valor_regra: (it as any).expected_amount ?? null,
         });
-        so_exacta++;
-        risco_menos += valMed;
+        if (isEmpresaAusente) {
+          empresa_ausente++;
+        } else {
+          so_exacta++;
+          risco_menos += valMed;
+        }
       }
 
       // Modo "merge": preserva itens da última run para empresas que NÃO estão
