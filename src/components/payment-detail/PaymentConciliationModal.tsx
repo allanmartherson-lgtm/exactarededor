@@ -1075,6 +1075,7 @@ export function PaymentConciliationModal({
     const STATUS_COLOR: Record<string, string> = {
       'Conciliado': 'F0FDF4',
       'Valor divergente': 'FFFBEB',
+      'Quantidade divergente': 'FFFBEB',
       'Só no hospital': 'FEF2F2',
       'Só no Exacta': 'EFF6FF',
     };
