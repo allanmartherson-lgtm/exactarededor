@@ -903,7 +903,16 @@ serve(async (req) => {
 
     // ---------- 5. IA SÓ JUSTIFICA itens com needs_ai_review ----------
     // Em modo empresa_prioritaria, ignoramos histórico de outros pagamentos.
-    const itemsToReview = is_dry_run ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
+    // Modo confecção: o sistema GEROU os valores via regras — não há divergência a revisar.
+    // Todos os itens saem como aprovado; IA de justificativa não é acionada.
+    if (isConfeccao) {
+      for (const r of results) {
+        r.status = "aprovado" as any;
+        r.needs_ai_review = false;
+        r.alerts = [];
+      }
+    }
+    const itemsToReview = is_dry_run || isConfeccao ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
     __telemetry.ai_items_count = itemsToReview.length;
     const __aiStart = Date.now();
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
