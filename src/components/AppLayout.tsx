@@ -1195,6 +1195,7 @@ export const AppLayout = () => {
           </div>
         </main>
       </div>
+      <PaymentModeSelectModal open={modeModalOpen} onOpenChange={setModeModalOpen} />
     </div>
   );
 };
