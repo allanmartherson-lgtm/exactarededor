@@ -18,7 +18,7 @@ import {
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
-import { Building2, Stethoscope, Save, Star, Plus, Check, ChevronsUpDown } from "lucide-react";
+import { Building2, Stethoscope, Save, Star, Plus, Check, ChevronsUpDown, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatCPF, isValidCPF, onlyDigits } from "@/lib/cpf";
