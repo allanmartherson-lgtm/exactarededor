@@ -679,14 +679,14 @@ export function PaymentConciliationModal({
       excludeConsultas?: boolean;
     },
   ) => {
-    // Shadowing: permite reprocessar a conciliação atual sem precisar do upload,
-    // reconstruindo rows/colMap/mapping a partir dos itens da última run.
-    const parsedRows = overrides?.rows ?? this_parsedRows;
-    const parsedColMap = overrides?.colMap ?? this_parsedColMap;
-    const companyMapping = overrides?.mapping ?? this_companyMapping;
-    const pendingFileName = overrides?.fileName ?? this_pendingFileName;
-    const excludeConsultas =
-      overrides?.excludeConsultas ?? this_excludeConsultas;
+    // Permite reprocessar a conciliação atual sem upload, reconstruindo
+    // rows/colMap/mapping a partir dos itens da última run.
+    const srcRows = overrides?.rows ?? parsedRows;
+    const srcColMap = overrides?.colMap ?? parsedColMap;
+    const srcMapping = overrides?.mapping ?? companyMapping;
+    const srcFileName = overrides?.fileName ?? pendingFileName;
+    const srcExcludeConsultas =
+      overrides?.excludeConsultas ?? excludeConsultas;
     setProcessing(true);
     try {
       // Empresas que este upload está cobrindo (mapeadas para empresas do lote)
