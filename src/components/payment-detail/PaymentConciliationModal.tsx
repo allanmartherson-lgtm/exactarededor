@@ -2727,6 +2727,12 @@ export function PaymentConciliationModal({
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     Hospital (R$)
                                   </TableHead>
+                                  <TableHead className="px-2 py-1.5 text-[10px] text-center" title="Quantidade inferida = valor / valor da regra">
+                                    Qtd Exacta
+                                  </TableHead>
+                                  <TableHead className="px-2 py-1.5 text-[10px] text-center" title="Quantidade inferida = valor / valor da regra">
+                                    Qtd Hosp.
+                                  </TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     Valor Regra
                                   </TableHead>
