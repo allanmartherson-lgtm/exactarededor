@@ -333,6 +333,19 @@ export function PaymentConciliationModal({
     [paymentItems],
   );
 
+  // Mapa payment_item_id → quantidade Exacta original (vinda da base do lote).
+  // Usado para exibir a coluna "Qtd Exacta" na tabela de conciliação com o
+  // numeral real da planilha — não o valor inferido por valor/regra.
+  const exactaQtyById = useMemo(() => {
+    const m = new Map<string, number | null>();
+    for (const it of paymentItems) {
+      const q = (it as { quantity?: number | null }).quantity;
+      m.set(it.id, q == null ? null : Number(q));
+    }
+    return m;
+  }, [paymentItems]);
+
+
   // Aliases persistidos das empresas do lote — usados para auto-mapear o "terceiro"
   // da planilha do hospital sem o analista precisar refazer o vínculo a cada rodada.
   // Toda confirmação manual aqui vira alias ao processar a conciliação.
