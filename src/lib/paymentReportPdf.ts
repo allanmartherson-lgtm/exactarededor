@@ -93,13 +93,16 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
   const approverAt = payment.approved_at ?? latestApprovedGroup?.approved_at ?? null;
   const aprovador = approverId ? (profiles[approverId] ?? "—") : "—";
   const aprovadoEm = approverAt ? formatDate(approverAt) : "—";
-  doc.text(`Aprovado por: ${aprovador}  ·  em: ${aprovadoEm}`, 14, 46);
+  doc.text(`Aprovado por: ${aprovador}  ·  em: ${aprovadoEm}`, marginX, metaY);
+  metaY += 6;
 
   // Totais por empresa
-  let cursorYTop = 54;
+  let cursorYTop = metaY + 2;
   if (groups.length > 0) {
     doc.setFontSize(12);
-    doc.text(`Totais por empresa (${groups.length})`, 14, cursorYTop);
+    doc.setTextColor(...REDE_DOR_BRAND_BLUE_RGB);
+    doc.text(`Totais por empresa (${groups.length})`, marginX, cursorYTop);
+    doc.setTextColor(17, 24, 39);
     autoTable(doc, {
       startY: cursorYTop + 4,
       head: [["Empresa", "Itens", "Status", "Líquido"]],
