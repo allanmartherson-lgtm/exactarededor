@@ -13,9 +13,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil, History, Bell } from "lucide-react";
+import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil, History, Bell, Search, UserCheck, UserX } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
+import { formatCPF } from "@/lib/cpf";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
@@ -33,9 +34,12 @@ const Users = () => {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "",
+    email: "", full_name: "", phone: "", cpf: "", role_title: "", department: "", birth_date: "",
     roles: [] as AppRole[], send_invite: true, primary_hospital_id: "" as string,
   });
+  const [search, setSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
+  const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
   const [hospitalsList, setHospitalsList] = useState<{ id: string; name: string; state_uf: string }[]>([]);
   const [accessRequestId, setAccessRequestId] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
@@ -48,7 +52,7 @@ const Users = () => {
   const [resetResult, setResetResult] = useState<{ email: string; emailSent: boolean; warning: string | null; actionLink: string | null } | null>(null);
   const [confirmReset, setConfirmReset] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
-  const [editingUser, setEditingUser] = useState<{ id: string; email: string; full_name: string; phone: string; role_title: string; department: string; birth_date: string } | null>(null);
+  const [editingUser, setEditingUser] = useState<{ id: string; email: string; full_name: string; phone: string; cpf: string; role_title: string; department: string; birth_date: string } | null>(null);
   const [notifyingUser, setNotifyingUser] = useState<{ id: string; name: string } | null>(null);
   const [userSettings, setUserSettings] = useState<any[]>([]);
   const [loadingSettings, setLoadingSettings] = useState(false);
@@ -60,6 +64,7 @@ const Users = () => {
   const FIELD_LABELS: Record<string, string> = {
     full_name: "Nome",
     phone: "Telefone",
+    cpf: "CPF",
     role_title: "Cargo",
     department: "Setor",
     birth_date: "Data de nascimento",
@@ -68,6 +73,7 @@ const Users = () => {
   const formatHistoryValue = (field: string, value: any) => {
     if (value === null || value === undefined || value === "") return "—";
     if (field === "phone") return formatPhone(String(value));
+    if (field === "cpf") return formatCPF(String(value));
     if (field === "birth_date") {
       const s = String(value).slice(0, 10);
       const [y, m, d] = s.split("-");
@@ -108,6 +114,7 @@ const Users = () => {
     const parsed = userExtraSchema.safeParse({
       full_name: editingUser.full_name,
       email: editingUser.email,
+      cpf: editingUser.cpf,
       phone: editingUser.phone,
       role_title: editingUser.role_title,
       department: editingUser.department,
@@ -121,17 +128,48 @@ const Users = () => {
     const { error } = await supabase.from("profiles").update({
       full_name: parsed.data.full_name,
       phone: parsed.data.phone,
+      cpf: parsed.data.cpf,
       role_title: parsed.data.role_title,
       department: parsed.data.department,
       birth_date: parsed.data.birth_date,
     }).eq("id", editingUser.id);
     setSavingUser(false);
     if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      const desc = /duplicate|unique/i.test(error.message)
+        ? "Já existe um usuário com este CPF."
+        : error.message;
+      toast({ title: "Erro ao salvar", description: desc, variant: "destructive" });
       return;
     }
     toast({ title: "Usuário atualizado" });
     setEditingUser(null);
+    load();
+  };
+
+  const toggleActive = async (u: { id: string; email: string; full_name: string | null; active: boolean }) => {
+    const nextActive = !u.active;
+    const action = nextActive ? "habilitar" : "desabilitar";
+    if (!confirm(`Tem certeza que deseja ${action} o acesso de ${u.full_name || u.email}?`)) return;
+    setTogglingActiveId(u.id);
+    const { error } = await supabase.from("profiles").update({ active: nextActive }).eq("id", u.id);
+    if (!error) {
+      const { data: auth } = await supabase.auth.getUser();
+      if (auth?.user) {
+        await supabase.from("audit_log").insert({
+          actor_id: auth.user.id,
+          entity_type: "user",
+          entity_id: u.id,
+          action: nextActive ? "activated" : "deactivated",
+          diff: { email: u.email, active: nextActive },
+        });
+      }
+    }
+    setTogglingActiveId(null);
+    if (error) {
+      toast({ title: "Falha ao alterar status", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: nextActive ? "Acesso habilitado" : "Acesso desabilitado" });
     load();
   };
 
