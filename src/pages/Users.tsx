@@ -272,7 +272,7 @@ const Users = () => {
 
   const openCreateFromRequest = (r: any) => {
     setForm({
-      email: r.email, full_name: r.full_name, phone: r.phone, role_title: r.role_title,
+      email: r.email, full_name: r.full_name, phone: r.phone, cpf: r.cpf ?? "", role_title: r.role_title,
       department: r.department, birth_date: r.birth_date,
       roles: (r.requested_roles ?? ["analista"]) as AppRole[], send_invite: true,
       primary_hospital_id: "",
@@ -400,14 +400,14 @@ const Users = () => {
     }
   };
   const resetForm = () => {
-    setForm({ email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true, primary_hospital_id: "" });
+    setForm({ email: "", full_name: "", phone: "", cpf: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true, primary_hospital_id: "" });
     setAccessRequestId(null);
     setTempPwd(null);
   };
 
   const submit = async () => {
     const parsed = userExtraSchema.safeParse({
-      full_name: form.full_name, email: form.email, phone: form.phone,
+      full_name: form.full_name, email: form.email, cpf: form.cpf, phone: form.phone,
       role_title: form.role_title, department: form.department, birth_date: form.birth_date,
     });
     if (!parsed.success) {
@@ -637,6 +637,7 @@ const Users = () => {
                         email: u.email,
                         full_name: u.full_name ?? "",
                         phone: u.phone ?? "",
+                        cpf: u.cpf ?? "",
                         role_title: u.role_title ?? "",
                         department: u.department ?? "",
                         birth_date: u.birth_date ? String(u.birth_date).slice(0, 10) : "",
