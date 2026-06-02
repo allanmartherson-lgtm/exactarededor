@@ -2124,13 +2124,14 @@ export function PaymentConciliationModal({
                     const counts = {
                       conciliado: companyItems.filter((i) => i.status === "conciliado").length,
                       valor_divergente: companyItems.filter((i) => i.status === "valor_divergente").length,
+                      qtd_divergente: companyItems.filter((i) => i.status === "qtd_divergente").length,
                       so_hospital: companyItems.filter((i) => i.status === "so_hospital").length,
                       so_exacta: companyItems.filter((i) => i.status === "so_exacta").length,
                     };
                     const totalHosp = companyItems.reduce((s, i) => s + Number(i.valor_hospital), 0);
                     const totalMed = companyItems.reduce((s, i) => s + Number(i.valor_exacta), 0);
                     const hasPendencias =
-                      counts.valor_divergente + counts.so_hospital + counts.so_exacta > 0;
+                      counts.valor_divergente + counts.qtd_divergente + counts.so_hospital + counts.so_exacta > 0;
 
                     return (
                       <Card
