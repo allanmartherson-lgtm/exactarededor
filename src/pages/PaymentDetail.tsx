@@ -2789,15 +2789,27 @@ const PaymentDetail = () => {
               </Select>
               
               {hasRole("analista") || hasRole("admin") || hasRole("diretor") ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 text-xs gap-1.5 border-dashed"
-                  onClick={() => setIsReportOpen(true)}
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  Relatório
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs gap-1.5 border-dashed"
+                    onClick={() => setIsReportOpen(true)}
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    Relatório
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs gap-1.5 border-dashed"
+                    onClick={() => setIsBatchExportOpen(true)}
+                    title="Exportar lote inteiro em XLSX, CSV ou PDF, com seleção de empresas"
+                  >
+                    <Download className="h-4 w-4" />
+                    Exportar lote
+                  </Button>
+                </>
               ) : null}
 
               <Button
