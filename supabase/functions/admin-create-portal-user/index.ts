@@ -66,6 +66,8 @@ serve(async (req) => {
 
     // Para médico: importa dados do cadastro automaticamente e bloqueia se inativo
     let linkedDoctorId: string | null = null;
+    let linkedDoctorName: string | null = null;
+    const importedFields: Record<string, unknown> = {};
     if (kind === "doctor") {
       const { data: doc, error: docErr } = await admin
         .from("doctors")
@@ -75,10 +77,11 @@ serve(async (req) => {
       if (docErr || !doc) return json({ error: "Médico não encontrado" }, 404);
       if (!doc.active) return json({ error: "Médico inativo. Reative o cadastro antes de criar acesso ao portal." }, 400);
       linkedDoctorId = doc.id;
-      fullName = fullName || (doc.full_name ?? "");
-      email = email || (doc.email ?? "").trim().toLowerCase();
-      cpf = cpf || (doc.cpf ? String(doc.cpf).replace(/\D/g, "") : "");
-      phone = phone || (doc.phone ? String(doc.phone).replace(/\D/g, "") : "");
+      linkedDoctorName = doc.full_name ?? null;
+      if (!fullName && doc.full_name) { fullName = doc.full_name; importedFields.full_name = doc.full_name; }
+      if (!email && doc.email) { email = (doc.email ?? "").trim().toLowerCase(); importedFields.email = email; }
+      if (!cpf && doc.cpf) { cpf = String(doc.cpf).replace(/\D/g, ""); importedFields.cpf = cpf; }
+      if (!phone && doc.phone) { phone = String(doc.phone).replace(/\D/g, ""); importedFields.phone = phone; }
     }
 
     if (!email) return json({ error: "E-mail obrigatório" }, 400);
