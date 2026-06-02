@@ -345,6 +345,106 @@ function NewPortalUserDialog({
 }
 
 // =============================================================================
+// Painel de histórico (audit_log) do usuário do portal e do médico vinculado
+// =============================================================================
+type AuditRow = {
+  id: string;
+  created_at: string;
+  entity_type: string;
+  action: string;
+  actor_id: string | null;
+  diff: Record<string, unknown> | null;
+};
+
+function describeAudit(r: AuditRow): string {
+  const d = (r.diff ?? {}) as Record<string, unknown>;
+  const reason = typeof d.reason === "string" ? d.reason : (typeof d.context === "string" ? d.context : null);
+  const map: Record<string, string> = {
+    portal_user_edit_sync: "Sincronização de cadastro via edição no portal",
+    portal_user_auto_import: "Importação automática de dados do médico",
+    portal_user_auto_import_from_doctor: "Dados importados do cadastro do médico",
+    doctor_inactivation_cascade: "Desativação em cascata por inativação do médico",
+    portal_user_company: "Criação de usuário do portal (empresa)",
+    portal_user_doctor: "Criação de usuário do portal (médico)",
+  };
+  if (reason && map[reason]) return map[reason];
+  if (reason) return reason;
+  return `${r.entity_type} • ${r.action}`;
+}
+
+function AuditHistoryPanel({ userId, doctorId }: { userId: string; doctorId: string | null }) {
+  const [rows, setRows] = useState<AuditRow[]>([]);
+  const [actors, setActors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const ids = [userId, ...(doctorId ? [doctorId] : [])];
+      const { data } = await supabase
+        .from("audit_log")
+        .select("id, created_at, entity_type, action, actor_id, diff")
+        .in("entity_id", ids)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const list = (data ?? []) as AuditRow[];
+      const actorIds = Array.from(new Set(list.map((r) => r.actor_id).filter(Boolean) as string[]));
+      let actorMap: Record<string, string> = {};
+      if (actorIds.length) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", actorIds);
+        actorMap = Object.fromEntries(
+          (profs ?? []).map((p: any) => [p.id, p.full_name || p.email || p.id.slice(0, 8)])
+        );
+      }
+      if (cancelled) return;
+      setRows(list);
+      setActors(actorMap);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [userId, doctorId]);
+
+  return (
+    <div className="rounded-md border">
+      <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2">
+        <span className="text-sm font-medium">Histórico de alterações</span>
+        <span className="text-xs text-muted-foreground">
+          {loading ? "Carregando…" : `${rows.length} evento(s)`}
+        </span>
+      </div>
+      <ScrollArea className="h-56">
+        {!loading && rows.length === 0 ? (
+          <div className="p-4 text-center text-xs text-muted-foreground">
+            Nenhuma alteração registrada ainda.
+          </div>
+        ) : (
+          <ul className="divide-y">
+            {rows.map((r) => {
+              const actor = r.actor_id ? actors[r.actor_id] ?? "—" : "Sistema";
+              return (
+                <li key={r.id} className="px-3 py-2 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium">{describeAudit(r)}</span>
+                    <span className="shrink-0 text-muted-foreground">{formatDateTimeBR(r.created_at)}</span>
+                  </div>
+                  <div className="mt-0.5 text-muted-foreground">
+                    {r.entity_type === "doctor" ? "Cadastro do médico" : "Usuário do portal"} • por {actor}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </ScrollArea>
+    </div>
+  );
+}
+
+// =============================================================================
 // Diálogo de edição de dados cadastrais do usuário de portal
 // =============================================================================
 function EditPortalUserDialog({
