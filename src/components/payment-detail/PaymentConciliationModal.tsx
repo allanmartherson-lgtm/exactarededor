@@ -878,7 +878,7 @@ export function PaymentConciliationModal({
       };
 
       const exactaByKey = new Map<string, PaymentItemRow[]>();
-      for (const it of paymentItems) {
+      for (const it of exactaItemsForRun) {
         if (!it.attendance_number || !it.procedure_code) continue;
         const k = makeKey(it.attendance_number, it.procedure_code);
         if (!exactaByKey.has(k)) exactaByKey.set(k, []);
@@ -963,13 +963,22 @@ export function PaymentConciliationModal({
           return { score: s, docOk, roleOk, routeOk };
         };
 
+        const hasHardConflict = (sc: ReturnType<typeof scoreCandidate>) =>
+          (docHospN && !sc.docOk) || (roleHospN && !sc.roleOk) || (routeHospN && !sc.routeOk);
+
         let match: PaymentItemRow | undefined;
         let ambiguous = false;
         let decision = "sem_candidato";
         const evaluated: Array<PaymentItemRow & { __sc: ReturnType<typeof scoreCandidate> }> = [];
         if (available.length === 1) {
-          match = available[0];
-          decision = "match_unico";
+          const onlyScore = scoreCandidate(available[0]);
+          evaluated.push(Object.assign({}, available[0], { __sc: onlyScore }));
+          if (!hasHardConflict(onlyScore)) {
+            match = available[0];
+            decision = "match_unico";
+          } else {
+            decision = "descartado_por_conflito";
+          }
         } else if (available.length > 1) {
           // Filtros DUROS: se o hospital informa médico e existe candidato com o
           // mesmo médico, descarta os demais — evita casar linha do principal
@@ -983,10 +992,13 @@ export function PaymentConciliationModal({
           if (roleHospN && roleFiltered.length > 0) { pool = roleFiltered; if (decision === "sem_candidato") decision = "filtrado_por_funcao"; }
           const routeFiltered = pool.filter((c) => c.routeOk);
           if (routeHospN && routeFiltered.length > 0) { pool = routeFiltered; if (decision === "sem_candidato") decision = "filtrado_por_via"; }
-          const ranked = pool.sort((a, b) => b.score - a.score);
-          match = ranked[0].m;
+          const ranked = pool
+            .filter((c) => !hasHardConflict(c))
+            .sort((a, b) => b.score - a.score);
+          match = ranked[0]?.m;
           // Ambíguo: top sem identidade clara (sem doc, role nem via coerentes)
-          if (!ranked[0].docOk && !ranked[0].roleOk && !ranked[0].routeOk) { ambiguous = true; decision = "ambiguo"; }
+          if (!match) decision = "descartado_por_conflito";
+          else if (!ranked[0].docOk && !ranked[0].roleOk && !ranked[0].routeOk) { ambiguous = true; decision = "ambiguo"; }
         }
 
         // Diagnóstico do match: capturamos para auditoria/explicabilidade.
@@ -1142,7 +1154,7 @@ export function PaymentConciliationModal({
       const mappedLoteCompanies = new Set(
         Object.values(companyMapping).filter(Boolean) as string[],
       );
-      for (const it of paymentItems) {
+      for (const it of exactaItemsForRun) {
         if (matchedExactaIds.has(it.id)) continue;
         if (!mappedLoteCompanies.has(it.company_name ?? "")) continue;
         const valMed = Number((it as any).procedure_amount ?? (it as any).gross_amount ?? 0);
