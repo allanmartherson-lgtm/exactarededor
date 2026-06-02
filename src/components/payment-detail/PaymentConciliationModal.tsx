@@ -298,6 +298,35 @@ export function PaymentConciliationModal({
     [paymentItems],
   );
 
+  // Aliases persistidos das empresas do lote — usados para auto-mapear o "terceiro"
+  // da planilha do hospital sem o analista precisar refazer o vínculo a cada rodada.
+  // Toda confirmação manual aqui vira alias ao processar a conciliação.
+  const [companyAliasMap, setCompanyAliasMap] = useState<
+    Record<string, { id: string; name: string; aliases: string[] }>
+  >({});
+
+  useEffect(() => {
+    if (!open || loteCompanies.length === 0) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("companies")
+        .select("id, name, aliases")
+        .in("name", loteCompanies);
+      if (cancelled || !data) return;
+      const map: Record<string, { id: string; name: string; aliases: string[] }> = {};
+      for (const r of data as Array<{ id: string; name: string; aliases: string[] | null }>) {
+        map[r.name] = { id: r.id, name: r.name, aliases: r.aliases ?? [] };
+      }
+      setCompanyAliasMap(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, loteCompanies]);
+
   const loadLatestRun = async () => {
     setLoading(true);
     try {
@@ -469,6 +498,11 @@ export function PaymentConciliationModal({
     const findMatch = (t: string, candidates: string[]): { company: string | null; level: MatchLevel } => {
       const normT = normFull(t);
       const idsT = getIdentifiers(t);
+      // 1) Alias persistido — vínculo já confirmado pelo analista em rodada anterior.
+      const aliasHit = candidates.find(c =>
+        (companyAliasMap[c]?.aliases ?? []).some(a => normFull(a) === normT)
+      );
+      if (aliasHit) return { company: aliasHit, level: "exact" };
       const exact = candidates.find(c => normFull(c) === normT);
       if (exact) return { company: exact, level: "exact" };
       const sub = candidates.find(c => { const n = normFull(c); return normT.includes(n) || n.includes(normT); });
@@ -542,6 +576,12 @@ export function PaymentConciliationModal({
         const normT = normFull(terceiro);
         const idsT = getIdentifiers(terceiro);
 
+        // 1) Alias persistido — vínculo já confirmado pelo analista em rodada anterior.
+        const aliasHit = candidates.find(c =>
+          (companyAliasMap[c]?.aliases ?? []).some(a => normFull(a) === normT)
+        );
+        if (aliasHit) return { company: aliasHit, level: 'exact' };
+
         const exact = candidates.find(c => normFull(c) === normT);
         if (exact) return { company: exact, level: 'exact' };
 
@@ -603,6 +643,39 @@ export function PaymentConciliationModal({
       const currentMappedCompanies = new Set(
         Object.values(companyMapping).filter(Boolean) as string[],
       );
+
+      // Persiste o vínculo terceiro→empresa como alias em `companies.aliases`.
+      // Próxima conciliação que receba o mesmo texto de "terceiro" auto-resolve
+      // como exact match — analista não precisa refazer o vínculo manual.
+      const normForAlias = (s: string) =>
+        s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      const aliasUpdates: Array<{ id: string; aliases: string[]; name: string }> = [];
+      for (const [terceiro, companyName] of Object.entries(companyMapping)) {
+        if (!companyName || !terceiro) continue;
+        const ent = companyAliasMap[companyName];
+        if (!ent) continue;
+        const t = terceiro.trim();
+        if (!t || normForAlias(t) === normForAlias(companyName)) continue;
+        const existingNorms = (ent.aliases ?? []).map(normForAlias);
+        if (existingNorms.includes(normForAlias(t))) continue;
+        const next = [...(ent.aliases ?? []), t];
+        aliasUpdates.push({ id: ent.id, aliases: next, name: companyName });
+      }
+      if (aliasUpdates.length > 0) {
+        await Promise.all(
+          aliasUpdates.map(u =>
+            (supabase as any).from("companies").update({ aliases: u.aliases }).eq("id", u.id)
+          )
+        );
+        setCompanyAliasMap(prev => {
+          const next = { ...prev };
+          for (const u of aliasUpdates) {
+            const cur = next[u.name];
+            if (cur) next[u.name] = { ...cur, aliases: u.aliases };
+          }
+          return next;
+        });
+      }
 
       const { data: newRun, error: runErr } = await (supabase as any)
         .from("reconciliation_runs")
