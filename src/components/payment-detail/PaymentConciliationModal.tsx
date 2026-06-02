@@ -337,6 +337,20 @@ export function PaymentConciliationModal({
       loadConcBases();
       setActiveFilter("todos");
       setExpandedCompany(initialCompany ?? null);
+      // Busca timestamp da regra mais recente para detectar conciliação defasada
+      (async () => {
+        try {
+          const { data } = await (supabase as any)
+            .from("rules")
+            .select("updated_at")
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          setRulesLastUpdate(data?.updated_at ?? null);
+        } catch {
+          setRulesLastUpdate(null);
+        }
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialCompany]);
