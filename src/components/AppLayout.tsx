@@ -1168,7 +1168,7 @@ export const AppLayout = () => {
             <div className="flex items-center gap-2">
               {canCreate && (
                 <Button
-                  onClick={() => navigate("/pagamentos/novo")}
+                  onClick={() => setModeModalOpen(true)}
                   className="h-11 px-5 text-[14px] font-medium gap-2"
                   style={{
                     borderRadius: 8,
