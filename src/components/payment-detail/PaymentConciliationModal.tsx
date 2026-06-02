@@ -1769,12 +1769,12 @@ export function PaymentConciliationModal({
     toast({ title: "Relatório exportado", description: "Arquivo XLSX gerado com sucesso." });
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = (itemsToExport: ReconciliationItem[], _scopeLabel: string) => {
     if (!run) return;
 
     const headers = [
       "Status", "Empresa", "Médico", "Paciente", "Atendimento",
-      "Cód. TUSS", "Procedimento", "Data", "Convênio",
+      "Cód. TUSS", "Procedimento", "Qtd Exacta", "Qtd Hospital", "Data", "Convênio",
       "Exacta (R$)", "Hospital (R$)", "Diferença (R$)",
       "Regra Exacta", "Método Cálculo", "Observação IA",
     ];
@@ -1791,7 +1791,7 @@ export function PaymentConciliationModal({
     const fmtNum = (n: number) =>
       Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : "";
 
-    const rows = filteredItems.map((it) => [
+    const rows = itemsToExport.map((it) => [
       STATUS_LABEL[it.status],
       it.company_name ?? "",
       it.doctor_name ?? "",
@@ -1799,6 +1799,8 @@ export function PaymentConciliationModal({
       it.attendance_number ?? "",
       it.procedure_code ?? "",
       it.procedure_name ?? "",
+      fmtQty(getQtyExacta(it)),
+      fmtQty(getQtyHospital(it)),
       it.procedure_date ? formatDateBR(it.procedure_date) : "",
       it.agreement_text ?? "",
       fmtNum(Number(it.valor_exacta)),
