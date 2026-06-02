@@ -4,6 +4,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -269,6 +279,14 @@ export function PaymentConciliationModal({
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [colSamples, setColSamples] = useState<Record<string, string>>({});
   const [saveColMapping, setSaveColMapping] = useState(true);
+
+  // Diálogo de escopo do reprocessamento: substituir tudo ou só estas empresas
+  const [scopeDialogOpen, setScopeDialogOpen] = useState(false);
+  const [scopeDialogInfo, setScopeDialogInfo] = useState<{
+    newCompanies: string[];
+    previousCompanies: string[];
+    keepCompanies: string[];
+  } | null>(null);
 
   const loteCompanies = useMemo(
     () =>
@@ -574,9 +592,16 @@ export function PaymentConciliationModal({
     }
   };
 
-  const handleProcessReconciliation = async () => {
+  const handleProcessReconciliation = async (
+    mode: "replace" | "merge_keep_others" = "replace",
+  ) => {
     setProcessing(true);
     try {
+      // Empresas que este upload está cobrindo (mapeadas para empresas do lote)
+      const currentMappedCompanies = new Set(
+        Object.values(companyMapping).filter(Boolean) as string[],
+      );
+
       const { data: newRun, error: runErr } = await (supabase as any)
         .from("reconciliation_runs")
         .insert({
@@ -588,6 +613,7 @@ export function PaymentConciliationModal({
         .select()
         .single();
       if (runErr) throw runErr;
+
 
       const normFull = (s: string) =>
         s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
@@ -917,6 +943,49 @@ export function PaymentConciliationModal({
         so_exacta++;
         risco_menos += valMed;
       }
+
+      // Modo "merge": preserva itens da última run para empresas que NÃO estão
+      // neste arquivo, copiando-os para a nova run. Assim, ao reconciliar
+      // apenas uma empresa, as demais não somem do painel geral.
+      if (mode === "merge_keep_others" && run?.id) {
+        const prevAll: ReconciliationItem[] = [];
+        const pageSize = 1000;
+        for (let from = 0; from < 50000; from += pageSize) {
+          const { data: page, error: pageErr } = await (supabase as any)
+            .from("reconciliation_items")
+            .select("*")
+            .eq("run_id", run.id)
+            .range(from, from + pageSize - 1);
+          if (pageErr) throw pageErr;
+          const rows = (page ?? []) as ReconciliationItem[];
+          prevAll.push(...rows);
+          if (rows.length < pageSize) break;
+        }
+        const keep = prevAll.filter(
+          (it) => !currentMappedCompanies.has(it.company_name ?? ""),
+        );
+        for (const it of keep) {
+          const { id: _id, run_id: _rid, created_at: _ca, ...rest } = it as any;
+          toInsert.push(rest);
+          if (it.status === "conciliado") conciliado++;
+          else if (it.status === "valor_divergente") valor_divergente++;
+          else if (it.status === "qtd_divergente") qtd_divergente++;
+          else if (it.status === "so_hospital") {
+            so_hospital++;
+            risco_mais += Number(it.valor_hospital) || 0;
+          } else if (it.status === "so_exacta") {
+            so_exacta++;
+            risco_menos += Number(it.valor_exacta) || 0;
+          }
+          if (it.status === "valor_divergente") {
+            const d = (Number(it.valor_hospital) || 0) - (Number(it.valor_exacta) || 0);
+            divergencia_valor += Math.abs(d);
+            if (d > 0) risco_mais += d;
+            else risco_menos += Math.abs(d);
+          }
+        }
+      }
+
 
       const CHUNK = 500;
       for (let i = 0; i < toInsert.length; i += CHUNK) {
@@ -1911,7 +1980,32 @@ export function PaymentConciliationModal({
                   <Button
                     size="sm"
                     disabled={processing || (exactCount + confirmCount) === 0}
-                    onClick={handleProcessReconciliation}
+                    onClick={() => {
+                      const mapped = Array.from(
+                        new Set(
+                          Object.values(companyMapping).filter(Boolean) as string[],
+                        ),
+                      );
+                      const prevCompanies = Array.from(
+                        new Set(
+                          items.map((it) => it.company_name ?? "").filter(Boolean),
+                        ),
+                      );
+                      const keep = prevCompanies.filter((c) => !mapped.includes(c));
+                      // Só pergunta se já existe uma run anterior cobrindo
+                      // empresas que NÃO estão neste arquivo. Caso contrário,
+                      // simplesmente reprocessa (comportamento atual).
+                      if (run?.id && keep.length > 0) {
+                        setScopeDialogInfo({
+                          newCompanies: mapped,
+                          previousCompanies: prevCompanies,
+                          keepCompanies: keep,
+                        });
+                        setScopeDialogOpen(true);
+                      } else {
+                        handleProcessReconciliation("replace");
+                      }
+                    }}
                   >
                     {processing ? (
                       <>
@@ -2516,6 +2610,63 @@ export function PaymentConciliationModal({
           )}
         </div>
       </SheetContent>
+      <AlertDialog open={scopeDialogOpen} onOpenChange={setScopeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Escopo do reprocessamento</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  Este arquivo cobre{" "}
+                  <strong>
+                    {scopeDialogInfo?.newCompanies.length ?? 0} empresa(s)
+                  </strong>
+                  : {scopeDialogInfo?.newCompanies.join(", ") || "—"}.
+                </p>
+                <p>
+                  A conciliação anterior também tem{" "}
+                  <strong>
+                    {scopeDialogInfo?.keepCompanies.length ?? 0} empresa(s)
+                  </strong>{" "}
+                  que NÃO estão neste arquivo:{" "}
+                  {scopeDialogInfo?.keepCompanies.join(", ") || "—"}.
+                </p>
+                <p>Como deseja prosseguir?</p>
+                <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                  <li>
+                    <strong>Somente estas empresas</strong>: reprocessa apenas as
+                    empresas do arquivo e <em>mantém</em> os resultados das demais.
+                  </li>
+                  <li>
+                    <strong>Reprocessar tudo</strong>: descarta os dados das demais
+                    empresas e usa apenas este arquivo.
+                  </li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setScopeDialogOpen(false);
+                handleProcessReconciliation("replace");
+              }}
+            >
+              Reprocessar tudo
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                setScopeDialogOpen(false);
+                handleProcessReconciliation("merge_keep_others");
+              }}
+            >
+              Somente estas empresas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
