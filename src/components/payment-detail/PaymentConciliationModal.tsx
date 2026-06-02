@@ -644,6 +644,39 @@ export function PaymentConciliationModal({
         Object.values(companyMapping).filter(Boolean) as string[],
       );
 
+      // Persiste o vínculo terceiro→empresa como alias em `companies.aliases`.
+      // Próxima conciliação que receba o mesmo texto de "terceiro" auto-resolve
+      // como exact match — analista não precisa refazer o vínculo manual.
+      const normForAlias = (s: string) =>
+        s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      const aliasUpdates: Array<{ id: string; aliases: string[]; name: string }> = [];
+      for (const [terceiro, companyName] of Object.entries(companyMapping)) {
+        if (!companyName || !terceiro) continue;
+        const ent = companyAliasMap[companyName];
+        if (!ent) continue;
+        const t = terceiro.trim();
+        if (!t || normForAlias(t) === normForAlias(companyName)) continue;
+        const existingNorms = (ent.aliases ?? []).map(normForAlias);
+        if (existingNorms.includes(normForAlias(t))) continue;
+        const next = [...(ent.aliases ?? []), t];
+        aliasUpdates.push({ id: ent.id, aliases: next, name: companyName });
+      }
+      if (aliasUpdates.length > 0) {
+        await Promise.all(
+          aliasUpdates.map(u =>
+            (supabase as any).from("companies").update({ aliases: u.aliases }).eq("id", u.id)
+          )
+        );
+        setCompanyAliasMap(prev => {
+          const next = { ...prev };
+          for (const u of aliasUpdates) {
+            const cur = next[u.name];
+            if (cur) next[u.name] = { ...cur, aliases: u.aliases };
+          }
+          return next;
+        });
+      }
+
       const { data: newRun, error: runErr } = await (supabase as any)
         .from("reconciliation_runs")
         .insert({
