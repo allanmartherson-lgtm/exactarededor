@@ -1076,9 +1076,13 @@ export function PaymentConciliationModal({
         const compNorm = normCompany(it.company_name);
         if (compNorm) exactaCompanySet.add(compNorm);
         if (!it.attendance_number || !it.procedure_code) continue;
-        const k = makeKey(it.company_name, it.attendance_number, it.procedure_code);
-        if (!exactaByKey.has(k)) exactaByKey.set(k, []);
-        exactaByKey.get(k)!.push(it);
+        // Indexa sob TODAS as variantes de TUSS (8d e 7d) — assim o
+        // lookup casa mesmo quando hospital exporta sem dígito verificador.
+        for (const v of codeVariants(it.procedure_code)) {
+          const k = makeKey(it.company_name, it.attendance_number, v);
+          if (!exactaByKey.has(k)) exactaByKey.set(k, []);
+          exactaByKey.get(k)!.push(it);
+        }
       }
 
       // Set de empresas vistas na base do hospital — usado para detectar
