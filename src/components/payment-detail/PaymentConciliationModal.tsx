@@ -1414,12 +1414,19 @@ export function PaymentConciliationModal({
         toInsert.push(base);
       }
 
-      const mappedLoteCompanies = new Set(
-        Object.values(srcMapping).filter(Boolean) as string[],
-      );
+      // Sobra do Exacta: itens carregados em exactaItemsForRun (já filtrados na
+      // query por currentMappedCompanies) que NÃO foram casados em nenhuma
+      // linha do hospital. Não aplicamos guarda redundante por company_name
+      // aqui — a query já garantiu o escopo, e a guarda extra estava
+      // descartando indevidamente itens cujo company_name no payment_items
+      // tem alguma diferença sutil em relação ao valor mapeado (acentos,
+      // espaços, alias canônico vs alias do contrato), deixando o card
+      // "Só Exacta" vazio.
+      let leftoverConsidered = 0;
+      let leftoverSkipped = 0;
       for (const it of exactaItemsForRun) {
-        if (matchedExactaIds.has(it.id)) continue;
-        if (!mappedLoteCompanies.has(it.company_name ?? "")) continue;
+        if (matchedExactaIds.has(it.id)) { leftoverSkipped++; continue; }
+        leftoverConsidered++;
         const valMed = Number((it as any).procedure_amount ?? (it as any).gross_amount ?? 0);
         const itCompNorm = normCompany(it.company_name);
         // Se a empresa deste item Exacta nem aparece na base do hospital,
