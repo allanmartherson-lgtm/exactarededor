@@ -2281,7 +2281,7 @@ const NewPayment = () => {
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
           <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-            {hasUnresolved ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar` : "Criar e analisar com IA"}
+            {hasUnresolved ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar` : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
           </Button>
         </div>
 
