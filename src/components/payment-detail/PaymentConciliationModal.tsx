@@ -210,6 +210,15 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
   return FIXED_CALC_METHODS.has(norm);
 };
 
+/**
+ * Versão da lógica de conciliação. Sempre que migrarmos regras de classificação
+ * (ex.: introdução do `qtd_divergente`, mudança no critério de divergência por
+ * regra fixa), atualizar esta data. Runs criados antes desta data são
+ * automaticamente considerados defasados e o usuário é convidado a reprocessar.
+ */
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T14:00:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "qtd_divergente + regra fixa vs proporcional";
+
 export function PaymentConciliationModal({
   open,
   onOpenChange,
