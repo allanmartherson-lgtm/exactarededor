@@ -52,6 +52,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
+import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 
 function CopyAttendanceButton({ value }: { value: string | null | undefined }) {
