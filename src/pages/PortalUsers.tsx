@@ -723,7 +723,7 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
                         />
                         {row.active ? "Habilitado" : "Desabilitado"}
                       </label>
-                      <EditPortalUserDialog row={row} entityLabel={cfg.entityLabel} onSaved={load} />
+                      <EditPortalUserDialog row={row} kind={kind} entityLabel={cfg.entityLabel} onSaved={load} />
                       <Button size="sm" onClick={() => save(row)} disabled={savingId === row.id || !row.active}>
                         <Save className="mr-2 h-4 w-4" />
                         {savingId === row.id ? "Salvando…" : "Salvar"}
