@@ -1338,9 +1338,18 @@ export function PaymentConciliationModal({
             if (diff > 0) risco_mais += diff;
             else risco_menos += Math.abs(diff);
           }
+        } else if (companyMissing) {
+          base.status = "empresa_ausente";
+          base.ia_obs = `Empresa "${mappedCompany}" não existe no lote Exacta. Verifique vínculo de empresa ou se o lote está completo.`;
+          empresa_ausente++;
+        } else if (attMissing) {
+          base.status = "so_hospital";
+          base.ia_obs = `Linha do hospital sem nº de atendimento — não foi possível cruzar com a Exacta.`;
+          so_hospital++;
+          risco_mais += valHosp;
         } else {
           base.status = "so_hospital";
-          base.ia_obs = `Item de ${mappedCompany} presente no extrato hospitalar mas ausente na base Exacta. Possível inclusão após importação do lote.`;
+          base.ia_obs = `Item de ${mappedCompany} (atendimento ${att}, TUSS ${code}) presente no extrato hospitalar mas ausente na base Exacta para esta empresa.`;
           so_hospital++;
           risco_mais += valHosp;
         }
