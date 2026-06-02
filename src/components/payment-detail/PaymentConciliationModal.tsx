@@ -1716,6 +1716,62 @@ export function PaymentConciliationModal({
     toast({ title: "Relatório exportado", description: "Arquivo XLSX gerado com sucesso." });
   };
 
+  const handleExportCsv = () => {
+    if (!run) return;
+
+    const headers = [
+      "Status", "Empresa", "Médico", "Paciente", "Atendimento",
+      "Cód. TUSS", "Procedimento", "Data", "Convênio",
+      "Exacta (R$)", "Hospital (R$)", "Diferença (R$)",
+      "Regra Exacta", "Método Cálculo", "Observação IA",
+    ];
+
+    // CSV no padrão BR (UTF-8 + BOM, ';' como separador) para abrir
+    // direto no Excel pt-BR sem precisar de "importar texto".
+    const escape = (v: unknown) => {
+      const s = v == null ? "" : String(v);
+      if (s.includes(";") || s.includes("\"") || s.includes("\n") || s.includes("\r")) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+    const fmtNum = (n: number) =>
+      Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : "";
+
+    const rows = filteredItems.map((it) => [
+      STATUS_LABEL[it.status],
+      it.company_name ?? "",
+      it.doctor_name ?? "",
+      it.patient_name ?? "",
+      it.attendance_number ?? "",
+      it.procedure_code ?? "",
+      it.procedure_name ?? "",
+      it.procedure_date ? formatDateBR(it.procedure_date) : "",
+      it.agreement_text ?? "",
+      fmtNum(Number(it.valor_exacta)),
+      fmtNum(Number(it.valor_hospital)),
+      fmtNum(Number((it.valor_hospital - it.valor_exacta).toFixed(2))),
+      it.applied_rule_label ?? "",
+      it.applied_calc_method ?? "",
+      it.ia_obs ?? "",
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((r) => r.map(escape).join(";"))
+      .join("\r\n");
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "CSV exportado", description: "Arquivo CSV gerado com sucesso." });
+  };
+
   const handleExportPdf = async () => {
     if (!run) return;
     const { jsPDF } = await import("jspdf");
@@ -1723,37 +1779,20 @@ export function PaymentConciliationModal({
 
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
-    const marginX = 10;
-    const tableWidth = pageWidth - marginX * 2; // 277mm em A4 paisagem
+    const pageHeight = doc.internal.pageSize.getHeight();
+    // Margens generosas seguindo o manual da marca (área de proteção).
+    const marginX = 12;
+    const marginBottom = 14;
+    const tableWidth = pageWidth - marginX * 2;
 
-    // Faixa do cabeçalho
-    doc.setFillColor(30, 58, 95);
-    doc.rect(0, 0, pageWidth, 22, "F");
+    // Cabeçalho com a logo Rede D'Or (azul institucional sobre branco)
+    let cursorY = await drawReportHeader(doc, {
+      title: `Conciliação de Produção — ${paymentReference}`,
+      subtitle: `Gerado em ${formatDateTimeBR(new Date().toISOString())}${run.file_name ? `  ·  Base: ${run.file_name}` : ""}`,
+      marginX,
+      logoHeightMm: 11,
+    });
 
-    // "Gerado em" à direita primeiro, para reservar espaço do título
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    const generatedLabel = `Gerado em: ${formatDateTimeBR(new Date().toISOString())}`;
-    const generatedWidth = doc.getTextWidth(generatedLabel);
-    doc.text(generatedLabel, pageWidth - marginX, 13, { align: "right" });
-
-    // Título com largura limitada para não colidir com a data
-    doc.setFontSize(13);
-    doc.setFont("helvetica", "bold");
-    const titleMaxWidth = pageWidth - marginX * 2 - generatedWidth - 8;
-    const titleLines = doc.splitTextToSize(
-      `Conciliação de Produção — ${paymentReference}`,
-      titleMaxWidth,
-    ) as string[];
-    doc.text(titleLines[0] ?? "", marginX, 13);
-    // Se o título tiver 2ª linha, renderiza em fonte menor logo abaixo
-    if (titleLines[1]) {
-      doc.setFontSize(9);
-      doc.text(titleLines.slice(1).join(" "), marginX, 19);
-    }
-
-    let cursorY = 28;
     const filterDescParts: string[] = [];
     if (initialCompany) filterDescParts.push(`Empresa: ${initialCompany}`);
     else if (companyFilter !== "todos") filterDescParts.push(`Empresa: ${companyFilter}`);
@@ -1764,13 +1803,13 @@ export function PaymentConciliationModal({
     if (filterDescParts.length) {
       doc.setTextColor(100, 100, 100);
       doc.setFont("helvetica", "italic");
-      doc.setFontSize(7.5);
+      doc.setFontSize(8);
       const filterLines = doc.splitTextToSize(`Filtros: ${filterDescParts.join(" · ")}`, tableWidth) as string[];
       doc.text(filterLines, marginX, cursorY);
-      cursorY += filterLines.length * 3.5 + 1;
+      cursorY += filterLines.length * 3.8 + 1;
     }
 
-    doc.setTextColor(30, 58, 95);
+    doc.setTextColor(...REDE_DOR_BRAND_BLUE_RGB);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text(
@@ -1811,17 +1850,18 @@ export function PaymentConciliationModal({
       "Só no Exacta": [239, 246, 255],
     };
 
-    // Larguras proporcionais que somam exatamente tableWidth (277mm)
-    // proporções: 8,14,11,11,6,6,8,7,7,15 = 100 (em fração de tableWidth)
-    const widthFractions = [0.08, 0.14, 0.11, 0.11, 0.06, 0.06, 0.08, 0.07, 0.07, 0.15];
+    // Proporções somam 1.0 — autoTable garante que cada coluna caiba
+    // dentro de tableWidth, com quebra de linha (overflow: linebreak)
+    // para evitar corte horizontal de texto.
+    const widthFractions = [0.08, 0.14, 0.11, 0.11, 0.06, 0.06, 0.08, 0.07, 0.07, 0.22];
     const colWidths = widthFractions.map((f) => +(tableWidth * f).toFixed(2));
 
     autoTable(doc, {
       startY: cursorY + 2,
       head: [["Status", "Empresa", "Médico", "Paciente", "TUSS", "Data", "Convênio", "Exacta", "Hospital", "Regra Exacta"]],
       body: tableData,
-      styles: { fontSize: 7, cellPadding: 1.6, overflow: "linebreak", valign: "middle" },
-      headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: "bold", fontSize: 7.5, halign: "left" },
+      styles: { fontSize: 7, cellPadding: 1.8, overflow: "linebreak", valign: "middle" },
+      headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255, fontStyle: "bold", fontSize: 7.5, halign: "left" },
       columnStyles: {
         0: { cellWidth: colWidths[0] },
         1: { cellWidth: colWidths[1] },
@@ -1841,10 +1881,23 @@ export function PaymentConciliationModal({
           if (fill) data.cell.styles.fillColor = fill;
         }
       },
-      margin: { left: marginX, right: marginX },
+      // Margens consistentes — autoTable repete o head a cada quebra
+      // de página e respeita o rodapé (espaço para a numeração).
+      margin: { left: marginX, right: marginX, top: cursorY + 2, bottom: marginBottom + 6 },
       tableWidth,
+      showHead: "everyPage",
+      rowPageBreak: "avoid",
+      didDrawPage: () => {
+        // Rodapé com numeração e marca, em todas as páginas.
+        const pageCount = (doc as unknown as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages();
+        const current = (doc as unknown as { internal: { getCurrentPageInfo: () => { pageNumber: number } } }).internal.getCurrentPageInfo().pageNumber;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(120, 120, 120);
+        doc.text("MedPay · Rede D'Or", marginX, pageHeight - 6);
+        doc.text(`Página ${current} de ${pageCount}`, pageWidth - marginX, pageHeight - 6, { align: "right" });
+      },
     });
-
 
     doc.save(`conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.pdf`);
     toast({ title: "PDF exportado", description: "Arquivo PDF gerado com sucesso." });
