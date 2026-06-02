@@ -605,99 +605,166 @@ const Users = () => {
             </CardContent>
           </Card>
         )}
-        <Card className="shadow-card"><CardContent className="p-0">
-          <div className="divide-y divide-border">
-            {users.map((u) => (
-              <div key={u.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-                <div className="min-w-0">
-                  <p className="font-medium text-sm">{u.full_name || u.email}</p>
-                  <p className="text-xs text-muted-foreground">{u.email}</p>
-                  {(u.phone || u.role_title || u.department) && (
-                    <p className="text-xs text-muted-foreground">
-                      {[u.phone && formatPhone(u.phone), u.role_title, u.department].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {ROLES.map((r) => {
-                    const has = u.roles.includes(r);
-                    return <Button key={r} size="sm" variant={has ? "default" : "outline"} onClick={() => toggle(u.id, r, has)}>{ROLE_LABELS[r]}</Button>;
-                  })}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => resendInvite({ id: u.id, email: u.email })}
-                      disabled={resendingId === u.id}
-                      title="Reenvia o link de definição/redefinição de senha por e-mail"
-                    >
-                      {resendingId === u.id
-                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                        : <Send className="h-3.5 w-3.5 mr-1.5" />}
-                      Reenviar convite
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setEditingUser({
-                        id: u.id,
-                        email: u.email,
-                        full_name: u.full_name ?? "",
-                        phone: u.phone ?? "",
-                        cpf: u.cpf ?? "",
-                        role_title: u.role_title ?? "",
-                        department: u.department ?? "",
-                        birth_date: u.birth_date ? String(u.birth_date).slice(0, 10) : "",
-                      })}
-                      title="Editar dados do usuário"
-                    >
-                      <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                      Editar
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => openHistory(u)}
-                      title="Ver histórico de alterações deste usuário"
-                    >
-                      <History className="h-3.5 w-3.5 mr-1.5" />
-                      Histórico
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => loadUserSettings(u.id, u.full_name || u.email, u.roles)}
-                      title="Configurar notificações por e-mail/WhatsApp para este usuário"
-                    >
-                      <Bell className="h-3.5 w-3.5 mr-1.5" />
-                      Notificações
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
-                      disabled={resettingId === u.id}
-                      title="Envia e-mail com link para o usuário definir uma nova senha"
-                    >
-                      {resettingId === u.id
-                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                        : <KeyRound className="h-3.5 w-3.5 mr-1.5" />}
-                      Resetar senha
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
+        <Card className="shadow-card">
+          <div className="px-6 py-3 border-b flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="h-4 w-4 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nome, e-mail, CPF, cargo ou setor…"
+                className="pl-8"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
+              <Checkbox checked={showInactive} onCheckedChange={(c) => setShowInactive(!!c)} />
+              Mostrar desabilitados
+            </label>
+            <Badge variant="secondary" className="ml-auto">
+              {(() => {
+                const q = search.trim().toLowerCase();
+                const list = users
+                  .filter((u) => showInactive ? true : u.active !== false)
+                  .filter((u) => {
+                    if (!q) return true;
+                    return [u.full_name, u.email, u.cpf, u.role_title, u.department]
+                      .filter(Boolean)
+                      .some((v: string) => String(v).toLowerCase().includes(q));
+                  });
+                return `${list.length} usuário${list.length === 1 ? "" : "s"}`;
+              })()}
+            </Badge>
           </div>
-        </CardContent></Card>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {users
+                .filter((u) => showInactive ? true : u.active !== false)
+                .filter((u) => {
+                  const q = search.trim().toLowerCase();
+                  if (!q) return true;
+                  return [u.full_name, u.email, u.cpf, u.role_title, u.department]
+                    .filter(Boolean)
+                    .some((v: string) => String(v).toLowerCase().includes(q));
+                })
+                .map((u) => {
+                  const isActive = u.active !== false;
+                  return (
+                    <div key={u.id} className={`px-6 py-4 flex items-center justify-between gap-4 flex-wrap ${!isActive ? "opacity-60" : ""}`}>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm flex items-center gap-2">
+                          {u.full_name || u.email}
+                          {!isActive && <Badge variant="outline" className="text-xs">Desabilitado</Badge>}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                        {(u.phone || u.cpf || u.role_title || u.department) && (
+                          <p className="text-xs text-muted-foreground">
+                            {[
+                              u.cpf && `CPF ${formatCPF(u.cpf)}`,
+                              u.phone && formatPhone(u.phone),
+                              u.role_title,
+                              u.department,
+                            ].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {ROLES.map((r) => {
+                          const has = u.roles.includes(r);
+                          return <Button key={r} size="sm" variant={has ? "default" : "outline"} disabled={!isActive} onClick={() => toggle(u.id, r, has)}>{ROLE_LABELS[r]}</Button>;
+                        })}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant={isActive ? "ghost" : "secondary"}
+                            onClick={() => toggleActive({ id: u.id, email: u.email, full_name: u.full_name, active: isActive })}
+                            disabled={togglingActiveId === u.id}
+                            title={isActive ? "Desabilitar acesso deste usuário" : "Reabilitar acesso deste usuário"}
+                          >
+                            {togglingActiveId === u.id
+                              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              : isActive
+                                ? <UserX className="h-3.5 w-3.5 mr-1.5" />
+                                : <UserCheck className="h-3.5 w-3.5 mr-1.5" />}
+                            {isActive ? "Desabilitar" : "Habilitar"}
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => resendInvite({ id: u.id, email: u.email })}
+                            disabled={resendingId === u.id || !isActive}
+                            title="Reenvia o link de definição/redefinição de senha por e-mail"
+                          >
+                            {resendingId === u.id
+                              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                            Reenviar convite
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingUser({
+                              id: u.id,
+                              email: u.email,
+                              full_name: u.full_name ?? "",
+                              phone: u.phone ?? "",
+                              cpf: u.cpf ?? "",
+                              role_title: u.role_title ?? "",
+                              department: u.department ?? "",
+                              birth_date: u.birth_date ? String(u.birth_date).slice(0, 10) : "",
+                            })}
+                            title="Editar dados do usuário"
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                            Editar
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openHistory(u)}
+                            title="Ver histórico de alterações deste usuário"
+                          >
+                            <History className="h-3.5 w-3.5 mr-1.5" />
+                            Histórico
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => loadUserSettings(u.id, u.full_name || u.email, u.roles)}
+                            title="Configurar notificações por e-mail/WhatsApp para este usuário"
+                          >
+                            <Bell className="h-3.5 w-3.5 mr-1.5" />
+                            Notificações
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
+                            disabled={resettingId === u.id || !isActive}
+                            title="Envia e-mail com link para o usuário definir uma nova senha"
+                          >
+                            {resettingId === u.id
+                              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              : <KeyRound className="h-3.5 w-3.5 mr-1.5" />}
+                            Resetar senha
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
       </div>
       <Dialog open={!!manualLink} onOpenChange={(o) => !o && setManualLink(null)}>
         <DialogContent className="w-[95vw] max-w-lg max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
