@@ -33,6 +33,7 @@ const HospitalContext = createContext<HospitalContextValue | undefined>(undefine
 export const HospitalProvider = ({ children }: { children: ReactNode }) => {
   const { user, hasRole, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  const userId = user?.id ?? null;
   const [availableHospitals, setAvailableHospitals] = useState<Hospital[]>([]);
   const [hospital, setHospital] = useState<Hospital | null>(null);
   const [primaryHospitalId, setPrimaryHospitalId] = useState<string | null>(null);
