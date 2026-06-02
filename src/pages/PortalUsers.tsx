@@ -21,6 +21,8 @@ import {
 import { Building2, Stethoscope, Save, Star, Plus, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { formatCPF } from "@/lib/cpf";
+import { formatPhone } from "@/lib/userFields";
 
 type Hospital = { id: string; name: string; state_uf: string };
 
@@ -88,6 +90,8 @@ function NewPortalUserDialog({
   const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [phone, setPhone] = useState("");
   const [entityId, setEntityId] = useState<string | null>(null);
   const [entityLabel, setEntityLabel] = useState("");
   const [entityPickerOpen, setEntityPickerOpen] = useState(false);
@@ -96,17 +100,19 @@ function NewPortalUserDialog({
   const [selectedHospitals, setSelectedHospitals] = useState<Set<string>>(new Set());
   const [primaryHospital, setPrimaryHospital] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [importedFromDoctor, setImportedFromDoctor] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     void (async () => {
       const q = entityQuery.trim();
-      let query = supabase
+      let query: any = supabase
         .from(cfg.parentTable)
         .select(`id, ${cfg.parentNameCol}, ${cfg.parentDocCol}`)
         .order(cfg.parentNameCol)
         .limit(30);
       if (q) query = query.ilike(cfg.parentNameCol, `%${q}%`);
+      if (kind === "doctor") query = query.eq("active", true);
       const { data } = await query;
       setEntityOptions(
         (data ?? []).map((r: any) => ({
@@ -116,11 +122,34 @@ function NewPortalUserDialog({
         })),
       );
     })();
-  }, [open, entityQuery, cfg]);
+  }, [open, entityQuery, cfg, kind]);
 
   const reset = () => {
-    setFullName(""); setEmail(""); setEntityId(null); setEntityLabel("");
+    setFullName(""); setEmail(""); setCpf(""); setPhone("");
+    setEntityId(null); setEntityLabel("");
     setSelectedHospitals(new Set()); setPrimaryHospital(null); setEntityQuery("");
+    setImportedFromDoctor(false);
+  };
+
+  const handleSelectEntity = async (opt: { id: string; label: string; doc: string | null }) => {
+    setEntityId(opt.id);
+    setEntityLabel(opt.label);
+    setEntityPickerOpen(false);
+    if (kind === "doctor") {
+      const { data: doc } = await supabase
+        .from("doctors")
+        .select("full_name, email, cpf, phone")
+        .eq("id", opt.id)
+        .maybeSingle();
+      if (doc) {
+        if (doc.full_name) setFullName(doc.full_name);
+        if (doc.email) setEmail(doc.email);
+        if (doc.cpf) setCpf(formatCPF(doc.cpf));
+        if (doc.phone) setPhone(formatPhone(doc.phone));
+        setImportedFromDoctor(true);
+        toast.success("Dados importados do cadastro do médico");
+      }
+    }
   };
 
   const submit = async () => {
@@ -134,6 +163,8 @@ function NewPortalUserDialog({
         kind,
         email: email.trim().toLowerCase(),
         full_name: fullName.trim(),
+        cpf: cpf.replace(/\D/g, ""),
+        phone: phone.replace(/\D/g, ""),
         entity_id: entityId,
         hospital_ids: Array.from(selectedHospitals),
         primary_hospital_id: primaryHospital,
@@ -157,7 +188,7 @@ function NewPortalUserDialog({
       <DialogTrigger asChild>
         <Button size="sm"><Plus className="mr-2 h-4 w-4" />Novo usuário</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Cadastrar usuário — Portal {cfg.label}</DialogTitle>
           <DialogDescription>
@@ -167,17 +198,6 @@ function NewPortalUserDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label>Nome completo</Label>
-              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ex.: Maria Souza" />
-            </div>
-            <div>
-              <Label>E-mail</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="maria@empresa.com" />
-            </div>
-          </div>
-
           <div>
             <Label>{cfg.label} vinculada</Label>
             <Popover open={entityPickerOpen} onOpenChange={setEntityPickerOpen}>
@@ -201,11 +221,7 @@ function NewPortalUserDialog({
                         <CommandItem
                           key={opt.id}
                           value={opt.id}
-                          onSelect={() => {
-                            setEntityId(opt.id);
-                            setEntityLabel(opt.label);
-                            setEntityPickerOpen(false);
-                          }}
+                          onSelect={() => handleSelectEntity(opt)}
                         >
                           <Check className={cn("mr-2 h-4 w-4", entityId === opt.id ? "opacity-100" : "opacity-0")} />
                           <span className="flex-1 truncate">{opt.label}</span>
@@ -217,7 +233,49 @@ function NewPortalUserDialog({
                 </Command>
               </PopoverContent>
             </Popover>
+            {kind === "doctor" && importedFromDoctor && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Dados pré-preenchidos a partir do cadastro do médico. Se o médico for inativado, o acesso ao portal será desativado automaticamente.
+              </p>
+            )}
+            {kind === "doctor" && !importedFromDoctor && (
+              <p className="text-xs text-muted-foreground mt-2">
+                A lista exibe apenas médicos ativos. O acesso ao portal seguirá o status do cadastro.
+              </p>
+            )}
           </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Nome completo</Label>
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ex.: Maria Souza" />
+            </div>
+            <div>
+              <Label>E-mail</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="maria@empresa.com" />
+            </div>
+            <div>
+              <Label>CPF</Label>
+              <Input
+                value={cpf}
+                onChange={(e) => setCpf(formatCPF(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                maxLength={14}
+              />
+            </div>
+            <div>
+              <Label>Telefone (celular)</Label>
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(formatPhone(e.target.value))}
+                placeholder="(11) 99999-9999"
+                inputMode="tel"
+                maxLength={15}
+              />
+            </div>
+          </div>
+
 
           <div>
             <Label>Hospitais (visibilidade)</Label>
