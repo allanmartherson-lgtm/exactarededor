@@ -489,16 +489,21 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, "");
     return rows
       .filter((r) => showInactive ? true : r.active)
       .filter((r) => {
         if (!q) return true;
-        return (
+        const textMatch =
           r.parent_name.toLowerCase().includes(q) ||
           (r.email ?? "").toLowerCase().includes(q) ||
           (r.full_name ?? "").toLowerCase().includes(q) ||
-          (r.parent_doc ?? "").toLowerCase().includes(q)
+          (r.parent_doc ?? "").toLowerCase().includes(q);
+        const digitMatch = qDigits.length >= 3 && (
+          (r.cpf ?? "").replace(/\D/g, "").includes(qDigits) ||
+          (r.phone ?? "").replace(/\D/g, "").includes(qDigits)
         );
+        return textMatch || digitMatch;
       });
   }, [rows, filter, showInactive]);
 
