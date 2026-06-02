@@ -1226,6 +1226,7 @@ export function PaymentConciliationModal({
     const STATUS_FILL: Record<string, [number, number, number]> = {
       "Conciliado": [240, 253, 244],
       "Valor divergente": [255, 251, 235],
+      "Quantidade divergente": [255, 251, 235],
       "Só no hospital": [254, 242, 242],
       "Só no Exacta": [239, 246, 255],
     };
