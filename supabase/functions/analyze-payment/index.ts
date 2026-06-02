@@ -34,7 +34,7 @@ interface PaymentRow {
   payment_type: string | null;
   payment_due_date: string | null;
   competence_month: string | null;
-  analysis_mode: "padrao" | "empresa_prioritaria" | null;
+  analysis_mode: "padrao" | "empresa_prioritaria" | "isolado" | "confeccao" | null;
 }
 
 serve(async (req) => {
