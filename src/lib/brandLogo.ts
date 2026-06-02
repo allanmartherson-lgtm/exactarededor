@@ -132,8 +132,12 @@ export async function drawReportHeader(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(filledBar ? 230 : 90, filledBar ? 230 : 90, filledBar ? 230 : 90);
-    const subLines = doc.splitTextToSize(subtitle, titleMaxW) as string[];
-    doc.text(subLines.slice(0, 2), titleX, 17);
+    const subLines = (doc.splitTextToSize(subtitle, titleMaxW) as string[]).slice(0, 2);
+    // jsPDF: passar array pode acionar runs de texto com kerning estranho em
+    // algumas versões — desenhamos cada linha com string pura.
+    subLines.forEach((line, idx) => {
+      doc.text(String(line), titleX, 17 + idx * 4);
+    });
   }
 
   // Linha sutil separando header do conteúdo (apenas se não houver faixa)
