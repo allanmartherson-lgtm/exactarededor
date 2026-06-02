@@ -650,115 +650,46 @@ const Users = () => {
                   const isActive = u.active !== false;
                   return (
                     <div key={u.id} className={`px-6 py-4 flex items-center justify-between gap-4 flex-wrap ${!isActive ? "opacity-60" : ""}`}>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm flex items-center gap-2">
                           {u.full_name || u.email}
                           {!isActive && <Badge variant="outline" className="text-xs">Desabilitado</Badge>}
                         </p>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
-                        {(u.phone || u.cpf || u.role_title || u.department) && (
-                          <p className="text-xs text-muted-foreground">
-                            {[
-                              u.cpf && `CPF ${formatCPF(u.cpf)}`,
-                              u.phone && formatPhone(u.phone),
-                              u.role_title,
-                              u.department,
-                            ].filter(Boolean).join(" · ")}
-                          </p>
+                        <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                      </div>
+                      <div className="hidden sm:flex flex-col items-start min-w-[140px]">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Cargo</span>
+                        <span className="text-xs">{u.role_title || "—"}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1 min-w-[160px]">
+                        {u.roles.length === 0 ? (
+                          <Badge variant="outline" className="text-xs">Sem papel</Badge>
+                        ) : (
+                          u.roles.map((r: AppRole) => (
+                            <Badge key={r} variant="secondary" className="text-xs">{ROLE_LABELS[r]}</Badge>
+                          ))
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {ROLES.map((r) => {
-                          const has = u.roles.includes(r);
-                          return <Button key={r} size="sm" variant={has ? "default" : "outline"} disabled={!isActive} onClick={() => toggle(u.id, r, has)}>{ROLE_LABELS[r]}</Button>;
-                        })}
-                        {isAdmin && (
-                          <Button
-                            size="sm"
-                            variant={isActive ? "ghost" : "secondary"}
-                            onClick={() => toggleActive({ id: u.id, email: u.email, full_name: u.full_name, active: isActive })}
-                            disabled={togglingActiveId === u.id}
-                            title={isActive ? "Desabilitar acesso deste usuário" : "Reabilitar acesso deste usuário"}
-                          >
-                            {togglingActiveId === u.id
-                              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                              : isActive
-                                ? <UserX className="h-3.5 w-3.5 mr-1.5" />
-                                : <UserCheck className="h-3.5 w-3.5 mr-1.5" />}
-                            {isActive ? "Desabilitar" : "Habilitar"}
-                          </Button>
-                        )}
-                        {isAdmin && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => resendInvite({ id: u.id, email: u.email })}
-                            disabled={resendingId === u.id || !isActive}
-                            title="Reenvia o link de definição/redefinição de senha por e-mail"
-                          >
-                            {resendingId === u.id
-                              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                              : <Send className="h-3.5 w-3.5 mr-1.5" />}
-                            Reenviar convite
-                          </Button>
-                        )}
-                        {isAdmin && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setEditingUser({
-                              id: u.id,
-                              email: u.email,
-                              full_name: u.full_name ?? "",
-                              phone: u.phone ?? "",
-                              cpf: u.cpf ?? "",
-                              role_title: u.role_title ?? "",
-                              department: u.department ?? "",
-                              birth_date: u.birth_date ? String(u.birth_date).slice(0, 10) : "",
-                            })}
-                            title="Editar dados do usuário"
-                          >
-                            <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                            Editar
-                          </Button>
-                        )}
-                        {isAdmin && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => openHistory(u)}
-                            title="Ver histórico de alterações deste usuário"
-                          >
-                            <History className="h-3.5 w-3.5 mr-1.5" />
-                            Histórico
-                          </Button>
-                        )}
-                        {isAdmin && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => loadUserSettings(u.id, u.full_name || u.email, u.roles)}
-                            title="Configurar notificações por e-mail/WhatsApp para este usuário"
-                          >
-                            <Bell className="h-3.5 w-3.5 mr-1.5" />
-                            Notificações
-                          </Button>
-                        )}
-                        {isAdmin && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
-                            disabled={resettingId === u.id || !isActive}
-                            title="Envia e-mail com link para o usuário definir uma nova senha"
-                          >
-                            {resettingId === u.id
-                              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                              : <KeyRound className="h-3.5 w-3.5 mr-1.5" />}
-                            Resetar senha
-                          </Button>
-                        )}
-                      </div>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingUser({
+                            id: u.id,
+                            email: u.email,
+                            full_name: u.full_name ?? "",
+                            phone: u.phone ?? "",
+                            cpf: u.cpf ?? "",
+                            role_title: u.role_title ?? "",
+                            department: u.department ?? "",
+                            birth_date: u.birth_date ? String(u.birth_date).slice(0, 10) : "",
+                          })}
+                          title="Abrir painel de edição do usuário"
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                          Editar
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
@@ -799,65 +730,157 @@ const Users = () => {
         </DialogContent>
       </Dialog>
       <Dialog open={!!editingUser} onOpenChange={(o) => !o && setEditingUser(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Editar usuário — {editingUser?.full_name || editingUser?.email}</DialogTitle>
             <DialogDescription>
-              Atualize os dados do usuário. O e-mail é usado como login e não pode ser alterado.
+              Gerencie papéis, status, dados e ações sensíveis deste usuário. O e-mail é usado como login e não pode ser alterado.
             </DialogDescription>
           </DialogHeader>
-          {editingUser && (
-            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              <div className="space-y-2">
-                <Label>Nome completo *</Label>
-                <Input value={editingUser.full_name} onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })} />
+          {editingUser && (() => {
+            const currentUser = users.find((x) => x.id === editingUser.id);
+            const currentRoles: AppRole[] = currentUser?.roles ?? [];
+            const isActive = currentUser?.active !== false;
+            return (
+              <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+                <section className="space-y-2">
+                  <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Papéis no Exacta</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ROLES.map((r) => {
+                      const has = currentRoles.includes(r);
+                      return (
+                        <Button key={r} size="sm" variant={has ? "default" : "outline"} disabled={!isActive} onClick={() => toggle(editingUser.id, r, has)}>
+                          {ROLE_LABELS[r]}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="space-y-2 border-t pt-4">
+                  <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Status do acesso</h4>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm">
+                      {isActive ? "Usuário habilitado — pode acessar o Exacta." : "Usuário desabilitado — login bloqueado."}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={isActive ? "outline" : "secondary"}
+                      onClick={() => toggleActive({ id: editingUser.id, email: editingUser.email, full_name: editingUser.full_name, active: isActive })}
+                      disabled={togglingActiveId === editingUser.id}
+                    >
+                      {togglingActiveId === editingUser.id
+                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        : isActive
+                          ? <UserX className="h-3.5 w-3.5 mr-1.5" />
+                          : <UserCheck className="h-3.5 w-3.5 mr-1.5" />}
+                      {isActive ? "Desabilitar" : "Habilitar"}
+                    </Button>
+                  </div>
+                </section>
+
+                <section className="space-y-3 border-t pt-4">
+                  <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Dados cadastrais</h4>
+                  <div className="space-y-2">
+                    <Label>Nome completo *</Label>
+                    <Input value={editingUser.full_name} onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>E-mail (login)</Label>
+                    <Input type="email" value={editingUser.email} disabled />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label>CPF *</Label>
+                      <Input
+                        inputMode="numeric"
+                        placeholder="000.000.000-00"
+                        value={formatCPF(editingUser.cpf)}
+                        onChange={(e) => setEditingUser({ ...editingUser, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Telefone celular *</Label>
+                      <Input
+                        inputMode="numeric"
+                        placeholder="(11) 99999-9999"
+                        value={formatPhone(editingUser.phone)}
+                        onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Telefone usado para WhatsApp em notificações de aprovação. O CPF é usado para validação de identidade e não pode duplicar.</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label>Cargo *</Label>
+                      <Input value={editingUser.role_title} onChange={(e) => setEditingUser({ ...editingUser, role_title: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Setor *</Label>
+                      <Input value={editingUser.department} onChange={(e) => setEditingUser({ ...editingUser, department: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data de nascimento *</Label>
+                    <Input type="date" value={editingUser.birth_date} onChange={(e) => setEditingUser({ ...editingUser, birth_date: e.target.value })} />
+                  </div>
+                </section>
+
+                <section className="space-y-2 border-t pt-4">
+                  <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Ações</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => resendInvite({ id: editingUser.id, email: editingUser.email })}
+                      disabled={resendingId === editingUser.id || !isActive}
+                      title="Reenvia o link de definição/redefinição de senha por e-mail"
+                    >
+                      {resendingId === editingUser.id
+                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                      Reenviar convite
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openHistory({ id: editingUser.id, email: editingUser.email, full_name: editingUser.full_name })}
+                      title="Ver histórico de alterações deste usuário"
+                    >
+                      <History className="h-3.5 w-3.5 mr-1.5" />
+                      Histórico
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => loadUserSettings(editingUser.id, editingUser.full_name || editingUser.email, currentRoles)}
+                      title="Configurar notificações por e-mail/WhatsApp para este usuário"
+                    >
+                      <Bell className="h-3.5 w-3.5 mr-1.5" />
+                      Notificações
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setConfirmReset({ id: editingUser.id, email: editingUser.email, full_name: editingUser.full_name })}
+                      disabled={resettingId === editingUser.id || !isActive}
+                      title="Envia e-mail com link para o usuário definir uma nova senha"
+                    >
+                      {resettingId === editingUser.id
+                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        : <KeyRound className="h-3.5 w-3.5 mr-1.5" />}
+                      Resetar senha
+                    </Button>
+                  </div>
+                </section>
               </div>
-              <div className="space-y-2">
-                <Label>E-mail (login)</Label>
-                <Input type="email" value={editingUser.email} disabled />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-2">
-                  <Label>CPF *</Label>
-                  <Input
-                    inputMode="numeric"
-                    placeholder="000.000.000-00"
-                    value={formatCPF(editingUser.cpf)}
-                    onChange={(e) => setEditingUser({ ...editingUser, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone celular *</Label>
-                  <Input
-                    inputMode="numeric"
-                    placeholder="(11) 99999-9999"
-                    value={formatPhone(editingUser.phone)}
-                    onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">Telefone usado para WhatsApp em notificações de aprovação. O CPF é usado para validação de identidade e não pode duplicar.</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-2">
-                  <Label>Cargo *</Label>
-                  <Input value={editingUser.role_title} onChange={(e) => setEditingUser({ ...editingUser, role_title: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Setor *</Label>
-                  <Input value={editingUser.department} onChange={(e) => setEditingUser({ ...editingUser, department: e.target.value })} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Data de nascimento *</Label>
-                <Input type="date" value={editingUser.birth_date} onChange={(e) => setEditingUser({ ...editingUser, birth_date: e.target.value })} />
-              </div>
-            </div>
-          )}
+            );
+          })()}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingUser(null)} disabled={savingUser}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setEditingUser(null)} disabled={savingUser}>Fechar</Button>
             <Button onClick={saveUser} disabled={savingUser}>
               {savingUser && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-              Salvar
+              Salvar dados
             </Button>
           </DialogFooter>
         </DialogContent>
