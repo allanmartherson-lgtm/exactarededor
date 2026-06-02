@@ -2833,15 +2833,33 @@ export function PaymentConciliationModal({
                                             ? formatCurrency(Number(it.valor_regra))
                                             : "—"}
                                         </TableCell>
-                                        <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums font-semibold" style={{
-                                          color: it.valor_regra && it.valor_hospital
-                                            ? (Number(it.valor_regra) > Number(it.valor_hospital) ? 'hsl(var(--success))' : 'hsl(var(--destructive))')
-                                            : 'hsl(var(--muted-foreground))',
-                                        }}>
-                                          {it.valor_regra && it.valor_hospital
-                                            ? formatCurrency(Number(it.valor_regra) - Number(it.valor_hospital))
-                                            : "—"}
-                                        </TableCell>
+                                        {(() => {
+                                          // Base de comparação: valor que o hospital efetivamente reconheceu.
+                                          // Se o hospital não tem o item (so_exacta) ou registrou estorno/negativo,
+                                          // a comparação correta é vs o valor da Exacta — não somar o módulo do
+                                          // valor negativo do hospital, que infla a diferença artificialmente.
+                                          const vr = it.valor_regra ? Number(it.valor_regra) : null;
+                                          const vh = Number(it.valor_hospital) || 0;
+                                          const ve = Number(it.valor_exacta) || 0;
+                                          const base = vh > 0 ? vh : ve;
+                                          const hasBase = vr != null && base > 0;
+                                          const diff = hasBase ? vr! - base : null;
+                                          return (
+                                            <TableCell
+                                              className="px-3 py-2 text-[12px] text-right tabular-nums font-semibold"
+                                              style={{
+                                                color: diff == null
+                                                  ? 'hsl(var(--muted-foreground))'
+                                                  : (diff > 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'),
+                                              }}
+                                              title={vh > 0
+                                                ? "Valor Regra − Valor Hospital"
+                                                : "Hospital ausente/estorno — comparado vs Valor Exacta"}
+                                            >
+                                              {diff == null ? "—" : formatCurrency(diff)}
+                                            </TableCell>
+                                          );
+                                        })()}
                                         <TableCell className="px-3 py-2">
                                           <span
                                             className={cn(
