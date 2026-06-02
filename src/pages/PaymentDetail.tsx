@@ -257,9 +257,43 @@ const PaymentDetail = () => {
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
-  const [isConciliationOpen, setIsConciliationOpen] = useState(false);
+  // Persistimos o estado de abertura do modal de conciliação em sessionStorage
+  // por paymentId. Se a página remontar (HMR do Vite ao voltar de outra aba,
+  // reconexão do socket, etc.), o modal reabre automaticamente e o analista
+  // não perde a tela de análise em que estava.
+  const conciliationStorageKey = id ? `medpay:conciliation:${id}` : "";
+  const readConciliationPersisted = (): { open: boolean; company: string | null } => {
+    if (!conciliationStorageKey) return { open: false, company: null };
+    try {
+      const raw = sessionStorage.getItem(conciliationStorageKey);
+      if (!raw) return { open: false, company: null };
+      const parsed = JSON.parse(raw);
+      return { open: !!parsed.open, company: parsed.company ?? null };
+    } catch {
+      return { open: false, company: null };
+    }
+  };
+  const [isConciliationOpen, setIsConciliationOpenState] = useState<boolean>(() => readConciliationPersisted().open);
   const [productionValidationOpen, setProductionValidationOpen] = useState(false);
-  const [conciliationCompany, setConciliationCompany] = useState<string | null>(null);
+  const [conciliationCompany, setConciliationCompanyState] = useState<string | null>(() => readConciliationPersisted().company);
+  const persistConciliation = useCallback((open: boolean, company: string | null) => {
+    if (!conciliationStorageKey) return;
+    try {
+      if (open) {
+        sessionStorage.setItem(conciliationStorageKey, JSON.stringify({ open, company }));
+      } else {
+        sessionStorage.removeItem(conciliationStorageKey);
+      }
+    } catch { /* ignore */ }
+  }, [conciliationStorageKey]);
+  const setIsConciliationOpen = useCallback((o: boolean) => {
+    setIsConciliationOpenState(o);
+    persistConciliation(o, o ? conciliationCompany : null);
+  }, [persistConciliation, conciliationCompany]);
+  const setConciliationCompany = useCallback((c: string | null) => {
+    setConciliationCompanyState(c);
+    persistConciliation(isConciliationOpen, c);
+  }, [persistConciliation, isConciliationOpen]);
   const [hasReconciliationRun, setHasReconciliationRun] = useState<boolean>(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
