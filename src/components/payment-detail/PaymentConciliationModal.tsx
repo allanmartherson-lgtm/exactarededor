@@ -2759,7 +2759,7 @@ export function PaymentConciliationModal({
                         Processando...
                       </>
                     ) : (
-                      `Conciliar ${exactCount + confirmCount} empresa(s) →`
+                      `Conciliar ${exactCount} empresa(s) →`
                     )}
                   </Button>
                 </div>
