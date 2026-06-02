@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Search, Calculator } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+
 
 interface Props {
   open: boolean;
