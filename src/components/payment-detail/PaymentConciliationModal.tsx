@@ -1601,7 +1601,6 @@ export function PaymentConciliationModal({
   // Sempre que mudam filtros/escopo/pageSize, zera o "mostrar mais" por
   // empresa para não acumular DOM com a base anterior.
   useEffect(() => {
-    setShownByCompany({});
     setPageByCompany({});
   }, [searchTerm, doctorFilter, companyFilter, minValue, maxValue, activeFilter, pageSize, initialCompany, items.length]);
 
