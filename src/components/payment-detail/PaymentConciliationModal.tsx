@@ -3550,6 +3550,114 @@ export function PaymentConciliationModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportar conciliação</DialogTitle>
+            <DialogDescription>
+              Escolha o formato e quais tipos de itens incluir. A exportação respeita os
+              filtros de empresa, médico e busca já aplicados na tela.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Formato
+              </Label>
+              <RadioGroup
+                value={exportFormat}
+                onValueChange={(v) => setExportFormat(v as ExportFormat)}
+                className="grid grid-cols-3 gap-2"
+              >
+                {([
+                  { v: "xlsx", l: "Excel" },
+                  { v: "csv", l: "CSV" },
+                  { v: "pdf", l: "PDF" },
+                ] as const).map((opt) => (
+                  <Label
+                    key={opt.v}
+                    htmlFor={`exp-fmt-${opt.v}`}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors",
+                      exportFormat === opt.v ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40",
+                    )}
+                  >
+                    <RadioGroupItem id={`exp-fmt-${opt.v}`} value={opt.v} />
+                    <span>{opt.l}</span>
+                  </Label>
+                ))}
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Tipos de itens
+                </Label>
+                <div className="flex gap-2 text-xs">
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() => setAllExportStatuses(true)}
+                  >
+                    Marcar todos
+                  </button>
+                  <span className="text-muted-foreground">·</span>
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() => setAllExportStatuses(false)}
+                  >
+                    Limpar
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5 rounded-md border p-2">
+                {ALL_STATUS_KEYS.map((k) => {
+                  const checked = exportStatuses.has(k);
+                  const count = exportCounts[k] ?? 0;
+                  return (
+                    <Label
+                      key={k}
+                      htmlFor={`exp-st-${k}`}
+                      className="flex cursor-pointer items-center justify-between gap-3 rounded px-2 py-1.5 hover:bg-muted/40"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`exp-st-${k}`}
+                          checked={checked}
+                          onCheckedChange={() => toggleExportStatus(k)}
+                        />
+                        <span className="text-sm">{STATUS_LABEL[k]}</span>
+                      </div>
+                      <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+                    </Label>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total a exportar:{" "}
+                <strong className="text-foreground">
+                  {filteredItems.filter((it) => exportStatuses.has(it.status)).length}
+                </strong>{" "}
+                de {filteredItems.length} itens visíveis
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={runExport} disabled={exportStatuses.size === 0}>
+              <FileDown className="h-4 w-4 mr-1.5" />
+              Exportar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
