@@ -1624,10 +1624,11 @@ const NewPayment = () => {
                 <CostCenterCombobox value={costCenterCode} onChange={setCostCenterCode} placeholder="Buscar por código P12 ou nome…" />
                 <p className="text-xs text-muted-foreground">Pode ser sobrescrito por item depois. Itens sem centro herdam este.</p>
               </div>
+              {!modoConfeccao && (
               <div className="space-y-2 sm:col-span-2">
                 <Label>Modo de análise</Label>
                 <RadioGroup value={analysisMode} onValueChange={(v) => setAnalysisMode(v as PaymentAnalysisMode)} className="grid gap-2">
-                  {(Object.keys(PAYMENT_ANALYSIS_MODE_LABELS) as PaymentAnalysisMode[]).map((k) => (
+                  {(Object.keys(PAYMENT_ANALYSIS_MODE_LABELS) as PaymentAnalysisMode[]).filter((k) => k !== "confeccao").map((k) => (
                     <label key={k} htmlFor={`am-${k}`} className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-colors ${analysisMode === k ? "border-primary bg-primary-soft/30" : "border-border hover:bg-muted/40"}`}>
                       <RadioGroupItem id={`am-${k}`} value={k} className="mt-0.5" />
                       <div className="space-y-0.5">
@@ -1638,6 +1639,7 @@ const NewPayment = () => {
                   ))}
                 </RadioGroup>
               </div>
+              )}
               <div className="space-y-2 sm:col-span-2">
                 <Label>Setor(es) / Item Pagamento</Label>
                 <div className="flex items-center gap-2">
