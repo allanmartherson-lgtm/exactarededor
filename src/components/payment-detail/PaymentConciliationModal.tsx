@@ -2725,7 +2725,7 @@ export function PaymentConciliationModal({
                   </Button>
                   <Button
                     size="sm"
-                    disabled={processing || (exactCount + confirmCount) === 0}
+                    disabled={processing || exactCount === 0}
                     onClick={() => {
                       const mapped = Array.from(
                         new Set(
