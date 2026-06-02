@@ -1001,13 +1001,16 @@ export function PaymentConciliationModal({
             const roleMed = (match as any).doctor_role ?? null;
             const routeMed = (match as any).access_route ?? null;
             const valMed = getConvenioValue(match);
-            const cmp = (a: string | null, b: string | null, na: string, nb: string): boolean | null => {
+            const cmp = (na: string, nb: string): boolean | null => {
               if (!na || !nb) return null;
               return na === nb;
             };
-            fields.push({ label: "Médico", hospital: doctor ? String(doctor) : null, exacta: docMed, ok: cmp(doctor, docMed, docHospN, normName(docMed)) });
-            fields.push({ label: "Função", hospital: roleHosp ? String(roleHosp) : null, exacta: roleMed, ok: cmp(roleHosp, roleMed, roleHospN, normRole(roleMed)) });
-            fields.push({ label: "Via de acesso", hospital: routeHosp ? String(routeHosp) : null, exacta: routeMed, ok: cmp(routeHosp, routeMed, routeHospN, normRoute(routeMed)) });
+            const docHospStr = doctor ? String(doctor) : null;
+            const roleHospStr = roleHosp ? String(roleHosp) : null;
+            const routeHospStr = routeHosp ? String(routeHosp) : null;
+            fields.push({ label: "Médico", hospital: docHospStr, exacta: docMed, ok: cmp(docHospN, normName(docMed)) });
+            fields.push({ label: "Função", hospital: roleHospStr, exacta: roleMed, ok: cmp(roleHospN, normRole(roleMed)) });
+            fields.push({ label: "Via de acesso", hospital: routeHospStr, exacta: routeMed, ok: cmp(routeHospN, normRoute(routeMed)) });
             fields.push({ label: "Valor (convênio)", hospital: formatCurrency(valHosp), exacta: formatCurrency(valMed), ok: Math.abs(valHosp - valMed) < 0.02 });
           }
           return {
