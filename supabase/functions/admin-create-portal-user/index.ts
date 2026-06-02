@@ -189,13 +189,54 @@ serve(async (req) => {
       if (linkErr) throw linkErr;
     }
 
-    await admin.from("audit_log").insert({
-      actor_id: userData.user.id,
-      entity_type: `portal_user_${kind}`,
-      entity_id: portalRowId,
-      action: "created",
-      diff: { email, full_name: fullName, entity_id: entityId, hospital_ids: hospitalIds },
-    });
+    // Auditoria — entity_types compatíveis com check constraint do audit_log
+    const auditRows: Array<Record<string, unknown>> = [
+      {
+        actor_id: userData.user.id,
+        entity_type: "user",
+        entity_id: newUserId,
+        action: "created",
+        diff: {
+          context: `portal_user_${kind}`,
+          email,
+          full_name: fullName,
+          entity_id: entityId,
+          portal_row_id: portalRowId,
+          hospital_ids: hospitalIds,
+        },
+      },
+    ];
+
+    // Log da importação automática dos dados do médico (quando aplicável)
+    if (kind === "doctor" && Object.keys(importedFields).length > 0 && linkedDoctorId) {
+      auditRows.push({
+        actor_id: userData.user.id,
+        entity_type: "doctor",
+        entity_id: linkedDoctorId,
+        action: "updated",
+        diff: {
+          reason: "portal_user_auto_import",
+          imported_fields: importedFields,
+          portal_user_id: newUserId,
+          portal_row_id: portalRowId,
+          doctor_full_name: linkedDoctorName,
+        },
+      });
+      auditRows.push({
+        actor_id: userData.user.id,
+        entity_type: "user",
+        entity_id: newUserId,
+        action: "updated",
+        diff: {
+          reason: "portal_user_auto_import_from_doctor",
+          doctor_id: linkedDoctorId,
+          doctor_full_name: linkedDoctorName,
+          imported_fields: importedFields,
+        },
+      });
+    }
+
+    await admin.from("audit_log").insert(auditRows);
 
     return json({ success: true, user_id: newUserId, portal_row_id: portalRowId, temp_password: tempPassword });
   } catch (e) {
