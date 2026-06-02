@@ -490,11 +490,19 @@ const Users = () => {
                     <Label>E-mail *</Label>
                     <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="maria@empresa.com" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Telefone celular *</Label>
-                    <Input inputMode="numeric" placeholder="(11) 99999-9999"
-                      value={formatPhone(form.phone)}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label>CPF *</Label>
+                      <Input inputMode="numeric" placeholder="000.000.000-00"
+                        value={formatCPF(form.cpf)}
+                        onChange={(e) => setForm({ ...form, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Telefone celular *</Label>
+                      <Input inputMode="numeric" placeholder="(11) 99999-9999"
+                        value={formatPhone(form.phone)}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-2">
