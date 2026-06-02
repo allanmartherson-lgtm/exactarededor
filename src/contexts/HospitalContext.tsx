@@ -58,7 +58,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     const { data: profile } = await supabase
       .from("profiles")
       .select("primary_hospital_id, last_active_hospital_id")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle();
     const primary = (profile?.primary_hospital_id as string | null) ?? null;
     const lastActive = ((profile as Record<string, unknown> | null)?.last_active_hospital_id as string | null) ?? null;
