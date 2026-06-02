@@ -23,7 +23,7 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
           <DialogTitle className="text-xl sm:text-2xl">Como deseja criar a base?</DialogTitle>
           <DialogDescription className="text-sm sm:text-base">Escolha o modo antes de continuar</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 pt-3 sm:pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 pt-3 sm:pt-4 flex-1">
           <button
             type="button"
             onClick={() => select("analise")}
