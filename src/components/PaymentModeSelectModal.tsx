@@ -18,12 +18,12 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-[min(95vw,1200px)] sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-8">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-[min(95vw,900px)] sm:w-[min(90vw,900px)] sm:h-[min(85vh,900px)] max-h-[90vh] overflow-y-auto p-4 sm:p-10 flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl">Como deseja criar a base?</DialogTitle>
           <DialogDescription className="text-sm sm:text-base">Escolha o modo antes de continuar</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 pt-3 sm:pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 pt-3 sm:pt-4 flex-1">
           <button
             type="button"
             onClick={() => select("analise")}
