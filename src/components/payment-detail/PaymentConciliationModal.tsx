@@ -1980,7 +1980,32 @@ export function PaymentConciliationModal({
                   <Button
                     size="sm"
                     disabled={processing || (exactCount + confirmCount) === 0}
-                    onClick={handleProcessReconciliation}
+                    onClick={() => {
+                      const mapped = Array.from(
+                        new Set(
+                          Object.values(companyMapping).filter(Boolean) as string[],
+                        ),
+                      );
+                      const prevCompanies = Array.from(
+                        new Set(
+                          items.map((it) => it.company_name ?? "").filter(Boolean),
+                        ),
+                      );
+                      const keep = prevCompanies.filter((c) => !mapped.includes(c));
+                      // Só pergunta se já existe uma run anterior cobrindo
+                      // empresas que NÃO estão neste arquivo. Caso contrário,
+                      // simplesmente reprocessa (comportamento atual).
+                      if (run?.id && keep.length > 0) {
+                        setScopeDialogInfo({
+                          newCompanies: mapped,
+                          previousCompanies: prevCompanies,
+                          keepCompanies: keep,
+                        });
+                        setScopeDialogOpen(true);
+                      } else {
+                        handleProcessReconciliation("replace");
+                      }
+                    }}
                   >
                     {processing ? (
                       <>
