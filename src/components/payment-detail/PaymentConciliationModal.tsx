@@ -1604,7 +1604,9 @@ export function PaymentConciliationModal({
   // empresa para não acumular DOM com a base anterior.
   useEffect(() => {
     setShownByCompany({});
+    setPageByCompany({});
   }, [searchTerm, doctorFilter, companyFilter, minValue, maxValue, activeFilter, pageSize, initialCompany, items.length]);
+
 
   const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || companyFilter !== "todos" || minValue || maxValue);
   const isScoped = !!initialCompany || hasExtraFilters;
