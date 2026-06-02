@@ -671,12 +671,27 @@ export function PaymentConciliationModal({
 
   const handleProcessReconciliation = async (
     mode: "replace" | "merge_keep_others" = "replace",
+    overrides?: {
+      rows?: Record<string, unknown>[];
+      colMap?: Record<string, string>;
+      mapping?: Record<string, string>;
+      fileName?: string | null;
+      excludeConsultas?: boolean;
+    },
   ) => {
+    // Permite reprocessar a conciliação atual sem upload, reconstruindo
+    // rows/colMap/mapping a partir dos itens da última run.
+    const srcRows = overrides?.rows ?? parsedRows;
+    const srcColMap = overrides?.colMap ?? parsedColMap;
+    const srcMapping = overrides?.mapping ?? companyMapping;
+    const srcFileName = overrides?.fileName ?? pendingFileName;
+    const srcExcludeConsultas =
+      overrides?.excludeConsultas ?? excludeConsultas;
     setProcessing(true);
     try {
       // Empresas que este upload está cobrindo (mapeadas para empresas do lote)
       const currentMappedCompanies = new Set(
-        Object.values(companyMapping).filter(Boolean) as string[],
+        Object.values(srcMapping).filter(Boolean) as string[],
       );
 
       // Persiste o vínculo terceiro→empresa como alias em `companies.aliases`.
@@ -685,7 +700,7 @@ export function PaymentConciliationModal({
       const normForAlias = (s: string) =>
         s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
       const aliasUpdates: Array<{ id: string; aliases: string[]; name: string }> = [];
-      for (const [terceiro, companyName] of Object.entries(companyMapping)) {
+      for (const [terceiro, companyName] of Object.entries(srcMapping)) {
         if (!companyName || !terceiro) continue;
         const ent = companyAliasMap[companyName];
         if (!ent) continue;
@@ -739,7 +754,7 @@ export function PaymentConciliationModal({
           payment_id: paymentId,
           created_by: user?.id ?? null,
           status: "processing",
-          file_name: pendingFileName,
+          file_name: srcFileName,
         })
         .select()
         .single();
@@ -750,7 +765,7 @@ export function PaymentConciliationModal({
         s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 
       const getCell = (row: Record<string, unknown>, field: string): unknown => {
-        const col = parsedColMap[field];
+        const col = srcColMap[field];
         if (!col) return null;
         const v = row[col];
         return v != null && String(v).trim() !== "" ? v : null;
@@ -775,8 +790,8 @@ export function PaymentConciliationModal({
         return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
       };
 
-      console.log('[Conciliação] parsedColMap:', parsedColMap);
-      console.log('[Conciliação] parsedRows[0]:', parsedRows[0]);
+      console.log('[Conciliação] srcColMap:', srcColMap);
+      console.log('[Conciliação] srcRows[0]:', srcRows[0]);
       console.log('[Conciliação] paymentItems sample:', paymentItems.slice(0, 3).map(it => ({
         attendance_number: it.attendance_number,
         procedure_code: it.procedure_code,
@@ -785,29 +800,29 @@ export function PaymentConciliationModal({
       })));
 
       // Fallback: se procCode não foi detectado, tentar encontrar manualmente
-      if (!parsedColMap['procCode'] && parsedRows.length > 0) {
-        const firstRow = parsedRows[0];
+      if (!srcColMap['procCode'] && srcRows.length > 0) {
+        const firstRow = srcRows[0];
         const candidates = Object.keys(firstRow).filter(k => {
           const norm = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
           return norm.includes('tuss') || norm.includes('codigo') || norm.includes('código');
         });
         if (candidates.length > 0) {
-          parsedColMap['procCode'] = candidates[0];
+          srcColMap['procCode'] = candidates[0];
           console.log('[Conciliação] procCode detectado no fallback:', candidates[0]);
         }
       }
 
-      const filteredRows = parsedRows.filter((row) => {
-        const col = parsedColMap["company"];
+      const filteredRows = srcRows.filter((row) => {
+        const col = srcColMap["company"];
         const terceiro = col ? String(row[col] ?? "").trim() : "";
-        return terceiro && companyMapping[terceiro];
+        return terceiro && srcMapping[terceiro];
       });
 
       // Filtro de procedimentos — exclui Consultas/Visitas por padrão
       const GRUPOS_EXCLUIR = new Set(['CONSULTAS', 'VISITAS']);
-      const colGrupo = parsedColMap['grupo'] ?? null;
+      const colGrupo = srcColMap['grupo'] ?? null;
 
-      const rowsParaCruzamento = excludeConsultas && colGrupo
+      const rowsParaCruzamento = srcExcludeConsultas && colGrupo
         ? filteredRows.filter(row => {
             const grupo = String(row[colGrupo] ?? '').trim();
             return !GRUPOS_EXCLUIR.has(grupo.toUpperCase());
@@ -817,8 +832,8 @@ export function PaymentConciliationModal({
       const sampleRow = rowsParaCruzamento[0];
       if (sampleRow) {
         console.log('[Conciliação] sample row filtrada:', sampleRow);
-        console.log('[Conciliação] att col:', parsedColMap['attendance'], '-> valor:', sampleRow[parsedColMap['attendance']]);
-        console.log('[Conciliação] code col:', parsedColMap['procCode'], '-> valor:', sampleRow[parsedColMap['procCode']]);
+        console.log('[Conciliação] att col:', srcColMap['attendance'], '-> valor:', sampleRow[srcColMap['attendance']]);
+        console.log('[Conciliação] code col:', srcColMap['procCode'], '-> valor:', sampleRow[srcColMap['procCode']]);
       }
 
       const normalizeCode = (code: unknown): string => {
@@ -920,9 +935,9 @@ export function PaymentConciliationModal({
         const roleHosp = getCell(row, "role");
         const qtyHosp = getCell(row, "quantity");
         const routeHosp = getCell(row, "accessRoute");
-        const col = parsedColMap["company"];
+        const col = srcColMap["company"];
         const terceiro = col ? String(row[col] ?? "").trim() : "";
-        const mappedCompany = companyMapping[terceiro] ?? terceiro;
+        const mappedCompany = srcMapping[terceiro] ?? terceiro;
         const dateStr = toDateStr(dateRaw);
         const k = makeKey(att, code);
         const candidates = exactaByKey.get(k) ?? [];
@@ -1152,7 +1167,7 @@ export function PaymentConciliationModal({
       }
 
       const mappedLoteCompanies = new Set(
-        Object.values(companyMapping).filter(Boolean) as string[],
+        Object.values(srcMapping).filter(Boolean) as string[],
       );
       for (const it of exactaItemsForRun) {
         if (matchedExactaIds.has(it.id)) continue;
@@ -1261,6 +1276,86 @@ export function PaymentConciliationModal({
       setProcessing(false);
     }
   };
+
+  /**
+   * Reprocessa a conciliação atual sem precisar de novo upload.
+   * Reconstrói as "linhas do hospital" a partir dos `reconciliation_items`
+   * da última run (que já preservam doctor/role/quantity/valor/via via
+   * match_diagnostics.hospital). Útil quando o motor/regras mudaram ou
+   * quando vínculos manuais foram salvos como alias e o usuário só quer
+   * que a UI volte a rodar o matching estrito.
+   */
+  const handleReprocessFromCurrent = async () => {
+    if (!run?.id || items.length === 0) {
+      toast({
+        title: "Nada para reprocessar",
+        description: "Não há uma conciliação atual carregada.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Só considera linhas que vieram do hospital (ignora "só Exacta",
+    // que são reinferidas naturalmente no matching).
+    const hospitalItems = items.filter((it) => it.status !== "so_exacta");
+    if (hospitalItems.length === 0) {
+      toast({
+        title: "Sem linhas do hospital",
+        description: "A conciliação atual não tem itens para recruzar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const colMap: Record<string, string> = {
+      company: "__company",
+      attendance: "__att",
+      procCode: "__code",
+      value: "__valor",
+      patient: "__patient",
+      doctor: "__doctor",
+      procName: "__procName",
+      date: "__date",
+      role: "__role",
+      quantity: "__qty",
+      accessRoute: "__route",
+      agreement: "__agreement",
+    };
+
+    const rows: Record<string, unknown>[] = hospitalItems.map((it) => {
+      const hospDiag = it.match_diagnostics?.hospital;
+      return {
+        __company: it.company_name ?? "",
+        __att: it.attendance_number ?? "",
+        __code: it.procedure_code ?? "",
+        __valor: it.valor_hospital ?? 0,
+        __patient: it.patient_name ?? "",
+        __doctor: hospDiag?.doctor ?? it.doctor_name ?? "",
+        __procName: it.procedure_name ?? "",
+        __date: it.procedure_date ?? "",
+        __role: hospDiag?.role ?? (it as any).role ?? "",
+        __qty: (it as any).quantity ?? "",
+        __route: hospDiag?.route ?? "",
+        __agreement: it.agreement_text ?? "",
+      };
+    });
+
+    // Mapping de empresa: identidade (já é o nome canônico no lote).
+    const mapping: Record<string, string> = {};
+    for (const it of hospitalItems) {
+      const c = it.company_name ?? "";
+      if (c) mapping[c] = c;
+    }
+
+    await handleProcessReconciliation("replace", {
+      rows,
+      colMap,
+      mapping,
+      fileName: run.file_name ?? "reprocessamento",
+      excludeConsultas: false, // linhas já vieram filtradas
+    });
+  };
+
+
 
   const doctorOptions = useMemo(() => {
     const base = initialCompany
@@ -2266,12 +2361,24 @@ export function PaymentConciliationModal({
               {/* Info do arquivo */}
               <div className="flex items-center gap-3 px-4 py-2.5 bg-muted/50 border border-border rounded-lg text-xs text-muted-foreground">
                 <FileDown className="h-4 w-4 shrink-0" />
-                <span>
+                <span className="flex-1">
                   <strong>{run.file_name}</strong> · {run.total_items} itens processados
                   {excludeConsultas && ' · consultas e visitas excluídas'}
                   · conciliação em {formatDateTimeBR(run.created_at)}
                 </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 h-7 text-xs"
+                  disabled={processing}
+                  onClick={handleReprocessFromCurrent}
+                  title="Recruza esta conciliação sem precisar subir a planilha de novo. Usa os mesmos vínculos de empresa já confirmados e aplica as regras atualizadas."
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${processing ? "animate-spin" : ""}`} />
+                  Reprocessar agora
+                </Button>
               </div>
+
 
               {/* Aviso de defasagem: detecta reanálise do lote, atualização de regras
                   ou nova versão da lógica de conciliação desde o último run. */}
