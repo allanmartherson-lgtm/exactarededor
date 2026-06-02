@@ -2172,7 +2172,7 @@ export function PaymentConciliationModal({
                                       </TableRow>
                                       {isRowOpen && it.ia_obs && (
                                         <TableRow key={`${it.id}-exp`}>
-                                          <TableCell colSpan={9} className="bg-muted/30 px-4 py-3">
+                                          <TableCell colSpan={10} className="bg-muted/30 px-4 py-3">
                                             <div className="flex gap-3">
                                               <Lightbulb className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                                               <div className="flex-1">
