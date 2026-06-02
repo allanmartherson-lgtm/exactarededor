@@ -7,8 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Building2, Stethoscope, Save, Star } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import { Building2, Stethoscope, Save, Star, Plus, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type Hospital = { id: string; name: string; state_uf: string };
 
@@ -19,6 +31,7 @@ type PortalUserRow = {
   parent_name: string;
   parent_doc: string | null;
   email: string | null;
+  full_name: string | null;
   active: boolean;
   hospital_ids: Set<string>;
   primary_hospital_id: string | null;
@@ -34,6 +47,7 @@ const CONFIG: Record<Kind, {
   parentNameCol: string;
   parentDocCol: string;
   label: string;
+  entityLabel: string;
   icon: typeof Building2;
 }> = {
   company: {
@@ -44,6 +58,7 @@ const CONFIG: Record<Kind, {
     parentNameCol: "name",
     parentDocCol: "cnpj",
     label: "Empresa",
+    entityLabel: "empresa",
     icon: Building2,
   },
   doctor: {
@@ -54,23 +69,226 @@ const CONFIG: Record<Kind, {
     parentNameCol: "full_name",
     parentDocCol: "crm",
     label: "Médico",
+    entityLabel: "médico",
     icon: Stethoscope,
   },
 };
 
+// =============================================================================
+// Diálogo de cadastro de novo usuário de portal
+// =============================================================================
+function NewPortalUserDialog({
+  kind, hospitals, onCreated,
+}: {
+  kind: Kind;
+  hospitals: Hospital[];
+  onCreated: () => void;
+}) {
+  const cfg = CONFIG[kind];
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [entityId, setEntityId] = useState<string | null>(null);
+  const [entityLabel, setEntityLabel] = useState("");
+  const [entityPickerOpen, setEntityPickerOpen] = useState(false);
+  const [entityQuery, setEntityQuery] = useState("");
+  const [entityOptions, setEntityOptions] = useState<{ id: string; label: string; doc: string | null }[]>([]);
+  const [selectedHospitals, setSelectedHospitals] = useState<Set<string>>(new Set());
+  const [primaryHospital, setPrimaryHospital] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    void (async () => {
+      const q = entityQuery.trim();
+      let query = supabase
+        .from(cfg.parentTable)
+        .select(`id, ${cfg.parentNameCol}, ${cfg.parentDocCol}`)
+        .order(cfg.parentNameCol)
+        .limit(30);
+      if (q) query = query.ilike(cfg.parentNameCol, `%${q}%`);
+      const { data } = await query;
+      setEntityOptions(
+        (data ?? []).map((r: any) => ({
+          id: r.id,
+          label: r[cfg.parentNameCol] ?? "—",
+          doc: r[cfg.parentDocCol] ?? null,
+        })),
+      );
+    })();
+  }, [open, entityQuery, cfg]);
+
+  const reset = () => {
+    setFullName(""); setEmail(""); setEntityId(null); setEntityLabel("");
+    setSelectedHospitals(new Set()); setPrimaryHospital(null); setEntityQuery("");
+  };
+
+  const submit = async () => {
+    if (!email.trim() || !entityId) {
+      toast.error("Informe e-mail e selecione a " + cfg.entityLabel);
+      return;
+    }
+    setSubmitting(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-portal-user", {
+      body: {
+        kind,
+        email: email.trim().toLowerCase(),
+        full_name: fullName.trim(),
+        entity_id: entityId,
+        hospital_ids: Array.from(selectedHospitals),
+        primary_hospital_id: primaryHospital,
+        send_invite: true,
+        app_origin: window.location.origin,
+      },
+    });
+    setSubmitting(false);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error ?? error?.message ?? "Falha ao cadastrar");
+      return;
+    }
+    toast.success("Usuário de portal cadastrado. Convite enviado por e-mail.");
+    reset();
+    setOpen(false);
+    onCreated();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+      <DialogTrigger asChild>
+        <Button size="sm"><Plus className="mr-2 h-4 w-4" />Novo usuário</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Cadastrar usuário — Portal {cfg.label}</DialogTitle>
+          <DialogDescription>
+            Cria o acesso de portal para um(a) {cfg.entityLabel}. Este usuário <strong>não recebe permissão no Exacta</strong>;
+            o acesso é feito pelo link enviado por e-mail.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Nome completo</Label>
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ex.: Maria Souza" />
+            </div>
+            <div>
+              <Label>E-mail</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="maria@empresa.com" />
+            </div>
+          </div>
+
+          <div>
+            <Label>{cfg.label} vinculada</Label>
+            <Popover open={entityPickerOpen} onOpenChange={setEntityPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between mt-1">
+                  {entityLabel || `Selecionar ${cfg.entityLabel}…`}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Buscar…"
+                    value={entityQuery}
+                    onValueChange={setEntityQuery}
+                  />
+                  <CommandList>
+                    <CommandEmpty>Nenhum resultado.</CommandEmpty>
+                    <CommandGroup>
+                      {entityOptions.map((opt) => (
+                        <CommandItem
+                          key={opt.id}
+                          value={opt.id}
+                          onSelect={() => {
+                            setEntityId(opt.id);
+                            setEntityLabel(opt.label);
+                            setEntityPickerOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", entityId === opt.id ? "opacity-100" : "opacity-0")} />
+                          <span className="flex-1 truncate">{opt.label}</span>
+                          {opt.doc && <span className="ml-2 text-xs text-muted-foreground">{opt.doc}</span>}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div>
+            <Label>Hospitais (visibilidade)</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Marque os hospitais que este usuário poderá ver no portal. A estrela define o principal.
+            </p>
+            <div className="grid gap-2 max-h-56 overflow-y-auto rounded-md border p-2 sm:grid-cols-2">
+              {hospitals.map((h) => {
+                const checked = selectedHospitals.has(h.id);
+                const isPrimary = primaryHospital === h.id;
+                return (
+                  <div
+                    key={h.id}
+                    className={cn(
+                      "flex items-center justify-between rounded-md border p-2 text-sm",
+                      checked && "border-primary/40 bg-primary/5",
+                    )}
+                  >
+                    <label className="flex items-center gap-2 cursor-pointer flex-1">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => {
+                          setSelectedHospitals((prev) => {
+                            const n = new Set(prev);
+                            if (n.has(h.id)) { n.delete(h.id); if (primaryHospital === h.id) setPrimaryHospital(null); }
+                            else { n.add(h.id); if (!primaryHospital) setPrimaryHospital(h.id); }
+                            return n;
+                          });
+                        }}
+                      />
+                      <span className="truncate">{h.name}</span>
+                      <span className="text-xs text-muted-foreground">{h.state_uf}</span>
+                    </label>
+                    {checked && (
+                      <button type="button" onClick={() => setPrimaryHospital(h.id)} className="ml-2">
+                        <Star className={cn("h-4 w-4", isPrimary ? "fill-amber-400 text-amber-500" : "text-muted-foreground")} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>Cancelar</Button>
+          <Button onClick={submit} disabled={submitting}>{submitting ? "Cadastrando…" : "Cadastrar e enviar convite"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// =============================================================================
+// Painel principal por tipo
+// =============================================================================
 function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital[] }) {
   const cfg = CONFIG[kind];
   const [rows, setRows] = useState<PortalUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     const { data: users, error } = await supabase
       .from(cfg.portalTable)
-      .select(`id, user_id, ${cfg.parentFk}, active`)
-      .eq("active", true);
+      .select(`id, user_id, ${cfg.parentFk}, active`);
     if (error) {
       toast.error("Falha ao carregar usuários do portal");
       setLoading(false);
@@ -79,7 +297,7 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
     const parentIds = (users ?? []).map((u: any) => u[cfg.parentFk]).filter(Boolean);
     const userIds = (users ?? []).map((u: any) => u.user_id).filter(Boolean);
 
-    const [parentsRes, linksRes, emailsRes] = await Promise.all([
+    const [parentsRes, linksRes, profilesRes] = await Promise.all([
       supabase
         .from(cfg.parentTable)
         .select(`id, ${cfg.parentNameCol}, ${cfg.parentDocCol}`)
@@ -90,12 +308,12 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
         .in("portal_user_id", (users ?? []).map((u: any) => u.id)),
       supabase
         .from("profiles")
-        .select("id, email")
+        .select("id, email, full_name")
         .in("id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
     ]);
 
     const parentMap = new Map<string, any>((parentsRes.data ?? []).map((p: any) => [p.id, p]));
-    const emailMap = new Map<string, string>((emailsRes.data ?? []).map((p: any) => [p.id, p.email]));
+    const profileMap = new Map<string, any>((profilesRes.data ?? []).map((p: any) => [p.id, p]));
     const linksByUser = new Map<string, { hospital_id: string; is_primary: boolean }[]>();
     for (const l of linksRes.data ?? []) {
       const arr = linksByUser.get((l as any).portal_user_id) ?? [];
@@ -105,6 +323,7 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
 
     const built: PortalUserRow[] = (users ?? []).map((u: any) => {
       const parent = parentMap.get(u[cfg.parentFk]);
+      const profile = profileMap.get(u.user_id);
       const links = linksByUser.get(u.id) ?? [];
       return {
         id: u.id,
@@ -112,13 +331,14 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
         parent_id: u[cfg.parentFk],
         parent_name: parent?.[cfg.parentNameCol] ?? "—",
         parent_doc: parent?.[cfg.parentDocCol] ?? null,
-        email: emailMap.get(u.user_id) ?? null,
+        email: profile?.email ?? null,
+        full_name: profile?.full_name ?? null,
         active: u.active,
         hospital_ids: new Set(links.map((l) => l.hospital_id)),
         primary_hospital_id: links.find((l) => l.is_primary)?.hospital_id ?? null,
       };
     });
-    built.sort((a, b) => a.parent_name.localeCompare(b.parent_name));
+    built.sort((a, b) => Number(b.active) - Number(a.active) || a.parent_name.localeCompare(b.parent_name));
     setRows(built);
     setLoading(false);
   };
@@ -179,56 +399,100 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
     setSavingId(null);
   };
 
+  const toggleActive = async (row: PortalUserRow) => {
+    setTogglingId(row.id);
+    const nextActive = !row.active;
+    const { error } = await supabase
+      .from(cfg.portalTable)
+      .update({ active: nextActive })
+      .eq("id", row.id);
+    setTogglingId(null);
+    if (error) {
+      toast.error("Falha ao alterar o status do acesso");
+      return;
+    }
+    toast.success(nextActive ? "Acesso habilitado" : "Acesso desabilitado");
+    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, active: nextActive } : r)));
+  };
+
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      r.parent_name.toLowerCase().includes(q) ||
-      (r.email ?? "").toLowerCase().includes(q) ||
-      (r.parent_doc ?? "").toLowerCase().includes(q),
-    );
-  }, [rows, filter]);
+    return rows
+      .filter((r) => showInactive ? true : r.active)
+      .filter((r) => {
+        if (!q) return true;
+        return (
+          r.parent_name.toLowerCase().includes(q) ||
+          (r.email ?? "").toLowerCase().includes(q) ||
+          (r.full_name ?? "").toLowerCase().includes(q) ||
+          (r.parent_doc ?? "").toLowerCase().includes(q)
+        );
+      });
+  }, [rows, filter, showInactive]);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Input
-          placeholder={`Buscar por ${cfg.label.toLowerCase()}, email ou documento…`}
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="max-w-md"
-        />
-        <Badge variant="secondary">{filtered.length} usuários</Badge>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-1 items-center gap-3 min-w-[260px]">
+          <Input
+            placeholder={`Buscar por ${cfg.entityLabel}, nome, e-mail ou documento…`}
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="max-w-md"
+          />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap">
+            <Switch checked={showInactive} onCheckedChange={setShowInactive} />
+            Mostrar desabilitados
+          </label>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge variant="secondary">{filtered.length} usuários</Badge>
+          <NewPortalUserDialog kind={kind} hospitals={hospitals} onCreated={load} />
+        </div>
       </div>
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : filtered.length === 0 ? (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Nenhum usuário de portal {cfg.label.toLowerCase()} encontrado.
+          Nenhum usuário de portal {cfg.entityLabel} encontrado.
         </CardContent></Card>
       ) : (
         <div className="space-y-3">
           {filtered.map((row) => {
             const Icon = cfg.icon;
             return (
-              <Card key={row.id}>
+              <Card key={row.id} className={cn(!row.active && "opacity-70")}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
                       <div className="rounded-md bg-muted p-2"><Icon className="h-4 w-4" /></div>
                       <div>
-                        <CardTitle className="text-base">{row.parent_name}</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          {row.parent_name}
+                          {!row.active && <Badge variant="outline" className="text-xs">Desabilitado</Badge>}
+                        </CardTitle>
                         <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                          {row.full_name && <span>{row.full_name}</span>}
                           {row.parent_doc && <span>{row.parent_doc}</span>}
                           {row.email && <span>{row.email}</span>}
                         </div>
                       </div>
                     </div>
-                    <Button size="sm" onClick={() => save(row)} disabled={savingId === row.id}>
-                      <Save className="mr-2 h-4 w-4" />
-                      {savingId === row.id ? "Salvando…" : "Salvar"}
-                    </Button>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Switch
+                          checked={row.active}
+                          disabled={togglingId === row.id}
+                          onCheckedChange={() => toggleActive(row)}
+                        />
+                        {row.active ? "Habilitado" : "Desabilitado"}
+                      </label>
+                      <Button size="sm" onClick={() => save(row)} disabled={savingId === row.id || !row.active}>
+                        <Save className="mr-2 h-4 w-4" />
+                        {savingId === row.id ? "Salvando…" : "Salvar"}
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -242,13 +506,15 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
                       return (
                         <div
                           key={h.id}
-                          className={`flex items-center justify-between rounded-md border p-2 text-sm ${
-                            checked ? "border-primary/40 bg-primary/5" : ""
-                          }`}
+                          className={cn(
+                            "flex items-center justify-between rounded-md border p-2 text-sm",
+                            checked && "border-primary/40 bg-primary/5",
+                          )}
                         >
                           <label className="flex items-center gap-2 cursor-pointer flex-1">
                             <Checkbox
                               checked={checked}
+                              disabled={!row.active}
                               onCheckedChange={() => toggleHospital(row.id, h.id)}
                             />
                             <span className="truncate">{h.name}</span>
@@ -260,11 +526,13 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
                               onClick={() => setPrimary(row.id, h.id)}
                               title="Definir como hospital principal"
                               className="ml-2"
+                              disabled={!row.active}
                             >
                               <Star
-                                className={`h-4 w-4 ${
-                                  isPrimary ? "fill-amber-400 text-amber-500" : "text-muted-foreground"
-                                }`}
+                                className={cn(
+                                  "h-4 w-4",
+                                  isPrimary ? "fill-amber-400 text-amber-500" : "text-muted-foreground",
+                                )}
                               />
                             </button>
                           )}
@@ -299,8 +567,8 @@ export default function PortalUsers() {
   return (
     <div className="space-y-6 p-6">
       <PageHeader
-        title="Usuários dos Portais"
-        description="Defina em quais hospitais cada usuário externo (empresa ou médico) pode operar. Cada hospital é uma visão isolada — sem mistura."
+        title="Acessos aos Portais"
+        description="Cadastre, habilite/desabilite e defina em quais hospitais cada usuário externo (empresa ou médico) pode operar. Usuários de portal não têm acesso ao Exacta — o login é feito pelo link enviado por e-mail."
       />
       <Tabs defaultValue="company">
         <TabsList>
