@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -387,6 +387,12 @@ export function ItemsDataGrid({
     110 +
     (colVis.observacao ? 70 : 0) +
     (canEdit ? 120 : 0);
+  const topScrollRef = useRef<HTMLDivElement | null>(null);
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  const syncScrollLeft = (source: "top" | "grid", left: number) => {
+    const target = source === "top" ? gridScrollRef.current : topScrollRef.current;
+    if (target && Math.abs(target.scrollLeft - left) > 1) target.scrollLeft = left;
+  };
 
   return (
     // Altura própria pra ativar o scroll interno mesmo dentro de um pai sem altura.
@@ -600,7 +606,19 @@ export function ItemsDataGrid({
 
       {/* Tabela / Lista */}
       <div className="flex-1 min-h-0 overflow-hidden bg-background isolate pb-2">
-        <div className="grid-scroll-area h-full w-full overflow-scroll isolate pb-4">
+        <div
+          ref={topScrollRef}
+          className="grid-scroll-rail hidden md:block h-4 overflow-x-scroll overflow-y-hidden border-b bg-muted/20"
+          aria-label="Rolagem horizontal da tabela"
+          onScroll={(e) => syncScrollLeft("top", e.currentTarget.scrollLeft)}
+        >
+          <div style={{ width: tableMinWidth, height: 1 }} />
+        </div>
+        <div
+          ref={gridScrollRef}
+          className="grid-scroll-area h-[calc(100%-1rem)] w-full overflow-scroll isolate pb-4"
+          onScroll={(e) => syncScrollLeft("grid", e.currentTarget.scrollLeft)}
+        >
           {/* MOBILE — lista de cards (< md) */}
           <ul className="md:hidden divide-y">
             {filtered.length === 0 && (
