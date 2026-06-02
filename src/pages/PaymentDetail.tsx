@@ -693,6 +693,56 @@ const PaymentDetail = () => {
     navigate("/pagamentos");
   };
 
+  // Modo confecção: exporta xlsx com coluna de repasse calculado.
+  const exportConfeccaoXlsx = () => {
+    if (!items.length) return;
+    const rows = items.map((it: any) => ({
+      "Empresa": it.company_name ?? "",
+      "Médico": it.doctor_name ?? "",
+      "Função": it.doctor_role ?? "",
+      "Atendimento": it.attendance_number ?? "",
+      "Código TUSS": it.procedure_code ?? "",
+      "Procedimento": it.procedure_name ?? it.description ?? "",
+      "Convênio": it.agreement_text ?? "",
+      "Data Procedimento": it.procedure_date ? new Date(it.procedure_date).toLocaleDateString("pt-BR") : "",
+      "Valor Convênio (R$)": Number(it.procedure_amount ?? it.gross_amount ?? 0),
+      "Repasse Calculado (R$)": it.expected_amount != null ? Number(it.expected_amount) : "",
+      "Regra Aplicada": it.applied_rule_label ?? "",
+      "Setor": it.sector ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Confecção");
+    XLSX.writeFile(wb, `confeccao-${payment?.reference ?? "lote"}.xlsx`);
+  };
+
+  // Modo confecção: envia todos os grupos (em revisao_analista) direto para validação.
+  const sendConfeccaoForValidation = async () => {
+    if (!id) return;
+    const targets = groups.filter((g) => ["revisao_analista", "devolvido_analista"].includes(g.status));
+    if (targets.length === 0) {
+      toast({ title: "Nenhum grupo disponível para envio", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    await autoClaim();
+    for (const g of targets) {
+      await supabase.from("payment_company_groups")
+        .update({ status: "aguardando_validacao" })
+        .eq("id", g.id);
+      await recordObservation({
+        payment_id: id, author_type: "analista", author_id: user!.id,
+        message: `[${g.company_name}] Confecção revisada e enviada para validação.`,
+        status_from: g.status, status_to: "aguardando_validacao",
+      });
+    }
+    await load();
+    setBusy(false);
+    toast({ title: "Enviado para validação", description: `${targets.length} empresa(s) encaminhada(s).` });
+    navigate("/pagamentos");
+  };
+
+
   const sendForValidation = async (onlyGroupId?: string) => {
     if (!id) return;
     const scope = onlyGroupId ? groups.filter((g) => g.id === onlyGroupId) : groups;
