@@ -24,6 +24,7 @@ import {
   ChevronDown,
   ChevronRight,
   RotateCcw,
+  RefreshCw,
   Building2,
   Search,
   Copy,
@@ -210,6 +211,15 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
   return FIXED_CALC_METHODS.has(norm);
 };
 
+/**
+ * Versão da lógica de conciliação. Sempre que migrarmos regras de classificação
+ * (ex.: introdução do `qtd_divergente`, mudança no critério de divergência por
+ * regra fixa), atualizar esta data. Runs criados antes desta data são
+ * automaticamente considerados defasados e o usuário é convidado a reprocessar.
+ */
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T14:00:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "qtd_divergente + regra fixa vs proporcional";
+
 export function PaymentConciliationModal({
   open,
   onOpenChange,
@@ -230,6 +240,7 @@ export function PaymentConciliationModal({
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rulesLastUpdate, setRulesLastUpdate] = useState<string | null>(null);
 
   // Busca e filtros adicionais (texto livre, médico, faixa de valor)
   const [searchTerm, setSearchTerm] = useState("");
@@ -327,6 +338,20 @@ export function PaymentConciliationModal({
       loadConcBases();
       setActiveFilter("todos");
       setExpandedCompany(initialCompany ?? null);
+      // Busca timestamp da regra mais recente para detectar conciliação defasada
+      (async () => {
+        try {
+          const { data } = await (supabase as any)
+            .from("rules")
+            .select("updated_at")
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          setRulesLastUpdate(data?.updated_at ?? null);
+        } catch {
+          setRulesLastUpdate(null);
+        }
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialCompany]);
@@ -1921,22 +1946,73 @@ export function PaymentConciliationModal({
                 </span>
               </div>
 
-              {/* Aviso de defasagem: lote foi reanalisado após a conciliação */}
+              {/* Aviso de defasagem: detecta reanálise do lote, atualização de regras
+                  ou nova versão da lógica de conciliação desde o último run. */}
               {(() => {
+                if (!run.created_at) return null;
+                const runTs = new Date(run.created_at).getTime();
+                const reasons: { key: string; label: React.ReactNode }[] = [];
+
                 const lastAnalyzed = paymentItems
                   .map((it) => (it as any).applied_at as string | null)
                   .filter(Boolean)
                   .sort()
                   .pop();
-                if (!lastAnalyzed || !run.created_at) return null;
-                const stale = new Date(lastAnalyzed).getTime() > new Date(run.created_at).getTime();
-                if (!stale) return null;
+                if (lastAnalyzed && new Date(lastAnalyzed).getTime() > runTs) {
+                  reasons.push({
+                    key: "reanalise",
+                    label: (
+                      <>Lote reanalisado em <strong>{formatDateTimeBR(lastAnalyzed)}</strong> — exclusões/inclusões pelo motor podem ter mudado.</>
+                    ),
+                  });
+                }
+
+                if (rulesLastUpdate && new Date(rulesLastUpdate).getTime() > runTs) {
+                  reasons.push({
+                    key: "regras",
+                    label: (
+                      <>Regras de pagamento atualizadas em <strong>{formatDateTimeBR(rulesLastUpdate)}</strong> — o valor esperado por item pode ter mudado.</>
+                    ),
+                  });
+                }
+
+                if (runTs < new Date(RECONCILIATION_LOGIC_VERSION_DATE).getTime()) {
+                  reasons.push({
+                    key: "logica",
+                    label: (
+                      <>Nova lógica de classificação disponível (<strong>{RECONCILIATION_LOGIC_VERSION_LABEL}</strong>) — separa divergência de valor (acordo proporcional) de divergência de quantidade (acordo fixo).</>
+                    ),
+                  });
+                }
+
+                if (reasons.length === 0) return null;
+
                 return (
-                  <div className="flex items-start gap-2 px-4 py-2.5 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning-text">
+                  <div className="flex items-start gap-3 px-4 py-3 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning-text">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Snapshot defasado:</strong> o lote foi reanalisado em {formatDateTimeBR(lastAnalyzed)}, depois desta conciliação. Clique em <strong>Nova conciliação</strong> para refazer o cruzamento com os dados atuais. (A comparação financeira usa a tabela do convênio e não depende das regras, mas inclusões/exclusões de itens pelo motor podem ter mudado.)
-                    </span>
+                    <div className="flex-1 space-y-1.5">
+                      <p className="font-semibold">
+                        Conciliação desatualizada ({reasons.length} {reasons.length === 1 ? "motivo" : "motivos"})
+                      </p>
+                      <ul className="list-disc pl-4 space-y-0.5">
+                        {reasons.map((r) => (
+                          <li key={r.key}>{r.label}</li>
+                        ))}
+                      </ul>
+                      <p className="text-[11px] opacity-80">
+                        Conciliação atual: {formatDateTimeBR(run.created_at)}.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="shrink-0"
+                      onClick={() => setStep("select_base")}
+                      disabled={processing}
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${processing ? "animate-spin" : ""}`} />
+                      Reprocessar
+                    </Button>
                   </div>
                 );
               })()}
