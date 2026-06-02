@@ -2666,6 +2666,19 @@ export function PaymentConciliationModal({
                         {terceiro}
                       </p>
                       {badge}
+                      {level === 'medium' && mapped && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-[11px] border-warning/40 text-warning-text hover:bg-warning/10 shrink-0"
+                          onClick={() =>
+                            setMatchLevels((prev) => ({ ...prev, [terceiro]: 'exact' }))
+                          }
+                          title="Aceitar a sugestão deste vínculo. Sem confirmar, este terceiro NÃO entra no cruzamento."
+                        >
+                          Confirmar
+                        </Button>
+                      )}
                       <select
                         value={mapped ?? "__ignore__"}
                         onChange={(e) => {
@@ -2695,9 +2708,9 @@ export function PaymentConciliationModal({
 
               <div className="flex items-center justify-between pt-3 border-t border-border">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-success font-semibold">{exactCount}</span> auto-vinculadas ·{" "}
-                  <span className="text-warning-foreground font-semibold">{confirmCount}</span> aguardando confirmação ·{" "}
-                  <span className="text-muted-foreground">{pendingCount}</span> não encontradas
+                  <span className="text-success font-semibold">{exactCount}</span> confirmadas ·{" "}
+                  <span className="text-warning-foreground font-semibold">{confirmCount}</span> sugestões pendentes (não entram no cruzamento) ·{" "}
+                  <span className="text-muted-foreground">{pendingCount - confirmCount}</span> sem match
                 </p>
                 <div className="flex gap-2">
                   <Button
