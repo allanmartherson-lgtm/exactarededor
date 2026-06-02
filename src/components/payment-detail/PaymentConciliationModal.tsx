@@ -1643,11 +1643,25 @@ export function PaymentConciliationModal({
     return `conciliacao_${hospPart}_${companyPart}_${refPart}_${idPart}_${today}.${ext}`;
   };
 
-  const handleExport = () => {
+  // Helper para formatar quantidade (Exacta vem de exactaQtyById; hospital de it.quantity).
+  const fmtQty = (q: number | null | undefined): string => {
+    if (q == null || !Number.isFinite(Number(q))) return "";
+    const n = Number(q);
+    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ",");
+  };
+  const getQtyExacta = (it: ReconciliationItem): number | null => {
+    const raw = it.payment_item_id ? exactaQtyById.get(it.payment_item_id) : null;
+    return raw == null ? null : Number(raw);
+  };
+  const getQtyHospital = (it: ReconciliationItem): number | null => {
+    const q = (it as { quantity?: number | null }).quantity;
+    return q == null ? null : Number(q);
+  };
+
+  const handleExportXlsx = (itemsToExport: ReconciliationItem[], scopeLabel: string) => {
     if (!run) return;
 
-
-    const data = filteredItems.map((it) => ({
+    const data = itemsToExport.map((it) => ({
       "Status": STATUS_LABEL[it.status],
       "Empresa": it.company_name ?? "",
       "Médico": it.doctor_name ?? "",
@@ -1655,6 +1669,8 @@ export function PaymentConciliationModal({
       "Atendimento": it.attendance_number ?? "",
       "Cód. TUSS": it.procedure_code ?? "",
       "Procedimento": it.procedure_name ?? "",
+      "Qtd Exacta": fmtQty(getQtyExacta(it)),
+      "Qtd Hospital": fmtQty(getQtyHospital(it)),
       "Data": it.procedure_date ? formatDateBR(it.procedure_date) : "",
       "Convênio": it.agreement_text ?? "",
       "Exacta (R$)": Number(it.valor_exacta),
@@ -1669,8 +1685,9 @@ export function PaymentConciliationModal({
 
     ws["!cols"] = [
       { wch: 18 }, { wch: 38 }, { wch: 30 }, { wch: 30 }, { wch: 14 },
-      { wch: 14 }, { wch: 48 }, { wch: 12 }, { wch: 22 }, { wch: 14 },
-      { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 20 }, { wch: 60 },
+      { wch: 14 }, { wch: 48 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
+      { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 36 },
+      { wch: 20 }, { wch: 60 },
     ];
 
     const headerRange = XLSX.utils.decode_range(ws['!ref'] ?? 'A1');
