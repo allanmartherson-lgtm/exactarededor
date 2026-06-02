@@ -668,6 +668,7 @@ export const AppLayout = () => {
   // Grouped variant for sidebar with section labels (preserves NAV_ITEMS structure).
   const groupedSideNav = filterNav(NAV_ITEMS, roles);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [modeModalOpen, setModeModalOpen] = useState(false);
 
   // Sidebar collapsed state (persisted in localStorage)
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
