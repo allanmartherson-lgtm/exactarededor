@@ -381,7 +381,7 @@ function EditPortalUserDialog({
       phoneDigits = r.data;
     }
     setSaving(true);
-    const payload: Record<string, unknown> = {
+    const payload = {
       full_name: fullName.trim() || null,
       cpf: cpf ? onlyDigits(cpf) : null,
       phone: phoneDigits || null,
