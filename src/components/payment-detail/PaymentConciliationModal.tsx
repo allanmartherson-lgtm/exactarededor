@@ -813,7 +813,37 @@ export function PaymentConciliationModal({
           base.valor_regra = (match as any).expected_amount ?? null;
 
           const diff = valHosp - valMed;
-          if (Math.abs(diff) < 0.02) {
+          const calcMethod = (match as any).applied_calc_method as string | null;
+          const valRegra = Number((match as any).expected_amount ?? 0) || 0;
+          const isFixed = isFixedCalcMethod(calcMethod) && valRegra > 0;
+
+          if (isFixed) {
+            // VALOR FIXO POR CÓDIGO (tabela diferenciada, pacote, valor fixo,
+            // bônus): valor não pode variar. O que importa é a quantidade
+            // de atendimentos por código. Comparamos qty informada pelo
+            // hospital com qty do item na Exacta; quando o hospital não
+            // envia coluna de qty, inferimos pela razão valor_hospital/valor_regra.
+            const qtyMed = Number((match as any).quantity ?? 1) || 1;
+            const qtyHospExplicit = Number(String(qtyHosp ?? "").replace(",", ".")) || 0;
+            const qtyHospInferred = valRegra > 0 ? Math.round(valHosp / valRegra) : 0;
+            const qtyHospFinal = qtyHospExplicit > 0 ? qtyHospExplicit : qtyHospInferred;
+            const qtyOk = qtyHospFinal > 0 && qtyHospFinal === qtyMed;
+            const valuePerUnitOk = valRegra > 0 && Math.abs(valHosp - valRegra * qtyMed) < 0.02;
+
+            if (qtyOk || valuePerUnitOk) {
+              base.status = "conciliado";
+              conciliado++;
+            } else {
+              base.status = "qtd_divergente";
+              qtd_divergente++;
+              const qtyTxt = qtyHospFinal > 0 ? `${qtyHospFinal}` : "indefinida";
+              base.ia_obs = `Regra de valor fixo (${calcMethod}). Esperado ${qtyMed}× ${formatCurrency(valRegra)} = ${formatCurrency(valRegra * qtyMed)}. Hospital pagou ${formatCurrency(valHosp)} (qtd ${qtyTxt}). Como o valor unitário é fixo por contrato, a divergência aponta diferença de quantidade de atendimentos para este código — não erro de valor.`;
+              // Divergência aqui é informativa: o valor a pagar é o da regra.
+              divergencia_valor += Math.abs(valHosp - valRegra * qtyMed);
+              if (valHosp > valRegra * qtyMed) risco_mais += valHosp - valRegra * qtyMed;
+              else risco_menos += valRegra * qtyMed - valHosp;
+            }
+          } else if (Math.abs(diff) < 0.02) {
             base.status = "conciliado";
             conciliado++;
           } else {
