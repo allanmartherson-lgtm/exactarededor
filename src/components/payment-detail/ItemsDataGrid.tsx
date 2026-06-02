@@ -577,7 +577,7 @@ export function ItemsDataGrid({
 
       {/* Tabela / Lista */}
       <div className="flex-1 min-h-0 overflow-hidden bg-background isolate pb-2">
-        <div className="h-full w-full overflow-auto isolate pb-4">
+        <div className="grid-scroll-area h-full w-full overflow-x-scroll overflow-y-auto isolate pb-4">
           {/* MOBILE — lista de cards (< md) */}
           <ul className="md:hidden divide-y">
             {filtered.length === 0 && (
