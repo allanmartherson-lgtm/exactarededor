@@ -2135,7 +2135,7 @@ export function PaymentConciliationModal({
 
   const exactCount = Object.entries(companyMapping).filter(([t, v]) => v && (matchLevels[t] === 'exact' || matchLevels[t] === 'high')).length;
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
-  const pendingCount = hospitalCompanies.filter((t) => !companyMapping[t]).length;
+  const pendingCount = hospitalCompanies.filter((t) => !companyMapping[t] || matchLevels[t] === 'medium').length;
 
   const handleAction = async (
     item: ReconciliationItem,
