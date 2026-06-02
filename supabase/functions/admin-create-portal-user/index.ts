@@ -38,8 +38,10 @@ serve(async (req) => {
 
     const body = await req.json();
     const kind = String(body.kind ?? "") as Kind;
-    const email = String(body.email ?? "").trim().toLowerCase();
-    const fullName = String(body.full_name ?? "").trim();
+    let email = String(body.email ?? "").trim().toLowerCase();
+    let fullName = String(body.full_name ?? "").trim();
+    let cpf = String(body.cpf ?? "").replace(/\D/g, "");
+    let phone = String(body.phone ?? "").replace(/\D/g, "");
     const entityId = String(body.entity_id ?? "").trim();
     const hospitalIds: string[] = Array.isArray(body.hospital_ids) ? body.hospital_ids : [];
     const primaryHospitalId = body.primary_hospital_id ? String(body.primary_hospital_id) : null;
@@ -60,8 +62,40 @@ serve(async (req) => {
     const redirectTo = appOrigin ? `${appOrigin}/auth/reset-password` : undefined;
 
     if (!["company", "doctor"].includes(kind)) return json({ error: "kind inválido" }, 400);
-    if (!email) return json({ error: "E-mail obrigatório" }, 400);
     if (!entityId) return json({ error: kind === "company" ? "Empresa obrigatória" : "Médico obrigatório" }, 400);
+
+    // Para médico: importa dados do cadastro automaticamente e bloqueia se inativo
+    let linkedDoctorId: string | null = null;
+    if (kind === "doctor") {
+      const { data: doc, error: docErr } = await admin
+        .from("doctors")
+        .select("id, full_name, email, cpf, phone, active")
+        .eq("id", entityId)
+        .maybeSingle();
+      if (docErr || !doc) return json({ error: "Médico não encontrado" }, 404);
+      if (!doc.active) return json({ error: "Médico inativo. Reative o cadastro antes de criar acesso ao portal." }, 400);
+      linkedDoctorId = doc.id;
+      fullName = fullName || (doc.full_name ?? "");
+      email = email || (doc.email ?? "").trim().toLowerCase();
+      cpf = cpf || (doc.cpf ? String(doc.cpf).replace(/\D/g, "") : "");
+      phone = phone || (doc.phone ? String(doc.phone).replace(/\D/g, "") : "");
+    }
+
+    if (!email) return json({ error: "E-mail obrigatório" }, 400);
+
+    // Validação CPF (se informado)
+    if (cpf) {
+      if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return json({ error: "CPF inválido" }, 400);
+      const calc = (base: string, factor: number) => {
+        let sum = 0;
+        for (let i = 0; i < base.length; i++) sum += Number(base[i]) * (factor - i);
+        const r = (sum * 10) % 11;
+        return r === 10 ? 0 : r;
+      };
+      if (calc(cpf.slice(0, 9), 10) !== Number(cpf[9])) return json({ error: "CPF inválido" }, 400);
+      if (calc(cpf.slice(0, 10), 11) !== Number(cpf[10])) return json({ error: "CPF inválido" }, 400);
+    }
+    if (phone && phone.length !== 11) return json({ error: "Telefone inválido (use DDD + 9 dígitos)" }, 400);
 
     const portalTable = kind === "company" ? "company_portal_users" : "doctor_portal_users";
     const linkTable = kind === "company" ? "company_portal_user_hospitals" : "doctor_portal_user_hospitals";
@@ -102,11 +136,13 @@ serve(async (req) => {
 
     if (!newUserId) throw new Error("Falha ao criar usuário");
 
-    // 2) Profile
-    await admin.from("profiles").upsert(
-      { id: newUserId, email, full_name: fullName || null },
-      { onConflict: "id" },
-    );
+    // 2) Profile — enriquece com CPF/telefone
+    const profilePayload: Record<string, unknown> = { id: newUserId, email };
+    if (fullName) profilePayload.full_name = fullName;
+    if (cpf) profilePayload.cpf = cpf;
+    if (phone) profilePayload.phone = phone;
+    await admin.from("profiles").upsert(profilePayload, { onConflict: "id" });
+
 
     // 3) IMPORTANTE: NÃO insere em user_roles — portal não tem acesso ao Exacta
 
