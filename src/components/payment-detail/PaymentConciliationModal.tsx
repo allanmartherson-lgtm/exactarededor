@@ -671,7 +671,22 @@ export function PaymentConciliationModal({
 
   const handleProcessReconciliation = async (
     mode: "replace" | "merge_keep_others" = "replace",
+    overrides?: {
+      rows?: Record<string, unknown>[];
+      colMap?: Record<string, string>;
+      mapping?: Record<string, string>;
+      fileName?: string | null;
+      excludeConsultas?: boolean;
+    },
   ) => {
+    // Shadowing: permite reprocessar a conciliação atual sem precisar do upload,
+    // reconstruindo rows/colMap/mapping a partir dos itens da última run.
+    const parsedRows = overrides?.rows ?? this_parsedRows;
+    const parsedColMap = overrides?.colMap ?? this_parsedColMap;
+    const companyMapping = overrides?.mapping ?? this_companyMapping;
+    const pendingFileName = overrides?.fileName ?? this_pendingFileName;
+    const excludeConsultas =
+      overrides?.excludeConsultas ?? this_excludeConsultas;
     setProcessing(true);
     try {
       // Empresas que este upload está cobrindo (mapeadas para empresas do lote)
