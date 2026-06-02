@@ -790,6 +790,7 @@ export function PaymentConciliationModal({
         const dateRaw = getCell(row, "date");
         const roleHosp = getCell(row, "role");
         const qtyHosp = getCell(row, "quantity");
+        const routeHosp = getCell(row, "accessRoute");
         const col = parsedColMap["company"];
         const terceiro = col ? String(row[col] ?? "").trim() : "";
         const mappedCompany = companyMapping[terceiro] ?? terceiro;
@@ -803,27 +804,34 @@ export function PaymentConciliationModal({
         };
 
         // Matching disambiguation: além de atendimento+código, exige coerência
-        // de médico/função/qtd. Sem isso, linhas com mesmo att+code de médicos
-        // diferentes (ex.: principal vs auxiliar) cruzavam valor errado.
+        // de médico/função/via/qtd. Sem isso, linhas com mesmo att+code de médicos
+        // diferentes (ex.: principal vs auxiliar) ou de vias diferentes (única vs
+        // mesma via) cruzavam valor errado e geravam divergência falsa.
         const available = candidates.filter((m) => !matchedExactaIds.has(m.id));
         const docHospN = normName(doctor);
         const roleHospN = normRole(roleHosp);
+        const routeHospN = normRoute(routeHosp);
         const qtyHospN = normQty(qtyHosp);
 
-        const scoreCandidate = (m: PaymentItemRow): { score: number; docOk: boolean; roleOk: boolean } => {
+        const scoreCandidate = (m: PaymentItemRow): { score: number; docOk: boolean; roleOk: boolean; routeOk: boolean } => {
           let s = 0;
           const docMedN = normName((m as any).doctor_name);
           const roleMedN = normRole((m as any).doctor_role);
+          const routeMedN = normRoute((m as any).access_route);
           const qtyMedN = normQty((m as any).quantity);
-          let docOk = false, roleOk = false;
+          let docOk = false, roleOk = false, routeOk = false;
           if (docHospN && docMedN && docHospN === docMedN) { s += 1000; docOk = true; }
           else if (docHospN && docMedN && (docMedN.includes(docHospN) || docHospN.includes(docMedN))) { s += 400; docOk = true; }
           if (roleHospN && roleMedN && roleHospN === roleMedN) { s += 200; roleOk = true; }
           else if (roleHospN && roleMedN) s -= 150;
+          // Via de acesso: forte sinal quando ambos os lados informam — separa
+          // linhas legítimas do mesmo código com valores distintos por via.
+          if (routeHospN && routeMedN && routeHospN === routeMedN) { s += 500; routeOk = true; }
+          else if (routeHospN && routeMedN) s -= 400;
           if (qtyHospN === qtyMedN) s += 50;
           const diff = Math.abs(getConvenioValue(m) - valHosp);
           s += Math.max(0, 30 - Math.min(30, (diff / Math.max(1, valHosp)) * 30));
-          return { score: s, docOk, roleOk };
+          return { score: s, docOk, roleOk, routeOk };
         };
 
         let match: PaymentItemRow | undefined;
