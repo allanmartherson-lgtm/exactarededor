@@ -49,6 +49,7 @@ import * as XLSX from "xlsx-js-style";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
@@ -353,7 +354,10 @@ export function PaymentConciliationModal({
 }: Props) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { hospital } = useHospital();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+
 
   const [run, setRun] = useState<ReconciliationRun | null>(null);
   const [items, setItems] = useState<ReconciliationItem[]>([]);
@@ -1609,8 +1613,32 @@ export function PaymentConciliationModal({
     setMaxValue("");
   };
 
+  /**
+   * Nome de arquivo padronizado para exportações:
+   *   conciliacao_<hospital>_<empresa>_<paymentRef>_<idCurto>_<YYYY-MM-DD>.<ext>
+   * Quando não houver escopo de empresa, usa "todas-empresas". Slugifica
+   * acentos e espaços para evitar problemas de download em qualquer SO.
+   */
+  const buildExportFileName = (ext: "pdf" | "csv" | "xlsx") => {
+    const slug = (s: string | null | undefined) =>
+      (s ?? "")
+        .toString()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase()
+        .slice(0, 40) || "na";
+    const today = new Date().toISOString().slice(0, 10);
+    const hospPart = slug(hospital?.slug || hospital?.name || "rededor");
+    const companyPart = slug(initialCompany || (companyFilter !== "todos" ? companyFilter : "todas-empresas"));
+    const refPart = slug(paymentReference);
+    const idPart = (paymentId || "").slice(0, 8) || "noid";
+    return `conciliacao_${hospPart}_${companyPart}_${refPart}_${idPart}_${today}.${ext}`;
+  };
+
   const handleExport = () => {
     if (!run) return;
+
 
     const data = filteredItems.map((it) => ({
       "Status": STATUS_LABEL[it.status],
@@ -1712,7 +1740,7 @@ export function PaymentConciliationModal({
     wsSummary['!cols'] = [{ wch: 30 }, { wch: 40 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
 
-    XLSX.writeFile(wb, `conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.xlsx`);
+    XLSX.writeFile(wb, buildExportFileName("xlsx"));
     toast({ title: "Relatório exportado", description: "Arquivo XLSX gerado com sucesso." });
   };
 
@@ -1764,7 +1792,7 @@ export function PaymentConciliationModal({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.csv`;
+    a.download = buildExportFileName("csv");
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1899,7 +1927,7 @@ export function PaymentConciliationModal({
       },
     });
 
-    doc.save(`conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.pdf`);
+    doc.save(buildExportFileName("pdf"));
     toast({ title: "PDF exportado", description: "Arquivo PDF gerado com sucesso." });
   };
 
