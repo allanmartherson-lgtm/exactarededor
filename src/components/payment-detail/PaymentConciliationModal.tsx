@@ -2610,6 +2610,63 @@ export function PaymentConciliationModal({
           )}
         </div>
       </SheetContent>
+      <AlertDialog open={scopeDialogOpen} onOpenChange={setScopeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Escopo do reprocessamento</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  Este arquivo cobre{" "}
+                  <strong>
+                    {scopeDialogInfo?.newCompanies.length ?? 0} empresa(s)
+                  </strong>
+                  : {scopeDialogInfo?.newCompanies.join(", ") || "—"}.
+                </p>
+                <p>
+                  A conciliação anterior também tem{" "}
+                  <strong>
+                    {scopeDialogInfo?.keepCompanies.length ?? 0} empresa(s)
+                  </strong>{" "}
+                  que NÃO estão neste arquivo:{" "}
+                  {scopeDialogInfo?.keepCompanies.join(", ") || "—"}.
+                </p>
+                <p>Como deseja prosseguir?</p>
+                <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                  <li>
+                    <strong>Somente estas empresas</strong>: reprocessa apenas as
+                    empresas do arquivo e <em>mantém</em> os resultados das demais.
+                  </li>
+                  <li>
+                    <strong>Reprocessar tudo</strong>: descarta os dados das demais
+                    empresas e usa apenas este arquivo.
+                  </li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setScopeDialogOpen(false);
+                handleProcessReconciliation("replace");
+              }}
+            >
+              Reprocessar tudo
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                setScopeDialogOpen(false);
+                handleProcessReconciliation("merge_keep_others");
+              }}
+            >
+              Somente estas empresas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
