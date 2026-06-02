@@ -102,6 +102,7 @@ type ReconciliationRun = {
   valor_divergente: number;
   so_hospital: number;
   so_exacta: number;
+  empresa_ausente?: number;
   risco_mais: number;
   risco_menos: number;
   divergencia_valor: number;
