@@ -2361,12 +2361,24 @@ export function PaymentConciliationModal({
               {/* Info do arquivo */}
               <div className="flex items-center gap-3 px-4 py-2.5 bg-muted/50 border border-border rounded-lg text-xs text-muted-foreground">
                 <FileDown className="h-4 w-4 shrink-0" />
-                <span>
+                <span className="flex-1">
                   <strong>{run.file_name}</strong> · {run.total_items} itens processados
                   {excludeConsultas && ' · consultas e visitas excluídas'}
                   · conciliação em {formatDateTimeBR(run.created_at)}
                 </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 h-7 text-xs"
+                  disabled={processing}
+                  onClick={handleReprocessFromCurrent}
+                  title="Recruza esta conciliação sem precisar subir a planilha de novo. Usa os mesmos vínculos de empresa já confirmados e aplica as regras atualizadas."
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${processing ? "animate-spin" : ""}`} />
+                  Reprocessar agora
+                </Button>
               </div>
+
 
               {/* Aviso de defasagem: detecta reanálise do lote, atualização de regras
                   ou nova versão da lógica de conciliação desde o último run. */}
