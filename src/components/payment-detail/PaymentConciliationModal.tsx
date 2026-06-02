@@ -26,6 +26,8 @@ import {
   RotateCcw,
   Building2,
   Search,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,6 +39,37 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
+
+function CopyAttendanceButton({ value }: { value: string | null | undefined }) {
+  const [copied, setCopied] = useState(false);
+  if (!value) return null;
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(String(value));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      /* noop */
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={copied ? "Copiado!" : "Copiar nº do atendimento"}
+      aria-label="Copiar número do atendimento"
+      className={cn(
+        "inline-flex h-5 w-5 items-center justify-center rounded border border-border bg-background transition-colors",
+        copied ? "text-success border-success" : "text-muted-foreground hover:text-foreground hover:bg-muted",
+      )}
+    >
+      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+    </button>
+  );
+}
+
+
 
 type ReconciliationRun = {
   id: string;
@@ -2115,7 +2148,10 @@ export function PaymentConciliationModal({
                                         onClick={() => setExpanded(isRowOpen ? null : it.id)}
                                       >
                                         <TableCell className="px-3 py-2 text-[12px] font-mono tabular-nums" title="Nº do atendimento (chave Tasy)">
-                                          {it.attendance_number ?? "—"}
+                                          <span className="inline-flex items-center gap-1.5">
+                                            <span>{it.attendance_number ?? "—"}</span>
+                                            <CopyAttendanceButton value={it.attendance_number} />
+                                          </span>
                                         </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px]">
                                           {it.doctor_name ?? "—"}
