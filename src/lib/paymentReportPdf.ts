@@ -124,7 +124,7 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
     cursorYTop = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorYTop) + 8;
   }
 
-  // Tabela de itens
+  // Tabela de itens — quebras suaves para não cortar texto longo
   autoTable(doc, {
     startY: cursorYTop,
     head: [["Médico", "Doc", "Descrição", "Valor", "IA"]],
@@ -135,7 +135,11 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
       formatCurrency(i.gross_amount),
       i.ai_status,
     ]),
-    styles: { fontSize: 8 },
+    styles: { fontSize: 8, overflow: "linebreak", cellPadding: 1.6 },
+    headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255 },
+    margin: { left: marginX, right: marginX, bottom: 14 },
+    showHead: "everyPage",
+    rowPageBreak: "avoid",
   });
 
   // Divergências
