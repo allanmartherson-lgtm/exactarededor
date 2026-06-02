@@ -1375,11 +1375,18 @@ export function PaymentConciliationModal({
 
 
   const doctorOptions = useMemo(() => {
-    const base = initialCompany
+    let base = initialCompany
       ? items.filter((it) => (it.company_name ?? "") === initialCompany)
       : items;
+    if (companyFilter !== "todos") {
+      base = base.filter((it) => (it.company_name ?? "") === companyFilter);
+    }
     return Array.from(new Set(base.map((i) => i.doctor_name ?? "").filter(Boolean))).sort();
-  }, [items, initialCompany]);
+  }, [items, initialCompany, companyFilter]);
+
+  const companyOptions = useMemo(() => {
+    return Array.from(new Set(items.map((i) => i.company_name ?? "").filter(Boolean))).sort();
+  }, [items]);
 
   // Escopo = todos os filtros EXCETO o activeFilter (tabs/KPIs por status).
   // KPIs, totais financeiros, contagens das abas e exportações recalculam
@@ -1388,6 +1395,9 @@ export function PaymentConciliationModal({
     let base = items;
     if (initialCompany) {
       base = base.filter((it) => (it.company_name ?? "") === initialCompany);
+    }
+    if (companyFilter !== "todos") {
+      base = base.filter((it) => (it.company_name ?? "") === companyFilter);
     }
     if (doctorFilter !== "todos") {
       base = base.filter((it) => (it.doctor_name ?? "") === doctorFilter);
@@ -1417,7 +1427,7 @@ export function PaymentConciliationModal({
       );
     }
     return base;
-  }, [items, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
+  }, [items, initialCompany, companyFilter, doctorFilter, minValue, maxValue, searchTerm]);
 
   const scopedStats = useMemo(() => {
     let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0;
