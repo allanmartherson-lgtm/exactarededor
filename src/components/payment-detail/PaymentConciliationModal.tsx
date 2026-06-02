@@ -843,8 +843,8 @@ export function PaymentConciliationModal({
             .map((m) => ({ m, ...scoreCandidate(m) }))
             .sort((a, b) => b.score - a.score);
           match = ranked[0].m;
-          // Ambíguo: top sem identidade clara (sem doc nem role coerentes)
-          if (!ranked[0].docOk && !ranked[0].roleOk) ambiguous = true;
+          // Ambíguo: top sem identidade clara (sem doc, role nem via coerentes)
+          if (!ranked[0].docOk && !ranked[0].roleOk && !ranked[0].routeOk) ambiguous = true;
         }
 
         const base: Record<string, unknown> = {
