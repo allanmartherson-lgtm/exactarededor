@@ -22,6 +22,7 @@ import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
+import { PaymentBatchExportDialog } from "@/components/payment-detail/PaymentBatchExportDialog";
 import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
@@ -256,6 +257,7 @@ const PaymentDetail = () => {
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   // Persistimos o estado de abertura do modal de conciliação em sessionStorage
   // por paymentId. Se a página remontar (HMR do Vite ao voltar de outra aba,
@@ -2787,15 +2789,27 @@ const PaymentDetail = () => {
               </Select>
               
               {hasRole("analista") || hasRole("admin") || hasRole("diretor") ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 text-xs gap-1.5 border-dashed"
-                  onClick={() => setIsReportOpen(true)}
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  Relatório
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs gap-1.5 border-dashed"
+                    onClick={() => setIsReportOpen(true)}
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    Relatório
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs gap-1.5 border-dashed"
+                    onClick={() => setIsBatchExportOpen(true)}
+                    title="Exportar lote inteiro em XLSX, CSV ou PDF, com seleção de empresas"
+                  >
+                    <Download className="h-4 w-4" />
+                    Exportar lote
+                  </Button>
+                </>
               ) : null}
 
               <Button
@@ -3405,6 +3419,19 @@ const PaymentDetail = () => {
           groups={groups}
           rulesIndex={rulesIndex}
           analystName={user?.id ? profiles[user.id] : undefined}
+          observations={obs}
+          profiles={profiles}
+        />
+      )}
+
+      {payment && (
+        <PaymentBatchExportDialog
+          open={isBatchExportOpen}
+          onOpenChange={setIsBatchExportOpen}
+          payment={payment}
+          items={items}
+          groups={groups}
+          rulesIndex={rulesIndex}
           observations={obs}
           profiles={profiles}
         />
