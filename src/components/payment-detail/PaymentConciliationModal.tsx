@@ -175,6 +175,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
 const STATUS_LABEL: Record<ReconciliationItem["status"], string> = {
   conciliado: "Conciliado",
   valor_divergente: "Valor divergente",
+  qtd_divergente: "Quantidade divergente",
   so_hospital: "Só no hospital",
   so_exacta: "Só no Exacta",
 };
@@ -182,8 +183,31 @@ const STATUS_LABEL: Record<ReconciliationItem["status"], string> = {
 const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
   conciliado: "bg-success/10 text-success border-success/30",
   valor_divergente: "bg-warning/10 text-warning-text border-warning/30",
+  qtd_divergente: "bg-warning/10 text-warning-text border-warning/30",
   so_hospital: "bg-destructive/10 text-destructive border-destructive/30",
   so_exacta: "bg-primary/10 text-primary border-primary/30",
+};
+
+/**
+ * Tipos de cálculo cujo VALOR é fixo por código (tabela diferenciada, pacote,
+ * valor fixo, bônus). Para esses itens, divergência de centavos no valor não
+ * importa — o que importa é a QUANTIDADE de atendimentos por código.
+ * Para tipos proporcionais (% do convênio, complemento, regra de vias) e para
+ * itens sem regra (fallback 100% tabela), mantém comparação valor x valor.
+ */
+const FIXED_CALC_METHODS = new Set([
+  "valor_fixo",
+  "tabela_diferenciada",
+  "pacote",
+  "pacote_fechado",
+  "pacote_com_extras",
+  "pacote_por_atendimento",
+  "bonus",
+]);
+const isFixedCalcMethod = (m: string | null | undefined): boolean => {
+  if (!m) return false;
+  const norm = String(m).toLowerCase().trim().replace(/\s+/g, "_");
+  return FIXED_CALC_METHODS.has(norm);
 };
 
 export function PaymentConciliationModal({
