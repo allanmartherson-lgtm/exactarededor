@@ -1972,7 +1972,7 @@ export function PaymentConciliationModal({
   type ExportStatusKey = ReconciliationItem["status"];
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("xlsx");
-  const ALL_STATUS_KEYS: ExportStatusKey[] = ["conciliado", "valor_divergente", "qtd_divergente", "so_hospital", "so_exacta"];
+  const ALL_STATUS_KEYS: ExportStatusKey[] = ["conciliado", "valor_divergente", "qtd_divergente", "so_hospital", "so_exacta", "empresa_ausente"];
   const [exportStatuses, setExportStatuses] = useState<Set<ExportStatusKey>>(new Set(ALL_STATUS_KEYS));
 
   const toggleExportStatus = (k: ExportStatusKey) => {
@@ -1989,7 +1989,7 @@ export function PaymentConciliationModal({
 
   const exportCounts: Record<ExportStatusKey, number> = useMemo(() => {
     const acc: Record<ExportStatusKey, number> = {
-      conciliado: 0, valor_divergente: 0, qtd_divergente: 0, so_hospital: 0, so_exacta: 0,
+      conciliado: 0, valor_divergente: 0, qtd_divergente: 0, so_hospital: 0, so_exacta: 0, empresa_ausente: 0,
     };
     for (const it of filteredItems) acc[it.status] = (acc[it.status] ?? 0) + 1;
     return acc;
