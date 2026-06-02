@@ -2881,7 +2881,7 @@ export function PaymentConciliationModal({
                 />
                 <KpiCard
                   icon={AlertTriangle}
-                  tone="muted"
+                  tone="info"
                   label="Empresa ausente"
                   value={`${scopedStats.empresa_ausente} itens`}
                   hint="empresa não está no outro lado"
