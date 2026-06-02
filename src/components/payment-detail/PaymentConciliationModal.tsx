@@ -423,9 +423,7 @@ export function PaymentConciliationModal({
   // Listas longas (lotes de 5k+) deixavam o DOM travado; o usuário expande
   // mais via "Carregar mais" ou troca o pageSize para "Todos" quando precisa.
   const [pageSize, setPageSize] = useState<number>(200);
-  /** Mantido por compatibilidade ("Carregar mais" antigo + autocresce na navegação). */
-  const [shownByCompany, setShownByCompany] = useState<Record<string, number>>({});
-  /** Página atual (0-indexed) por empresa para o controle de paginação clássico. */
+  /** Página atual (0-indexed) por empresa para a paginação dos itens. */
   const [pageByCompany, setPageByCompany] = useState<Record<string, number>>({});
 
   const [step, setStep] = useState<Step>("upload");
