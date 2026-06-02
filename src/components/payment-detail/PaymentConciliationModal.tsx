@@ -1427,6 +1427,8 @@ export function PaymentConciliationModal({
           } else if (it.status === "so_exacta") {
             so_exacta++;
             risco_menos += Number(it.valor_exacta) || 0;
+          } else if (it.status === "empresa_ausente") {
+            empresa_ausente++;
           }
           if (it.status === "valor_divergente") {
             const d = (Number(it.valor_hospital) || 0) - (Number(it.valor_exacta) || 0);
