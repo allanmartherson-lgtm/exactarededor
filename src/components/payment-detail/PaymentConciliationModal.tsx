@@ -613,14 +613,7 @@ export function PaymentConciliationModal({
         .select()
         .single();
       if (runErr) throw runErr;
-          payment_id: paymentId,
-          created_by: user?.id ?? null,
-          status: "processing",
-          file_name: pendingFileName,
-        })
-        .select()
-        .single();
-      if (runErr) throw runErr;
+
 
       const normFull = (s: string) =>
         s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
