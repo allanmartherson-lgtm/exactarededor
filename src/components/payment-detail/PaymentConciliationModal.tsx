@@ -592,12 +592,27 @@ export function PaymentConciliationModal({
     }
   };
 
-  const handleProcessReconciliation = async () => {
+  const handleProcessReconciliation = async (
+    mode: "replace" | "merge_keep_others" = "replace",
+  ) => {
     setProcessing(true);
     try {
+      // Empresas que este upload está cobrindo (mapeadas para empresas do lote)
+      const currentMappedCompanies = new Set(
+        Object.values(companyMapping).filter(Boolean) as string[],
+      );
+
       const { data: newRun, error: runErr } = await (supabase as any)
         .from("reconciliation_runs")
         .insert({
+          payment_id: paymentId,
+          created_by: user?.id ?? null,
+          status: "processing",
+          file_name: pendingFileName,
+        })
+        .select()
+        .single();
+      if (runErr) throw runErr;
           payment_id: paymentId,
           created_by: user?.id ?? null,
           status: "processing",
