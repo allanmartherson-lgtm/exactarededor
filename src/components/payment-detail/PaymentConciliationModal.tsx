@@ -239,6 +239,7 @@ export function PaymentConciliationModal({
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rulesLastUpdate, setRulesLastUpdate] = useState<string | null>(null);
 
   // Busca e filtros adicionais (texto livre, médico, faixa de valor)
   const [searchTerm, setSearchTerm] = useState("");
