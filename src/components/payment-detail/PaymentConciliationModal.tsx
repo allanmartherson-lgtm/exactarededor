@@ -2302,7 +2302,7 @@ export function PaymentConciliationModal({
                                                   Análise IA
                                                 </p>
                                                 <p className="text-[12px]">{it.ia_obs}</p>
-                                                {it.status === "valor_divergente" && it.applied_rule_label && (
+                                                {(it.status === "valor_divergente" || it.status === "qtd_divergente") && it.applied_rule_label && (
                                                   <div className="mt-2 flex items-center gap-2">
                                                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Regra Exacta:</span>
                                                     <span className="text-[11px] font-medium text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
