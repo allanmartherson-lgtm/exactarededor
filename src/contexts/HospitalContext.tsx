@@ -41,6 +41,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
   const [needsSelection, setNeedsSelection] = useState(false);
 
   const isGlobal = hasRole("admin") || hasRole("diretor");
+  const userId = user?.id ?? null;
 
   const load = useCallback(async () => {
     if (!user) {
