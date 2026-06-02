@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
 import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentType, type PaymentKind } from "@/lib/status";
 import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type PaymentAnalysisMode } from "@/lib/status";
-import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, Pencil, RefreshCw } from "lucide-react";
+import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, Pencil, RefreshCw, Calculator } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { CompanyRiskProfileList } from "@/components/payment-detail/CompanyRiskProfile";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
@@ -382,7 +382,9 @@ const NewPayment = () => {
   const [parseErrors, setParseErrors] = useState<Array<{ fileName: string; title: string; reasons: string[]; howToFix: string[] }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
-  const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>("padrao");
+  const [searchParams] = useSearchParams();
+  const modoConfeccao = searchParams.get("modo") === "confeccao";
+  const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(modoConfeccao ? "confeccao" : "padrao");
   // Tipos de pagamento são gerenciados em /cadastros/tipos-pagamento e carregados via hook.
   const { list: paymentTypeOptions, loading: loadingPaymentTypes } = usePaymentTypes({ onlyActive: true });
   const [autoSectors, setAutoSectors] = useState(true);
@@ -1522,7 +1524,12 @@ const NewPayment = () => {
 
   return (
     <>
-      <PageHeader title="Nova base de pagamento" description="Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo." />
+      <PageHeader
+        title={modoConfeccao ? "Confecção de pagamento" : "Nova base de pagamento"}
+        description={modoConfeccao
+          ? "Suba a base com o valor do convênio. O sistema aplicará as regras e calculará o repasse automaticamente."
+          : "Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo."}
+      />
       <div className="p-8 max-w-7xl space-y-6">
         <Card className="shadow-card">
           <CardHeader><CardTitle className="text-base">Identificação</CardTitle></CardHeader>
@@ -1617,10 +1624,11 @@ const NewPayment = () => {
                 <CostCenterCombobox value={costCenterCode} onChange={setCostCenterCode} placeholder="Buscar por código P12 ou nome…" />
                 <p className="text-xs text-muted-foreground">Pode ser sobrescrito por item depois. Itens sem centro herdam este.</p>
               </div>
+              {!modoConfeccao && (
               <div className="space-y-2 sm:col-span-2">
                 <Label>Modo de análise</Label>
                 <RadioGroup value={analysisMode} onValueChange={(v) => setAnalysisMode(v as PaymentAnalysisMode)} className="grid gap-2">
-                  {(Object.keys(PAYMENT_ANALYSIS_MODE_LABELS) as PaymentAnalysisMode[]).map((k) => (
+                  {(Object.keys(PAYMENT_ANALYSIS_MODE_LABELS) as PaymentAnalysisMode[]).filter((k) => k !== "confeccao").map((k) => (
                     <label key={k} htmlFor={`am-${k}`} className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-colors ${analysisMode === k ? "border-primary bg-primary-soft/30" : "border-border hover:bg-muted/40"}`}>
                       <RadioGroupItem id={`am-${k}`} value={k} className="mt-0.5" />
                       <div className="space-y-0.5">
@@ -1631,6 +1639,7 @@ const NewPayment = () => {
                   ))}
                 </RadioGroup>
               </div>
+              )}
               <div className="space-y-2 sm:col-span-2">
                 <Label>Setor(es) / Item Pagamento</Label>
                 <div className="flex items-center gap-2">
@@ -1713,6 +1722,19 @@ const NewPayment = () => {
               <p className="text-sm font-medium">Clique para selecionar ou arraste arquivos</p>
               <p className="text-xs text-muted-foreground mt-1">Excel ou CSV — múltiplos arquivos suportados</p>
             </label>
+
+            {modoConfeccao && (
+              <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                <Calculator className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-primary">Modo confecção ativo</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Suba a base com o valor do convênio (coluna "Valor Procedimento" ou "Valor Convênio").
+                    O repasse será calculado automaticamente pelas regras cadastradas após o envio.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {parseErrors.length > 0 && (
               <div className="space-y-2">
@@ -2259,7 +2281,7 @@ const NewPayment = () => {
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
           <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-            {hasUnresolved ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar` : "Criar e analisar com IA"}
+            {hasUnresolved ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar` : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
           </Button>
         </div>
 
