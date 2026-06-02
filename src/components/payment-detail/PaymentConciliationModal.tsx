@@ -122,6 +122,41 @@ type ReconciliationItem = {
   action_at?: string | null;
   doctor_document?: string | null;
   competence_month?: string | null;
+  match_diagnostics?: MatchDiagnostics | null;
+};
+
+type MatchDiagnosticsField = {
+  label: string;
+  hospital: string | null;
+  exacta: string | null;
+  ok: boolean | null; // true=igual, false=diferente, null=um lado vazio
+};
+
+type MatchDiagnosticsCandidate = {
+  payment_item_id: string;
+  doctor_name: string | null;
+  doctor_role: string | null;
+  access_route: string | null;
+  valor_exacta: number;
+  score: number;
+  docOk: boolean;
+  roleOk: boolean;
+  routeOk: boolean;
+  chosen: boolean;
+  rejected_reason: string | null;
+};
+
+type MatchDiagnostics = {
+  hospital: {
+    doctor: string | null;
+    role: string | null;
+    route: string | null;
+    valor: number;
+  };
+  candidates_total: number;
+  candidates: MatchDiagnosticsCandidate[];
+  fields: MatchDiagnosticsField[]; // comparação do par aceito
+  decision: string; // "match_unico" | "filtrado_por_medico" | "filtrado_por_funcao" | "filtrado_por_via" | "ambiguo" | "sem_candidato"
 };
 
 interface Props {
@@ -909,25 +944,85 @@ export function PaymentConciliationModal({
 
         let match: PaymentItemRow | undefined;
         let ambiguous = false;
+        let decision = "sem_candidato";
+        const evaluated: Array<PaymentItemRow & { __sc: ReturnType<typeof scoreCandidate> }> = [];
         if (available.length === 1) {
           match = available[0];
+          decision = "match_unico";
         } else if (available.length > 1) {
           // Filtros DUROS: se o hospital informa médico e existe candidato com o
           // mesmo médico, descarta os demais — evita casar linha do principal
           // (ex.: Kleber R$ 1.457) com linha do auxiliar (ex.: Laryssa R$ 437).
           // Mesmo princípio para função e via de acesso.
           let pool = available.map((m) => ({ m, ...scoreCandidate(m) }));
+          pool.forEach((p) => evaluated.push(Object.assign({}, p.m, { __sc: { score: p.score, docOk: p.docOk, roleOk: p.roleOk, routeOk: p.routeOk } })));
           const docFiltered = pool.filter((c) => c.docOk);
-          if (docHospN && docFiltered.length > 0) pool = docFiltered;
+          if (docHospN && docFiltered.length > 0) { pool = docFiltered; decision = "filtrado_por_medico"; }
           const roleFiltered = pool.filter((c) => c.roleOk);
-          if (roleHospN && roleFiltered.length > 0) pool = roleFiltered;
+          if (roleHospN && roleFiltered.length > 0) { pool = roleFiltered; if (decision === "sem_candidato") decision = "filtrado_por_funcao"; }
           const routeFiltered = pool.filter((c) => c.routeOk);
-          if (routeHospN && routeFiltered.length > 0) pool = routeFiltered;
+          if (routeHospN && routeFiltered.length > 0) { pool = routeFiltered; if (decision === "sem_candidato") decision = "filtrado_por_via"; }
           const ranked = pool.sort((a, b) => b.score - a.score);
           match = ranked[0].m;
           // Ambíguo: top sem identidade clara (sem doc, role nem via coerentes)
-          if (!ranked[0].docOk && !ranked[0].roleOk && !ranked[0].routeOk) ambiguous = true;
+          if (!ranked[0].docOk && !ranked[0].roleOk && !ranked[0].routeOk) { ambiguous = true; decision = "ambiguo"; }
         }
+
+        // Diagnóstico do match: capturamos para auditoria/explicabilidade.
+        const buildDiagnostics = (): MatchDiagnostics | null => {
+          if (available.length === 0) return null;
+          const candidates: MatchDiagnosticsCandidate[] = (evaluated.length > 0 ? evaluated : available.map((m) => Object.assign({}, m, { __sc: scoreCandidate(m) }))).map((c: any) => {
+            const sc = c.__sc;
+            const isChosen = match?.id === c.id;
+            let reason: string | null = null;
+            if (!isChosen) {
+              if (docHospN && !sc.docOk) reason = "médico diferente do hospital";
+              else if (roleHospN && !sc.roleOk) reason = "função diferente";
+              else if (routeHospN && !sc.routeOk) reason = "via de acesso diferente";
+              else reason = "score inferior ao escolhido";
+            }
+            return {
+              payment_item_id: c.id,
+              doctor_name: c.doctor_name ?? null,
+              doctor_role: c.doctor_role ?? null,
+              access_route: c.access_route ?? null,
+              valor_exacta: Number(c.procedure_amount ?? c.gross_amount ?? 0) || 0,
+              score: Math.round(sc.score),
+              docOk: sc.docOk,
+              roleOk: sc.roleOk,
+              routeOk: sc.routeOk,
+              chosen: isChosen,
+              rejected_reason: reason,
+            };
+          });
+          const fields: MatchDiagnosticsField[] = [];
+          if (match) {
+            const docMed = (match as any).doctor_name ?? null;
+            const roleMed = (match as any).doctor_role ?? null;
+            const routeMed = (match as any).access_route ?? null;
+            const valMed = getConvenioValue(match);
+            const cmp = (na: string, nb: string): boolean | null => {
+              if (!na || !nb) return null;
+              return na === nb;
+            };
+            const docHospStr = doctor ? String(doctor) : null;
+            const roleHospStr = roleHosp ? String(roleHosp) : null;
+            const routeHospStr = routeHosp ? String(routeHosp) : null;
+            fields.push({ label: "Médico", hospital: docHospStr, exacta: docMed, ok: cmp(docHospN, normName(docMed)) });
+            fields.push({ label: "Função", hospital: roleHospStr, exacta: roleMed, ok: cmp(roleHospN, normRole(roleMed)) });
+            fields.push({ label: "Via de acesso", hospital: routeHospStr, exacta: routeMed, ok: cmp(routeHospN, normRoute(routeMed)) });
+            fields.push({ label: "Valor (convênio)", hospital: formatCurrency(valHosp), exacta: formatCurrency(valMed), ok: Math.abs(valHosp - valMed) < 0.02 });
+          }
+          return {
+            hospital: { doctor: doctor ? String(doctor) : null, role: roleHosp ? String(roleHosp) : null, route: routeHosp ? String(routeHosp) : null, valor: valHosp },
+            candidates_total: available.length,
+            candidates,
+            fields,
+            decision,
+          };
+        };
+        const diagnostics = buildDiagnostics();
+
 
         const base: Record<string, unknown> = {
           attendance_number: att ? String(Math.round(Number(att)) || att) : null,
@@ -948,6 +1043,7 @@ export function PaymentConciliationModal({
           agreement_text: getCell(row, "agreement") ? String(getCell(row, "agreement")) : null,
           applied_rule_label: null,
           applied_calc_method: null,
+          match_diagnostics: diagnostics,
           valor_regra: null,
         };
 
@@ -2569,7 +2665,7 @@ export function PaymentConciliationModal({
                                           </span>
                                         </TableCell>
                                       </TableRow>
-                                      {isRowOpen && it.ia_obs && (
+                                      {isRowOpen && (it.ia_obs || it.match_diagnostics) && (
                                         <TableRow key={`${it.id}-exp`}>
                                           <TableCell colSpan={10} className="bg-muted/30 px-4 py-3">
                                             <div className="flex gap-3">
@@ -2578,7 +2674,83 @@ export function PaymentConciliationModal({
                                                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                                                   Análise IA
                                                 </p>
-                                                <p className="text-[12px]">{it.ia_obs}</p>
+                                                <p className="text-[12px]">{it.ia_obs ?? <span className="text-muted-foreground italic">Sem observação automática.</span>}</p>
+                                                {it.match_diagnostics && (
+                                                  <div className="mt-3 rounded-md border border-border bg-background p-3">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Diagnóstico do match</p>
+                                                      <span className="text-[10px] text-muted-foreground">
+                                                        Decisão: <span className="font-mono">{it.match_diagnostics.decision}</span> · {it.match_diagnostics.candidates_total} candidato(s) Exacta
+                                                      </span>
+                                                    </div>
+                                                    {it.match_diagnostics.fields.length > 0 && (
+                                                      <div className="mb-3">
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Campos comparados (par aceito)</p>
+                                                        <table className="w-full text-[11px]">
+                                                          <thead>
+                                                            <tr className="text-muted-foreground">
+                                                              <th className="text-left font-medium py-0.5">Campo</th>
+                                                              <th className="text-left font-medium py-0.5">Hospital</th>
+                                                              <th className="text-left font-medium py-0.5">Exacta</th>
+                                                              <th className="text-center font-medium py-0.5 w-20">Resultado</th>
+                                                            </tr>
+                                                          </thead>
+                                                          <tbody>
+                                                            {it.match_diagnostics.fields.map((f, idx) => (
+                                                              <tr key={idx} className="border-t border-border/50">
+                                                                <td className="py-1 font-medium">{f.label}</td>
+                                                                <td className="py-1">{f.hospital ?? <span className="text-muted-foreground">—</span>}</td>
+                                                                <td className="py-1">{f.exacta ?? <span className="text-muted-foreground">—</span>}</td>
+                                                                <td className="py-1 text-center">
+                                                                  {f.ok === true && <span className="text-emerald-600 dark:text-emerald-400">✓ igual</span>}
+                                                                  {f.ok === false && <span className="text-destructive">✗ diferente</span>}
+                                                                  {f.ok === null && <span className="text-muted-foreground">— sem dado</span>}
+                                                                </td>
+                                                              </tr>
+                                                            ))}
+                                                          </tbody>
+                                                        </table>
+                                                      </div>
+                                                    )}
+                                                    {it.match_diagnostics.candidates.length > 1 && (
+                                                      <div>
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                                                          Candidatos avaliados ({it.match_diagnostics.candidates.length})
+                                                        </p>
+                                                        <table className="w-full text-[11px]">
+                                                          <thead>
+                                                            <tr className="text-muted-foreground">
+                                                              <th className="text-left font-medium py-0.5">Médico</th>
+                                                              <th className="text-left font-medium py-0.5">Função</th>
+                                                              <th className="text-left font-medium py-0.5">Via</th>
+                                                              <th className="text-right font-medium py-0.5">Valor</th>
+                                                              <th className="text-right font-medium py-0.5">Score</th>
+                                                              <th className="text-left font-medium py-0.5">Resultado</th>
+                                                            </tr>
+                                                          </thead>
+                                                          <tbody>
+                                                            {it.match_diagnostics.candidates.map((c, idx) => (
+                                                              <tr key={idx} className={cn("border-t border-border/50", c.chosen && "bg-primary/5")}>
+                                                                <td className="py-1">{c.doctor_name ?? "—"}</td>
+                                                                <td className="py-1">{c.doctor_role ?? "—"}</td>
+                                                                <td className="py-1">{c.access_route ?? "—"}</td>
+                                                                <td className="py-1 text-right tabular-nums">{formatCurrency(c.valor_exacta)}</td>
+                                                                <td className="py-1 text-right tabular-nums text-muted-foreground">{c.score}</td>
+                                                                <td className="py-1">
+                                                                  {c.chosen ? (
+                                                                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ escolhido</span>
+                                                                  ) : (
+                                                                    <span className="text-muted-foreground">descartado — {c.rejected_reason}</span>
+                                                                  )}
+                                                                </td>
+                                                              </tr>
+                                                            ))}
+                                                          </tbody>
+                                                        </table>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                )}
                                                 {(it.status === "valor_divergente" || it.status === "qtd_divergente") && it.applied_rule_label && (
                                                   <div className="mt-2 flex items-center gap-2">
                                                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Regra Exacta:</span>

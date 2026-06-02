@@ -1,0 +1,1 @@
+ALTER TABLE public.reconciliation_items ADD COLUMN IF NOT EXISTS match_diagnostics jsonb;
