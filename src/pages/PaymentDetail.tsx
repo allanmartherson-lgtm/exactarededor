@@ -863,7 +863,7 @@ const PaymentDetail = () => {
     if (!payment) return;
     // Gerador unificado: o relatório por empresa usa o mesmo helper com
     // items/groups filtrados, garantindo PDFs idênticos em estrutura.
-    const doc = generatePaymentReportPdf({
+    const doc = await generatePaymentReportPdf({
       payment,
       items,
       groups,

@@ -12,6 +12,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatCurrency, formatDate } from "@/lib/status";
+import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import type {
   PaymentRow,
   PaymentItemRow,
@@ -57,19 +58,28 @@ function formatFindingText(f: any): string {
   return msg ? `${name}: ${msg}` : name;
 }
 
-export function generatePaymentReportPdf(input: GeneratePaymentPdfInput): jsPDF {
+export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): Promise<jsPDF> {
   const { payment, items, groups, observations = [], profiles = {}, rulesIndex } = input;
 
   const doc = new jsPDF();
-  doc.setFontSize(16);
-  doc.text("Validação de Pagamento Médico", 14, 18);
+  const marginX = 14;
+
+  // Cabeçalho institucional com a logo Rede D'Or (manual da marca 2025).
+  const headerBottomY = await drawReportHeader(doc, {
+    title: "Validação de Pagamento Médico",
+    subtitle: `Referência ${payment.reference}  ·  Status: ${payment.status}`,
+    marginX,
+    logoHeightMm: 11,
+  });
+
   doc.setFontSize(10);
-  doc.text(`Referência: ${payment.reference}`, 14, 28);
-  doc.text(`Status: ${payment.status}`, 14, 34);
+  doc.setTextColor(17, 24, 39);
   // Total: usa a soma dos itens entregues — assim o relatório por empresa
   // mostra o total da empresa, e o relatório do lote mostra o total do lote.
   const totalItems = items.reduce((s, i) => s + Number(i.gross_amount ?? 0), 0);
-  doc.text(`Total: ${formatCurrency(totalItems)}`, 14, 40);
+  let metaY = headerBottomY;
+  doc.text(`Total: ${formatCurrency(totalItems)}`, marginX, metaY);
+  metaY += 6;
 
   // Aprovador / data: prioriza payment.approved_*; se ausente, deriva do
   // grupo aprovado mais recente (agregação por trigger).
@@ -81,13 +91,16 @@ export function generatePaymentReportPdf(input: GeneratePaymentPdfInput): jsPDF 
   const approverAt = payment.approved_at ?? latestApprovedGroup?.approved_at ?? null;
   const aprovador = approverId ? (profiles[approverId] ?? "—") : "—";
   const aprovadoEm = approverAt ? formatDate(approverAt) : "—";
-  doc.text(`Aprovado por: ${aprovador}  ·  em: ${aprovadoEm}`, 14, 46);
+  doc.text(`Aprovado por: ${aprovador}  ·  em: ${aprovadoEm}`, marginX, metaY);
+  metaY += 6;
 
   // Totais por empresa
-  let cursorYTop = 54;
+  let cursorYTop = metaY + 2;
   if (groups.length > 0) {
     doc.setFontSize(12);
-    doc.text(`Totais por empresa (${groups.length})`, 14, cursorYTop);
+    doc.setTextColor(...REDE_DOR_BRAND_BLUE_RGB);
+    doc.text(`Totais por empresa (${groups.length})`, marginX, cursorYTop);
+    doc.setTextColor(17, 24, 39);
     autoTable(doc, {
       startY: cursorYTop + 4,
       head: [["Empresa", "Itens", "Status", "Líquido"]],
@@ -109,7 +122,7 @@ export function generatePaymentReportPdf(input: GeneratePaymentPdfInput): jsPDF 
     cursorYTop = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorYTop) + 8;
   }
 
-  // Tabela de itens
+  // Tabela de itens — quebras suaves para não cortar texto longo
   autoTable(doc, {
     startY: cursorYTop,
     head: [["Médico", "Doc", "Descrição", "Valor", "IA"]],
@@ -120,7 +133,11 @@ export function generatePaymentReportPdf(input: GeneratePaymentPdfInput): jsPDF 
       formatCurrency(i.gross_amount),
       i.ai_status,
     ]),
-    styles: { fontSize: 8 },
+    styles: { fontSize: 8, overflow: "linebreak", cellPadding: 1.6 },
+    headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255 },
+    margin: { left: marginX, right: marginX, bottom: 14 },
+    showHead: "everyPage",
+    rowPageBreak: "avoid",
   });
 
   // Divergências
