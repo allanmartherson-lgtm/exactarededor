@@ -147,6 +147,7 @@ const COL_FIELDS: Array<{
   { key: "value",      label: "Valor repasse",  required: true, description: "Valor cobrado pelo hospital — base da comparação financeira" },
   { key: "doctor",     label: "Médico executante", required: false, description: "Nome do médico — usado para enriquecer o resultado e filtros futuros" },
   { key: "role",       label: "Função / papel", required: false, description: "Papel do profissional (cirurgião, anestesista…) — diferencia quando o mesmo médico atua em funções distintas" },
+  { key: "accessRoute",label: "Via de acesso",  required: false, description: "Via de acesso (única, mesma via, outra via) — diferencia linhas do mesmo código com valores legítimos distintos" },
   { key: "quantity",   label: "Quantidade",     required: false, description: "Quantidade do procedimento — detecta duplicidades (ex: 1 proc × 3 qty)" },
   { key: "company",    label: "Empresa (PJ)",   required: false, description: "Nome da empresa prestadora — usado no vínculo de empresas" },
   { key: "patient",    label: "Paciente",       required: false, description: "Nome do paciente — enriquecimento" },
