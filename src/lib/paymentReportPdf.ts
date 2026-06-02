@@ -62,8 +62,6 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
   const { payment, items, groups, observations = [], profiles = {}, rulesIndex } = input;
 
   const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
   const marginX = 14;
 
   // Cabeçalho institucional com a logo Rede D'Or (manual da marca 2025).
