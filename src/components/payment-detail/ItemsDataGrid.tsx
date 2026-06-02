@@ -368,6 +368,26 @@ export function ItemsDataGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, filtered, expandedId]);
 
+  const tableMinWidth = 24 +
+    (colVis.atendimento ? 96 : 0) +
+    200 +
+    (colVis.convenio ? 140 : 0) +
+    (colVis.via ? 140 : 0) +
+    96 +
+    64 +
+    240 +
+    (colVis.setor_lido ? 140 : 0) +
+    (colVis.setor_inferido ? 140 : 0) +
+    180 +
+    (colVis.funcao ? 120 : 0) +
+    (colVis.regra ? 180 : 0) +
+    110 +
+    110 +
+    (colVis.diferenca ? 110 : 0) +
+    110 +
+    (colVis.observacao ? 70 : 0) +
+    (canEdit ? 120 : 0);
+
   return (
     // Altura própria pra ativar o scroll interno mesmo dentro de um pai sem altura.
     // Reduzimos o offset (de 220 → 170) pra dar mais área vertical à tabela e
@@ -577,7 +597,7 @@ export function ItemsDataGrid({
 
       {/* Tabela / Lista */}
       <div className="flex-1 min-h-0 overflow-hidden bg-background isolate pb-2">
-        <div className="grid-scroll-area h-full w-full overflow-x-scroll overflow-y-auto isolate pb-4">
+        <div className="grid-scroll-area h-full w-full overflow-scroll isolate pb-4">
           {/* MOBILE — lista de cards (< md) */}
           <ul className="md:hidden divide-y">
             {filtered.length === 0 && (
@@ -691,7 +711,8 @@ export function ItemsDataGrid({
               normalmente com larguras controladas via colgroup. */}
           <table
             data-density={isCompact ? "compact" : "comfortable"}
-            className={cn("hidden md:table min-w-full border-separate border-spacing-0 table-fixed", tableTextSize)}
+            className={cn("hidden md:table border-separate border-spacing-0 table-fixed", tableTextSize)}
+            style={{ width: tableMinWidth, minWidth: tableMinWidth }}
           >
             <colgroup>
               {colVis.atendimento && <col style={{ width: 96 }} />}
