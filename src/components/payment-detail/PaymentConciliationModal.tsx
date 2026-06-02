@@ -2604,19 +2604,29 @@ export function PaymentConciliationModal({
                     className="h-8 pl-7 text-xs"
                   />
                 </div>
-                <div className="min-w-[180px]">
-                  <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Médico" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      <SelectItem value="todos">Todos os médicos</SelectItem>
-                      {doctorOptions.map((d) => (
-                        <SelectItem key={d} value={d}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {!initialCompany && (
+                  <SearchableCombo
+                    value={companyFilter}
+                    onChange={setCompanyFilter}
+                    options={companyOptions}
+                    allLabel="Todas as empresas"
+                    placeholder="Empresa"
+                    searchPlaceholder="Buscar empresa…"
+                    emptyText="Nenhuma empresa encontrada"
+                    widthClass="min-w-[200px]"
+                  />
+                )}
+                <SearchableCombo
+                  value={doctorFilter}
+                  onChange={setDoctorFilter}
+                  options={doctorOptions}
+                  allLabel="Todos os médicos"
+                  placeholder="Médico"
+                  searchPlaceholder="Buscar médico…"
+                  emptyText="Nenhum médico encontrado"
+                  widthClass="min-w-[200px]"
+                />
+
                 <div className="flex items-center gap-1">
                   <Input
                     value={minValue}
