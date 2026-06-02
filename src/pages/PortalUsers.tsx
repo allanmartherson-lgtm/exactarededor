@@ -159,14 +159,24 @@ function NewPortalUserDialog({
       toast.error("Informe e-mail e selecione a " + cfg.entityLabel);
       return;
     }
+    // Validações obrigatórias de CPF e telefone
+    if (!isValidCPF(cpf)) {
+      toast.error("CPF inválido. Verifique os 11 dígitos.");
+      return;
+    }
+    const phoneCheck = phoneSchema.safeParse(phone);
+    if (!phoneCheck.success) {
+      toast.error(phoneCheck.error.issues[0]?.message ?? "Telefone inválido");
+      return;
+    }
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("admin-create-portal-user", {
       body: {
         kind,
         email: email.trim().toLowerCase(),
         full_name: fullName.trim(),
-        cpf: cpf.replace(/\D/g, ""),
-        phone: phone.replace(/\D/g, ""),
+        cpf: onlyDigits(cpf),
+        phone: phoneCheck.data,
         entity_id: entityId,
         hospital_ids: Array.from(selectedHospitals),
         primary_hospital_id: primaryHospital,
