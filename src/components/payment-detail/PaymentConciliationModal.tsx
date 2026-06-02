@@ -357,28 +357,6 @@ export function PaymentConciliationModal({
   const { hospital } = useHospital();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /**
-   * Nome de arquivo padronizado para exportações:
-   *   conciliacao_<hospital>_<empresa>_<paymentRef>_<paymentIdCurto>_<YYYY-MM-DD>.<ext>
-   * Quando não houver escopo de empresa, usa "todas". Slugifica acentos e
-   * espaços para evitar problemas de download/upload em qualquer SO.
-   */
-  const buildExportFileName = useCallback((ext: "pdf" | "csv" | "xlsx") => {
-    const slug = (s: string | null | undefined) =>
-      (s ?? "")
-        .toString()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-zA-Z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .toLowerCase()
-        .slice(0, 40) || "na";
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    const hospPart = slug(hospital?.slug || hospital?.name || "rededor");
-    const companyPart = slug(initialCompany || (companyFilter !== "todos" ? companyFilter : "todas"));
-    const refPart = slug(paymentReference);
-    const idPart = (paymentId || "").slice(0, 8) || "noid";
-    return `conciliacao_${hospPart}_${companyPart}_${refPart}_${idPart}_${today}.${ext}`;
-  }, [hospital, initialCompany, paymentReference, paymentId]);
 
 
   const [run, setRun] = useState<ReconciliationRun | null>(null);
