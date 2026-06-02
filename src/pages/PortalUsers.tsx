@@ -512,7 +512,7 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-1 items-center gap-3 min-w-[260px]">
           <Input
-            placeholder={`Buscar por ${cfg.entityLabel}, nome, e-mail ou documento…`}
+            placeholder={`Buscar por ${cfg.entityLabel}, nome, e-mail, CPF, telefone ou documento…`}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             className="max-w-md"
