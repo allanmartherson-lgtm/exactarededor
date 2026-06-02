@@ -18,12 +18,12 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-[min(95vw,900px)] sm:w-[min(90vw,900px)] sm:h-[min(85vh,900px)] max-h-[90vh] overflow-y-auto p-4 sm:p-10 flex flex-col">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-[min(95vw,720px)] max-h-[90vh] overflow-y-auto p-5 sm:p-8">
         <DialogHeader>
-          <DialogTitle className="text-xl sm:text-2xl">Como deseja criar a base?</DialogTitle>
-          <DialogDescription className="text-sm sm:text-base">Escolha o modo antes de continuar</DialogDescription>
+          <DialogTitle className="text-2xl sm:text-3xl">Como deseja criar a base?</DialogTitle>
+          <DialogDescription className="text-base sm:text-lg">Escolha o modo antes de continuar</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 pt-3 sm:pt-4 flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
           <button
             type="button"
             onClick={() => select("analise")}
@@ -31,13 +31,13 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
           >
             <div className="flex w-full items-center justify-between">
               <div className="rounded-md bg-muted p-2.5">
-                <Search className="h-6 w-6 text-muted-foreground" />
+                <Search className="h-7 w-7 text-muted-foreground" />
               </div>
-              <Badge variant="outline" className="text-xs">Modo atual</Badge>
+              <Badge variant="outline" className="text-sm">Modo atual</Badge>
             </div>
             <div>
-              <p className="font-semibold text-base">Análise de pagamento</p>
-              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+              <p className="font-semibold text-lg sm:text-xl">Análise de pagamento</p>
+              <p className="text-base text-muted-foreground mt-2 leading-relaxed">
                 Você já calculou o repasse. O sistema verifica se está correto conforme as regras cadastradas.
               </p>
             </div>
@@ -50,13 +50,13 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
           >
             <div className="flex w-full items-center justify-between">
               <div className="rounded-md bg-primary/10 p-2.5">
-                <Calculator className="h-6 w-6 text-primary" />
+                <Calculator className="h-7 w-7 text-primary" />
               </div>
-              <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">Novo</Badge>
+              <Badge className="text-sm bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">Novo</Badge>
             </div>
             <div>
-              <p className="font-semibold text-base">Confecção de pagamento</p>
-              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+              <p className="font-semibold text-lg sm:text-xl">Confecção de pagamento</p>
+              <p className="text-base text-muted-foreground mt-2 leading-relaxed">
                 Você sobe a base com o valor do convênio. O sistema aplica as regras e calcula o repasse automaticamente.
               </p>
             </div>
