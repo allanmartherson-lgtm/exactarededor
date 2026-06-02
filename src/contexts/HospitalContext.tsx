@@ -44,7 +44,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
   const isGlobal = hasRole("admin") || hasRole("diretor");
 
   const load = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setHospital(null);
       setAvailableHospitals([]);
       setPrimaryHospitalId(null);
