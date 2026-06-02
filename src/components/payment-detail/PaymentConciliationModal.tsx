@@ -122,6 +122,41 @@ type ReconciliationItem = {
   action_at?: string | null;
   doctor_document?: string | null;
   competence_month?: string | null;
+  match_diagnostics?: MatchDiagnostics | null;
+};
+
+type MatchDiagnosticsField = {
+  label: string;
+  hospital: string | null;
+  exacta: string | null;
+  ok: boolean | null; // true=igual, false=diferente, null=um lado vazio
+};
+
+type MatchDiagnosticsCandidate = {
+  payment_item_id: string;
+  doctor_name: string | null;
+  doctor_role: string | null;
+  access_route: string | null;
+  valor_exacta: number;
+  score: number;
+  docOk: boolean;
+  roleOk: boolean;
+  routeOk: boolean;
+  chosen: boolean;
+  rejected_reason: string | null;
+};
+
+type MatchDiagnostics = {
+  hospital: {
+    doctor: string | null;
+    role: string | null;
+    route: string | null;
+    valor: number;
+  };
+  candidates_total: number;
+  candidates: MatchDiagnosticsCandidate[];
+  fields: MatchDiagnosticsField[]; // comparação do par aceito
+  decision: string; // "match_unico" | "filtrado_por_medico" | "filtrado_por_funcao" | "filtrado_por_via" | "ambiguo" | "sem_candidato"
 };
 
 interface Props {
