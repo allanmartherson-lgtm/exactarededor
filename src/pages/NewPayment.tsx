@@ -1524,7 +1524,12 @@ const NewPayment = () => {
 
   return (
     <>
-      <PageHeader title="Nova base de pagamento" description="Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo." />
+      <PageHeader
+        title={modoConfeccao ? "Confecção de pagamento" : "Nova base de pagamento"}
+        description={modoConfeccao
+          ? "Suba a base com o valor do convênio. O sistema aplicará as regras e calculará o repasse automaticamente."
+          : "Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo."}
+      />
       <div className="p-8 max-w-7xl space-y-6">
         <Card className="shadow-card">
           <CardHeader><CardTitle className="text-base">Identificação</CardTitle></CardHeader>
