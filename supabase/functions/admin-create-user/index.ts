@@ -39,6 +39,7 @@ serve(async (req) => {
     const email = String(body.email ?? "").trim().toLowerCase();
     const fullName = String(body.full_name ?? "").trim();
     const phoneRaw = String(body.phone ?? "").trim();
+    const cpfRaw = String(body.cpf ?? "").trim();
     const roleTitle = String(body.role_title ?? "").trim() || null;
     const department = String(body.department ?? "").trim() || null;
     const birthDateRaw = String(body.birth_date ?? "").trim();
@@ -83,6 +84,31 @@ serve(async (req) => {
       if (d[2] !== "9") return bad("Telefone inválido: celular deve começar com 9 após o DDD");
       if (/^(\d)\1{10}$/.test(d)) return bad("Telefone inválido: dígitos repetidos");
       phone = d;
+    }
+
+    // ---- Validação de CPF (11 dígitos + algoritmo) ----
+    let cpf: string | null = null;
+    if (cpfRaw) {
+      const d = cpfRaw.replace(/\D/g, "");
+      if (d.length !== 11) return bad("CPF inválido: precisa ter 11 dígitos");
+      if (/^(\d)\1{10}$/.test(d)) return bad("CPF inválido: dígitos repetidos");
+      const calc = (base: string, factor: number) => {
+        let sum = 0;
+        for (let i = 0; i < base.length; i++) sum += Number(base[i]) * (factor - i);
+        const r = (sum * 10) % 11;
+        return r === 10 ? 0 : r;
+      };
+      if (calc(d.slice(0, 9), 10) !== Number(d[9])) return bad("CPF inválido");
+      if (calc(d.slice(0, 10), 11) !== Number(d[10])) return bad("CPF inválido");
+      cpf = d;
+
+      // Unicidade
+      const { data: existing } = await admin
+        .from("profiles")
+        .select("id, email")
+        .eq("cpf", cpf)
+        .maybeSingle();
+      if (existing?.id) return bad(`CPF já cadastrado para ${existing.email}`);
     }
 
     // ---- Validação de data de nascimento ----
@@ -137,7 +163,7 @@ serve(async (req) => {
     // Ensure profile exists/updated
     await admin.from("profiles").upsert({
       id: newUserId, email, full_name: fullName || null,
-      phone, role_title: roleTitle, department, birth_date: birthDate,
+      phone, role_title: roleTitle, department, birth_date: birthDate, cpf,
     }, { onConflict: "id" });
 
     // Assign roles
