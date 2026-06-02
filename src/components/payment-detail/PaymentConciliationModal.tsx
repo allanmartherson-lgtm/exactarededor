@@ -3212,6 +3212,35 @@ export function PaymentConciliationModal({
                                 })}
                               </TableBody>
                             </Table>
+                            {hasMore && (
+                              <div className="px-4 py-2 border-t border-border bg-background flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">
+                                  Mostrando <strong className="text-foreground tabular-nums">{shown}</strong> de{" "}
+                                  <strong className="text-foreground tabular-nums">{total}</strong> itens
+                                </span>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => setShownByCompany((prev) => ({
+                                      ...prev,
+                                      [company]: Math.min((prev[company] ?? pageSize) + pageSize, total),
+                                    }))}
+                                  >
+                                    Carregar mais (+{Math.min(pageSize, total - shown)})
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => setShownByCompany((prev) => ({ ...prev, [company]: total }))}
+                                  >
+                                    Mostrar todos
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                             <div className="px-4 py-2 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
                               <span>{companyItems.length} itens</span>
                               <div className="flex gap-6">
@@ -3238,7 +3267,8 @@ export function PaymentConciliationModal({
                               </div>
                             </div>
                           </div>
-                        )}
+                          );
+                        })()}
                       </Card>
                     );
                   });
