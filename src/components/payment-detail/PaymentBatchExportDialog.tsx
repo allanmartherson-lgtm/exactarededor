@@ -226,7 +226,7 @@ export function PaymentBatchExportDialog({
         procedimento_codigo: it.procedure_code || "",
         procedimento_nome: it.procedure_name || "",
         quantidade: Number((it as any).quantity ?? 1),
-        convenio: it.convenio_name || "",
+        convenio: getAgreement(it as any) || "",
         setor: (it as any).sector_name || "",
         valor_bruto: Number(it.gross_amount ?? 0),
         valor_esperado: Number((it as any).expected_amount ?? 0),
