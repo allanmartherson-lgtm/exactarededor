@@ -1591,8 +1591,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const total = counts.aprovado + counts.alerta + counts.reprovado + counts.pendente;
       summary = `Lote com ${total} item(ns): ${counts.aprovado} aprovado(s), ${counts.alerta} alerta(s), ${counts.reprovado} reprovado(s).`;
     } else {
-      summary = (aiJustifications as any).__summary
-        || `Motor analisou ${results.length} item(ns): ${results.length - alerts - blocks} aprovado(s), ${alerts} alerta(s), ${blocks} reprovado(s).`;
+      summary = isConfeccao
+        ? `Confecção concluída: repasse calculado para ${results.length} item(ns) conforme regras cadastradas.`
+        : ((aiJustifications as any).__summary
+          || `Motor analisou ${results.length} item(ns): ${results.length - alerts - blocks} aprovado(s), ${alerts} alerta(s), ${blocks} reprovado(s).`);
     }
 
     // IMPORTANTE: NÃO escrevemos `payments.status` aqui. O status do pagamento
