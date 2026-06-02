@@ -1113,6 +1113,7 @@ export function PaymentConciliationModal({
       ["Total de itens", scopedStats.total],
       ["Conciliados", scopedStats.conciliado, `${scopedStats.total ? ((scopedStats.conciliado / scopedStats.total) * 100).toFixed(1) : 0}%`],
       ["Valor divergente", scopedStats.valor_divergente],
+      ["Quantidade divergente", scopedStats.qtd_divergente],
       ["Só no hospital", scopedStats.so_hospital],
       ["Só no Exacta", scopedStats.so_exacta],
       [""],
