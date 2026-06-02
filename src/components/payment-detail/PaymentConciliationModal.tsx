@@ -1613,8 +1613,32 @@ export function PaymentConciliationModal({
     setMaxValue("");
   };
 
+  /**
+   * Nome de arquivo padronizado para exportações:
+   *   conciliacao_<hospital>_<empresa>_<paymentRef>_<idCurto>_<YYYY-MM-DD>.<ext>
+   * Quando não houver escopo de empresa, usa "todas-empresas". Slugifica
+   * acentos e espaços para evitar problemas de download em qualquer SO.
+   */
+  const buildExportFileName = (ext: "pdf" | "csv" | "xlsx") => {
+    const slug = (s: string | null | undefined) =>
+      (s ?? "")
+        .toString()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase()
+        .slice(0, 40) || "na";
+    const today = new Date().toISOString().slice(0, 10);
+    const hospPart = slug(hospital?.slug || hospital?.name || "rededor");
+    const companyPart = slug(initialCompany || (companyFilter !== "todos" ? companyFilter : "todas-empresas"));
+    const refPart = slug(paymentReference);
+    const idPart = (paymentId || "").slice(0, 8) || "noid";
+    return `conciliacao_${hospPart}_${companyPart}_${refPart}_${idPart}_${today}.${ext}`;
+  };
+
   const handleExport = () => {
     if (!run) return;
+
 
     const data = filteredItems.map((it) => ({
       "Status": STATUS_LABEL[it.status],
