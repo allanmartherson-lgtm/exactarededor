@@ -1927,7 +1927,7 @@ export function PaymentConciliationModal({
       },
     });
 
-    doc.save(`conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.pdf`);
+    doc.save(buildExportFileName("pdf"));
     toast({ title: "PDF exportado", description: "Arquivo PDF gerado com sucesso." });
   };
 
