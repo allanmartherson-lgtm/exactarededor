@@ -1545,6 +1545,7 @@ export function PaymentConciliationModal({
 
     const filterDescParts: string[] = [];
     if (initialCompany) filterDescParts.push(`Empresa: ${initialCompany}`);
+    else if (companyFilter !== "todos") filterDescParts.push(`Empresa: ${companyFilter}`);
     if (doctorFilter !== "todos") filterDescParts.push(`Médico: ${doctorFilter}`);
     if (activeFilter !== "todos") filterDescParts.push(`Status: ${STATUS_LABEL[activeFilter as ReconciliationItem["status"]] ?? activeFilter}`);
     if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
