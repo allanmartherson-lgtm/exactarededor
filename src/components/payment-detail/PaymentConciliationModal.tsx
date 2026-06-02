@@ -835,7 +835,16 @@ export function PaymentConciliationModal({
     // rows/colMap/mapping a partir dos itens da última run.
     const srcRows = overrides?.rows ?? parsedRows;
     const srcColMap = overrides?.colMap ?? parsedColMap;
-    const srcMapping = overrides?.mapping ?? companyMapping;
+    const rawMapping = overrides?.mapping ?? companyMapping;
+    // Regra do analista: sugestões "medium" NÃO contam como vínculo até
+    // serem explicitamente confirmadas. No cruzamento elas viram null
+    // (terceiro fica sem empresa mapeada → vai para empresa_ausente em vez
+    // de cruzar com a empresa errada).
+    const srcMapping: Record<string, string | null> = {};
+    for (const [t, v] of Object.entries(rawMapping)) {
+      const lvl = matchLevels[t];
+      srcMapping[t] = v && lvl !== 'medium' ? v : null;
+    }
     const srcFileName = overrides?.fileName ?? pendingFileName;
     const srcExcludeConsultas =
       overrides?.excludeConsultas ?? excludeConsultas;
