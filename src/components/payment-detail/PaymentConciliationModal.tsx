@@ -2079,6 +2079,10 @@ export function PaymentConciliationModal({
                   <FileDown className="h-4 w-4 mr-1.5" />
                   XLSX
                 </Button>
+                <Button variant="outline" size="sm" onClick={handleExportCsv}>
+                  <FileDown className="h-4 w-4 mr-1.5" />
+                  CSV
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleExportPdf}>
                   <FileDown className="h-4 w-4 mr-1.5" />
                   PDF
