@@ -346,9 +346,10 @@ function NewPortalUserDialog({
 // Diálogo de edição de dados cadastrais do usuário de portal
 // =============================================================================
 function EditPortalUserDialog({
-  row, entityLabel, onSaved,
+  row, kind, entityLabel, onSaved,
 }: {
   row: PortalUserRow;
+  kind: Kind;
   entityLabel: string;
   onSaved: () => void;
 }) {
@@ -366,6 +367,8 @@ function EditPortalUserDialog({
     }
   }, [open, row]);
 
+  const isDoctor = kind === "doctor";
+
   const submit = async () => {
     if (cpf && !isValidCPF(cpf)) {
       toast.error("CPF inválido. Verifique os 11 dígitos.");
@@ -381,18 +384,52 @@ function EditPortalUserDialog({
       phoneDigits = r.data;
     }
     setSaving(true);
-    const payload = {
-      full_name: fullName.trim() || null,
-      cpf: cpf ? onlyDigits(cpf) : null,
-      phone: phoneDigits || null,
-    };
-    const { error } = await supabase.from("profiles").update(payload).eq("id", row.user_id);
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
+    const cpfDigits = cpf ? onlyDigits(cpf) : null;
+    const nameTrim = fullName.trim() || null;
+
+    // 1) Atualiza o profile do usuário do portal
+    const { error: profErr } = await supabase
+      .from("profiles")
+      .update({ full_name: nameTrim, cpf: cpfDigits, phone: phoneDigits || null })
+      .eq("id", row.user_id);
+    if (profErr) {
+      setSaving(false);
+      toast.error(profErr.message);
       return;
     }
-    toast.success("Cadastro atualizado");
+
+    // 2) Se for médico, propaga para o cadastro do médico (mantém telas em sincronia)
+    if (isDoctor) {
+      const { error: docErr } = await supabase
+        .from("doctors")
+        .update({ full_name: nameTrim, cpf: cpfDigits, phone: phoneDigits || null })
+        .eq("id", row.parent_id);
+      if (docErr) {
+        setSaving(false);
+        toast.error("Perfil atualizado, mas falhou ao sincronizar com o cadastro do médico: " + docErr.message);
+        return;
+      }
+      // Log de auditoria da sincronização (best-effort)
+      const { data: actor } = await supabase.auth.getUser();
+      await supabase.from("audit_log").insert([
+        {
+          actor_id: actor?.user?.id ?? null,
+          entity_type: "doctor",
+          entity_id: row.parent_id,
+          action: "updated",
+          diff: {
+            reason: "portal_user_edit_sync",
+            portal_user_id: row.user_id,
+            full_name: nameTrim,
+            cpf: cpfDigits,
+            phone: phoneDigits || null,
+          },
+        },
+      ]);
+    }
+
+    setSaving(false);
+    toast.success(isDoctor ? "Cadastro atualizado no portal e no médico" : "Cadastro atualizado");
     setOpen(false);
     onSaved();
   };
@@ -412,6 +449,14 @@ function EditPortalUserDialog({
             O e-mail é a identidade de acesso e não pode ser alterado aqui.
           </DialogDescription>
         </DialogHeader>
+
+        {isDoctor && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            <strong>Atenção:</strong> ao salvar, os dados (nome, CPF e telefone) também serão atualizados no
+            <strong> cadastro do médico</strong>. As duas telas ficam em sincronia.
+          </div>
+        )}
+
         <div className="space-y-3">
           <div>
             <Label>E-mail</Label>
@@ -678,7 +723,7 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
                         />
                         {row.active ? "Habilitado" : "Desabilitado"}
                       </label>
-                      <EditPortalUserDialog row={row} entityLabel={cfg.entityLabel} onSaved={load} />
+                      <EditPortalUserDialog row={row} kind={kind} entityLabel={cfg.entityLabel} onSaved={load} />
                       <Button size="sm" onClick={() => save(row)} disabled={savingId === row.id || !row.active}>
                         <Save className="mr-2 h-4 w-4" />
                         {savingId === row.id ? "Salvando…" : "Salvar"}
