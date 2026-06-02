@@ -2876,7 +2876,16 @@ export function PaymentConciliationModal({
                           </div>
                         </button>
 
-                        {isOpen && (
+                        {isOpen && (() => {
+                          const total = companyItems.length;
+                          const shown = pageSize === Infinity
+                            ? total
+                            : Math.min(shownByCompany[company] ?? pageSize, total);
+                          const visibleItems = pageSize === Infinity
+                            ? companyItems
+                            : companyItems.slice(0, shown);
+                          const hasMore = shown < total;
+                          return (
                           <div className="border-t border-border">
                             <Table>
                               <TableHeader>
@@ -2911,7 +2920,7 @@ export function PaymentConciliationModal({
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {companyItems.map((it) => {
+                                {visibleItems.map((it) => {
                                   const isRowOpen = expanded === it.id;
                                   return (
                                     <>
