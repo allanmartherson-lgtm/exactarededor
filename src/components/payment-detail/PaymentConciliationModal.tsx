@@ -2104,21 +2104,27 @@ export function PaymentConciliationModal({
                 Nova conciliação
               </Button>
             )}
-            {step === "result" && run && run.status === "done" && (
-              <>
-                <Button variant="outline" size="sm" onClick={handleExport}>
-                  <FileDown className="h-4 w-4 mr-1.5" />
-                  XLSX
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExportCsv}>
-                  <FileDown className="h-4 w-4 mr-1.5" />
-                  CSV
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExportPdf}>
-                  <FileDown className="h-4 w-4 mr-1.5" />
-                  PDF
-                </Button>
-              </>
+            {step === "result" && run && (run.status === "done" || (run.summary?.total ?? 0) > 0) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="default" size="sm">
+                    <FileDown className="h-4 w-4 mr-1.5" />
+                    Exportar
+                    <ChevronDown className="h-4 w-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExport}>
+                    <FileDown className="h-4 w-4 mr-2" /> Excel (XLSX)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportCsv}>
+                    <FileDown className="h-4 w-4 mr-2" /> CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportPdf}>
+                    <FileDown className="h-4 w-4 mr-2" /> PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Fechar conciliação">
               <X className="h-4 w-4" />
