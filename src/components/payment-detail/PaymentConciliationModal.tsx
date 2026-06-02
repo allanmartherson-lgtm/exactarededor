@@ -270,6 +270,14 @@ export function PaymentConciliationModal({
   const [colSamples, setColSamples] = useState<Record<string, string>>({});
   const [saveColMapping, setSaveColMapping] = useState(true);
 
+  // Diálogo de escopo do reprocessamento: substituir tudo ou só estas empresas
+  const [scopeDialogOpen, setScopeDialogOpen] = useState(false);
+  const [scopeDialogInfo, setScopeDialogInfo] = useState<{
+    newCompanies: string[];
+    previousCompanies: string[];
+    keepCompanies: string[];
+  } | null>(null);
+
   const loteCompanies = useMemo(
     () =>
       Array.from(
