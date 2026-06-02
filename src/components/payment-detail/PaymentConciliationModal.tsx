@@ -42,6 +42,9 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check as CheckIcon, ChevronsUpDown } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -237,6 +240,78 @@ const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
 };
 
 /**
+ * Combobox com busca textual — substitui o Select nativo para listas longas
+ * (médicos, empresas) onde a busca por digitação é essencial. Usa o valor
+ * "todos" como sentinel para "sem filtro".
+ */
+function SearchableCombo({
+  value,
+  onChange,
+  options,
+  allLabel,
+  placeholder,
+  searchPlaceholder,
+  emptyText,
+  widthClass,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  allLabel: string;
+  placeholder: string;
+  searchPlaceholder: string;
+  emptyText: string;
+  widthClass?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const display = value === "todos" ? placeholder : value;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn("h-8 text-xs justify-between font-normal", widthClass)}
+        >
+          <span className={cn("truncate", value === "todos" && "text-muted-foreground")}>{display}</span>
+          <ChevronsUpDown className="h-3 w-3 ml-2 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[280px]" align="start">
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} className="h-8 text-xs" />
+          <CommandList className="max-h-[300px]">
+            <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="__todos__"
+                onSelect={() => { onChange("todos"); setOpen(false); }}
+                className="text-xs"
+              >
+                <CheckIcon className={cn("h-3 w-3 mr-2", value === "todos" ? "opacity-100" : "opacity-0")} />
+                {allLabel}
+              </CommandItem>
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt}
+                  value={opt}
+                  onSelect={() => { onChange(opt); setOpen(false); }}
+                  className="text-xs"
+                >
+                  <CheckIcon className={cn("h-3 w-3 mr-2", value === opt ? "opacity-100" : "opacity-0")} />
+                  <span className="truncate">{opt}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
  * Tipos de cálculo cujo VALOR é fixo por código (tabela diferenciada, pacote,
  * valor fixo, bônus). Para esses itens, divergência de centavos no valor não
  * importa — o que importa é a QUANTIDADE de atendimentos por código.
@@ -292,6 +367,7 @@ export function PaymentConciliationModal({
   // Busca e filtros adicionais (texto livre, médico, faixa de valor)
   const [searchTerm, setSearchTerm] = useState("");
   const [doctorFilter, setDoctorFilter] = useState<string>("todos");
+  const [companyFilter, setCompanyFilter] = useState<string>("todos");
   const [minValue, setMinValue] = useState<string>("");
   const [maxValue, setMaxValue] = useState<string>("");
 
@@ -1371,11 +1447,18 @@ export function PaymentConciliationModal({
 
 
   const doctorOptions = useMemo(() => {
-    const base = initialCompany
+    let base = initialCompany
       ? items.filter((it) => (it.company_name ?? "") === initialCompany)
       : items;
+    if (companyFilter !== "todos") {
+      base = base.filter((it) => (it.company_name ?? "") === companyFilter);
+    }
     return Array.from(new Set(base.map((i) => i.doctor_name ?? "").filter(Boolean))).sort();
-  }, [items, initialCompany]);
+  }, [items, initialCompany, companyFilter]);
+
+  const companyOptions = useMemo(() => {
+    return Array.from(new Set(items.map((i) => i.company_name ?? "").filter(Boolean))).sort();
+  }, [items]);
 
   // Escopo = todos os filtros EXCETO o activeFilter (tabs/KPIs por status).
   // KPIs, totais financeiros, contagens das abas e exportações recalculam
@@ -1384,6 +1467,9 @@ export function PaymentConciliationModal({
     let base = items;
     if (initialCompany) {
       base = base.filter((it) => (it.company_name ?? "") === initialCompany);
+    }
+    if (companyFilter !== "todos") {
+      base = base.filter((it) => (it.company_name ?? "") === companyFilter);
     }
     if (doctorFilter !== "todos") {
       base = base.filter((it) => (it.doctor_name ?? "") === doctorFilter);
@@ -1413,7 +1499,7 @@ export function PaymentConciliationModal({
       );
     }
     return base;
-  }, [items, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
+  }, [items, initialCompany, companyFilter, doctorFilter, minValue, maxValue, searchTerm]);
 
   const scopedStats = useMemo(() => {
     let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0;
@@ -1457,11 +1543,12 @@ export function PaymentConciliationModal({
     return scopedItems.filter((it) => it.status === activeFilter);
   }, [scopedItems, activeFilter]);
 
-  const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || minValue || maxValue);
+  const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || companyFilter !== "todos" || minValue || maxValue);
   const isScoped = !!initialCompany || hasExtraFilters;
   const clearExtraFilters = () => {
     setSearchTerm("");
     setDoctorFilter("todos");
+    setCompanyFilter("todos");
     setMinValue("");
     setMaxValue("");
   };
@@ -1530,6 +1617,7 @@ export function PaymentConciliationModal({
 
     const filterDescParts: string[] = [];
     if (initialCompany) filterDescParts.push(`Empresa: ${initialCompany}`);
+    else if (companyFilter !== "todos") filterDescParts.push(`Empresa: ${companyFilter}`);
     if (doctorFilter !== "todos") filterDescParts.push(`Médico: ${doctorFilter}`);
     if (activeFilter !== "todos") filterDescParts.push(`Status: ${STATUS_LABEL[activeFilter as ReconciliationItem["status"]] ?? activeFilter}`);
     if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
@@ -1612,6 +1700,7 @@ export function PaymentConciliationModal({
     let cursorY = 28;
     const filterDescParts: string[] = [];
     if (initialCompany) filterDescParts.push(`Empresa: ${initialCompany}`);
+    else if (companyFilter !== "todos") filterDescParts.push(`Empresa: ${companyFilter}`);
     if (doctorFilter !== "todos") filterDescParts.push(`Médico: ${doctorFilter}`);
     if (activeFilter !== "todos") filterDescParts.push(`Status: ${STATUS_LABEL[activeFilter as ReconciliationItem["status"]] ?? activeFilter}`);
     if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
@@ -2587,19 +2676,29 @@ export function PaymentConciliationModal({
                     className="h-8 pl-7 text-xs"
                   />
                 </div>
-                <div className="min-w-[180px]">
-                  <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Médico" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      <SelectItem value="todos">Todos os médicos</SelectItem>
-                      {doctorOptions.map((d) => (
-                        <SelectItem key={d} value={d}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {!initialCompany && (
+                  <SearchableCombo
+                    value={companyFilter}
+                    onChange={setCompanyFilter}
+                    options={companyOptions}
+                    allLabel="Todas as empresas"
+                    placeholder="Empresa"
+                    searchPlaceholder="Buscar empresa…"
+                    emptyText="Nenhuma empresa encontrada"
+                    widthClass="min-w-[200px]"
+                  />
+                )}
+                <SearchableCombo
+                  value={doctorFilter}
+                  onChange={setDoctorFilter}
+                  options={doctorOptions}
+                  allLabel="Todos os médicos"
+                  placeholder="Médico"
+                  searchPlaceholder="Buscar médico…"
+                  emptyText="Nenhum médico encontrado"
+                  widthClass="min-w-[200px]"
+                />
+
                 <div className="flex items-center gap-1">
                   <Input
                     value={minValue}
