@@ -1592,6 +1592,12 @@ export function PaymentConciliationModal({
     return scopedItems.filter((it) => it.status === activeFilter);
   }, [scopedItems, activeFilter]);
 
+  // Sempre que mudam filtros/escopo/pageSize, zera o "mostrar mais" por
+  // empresa para não acumular DOM com a base anterior.
+  useEffect(() => {
+    setShownByCompany({});
+  }, [searchTerm, doctorFilter, companyFilter, minValue, maxValue, activeFilter, pageSize, initialCompany, items.length]);
+
   const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || companyFilter !== "todos" || minValue || maxValue);
   const isScoped = !!initialCompany || hasExtraFilters;
   const clearExtraFilters = () => {
