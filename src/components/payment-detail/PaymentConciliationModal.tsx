@@ -346,8 +346,8 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T17:15:00Z";
-const RECONCILIATION_LOGIC_VERSION_LABEL = "match estrito por empresa/médico/função/via";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T19:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "conflito duro só quando ambos os lados informam o campo";
 
 export function PaymentConciliationModal({
   open,
@@ -1106,29 +1106,36 @@ export function PaymentConciliationModal({
         const routeHospN = normRoute(routeHosp);
         const qtyHospN = normQty(qtyHosp);
 
-        const scoreCandidate = (m: PaymentItemRow): { score: number; docOk: boolean; roleOk: boolean; routeOk: boolean } => {
+        const scoreCandidate = (m: PaymentItemRow): { score: number; docOk: boolean; roleOk: boolean; routeOk: boolean; docConflict: boolean; roleConflict: boolean; routeConflict: boolean } => {
           let s = 0;
           const docMedN = normName((m as any).doctor_name);
           const roleMedN = normRole((m as any).doctor_role);
           const routeMedN = normRoute((m as any).access_route);
           const qtyMedN = normQty((m as any).quantity);
           let docOk = false, roleOk = false, routeOk = false;
+          let docConflict = false, roleConflict = false, routeConflict = false;
           if (docHospN && docMedN && docHospN === docMedN) { s += 1000; docOk = true; }
           else if (docHospN && docMedN && (docMedN.includes(docHospN) || docHospN.includes(docMedN))) { s += 400; docOk = true; }
+          else if (docHospN && docMedN) { s -= 200; docConflict = true; }
           if (roleHospN && roleMedN && roleHospN === roleMedN) { s += 200; roleOk = true; }
-          else if (roleHospN && roleMedN) s -= 150;
+          else if (roleHospN && roleMedN) { s -= 150; roleConflict = true; }
           // Via de acesso: forte sinal quando ambos os lados informam — separa
           // linhas legítimas do mesmo código com valores distintos por via.
           if (routeHospN && routeMedN && routeHospN === routeMedN) { s += 500; routeOk = true; }
-          else if (routeHospN && routeMedN) s -= 400;
+          else if (routeHospN && routeMedN) { s -= 400; routeConflict = true; }
           if (qtyHospN === qtyMedN) s += 50;
           const diff = Math.abs(getConvenioValue(m) - valHosp);
           s += Math.max(0, 30 - Math.min(30, (diff / Math.max(1, valHosp)) * 30));
-          return { score: s, docOk, roleOk, routeOk };
+          return { score: s, docOk, roleOk, routeOk, docConflict, roleConflict, routeConflict };
         };
 
+        // Conflito DURO só existe quando AMBOS os lados informam o campo e
+        // discordam. Se a Exacta não trouxe médico/função/via (comum em
+        // auxiliares e linhas sem via), tratamos como ausência de informação —
+        // NÃO como conflito — senão o único candidato é descartado e o item
+        // vira falso "Só no Exacta" / "Só no hospital".
         const hasHardConflict = (sc: ReturnType<typeof scoreCandidate>) =>
-          (docHospN && !sc.docOk) || (roleHospN && !sc.roleOk) || (routeHospN && !sc.routeOk);
+          sc.docConflict || sc.roleConflict || sc.routeConflict;
 
         let match: PaymentItemRow | undefined;
         let ambiguous = false;
@@ -1149,7 +1156,7 @@ export function PaymentConciliationModal({
           // (ex.: Kleber R$ 1.457) com linha do auxiliar (ex.: Laryssa R$ 437).
           // Mesmo princípio para função e via de acesso.
           let pool = available.map((m) => ({ m, ...scoreCandidate(m) }));
-          pool.forEach((p) => evaluated.push(Object.assign({}, p.m, { __sc: { score: p.score, docOk: p.docOk, roleOk: p.roleOk, routeOk: p.routeOk } })));
+          pool.forEach((p) => evaluated.push(Object.assign({}, p.m, { __sc: { score: p.score, docOk: p.docOk, roleOk: p.roleOk, routeOk: p.routeOk, docConflict: p.docConflict, roleConflict: p.roleConflict, routeConflict: p.routeConflict } })));
           const docFiltered = pool.filter((c) => c.docOk);
           if (docHospN && docFiltered.length > 0) { pool = docFiltered; decision = "filtrado_por_medico"; }
           const roleFiltered = pool.filter((c) => c.roleOk);
