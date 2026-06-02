@@ -944,25 +944,82 @@ export function PaymentConciliationModal({
 
         let match: PaymentItemRow | undefined;
         let ambiguous = false;
+        let decision = "sem_candidato";
+        const evaluated: Array<PaymentItemRow & { __sc: ReturnType<typeof scoreCandidate> }> = [];
         if (available.length === 1) {
           match = available[0];
+          decision = "match_unico";
         } else if (available.length > 1) {
           // Filtros DUROS: se o hospital informa médico e existe candidato com o
           // mesmo médico, descarta os demais — evita casar linha do principal
           // (ex.: Kleber R$ 1.457) com linha do auxiliar (ex.: Laryssa R$ 437).
           // Mesmo princípio para função e via de acesso.
           let pool = available.map((m) => ({ m, ...scoreCandidate(m) }));
+          pool.forEach((p) => evaluated.push(Object.assign({}, p.m, { __sc: { score: p.score, docOk: p.docOk, roleOk: p.roleOk, routeOk: p.routeOk } })));
           const docFiltered = pool.filter((c) => c.docOk);
-          if (docHospN && docFiltered.length > 0) pool = docFiltered;
+          if (docHospN && docFiltered.length > 0) { pool = docFiltered; decision = "filtrado_por_medico"; }
           const roleFiltered = pool.filter((c) => c.roleOk);
-          if (roleHospN && roleFiltered.length > 0) pool = roleFiltered;
+          if (roleHospN && roleFiltered.length > 0) { pool = roleFiltered; if (decision === "sem_candidato") decision = "filtrado_por_funcao"; }
           const routeFiltered = pool.filter((c) => c.routeOk);
-          if (routeHospN && routeFiltered.length > 0) pool = routeFiltered;
+          if (routeHospN && routeFiltered.length > 0) { pool = routeFiltered; if (decision === "sem_candidato") decision = "filtrado_por_via"; }
           const ranked = pool.sort((a, b) => b.score - a.score);
           match = ranked[0].m;
           // Ambíguo: top sem identidade clara (sem doc, role nem via coerentes)
-          if (!ranked[0].docOk && !ranked[0].roleOk && !ranked[0].routeOk) ambiguous = true;
+          if (!ranked[0].docOk && !ranked[0].roleOk && !ranked[0].routeOk) { ambiguous = true; decision = "ambiguo"; }
         }
+
+        // Diagnóstico do match: capturamos para auditoria/explicabilidade.
+        const buildDiagnostics = (): MatchDiagnostics | null => {
+          if (available.length === 0) return null;
+          const candidates: MatchDiagnosticsCandidate[] = (evaluated.length > 0 ? evaluated : available.map((m) => Object.assign({}, m, { __sc: scoreCandidate(m) }))).map((c: any) => {
+            const sc = c.__sc;
+            const isChosen = match?.id === c.id;
+            let reason: string | null = null;
+            if (!isChosen) {
+              if (docHospN && !sc.docOk) reason = "médico diferente do hospital";
+              else if (roleHospN && !sc.roleOk) reason = "função diferente";
+              else if (routeHospN && !sc.routeOk) reason = "via de acesso diferente";
+              else reason = "score inferior ao escolhido";
+            }
+            return {
+              payment_item_id: c.id,
+              doctor_name: c.doctor_name ?? null,
+              doctor_role: c.doctor_role ?? null,
+              access_route: c.access_route ?? null,
+              valor_exacta: Number(c.procedure_amount ?? c.gross_amount ?? 0) || 0,
+              score: Math.round(sc.score),
+              docOk: sc.docOk,
+              roleOk: sc.roleOk,
+              routeOk: sc.routeOk,
+              chosen: isChosen,
+              rejected_reason: reason,
+            };
+          });
+          const fields: MatchDiagnosticsField[] = [];
+          if (match) {
+            const docMed = (match as any).doctor_name ?? null;
+            const roleMed = (match as any).doctor_role ?? null;
+            const routeMed = (match as any).access_route ?? null;
+            const valMed = getConvenioValue(match);
+            const cmp = (a: string | null, b: string | null, na: string, nb: string): boolean | null => {
+              if (!na || !nb) return null;
+              return na === nb;
+            };
+            fields.push({ label: "Médico", hospital: doctor ? String(doctor) : null, exacta: docMed, ok: cmp(doctor, docMed, docHospN, normName(docMed)) });
+            fields.push({ label: "Função", hospital: roleHosp ? String(roleHosp) : null, exacta: roleMed, ok: cmp(roleHosp, roleMed, roleHospN, normRole(roleMed)) });
+            fields.push({ label: "Via de acesso", hospital: routeHosp ? String(routeHosp) : null, exacta: routeMed, ok: cmp(routeHosp, routeMed, routeHospN, normRoute(routeMed)) });
+            fields.push({ label: "Valor (convênio)", hospital: formatCurrency(valHosp), exacta: formatCurrency(valMed), ok: Math.abs(valHosp - valMed) < 0.02 });
+          }
+          return {
+            hospital: { doctor: doctor ? String(doctor) : null, role: roleHosp ? String(roleHosp) : null, route: routeHosp ? String(routeHosp) : null, valor: valHosp },
+            candidates_total: available.length,
+            candidates,
+            fields,
+            decision,
+          };
+        };
+        const diagnostics = buildDiagnostics();
+
 
         const base: Record<string, unknown> = {
           attendance_number: att ? String(Math.round(Number(att)) || att) : null,
