@@ -382,7 +382,9 @@ const NewPayment = () => {
   const [parseErrors, setParseErrors] = useState<Array<{ fileName: string; title: string; reasons: string[]; howToFix: string[] }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
-  const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>("padrao");
+  const [searchParams] = useSearchParams();
+  const modoConfeccao = searchParams.get("modo") === "confeccao";
+  const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(modoConfeccao ? "confeccao" : "padrao");
   // Tipos de pagamento são gerenciados em /cadastros/tipos-pagamento e carregados via hook.
   const { list: paymentTypeOptions, loading: loadingPaymentTypes } = usePaymentTypes({ onlyActive: true });
   const [autoSectors, setAutoSectors] = useState(true);
