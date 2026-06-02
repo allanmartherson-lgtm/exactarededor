@@ -423,7 +423,8 @@ export function PaymentConciliationModal({
   // Listas longas (lotes de 5k+) deixavam o DOM travado; o usuário expande
   // mais via "Carregar mais" ou troca o pageSize para "Todos" quando precisa.
   const [pageSize, setPageSize] = useState<number>(200);
-  const [shownByCompany, setShownByCompany] = useState<Record<string, number>>({});
+  /** Página atual (0-indexed) por empresa para a paginação dos itens. */
+  const [pageByCompany, setPageByCompany] = useState<Record<string, number>>({});
 
   const [step, setStep] = useState<Step>("upload");
   const [excludeConsultas, setExcludeConsultas] = useState(true);
@@ -1600,8 +1601,9 @@ export function PaymentConciliationModal({
   // Sempre que mudam filtros/escopo/pageSize, zera o "mostrar mais" por
   // empresa para não acumular DOM com a base anterior.
   useEffect(() => {
-    setShownByCompany({});
+    setPageByCompany({});
   }, [searchTerm, doctorFilter, companyFilter, minValue, maxValue, activeFilter, pageSize, initialCompany, items.length]);
+
 
   const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || companyFilter !== "todos" || minValue || maxValue);
   const isScoped = !!initialCompany || hasExtraFilters;
@@ -2982,16 +2984,23 @@ export function PaymentConciliationModal({
 
                         {isOpen && (() => {
                           const total = companyItems.length;
-                          const shown = pageSize === Infinity
-                            ? total
-                            : Math.min(shownByCompany[company] ?? pageSize, total);
-                          const visibleItems = pageSize === Infinity
-                            ? companyItems
-                            : companyItems.slice(0, shown);
-                          const hasMore = shown < total;
+                          // Modo "Todos": sem paginação. Caso contrário, paginação
+                          // clássica por página inteira (pageSize) — com scroll
+                          // lateral envolvendo a tabela para telas estreitas.
+                          const isAll = pageSize === Infinity;
+                          const totalPages = isAll ? 1 : Math.max(1, Math.ceil(total / pageSize));
+                          const currentPage = isAll
+                            ? 0
+                            : Math.min(pageByCompany[company] ?? 0, totalPages - 1);
+                          const startIdx = isAll ? 0 : currentPage * pageSize;
+                          const endIdx = isAll ? total : Math.min(startIdx + pageSize, total);
+                          const visibleItems = isAll ? companyItems : companyItems.slice(startIdx, endIdx);
+                          const goToPage = (p: number) =>
+                            setPageByCompany((prev) => ({ ...prev, [company]: Math.max(0, Math.min(p, totalPages - 1)) }));
                           return (
                           <div className="border-t border-border">
-                            <Table>
+                            <div className="overflow-x-auto">
+                            <Table className="min-w-[1180px]">
                               <TableHeader>
                                 <TableRow>
                                   <TableHead className="px-3 py-1.5 text-[10px]">Atendimento</TableHead>
@@ -3316,35 +3325,65 @@ export function PaymentConciliationModal({
                                 })}
                               </TableBody>
                             </Table>
-                            {hasMore && (
-                              <div className="px-4 py-2 border-t border-border bg-background flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground">
-                                  Mostrando <strong className="text-foreground tabular-nums">{shown}</strong> de{" "}
-                                  <strong className="text-foreground tabular-nums">{total}</strong> itens
-                                </span>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    onClick={() => setShownByCompany((prev) => ({
-                                      ...prev,
-                                      [company]: Math.min((prev[company] ?? pageSize) + pageSize, total),
-                                    }))}
-                                  >
-                                    Carregar mais (+{Math.min(pageSize, total - shown)})
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    onClick={() => setShownByCompany((prev) => ({ ...prev, [company]: total }))}
-                                  >
-                                    Mostrar todos
-                                  </Button>
+                            </div>
+                            {!isAll && totalPages > 1 && (() => {
+                              // Janela compacta de páginas (máx. 7 botões), com
+                              // elipse para grandes volumes.
+                              const window = 2;
+                              const pages: (number | "…")[] = [];
+                              const push = (p: number | "…") => pages.push(p);
+                              push(0);
+                              const from = Math.max(1, currentPage - window);
+                              const to = Math.min(totalPages - 2, currentPage + window);
+                              if (from > 1) push("…");
+                              for (let p = from; p <= to; p++) push(p);
+                              if (to < totalPages - 2) push("…");
+                              if (totalPages > 1) push(totalPages - 1);
+                              return (
+                                <div className="px-4 py-2 border-t border-border bg-background flex items-center justify-between gap-3 text-xs flex-wrap">
+                                  <span className="text-muted-foreground">
+                                    Mostrando{" "}
+                                    <strong className="text-foreground tabular-nums">{startIdx + 1}</strong>–
+                                    <strong className="text-foreground tabular-nums">{endIdx}</strong> de{" "}
+                                    <strong className="text-foreground tabular-nums">{total}</strong> itens
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline" size="sm" className="h-7 px-2 text-xs"
+                                      disabled={currentPage === 0}
+                                      onClick={() => goToPage(currentPage - 1)}
+                                      aria-label="Página anterior"
+                                    >
+                                      ‹ Anterior
+                                    </Button>
+                                    {pages.map((p, i) => (
+                                      p === "…" ? (
+                                        <span key={`e-${i}`} className="px-1 text-muted-foreground">…</span>
+                                      ) : (
+                                        <Button
+                                          key={p}
+                                          variant={p === currentPage ? "default" : "outline"}
+                                          size="sm"
+                                          className="h-7 min-w-7 px-2 text-xs tabular-nums"
+                                          onClick={() => goToPage(p)}
+                                          aria-current={p === currentPage ? "page" : undefined}
+                                        >
+                                          {p + 1}
+                                        </Button>
+                                      )
+                                    ))}
+                                    <Button
+                                      variant="outline" size="sm" className="h-7 px-2 text-xs"
+                                      disabled={currentPage >= totalPages - 1}
+                                      onClick={() => goToPage(currentPage + 1)}
+                                      aria-label="Próxima página"
+                                    >
+                                      Próxima ›
+                                    </Button>
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              );
+                            })()}
                             <div className="px-4 py-2 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
                               <span>{companyItems.length} itens</span>
                               <div className="flex gap-6">
