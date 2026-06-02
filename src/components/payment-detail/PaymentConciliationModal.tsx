@@ -1827,7 +1827,7 @@ export function PaymentConciliationModal({
     toast({ title: "CSV exportado", description: "Arquivo CSV gerado com sucesso." });
   };
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (itemsToExport: ReconciliationItem[], scopeLabel: string) => {
     if (!run) return;
     const { jsPDF } = await import("jspdf");
     const autoTable = (await import("jspdf-autotable")).default;
@@ -1855,6 +1855,7 @@ export function PaymentConciliationModal({
     if (activeFilter !== "todos") filterDescParts.push(`Status: ${STATUS_LABEL[activeFilter as ReconciliationItem["status"]] ?? activeFilter}`);
     if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
     if (minValue || maxValue) filterDescParts.push(`Valor: ${minValue || "—"} a ${maxValue || "—"}`);
+    filterDescParts.push(`Recorte: ${scopeLabel}`);
     if (filterDescParts.length) {
       doc.setTextColor(100, 100, 100);
       doc.setFont("helvetica", "italic");
@@ -1868,7 +1869,7 @@ export function PaymentConciliationModal({
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text(
-      `Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Valor div.: ${scopedStats.valor_divergente}  ·  Qtd div.: ${scopedStats.qtd_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só Exacta: ${scopedStats.so_exacta}${isScoped ? "  (escopo filtrado)" : ""}`,
+      `Itens exportados: ${itemsToExport.length}  ·  Conciliados: ${scopedStats.conciliado}  ·  Valor div.: ${scopedStats.valor_divergente}  ·  Qtd div.: ${scopedStats.qtd_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só Exacta: ${scopedStats.so_exacta}`,
       marginX,
       cursorY,
     );
@@ -1884,14 +1885,15 @@ export function PaymentConciliationModal({
     );
     cursorY += 4;
 
-    const tableData = filteredItems.map((it) => [
+    const tableData = itemsToExport.map((it) => [
       STATUS_LABEL[it.status],
       it.company_name ?? "",
       it.doctor_name ?? "",
-      it.patient_name ?? "",
       it.procedure_code ?? "",
+      it.procedure_name ?? "",
       it.procedure_date ? formatDateBR(it.procedure_date) : "",
-      it.agreement_text ?? "",
+      fmtQty(getQtyExacta(it)),
+      fmtQty(getQtyHospital(it)),
       `R$ ${Number(it.valor_exacta).toFixed(2)}`,
       `R$ ${Number(it.valor_hospital).toFixed(2)}`,
       it.applied_rule_label ?? "",
@@ -1905,15 +1907,14 @@ export function PaymentConciliationModal({
       "Só no Exacta": [239, 246, 255],
     };
 
-    // Proporções somam 1.0 — autoTable garante que cada coluna caiba
-    // dentro de tableWidth, com quebra de linha (overflow: linebreak)
-    // para evitar corte horizontal de texto.
-    const widthFractions = [0.08, 0.14, 0.11, 0.11, 0.06, 0.06, 0.08, 0.07, 0.07, 0.22];
+    // 11 colunas — somam 1.0. Procedimento e Regra são as mais largas para
+    // acomodar texto descritivo; quantidades são colunas estreitas centradas.
+    const widthFractions = [0.07, 0.12, 0.10, 0.06, 0.20, 0.06, 0.05, 0.05, 0.075, 0.075, 0.13];
     const colWidths = widthFractions.map((f) => +(tableWidth * f).toFixed(2));
 
     autoTable(doc, {
       startY: cursorY + 2,
-      head: [["Status", "Empresa", "Médico", "Paciente", "TUSS", "Data", "Convênio", "Exacta", "Hospital", "Regra Exacta"]],
+      head: [["Status", "Empresa", "Médico", "TUSS", "Procedimento", "Data", "Qtd Ex.", "Qtd Ho.", "Exacta", "Hospital", "Regra Exacta"]],
       body: tableData,
       styles: { fontSize: 7, cellPadding: 1.8, overflow: "linebreak", valign: "middle" },
       headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255, fontStyle: "bold", fontSize: 7.5, halign: "left" },
@@ -1924,10 +1925,11 @@ export function PaymentConciliationModal({
         3: { cellWidth: colWidths[3] },
         4: { cellWidth: colWidths[4] },
         5: { cellWidth: colWidths[5] },
-        6: { cellWidth: colWidths[6] },
-        7: { cellWidth: colWidths[7], halign: "right" },
+        6: { cellWidth: colWidths[6], halign: "center" },
+        7: { cellWidth: colWidths[7], halign: "center" },
         8: { cellWidth: colWidths[8], halign: "right" },
-        9: { cellWidth: colWidths[9] },
+        9: { cellWidth: colWidths[9], halign: "right" },
+        10: { cellWidth: colWidths[10] },
       },
       didParseCell: (data) => {
         if (data.section === "body") {
@@ -1936,14 +1938,11 @@ export function PaymentConciliationModal({
           if (fill) data.cell.styles.fillColor = fill;
         }
       },
-      // Margens consistentes — autoTable repete o head a cada quebra
-      // de página e respeita o rodapé (espaço para a numeração).
       margin: { left: marginX, right: marginX, top: cursorY + 2, bottom: marginBottom + 6 },
       tableWidth,
       showHead: "everyPage",
       rowPageBreak: "avoid",
       didDrawPage: () => {
-        // Rodapé com numeração e marca, em todas as páginas.
         const pageCount = (doc as unknown as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages();
         const current = (doc as unknown as { internal: { getCurrentPageInfo: () => { pageNumber: number } } }).internal.getCurrentPageInfo().pageNumber;
         doc.setFont("helvetica", "normal");
@@ -1957,6 +1956,57 @@ export function PaymentConciliationModal({
     doc.save(buildExportFileName("pdf"));
     toast({ title: "PDF exportado", description: "Arquivo PDF gerado com sucesso." });
   };
+
+  // ============== Modal de exportação ==============
+  type ExportFormat = "xlsx" | "csv" | "pdf";
+  type ExportStatusKey = ReconciliationItem["status"];
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("xlsx");
+  const ALL_STATUS_KEYS: ExportStatusKey[] = ["conciliado", "valor_divergente", "qtd_divergente", "so_hospital", "so_exacta"];
+  const [exportStatuses, setExportStatuses] = useState<Set<ExportStatusKey>>(new Set(ALL_STATUS_KEYS));
+
+  const toggleExportStatus = (k: ExportStatusKey) => {
+    setExportStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  };
+  const setAllExportStatuses = (on: boolean) => {
+    setExportStatuses(on ? new Set(ALL_STATUS_KEYS) : new Set());
+  };
+
+  const exportCounts: Record<ExportStatusKey, number> = useMemo(() => {
+    const acc: Record<ExportStatusKey, number> = {
+      conciliado: 0, valor_divergente: 0, qtd_divergente: 0, so_hospital: 0, so_exacta: 0,
+    };
+    for (const it of filteredItems) acc[it.status] = (acc[it.status] ?? 0) + 1;
+    return acc;
+  }, [filteredItems]);
+
+  const runExport = () => {
+    if (exportStatuses.size === 0) {
+      toast({ title: "Selecione ao menos um tipo", description: "Marque pelo menos um status para exportar.", variant: "destructive" });
+      return;
+    }
+    const subset = filteredItems.filter((it) => exportStatuses.has(it.status));
+    if (subset.length === 0) {
+      toast({ title: "Nada para exportar", description: "Nenhum item nos status selecionados (considerando filtros atuais).", variant: "destructive" });
+      return;
+    }
+    const isAll = exportStatuses.size === ALL_STATUS_KEYS.length;
+    const scopeLabel = isAll
+      ? "Todos os status"
+      : Array.from(exportStatuses).map((s) => STATUS_LABEL[s]).join(" + ");
+
+    if (exportFormat === "xlsx") handleExportXlsx(subset, scopeLabel);
+    else if (exportFormat === "csv") handleExportCsv(subset, scopeLabel);
+    else handleExportPdf(subset, scopeLabel);
+    setExportOpen(false);
+  };
+
+
 
   const triggerNew = () => {
     setStep("select_base");
