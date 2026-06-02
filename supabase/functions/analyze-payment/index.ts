@@ -168,6 +168,7 @@ serve(async (req) => {
       tolerance_pct: typeof tolerance_pct === "number" ? tolerance_pct : undefined,
     };
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
+    const isConfeccao = payment?.analysis_mode === "confeccao";
 
     // ---------- 2. carrega configurações globais e regras ----------
     const __rulesStart = Date.now();
