@@ -1731,6 +1731,7 @@ export function PaymentConciliationModal({
     if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
     if (minValue) filterDescParts.push(`Valor mín: ${minValue}`);
     if (maxValue) filterDescParts.push(`Valor máx: ${maxValue}`);
+    filterDescParts.push(`Recorte exportação: ${scopeLabel}`);
     const filterDesc = filterDescParts.length ? filterDescParts.join(" · ") : "Sem filtros";
 
     const summaryData: (string | number)[][] = [
