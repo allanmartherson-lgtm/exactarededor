@@ -60,7 +60,7 @@ const CONFIG: Record<Kind, {
     parentTable: "companies",
     parentFk: "company_id",
     parentNameCol: "name",
-    parentDocCol: "cnpj",
+    parentDocCol: "document",
     label: "Empresa",
     entityLabel: "empresa",
     icon: Building2,
