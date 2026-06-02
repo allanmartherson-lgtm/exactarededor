@@ -7291,7 +7291,11 @@ export type Database = {
         | "informativo"
         | "impacta_aprovacao"
         | "justificativa_override"
-      payment_analysis_mode: "padrao" | "empresa_prioritaria" | "isolado"
+      payment_analysis_mode:
+        | "padrao"
+        | "empresa_prioritaria"
+        | "isolado"
+        | "confeccao"
       payment_kind: "atual" | "pendencia" | "misto"
       payment_status:
         | "rascunho"
@@ -7541,7 +7545,12 @@ export const Constants = {
         "impacta_aprovacao",
         "justificativa_override",
       ],
-      payment_analysis_mode: ["padrao", "empresa_prioritaria", "isolado"],
+      payment_analysis_mode: [
+        "padrao",
+        "empresa_prioritaria",
+        "isolado",
+        "confeccao",
+      ],
       payment_kind: ["atual", "pendencia", "misto"],
       payment_status: [
         "rascunho",

@@ -1,0 +1,1 @@
+ALTER TYPE payment_analysis_mode ADD VALUE IF NOT EXISTS 'confeccao';
