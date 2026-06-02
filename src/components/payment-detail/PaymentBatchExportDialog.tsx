@@ -471,8 +471,10 @@ export function PaymentBatchExportDialog({
             </div>
           </div>
 
-
+          {/* Formato */}
+          <div>
             <div className="text-sm font-medium mb-2">Formato</div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {formatOptions.map((opt) => {
                 const Icon = opt.icon;
