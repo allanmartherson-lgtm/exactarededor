@@ -298,6 +298,35 @@ export function PaymentConciliationModal({
     [paymentItems],
   );
 
+  // Aliases persistidos das empresas do lote — usados para auto-mapear o "terceiro"
+  // da planilha do hospital sem o analista precisar refazer o vínculo a cada rodada.
+  // Toda confirmação manual aqui vira alias ao processar a conciliação.
+  const [companyAliasMap, setCompanyAliasMap] = useState<
+    Record<string, { id: string; name: string; aliases: string[] }>
+  >({});
+
+  useEffect(() => {
+    if (!open || loteCompanies.length === 0) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("companies")
+        .select("id, name, aliases")
+        .in("name", loteCompanies);
+      if (cancelled || !data) return;
+      const map: Record<string, { id: string; name: string; aliases: string[] }> = {};
+      for (const r of data as Array<{ id: string; name: string; aliases: string[] | null }>) {
+        map[r.name] = { id: r.id, name: r.name, aliases: r.aliases ?? [] };
+      }
+      setCompanyAliasMap(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, loteCompanies]);
+
   const loadLatestRun = async () => {
     setLoading(true);
     try {
