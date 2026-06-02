@@ -421,6 +421,7 @@ const Users = () => {
           email: parsed.data.email,
           full_name: parsed.data.full_name,
           phone: parsed.data.phone,
+          cpf: parsed.data.cpf,
           role_title: parsed.data.role_title,
           department: parsed.data.department,
           birth_date: parsed.data.birth_date,
