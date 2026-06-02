@@ -1043,6 +1043,7 @@ export function PaymentConciliationModal({
           agreement_text: getCell(row, "agreement") ? String(getCell(row, "agreement")) : null,
           applied_rule_label: null,
           applied_calc_method: null,
+          match_diagnostics: diagnostics,
           valor_regra: null,
         };
 
