@@ -1945,22 +1945,73 @@ export function PaymentConciliationModal({
                 </span>
               </div>
 
-              {/* Aviso de defasagem: lote foi reanalisado após a conciliação */}
+              {/* Aviso de defasagem: detecta reanálise do lote, atualização de regras
+                  ou nova versão da lógica de conciliação desde o último run. */}
               {(() => {
+                if (!run.created_at) return null;
+                const runTs = new Date(run.created_at).getTime();
+                const reasons: { key: string; label: React.ReactNode }[] = [];
+
                 const lastAnalyzed = paymentItems
                   .map((it) => (it as any).applied_at as string | null)
                   .filter(Boolean)
                   .sort()
                   .pop();
-                if (!lastAnalyzed || !run.created_at) return null;
-                const stale = new Date(lastAnalyzed).getTime() > new Date(run.created_at).getTime();
-                if (!stale) return null;
+                if (lastAnalyzed && new Date(lastAnalyzed).getTime() > runTs) {
+                  reasons.push({
+                    key: "reanalise",
+                    label: (
+                      <>Lote reanalisado em <strong>{formatDateTimeBR(lastAnalyzed)}</strong> — exclusões/inclusões pelo motor podem ter mudado.</>
+                    ),
+                  });
+                }
+
+                if (rulesLastUpdate && new Date(rulesLastUpdate).getTime() > runTs) {
+                  reasons.push({
+                    key: "regras",
+                    label: (
+                      <>Regras de pagamento atualizadas em <strong>{formatDateTimeBR(rulesLastUpdate)}</strong> — o valor esperado por item pode ter mudado.</>
+                    ),
+                  });
+                }
+
+                if (runTs < new Date(RECONCILIATION_LOGIC_VERSION_DATE).getTime()) {
+                  reasons.push({
+                    key: "logica",
+                    label: (
+                      <>Nova lógica de classificação disponível (<strong>{RECONCILIATION_LOGIC_VERSION_LABEL}</strong>) — separa divergência de valor (acordo proporcional) de divergência de quantidade (acordo fixo).</>
+                    ),
+                  });
+                }
+
+                if (reasons.length === 0) return null;
+
                 return (
-                  <div className="flex items-start gap-2 px-4 py-2.5 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning-text">
+                  <div className="flex items-start gap-3 px-4 py-3 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning-text">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Snapshot defasado:</strong> o lote foi reanalisado em {formatDateTimeBR(lastAnalyzed)}, depois desta conciliação. Clique em <strong>Nova conciliação</strong> para refazer o cruzamento com os dados atuais. (A comparação financeira usa a tabela do convênio e não depende das regras, mas inclusões/exclusões de itens pelo motor podem ter mudado.)
-                    </span>
+                    <div className="flex-1 space-y-1.5">
+                      <p className="font-semibold">
+                        Conciliação desatualizada ({reasons.length} {reasons.length === 1 ? "motivo" : "motivos"})
+                      </p>
+                      <ul className="list-disc pl-4 space-y-0.5">
+                        {reasons.map((r) => (
+                          <li key={r.key}>{r.label}</li>
+                        ))}
+                      </ul>
+                      <p className="text-[11px] opacity-80">
+                        Conciliação atual: {formatDateTimeBR(run.created_at)}.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="shrink-0"
+                      onClick={() => setStep("select_base")}
+                      disabled={processing}
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${processing ? "animate-spin" : ""}`} />
+                      Reprocessar
+                    </Button>
                   </div>
                 );
               })()}
