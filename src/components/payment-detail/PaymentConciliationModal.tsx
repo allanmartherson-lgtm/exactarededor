@@ -264,8 +264,8 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T14:00:00Z";
-const RECONCILIATION_LOGIC_VERSION_LABEL = "qtd_divergente + regra fixa vs proporcional";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T17:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "match estrito por empresa/médico/função/via";
 
 export function PaymentConciliationModal({
   open,
@@ -710,6 +710,27 @@ export function PaymentConciliationModal({
           }
           return next;
         });
+      }
+
+      const exactaItemsForRun: PaymentItemRow[] = [];
+      const mappedCompanies = Array.from(currentMappedCompanies);
+      const PAGE = 1000;
+      for (let from = 0; from < 50000; from += PAGE) {
+        let q = (supabase as any)
+          .from("payment_items")
+          .select("*")
+          .eq("payment_id", paymentId)
+          .order("created_at")
+          .range(from, from + PAGE - 1);
+        if (mappedCompanies.length > 0) q = q.in("company_name", mappedCompanies);
+        const { data: page, error: pageErr } = await q;
+        if (pageErr) throw pageErr;
+        const rows = (page ?? []) as PaymentItemRow[];
+        exactaItemsForRun.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      if (exactaItemsForRun.length === 0) {
+        throw new Error("Não encontrei itens Exacta para as empresas mapeadas nesta conciliação.");
       }
 
       const { data: newRun, error: runErr } = await (supabase as any)
