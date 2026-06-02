@@ -349,8 +349,8 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T21:00:00Z";
-const RECONCILIATION_LOGIC_VERSION_LABEL = "chave empresa+atendimento+TUSS · empresa_ausente como bucket próprio · sem_atendimento tratado";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T22:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "TUSS tolerante a 7d/8d (dígito verificador) · chave empresa+atendimento+TUSS · empresa_ausente · sem_atendimento";
 
 export function PaymentConciliationModal({
   open,
@@ -996,6 +996,20 @@ export function PaymentConciliationModal({
         return str.replace(/\D/g, '');
       };
 
+      // TUSS pode aparecer em 7 dígitos (raiz) ou 8 dígitos (raiz + dígito
+      // verificador). A Exacta normalmente grava com 8 dígitos; bases de
+      // hospital frequentemente exportam só os 7. Geramos TODAS as variantes
+      // razoáveis para que o mesmo código case independente do formato.
+      const codeVariants = (code: unknown): string[] => {
+        const base = normalizeCode(code);
+        if (!base) return [];
+        const set = new Set<string>([base]);
+        // 8 dígitos → também tenta 7 (remove último dígito verificador)
+        if (base.length === 8) set.add(base.slice(0, 7));
+        // 7 dígitos → não tem como reconstruir o verificador; deixa só 7.
+        return Array.from(set);
+      };
+
       const normAtt = (att: unknown): string => {
         if (att == null || att === '') return '';
         const str = String(att).trim();
@@ -1062,9 +1076,13 @@ export function PaymentConciliationModal({
         const compNorm = normCompany(it.company_name);
         if (compNorm) exactaCompanySet.add(compNorm);
         if (!it.attendance_number || !it.procedure_code) continue;
-        const k = makeKey(it.company_name, it.attendance_number, it.procedure_code);
-        if (!exactaByKey.has(k)) exactaByKey.set(k, []);
-        exactaByKey.get(k)!.push(it);
+        // Indexa sob TODAS as variantes de TUSS (8d e 7d) — assim o
+        // lookup casa mesmo quando hospital exporta sem dígito verificador.
+        for (const v of codeVariants(it.procedure_code)) {
+          const k = makeKey(it.company_name, it.attendance_number, v);
+          if (!exactaByKey.has(k)) exactaByKey.set(k, []);
+          exactaByKey.get(k)!.push(it);
+        }
       }
 
       // Set de empresas vistas na base do hospital — usado para detectar
@@ -1111,10 +1129,22 @@ export function PaymentConciliationModal({
         const companyMissing = hospitalCompanySet.size > 0 && exactaCompanySet.size > 0
           && normCompany(mappedCompany) !== "" && !exactaCompanySet.has(normCompany(mappedCompany));
         const attMissing = !att || normAtt(att) === "";
-        const k = makeKey(mappedCompany, att, code);
-        // Sem empresa correspondente ou sem nº de atendimento, não há como
-        // procurar candidato — vai direto para o bucket apropriado.
-        const candidates = (companyMissing || attMissing) ? [] : (exactaByKey.get(k) ?? []);
+        // Tenta TODAS as variantes do código (7d / 8d) — pega o primeiro
+        // bucket com candidatos. Itens já matchados são filtrados depois.
+        let candidates: PaymentItemRow[] = [];
+        if (!companyMissing && !attMissing) {
+          const seen = new Set<string>();
+          for (const v of codeVariants(code)) {
+            const k = makeKey(mappedCompany, att, v);
+            const bucket = exactaByKey.get(k);
+            if (!bucket) continue;
+            for (const cand of bucket) {
+              if (seen.has(cand.id)) continue;
+              seen.add(cand.id);
+              candidates.push(cand);
+            }
+          }
+        }
         const getConvenioValue = (m: PaymentItemRow): number => {
           const proc = (m as any).procedure_amount;
           if (proc != null && proc !== "") return Number(proc) || 0;
