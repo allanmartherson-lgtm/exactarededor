@@ -195,6 +195,34 @@ export function PaymentBatchExportDialog({
 
   const canExport = selectedCompanies.size > 0 && selectedStatuses.size > 0 && itemsToExport.length > 0;
 
+  // Aplica um preset rápido: define status + seleciona apenas empresas que
+  // contenham itens nesses status. Útil para exportar "tudo", "só divergentes",
+  // "só reprovados" etc. sem ter que marcar manualmente.
+  const applyPreset = (statuses: ItemAiStatus[]) => {
+    const statusSet = new Set<ItemAiStatus>(statuses);
+    setSelectedStatuses(statusSet);
+    const companiesWithMatches = new Set<string>();
+    for (const it of items) {
+      const st = (it.ai_status as ItemAiStatus) ?? "aprovado";
+      if (statusSet.has(st)) {
+        companiesWithMatches.add(it.company_name || "Sem PJ");
+      }
+    }
+    setSelectedCompanies(companiesWithMatches);
+  };
+
+  const presetCounts = useMemo(() => {
+    let aprovado = 0, alerta = 0, reprovado = 0;
+    for (const it of items) {
+      const st = (it.ai_status as ItemAiStatus) ?? "aprovado";
+      if (st === "aprovado") aprovado++;
+      else if (st === "alerta") alerta++;
+      else if (st === "reprovado") reprovado++;
+    }
+    return { aprovado, alerta, reprovado, divergentes: alerta + reprovado, total: items.length };
+  }, [items]);
+
+
   // ============ EXPORTAÇÕES ============
 
   const buildRows = () => {
