@@ -34,7 +34,7 @@ interface PaymentRow {
   payment_type: string | null;
   payment_due_date: string | null;
   competence_month: string | null;
-  analysis_mode: "padrao" | "empresa_prioritaria" | null;
+  analysis_mode: "padrao" | "empresa_prioritaria" | "isolado" | "confeccao" | null;
 }
 
 serve(async (req) => {
@@ -168,6 +168,7 @@ serve(async (req) => {
       tolerance_pct: typeof tolerance_pct === "number" ? tolerance_pct : undefined,
     };
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
+    const isConfeccao = payment?.analysis_mode === "confeccao";
 
     // ---------- 2. carrega configurações globais e regras ----------
     const __rulesStart = Date.now();
@@ -902,7 +903,16 @@ serve(async (req) => {
 
     // ---------- 5. IA SÓ JUSTIFICA itens com needs_ai_review ----------
     // Em modo empresa_prioritaria, ignoramos histórico de outros pagamentos.
-    const itemsToReview = is_dry_run ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
+    // Modo confecção: o sistema GEROU os valores via regras — não há divergência a revisar.
+    // Todos os itens saem como aprovado; IA de justificativa não é acionada.
+    if (isConfeccao) {
+      for (const r of results) {
+        r.status = "aprovado" as any;
+        r.needs_ai_review = false;
+        r.alerts = [];
+      }
+    }
+    const itemsToReview = is_dry_run || isConfeccao ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
     __telemetry.ai_items_count = itemsToReview.length;
     const __aiStart = Date.now();
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
@@ -1581,8 +1591,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const total = counts.aprovado + counts.alerta + counts.reprovado + counts.pendente;
       summary = `Lote com ${total} item(ns): ${counts.aprovado} aprovado(s), ${counts.alerta} alerta(s), ${counts.reprovado} reprovado(s).`;
     } else {
-      summary = (aiJustifications as any).__summary
-        || `Motor analisou ${results.length} item(ns): ${results.length - alerts - blocks} aprovado(s), ${alerts} alerta(s), ${blocks} reprovado(s).`;
+      summary = isConfeccao
+        ? `Confecção concluída: repasse calculado para ${results.length} item(ns) conforme regras cadastradas.`
+        : ((aiJustifications as any).__summary
+          || `Motor analisou ${results.length} item(ns): ${results.length - alerts - blocks} aprovado(s), ${alerts} alerta(s), ${blocks} reprovado(s).`);
     }
 
     // IMPORTANTE: NÃO escrevemos `payments.status` aqui. O status do pagamento
