@@ -939,16 +939,35 @@ export function PaymentConciliationModal({
         return parseFloat(s) || 0;
       };
 
+      // Extrai SOMENTE a data (YYYY-MM-DD) — hora é descartada por design
+      // (planilhas do hospital podem ter timestamp com hora distinta do
+      // mesmo ato no Exacta; comparar hora geraria divergência falsa).
+      // Importante: NÃO usar toISOString() em valores com fuso, pois a
+      // conversão para UTC pode pular um dia (ex.: 07/04 22:00 BRT → 08/04 UTC).
       const toDateStr = (v: unknown): string | null => {
-        if (!v) return null;
-        if (v instanceof Date) return v.toISOString().slice(0, 10);
+        if (v == null || v === '') return null;
+        // Date object → usa componentes LOCAIS (não UTC)
+        if (v instanceof Date) {
+          if (isNaN(v.getTime())) return null;
+          const y = v.getFullYear();
+          const m = String(v.getMonth() + 1).padStart(2, '0');
+          const d = String(v.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        }
         const s = String(v).trim();
+        // DD/MM/YYYY[ HH:MM:SS] → pega só DD/MM/YYYY
         const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
         if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+        // YYYY-MM-DD[Tqualquercoisa] → pega só YYYY-MM-DD (literal, sem fuso)
         const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
         if (iso) return iso[0];
+        // Fallback: parseia e usa componentes locais
         const d = new Date(s);
-        return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+        if (isNaN(d.getTime())) return null;
+        const y = d.getFullYear();
+        const mo = String(d.getMonth() + 1).padStart(2, '0');
+        const da = String(d.getDate()).padStart(2, '0');
+        return `${y}-${mo}-${da}`;
       };
 
       console.log('[Conciliação] srcColMap:', srcColMap);
