@@ -1471,11 +1471,12 @@ export function PaymentConciliationModal({
     return scopedItems.filter((it) => it.status === activeFilter);
   }, [scopedItems, activeFilter]);
 
-  const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || minValue || maxValue);
+  const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || companyFilter !== "todos" || minValue || maxValue);
   const isScoped = !!initialCompany || hasExtraFilters;
   const clearExtraFilters = () => {
     setSearchTerm("");
     setDoctorFilter("todos");
+    setCompanyFilter("todos");
     setMinValue("");
     setMaxValue("");
   };
