@@ -1723,6 +1723,19 @@ const NewPayment = () => {
               <p className="text-xs text-muted-foreground mt-1">Excel ou CSV — múltiplos arquivos suportados</p>
             </label>
 
+            {modoConfeccao && (
+              <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                <Calculator className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-primary">Modo confecção ativo</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Suba a base com o valor do convênio (coluna "Valor Procedimento" ou "Valor Convênio").
+                    O repasse será calculado automaticamente pelas regras cadastradas após o envio.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {parseErrors.length > 0 && (
               <div className="space-y-2">
                 {parseErrors.map((err, i) => (
