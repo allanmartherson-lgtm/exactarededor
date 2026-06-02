@@ -33,6 +33,7 @@ const HospitalContext = createContext<HospitalContextValue | undefined>(undefine
 export const HospitalProvider = ({ children }: { children: ReactNode }) => {
   const { user, hasRole, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  const userId = user?.id ?? null;
   const [availableHospitals, setAvailableHospitals] = useState<Hospital[]>([]);
   const [hospital, setHospital] = useState<Hospital | null>(null);
   const [primaryHospitalId, setPrimaryHospitalId] = useState<string | null>(null);
@@ -43,7 +44,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
   const isGlobal = hasRole("admin") || hasRole("diretor");
 
   const load = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setHospital(null);
       setAvailableHospitals([]);
       setPrimaryHospitalId(null);
@@ -57,7 +58,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     const { data: profile } = await supabase
       .from("profiles")
       .select("primary_hospital_id, last_active_hospital_id")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle();
     const primary = (profile?.primary_hospital_id as string | null) ?? null;
     const lastActive = ((profile as Record<string, unknown> | null)?.last_active_hospital_id as string | null) ?? null;
@@ -104,7 +105,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     setNeedsSelection(!active && hospitals.length > 1);
     if (active) localStorage.setItem(STORAGE_KEY, active.id);
     setLoading(false);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     if (authLoading) return;
