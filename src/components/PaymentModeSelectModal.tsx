@@ -18,7 +18,7 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-[min(95vw,1200px)] sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-8">
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl">Como deseja criar a base?</DialogTitle>
           <DialogDescription className="text-sm sm:text-base">Escolha o modo antes de continuar</DialogDescription>
