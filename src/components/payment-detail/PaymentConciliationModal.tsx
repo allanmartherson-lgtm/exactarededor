@@ -240,6 +240,78 @@ const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
 };
 
 /**
+ * Combobox com busca textual — substitui o Select nativo para listas longas
+ * (médicos, empresas) onde a busca por digitação é essencial. Usa o valor
+ * "todos" como sentinel para "sem filtro".
+ */
+function SearchableCombo({
+  value,
+  onChange,
+  options,
+  allLabel,
+  placeholder,
+  searchPlaceholder,
+  emptyText,
+  widthClass,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  allLabel: string;
+  placeholder: string;
+  searchPlaceholder: string;
+  emptyText: string;
+  widthClass?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const display = value === "todos" ? placeholder : value;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn("h-8 text-xs justify-between font-normal", widthClass)}
+        >
+          <span className={cn("truncate", value === "todos" && "text-muted-foreground")}>{display}</span>
+          <ChevronsUpDown className="h-3 w-3 ml-2 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[280px]" align="start">
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} className="h-8 text-xs" />
+          <CommandList className="max-h-[300px]">
+            <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="__todos__"
+                onSelect={() => { onChange("todos"); setOpen(false); }}
+                className="text-xs"
+              >
+                <CheckIcon className={cn("h-3 w-3 mr-2", value === "todos" ? "opacity-100" : "opacity-0")} />
+                {allLabel}
+              </CommandItem>
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt}
+                  value={opt}
+                  onSelect={() => { onChange(opt); setOpen(false); }}
+                  className="text-xs"
+                >
+                  <CheckIcon className={cn("h-3 w-3 mr-2", value === opt ? "opacity-100" : "opacity-0")} />
+                  <span className="truncate">{opt}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
  * Tipos de cálculo cujo VALOR é fixo por código (tabela diferenciada, pacote,
  * valor fixo, bônus). Para esses itens, divergência de centavos no valor não
  * importa — o que importa é a QUANTIDADE de atendimentos por código.
