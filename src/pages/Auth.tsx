@@ -35,11 +35,12 @@ const accessRequestSchema = userExtraSchema.extend({
 });
 
 const Auth = () => {
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, roles, rolesLoading, signIn } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [noAccess, setNoAccess] = useState(false);
   const [reqForm, setReqForm] = useState({
     full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "",
   });
@@ -63,8 +64,23 @@ const Auth = () => {
     document.title = "Entrar | Aprovação de Pagamentos Médicos";
   }, []);
 
+  // Se chegou aqui já autenticado mas sem nenhum papel do Exacta (ex.: usuário
+  // só de portal), encerra a sessão e exibe um aviso — evita loop com o
+  // ProtectedRoute e deixa claro que o portal usa magic link, não login direto.
+  useEffect(() => {
+    if (!loading && user && !rolesLoading && roles.length === 0) {
+      setNoAccess(true);
+      void supabase.auth.signOut();
+      toast({
+        title: "Sem acesso ao Exacta",
+        description: "Este usuário pertence apenas a um portal (empresa ou médico). O acesso é feito pelo link enviado por e-mail.",
+        variant: "destructive",
+      });
+    }
+  }, [loading, user, rolesLoading, roles]);
+
   if (loading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user && !noAccess && !rolesLoading && roles.length > 0) return <Navigate to="/" replace />;
 
   const handleForgotPassword = async () => {
     const emailEl = document.getElementById("signin-email") as HTMLInputElement | null;
