@@ -1108,8 +1108,13 @@ export function PaymentConciliationModal({
         const terceiro = col ? String(row[col] ?? "").trim() : "";
         const mappedCompany = srcMapping[terceiro] ?? terceiro;
         const dateStr = toDateStr(dateRaw);
-        const k = makeKey(att, code);
-        const candidates = exactaByKey.get(k) ?? [];
+        const companyMissing = hospitalCompanySet.size > 0 && exactaCompanySet.size > 0
+          && normCompany(mappedCompany) !== "" && !exactaCompanySet.has(normCompany(mappedCompany));
+        const attMissing = !att || normAtt(att) === "";
+        const k = makeKey(mappedCompany, att, code);
+        // Sem empresa correspondente ou sem nº de atendimento, não há como
+        // procurar candidato — vai direto para o bucket apropriado.
+        const candidates = (companyMissing || attMissing) ? [] : (exactaByKey.get(k) ?? []);
         const getConvenioValue = (m: PaymentItemRow): number => {
           const proc = (m as any).procedure_amount;
           if (proc != null && proc !== "") return Number(proc) || 0;
