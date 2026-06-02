@@ -1439,6 +1439,7 @@ export function PaymentConciliationModal({
           valor_exacta: valMed,
           valor_hospital: 0,
           company_name: it.company_name ?? null,
+          agreement_text: (it as any).agreement_text ?? null,
           status: isEmpresaAusente ? "empresa_ausente" : "so_exacta",
           ia_obs: isEmpresaAusente
             ? `Empresa "${it.company_name ?? "?"}" tem itens no Exacta mas não aparece no extrato do hospital — verifique se a empresa foi mapeada na importação.`
