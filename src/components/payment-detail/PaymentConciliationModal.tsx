@@ -912,9 +912,18 @@ export function PaymentConciliationModal({
         if (available.length === 1) {
           match = available[0];
         } else if (available.length > 1) {
-          const ranked = available
-            .map((m) => ({ m, ...scoreCandidate(m) }))
-            .sort((a, b) => b.score - a.score);
+          // Filtros DUROS: se o hospital informa médico e existe candidato com o
+          // mesmo médico, descarta os demais — evita casar linha do principal
+          // (ex.: Kleber R$ 1.457) com linha do auxiliar (ex.: Laryssa R$ 437).
+          // Mesmo princípio para função e via de acesso.
+          let pool = available.map((m) => ({ m, ...scoreCandidate(m) }));
+          const docFiltered = pool.filter((c) => c.docOk);
+          if (docHospN && docFiltered.length > 0) pool = docFiltered;
+          const roleFiltered = pool.filter((c) => c.roleOk);
+          if (roleHospN && roleFiltered.length > 0) pool = roleFiltered;
+          const routeFiltered = pool.filter((c) => c.routeOk);
+          if (routeHospN && routeFiltered.length > 0) pool = routeFiltered;
+          const ranked = pool.sort((a, b) => b.score - a.score);
           match = ranked[0].m;
           // Ambíguo: top sem identidade clara (sem doc, role nem via coerentes)
           if (!ranked[0].docOk && !ranked[0].roleOk && !ranked[0].routeOk) ambiguous = true;
