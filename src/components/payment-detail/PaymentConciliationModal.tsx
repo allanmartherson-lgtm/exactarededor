@@ -102,6 +102,7 @@ type ReconciliationRun = {
   valor_divergente: number;
   so_hospital: number;
   so_exacta: number;
+  empresa_ausente?: number;
   risco_mais: number;
   risco_menos: number;
   divergencia_valor: number;
@@ -120,7 +121,7 @@ type ReconciliationItem = {
   procedure_date: string | null;
   valor_exacta: number;
   valor_hospital: number;
-  status: "conciliado" | "valor_divergente" | "qtd_divergente" | "so_hospital" | "so_exacta";
+  status: "conciliado" | "valor_divergente" | "qtd_divergente" | "so_hospital" | "so_exacta" | "empresa_ausente";
   ia_obs: string | null;
   company_name: string | null;
   agreement_text: string | null;
@@ -236,6 +237,7 @@ const STATUS_LABEL: Record<ReconciliationItem["status"], string> = {
   qtd_divergente: "Quantidade divergente",
   so_hospital: "Só no hospital",
   so_exacta: "Só no Exacta",
+  empresa_ausente: "Empresa ausente",
 };
 
 const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
@@ -244,6 +246,7 @@ const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
   qtd_divergente: "bg-warning/10 text-warning-text border-warning/30",
   so_hospital: "bg-destructive/10 text-destructive border-destructive/30",
   so_exacta: "bg-primary/10 text-primary border-primary/30",
+  empresa_ausente: "bg-muted text-muted-foreground border-border",
 };
 
 /**
@@ -346,8 +349,8 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T19:30:00Z";
-const RECONCILIATION_LOGIC_VERSION_LABEL = "conflito duro só quando ambos os lados informam o campo";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T21:00:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "chave empresa+atendimento+TUSS · empresa_ausente como bucket próprio · sem_atendimento tratado";
 
 export function PaymentConciliationModal({
   open,
@@ -1001,8 +1004,18 @@ export function PaymentConciliationModal({
         return str.replace(/\D/g, '');
       };
 
-      const makeKey = (att: unknown, code: unknown): string =>
-        `${normAtt(att)}|${normalizeCode(code)}`;
+      // CHAVE PRIMÁRIA: empresa + atendimento + código TUSS.
+      // Antes a chave era apenas att+code — itens com o mesmo nº de
+      // atendimento em empresas diferentes podiam cruzar erroneamente.
+      const normCompany = (s: unknown): string =>
+        String(s ?? "")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "")
+          .trim();
+      const makeKey = (company: unknown, att: unknown, code: unknown): string =>
+        `${normCompany(company)}|${normAtt(att)}|${normalizeCode(code)}`;
 
       const normName = (s: unknown): string =>
         String(s ?? "")
@@ -1042,24 +1055,30 @@ export function PaymentConciliationModal({
       };
 
       const exactaByKey = new Map<string, PaymentItemRow[]>();
+      // Set de empresas presentes na Exacta — usado para classificar
+      // "empresa_ausente" (linha do hospital cuja empresa nem existe no lote Exacta).
+      const exactaCompanySet = new Set<string>();
       for (const it of exactaItemsForRun) {
+        const compNorm = normCompany(it.company_name);
+        if (compNorm) exactaCompanySet.add(compNorm);
         if (!it.attendance_number || !it.procedure_code) continue;
-        const k = makeKey(it.attendance_number, it.procedure_code);
+        const k = makeKey(it.company_name, it.attendance_number, it.procedure_code);
         if (!exactaByKey.has(k)) exactaByKey.set(k, []);
         exactaByKey.get(k)!.push(it);
       }
 
-      // Debug: mostrar primeiros 3 pares de chaves de cada base
-      const sampleHospKeys = rowsParaCruzamento.slice(0, 3).map(row => {
-        const att = getCell(row, "attendance");
-        const code = getCell(row, "procCode");
-        return `hosp:${normAtt(att)}|${normalizeCode(code)}`;
-      });
-      const sampleMedKeys = Array.from(exactaByKey.keys()).slice(0, 3);
-      console.log('[Cruzamento] Chaves hospital (amostra):', sampleHospKeys);
-      console.log('[Cruzamento] Chaves Exacta (amostra):', sampleMedKeys);
-      console.log('[Cruzamento] Total chaves Exacta:', exactaByKey.size);
+      // Set de empresas vistas na base do hospital — usado para detectar
+      // empresas que estão SÓ no Exacta (sobra) e marcar como empresa_ausente.
+      const hospitalCompanySet = new Set<string>();
+      for (const row of rowsParaCruzamento) {
+        const col = srcColMap["company"];
+        const terceiro = col ? String(row[col] ?? "").trim() : "";
+        const mapped = srcMapping[terceiro] ?? terceiro;
+        const cn = normCompany(mapped);
+        if (cn) hospitalCompanySet.add(cn);
+      }
 
+      console.log('[Cruzamento] Empresas Exacta:', exactaCompanySet.size, 'Empresas Hospital:', hospitalCompanySet.size, 'Chaves Exacta:', exactaByKey.size);
 
       const matchedExactaIds = new Set<string>();
       const toInsert: Array<Record<string, unknown>> = [];
@@ -1067,7 +1086,8 @@ export function PaymentConciliationModal({
         valor_divergente = 0,
         qtd_divergente = 0,
         so_hospital = 0,
-        so_exacta = 0;
+        so_exacta = 0,
+        empresa_ausente = 0;
       let risco_mais = 0,
         risco_menos = 0,
         divergencia_valor = 0;
@@ -1088,8 +1108,13 @@ export function PaymentConciliationModal({
         const terceiro = col ? String(row[col] ?? "").trim() : "";
         const mappedCompany = srcMapping[terceiro] ?? terceiro;
         const dateStr = toDateStr(dateRaw);
-        const k = makeKey(att, code);
-        const candidates = exactaByKey.get(k) ?? [];
+        const companyMissing = hospitalCompanySet.size > 0 && exactaCompanySet.size > 0
+          && normCompany(mappedCompany) !== "" && !exactaCompanySet.has(normCompany(mappedCompany));
+        const attMissing = !att || normAtt(att) === "";
+        const k = makeKey(mappedCompany, att, code);
+        // Sem empresa correspondente ou sem nº de atendimento, não há como
+        // procurar candidato — vai direto para o bucket apropriado.
+        const candidates = (companyMissing || attMissing) ? [] : (exactaByKey.get(k) ?? []);
         const getConvenioValue = (m: PaymentItemRow): number => {
           const proc = (m as any).procedure_amount;
           if (proc != null && proc !== "") return Number(proc) || 0;
@@ -1313,9 +1338,18 @@ export function PaymentConciliationModal({
             if (diff > 0) risco_mais += diff;
             else risco_menos += Math.abs(diff);
           }
+        } else if (companyMissing) {
+          base.status = "empresa_ausente";
+          base.ia_obs = `Empresa "${mappedCompany}" não existe no lote Exacta. Verifique vínculo de empresa ou se o lote está completo.`;
+          empresa_ausente++;
+        } else if (attMissing) {
+          base.status = "so_hospital";
+          base.ia_obs = `Linha do hospital sem nº de atendimento — não foi possível cruzar com a Exacta.`;
+          so_hospital++;
+          risco_mais += valHosp;
         } else {
           base.status = "so_hospital";
-          base.ia_obs = `Item de ${mappedCompany} presente no extrato hospitalar mas ausente na base Exacta. Possível inclusão após importação do lote.`;
+          base.ia_obs = `Item de ${mappedCompany} (atendimento ${att}, TUSS ${code}) presente no extrato hospitalar mas ausente na base Exacta para esta empresa.`;
           so_hospital++;
           risco_mais += valHosp;
         }
@@ -1329,6 +1363,13 @@ export function PaymentConciliationModal({
         if (matchedExactaIds.has(it.id)) continue;
         if (!mappedLoteCompanies.has(it.company_name ?? "")) continue;
         const valMed = Number((it as any).procedure_amount ?? (it as any).gross_amount ?? 0);
+        const itCompNorm = normCompany(it.company_name);
+        // Se a empresa deste item Exacta nem aparece na base do hospital,
+        // classifica como "empresa_ausente" (card próprio) — evita poluir o
+        // só_exacta, que é reservado para itens isolados dentro de empresas
+        // que existem nos dois lados.
+        const isEmpresaAusente = hospitalCompanySet.size > 0 && itCompNorm !== ""
+          && !hospitalCompanySet.has(itCompNorm);
         toInsert.push({
           payment_item_id: it.id,
           attendance_number: it.attendance_number ?? null,
@@ -1340,12 +1381,18 @@ export function PaymentConciliationModal({
           valor_exacta: valMed,
           valor_hospital: 0,
           company_name: it.company_name ?? null,
-          status: "so_exacta",
-          ia_obs: `Item de ${it.company_name ?? "empresa"} presente no Exacta mas ausente no extrato hospitalar — verificar glosa.`,
+          status: isEmpresaAusente ? "empresa_ausente" : "so_exacta",
+          ia_obs: isEmpresaAusente
+            ? `Empresa "${it.company_name ?? "?"}" tem itens no Exacta mas não aparece no extrato do hospital — verifique se a empresa foi mapeada na importação.`
+            : `Item de ${it.company_name ?? "empresa"} (atendimento ${it.attendance_number ?? "?"}, TUSS ${it.procedure_code ?? "?"}) presente no Exacta mas ausente no extrato hospitalar — verificar glosa ou divergência de cadastro.`,
           valor_regra: (it as any).expected_amount ?? null,
         });
-        so_exacta++;
-        risco_menos += valMed;
+        if (isEmpresaAusente) {
+          empresa_ausente++;
+        } else {
+          so_exacta++;
+          risco_menos += valMed;
+        }
       }
 
       // Modo "merge": preserva itens da última run para empresas que NÃO estão
@@ -1380,6 +1427,8 @@ export function PaymentConciliationModal({
           } else if (it.status === "so_exacta") {
             so_exacta++;
             risco_menos += Number(it.valor_exacta) || 0;
+          } else if (it.status === "empresa_ausente") {
+            empresa_ausente++;
           }
           if (it.status === "valor_divergente") {
             const d = (Number(it.valor_hospital) || 0) - (Number(it.valor_exacta) || 0);
@@ -1569,7 +1618,7 @@ export function PaymentConciliationModal({
   }, [items, initialCompany, companyFilter, doctorFilter, minValue, maxValue, searchTerm]);
 
   const scopedStats = useMemo(() => {
-    let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0;
+    let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0, empresa_ausente = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
     for (const it of scopedItems) {
       if (it.status === "conciliado") conciliado++;
@@ -1577,6 +1626,7 @@ export function PaymentConciliationModal({
       else if (it.status === "qtd_divergente") qtd_divergente++;
       else if (it.status === "so_hospital") so_hospital++;
       else if (it.status === "so_exacta") so_exacta++;
+      else if (it.status === "empresa_ausente") empresa_ausente++;
       const vm = Number(it.valor_exacta) || 0;
       const vh = Number(it.valor_hospital) || 0;
       if (it.status === "valor_divergente") {
@@ -1584,8 +1634,6 @@ export function PaymentConciliationModal({
         divergencia_valor += Math.abs(diff);
         if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
       } else if (it.status === "qtd_divergente") {
-        // Divergência de quantidade: o valor que vamos pagar é o da regra.
-        // Mostramos a diferença vs hospital apenas como exposição informativa.
         const vr = Number(it.valor_regra) || 0;
         if (vr > 0) {
           const diff = vh - vr;
@@ -1600,7 +1648,7 @@ export function PaymentConciliationModal({
     }
     return {
       total: scopedItems.length,
-      conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta,
+      conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta, empresa_ausente,
       risco_mais, risco_menos, divergencia_valor,
     };
   }, [scopedItems]);
@@ -1969,7 +2017,7 @@ export function PaymentConciliationModal({
   type ExportStatusKey = ReconciliationItem["status"];
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("xlsx");
-  const ALL_STATUS_KEYS: ExportStatusKey[] = ["conciliado", "valor_divergente", "qtd_divergente", "so_hospital", "so_exacta"];
+  const ALL_STATUS_KEYS: ExportStatusKey[] = ["conciliado", "valor_divergente", "qtd_divergente", "so_hospital", "so_exacta", "empresa_ausente"];
   const [exportStatuses, setExportStatuses] = useState<Set<ExportStatusKey>>(new Set(ALL_STATUS_KEYS));
 
   const toggleExportStatus = (k: ExportStatusKey) => {
@@ -1986,7 +2034,7 @@ export function PaymentConciliationModal({
 
   const exportCounts: Record<ExportStatusKey, number> = useMemo(() => {
     const acc: Record<ExportStatusKey, number> = {
-      conciliado: 0, valor_divergente: 0, qtd_divergente: 0, so_hospital: 0, so_exacta: 0,
+      conciliado: 0, valor_divergente: 0, qtd_divergente: 0, so_hospital: 0, so_exacta: 0, empresa_ausente: 0,
     };
     for (const it of filteredItems) acc[it.status] = (acc[it.status] ?? 0) + 1;
     return acc;
@@ -2039,11 +2087,12 @@ export function PaymentConciliationModal({
     { key: "qtd_divergente", label: "Qtd divergente", count: scopedStats.qtd_divergente },
     { key: "so_hospital", label: "Só no hospital", count: scopedStats.so_hospital },
     { key: "so_exacta", label: "Só no Exacta", count: scopedStats.so_exacta },
+    { key: "empresa_ausente", label: "Empresa ausente", count: scopedStats.empresa_ausente },
   ];
 
   const total = scopedStats.total;
   const pendentes =
-    scopedStats.valor_divergente + scopedStats.qtd_divergente + scopedStats.so_hospital + scopedStats.so_exacta;
+    scopedStats.valor_divergente + scopedStats.qtd_divergente + scopedStats.so_hospital + scopedStats.so_exacta + scopedStats.empresa_ausente;
 
   const exactCount = Object.entries(companyMapping).filter(([t, v]) => v && (matchLevels[t] === 'exact' || matchLevels[t] === 'high')).length;
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
@@ -2828,6 +2877,17 @@ export function PaymentConciliationModal({
                   active={activeFilter === "so_exacta"}
                   onClick={() =>
                     setActiveFilter(activeFilter === "so_exacta" ? "todos" : "so_exacta")
+                  }
+                />
+                <KpiCard
+                  icon={AlertTriangle}
+                  tone="info"
+                  label="Empresa ausente"
+                  value={`${scopedStats.empresa_ausente} itens`}
+                  hint="empresa não está no outro lado"
+                  active={activeFilter === "empresa_ausente"}
+                  onClick={() =>
+                    setActiveFilter(activeFilter === "empresa_ausente" ? "todos" : "empresa_ausente")
                   }
                 />
               </div>
