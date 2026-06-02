@@ -43,7 +43,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check as CheckIcon, ChevronsUpDown } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
@@ -1639,11 +1643,25 @@ export function PaymentConciliationModal({
     return `conciliacao_${hospPart}_${companyPart}_${refPart}_${idPart}_${today}.${ext}`;
   };
 
-  const handleExport = () => {
+  // Helper para formatar quantidade (Exacta vem de exactaQtyById; hospital de it.quantity).
+  const fmtQty = (q: number | null | undefined): string => {
+    if (q == null || !Number.isFinite(Number(q))) return "";
+    const n = Number(q);
+    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ",");
+  };
+  const getQtyExacta = (it: ReconciliationItem): number | null => {
+    const raw = it.payment_item_id ? exactaQtyById.get(it.payment_item_id) : null;
+    return raw == null ? null : Number(raw);
+  };
+  const getQtyHospital = (it: ReconciliationItem): number | null => {
+    const q = (it as { quantity?: number | null }).quantity;
+    return q == null ? null : Number(q);
+  };
+
+  const handleExportXlsx = (itemsToExport: ReconciliationItem[], scopeLabel: string) => {
     if (!run) return;
 
-
-    const data = filteredItems.map((it) => ({
+    const data = itemsToExport.map((it) => ({
       "Status": STATUS_LABEL[it.status],
       "Empresa": it.company_name ?? "",
       "Médico": it.doctor_name ?? "",
@@ -1651,6 +1669,8 @@ export function PaymentConciliationModal({
       "Atendimento": it.attendance_number ?? "",
       "Cód. TUSS": it.procedure_code ?? "",
       "Procedimento": it.procedure_name ?? "",
+      "Qtd Exacta": fmtQty(getQtyExacta(it)),
+      "Qtd Hospital": fmtQty(getQtyHospital(it)),
       "Data": it.procedure_date ? formatDateBR(it.procedure_date) : "",
       "Convênio": it.agreement_text ?? "",
       "Exacta (R$)": Number(it.valor_exacta),
@@ -1665,8 +1685,9 @@ export function PaymentConciliationModal({
 
     ws["!cols"] = [
       { wch: 18 }, { wch: 38 }, { wch: 30 }, { wch: 30 }, { wch: 14 },
-      { wch: 14 }, { wch: 48 }, { wch: 12 }, { wch: 22 }, { wch: 14 },
-      { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 20 }, { wch: 60 },
+      { wch: 14 }, { wch: 48 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
+      { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 36 },
+      { wch: 20 }, { wch: 60 },
     ];
 
     const headerRange = XLSX.utils.decode_range(ws['!ref'] ?? 'A1');
@@ -1710,6 +1731,7 @@ export function PaymentConciliationModal({
     if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
     if (minValue) filterDescParts.push(`Valor mín: ${minValue}`);
     if (maxValue) filterDescParts.push(`Valor máx: ${maxValue}`);
+    filterDescParts.push(`Recorte exportação: ${scopeLabel}`);
     const filterDesc = filterDescParts.length ? filterDescParts.join(" · ") : "Sem filtros";
 
     const summaryData: (string | number)[][] = [
@@ -1747,12 +1769,12 @@ export function PaymentConciliationModal({
     toast({ title: "Relatório exportado", description: "Arquivo XLSX gerado com sucesso." });
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = (itemsToExport: ReconciliationItem[], _scopeLabel: string) => {
     if (!run) return;
 
     const headers = [
       "Status", "Empresa", "Médico", "Paciente", "Atendimento",
-      "Cód. TUSS", "Procedimento", "Data", "Convênio",
+      "Cód. TUSS", "Procedimento", "Qtd Exacta", "Qtd Hospital", "Data", "Convênio",
       "Exacta (R$)", "Hospital (R$)", "Diferença (R$)",
       "Regra Exacta", "Método Cálculo", "Observação IA",
     ];
@@ -1769,7 +1791,7 @@ export function PaymentConciliationModal({
     const fmtNum = (n: number) =>
       Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : "";
 
-    const rows = filteredItems.map((it) => [
+    const rows = itemsToExport.map((it) => [
       STATUS_LABEL[it.status],
       it.company_name ?? "",
       it.doctor_name ?? "",
@@ -1777,6 +1799,8 @@ export function PaymentConciliationModal({
       it.attendance_number ?? "",
       it.procedure_code ?? "",
       it.procedure_name ?? "",
+      fmtQty(getQtyExacta(it)),
+      fmtQty(getQtyHospital(it)),
       it.procedure_date ? formatDateBR(it.procedure_date) : "",
       it.agreement_text ?? "",
       fmtNum(Number(it.valor_exacta)),
@@ -1803,7 +1827,7 @@ export function PaymentConciliationModal({
     toast({ title: "CSV exportado", description: "Arquivo CSV gerado com sucesso." });
   };
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (itemsToExport: ReconciliationItem[], scopeLabel: string) => {
     if (!run) return;
     const { jsPDF } = await import("jspdf");
     const autoTable = (await import("jspdf-autotable")).default;
@@ -1831,6 +1855,7 @@ export function PaymentConciliationModal({
     if (activeFilter !== "todos") filterDescParts.push(`Status: ${STATUS_LABEL[activeFilter as ReconciliationItem["status"]] ?? activeFilter}`);
     if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
     if (minValue || maxValue) filterDescParts.push(`Valor: ${minValue || "—"} a ${maxValue || "—"}`);
+    filterDescParts.push(`Recorte: ${scopeLabel}`);
     if (filterDescParts.length) {
       doc.setTextColor(100, 100, 100);
       doc.setFont("helvetica", "italic");
@@ -1844,7 +1869,7 @@ export function PaymentConciliationModal({
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text(
-      `Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Valor div.: ${scopedStats.valor_divergente}  ·  Qtd div.: ${scopedStats.qtd_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só Exacta: ${scopedStats.so_exacta}${isScoped ? "  (escopo filtrado)" : ""}`,
+      `Itens exportados: ${itemsToExport.length}  ·  Conciliados: ${scopedStats.conciliado}  ·  Valor div.: ${scopedStats.valor_divergente}  ·  Qtd div.: ${scopedStats.qtd_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só Exacta: ${scopedStats.so_exacta}`,
       marginX,
       cursorY,
     );
@@ -1860,14 +1885,15 @@ export function PaymentConciliationModal({
     );
     cursorY += 4;
 
-    const tableData = filteredItems.map((it) => [
+    const tableData = itemsToExport.map((it) => [
       STATUS_LABEL[it.status],
       it.company_name ?? "",
       it.doctor_name ?? "",
-      it.patient_name ?? "",
       it.procedure_code ?? "",
+      it.procedure_name ?? "",
       it.procedure_date ? formatDateBR(it.procedure_date) : "",
-      it.agreement_text ?? "",
+      fmtQty(getQtyExacta(it)),
+      fmtQty(getQtyHospital(it)),
       `R$ ${Number(it.valor_exacta).toFixed(2)}`,
       `R$ ${Number(it.valor_hospital).toFixed(2)}`,
       it.applied_rule_label ?? "",
@@ -1881,15 +1907,14 @@ export function PaymentConciliationModal({
       "Só no Exacta": [239, 246, 255],
     };
 
-    // Proporções somam 1.0 — autoTable garante que cada coluna caiba
-    // dentro de tableWidth, com quebra de linha (overflow: linebreak)
-    // para evitar corte horizontal de texto.
-    const widthFractions = [0.08, 0.14, 0.11, 0.11, 0.06, 0.06, 0.08, 0.07, 0.07, 0.22];
+    // 11 colunas — somam 1.0. Procedimento e Regra são as mais largas para
+    // acomodar texto descritivo; quantidades são colunas estreitas centradas.
+    const widthFractions = [0.07, 0.12, 0.10, 0.06, 0.20, 0.06, 0.05, 0.05, 0.075, 0.075, 0.13];
     const colWidths = widthFractions.map((f) => +(tableWidth * f).toFixed(2));
 
     autoTable(doc, {
       startY: cursorY + 2,
-      head: [["Status", "Empresa", "Médico", "Paciente", "TUSS", "Data", "Convênio", "Exacta", "Hospital", "Regra Exacta"]],
+      head: [["Status", "Empresa", "Médico", "TUSS", "Procedimento", "Data", "Qtd Ex.", "Qtd Ho.", "Exacta", "Hospital", "Regra Exacta"]],
       body: tableData,
       styles: { fontSize: 7, cellPadding: 1.8, overflow: "linebreak", valign: "middle" },
       headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255, fontStyle: "bold", fontSize: 7.5, halign: "left" },
@@ -1900,10 +1925,11 @@ export function PaymentConciliationModal({
         3: { cellWidth: colWidths[3] },
         4: { cellWidth: colWidths[4] },
         5: { cellWidth: colWidths[5] },
-        6: { cellWidth: colWidths[6] },
-        7: { cellWidth: colWidths[7], halign: "right" },
+        6: { cellWidth: colWidths[6], halign: "center" },
+        7: { cellWidth: colWidths[7], halign: "center" },
         8: { cellWidth: colWidths[8], halign: "right" },
-        9: { cellWidth: colWidths[9] },
+        9: { cellWidth: colWidths[9], halign: "right" },
+        10: { cellWidth: colWidths[10] },
       },
       didParseCell: (data) => {
         if (data.section === "body") {
@@ -1912,14 +1938,11 @@ export function PaymentConciliationModal({
           if (fill) data.cell.styles.fillColor = fill;
         }
       },
-      // Margens consistentes — autoTable repete o head a cada quebra
-      // de página e respeita o rodapé (espaço para a numeração).
       margin: { left: marginX, right: marginX, top: cursorY + 2, bottom: marginBottom + 6 },
       tableWidth,
       showHead: "everyPage",
       rowPageBreak: "avoid",
       didDrawPage: () => {
-        // Rodapé com numeração e marca, em todas as páginas.
         const pageCount = (doc as unknown as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages();
         const current = (doc as unknown as { internal: { getCurrentPageInfo: () => { pageNumber: number } } }).internal.getCurrentPageInfo().pageNumber;
         doc.setFont("helvetica", "normal");
@@ -1933,6 +1956,57 @@ export function PaymentConciliationModal({
     doc.save(buildExportFileName("pdf"));
     toast({ title: "PDF exportado", description: "Arquivo PDF gerado com sucesso." });
   };
+
+  // ============== Modal de exportação ==============
+  type ExportFormat = "xlsx" | "csv" | "pdf";
+  type ExportStatusKey = ReconciliationItem["status"];
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("xlsx");
+  const ALL_STATUS_KEYS: ExportStatusKey[] = ["conciliado", "valor_divergente", "qtd_divergente", "so_hospital", "so_exacta"];
+  const [exportStatuses, setExportStatuses] = useState<Set<ExportStatusKey>>(new Set(ALL_STATUS_KEYS));
+
+  const toggleExportStatus = (k: ExportStatusKey) => {
+    setExportStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  };
+  const setAllExportStatuses = (on: boolean) => {
+    setExportStatuses(on ? new Set(ALL_STATUS_KEYS) : new Set());
+  };
+
+  const exportCounts: Record<ExportStatusKey, number> = useMemo(() => {
+    const acc: Record<ExportStatusKey, number> = {
+      conciliado: 0, valor_divergente: 0, qtd_divergente: 0, so_hospital: 0, so_exacta: 0,
+    };
+    for (const it of filteredItems) acc[it.status] = (acc[it.status] ?? 0) + 1;
+    return acc;
+  }, [filteredItems]);
+
+  const runExport = () => {
+    if (exportStatuses.size === 0) {
+      toast({ title: "Selecione ao menos um tipo", description: "Marque pelo menos um status para exportar.", variant: "destructive" });
+      return;
+    }
+    const subset = filteredItems.filter((it) => exportStatuses.has(it.status));
+    if (subset.length === 0) {
+      toast({ title: "Nada para exportar", description: "Nenhum item nos status selecionados (considerando filtros atuais).", variant: "destructive" });
+      return;
+    }
+    const isAll = exportStatuses.size === ALL_STATUS_KEYS.length;
+    const scopeLabel = isAll
+      ? "Todos os status"
+      : Array.from(exportStatuses).map((s) => STATUS_LABEL[s]).join(" + ");
+
+    if (exportFormat === "xlsx") handleExportXlsx(subset, scopeLabel);
+    else if (exportFormat === "csv") handleExportCsv(subset, scopeLabel);
+    else handleExportPdf(subset, scopeLabel);
+    setExportOpen(false);
+  };
+
+
 
   const triggerNew = () => {
     setStep("select_base");
@@ -2105,26 +2179,10 @@ export function PaymentConciliationModal({
               </Button>
             )}
             {step === "result" && run && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="default" size="sm">
-                    <FileDown className="h-4 w-4 mr-1.5" />
-                    Exportar
-                    <ChevronDown className="h-4 w-4 ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleExport}>
-                    <FileDown className="h-4 w-4 mr-2" /> Excel (XLSX)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExportCsv}>
-                    <FileDown className="h-4 w-4 mr-2" /> CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExportPdf}>
-                    <FileDown className="h-4 w-4 mr-2" /> PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button variant="default" size="sm" onClick={() => setExportOpen(true)}>
+                <FileDown className="h-4 w-4 mr-1.5" />
+                Exportar
+              </Button>
             )}
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Fechar conciliação">
               <X className="h-4 w-4" />
@@ -3492,6 +3550,114 @@ export function PaymentConciliationModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportar conciliação</DialogTitle>
+            <DialogDescription>
+              Escolha o formato e quais tipos de itens incluir. A exportação respeita os
+              filtros de empresa, médico e busca já aplicados na tela.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Formato
+              </Label>
+              <RadioGroup
+                value={exportFormat}
+                onValueChange={(v) => setExportFormat(v as ExportFormat)}
+                className="grid grid-cols-3 gap-2"
+              >
+                {([
+                  { v: "xlsx", l: "Excel" },
+                  { v: "csv", l: "CSV" },
+                  { v: "pdf", l: "PDF" },
+                ] as const).map((opt) => (
+                  <Label
+                    key={opt.v}
+                    htmlFor={`exp-fmt-${opt.v}`}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors",
+                      exportFormat === opt.v ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40",
+                    )}
+                  >
+                    <RadioGroupItem id={`exp-fmt-${opt.v}`} value={opt.v} />
+                    <span>{opt.l}</span>
+                  </Label>
+                ))}
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Tipos de itens
+                </Label>
+                <div className="flex gap-2 text-xs">
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() => setAllExportStatuses(true)}
+                  >
+                    Marcar todos
+                  </button>
+                  <span className="text-muted-foreground">·</span>
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() => setAllExportStatuses(false)}
+                  >
+                    Limpar
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5 rounded-md border p-2">
+                {ALL_STATUS_KEYS.map((k) => {
+                  const checked = exportStatuses.has(k);
+                  const count = exportCounts[k] ?? 0;
+                  return (
+                    <Label
+                      key={k}
+                      htmlFor={`exp-st-${k}`}
+                      className="flex cursor-pointer items-center justify-between gap-3 rounded px-2 py-1.5 hover:bg-muted/40"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`exp-st-${k}`}
+                          checked={checked}
+                          onCheckedChange={() => toggleExportStatus(k)}
+                        />
+                        <span className="text-sm">{STATUS_LABEL[k]}</span>
+                      </div>
+                      <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+                    </Label>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total a exportar:{" "}
+                <strong className="text-foreground">
+                  {filteredItems.filter((it) => exportStatuses.has(it.status)).length}
+                </strong>{" "}
+                de {filteredItems.length} itens visíveis
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={runExport} disabled={exportStatuses.size === 0}>
+              <FileDown className="h-4 w-4 mr-1.5" />
+              Exportar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
