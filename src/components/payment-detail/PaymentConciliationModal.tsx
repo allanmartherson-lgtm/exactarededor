@@ -2104,7 +2104,7 @@ export function PaymentConciliationModal({
                 Nova conciliação
               </Button>
             )}
-            {step === "result" && run && (run.status === "done" || (run.summary?.total ?? 0) > 0) && (
+            {step === "result" && run && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="default" size="sm">
