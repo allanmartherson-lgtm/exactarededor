@@ -965,6 +965,7 @@ export const AppLayout = () => {
             <Outlet />
           </div>
         </main>
+        <PaymentModeSelectModal open={modeModalOpen} onOpenChange={setModeModalOpen} />
       </div>
     );
   }
