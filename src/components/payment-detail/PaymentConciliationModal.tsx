@@ -2987,16 +2987,23 @@ export function PaymentConciliationModal({
 
                         {isOpen && (() => {
                           const total = companyItems.length;
-                          const shown = pageSize === Infinity
-                            ? total
-                            : Math.min(shownByCompany[company] ?? pageSize, total);
-                          const visibleItems = pageSize === Infinity
-                            ? companyItems
-                            : companyItems.slice(0, shown);
-                          const hasMore = shown < total;
+                          // Modo "Todos": sem paginação. Caso contrário, paginação
+                          // clássica por página inteira (pageSize) — com scroll
+                          // lateral envolvendo a tabela para telas estreitas.
+                          const isAll = pageSize === Infinity;
+                          const totalPages = isAll ? 1 : Math.max(1, Math.ceil(total / pageSize));
+                          const currentPage = isAll
+                            ? 0
+                            : Math.min(pageByCompany[company] ?? 0, totalPages - 1);
+                          const startIdx = isAll ? 0 : currentPage * pageSize;
+                          const endIdx = isAll ? total : Math.min(startIdx + pageSize, total);
+                          const visibleItems = isAll ? companyItems : companyItems.slice(startIdx, endIdx);
+                          const goToPage = (p: number) =>
+                            setPageByCompany((prev) => ({ ...prev, [company]: Math.max(0, Math.min(p, totalPages - 1)) }));
                           return (
                           <div className="border-t border-border">
-                            <Table>
+                            <div className="overflow-x-auto">
+                            <Table className="min-w-[1180px]">
                               <TableHeader>
                                 <TableRow>
                                   <TableHead className="px-3 py-1.5 text-[10px]">Atendimento</TableHead>
