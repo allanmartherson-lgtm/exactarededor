@@ -295,6 +295,7 @@ export function PaymentConciliationModal({
   // Busca e filtros adicionais (texto livre, médico, faixa de valor)
   const [searchTerm, setSearchTerm] = useState("");
   const [doctorFilter, setDoctorFilter] = useState<string>("todos");
+  const [companyFilter, setCompanyFilter] = useState<string>("todos");
   const [minValue, setMinValue] = useState<string>("");
   const [maxValue, setMaxValue] = useState<string>("");
 
