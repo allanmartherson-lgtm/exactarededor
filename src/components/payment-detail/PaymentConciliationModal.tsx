@@ -1055,24 +1055,30 @@ export function PaymentConciliationModal({
       };
 
       const exactaByKey = new Map<string, PaymentItemRow[]>();
+      // Set de empresas presentes na Exacta — usado para classificar
+      // "empresa_ausente" (linha do hospital cuja empresa nem existe no lote Exacta).
+      const exactaCompanySet = new Set<string>();
       for (const it of exactaItemsForRun) {
+        const compNorm = normCompany(it.company_name);
+        if (compNorm) exactaCompanySet.add(compNorm);
         if (!it.attendance_number || !it.procedure_code) continue;
-        const k = makeKey(it.attendance_number, it.procedure_code);
+        const k = makeKey(it.company_name, it.attendance_number, it.procedure_code);
         if (!exactaByKey.has(k)) exactaByKey.set(k, []);
         exactaByKey.get(k)!.push(it);
       }
 
-      // Debug: mostrar primeiros 3 pares de chaves de cada base
-      const sampleHospKeys = rowsParaCruzamento.slice(0, 3).map(row => {
-        const att = getCell(row, "attendance");
-        const code = getCell(row, "procCode");
-        return `hosp:${normAtt(att)}|${normalizeCode(code)}`;
-      });
-      const sampleMedKeys = Array.from(exactaByKey.keys()).slice(0, 3);
-      console.log('[Cruzamento] Chaves hospital (amostra):', sampleHospKeys);
-      console.log('[Cruzamento] Chaves Exacta (amostra):', sampleMedKeys);
-      console.log('[Cruzamento] Total chaves Exacta:', exactaByKey.size);
+      // Set de empresas vistas na base do hospital — usado para detectar
+      // empresas que estão SÓ no Exacta (sobra) e marcar como empresa_ausente.
+      const hospitalCompanySet = new Set<string>();
+      for (const row of rowsParaCruzamento) {
+        const col = srcColMap["company"];
+        const terceiro = col ? String(row[col] ?? "").trim() : "";
+        const mapped = srcMapping[terceiro] ?? terceiro;
+        const cn = normCompany(mapped);
+        if (cn) hospitalCompanySet.add(cn);
+      }
 
+      console.log('[Cruzamento] Empresas Exacta:', exactaCompanySet.size, 'Empresas Hospital:', hospitalCompanySet.size, 'Chaves Exacta:', exactaByKey.size);
 
       const matchedExactaIds = new Set<string>();
       const toInsert: Array<Record<string, unknown>> = [];
@@ -1080,7 +1086,8 @@ export function PaymentConciliationModal({
         valor_divergente = 0,
         qtd_divergente = 0,
         so_hospital = 0,
-        so_exacta = 0;
+        so_exacta = 0,
+        empresa_ausente = 0;
       let risco_mais = 0,
         risco_menos = 0,
         divergencia_valor = 0;
