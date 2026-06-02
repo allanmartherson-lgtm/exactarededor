@@ -365,11 +365,60 @@ export function PaymentConciliationModal({
   const [rulesLastUpdate, setRulesLastUpdate] = useState<string | null>(null);
 
   // Busca e filtros adicionais (texto livre, médico, faixa de valor)
+  // Filtros de médico e empresa persistem em sessionStorage por paymentId
+  // — mesma estratégia do PaymentDetail para o modal em si — para que a
+  // troca de aba não derrube a visão de análise.
+  const filtersStorageKey = paymentId ? `conciliation:filters:${paymentId}` : null;
+  const readPersistedFilters = useCallback(() => {
+    if (!filtersStorageKey) return { doctor: "todos", company: "todos" };
+    try {
+      const raw = sessionStorage.getItem(filtersStorageKey);
+      if (!raw) return { doctor: "todos", company: "todos" };
+      const parsed = JSON.parse(raw) as { doctor?: string; company?: string };
+      return {
+        doctor: typeof parsed.doctor === "string" ? parsed.doctor : "todos",
+        company: typeof parsed.company === "string" ? parsed.company : "todos",
+      };
+    } catch {
+      return { doctor: "todos", company: "todos" };
+    }
+  }, [filtersStorageKey]);
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [doctorFilter, setDoctorFilter] = useState<string>("todos");
-  const [companyFilter, setCompanyFilter] = useState<string>("todos");
+  const [doctorFilter, _setDoctorFilter] = useState<string>(() => readPersistedFilters().doctor);
+  const [companyFilter, _setCompanyFilter] = useState<string>(() => readPersistedFilters().company);
   const [minValue, setMinValue] = useState<string>("");
   const [maxValue, setMaxValue] = useState<string>("");
+
+  const persistFilters = useCallback((next: { doctor?: string; company?: string }) => {
+    if (!filtersStorageKey) return;
+    try {
+      const current = readPersistedFilters();
+      const merged = { ...current, ...next };
+      if (merged.doctor === "todos" && merged.company === "todos") {
+        sessionStorage.removeItem(filtersStorageKey);
+      } else {
+        sessionStorage.setItem(filtersStorageKey, JSON.stringify(merged));
+      }
+    } catch {
+      // sessionStorage pode estar indisponível — ignore silenciosamente.
+    }
+  }, [filtersStorageKey, readPersistedFilters]);
+
+  const setDoctorFilter = useCallback((v: string) => {
+    _setDoctorFilter(v);
+    persistFilters({ doctor: v });
+  }, [persistFilters]);
+  const setCompanyFilter = useCallback((v: string) => {
+    _setCompanyFilter(v);
+    persistFilters({ company: v });
+  }, [persistFilters]);
+
+  // Paginação por empresa: cada grupo carrega apenas N linhas inicialmente.
+  // Listas longas (lotes de 5k+) deixavam o DOM travado; o usuário expande
+  // mais via "Carregar mais" ou troca o pageSize para "Todos" quando precisa.
+  const [pageSize, setPageSize] = useState<number>(200);
+  const [shownByCompany, setShownByCompany] = useState<Record<string, number>>({});
 
   const [step, setStep] = useState<Step>("upload");
   const [excludeConsultas, setExcludeConsultas] = useState(true);
@@ -1542,6 +1591,12 @@ export function PaymentConciliationModal({
     if (activeFilter === "todos") return scopedItems;
     return scopedItems.filter((it) => it.status === activeFilter);
   }, [scopedItems, activeFilter]);
+
+  // Sempre que mudam filtros/escopo/pageSize, zera o "mostrar mais" por
+  // empresa para não acumular DOM com a base anterior.
+  useEffect(() => {
+    setShownByCompany({});
+  }, [searchTerm, doctorFilter, companyFilter, minValue, maxValue, activeFilter, pageSize, initialCompany, items.length]);
 
   const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || companyFilter !== "todos" || minValue || maxValue);
   const isScoped = !!initialCompany || hasExtraFilters;
@@ -2721,9 +2776,27 @@ export function PaymentConciliationModal({
                     <X className="h-3 w-3 mr-1" /> Limpar
                   </Button>
                 )}
-                <span className="text-[11px] text-muted-foreground ml-auto">
-                  {filteredItems.length} resultado{filteredItems.length === 1 ? "" : "s"}
-                </span>
+                <div className="flex items-center gap-1 ml-auto">
+                  <span className="text-[11px] text-muted-foreground">Por página:</span>
+                  <Select
+                    value={pageSize === Infinity ? "all" : String(pageSize)}
+                    onValueChange={(v) => setPageSize(v === "all" ? Infinity : Number(v))}
+                  >
+                    <SelectTrigger className="h-8 w-[88px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="100">100</SelectItem>
+                      <SelectItem value="200">200</SelectItem>
+                      <SelectItem value="500">500</SelectItem>
+                      <SelectItem value="1000">1000</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-[11px] text-muted-foreground ml-2">
+                    {filteredItems.length} resultado{filteredItems.length === 1 ? "" : "s"}
+                  </span>
+                </div>
               </div>
 
 
@@ -2821,7 +2894,16 @@ export function PaymentConciliationModal({
                           </div>
                         </button>
 
-                        {isOpen && (
+                        {isOpen && (() => {
+                          const total = companyItems.length;
+                          const shown = pageSize === Infinity
+                            ? total
+                            : Math.min(shownByCompany[company] ?? pageSize, total);
+                          const visibleItems = pageSize === Infinity
+                            ? companyItems
+                            : companyItems.slice(0, shown);
+                          const hasMore = shown < total;
+                          return (
                           <div className="border-t border-border">
                             <Table>
                               <TableHeader>
@@ -2856,7 +2938,7 @@ export function PaymentConciliationModal({
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {companyItems.map((it) => {
+                                {visibleItems.map((it) => {
                                   const isRowOpen = expanded === it.id;
                                   return (
                                     <>
@@ -3148,6 +3230,35 @@ export function PaymentConciliationModal({
                                 })}
                               </TableBody>
                             </Table>
+                            {hasMore && (
+                              <div className="px-4 py-2 border-t border-border bg-background flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">
+                                  Mostrando <strong className="text-foreground tabular-nums">{shown}</strong> de{" "}
+                                  <strong className="text-foreground tabular-nums">{total}</strong> itens
+                                </span>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => setShownByCompany((prev) => ({
+                                      ...prev,
+                                      [company]: Math.min((prev[company] ?? pageSize) + pageSize, total),
+                                    }))}
+                                  >
+                                    Carregar mais (+{Math.min(pageSize, total - shown)})
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => setShownByCompany((prev) => ({ ...prev, [company]: total }))}
+                                  >
+                                    Mostrar todos
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                             <div className="px-4 py-2 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
                               <span>{companyItems.length} itens</span>
                               <div className="flex gap-6">
@@ -3174,7 +3285,8 @@ export function PaymentConciliationModal({
                               </div>
                             </div>
                           </div>
-                        )}
+                          );
+                        })()}
                       </Card>
                     );
                   });
