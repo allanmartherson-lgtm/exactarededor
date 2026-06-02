@@ -1740,7 +1740,7 @@ export function PaymentConciliationModal({
     wsSummary['!cols'] = [{ wch: 30 }, { wch: 40 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
 
-    XLSX.writeFile(wb, `conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.xlsx`);
+    XLSX.writeFile(wb, buildExportFileName("xlsx"));
     toast({ title: "Relatório exportado", description: "Arquivo XLSX gerado com sucesso." });
   };
 
