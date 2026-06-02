@@ -403,6 +403,8 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
         parent_doc: parent?.[cfg.parentDocCol] ?? null,
         email: profile?.email ?? null,
         full_name: profile?.full_name ?? null,
+        cpf: profile?.cpf ?? null,
+        phone: profile?.phone ?? null,
         active: u.active,
         hospital_ids: new Set(links.map((l) => l.hospital_id)),
         primary_hospital_id: links.find((l) => l.is_primary)?.hospital_id ?? null,
