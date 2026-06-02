@@ -333,6 +333,19 @@ export function PaymentConciliationModal({
     [paymentItems],
   );
 
+  // Mapa payment_item_id → quantidade Exacta original (vinda da base do lote).
+  // Usado para exibir a coluna "Qtd Exacta" na tabela de conciliação com o
+  // numeral real da planilha — não o valor inferido por valor/regra.
+  const exactaQtyById = useMemo(() => {
+    const m = new Map<string, number | null>();
+    for (const it of paymentItems) {
+      const q = (it as { quantity?: number | null }).quantity;
+      m.set(it.id, q == null ? null : Number(q));
+    }
+    return m;
+  }, [paymentItems]);
+
+
   // Aliases persistidos das empresas do lote — usados para auto-mapear o "terceiro"
   // da planilha do hospital sem o analista precisar refazer o vínculo a cada rodada.
   // Toda confirmação manual aqui vira alias ao processar a conciliação.
@@ -2727,12 +2740,13 @@ export function PaymentConciliationModal({
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     Hospital (R$)
                                   </TableHead>
-                                  <TableHead className="px-2 py-1.5 text-[10px] text-center" title="Quantidade inferida = valor / valor da regra">
+                                  <TableHead className="px-2 py-1.5 text-[10px] text-center" title="Quantidade do procedimento na base Exacta (planilha do lote)">
                                     Qtd Exacta
                                   </TableHead>
-                                  <TableHead className="px-2 py-1.5 text-[10px] text-center" title="Quantidade inferida = valor / valor da regra">
+                                  <TableHead className="px-2 py-1.5 text-[10px] text-center" title="Quantidade do procedimento na planilha do hospital">
                                     Qtd Hosp.
                                   </TableHead>
+
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     Valor Regra
                                   </TableHead>
@@ -2787,12 +2801,11 @@ export function PaymentConciliationModal({
                                             : "—"}
                                         </TableCell>
                                         {(() => {
-                                          const vr = Number(it.valor_regra ?? 0);
-                                          const vEx = Number(it.valor_exacta ?? 0);
-                                          const vHo = Number(it.valor_hospital ?? 0);
-                                          const qEx = vr > 0 && vEx > 0 ? Math.round((vEx / vr) * 100) / 100 : null;
-                                          const qHo = vr > 0 && vHo > 0 ? Math.round((vHo / vr) * 100) / 100 : null;
-                                          const diverge = qEx != null && qHo != null && Math.abs(qEx - qHo) >= 0.01;
+                                          const qHo = (it as { quantity?: number | null }).quantity;
+                                          const qExRaw = it.payment_item_id ? exactaQtyById.get(it.payment_item_id) : null;
+                                          const qEx = qExRaw == null ? null : Number(qExRaw);
+                                          const qHoN = qHo == null ? null : Number(qHo);
+                                          const diverge = qEx != null && qHoN != null && Math.abs(qEx - qHoN) >= 0.01;
                                           const fmtQ = (q: number | null) =>
                                             q == null ? "—" : Number.isInteger(q) ? String(q) : q.toFixed(2).replace(".", ",");
                                           return (
@@ -2800,20 +2813,21 @@ export function PaymentConciliationModal({
                                               <TableCell
                                                 className="px-2 py-2 text-[12px] text-center tabular-nums"
                                                 style={{ color: diverge ? 'hsl(var(--warning-text))' : undefined, fontWeight: diverge ? 600 : undefined }}
-                                                title={qEx != null && vr > 0 ? `${formatCurrency(vEx)} ÷ ${formatCurrency(vr)}` : 'Sem valor de regra'}
+                                                title="Quantidade da base Exacta (planilha do lote)"
                                               >
                                                 {fmtQ(qEx)}
                                               </TableCell>
                                               <TableCell
                                                 className="px-2 py-2 text-[12px] text-center tabular-nums"
                                                 style={{ color: diverge ? 'hsl(var(--warning-text))' : undefined, fontWeight: diverge ? 600 : undefined }}
-                                                title={qHo != null && vr > 0 ? `${formatCurrency(vHo)} ÷ ${formatCurrency(vr)}` : 'Sem valor de regra'}
+                                                title="Quantidade da planilha do hospital"
                                               >
-                                                {fmtQ(qHo)}
+                                                {fmtQ(qHoN)}
                                               </TableCell>
                                             </>
                                           );
                                         })()}
+
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums" style={{ color: it.valor_regra ? undefined : 'hsl(var(--muted-foreground))' }}>
                                           {it.valor_regra
                                             ? formatCurrency(Number(it.valor_regra))
