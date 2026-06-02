@@ -3424,6 +3424,19 @@ const PaymentDetail = () => {
         />
       )}
 
+      {payment && (
+        <PaymentBatchExportDialog
+          open={isBatchExportOpen}
+          onOpenChange={setIsBatchExportOpen}
+          payment={payment}
+          items={items}
+          groups={groups}
+          rulesIndex={rulesIndex}
+          observations={obs}
+          profiles={profiles}
+        />
+      )}
+
 
 
 
