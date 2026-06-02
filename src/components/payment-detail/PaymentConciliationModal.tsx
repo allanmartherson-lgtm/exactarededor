@@ -1129,10 +1129,22 @@ export function PaymentConciliationModal({
         const companyMissing = hospitalCompanySet.size > 0 && exactaCompanySet.size > 0
           && normCompany(mappedCompany) !== "" && !exactaCompanySet.has(normCompany(mappedCompany));
         const attMissing = !att || normAtt(att) === "";
-        const k = makeKey(mappedCompany, att, code);
-        // Sem empresa correspondente ou sem nº de atendimento, não há como
-        // procurar candidato — vai direto para o bucket apropriado.
-        const candidates = (companyMissing || attMissing) ? [] : (exactaByKey.get(k) ?? []);
+        // Tenta TODAS as variantes do código (7d / 8d) — pega o primeiro
+        // bucket com candidatos. Itens já matchados são filtrados depois.
+        let candidates: PaymentItemRow[] = [];
+        if (!companyMissing && !attMissing) {
+          const seen = new Set<string>();
+          for (const v of codeVariants(code)) {
+            const k = makeKey(mappedCompany, att, v);
+            const bucket = exactaByKey.get(k);
+            if (!bucket) continue;
+            for (const cand of bucket) {
+              if (seen.has(cand.id)) continue;
+              seen.add(cand.id);
+              candidates.push(cand);
+            }
+          }
+        }
         const getConvenioValue = (m: PaymentItemRow): number => {
           const proc = (m as any).procedure_amount;
           if (proc != null && proc !== "") return Number(proc) || 0;
