@@ -553,6 +553,8 @@ function PortalUsersPanel({ kind, hospitals }: { kind: Kind; hospitals: Hospital
                           {row.full_name && <span>{row.full_name}</span>}
                           {row.parent_doc && <span>{row.parent_doc}</span>}
                           {row.email && <span>{row.email}</span>}
+                          {row.cpf && <span>CPF {formatCPF(row.cpf)}</span>}
+                          {row.phone && <span>{formatPhone(row.phone)}</span>}
                         </div>
                       </div>
                     </div>
