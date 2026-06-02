@@ -1939,7 +1939,7 @@ export function PaymentConciliationModal({
               })()}
 
               {/* KPI cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <KpiCard
                   icon={CheckCircle2}
                   tone="success"
@@ -1956,7 +1956,7 @@ export function PaymentConciliationModal({
                   tone="warning"
                   label="Valor divergente"
                   value={`${scopedStats.valor_divergente} itens`}
-                  hint="revisar valor"
+                  hint="acordo proporcional"
                   active={activeFilter === "valor_divergente"}
                   onClick={() =>
                     setActiveFilter(
@@ -1964,6 +1964,20 @@ export function PaymentConciliationModal({
                     )
                   }
                 />
+                <KpiCard
+                  icon={AlertTriangle}
+                  tone="warning"
+                  label="Qtd divergente"
+                  value={`${scopedStats.qtd_divergente} itens`}
+                  hint="acordo valor fixo"
+                  active={activeFilter === "qtd_divergente"}
+                  onClick={() =>
+                    setActiveFilter(
+                      activeFilter === "qtd_divergente" ? "todos" : "qtd_divergente",
+                    )
+                  }
+                />
+
                 <KpiCard
                   icon={XCircle}
                   tone="destructive"
