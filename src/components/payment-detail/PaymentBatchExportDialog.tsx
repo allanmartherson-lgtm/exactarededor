@@ -24,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { FileSpreadsheet, FileText, FileDown, Search, Loader2 } from "lucide-react";
+import { FileSpreadsheet, FileText, FileDown, Search, Loader2, Zap, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
