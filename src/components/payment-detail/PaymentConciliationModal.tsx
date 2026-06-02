@@ -3328,35 +3328,65 @@ export function PaymentConciliationModal({
                                 })}
                               </TableBody>
                             </Table>
-                            {hasMore && (
-                              <div className="px-4 py-2 border-t border-border bg-background flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground">
-                                  Mostrando <strong className="text-foreground tabular-nums">{shown}</strong> de{" "}
-                                  <strong className="text-foreground tabular-nums">{total}</strong> itens
-                                </span>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    onClick={() => setShownByCompany((prev) => ({
-                                      ...prev,
-                                      [company]: Math.min((prev[company] ?? pageSize) + pageSize, total),
-                                    }))}
-                                  >
-                                    Carregar mais (+{Math.min(pageSize, total - shown)})
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    onClick={() => setShownByCompany((prev) => ({ ...prev, [company]: total }))}
-                                  >
-                                    Mostrar todos
-                                  </Button>
+                            </div>
+                            {!isAll && totalPages > 1 && (() => {
+                              // Janela compacta de páginas (máx. 7 botões), com
+                              // elipse para grandes volumes.
+                              const window = 2;
+                              const pages: (number | "…")[] = [];
+                              const push = (p: number | "…") => pages.push(p);
+                              push(0);
+                              const from = Math.max(1, currentPage - window);
+                              const to = Math.min(totalPages - 2, currentPage + window);
+                              if (from > 1) push("…");
+                              for (let p = from; p <= to; p++) push(p);
+                              if (to < totalPages - 2) push("…");
+                              if (totalPages > 1) push(totalPages - 1);
+                              return (
+                                <div className="px-4 py-2 border-t border-border bg-background flex items-center justify-between gap-3 text-xs flex-wrap">
+                                  <span className="text-muted-foreground">
+                                    Mostrando{" "}
+                                    <strong className="text-foreground tabular-nums">{startIdx + 1}</strong>–
+                                    <strong className="text-foreground tabular-nums">{endIdx}</strong> de{" "}
+                                    <strong className="text-foreground tabular-nums">{total}</strong> itens
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline" size="sm" className="h-7 px-2 text-xs"
+                                      disabled={currentPage === 0}
+                                      onClick={() => goToPage(currentPage - 1)}
+                                      aria-label="Página anterior"
+                                    >
+                                      ‹ Anterior
+                                    </Button>
+                                    {pages.map((p, i) => (
+                                      p === "…" ? (
+                                        <span key={`e-${i}`} className="px-1 text-muted-foreground">…</span>
+                                      ) : (
+                                        <Button
+                                          key={p}
+                                          variant={p === currentPage ? "default" : "outline"}
+                                          size="sm"
+                                          className="h-7 min-w-7 px-2 text-xs tabular-nums"
+                                          onClick={() => goToPage(p)}
+                                          aria-current={p === currentPage ? "page" : undefined}
+                                        >
+                                          {p + 1}
+                                        </Button>
+                                      )
+                                    ))}
+                                    <Button
+                                      variant="outline" size="sm" className="h-7 px-2 text-xs"
+                                      disabled={currentPage >= totalPages - 1}
+                                      onClick={() => goToPage(currentPage + 1)}
+                                      aria-label="Próxima página"
+                                    >
+                                      Próxima ›
+                                    </Button>
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              );
+                            })()}
                             <div className="px-4 py-2 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
                               <span>{companyItems.length} itens</span>
                               <div className="flex gap-6">
