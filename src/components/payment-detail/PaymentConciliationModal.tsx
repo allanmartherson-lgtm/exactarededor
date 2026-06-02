@@ -2776,9 +2776,27 @@ export function PaymentConciliationModal({
                     <X className="h-3 w-3 mr-1" /> Limpar
                   </Button>
                 )}
-                <span className="text-[11px] text-muted-foreground ml-auto">
-                  {filteredItems.length} resultado{filteredItems.length === 1 ? "" : "s"}
-                </span>
+                <div className="flex items-center gap-1 ml-auto">
+                  <span className="text-[11px] text-muted-foreground">Por página:</span>
+                  <Select
+                    value={pageSize === Infinity ? "all" : String(pageSize)}
+                    onValueChange={(v) => setPageSize(v === "all" ? Infinity : Number(v))}
+                  >
+                    <SelectTrigger className="h-8 w-[88px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="100">100</SelectItem>
+                      <SelectItem value="200">200</SelectItem>
+                      <SelectItem value="500">500</SelectItem>
+                      <SelectItem value="1000">1000</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-[11px] text-muted-foreground ml-2">
+                    {filteredItems.length} resultado{filteredItems.length === 1 ? "" : "s"}
+                  </span>
+                </div>
               </div>
 
 
