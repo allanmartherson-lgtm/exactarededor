@@ -944,6 +944,49 @@ export function PaymentConciliationModal({
         risco_menos += valMed;
       }
 
+      // Modo "merge": preserva itens da última run para empresas que NÃO estão
+      // neste arquivo, copiando-os para a nova run. Assim, ao reconciliar
+      // apenas uma empresa, as demais não somem do painel geral.
+      if (mode === "merge_keep_others" && run?.id) {
+        const prevAll: ReconciliationItem[] = [];
+        const pageSize = 1000;
+        for (let from = 0; from < 50000; from += pageSize) {
+          const { data: page, error: pageErr } = await (supabase as any)
+            .from("reconciliation_items")
+            .select("*")
+            .eq("run_id", run.id)
+            .range(from, from + pageSize - 1);
+          if (pageErr) throw pageErr;
+          const rows = (page ?? []) as ReconciliationItem[];
+          prevAll.push(...rows);
+          if (rows.length < pageSize) break;
+        }
+        const keep = prevAll.filter(
+          (it) => !currentMappedCompanies.has(it.company_name ?? ""),
+        );
+        for (const it of keep) {
+          const { id: _id, run_id: _rid, created_at: _ca, ...rest } = it as any;
+          toInsert.push(rest);
+          if (it.status === "conciliado") conciliado++;
+          else if (it.status === "valor_divergente") valor_divergente++;
+          else if (it.status === "qtd_divergente") qtd_divergente++;
+          else if (it.status === "so_hospital") {
+            so_hospital++;
+            risco_mais += Number(it.valor_hospital) || 0;
+          } else if (it.status === "so_exacta") {
+            so_exacta++;
+            risco_menos += Number(it.valor_exacta) || 0;
+          }
+          if (it.status === "valor_divergente") {
+            const d = (Number(it.valor_hospital) || 0) - (Number(it.valor_exacta) || 0);
+            divergencia_valor += Math.abs(d);
+            if (d > 0) risco_mais += d;
+            else risco_menos += Math.abs(d);
+          }
+        }
+      }
+
+
       const CHUNK = 500;
       for (let i = 0; i < toInsert.length; i += CHUNK) {
         const slice = toInsert.slice(i, i + CHUNK).map((r) => ({ ...r, run_id: newRun.id }));
