@@ -981,11 +981,12 @@ export function PaymentConciliationModal({
   }, [items, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
 
   const scopedStats = useMemo(() => {
-    let conciliado = 0, valor_divergente = 0, so_hospital = 0, so_exacta = 0;
+    let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
     for (const it of scopedItems) {
       if (it.status === "conciliado") conciliado++;
       else if (it.status === "valor_divergente") valor_divergente++;
+      else if (it.status === "qtd_divergente") qtd_divergente++;
       else if (it.status === "so_hospital") so_hospital++;
       else if (it.status === "so_exacta") so_exacta++;
       const vm = Number(it.valor_exacta) || 0;
@@ -994,6 +995,15 @@ export function PaymentConciliationModal({
         const diff = vh - vm;
         divergencia_valor += Math.abs(diff);
         if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
+      } else if (it.status === "qtd_divergente") {
+        // Divergência de quantidade: o valor que vamos pagar é o da regra.
+        // Mostramos a diferença vs hospital apenas como exposição informativa.
+        const vr = Number(it.valor_regra) || 0;
+        if (vr > 0) {
+          const diff = vh - vr;
+          divergencia_valor += Math.abs(diff);
+          if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
+        }
       } else if (it.status === "so_hospital") {
         risco_mais += vh;
       } else if (it.status === "so_exacta") {
@@ -1002,7 +1012,7 @@ export function PaymentConciliationModal({
     }
     return {
       total: scopedItems.length,
-      conciliado, valor_divergente, so_hospital, so_exacta,
+      conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta,
       risco_mais, risco_menos, divergencia_valor,
     };
   }, [scopedItems]);
