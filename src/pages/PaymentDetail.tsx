@@ -257,6 +257,7 @@ const PaymentDetail = () => {
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   // Persistimos o estado de abertura do modal de conciliação em sessionStorage
   // por paymentId. Se a página remontar (HMR do Vite ao voltar de outra aba,
