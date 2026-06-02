@@ -749,16 +749,27 @@ const Users = () => {
                 <Label>E-mail (login)</Label>
                 <Input type="email" value={editingUser.email} disabled />
               </div>
-              <div className="space-y-2">
-                <Label>Telefone celular *</Label>
-                <Input
-                  inputMode="numeric"
-                  placeholder="(11) 99999-9999"
-                  value={formatPhone(editingUser.phone)}
-                  onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
-                />
-                <p className="text-xs text-muted-foreground">Também usado para WhatsApp em notificações de aprovação.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <Label>CPF *</Label>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="000.000.000-00"
+                    value={formatCPF(editingUser.cpf)}
+                    onChange={(e) => setEditingUser({ ...editingUser, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone celular *</Label>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="(11) 99999-9999"
+                    value={formatPhone(editingUser.phone)}
+                    onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                  />
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">Telefone usado para WhatsApp em notificações de aprovação. O CPF é usado para validação de identidade e não pode duplicar.</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
                   <Label>Cargo *</Label>
