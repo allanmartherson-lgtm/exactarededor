@@ -12,6 +12,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatCurrency, formatDate } from "@/lib/status";
+import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import type {
   PaymentRow,
   PaymentItemRow,
@@ -57,19 +58,30 @@ function formatFindingText(f: any): string {
   return msg ? `${name}: ${msg}` : name;
 }
 
-export function generatePaymentReportPdf(input: GeneratePaymentPdfInput): jsPDF {
+export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): Promise<jsPDF> {
   const { payment, items, groups, observations = [], profiles = {}, rulesIndex } = input;
 
   const doc = new jsPDF();
-  doc.setFontSize(16);
-  doc.text("Validação de Pagamento Médico", 14, 18);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginX = 14;
+
+  // Cabeçalho institucional com a logo Rede D'Or (manual da marca 2025).
+  const headerBottomY = await drawReportHeader(doc, {
+    title: "Validação de Pagamento Médico",
+    subtitle: `Referência ${payment.reference}  ·  Status: ${payment.status}`,
+    marginX,
+    logoHeightMm: 11,
+  });
+
   doc.setFontSize(10);
-  doc.text(`Referência: ${payment.reference}`, 14, 28);
-  doc.text(`Status: ${payment.status}`, 14, 34);
+  doc.setTextColor(17, 24, 39);
   // Total: usa a soma dos itens entregues — assim o relatório por empresa
   // mostra o total da empresa, e o relatório do lote mostra o total do lote.
   const totalItems = items.reduce((s, i) => s + Number(i.gross_amount ?? 0), 0);
-  doc.text(`Total: ${formatCurrency(totalItems)}`, 14, 40);
+  let metaY = headerBottomY;
+  doc.text(`Total: ${formatCurrency(totalItems)}`, marginX, metaY);
+  metaY += 6;
 
   // Aprovador / data: prioriza payment.approved_*; se ausente, deriva do
   // grupo aprovado mais recente (agregação por trigger).
