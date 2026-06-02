@@ -21,8 +21,8 @@ import {
 import { Building2, Stethoscope, Save, Star, Plus, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { formatCPF } from "@/lib/cpf";
-import { formatPhone } from "@/lib/userFields";
+import { formatCPF, isValidCPF, onlyDigits } from "@/lib/cpf";
+import { formatPhone, phoneSchema } from "@/lib/userFields";
 
 type Hospital = { id: string; name: string; state_uf: string };
 
