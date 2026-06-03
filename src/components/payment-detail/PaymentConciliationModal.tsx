@@ -1820,6 +1820,8 @@ export function PaymentConciliationModal({
             risco_menos += Number(it.valor_exacta) || 0;
           } else if (it.status === "empresa_ausente") {
             empresa_ausente++;
+          } else if (it.status === "possivel_pacote") {
+            possivel_pacote++;
           }
           if (it.status === "valor_divergente") {
             const d = (Number(it.valor_hospital) || 0) - (Number(it.valor_exacta) || 0);
