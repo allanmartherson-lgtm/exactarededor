@@ -1460,6 +1460,9 @@ export function PaymentConciliationModal({
           risco_menos += valMed;
         }
       }
+      console.log('[Cruzamento] Sobra Exacta:', { exactaTotal: exactaItemsForRun.length, matched: matchedExactaIds.size, considered: leftoverConsidered, alreadyMatched: leftoverSkipped, so_exacta, empresa_ausente });
+
+
 
       // Modo "merge": preserva itens da última run para empresas que NÃO estão
       // neste arquivo, copiando-os para a nova run. Assim, ao reconciliar
