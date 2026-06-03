@@ -1741,31 +1741,8 @@ export default function CompanyAnalysis() {
       {/* Footer sticky com ações de fluxo */}
       {canAct && (
         <div className="sticky bottom-0 z-30 -mx-3 md:-mx-6 mt-4 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
-          <div className="mx-auto max-w-[1400px] flex flex-col md:flex-row md:items-start gap-2">
-            <div className="flex flex-col md:flex-1 min-w-0 gap-2">
-              <Textarea
-                rows={2}
-                value={groupDraft}
-                onChange={(e) => setGroupDraft(e.target.value)}
-                placeholder={
-                  canActAnalista
-                    ? "Observação geral da empresa (opcional · obrigatória se houver itens acatados)…"
-                    : "Observação para esta empresa (obrigatória para devolver)…"
-                }
-                className="w-full text-xs"
-              />
-              <div className="flex items-center gap-2 px-1">
-                <Checkbox
-                  id="footer-is-question"
-                  checked={isQuestion}
-                  onCheckedChange={(v) => setIsQuestion(!!v)}
-                />
-                <Label htmlFor="footer-is-question" className="text-[11px] font-normal cursor-pointer select-none">
-                  Marcar como questionamento ao diretor
-                </Label>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 md:justify-end shrink-0">
+          <div className="mx-auto max-w-[1400px] flex flex-wrap items-center justify-end gap-2">
+
               {canActAnalista && (
                 <>
                   {(gStatus === "revisao_analista" || gStatus === "devolvido_analista") && (
