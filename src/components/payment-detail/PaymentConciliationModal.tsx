@@ -2234,13 +2234,21 @@ export function PaymentConciliationModal({
     // que mudou), o analista precisa rodar uma "Nova conciliação" do zero,
     // que volta a ler a planilha hospital + base Exacta atual.
     if (soExactaCount > 0) {
-      const ok = window.confirm(
-        `⚠️ Atenção\n\n` +
-        `Esta ação RECRUZA apenas os ${hospitalItems.length} itens que já tiveram correspondência com o hospital.\n\n` +
-        `Os ${soExactaCount} itens "só no Exacta" serão DESCARTADOS — eles não voltam a ser testados contra a planilha hospital.\n\n` +
-        `Se você quer revisar itens "só Exacta" (ex.: terceiro re-mapeado, alias novo), clique em "Cancelar" e use "Nova conciliação" para recarregar a planilha do hospital do zero.\n\n` +
-        `Continuar mesmo assim?`
-      );
+      const ok = await confirmDialog({
+        tone: "warning",
+        title: "Reprocessar conciliação atual",
+        description: (
+          <>
+            Esta ação recruza apenas os <b>{hospitalItems.length}</b> itens que já tiveram correspondência com o hospital.
+            <br /><br />
+            Os <b>{soExactaCount}</b> itens "só no Exacta" serão <b>descartados</b> — eles não voltam a ser testados contra a planilha hospital.
+            <br /><br />
+            Se você quer revisar itens "só Exacta" (ex.: terceiro re-mapeado, alias novo), cancele e use <b>"Nova conciliação"</b> para recarregar a planilha do hospital do zero.
+          </>
+        ),
+        confirmText: "Reprocessar mesmo assim",
+        cancelText: "Cancelar",
+      });
       if (!ok) return;
     }
 
