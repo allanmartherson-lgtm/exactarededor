@@ -1938,10 +1938,32 @@ export function PaymentConciliationModal({
           so_hospital++;
           risco_mais += valHosp;
         } else {
-          base.status = "so_hospital";
-          base.ia_obs = `Item de ${mappedCompany} (atendimento ${att}, TUSS ${code}) presente no extrato hospitalar mas ausente na base Exacta para esta empresa.`;
-          so_hospital++;
-          risco_mais += valHosp;
+          // Sem match na Exacta para este (empresa+atendimento+código).
+          // Antes de classificar como "só hospital" (com risco), consulta a
+          // regra vinculada a (empresa+código). Se for PACOTE e o atendimento
+          // já tem cirurgião principal pago via pacote, este código é
+          // componente embutido (auxiliar, anestesia, visita, parecer) — NÃO
+          // é só hospital e NÃO gera risco financeiro. Se for FIXO/TABELA/
+          // BÔNUS, trata como qtd_divergente sem impacto financeiro.
+          const resolvedMethod = lookupCalcMethod(mappedCompany, code);
+          const isPacote = resolvedMethod.startsWith("pacote");
+          const isFixedNoMatch = !!resolvedMethod && FIXED_CALC_METHODS.has(resolvedMethod);
+          if (isPacote && isPackageAttendance(mappedCompany, att)) {
+            base.status = "conciliado";
+            base.applied_calc_method = resolvedMethod;
+            base.ia_obs = `Componente embutido em PACOTE (regra "${resolvedMethod}") — atendimento ${att} já consolidado no pagamento do cirurgião principal na Exacta. TUSS ${code} é parte do pacote, sem pagamento separado. Sem impacto financeiro.`;
+            conciliado++;
+          } else if (isFixedNoMatch) {
+            base.status = "qtd_divergente";
+            base.applied_calc_method = resolvedMethod;
+            base.ia_obs = `Regra "${resolvedMethod}" para TUSS ${code} (empresa ${mappedCompany}) — sem linha correspondente na Exacta. Valor não é comparado em regras estruturais; divergência registrada como quantidade. Sem impacto financeiro.`;
+            qtd_divergente++;
+          } else {
+            base.status = "so_hospital";
+            base.ia_obs = `Item de ${mappedCompany} (atendimento ${att}, TUSS ${code}) presente no extrato hospitalar mas ausente na base Exacta para esta empresa.`;
+            so_hospital++;
+            risco_mais += valHosp;
+          }
         }
         toInsert.push(base);
       }
