@@ -63,12 +63,14 @@ export const UserHospitalsManager = ({ userId, userRoles, primaryHospitalId, hos
     if (!addingId) return;
     setBusy(addingId);
     const role = resolveLinkRole(userRoles);
-    const { error } = await supabase
-      .from("user_hospitals")
-      .upsert({ user_id: userId, hospital_id: addingId, role }, { onConflict: "user_id,hospital_id,role" });
+    const { data, error } = await supabase.functions.invoke("admin-manage-user-hospitals", {
+      body: { action: "link", user_id: userId, hospital_id: addingId, role },
+    });
     setBusy(null);
-    if (error) {
-      toast({ title: "Falha ao vincular", description: error.message, variant: "destructive" });
+    const errMsg = (error as { message?: string } | null)?.message
+      ?? (data as { error?: string } | null)?.error;
+    if (errMsg) {
+      toast({ title: "Falha ao vincular", description: errMsg, variant: "destructive" });
       return;
     }
     setAddingId("");
@@ -86,19 +88,20 @@ export const UserHospitalsManager = ({ userId, userRoles, primaryHospitalId, hos
       return;
     }
     setBusy(hospitalId);
-    const { error } = await supabase
-      .from("user_hospitals")
-      .delete()
-      .eq("user_id", userId)
-      .eq("hospital_id", hospitalId);
+    const { data, error } = await supabase.functions.invoke("admin-manage-user-hospitals", {
+      body: { action: "unlink", user_id: userId, hospital_id: hospitalId },
+    });
     setBusy(null);
-    if (error) {
-      toast({ title: "Falha ao remover", description: error.message, variant: "destructive" });
+    const errMsg = (error as { message?: string } | null)?.message
+      ?? (data as { error?: string } | null)?.error;
+    if (errMsg) {
+      toast({ title: "Falha ao remover", description: errMsg, variant: "destructive" });
       return;
     }
     await load();
     toast({ title: "Vínculo removido" });
   };
+
 
   if (loading) {
     return (
