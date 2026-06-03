@@ -1409,7 +1409,7 @@ export function PaymentConciliationModal({
       // Faz uma passada inicial nas linhas filtradas, computa chave canônica
       // de empresa+atendimento+TUSS+médico, e soma Valor e Quantidade.
       const hospitalCompanySet = new Set<string>();
-      type ProdAgg = { rep: Record<string, unknown>; valSum: number; qtySum: number };
+      type ProdAgg = { rep: Record<string, unknown>; valSum: number; qtySum: number; routes: Set<string> };
       const prodAggMap = new Map<string, ProdAgg>();
       for (const row of rowsParaCruzamento) {
         const colC = srcColMap["company"];
@@ -1425,6 +1425,7 @@ export function PaymentConciliationModal({
             rep: row,
             valSum: toVal(getCell(row, "value")),
             qtySum: Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1,
+            routes: new Set(),
           });
           continue;
         }
@@ -1440,12 +1441,16 @@ export function PaymentConciliationModal({
         const aggKey = `${normAtt(att)}|${normCode}|${dk}`;
         const valHosp = toVal(getCell(row, "value"));
         const qtyHosp = Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1;
+        const routeN = normRoute(getCell(row, "accessRoute"));
         const existing = prodAggMap.get(aggKey);
         if (existing) {
           existing.valSum += valHosp;
           existing.qtySum += qtyHosp;
+          if (routeN) existing.routes.add(routeN);
         } else {
-          prodAggMap.set(aggKey, { rep: row, valSum: valHosp, qtySum: qtyHosp });
+          const routes = new Set<string>();
+          if (routeN) routes.add(routeN);
+          prodAggMap.set(aggKey, { rep: row, valSum: valHosp, qtySum: qtyHosp, routes });
         }
       }
       const aggregatedRows: ProdAgg[] = Array.from(prodAggMap.values());
