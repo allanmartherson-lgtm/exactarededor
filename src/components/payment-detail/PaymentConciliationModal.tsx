@@ -356,8 +356,8 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-03T22:30:00Z";
-const RECONCILIATION_LOGIC_VERSION_LABEL = "Regras estruturais (pacote/valor_fixo/tabela_diferenciada/bônus) têm impacto financeiro = 0 e decisão de grupo é feita pela regra de (empresa+código), inclusive sem match Exacta; componentes de pacote são reconhecidos como embutidos";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-03T23:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
   open,
