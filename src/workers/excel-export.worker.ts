@@ -58,8 +58,8 @@ self.onmessage = async (e) => {
 
     // Aba 3: Detalhe dos Itens
     const detailHeaders = [
-      "Atendimento", "Data", "Empresa", "Paciente", "Médico", "Especialidade",
-      "Código", "Procedimento", "Valor Repasse", "Valor Esperado",
+      "Atendimento", "Data", "Empresa", "Convênio", "Paciente", "Médico", "Especialidade",
+      "Código", "Procedimento", "Qtd", "Valor Repasse", "Valor Esperado",
       "Divergência (R$)", "Status", "Regra", "Motivo", "Validação Assistencial"
     ];
     
@@ -71,10 +71,6 @@ self.onmessage = async (e) => {
       else if (status === "alerta") statusStyle = { fill: { fgColor: { rgb: "FEF3C7" } } };
       else if (status === "reprovado") statusStyle = { fill: { fgColor: { rgb: "FEE2E2" } } };
 
-      // Validação assistencial: usa o resumo pré-calculado no modal (que tem
-      // acesso a rulesIndex e replica a mesma lógica do popover, incluindo
-      // regras sintetizadas com action=informar). Fallback: monta a partir
-      // de validation_findings caso o resumo não venha.
       let validationCol: string = typeof it.validation_summary === "string" ? it.validation_summary : "";
       if (!validationCol) {
         const vfRaw = Array.isArray(it.validation_findings) ? it.validation_findings : [];
@@ -101,11 +97,13 @@ self.onmessage = async (e) => {
         it.attendance_number,
         it.procedure_date,
         it.company_name,
+        it.agreement_text ?? it.convenio_slug ?? "",
         it.patient_name,
         it.doctor_name,
         it.specialty,
         it.procedure_code,
         it.procedure_name,
+        it.quantity ?? 1,
         it.gross_amount,
         findings?.expected_amount ?? "",
         (Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0)).toFixed(2),
