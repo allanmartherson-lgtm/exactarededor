@@ -2011,7 +2011,7 @@ export function PaymentConciliationModal({
   }, [items, initialCompany, companyFilter, doctorFilter, minValue, maxValue, searchTerm]);
 
   const scopedStats = useMemo(() => {
-    let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0, empresa_ausente = 0;
+    let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0, empresa_ausente = 0, possivel_pacote = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
     for (const it of scopedItems) {
       if (it.status === "conciliado") conciliado++;
@@ -2020,6 +2020,7 @@ export function PaymentConciliationModal({
       else if (it.status === "so_hospital") so_hospital++;
       else if (it.status === "so_exacta") so_exacta++;
       else if (it.status === "empresa_ausente") empresa_ausente++;
+      else if (it.status === "possivel_pacote") possivel_pacote++;
       const vm = Number(it.valor_exacta) || 0;
       const vh = Number(it.valor_hospital) || 0;
       if (it.status === "valor_divergente") {
@@ -2038,10 +2039,11 @@ export function PaymentConciliationModal({
       } else if (it.status === "so_exacta") {
         risco_menos += vm;
       }
+      // possivel_pacote: informacional — não entra em risco_mais nem risco_menos.
     }
     return {
       total: scopedItems.length,
-      conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta, empresa_ausente,
+      conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta, empresa_ausente, possivel_pacote,
       risco_mais, risco_menos, divergencia_valor,
     };
   }, [scopedItems]);
