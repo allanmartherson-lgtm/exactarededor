@@ -219,7 +219,8 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
                     </Button>
                   </div>
                 ))}
-              </div>
+                </div>
+              </>
             )}
           </TabsContent>
         </Tabs>
