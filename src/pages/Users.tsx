@@ -403,7 +403,7 @@ const Users = () => {
     }
   };
   const resetForm = () => {
-    setForm({ email: "", full_name: "", phone: "", cpf: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true, primary_hospital_id: "" });
+    setForm({ email: "", full_name: "", phone: "", cpf: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true, primary_hospital_id: "", additional_hospital_ids: [] });
     setAccessRequestId(null);
     setTempPwd(null);
   };
