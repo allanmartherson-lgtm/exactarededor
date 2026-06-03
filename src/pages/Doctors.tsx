@@ -680,7 +680,10 @@ export default function Doctors() {
           <TabsContent value="aliases" className="mt-4">
             <RegistryAliasesPanel kind="doctor" />
           </TabsContent>
-          <TabsContent value="list" className="mt-4">
+          <TabsContent value="list" className="mt-4 space-y-3">
+        <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-md px-3 py-2">
+          Vínculos médico ↔ PJ são sincronizados em tempo real: alterações feitas aqui aparecem no cadastro da PJ, e vice-versa.
+        </p>
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-base flex items-center justify-between">
