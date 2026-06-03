@@ -1161,6 +1161,16 @@ export function PaymentConciliationModal({
       // Conta TODAS as linhas alvo no arquivo bruto antes de qualquer filtro
       const debugRowsBruto = srcRows.filter(isDebugRow);
       console.log(`[DEBUG-CASE ${DEBUG_ATT}/${DEBUG_CODE}] linhas no arquivo bruto: ${debugRowsBruto.length}`, debugRowsBruto);
+      // FALLBACK: varre TODAS as colunas procurando o atendimento — pega caso a detecção de coluna esteja errada
+      const anyColHas9108966 = srcRows.filter((r) =>
+        Object.values(r).some((v) => String(v ?? '').replace(/\D/g, '').includes(DEBUG_ATT))
+      );
+      console.log(`[DEBUG-CASE] linhas com "${DEBUG_ATT}" em QUALQUER coluna: ${anyColHas9108966.length}`,
+        anyColHas9108966.slice(0, 3));
+      console.log('[DEBUG-CASE] srcColMap detectado:', srcColMap);
+      console.log('[DEBUG-CASE] amostra srcRows[0..2]:', srcRows.slice(0, 3));
+      console.log('[DEBUG-CASE] total srcRows:', srcRows.length);
+
 
       const dropByTerceiro = new Map<string, number>();
       const filteredRows = srcRows.filter((row) => {
