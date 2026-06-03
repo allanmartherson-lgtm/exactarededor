@@ -8,6 +8,7 @@ import { Stethoscope, X, ExternalLink, Loader2, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { confirmDialog } from "@/lib/confirm";
+import { DoctorCompanySyncFaq } from "@/components/DoctorCompanySyncFaq";
 
 interface Doctor {
   id: string;
@@ -349,6 +350,7 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
       <p className="text-[11px] text-muted-foreground bg-muted/40 border border-border rounded px-2 py-1">
         Alterações aqui e no cadastro do médico são sincronizadas automaticamente entre as duas telas.
       </p>
+      <DoctorCompanySyncFaq compact />
       <div className="flex flex-wrap gap-1.5 min-h-[28px]">
         {linked.length === 0 && (
           <span className="text-xs text-muted-foreground">Nenhum médico vinculado.</span>

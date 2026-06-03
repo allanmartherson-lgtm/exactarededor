@@ -18,6 +18,7 @@ import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 import { formatCPF, isValidCPF, onlyDigits as cpfOnlyDigits } from "@/lib/cpf";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DoctorRegistrationPendingPanel } from "@/components/doctors/DoctorRegistrationPendingPanel";
+import { DoctorCompanySyncFaq } from "@/components/DoctorCompanySyncFaq";
 import { RegistryAliasesPanel } from "@/components/RegistryAliasesPanel";
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
@@ -684,6 +685,7 @@ export default function Doctors() {
         <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-md px-3 py-2">
           Vínculos médico ↔ PJ são sincronizados em tempo real: alterações feitas aqui aparecem no cadastro da PJ, e vice-versa.
         </p>
+        <DoctorCompanySyncFaq />
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-base flex items-center justify-between">
