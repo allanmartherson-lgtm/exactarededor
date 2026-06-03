@@ -1601,7 +1601,10 @@ export function PaymentConciliationModal({
         });
         const docHospN = normName(doctor);
         const roleHospN = normRole(roleHosp);
-        const routeHospN = normRoute(routeHosp);
+        // Se a agregação produção juntou segmentos com VIAS distintas, a via do
+        // rep é ambígua — descarta como sinal para não rejeitar candidatos válidos.
+        const mixedRouteHosp = (agg.routes?.size ?? 0) > 1;
+        const routeHospN = mixedRouteHosp ? "" : normRoute(routeHosp);
         const qtyHospN = normQty(qtyHosp);
 
         const scoreCandidate = (m: PaymentItemRow): { score: number; docOk: boolean; roleOk: boolean; routeOk: boolean; docConflict: boolean; roleConflict: boolean; routeConflict: boolean } => {
