@@ -3335,6 +3335,36 @@ export function PaymentConciliationModal({
                 </Button>
               </div>
 
+              {/* Auditoria: filtro de remessa */}
+              {remittanceFilterStats && (
+                <div className={`flex items-start gap-3 px-4 py-2.5 border rounded-lg text-xs ${
+                  remittanceFilterStats.removidos > 0
+                    ? 'bg-info/10 border-info/30 text-info-text'
+                    : 'bg-muted/40 border-border text-muted-foreground'
+                }`}>
+                  <Filter className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p>
+                      <strong>Filtro de remessa:</strong>{' '}
+                      {remittanceFilterStats.removidos > 0 ? (
+                        <>
+                          <strong>{remittanceFilterStats.removidos}</strong> item(ns) da Exacta removido(s) da conciliação
+                          {' '}({((remittanceFilterStats.removidos / Math.max(1, remittanceFilterStats.before)) * 100).toFixed(1)}% de {remittanceFilterStats.before}) — datas anteriores a{' '}
+                          <strong>{remittanceFilterStats.lotePeriodStart}</strong>. Restantes na análise: <strong>{remittanceFilterStats.restantes}</strong>.
+                        </>
+                      ) : (
+                        <>Nenhum item removido. Competência inicial <strong>{remittanceFilterStats.lotePeriodStart}</strong> aplicada sobre {remittanceFilterStats.before} item(ns) da Exacta.</>
+                      )}
+                      {' '}
+                      <span className="opacity-75">
+                        (competência {remittanceFilterStats.source === 'override' ? 'definida pelo analista' : 'sugerida pelo lote'})
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
+
 
               {/* Aviso de defasagem: detecta reanálise do lote, atualização de regras
                   ou nova versão da lógica de conciliação desde o último run. */}
