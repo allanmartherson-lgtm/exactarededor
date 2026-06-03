@@ -199,6 +199,7 @@ const COL_FIELDS: Array<{
   { key: "patient",    label: "Paciente",       required: false, description: "Nome do paciente — enriquecimento" },
   { key: "date",       label: "Data proc.",     required: false, description: "Data do procedimento — enriquecimento" },
   { key: "agreement",  label: "Convênio",       required: false, description: "Convênio/plano de saúde — enriquece a análise e o relatório" },
+  { key: "crm",        label: "CRM",            required: false, description: "CRM do médico — chave canônica de resolução (cruza com cadastro de médicos)" },
 ];
 
 const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> => {
