@@ -1156,14 +1156,10 @@ export function PaymentConciliationModal({
         if (!ok) {
           const key = terceiro || '(vazio)';
           dropByTerceiro.set(key, (dropByTerceiro.get(key) ?? 0) + 1);
-          if (isDebugRow(row)) {
-            console.warn('[DEBUG-ROW] DROPADA no filtro de terceiro:', { terceiro, temMapping: !!srcMapping[terceiro], row });
-          }
-        } else if (isDebugRow(row)) {
-          console.log('[DEBUG-ROW] passou filtro de terceiro:', { terceiro, mapeadoPara: srcMapping[terceiro] });
         }
         return ok;
       });
+
       if (dropByTerceiro.size > 0) {
         console.warn('[Conciliação] linhas DESCARTADAS por terceiro não mapeado:', Object.fromEntries(dropByTerceiro));
       }
