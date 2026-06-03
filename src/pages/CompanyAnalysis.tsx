@@ -1822,9 +1822,8 @@ export default function CompanyAnalysis() {
                   )}
                 </>
               )}
-              {/* Ações de validador/diretor por empresa foram movidas para o footer
-                  de ações em lote no PaymentDetail (Questionar / Devolver / Aprovar). */}
-            </div>
+            {/* Ações de validador/diretor por empresa foram movidas para o footer
+                de ações em lote no PaymentDetail (Questionar / Devolver / Aprovar). */}
           </div>
         </div>
       )}
