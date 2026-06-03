@@ -69,14 +69,44 @@ function CopyAttendanceButton({ value }: { value: string | null | undefined }) {
   if (!value) return null;
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
+    const text = String(value);
+    let ok = false;
+    // 1) Tenta Clipboard API moderna (pode falhar no Safari dentro de iframe sem permissão).
     try {
-      await navigator.clipboard.writeText(String(value));
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch {
+      ok = false;
+    }
+    // 2) Fallback universal (Safari/Mac, iframes): textarea + execCommand("copy").
+    if (!ok) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.top = "0";
+        ta.style.left = "0";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch {
+        ok = false;
+      }
+    }
+    if (ok) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1400);
-    } catch {
-      /* noop */
     }
   };
+
   return (
     <button
       type="button"
