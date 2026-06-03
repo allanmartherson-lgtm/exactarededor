@@ -110,7 +110,7 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <span>Pendências de cadastro</span>
             <Badge variant="outline" className="text-[10px]">
-              {unregistered.length} médico(s) • {unlinked.length} PJ(s)
+              {unregistered.length} médico(s) • {unlinked.length} PJ(s) • {totalItems} item(s)
             </Badge>
           </div>
           <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
