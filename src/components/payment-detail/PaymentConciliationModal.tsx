@@ -1528,28 +1528,44 @@ export function PaymentConciliationModal({
           if (!base.procedure_date) base.procedure_date = (match as any).procedure_date ?? null;
           if (!base.company_name) base.company_name = match.company_name ?? null;
           if (!base.agreement_text) base.agreement_text = (match as any).agreement_text ?? null;
-          // Mantém o rótulo da regra apenas como CONTEXTO informativo — não entra no cálculo da divergência
           base.applied_rule_label = (match as any).applied_rule_label ?? null;
           base.applied_calc_method = (match as any).applied_calc_method ?? null;
           base.valor_regra = (match as any).expected_amount ?? null;
 
-          const diff = valHosp - valMed;
           const calcMethod = (match as any).applied_calc_method as string | null;
-          const valRegra = Number((match as any).expected_amount ?? 0) || 0;
-          const isFixed = isFixedCalcMethod(calcMethod) && valRegra > 0;
+          const ruleLabel = String((match as any).applied_rule_label ?? '');
+          const valBruto = Number((match as any).gross_amount ?? 0) || 0;
+          const valExpected = Number((match as any).expected_amount ?? 0) || 0;
+          const isFixed = isFixedCalcMethod(calcMethod) && valExpected > 0;
+
+          // === PASSO 3 — Financeiro em 3 ramos pela Regra ===
+          // (1) Tabela fixa / pacote / valor fixo / bônus → valor NÃO aplicável
+          //     (sinal é a quantidade, não o valor).
+          // (2) Acordo com % (regra calculou expected_amount ≠ bruto) → comparar
+          //     Valor Repasse (hospital) com expected_amount.
+          // (3) Repasse 100% (sem regra ou regra que mantém o bruto) → comparar
+          //     Valor Repasse (hospital) com Valor Bruto.
+          // Blindagem: se a referência (bruto/expected) ≈ 0, não calcula % e
+          // sinaliza divergência sem razão numérica absurda.
+          const TOL_ABS = 0.02;
+          const isPercentRule = !isFixed && valExpected > 0
+            && (calcMethod === 'percentual_sobre_convenio'
+                || calcMethod === 'tabela_diferenciada'
+                || calcMethod === 'complemento'
+                || /\b(\d{1,3})\s*%/.test(ruleLabel)
+                || /dobra|acordo|cbhpm|porte/i.test(ruleLabel))
+            && Math.abs(valExpected - valBruto) > TOL_ABS;
 
           if (isFixed) {
-            // VALOR FIXO POR CÓDIGO (tabela diferenciada, pacote, valor fixo,
-            // bônus): valor não pode variar. O que importa é a quantidade
-            // de atendimentos por código. Comparamos qty informada pelo
-            // hospital com qty do item na Exacta; quando o hospital não
-            // envia coluna de qty, inferimos pela razão valor_hospital/valor_regra.
+            // RAMO 3 — VALOR FIXO / PACOTE / BÔNUS — valor não aplicável.
+            // Divergência aqui é de QUANTIDADE de atendimentos por código,
+            // nunca de valor unitário.
             const qtyMed = Number((match as any).quantity ?? 1) || 1;
             const qtyHospExplicit = Number(String(qtyHosp ?? "").replace(",", ".")) || 0;
-            const qtyHospInferred = valRegra > 0 ? Math.round(valHosp / valRegra) : 0;
+            const qtyHospInferred = valExpected > 0 ? Math.round(valHosp / valExpected) : 0;
             const qtyHospFinal = qtyHospExplicit > 0 ? qtyHospExplicit : qtyHospInferred;
             const qtyOk = qtyHospFinal > 0 && qtyHospFinal === qtyMed;
-            const valuePerUnitOk = valRegra > 0 && Math.abs(valHosp - valRegra * qtyMed) < 0.02;
+            const valuePerUnitOk = valExpected > 0 && Math.abs(valHosp - valExpected * qtyMed) < TOL_ABS;
 
             if (qtyOk || valuePerUnitOk) {
               base.status = "conciliado";
@@ -1558,26 +1574,59 @@ export function PaymentConciliationModal({
               base.status = "qtd_divergente";
               qtd_divergente++;
               const qtyTxt = qtyHospFinal > 0 ? `${qtyHospFinal}` : "indefinida";
-              base.ia_obs = `Regra de valor fixo (${calcMethod}). Esperado ${qtyMed}× ${formatCurrency(valRegra)} = ${formatCurrency(valRegra * qtyMed)}. Hospital pagou ${formatCurrency(valHosp)} (qtd ${qtyTxt}). Como o valor unitário é fixo por contrato, a divergência aponta diferença de quantidade de atendimentos para este código — não erro de valor.`;
-              // Divergência aqui é informativa: o valor a pagar é o da regra.
-              divergencia_valor += Math.abs(valHosp - valRegra * qtyMed);
-              if (valHosp > valRegra * qtyMed) risco_mais += valHosp - valRegra * qtyMed;
-              else risco_menos += valRegra * qtyMed - valHosp;
+              base.ia_obs = `Valor não aplicável (regra fixa: ${calcMethod}). Unitário ${formatCurrency(valExpected)} × esperado ${qtyMed} = ${formatCurrency(valExpected * qtyMed)}. Hospital pagou ${formatCurrency(valHosp)} (qtd ${qtyTxt}). Diferença é de quantidade de atendimentos, não de valor unitário.`;
+              divergencia_valor += Math.abs(valHosp - valExpected * qtyMed);
+              if (valHosp > valExpected * qtyMed) risco_mais += valHosp - valExpected * qtyMed;
+              else risco_menos += valExpected * qtyMed - valHosp;
             }
-          } else if (Math.abs(diff) < 0.02) {
-            base.status = "conciliado";
-            conciliado++;
+          } else if (isPercentRule) {
+            // RAMO 2 — ACORDO COM % — esperado já calculado pela engine.
+            const diff = valHosp - valExpected;
+            if (Math.abs(diff) < TOL_ABS) {
+              base.status = "conciliado";
+              conciliado++;
+            } else {
+              base.status = "valor_divergente";
+              valor_divergente++;
+              const pct = Math.abs(valExpected) > TOL_ABS ? (diff / valExpected) * 100 : 0;
+              const pctTxt = Math.abs(valExpected) > TOL_ABS ? `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%` : 'n/a (esperado ≈ 0)';
+              const ambigPrefix = ambiguous ? `⚠ Match ambíguo — confira manualmente. ` : '';
+              base.ia_obs = `${ambigPrefix}Regra com % (${ruleLabel || calcMethod}). Esperado: ${formatCurrency(valExpected)} (bruto ${formatCurrency(valBruto)}). Hospital pagou ${formatCurrency(valHosp)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pctTxt}).`;
+              divergencia_valor += Math.abs(diff);
+              if (diff > 0) risco_mais += diff;
+              else risco_menos += Math.abs(diff);
+            }
           } else {
-            base.status = "valor_divergente";
-            valor_divergente++;
-            const pct = valMed > 0 ? (diff / valMed) * 100 : 0;
-            const ambigPrefix = ambiguous
-              ? `⚠ Match ambíguo (mesmo atendimento+código com médicos/funções diferentes — confira manualmente). `
-              : "";
-            base.ia_obs = `${ambigPrefix}Tabela convênio — Hospital: ${formatCurrency(valHosp)} · Exacta: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Comparação feita ANTES da aplicação de regras/acordo: divergência aqui indica diferença na tabela do convênio entre as duas bases, não erro de regra.`;
-            divergencia_valor += Math.abs(diff);
-            if (diff > 0) risco_mais += diff;
-            else risco_menos += Math.abs(diff);
+            // RAMO 1 — REPASSE 100% — esperado = bruto (sem regra ou regra
+            // que mantém o bruto). É aqui que o número-chave bate em ~90%
+            // dos casos; divergência aqui é REAL — não suavizar.
+            const ref = valBruto > 0 ? valBruto : valMed; // fallback para a tabela convênio
+            const diff = valHosp - ref;
+            if (Math.abs(ref) < TOL_ABS) {
+              // Blindagem: bruto ≈ 0 e há valor pago → sinaliza sem calcular %.
+              if (Math.abs(valHosp) < TOL_ABS) {
+                base.status = "conciliado";
+                conciliado++;
+              } else {
+                base.status = "valor_divergente";
+                valor_divergente++;
+                base.ia_obs = `Repasse 100% — bruto ≈ 0 na Exacta mas hospital pagou ${formatCurrency(valHosp)}. Conferir item sem cobertura na tabela convênio.`;
+                divergencia_valor += Math.abs(valHosp);
+                risco_mais += valHosp;
+              }
+            } else if (Math.abs(diff) < TOL_ABS) {
+              base.status = "conciliado";
+              conciliado++;
+            } else {
+              base.status = "valor_divergente";
+              valor_divergente++;
+              const pct = (diff / ref) * 100;
+              const ambigPrefix = ambiguous ? `⚠ Match ambíguo — confira manualmente. ` : '';
+              base.ia_obs = `${ambigPrefix}Repasse 100% (sem regra de %) — esperado = bruto ${formatCurrency(ref)}. Hospital pagou ${formatCurrency(valHosp)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Divergência real entre tabelas.`;
+              divergencia_valor += Math.abs(diff);
+              if (diff > 0) risco_mais += diff;
+              else risco_menos += Math.abs(diff);
+            }
           }
         } else if (companyMissing) {
           base.status = "empresa_ausente";
