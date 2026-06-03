@@ -103,7 +103,27 @@ export default function Doctors() {
   useEffect(() => {
     document.title = "Médicos | Exacta";
     load();
+
+    // Realtime: vínculos editados na tela da PJ (CompanyDoctorsSection) refletem aqui sem F5.
+    const ch = supabase
+      .channel("doctors-page:doctor_companies")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "doctor_companies" },
+        async () => {
+          const { data } = await supabase
+            .from("doctor_companies")
+            .select("doctor_id,company_id,start_date,end_date,end_reason")
+            .limit(50000);
+          setLinks((data ?? []) as Link[]);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, []);
+
 
   const load = async () => {
     try {
