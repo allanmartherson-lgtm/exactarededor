@@ -73,6 +73,34 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
     setRows((prev) => prev.filter((r) => !(r.doctor_id === doctorId && r.company_id === companyId)));
   };
 
+  const bulkLinkAll = async () => {
+    if (!unlinked.length) return;
+    if (!confirm(`Vincular ${unlinked.length} par(es) médico↔PJ de uma vez? A data de início será hoje.`)) return;
+    setBulkLinking(true);
+    const today = new Date().toISOString().slice(0, 10);
+    let ok = 0, skipped = 0;
+    const resolved = new Set<string>();
+    for (const r of unlinked) {
+      if (!r.doctor_id || !r.company_id) { skipped++; continue; }
+      const { error } = await supabase
+        .from("doctor_companies")
+        .insert({ doctor_id: r.doctor_id, company_id: r.company_id, start_date: today });
+      if (error) { skipped++; continue; }
+      ok++;
+      resolved.add(`${r.doctor_id}|${r.company_id}`);
+    }
+    setRows((prev) => prev.filter((r) => !resolved.has(`${r.doctor_id}|${r.company_id}`)));
+    setBulkLinking(false);
+    toast({
+      title: "Vínculos criados",
+      description: `${ok} vínculo(s) criado(s)${skipped ? ` · ${skipped} ignorado(s) (sobreposição ou erro)` : ""}.`,
+    });
+  };
+
+  const totalItems = unlinked.reduce((s, r) => s + Number(r.items_count || 0), 0);
+
+
+
 
   return (
     <Card className="overflow-hidden">
