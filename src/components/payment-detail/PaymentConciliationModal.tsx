@@ -1528,6 +1528,11 @@ export function PaymentConciliationModal({
       // aparecem só no extrato do hospital são honorários embutidos — não são
       // "só hospital" e não geram impacto financeiro.
       const packageAttendanceKeys = new Set<string>();
+      // Map (empresa|atendimento) → conjunto de TUSS codes declarados em
+      // package_included_codes da regra de pacote aplicada. Quando presente,
+      // a supressão de componente vira PRECISA: só suprime se o code do
+      // hospital estiver na lista declarada do pacote.
+      const packageIncludedCodesByKey = new Map<string, Set<string>>();
       for (const it of exactaItemsForRun) {
         const cn = normCompany(it.company_name);
         const cd = normalizeCode(it.procedure_code);
@@ -1539,6 +1544,73 @@ export function PaymentConciliationModal({
           packageAttendanceKeys.add(`${cn}|${normAtt(it.attendance_number)}`);
         }
       }
+
+      // Resolução assíncrona de método para itens sem applied_calc_method
+      // carimbado, via lookup em rule_calculations pelo applied_calc_id.
+      // Diagnóstico no banco mostra ~1.5k itens nessa condição (pacote,
+      // valor_fixo, tabela_diferenciada, percentual_sobre_convenio).
+      try {
+        const missingIds = new Set<string>();
+        const itemsByCalcId = new Map<string, PaymentItemRow[]>();
+        for (const it of exactaItemsForRun) {
+          const cm = normMethod((it as any).applied_calc_method);
+          const calcId = (it as any).applied_calc_id as string | null | undefined;
+          if (!cm && calcId) {
+            missingIds.add(calcId);
+            const arr = itemsByCalcId.get(calcId) ?? [];
+            arr.push(it);
+            itemsByCalcId.set(calcId, arr);
+          }
+        }
+        if (missingIds.size > 0) {
+          const idList = Array.from(missingIds);
+          const { data: calcRows, error: calcErr } = await (supabase as any)
+            .from("rule_calculations")
+            .select("id, calculation_type, package_included_codes")
+            .in("id", idList);
+          if (calcErr) {
+            console.warn('[Conciliação] lookup rule_calculations falhou:', calcErr);
+          } else if (Array.isArray(calcRows)) {
+            for (const cr of calcRows) {
+              const rawType = String(cr.calculation_type ?? '');
+              const resolved = rawType === 'percentual_sobre_convenio'
+                ? 'percentual_convenio'
+                : normMethod(rawType);
+              if (!resolved) continue;
+              const includedCodes: string[] = Array.isArray(cr.package_included_codes)
+                ? cr.package_included_codes.filter((x: unknown): x is string => typeof x === 'string' && x.length > 0)
+                : [];
+              const items = itemsByCalcId.get(cr.id) ?? [];
+              for (const it of items) {
+                const cn = normCompany(it.company_name);
+                const cd = normalizeCode(it.procedure_code);
+                if (cd && !ruleMethodByCompanyCode.has(`${cn}|${cd}`)) {
+                  ruleMethodByCompanyCode.set(`${cn}|${cd}`, resolved);
+                }
+                if (resolved.startsWith('pacote') && it.attendance_number) {
+                  const attKey = `${cn}|${normAtt(it.attendance_number)}`;
+                  packageAttendanceKeys.add(attKey);
+                  if (includedCodes.length > 0) {
+                    const set = packageIncludedCodesByKey.get(attKey) ?? new Set<string>();
+                    for (const c of includedCodes) {
+                      for (const v of codeVariants(c)) set.add(v);
+                    }
+                    packageIncludedCodesByKey.set(attKey, set);
+                  }
+                }
+              }
+            }
+            console.log('[Conciliação] lookup rule_calculations:', {
+              missing_ids: missingIds.size,
+              rows_returned: calcRows.length,
+              package_keys_with_included: packageIncludedCodesByKey.size,
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[Conciliação] lookup rule_calculations exception:', e);
+      }
+
       const lookupCalcMethod = (companyRaw: unknown, codeRaw: unknown): string => {
         const cn = normCompany(companyRaw);
         for (const v of codeVariants(codeRaw)) {
@@ -1550,6 +1622,25 @@ export function PaymentConciliationModal({
       const isPackageAttendance = (companyRaw: unknown, attRaw: unknown): boolean => {
         if (!attRaw) return false;
         return packageAttendanceKeys.has(`${normCompany(companyRaw)}|${normAtt(attRaw)}`);
+      };
+      // Retorna:
+      //  'declared'     → pacote tem package_included_codes E o code está na lista (suprime)
+      //  'not_declared' → pacote tem package_included_codes E o code NÃO está (NÃO suprime)
+      //  'no_list'      → pacote sem package_included_codes cadastrado (fallback genérico)
+      //  'none'         → atendimento não é pacote
+      const packageComponentMatch = (
+        companyRaw: unknown,
+        attRaw: unknown,
+        codeRaw: unknown,
+      ): 'declared' | 'not_declared' | 'no_list' | 'none' => {
+        if (!attRaw || !isPackageAttendance(companyRaw, attRaw)) return 'none';
+        const key = `${normCompany(companyRaw)}|${normAtt(attRaw)}`;
+        const set = packageIncludedCodesByKey.get(key);
+        if (!set || set.size === 0) return 'no_list';
+        for (const v of codeVariants(codeRaw)) {
+          if (set.has(v)) return 'declared';
+        }
+        return 'not_declared';
       };
 
       const toInsert: Array<Record<string, unknown>> = [];
