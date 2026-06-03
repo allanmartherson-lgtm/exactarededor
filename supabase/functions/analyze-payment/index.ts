@@ -1424,12 +1424,25 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
       // ===== fim 2C =====
 
-      const appliedCalcMethod = isCalcDuplicityBlock
-        ? null
-        : mapCalculationTypeToMethod(r.calculation_type_used);
       const appliedCalcId = isCalcDuplicityBlock
         ? null
         : ((r.calculation_breakdown ?? []).find((b) => b.matched && b.calc_id)?.calc_id ?? null);
+      // Resolve calculation_type com fallback determinístico (Caminho 2):
+      // 1) o que o motor reportou; 2) rule_calculations via applied_calc_id;
+      // 3) rules.calculation_type via matched_rule_id. Garante carimbo
+      // consistente em valor_fixo / pacote* / percentual_sobre_convenio.
+      let resolvedCalcType: string | null = (r as any).calculation_type_used ?? null;
+      if (!resolvedCalcType && !isCalcDuplicityBlock) {
+        if (appliedCalcId && calcTypeByCalcId[appliedCalcId]) {
+          resolvedCalcType = calcTypeByCalcId[appliedCalcId];
+        } else if (r.matched_rule_id && calcTypeByRuleId[r.matched_rule_id]) {
+          resolvedCalcType = calcTypeByRuleId[r.matched_rule_id];
+        }
+      }
+      const appliedCalcMethod = isCalcDuplicityBlock
+        ? null
+        : mapCalculationTypeToMethod(resolvedCalcType);
+
 
       // SECTOR: nunca sobrescrever `payment_items.sector` quando o item já
       // tem setor vindo da planilha. O setor da base importada é a fonte da
