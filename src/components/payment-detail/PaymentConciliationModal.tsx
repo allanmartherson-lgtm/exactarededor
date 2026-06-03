@@ -1322,13 +1322,24 @@ export function PaymentConciliationModal({
       }
 
       const matchedExactaIds = new Set<string>();
+      // Conjunto de atendimentos (normalizados) presentes na base do hospital.
+      // Usado para distinguir "só_exacta verdadeiro" (atendimento inexistente
+      // no hospital → glosa/erro de cadastro) de "possivel_pacote" (atendimento
+      // existe, mas faltam linhas da equipe → faturamento consolidou em pacote
+      // pago ao cirurgião principal).
+      const hospitalAttendances = new Set<string>();
+      for (const row of rowsParaCruzamento) {
+        const att = getCell(row, "attendance");
+        if (att) hospitalAttendances.add(normAtt(att));
+      }
       const toInsert: Array<Record<string, unknown>> = [];
       let conciliado = 0,
         valor_divergente = 0,
         qtd_divergente = 0,
         so_hospital = 0,
         so_exacta = 0,
-        empresa_ausente = 0;
+        empresa_ausente = 0,
+        possivel_pacote = 0;
       let risco_mais = 0,
         risco_menos = 0,
         divergencia_valor = 0;
