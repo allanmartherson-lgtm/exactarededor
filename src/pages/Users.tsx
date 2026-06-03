@@ -438,6 +438,31 @@ const Users = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      // Vínculos adicionais (multi-tenant): grava em user_hospitals com a role
+      // mais privilegiada do usuário (validador > diretor > admin > analista).
+      const newUserId = data?.user_id as string | undefined;
+      const extras = form.additional_hospital_ids.filter((id) => id && id !== form.primary_hospital_id);
+      if (newUserId && extras.length) {
+        const linkRole: AppRole = form.roles.includes("validador")
+          ? "validador"
+          : form.roles.includes("diretor")
+            ? "diretor"
+            : form.roles.includes("admin")
+              ? "admin"
+              : "analista";
+        const rows = extras.map((hospital_id) => ({ user_id: newUserId, hospital_id, role: linkRole }));
+        const { error: linkErr } = await supabase
+          .from("user_hospitals")
+          .upsert(rows, { onConflict: "user_id,hospital_id,role" });
+        if (linkErr) {
+          toast({
+            title: "Usuário criado, mas alguns vínculos falharam",
+            description: linkErr.message,
+            variant: "destructive",
+          });
+        }
+      }
+
       if (data?.temp_password) {
         setTempPwd(data.temp_password);
         toast({ title: "Usuário criado", description: "Compartilhe a senha temporária abaixo." });
@@ -448,6 +473,7 @@ const Users = () => {
       }
       load();
       loadRequests();
+
     } catch (e: any) {
       toast({ title: "Erro ao criar usuário", description: e.message, variant: "destructive" });
     } finally {
