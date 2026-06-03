@@ -972,28 +972,34 @@ export function PaymentConciliationModal({
       //  • Conclusão: itens da Exacta com procedure_date < início da
       //    competência saem da análise (não viram conciliado, divergente,
       //    só_exacta nem pacote). Mantemos contagem para o log.
+      // Override do analista tem prioridade sobre o auto-derivado da competência.
+      // String vazia ou inválida → desativa o filtro (analista quer ver tudo).
       let lotePeriodStart: string | null = null;
-      try {
-        const { data: pay } = await (supabase as any)
-          .from("payments")
-          .select("competence_month, competence_months")
-          .eq("id", paymentId)
-          .single();
-        const candidates: string[] = [];
-        if (Array.isArray(pay?.competence_months)) {
-          for (const c of pay.competence_months) {
-            if (c) candidates.push(String(c).slice(0, 10));
+      const override = (periodStartOverride || "").trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(override)) {
+        lotePeriodStart = override;
+      } else {
+        try {
+          const { data: pay } = await (supabase as any)
+            .from("payments")
+            .select("competence_month, competence_months")
+            .eq("id", paymentId)
+            .single();
+          const candidates: string[] = [];
+          if (Array.isArray(pay?.competence_months)) {
+            for (const c of pay.competence_months) {
+              if (c) candidates.push(String(c).slice(0, 10));
+            }
           }
+          if (pay?.competence_month) candidates.push(String(pay.competence_month).slice(0, 10));
+          if (candidates.length > 0) {
+            const earliest = candidates.sort()[0];
+            const m = earliest.match(/^(\d{4})-(\d{2})/);
+            if (m) lotePeriodStart = `${m[1]}-${m[2]}-01`;
+          }
+        } catch (e) {
+          console.warn('[Conciliação] não foi possível ler competência do lote — filtro de remessa desativado.', e);
         }
-        if (pay?.competence_month) candidates.push(String(pay.competence_month).slice(0, 10));
-        if (candidates.length > 0) {
-          // Pega a MENOR competência e força para o dia 1 do mês
-          const earliest = candidates.sort()[0];
-          const m = earliest.match(/^(\d{4})-(\d{2})/);
-          if (m) lotePeriodStart = `${m[1]}-${m[2]}-01`;
-        }
-      } catch (e) {
-        console.warn('[Conciliação] não foi possível ler competência do lote — filtro de remessa desativado.', e);
       }
 
       let removidosPorRemessa = 0;
