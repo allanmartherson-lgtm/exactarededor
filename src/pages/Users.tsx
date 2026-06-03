@@ -889,6 +889,18 @@ const Users = () => {
                 </section>
 
                 <section className="space-y-2 border-t pt-4">
+                  <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Hospitais vinculados</h4>
+                  <UserHospitalsManager
+                    userId={editingUser.id}
+                    userRoles={currentRoles}
+                    primaryHospitalId={(currentUser?.primary_hospital_id as string | null) ?? null}
+                    hospitals={hospitalsList}
+                  />
+                </section>
+
+
+
+                <section className="space-y-2 border-t pt-4">
                   <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Ações</h4>
                   <div className="flex flex-wrap gap-1.5">
                     <Button
