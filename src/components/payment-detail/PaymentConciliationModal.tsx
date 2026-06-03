@@ -1024,12 +1024,39 @@ export function PaymentConciliationModal({
       const GRUPOS_EXCLUIR = new Set(['CONSULTAS', 'VISITAS']);
       const colGrupo = srcColMap['grupo'] ?? null;
 
-      const rowsParaCruzamento = srcExcludeConsultas && colGrupo
+      const rowsAposGrupo = srcExcludeConsultas && colGrupo
         ? filteredRows.filter(row => {
             const grupo = String(row[colGrupo] ?? '').trim();
             return !GRUPOS_EXCLUIR.has(grupo.toUpperCase());
           })
         : filteredRows;
+
+      // PASSO 0 — filtro de competência por procedure_date.
+      // Pega o conjunto de meses (YYYY-MM) presentes nos itens do lote Exacta
+      // e descarta linhas da produção fora desse intervalo. Resolve o "83 só
+      // no Exacta" causado por planilha de produção trazer outros meses.
+      // Skip-safe: se Exacta não tem datas OU não há coluna de data mapeada,
+      // não filtra (avisa no console).
+      const competencyMonths = new Set<string>();
+      for (const it of exactaItemsForRun) {
+        const d = toDateStr((it as any).procedure_date);
+        if (d) competencyMonths.add(d.slice(0, 7));
+      }
+      const colDate = srcColMap['date'] ?? null;
+      let foraCompetencia = 0;
+      let rowsParaCruzamento = rowsAposGrupo;
+      if (competencyMonths.size > 0 && colDate) {
+        rowsParaCruzamento = rowsAposGrupo.filter(row => {
+          const d = toDateStr(row[colDate]);
+          if (!d) return true; // sem data na linha → não descarta (analista decide)
+          const ok = competencyMonths.has(d.slice(0, 7));
+          if (!ok) foraCompetencia++;
+          return ok;
+        });
+        console.log('[Conciliação] competência:', Array.from(competencyMonths).join(','), '· descartadas fora de competência:', foraCompetencia);
+      } else {
+        console.warn('[Conciliação] filtro de competência DESLIGADO — Exacta sem procedure_date ou produção sem coluna de data mapeada.');
+      }
 
       const sampleRow = rowsParaCruzamento[0];
       if (sampleRow) {
