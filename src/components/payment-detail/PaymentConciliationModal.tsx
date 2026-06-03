@@ -39,6 +39,7 @@ import {
   Search,
   Copy,
   Check,
+  Filter,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -448,6 +449,14 @@ export function PaymentConciliationModal({
   // contemplar produção antiga (ex.: lote retroativo de remessa).
   const [periodStartOverride, setPeriodStartOverride] = useState<string>("");
   const [periodStartAuto, setPeriodStartAuto] = useState<string>("");
+  // Auditoria: estatísticas do filtro de remessa aplicado no último processamento.
+  const [remittanceFilterStats, setRemittanceFilterStats] = useState<{
+    lotePeriodStart: string;
+    before: number;
+    removidos: number;
+    restantes: number;
+    source: 'override' | 'auto';
+  } | null>(null);
 
   // Carrega a competência do lote uma vez, para pré-preencher o seletor.
   useEffect(() => {
@@ -1003,6 +1012,7 @@ export function PaymentConciliationModal({
       }
 
       let removidosPorRemessa = 0;
+      const remessaBefore = exactaItemsForRun.length;
       if (lotePeriodStart) {
         const before = exactaItemsForRun.length;
         const kept: PaymentItemRow[] = [];
@@ -1017,6 +1027,15 @@ export function PaymentConciliationModal({
         exactaItemsForRun.length = 0;
         exactaItemsForRun.push(...kept);
         console.log('[Conciliação] Filtro remessa:', { lotePeriodStart, before, removidos: removidosPorRemessa, restantes: exactaItemsForRun.length });
+        setRemittanceFilterStats({
+          lotePeriodStart,
+          before,
+          removidos: removidosPorRemessa,
+          restantes: exactaItemsForRun.length,
+          source: override ? 'override' : 'auto',
+        });
+      } else {
+        setRemittanceFilterStats(null);
       }
 
 
@@ -3316,6 +3335,36 @@ export function PaymentConciliationModal({
                   Reprocessar agora
                 </Button>
               </div>
+
+              {/* Auditoria: filtro de remessa */}
+              {remittanceFilterStats && (
+                <div className={`flex items-start gap-3 px-4 py-2.5 border rounded-lg text-xs ${
+                  remittanceFilterStats.removidos > 0
+                    ? 'bg-info/10 border-info/30 text-info-text'
+                    : 'bg-muted/40 border-border text-muted-foreground'
+                }`}>
+                  <Filter className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p>
+                      <strong>Filtro de remessa:</strong>{' '}
+                      {remittanceFilterStats.removidos > 0 ? (
+                        <>
+                          <strong>{remittanceFilterStats.removidos}</strong> item(ns) da Exacta removido(s) da conciliação
+                          {' '}({((remittanceFilterStats.removidos / Math.max(1, remittanceFilterStats.before)) * 100).toFixed(1)}% de {remittanceFilterStats.before}) — datas anteriores a{' '}
+                          <strong>{remittanceFilterStats.lotePeriodStart}</strong>. Restantes na análise: <strong>{remittanceFilterStats.restantes}</strong>.
+                        </>
+                      ) : (
+                        <>Nenhum item removido. Competência inicial <strong>{remittanceFilterStats.lotePeriodStart}</strong> aplicada sobre {remittanceFilterStats.before} item(ns) da Exacta.</>
+                      )}
+                      {' '}
+                      <span className="opacity-75">
+                        (competência {remittanceFilterStats.source === 'override' ? 'definida pelo analista' : 'sugerida pelo lote'})
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
 
 
               {/* Aviso de defasagem: detecta reanálise do lote, atualização de regras
