@@ -891,6 +891,13 @@ export function PaymentConciliationModal({
         });
       }
 
+      // Carrega o cadastro canônico de médicos (id/CRM/CPF + aliases).
+      // Usado para resolver tanto a linha da produção quanto o item Exacta
+      // ao mesmo doctor.id — eliminando falsos positivos por variação de nome.
+      let doctorReg: DoctorRegistry | null = null;
+      try { doctorReg = await loadDoctorRegistry(); }
+      catch (e) { console.warn('[Conciliação] falha ao carregar doctorRegistry — matching cairá só por nome.', e); }
+
       const exactaItemsForRun: PaymentItemRow[] = [];
       const mappedCompanies = Array.from(currentMappedCompanies);
       const PAGE = 1000;
