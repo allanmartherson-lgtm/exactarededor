@@ -2385,7 +2385,7 @@ export function PaymentConciliationModal({
   // zero itens, pois `filteredItems` já está restrito ao status da aba.
   const exportCounts: Record<ExportStatusKey, number> = useMemo(() => {
     const acc: Record<ExportStatusKey, number> = {
-      conciliado: 0, valor_divergente: 0, qtd_divergente: 0, so_hospital: 0, so_exacta: 0, empresa_ausente: 0,
+      conciliado: 0, valor_divergente: 0, qtd_divergente: 0, so_hospital: 0, so_exacta: 0, empresa_ausente: 0, possivel_pacote: 0,
     };
     for (const it of scopedItems) acc[it.status] = (acc[it.status] ?? 0) + 1;
     return acc;
