@@ -1997,16 +1997,14 @@ export function PaymentConciliationModal({
           // BÔNUS, trata como qtd_divergente sem impacto financeiro.
           const resolvedMethod = lookupCalcMethod(mappedCompany, code);
           const isFixedNoMatch = !!resolvedMethod && FIXED_CALC_METHODS.has(resolvedMethod);
-          const pkgMatch = packageComponentMatch(mappedCompany, att, code);
-          if (pkgMatch === 'declared') {
+          const attendanceIsPackage = isPackageAttendance(mappedCompany, att);
+          const codeIsPackageMember = isPackageMember(mappedCompany, code);
+          if (attendanceIsPackage || codeIsPackageMember) {
             base.status = "conciliado";
             base.applied_calc_method = resolvedMethod || "pacote";
-            base.ia_obs = `Componente DECLARADO em PACOTE — TUSS ${code} consta na lista package_included_codes da regra de pacote do atendimento ${att} (empresa ${mappedCompany}). Pagamento embutido no consolidado do cirurgião principal. Sem impacto financeiro.`;
-            conciliado++;
-          } else if (pkgMatch === 'no_list') {
-            base.status = "conciliado";
-            base.applied_calc_method = resolvedMethod || "pacote";
-            base.ia_obs = `Componente embutido em PACOTE (fallback) — atendimento ${att} (empresa ${mappedCompany}) já consolidado via regra de pacote, sem package_included_codes cadastrado. TUSS ${code} tratado como componente. Sem impacto financeiro.`;
+            base.ia_obs = codeIsPackageMember
+              ? `Código TUSS ${code} listado em package_included_codes do pacote desta empresa (${mappedCompany}) — componente embutido, sem pagamento separado. Sem impacto financeiro.`
+              : `Componente embutido em PACOTE — atendimento ${att} (empresa ${mappedCompany}) consolidado no pagamento do principal via regra de pacote. Sem impacto financeiro.`;
             conciliado++;
           } else if (isFixedNoMatch) {
             base.status = "qtd_divergente";
@@ -2015,10 +2013,7 @@ export function PaymentConciliationModal({
             qtd_divergente++;
           } else {
             base.status = "so_hospital";
-            const pkgNote = pkgMatch === 'not_declared'
-              ? ` Atendimento tem pacote, mas TUSS ${code} NÃO está em package_included_codes — possível falta real.`
-              : '';
-            base.ia_obs = `Item de ${mappedCompany} (atendimento ${att}, TUSS ${code}) presente no extrato hospitalar mas ausente na base Exacta para esta empresa.${pkgNote}`;
+            base.ia_obs = `Item de ${mappedCompany} (atendimento ${att}, TUSS ${code}) presente no extrato hospitalar mas ausente na base Exacta para esta empresa.`;
             so_hospital++;
             risco_mais += valHosp;
           }
