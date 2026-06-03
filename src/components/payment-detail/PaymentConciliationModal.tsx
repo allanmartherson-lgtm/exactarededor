@@ -2009,18 +2009,19 @@ export function PaymentConciliationModal({
             // que mantém o bruto). É aqui que o número-chave bate em ~90%
             // dos casos; divergência aqui é REAL — não suavizar.
             const ref = valBruto > 0 ? valBruto : valMed; // fallback para a tabela convênio
-            const diff = valHosp - ref;
+            const _pago = lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || valHosp;
+            const diff = _pago - ref;
             if (Math.abs(ref) < TOL_ABS) {
               // Blindagem: bruto ≈ 0 e há valor pago → sinaliza sem calcular %.
-              if (Math.abs(valHosp) < TOL_ABS) {
+              if (Math.abs(_pago) < TOL_ABS) {
                 base.status = "conciliado";
                 conciliado++;
               } else {
                 base.status = "valor_divergente";
                 valor_divergente++;
-                base.ia_obs = `Repasse 100% — bruto ≈ 0 na Exacta mas hospital pagou ${formatCurrency(valHosp)}. Conferir item sem cobertura na tabela convênio.`;
-                divergencia_valor += Math.abs(valHosp);
-                risco_mais += valHosp;
+                base.ia_obs = `Repasse 100% — bruto ≈ 0 na Exacta mas hospital pagou ${formatCurrency(_pago)}. Conferir item sem cobertura na tabela convênio.`;
+                divergencia_valor += Math.abs(_pago);
+                risco_mais += _pago;
               }
             } else if (Math.abs(diff) < TOL_ABS) {
               base.status = "conciliado";
@@ -2030,7 +2031,7 @@ export function PaymentConciliationModal({
               valor_divergente++;
               const pct = (diff / ref) * 100;
               const ambigPrefix = ambiguous ? `⚠ Match ambíguo — confira manualmente. ` : '';
-              base.ia_obs = `${ambigPrefix}Repasse 100% (sem regra de %) — esperado = bruto ${formatCurrency(ref)}. Hospital pagou ${formatCurrency(valHosp)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Divergência real entre tabelas.`;
+              base.ia_obs = `${ambigPrefix}Repasse 100% (sem regra de %) — esperado = bruto ${formatCurrency(ref)}. Hospital pagou ${formatCurrency(_pago)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Divergência real entre tabelas.`;
               divergencia_valor += Math.abs(diff);
               if (diff > 0) risco_mais += diff;
               else risco_menos += Math.abs(diff);
