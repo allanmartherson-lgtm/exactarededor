@@ -1203,7 +1203,6 @@ export function PaymentConciliationModal({
           const ok = competencyMonths.has(d.slice(0, 7));
           if (!ok) {
             foraCompetencia++;
-            if (isDebugRow(row)) console.warn('[DEBUG-ROW] DROPADA pelo filtro de competência:', { data: d, competencias: Array.from(competencyMonths) });
           }
           return ok;
         });
@@ -1212,9 +1211,7 @@ export function PaymentConciliationModal({
         console.warn('[Conciliação] filtro de competência DESLIGADO — Exacta sem procedure_date ou produção sem coluna de data mapeada.');
       }
 
-      // Trace final: confirma se a linha-alvo sobreviveu a TODOS os filtros
-      const debugRowsRestantes = rowsParaCruzamento.filter(isDebugRow);
-      console.log(`[DEBUG-CASE ${DEBUG_ATT}/${DEBUG_CODE}] linhas que chegaram ao cruzamento: ${debugRowsRestantes.length}`, debugRowsRestantes);
+
 
       const sampleRow = rowsParaCruzamento[0];
       if (sampleRow) {
