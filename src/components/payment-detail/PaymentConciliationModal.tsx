@@ -1262,7 +1262,12 @@ export function PaymentConciliationModal({
           : null;
         const dk = doctorKeyFromRow(hospDocId, crmDigits, getCell(row, "doctor"));
         const normCode = normalizeCode(code);
-        const aggKey = `${normCompany(mapped)}|${normAtt(att)}|${normCode}|${dk}`;
+        // Agregação: NÃO incluímos `dk` na chave porque o mesmo ato (mesmo
+        // att+TUSS) frequentemente aparece em segmentos com médicos distintos
+        // (principal + auxiliar) e queremos colapsá-los num único item de
+        // produção para casar com o único item da Exacta. `dk` continua sendo
+        // calculado e usado depois pelo scoreCandidate como desempate.
+        const aggKey = `${normAtt(att)}|${normCode}`;
         const valHosp = toVal(getCell(row, "value"));
         const qtyHosp = Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1;
         const existing = prodAggMap.get(aggKey);
@@ -1274,6 +1279,8 @@ export function PaymentConciliationModal({
         }
       }
       const aggregatedRows: ProdAgg[] = Array.from(prodAggMap.values());
+      // suprime "dk não usado" depois da mudança de chave — mantemos para o score
+      void dk;
       console.log('[Conciliação] agregação produção:', rowsParaCruzamento.length, '→', aggregatedRows.length, '· buckets Exacta:', exactaByKey.size);
 
       console.log('[Cruzamento] Empresas Exacta:', exactaCompanySet.size, 'Empresas Hospital:', hospitalCompanySet.size, 'Chaves Exacta:', exactaByKey.size);
