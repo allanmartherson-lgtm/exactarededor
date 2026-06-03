@@ -3113,6 +3113,40 @@ export function PaymentConciliationModal({
                 </label>
               </div>
 
+              <div className="flex items-start gap-3 p-3 bg-muted/40 border border-border rounded-lg">
+                <div className="flex-1">
+                  <label htmlFor="periodStart" className="text-xs text-muted-foreground block">
+                    <span className="font-medium text-foreground">Competência inicial do lote</span>
+                    {' '}— itens da Exacta com data <strong>anterior</strong> a esta serão removidos da conciliação (pagamentos por remessa: o faturamento já fechou, sem risco de divergência).
+                    {periodStartAuto && (
+                      <span className="block text-[11px] text-muted-foreground/80 mt-0.5">
+                        Sugerido pelo lote: <code className="font-mono">{periodStartAuto}</code>
+                      </span>
+                    )}
+                  </label>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <input
+                    id="periodStart"
+                    type="date"
+                    value={periodStartOverride}
+                    onChange={(e) => setPeriodStartOverride(e.target.value)}
+                    className="h-8 text-xs border border-border rounded-md bg-background px-2"
+                  />
+                  {periodStartOverride && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-[11px] text-muted-foreground"
+                      onClick={() => setPeriodStartOverride("")}
+                      title="Desativa o filtro — todos os itens da Exacta entram na conciliação, independente da data."
+                    >
+                      Limpar
+                    </Button>
+                  )}
+                </div>
+
               <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
                 {hospitalCompanies.map((terceiro) => {
                   const mapped = companyMapping[terceiro];
