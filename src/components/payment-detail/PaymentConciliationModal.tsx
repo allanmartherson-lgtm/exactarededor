@@ -1263,11 +1263,30 @@ export function PaymentConciliationModal({
           const roleMedN = normRole((m as any).doctor_role);
           const routeMedN = normRoute((m as any).access_route);
           const qtyMedN = normQty((m as any).quantity);
+          const medDoctorId = (m as any).doctor_id ?? null;
+          const crmMedDigits = String((m as any).doctor_document ?? '').replace(/\D/g, '');
           let docOk = false, roleOk = false, routeOk = false;
           let docConflict = false, roleConflict = false, routeConflict = false;
-          if (docHospN && docMedN && docHospN === docMedN) { s += 1000; docOk = true; }
-          else if (docHospN && docMedN && (docMedN.includes(docHospN) || docHospN.includes(docMedN))) { s += 400; docOk = true; }
-          else if (docHospN && docMedN) { s -= 200; docConflict = true; }
+
+          // Resolução canônica (doctor_id): sinal mais forte que nome.
+          // Quando ambos os lados resolvem ao mesmo médico cadastrado, é match
+          // certo independente de variação de nome (alias, abreviação, acento).
+          if (hospDoctorId && medDoctorId && hospDoctorId === medDoctorId) {
+            s += 2000; docOk = true;
+          } else if (hospDoctorId && medDoctorId && hospDoctorId !== medDoctorId) {
+            s -= 1500; docConflict = true;
+          } else if (crmHospDigits && crmMedDigits && crmHospDigits === crmMedDigits) {
+            s += 1800; docOk = true;
+          } else if (crmHospDigits && crmMedDigits && crmHospDigits !== crmMedDigits) {
+            s -= 1200; docConflict = true;
+          } else if (docHospN && docMedN && docHospN === docMedN) {
+            s += 1000; docOk = true;
+          } else if (docHospN && docMedN && (docMedN.includes(docHospN) || docHospN.includes(docMedN))) {
+            s += 400; docOk = true;
+          } else if (docHospN && docMedN) {
+            s -= 200; docConflict = true;
+          }
+
           if (roleHospN && roleMedN && roleHospN === roleMedN) { s += 200; roleOk = true; }
           else if (roleHospN && roleMedN) { s -= 150; roleConflict = true; }
           // Via de acesso: forte sinal quando ambos os lados informam — separa
