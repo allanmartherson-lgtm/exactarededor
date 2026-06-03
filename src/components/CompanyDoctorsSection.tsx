@@ -128,80 +128,126 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
     [linkedDoctors, activeLinks],
   );
 
-  const add = async (doctor: Doctor) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase
+  const tryInsert = async (doctorId: string, startDate: string) =>
+    supabase
       .from("doctor_companies")
-      .insert({ doctor_id: doctor.id, company_id: companyId, start_date: today });
+      .insert({ doctor_id: doctorId, company_id: companyId, start_date: startDate });
 
-    if (!error) {
-      await loadLinks();
-      setSearch("");
-      setShowPicker(false);
-      toast({ title: "Médico vinculado", description: doctor.full_name });
-      return;
-    }
-
-    // Conflito de sobreposição → oferecer transferência
-    const msg = (error.message ?? "").toLowerCase();
-    const isOverlap = /overlap|exclusion|no_overlap|conflict/.test(msg);
-    if (!isOverlap) {
-      toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" });
-      return;
-    }
-
-    // Buscar vínculo aberto atual em outra empresa
-    const { data: cur } = await supabase
-      .from("doctor_companies")
-      .select("id, company_id, start_date, companies:company_id(name)")
-      .eq("doctor_id", doctor.id)
-      .is("end_date", null)
-      .order("start_date", { ascending: false })
-      .limit(1);
-    const current = (cur ?? [])[0] as
-      | { id: string; company_id: string; start_date: string | null; companies?: { name: string } | null }
-      | undefined;
-    const currentCompanyName = current?.companies?.name ?? "(empresa desconhecida)";
-
-    const ok = await confirmDialog({
-      title: "Transferir vínculo do médico?",
-      description: (
-        <>
-          <strong>{doctor.full_name}</strong> já tem vínculo aberto com{" "}
-          <strong>{currentCompanyName}</strong>{current?.start_date ? ` (desde ${fmtBR(current.start_date)})` : ""}.
-          <br />
-          Para vincular a esta empresa, o vínculo anterior precisa ser encerrado hoje.
-        </>
-      ),
-      details: "Esta ação preserva o histórico — o vínculo anterior fica com data de encerramento de hoje, e um novo vínculo é criado começando hoje.",
-      tone: "warning",
-      confirmText: "Transferir agora",
-      cancelText: "Cancelar",
-    });
-    if (!ok || !current) return;
-
-    // 1) encerra o anterior
-    const upd = await supabase
-      .from("doctor_companies")
-      .update({ end_date: today, end_reason: "transferencia_vinculo" })
-      .eq("id", current.id);
-    if (upd.error) {
-      toast({ title: "Falha ao encerrar vínculo anterior", description: upd.error.message, variant: "destructive" });
-      return;
-    }
-    // 2) cria o novo
-    const ins = await supabase
-      .from("doctor_companies")
-      .insert({ doctor_id: doctor.id, company_id: companyId, start_date: today });
-    if (ins.error) {
-      toast({ title: "Falha ao criar novo vínculo", description: ins.error.message, variant: "destructive" });
-      return;
-    }
+  const finishAdd = async (doctor: Doctor, label: string) => {
     await loadLinks();
     setSearch("");
     setShowPicker(false);
-    toast({ title: "Vínculo transferido", description: `${doctor.full_name} agora está vinculado a esta empresa.` });
+    toast({ title: label, description: doctor.full_name });
   };
+
+  const add = async (doctor: Doctor) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const first = await tryInsert(doctor.id, today);
+    if (!first.error) { await finishAdd(doctor, "Médico vinculado"); return; }
+
+    const msg = (first.error.message ?? "").toLowerCase();
+    const isOverlap = /overlap|exclusion|no_overlap|conflict/.test(msg);
+    if (!isOverlap) {
+      toast({ title: "Erro ao vincular", description: first.error.message, variant: "destructive" });
+      return;
+    }
+
+    // Busca TODOS vínculos do médico que tocam em "hoje" (constraint usa range inclusivo)
+    // — inclusive os já encerrados hoje (zero-day), que continuam bloqueando o insert.
+    const { data: conflicts } = await supabase
+      .from("doctor_companies")
+      .select("id, company_id, start_date, end_date, companies:company_id(name)")
+      .eq("doctor_id", doctor.id)
+      .lte("start_date", today)
+      .or(`end_date.is.null,end_date.gte.${today}`);
+
+    type Row = {
+      id: string;
+      company_id: string;
+      start_date: string | null;
+      end_date: string | null;
+      companies?: { name: string } | null;
+    };
+    const rows = (conflicts ?? []) as Row[];
+    const active = rows.find((r) => !r.end_date);
+    const closed = rows.filter((r) => r.end_date);
+
+    // Caso 1: vínculo ATIVO em outra PJ → pedir confirmação para transferir
+    if (active) {
+      const ok = await confirmDialog({
+        title: "Transferir vínculo do médico?",
+        description: (
+          <>
+            <strong>{doctor.full_name}</strong> tem vínculo aberto com{" "}
+            <strong>{active.companies?.name ?? "(empresa desconhecida)"}</strong>
+            {active.start_date ? ` desde ${fmtBR(active.start_date)}` : ""}.
+            <br />
+            Para vincular a esta empresa, o vínculo anterior precisa ser encerrado.
+          </>
+        ),
+        details:
+          "O vínculo anterior fica com data de encerramento de ontem (para evitar sobreposição) e um novo vínculo é criado começando hoje. O histórico é preservado.",
+        tone: "warning",
+        confirmText: "Transferir agora",
+        cancelText: "Cancelar",
+      });
+      if (!ok) return;
+
+      // Encerra o ativo em "ontem" (e não hoje) para não colidir com o novo start=hoje
+      const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+      // Se o vínculo começou hoje (zero-day), não dá pra encerrar ontem → deleta
+      if (active.start_date && active.start_date >= today) {
+        const del = await supabase.from("doctor_companies").delete().eq("id", active.id);
+        if (del.error) {
+          toast({ title: "Falha ao remover vínculo anterior", description: del.error.message, variant: "destructive" });
+          return;
+        }
+      } else {
+        const upd = await supabase
+          .from("doctor_companies")
+          .update({ end_date: yesterday, end_reason: "transferencia_vinculo" })
+          .eq("id", active.id);
+        if (upd.error) {
+          toast({ title: "Falha ao encerrar vínculo anterior", description: upd.error.message, variant: "destructive" });
+          return;
+        }
+      }
+    }
+
+    // Caso 2: vínculos JÁ ENCERRADOS hoje que ainda bloqueiam o range inclusivo
+    // (resquício de um encerramento manual no mesmo dia). Reduz end_date em 1 dia,
+    // ou remove se for zero-day (start==end==hoje), para liberar o range.
+    for (const c of closed) {
+      if (!c.end_date) continue;
+      if (c.start_date && c.start_date >= today) {
+        // zero-day no mesmo dia → remover (não há histórico relevante)
+        const del = await supabase.from("doctor_companies").delete().eq("id", c.id);
+        if (del.error) {
+          toast({ title: "Falha ao limpar vínculo residual", description: del.error.message, variant: "destructive" });
+          return;
+        }
+      } else if (c.end_date >= today) {
+        const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+        const upd = await supabase
+          .from("doctor_companies")
+          .update({ end_date: yesterday })
+          .eq("id", c.id);
+        if (upd.error) {
+          toast({ title: "Falha ao ajustar vínculo anterior", description: upd.error.message, variant: "destructive" });
+          return;
+        }
+      }
+    }
+
+    // Retry insert
+    const second = await tryInsert(doctor.id, today);
+    if (second.error) {
+      toast({ title: "Não foi possível vincular", description: second.error.message, variant: "destructive" });
+      return;
+    }
+    await finishAdd(doctor, active ? "Vínculo transferido" : "Médico vinculado");
+  };
+
 
   const end = async (doctorId: string) => {
     const ok = await confirmDialog({
