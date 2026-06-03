@@ -1266,7 +1266,23 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const versionRows: VersionRow[] = [];
     const obsRows: ObsRow[] = [];
 
+    // Sub-Onda 2A — Caminho 2: carimbo consistente de applied_calc_method.
+    // Constrói mapas de lookup para resolver calculation_type quando o motor
+    // não o reportou em r.calculation_type_used (caso conhecido em valor_fixo,
+    // pacote* e percentual_sobre_convenio). Ordem: rule_calculations.id (via
+    // applied_calc_id) → rules.calculation_type (via matched_rule_id).
+    const calcTypeByCalcId: Record<string, string | null> = {};
+    const calcTypeByRuleId: Record<string, string | null> = {};
+    for (const rule of rules as any[]) {
+      if (rule?.id) calcTypeByRuleId[rule.id] = rule.calculation_type ?? null;
+      const calcs = Array.isArray(rule?.calculations) ? rule.calculations : [];
+      for (const c of calcs) {
+        if (c?.id) calcTypeByCalcId[c.id] = c.calculation_type ?? null;
+      }
+    }
+
     for (const r of results) {
+
       const it = itemsById[r.item_id];
       const aiJ = aiJustifications[r.item_id];
       const finalAlerts = [...r.alerts, ...(aiJ?.extra_alerts ?? [])];
@@ -1408,12 +1424,25 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
       // ===== fim 2C =====
 
-      const appliedCalcMethod = isCalcDuplicityBlock
-        ? null
-        : mapCalculationTypeToMethod(r.calculation_type_used);
       const appliedCalcId = isCalcDuplicityBlock
         ? null
         : ((r.calculation_breakdown ?? []).find((b) => b.matched && b.calc_id)?.calc_id ?? null);
+      // Resolve calculation_type com fallback determinístico (Caminho 2):
+      // 1) o que o motor reportou; 2) rule_calculations via applied_calc_id;
+      // 3) rules.calculation_type via matched_rule_id. Garante carimbo
+      // consistente em valor_fixo / pacote* / percentual_sobre_convenio.
+      let resolvedCalcType: string | null = (r as any).calculation_type_used ?? null;
+      if (!resolvedCalcType && !isCalcDuplicityBlock) {
+        if (appliedCalcId && calcTypeByCalcId[appliedCalcId]) {
+          resolvedCalcType = calcTypeByCalcId[appliedCalcId];
+        } else if (r.matched_rule_id && calcTypeByRuleId[r.matched_rule_id]) {
+          resolvedCalcType = calcTypeByRuleId[r.matched_rule_id];
+        }
+      }
+      const appliedCalcMethod = isCalcDuplicityBlock
+        ? null
+        : mapCalculationTypeToMethod(resolvedCalcType);
+
 
       // SECTOR: nunca sobrescrever `payment_items.sector` quando o item já
       // tem setor vindo da planilha. O setor da base importada é a fonte da
