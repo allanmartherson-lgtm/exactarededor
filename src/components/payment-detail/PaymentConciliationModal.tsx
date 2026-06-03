@@ -441,6 +441,44 @@ export function PaymentConciliationModal({
 
   const [step, setStep] = useState<Step>("upload");
   const [excludeConsultas, setExcludeConsultas] = useState(true);
+  // Competência inicial do lote (YYYY-MM-DD). Usada como ponto de corte para
+  // remover itens Exacta pagos por REMESSA (data anterior ao lote → já fechado
+  // pelo faturamento, sem risco de divergência). Auto-preenchida com a menor
+  // competência do payment; o analista pode sobrescrever quando o lote
+  // contemplar produção antiga (ex.: lote retroativo de remessa).
+  const [periodStartOverride, setPeriodStartOverride] = useState<string>("");
+  const [periodStartAuto, setPeriodStartAuto] = useState<string>("");
+
+  // Carrega a competência do lote uma vez, para pré-preencher o seletor.
+  useEffect(() => {
+    if (!open || !paymentId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from("payments")
+          .select("competence_month, competence_months")
+          .eq("id", paymentId)
+          .single();
+        if (cancelled || !data) return;
+        const cands: string[] = [];
+        if (Array.isArray(data.competence_months)) {
+          for (const c of data.competence_months) if (c) cands.push(String(c).slice(0, 10));
+        }
+        if (data.competence_month) cands.push(String(data.competence_month).slice(0, 10));
+        if (cands.length > 0) {
+          const earliest = cands.sort()[0];
+          const m = earliest.match(/^(\d{4})-(\d{2})/);
+          const firstDay = m ? `${m[1]}-${m[2]}-01` : earliest;
+          setPeriodStartAuto(firstDay);
+          setPeriodStartOverride((prev) => prev || firstDay);
+        }
+      } catch (e) {
+        console.warn("[Conciliação] falha ao ler competência do lote", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, paymentId]);
   const [hospitalCompanies, setHospitalCompanies] = useState<string[]>([]);
   const [companyMapping, setCompanyMapping] = useState<Record<string, string | null>>({});
   const [matchLevels, setMatchLevels] = useState<Record<string, 'exact' | 'high' | 'medium' | null>>({});
@@ -934,28 +972,34 @@ export function PaymentConciliationModal({
       //  • Conclusão: itens da Exacta com procedure_date < início da
       //    competência saem da análise (não viram conciliado, divergente,
       //    só_exacta nem pacote). Mantemos contagem para o log.
+      // Override do analista tem prioridade sobre o auto-derivado da competência.
+      // String vazia ou inválida → desativa o filtro (analista quer ver tudo).
       let lotePeriodStart: string | null = null;
-      try {
-        const { data: pay } = await (supabase as any)
-          .from("payments")
-          .select("competence_month, competence_months")
-          .eq("id", paymentId)
-          .single();
-        const candidates: string[] = [];
-        if (Array.isArray(pay?.competence_months)) {
-          for (const c of pay.competence_months) {
-            if (c) candidates.push(String(c).slice(0, 10));
+      const override = (periodStartOverride || "").trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(override)) {
+        lotePeriodStart = override;
+      } else {
+        try {
+          const { data: pay } = await (supabase as any)
+            .from("payments")
+            .select("competence_month, competence_months")
+            .eq("id", paymentId)
+            .single();
+          const candidates: string[] = [];
+          if (Array.isArray(pay?.competence_months)) {
+            for (const c of pay.competence_months) {
+              if (c) candidates.push(String(c).slice(0, 10));
+            }
           }
+          if (pay?.competence_month) candidates.push(String(pay.competence_month).slice(0, 10));
+          if (candidates.length > 0) {
+            const earliest = candidates.sort()[0];
+            const m = earliest.match(/^(\d{4})-(\d{2})/);
+            if (m) lotePeriodStart = `${m[1]}-${m[2]}-01`;
+          }
+        } catch (e) {
+          console.warn('[Conciliação] não foi possível ler competência do lote — filtro de remessa desativado.', e);
         }
-        if (pay?.competence_month) candidates.push(String(pay.competence_month).slice(0, 10));
-        if (candidates.length > 0) {
-          // Pega a MENOR competência e força para o dia 1 do mês
-          const earliest = candidates.sort()[0];
-          const m = earliest.match(/^(\d{4})-(\d{2})/);
-          if (m) lotePeriodStart = `${m[1]}-${m[2]}-01`;
-        }
-      } catch (e) {
-        console.warn('[Conciliação] não foi possível ler competência do lote — filtro de remessa desativado.', e);
       }
 
       let removidosPorRemessa = 0;
@@ -3067,6 +3111,41 @@ export function PaymentConciliationModal({
                   <span className="font-medium text-foreground">Excluir Consultas e Visitas</span>
                   {' '}— remove procedimentos do Grupo CBHPM "CONSULTAS" da análise (visitas hospitalares, pareceres, consultas ambulatoriais)
                 </label>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-muted/40 border border-border rounded-lg">
+                <div className="flex-1">
+                  <label htmlFor="periodStart" className="text-xs text-muted-foreground block">
+                    <span className="font-medium text-foreground">Competência inicial do lote</span>
+                    {' '}— itens da Exacta com data <strong>anterior</strong> a esta serão removidos da conciliação (pagamentos por remessa: o faturamento já fechou, sem risco de divergência).
+                    {periodStartAuto && (
+                      <span className="block text-[11px] text-muted-foreground/80 mt-0.5">
+                        Sugerido pelo lote: <code className="font-mono">{periodStartAuto}</code>
+                      </span>
+                    )}
+                  </label>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <input
+                    id="periodStart"
+                    type="date"
+                    value={periodStartOverride}
+                    onChange={(e) => setPeriodStartOverride(e.target.value)}
+                    className="h-8 text-xs border border-border rounded-md bg-background px-2"
+                  />
+                  {periodStartOverride && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-[11px] text-muted-foreground"
+                      onClick={() => setPeriodStartOverride("")}
+                      title="Desativa o filtro — todos os itens da Exacta entram na conciliação, independente da data."
+                    >
+                      Limpar
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
