@@ -1287,17 +1287,16 @@ export function PaymentConciliationModal({
         risco_menos = 0,
         divergencia_valor = 0;
 
-      for (const row of rowsParaCruzamento) {
+      for (const agg of aggregatedRows) {
+        const row = agg.rep;
         const att = getCell(row, "attendance");
         const account = getCell(row, "account");
         const code = getCell(row, "procCode");
-        const valHosp = toVal(getCell(row, "value"));
+        // Valor e quantidade AGREGADOS (somatório dos segmentos do mesmo ato).
+        const valHosp = agg.valSum;
         const patient = getCell(row, "patient");
         const doctor = getCell(row, "doctor");
         const crmHospRaw = getCell(row, "crm");
-        // Resolve a linha de produção ao cadastro canônico de médicos
-        // (CRM > nome exato > alias). Usado depois para comparar com o
-        // doctor_id já resolvido no Exacta.
         const hospDoctorResolved = doctorReg
           ? resolveDoctor({ name: doctor ? String(doctor) : null, crm: crmHospRaw ? String(crmHospRaw) : null }, doctorReg).doctor
           : null;
@@ -1306,7 +1305,7 @@ export function PaymentConciliationModal({
         const procName = getCell(row, "procName");
         const dateRaw = getCell(row, "date");
         const roleHosp = getCell(row, "role");
-        const qtyHosp = getCell(row, "quantity");
+        const qtyHosp = agg.qtySum;
         const routeHosp = getCell(row, "accessRoute");
         const col = srcColMap["company"];
         const terceiro = col ? String(row[col] ?? "").trim() : "";
