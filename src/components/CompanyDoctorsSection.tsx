@@ -319,6 +319,21 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
         </Button>
       ) : (
         <div className="border border-border rounded-md p-2 space-y-2">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="link-start-date" className="text-xs text-muted-foreground shrink-0">
+              Início do vínculo
+            </Label>
+            <Input
+              id="link-start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="h-8 w-40"
+            />
+            <span className="text-[11px] text-muted-foreground">
+              Se houver vínculo em outra PJ, será encerrado no dia anterior a esta data.
+            </span>
+          </div>
           <div className="flex items-center gap-2 border-b border-border pb-1.5">
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
             <Input
@@ -330,6 +345,7 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
             />
             {searching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
           </div>
+
           <div className="max-h-56 overflow-y-auto space-y-1">
             {!searching && visibleResults.length === 0 ? (
               <p className="text-xs text-muted-foreground p-2">
