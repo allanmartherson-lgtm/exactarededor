@@ -286,7 +286,7 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
                       onClick={() => {
                         if (r.doctor_id && r.company_id) {
                           if (onLinkCompany && !divergent) onLinkCompany(r.doctor_id, r.company_id, r.company_name || "");
-                          else linkPj(r.doctor_id, r.company_id);
+                          else linkPj(r);
                         }
                       }}
                     >
