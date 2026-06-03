@@ -47,7 +47,15 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(0);
   const [showPicker, setShowPicker] = useState(false);
+  const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const reqId = useRef(0);
+
+  const addDays = (iso: string, days: number) => {
+    const d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+
 
   // carrega vínculos atuais + nomes dos médicos vinculados
   const loadLinks = async () => {
