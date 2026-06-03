@@ -400,8 +400,8 @@ export function ItemsDataGrid({
     // manter o scrollbar horizontal sempre visível, sem precisar rolar até o fim
     // da página em pagamentos grandes.
     <div
-      className={cn("flex flex-col min-h-[320px]", className)}
-      style={{ height: "min(560px, calc(100vh - 260px))" }}
+      className={cn("flex flex-col min-h-[420px]", className)}
+      style={{ height: "calc(100vh - 220px)", maxHeight: "calc(100vh - 200px)" }}
     >
 
       {showToolbar && (
