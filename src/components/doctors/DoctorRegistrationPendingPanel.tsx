@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Building2, Stethoscope, Link2, RefreshCw, Search, Loader2, ArrowRightLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Row = {
   kind: "doctor_unregistered" | "pj_not_linked";
@@ -34,6 +39,7 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
   const [q, setQ] = useState("");
   const [linking, setLinking] = useState<string | null>(null);
   const [bulkLinking, setBulkLinking] = useState(false);
+  const [confirmPayload, setConfirmPayload] = useState<{ rows: Row[]; mode: "single" | "bulk" } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -110,27 +116,11 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
     return !error;
   };
 
-  const linkPj = async (doctorId: string, companyId: string) => {
-    setLinking(`${doctorId}|${companyId}`);
-    const ok = await upsertLink(doctorId, companyId);
-    setLinking(null);
-    if (!ok) {
-      toast({ title: "Não foi possível vincular", description: "Verifique sobreposição de vigência.", variant: "destructive" });
-      return;
-    }
-    setRows((prev) => prev.filter((r) => !(r.doctor_id === doctorId && r.company_id === companyId)));
-  };
-
-  const bulkLinkAll = async () => {
-    if (!unlinked.length) return;
-    const msg = divergentCount > 0
-      ? `Vincular ${unlinked.length} par(es)? ${divergentCount} divergente(s) terão a PJ atual encerrada e substituída pela PJ que pagou no lote.`
-      : `Vincular ${unlinked.length} par(es) médico↔PJ?`;
-    if (!confirm(msg)) return;
+  const executeLinks = async (targets: Row[]) => {
     setBulkLinking(true);
     let ok = 0, skipped = 0;
     const resolved = new Set<string>();
-    for (const r of unlinked) {
+    for (const r of targets) {
       if (!r.doctor_id || !r.company_id) { skipped++; continue; }
       const success = await upsertLink(r.doctor_id, r.company_id);
       if (!success) { skipped++; continue; }
@@ -140,15 +130,40 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
     setRows((prev) => prev.filter((r) => !resolved.has(`${r.doctor_id}|${r.company_id}`)));
     setBulkLinking(false);
     toast({
-      title: "Vínculos criados",
-      description: `${ok} vínculo(s) criado(s)${skipped ? ` · ${skipped} ignorado(s)` : ""}.`,
+      title: targets.length === 1 ? "Vínculo atualizado" : "Vínculos atualizados",
+      description: `${ok} criado(s)${skipped ? ` · ${skipped} ignorado(s)` : ""}.`,
     });
     load();
   };
 
+  const linkPj = async (row: Row) => {
+    if (!row.doctor_id || !row.company_id) return;
+    const link = activeLinks.get(row.doctor_id);
+    const divergent = !!(link && link.company_id !== row.company_id);
+    if (divergent) {
+      setConfirmPayload({ rows: [row], mode: "single" });
+      return;
+    }
+    setLinking(`${row.doctor_id}|${row.company_id}`);
+    const ok = await upsertLink(row.doctor_id, row.company_id);
+    setLinking(null);
+    if (!ok) {
+      toast({ title: "Não foi possível vincular", description: "Verifique sobreposição de vigência.", variant: "destructive" });
+      return;
+    }
+    setRows((prev) => prev.filter((r) => !(r.doctor_id === row.doctor_id && r.company_id === row.company_id)));
+  };
+
+  const bulkLinkAll = () => {
+    if (!unlinked.length) return;
+    setConfirmPayload({ rows: unlinked, mode: "bulk" });
+  };
+
+
   const totalItems = unlinked.reduce((s, r) => s + Number(r.items_count || 0), 0);
 
   return (
+    <>
     <Card className="overflow-hidden">
       <CardHeader>
         <CardTitle className="text-base flex items-center justify-between gap-3">
@@ -272,7 +287,7 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
                       onClick={() => {
                         if (r.doctor_id && r.company_id) {
                           if (onLinkCompany && !divergent) onLinkCompany(r.doctor_id, r.company_id, r.company_name || "");
-                          else linkPj(r.doctor_id, r.company_id);
+                          else linkPj(r);
                         }
                       }}
                     >
@@ -289,5 +304,63 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
         </Tabs>
       </CardContent>
     </Card>
+
+    <AlertDialog open={!!confirmPayload} onOpenChange={(o) => !o && setConfirmPayload(null)}>
+      <AlertDialogContent className="max-w-2xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <ArrowRightLeft className="h-4 w-4 text-destructive" />
+            {confirmPayload?.mode === "single" ? "Confirmar troca de PJ" : `Confirmar ${confirmPayload?.rows.length ?? 0} vínculo(s)`}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            O pagamento prevalece sobre o cadastro. Os vínculos abaixo serão aplicados agora — vínculos divergentes serão encerrados hoje e os novos abertos a partir de amanhã.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <ScrollArea className="max-h-[50vh] border border-border rounded-md">
+          <div className="divide-y divide-border">
+            {(confirmPayload?.rows ?? []).map((r, i) => {
+              const link = r.doctor_id ? activeLinks.get(r.doctor_id) : null;
+              const divergent = !!(link && link.company_id !== r.company_id);
+              return (
+                <div key={i} className={`px-3 py-2 text-xs ${divergent ? "bg-destructive/5" : ""}`}>
+                  <p className="font-medium text-sm">{r.doctor_name} <span className="text-muted-foreground font-mono text-[10px] ml-1">{r.doctor_document}</span></p>
+                  {divergent ? (
+                    <p className="mt-1 text-[11px] leading-relaxed">
+                      <span className="text-destructive">✕ Encerrar:</span> <strong>{link!.company_name}</strong>
+                      <br />
+                      <span className="text-green-700 dark:text-green-500">✓ Abrir:</span> <strong>{r.company_name}</strong>
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[11px]">
+                      <span className="text-green-700 dark:text-green-500">✓ Abrir:</span> <strong>{r.company_name}</strong>
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={bulkLinking}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={bulkLinking}
+            onClick={async (e) => {
+              e.preventDefault();
+              const payload = confirmPayload;
+              if (!payload) return;
+              await executeLinks(payload.rows);
+              setConfirmPayload(null);
+            }}
+          >
+            {bulkLinking ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
+            Confirmar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
+
