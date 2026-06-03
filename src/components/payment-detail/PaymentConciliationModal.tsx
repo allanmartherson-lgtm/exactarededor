@@ -1724,6 +1724,38 @@ export function PaymentConciliationModal({
         // que existem nos dois lados.
         const isEmpresaAusente = hospitalCompanySet.size > 0 && itCompNorm !== ""
           && !hospitalCompanySet.has(itCompNorm);
+
+        // === INTELIGÊNCIA — Pacote de honorário ===
+        // Regra de negócio (Rede D'Or):
+        //  • A base de produção é extraída ~30 dias DEPOIS da base de pagamento
+        //    (Exacta). Nesse intervalo, o faturamento pode consolidar várias
+        //    linhas (cirurgião principal + auxiliares + anestesista, mesmo
+        //    atendimento) em um ÚNICO pacote pago ao cirurgião principal.
+        //  • Sintoma típico: na Exacta o atendimento tem 4-8 linhas; na produção,
+        //    o MESMO atendimento aparece com 1-2 linhas (só o principal).
+        //  • Se o atendimento EXISTE na produção mas esta linha Exacta ficou
+        //    órfã, NÃO é "só Exacta = possível glosa". É forte indício de
+        //    pacote de honorário consolidado. Categoria informacional, sem
+        //    impacto em "risco menos" (não foi perdido — foi reagrupado).
+        //  • Se o atendimento NÃO existe na produção, aí sim é só_exacta de
+        //    verdade (chave inicial atendimento+médico+data não bate → glosa
+        //    ou divergência de cadastro real).
+        const attNorm = it.attendance_number ? normAtt(it.attendance_number) : "";
+        const isPacote = !isEmpresaAusente && attNorm !== "" && hospitalAttendances.has(attNorm);
+
+        let status: ReconciliationItem["status"];
+        let obs: string;
+        if (isEmpresaAusente) {
+          status = "empresa_ausente";
+          obs = `Empresa "${it.company_name ?? "?"}" tem itens no Exacta mas não aparece no extrato do hospital — verifique se a empresa foi mapeada na importação.`;
+        } else if (isPacote) {
+          status = "possivel_pacote";
+          obs = `Atendimento ${it.attendance_number} consta na produção (cirurgião principal pago), mas a linha de ${(it as any).doctor_name ?? "este profissional"} (${(it as any).doctor_role ?? "função?"}, TUSS ${it.procedure_code ?? "?"}, ${formatCurrency(valMed)}) não. Forte indício de PACOTE DE HONORÁRIO consolidado pelo faturamento após a extração do pagamento — o honorário desta equipe pode ter sido reagrupado em pagamento único ao principal. Conferir se há risco de pagar a mais.`;
+        } else {
+          status = "so_exacta";
+          obs = `Atendimento ${it.attendance_number ?? "?"} (médico ${(it as any).doctor_name ?? "?"}, TUSS ${it.procedure_code ?? "?"}) presente no Exacta mas NÃO existe no extrato hospitalar — chave inicial (atendimento+médico+data) não bate. Verificar glosa, cancelamento ou divergência de cadastro.`;
+        }
+
         toInsert.push({
           payment_item_id: it.id,
           attendance_number: it.attendance_number ?? null,
@@ -1736,20 +1768,21 @@ export function PaymentConciliationModal({
           valor_hospital: 0,
           company_name: it.company_name ?? null,
           agreement_text: (it as any).agreement_text ?? null,
-          status: isEmpresaAusente ? "empresa_ausente" : "so_exacta",
-          ia_obs: isEmpresaAusente
-            ? `Empresa "${it.company_name ?? "?"}" tem itens no Exacta mas não aparece no extrato do hospital — verifique se a empresa foi mapeada na importação.`
-            : `Item de ${it.company_name ?? "empresa"} (atendimento ${it.attendance_number ?? "?"}, TUSS ${it.procedure_code ?? "?"}) presente no Exacta mas ausente no extrato hospitalar — verificar glosa ou divergência de cadastro.`,
+          status,
+          ia_obs: obs,
           valor_regra: (it as any).expected_amount ?? null,
         });
-        if (isEmpresaAusente) {
+        if (status === "empresa_ausente") {
           empresa_ausente++;
+        } else if (status === "possivel_pacote") {
+          possivel_pacote++;
+          // NÃO conta em risco_menos: é informacional, não perda confirmada.
         } else {
           so_exacta++;
           risco_menos += valMed;
         }
       }
-      console.log('[Cruzamento] Sobra Exacta:', { exactaTotal: exactaItemsForRun.length, matched: matchedExactaIds.size, considered: leftoverConsidered, alreadyMatched: leftoverSkipped, so_exacta, empresa_ausente });
+      console.log('[Cruzamento] Sobra Exacta:', { exactaTotal: exactaItemsForRun.length, matched: matchedExactaIds.size, considered: leftoverConsidered, alreadyMatched: leftoverSkipped, so_exacta, possivel_pacote, empresa_ausente });
 
 
 
