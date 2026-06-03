@@ -2072,6 +2072,111 @@ export function PaymentConciliationModal({
    * quando vínculos manuais foram salvos como alias e o usuário só quer
    * que a UI volte a rodar o matching estrito.
    */
+  /**
+   * Reatribui company_name dos payment_items para a PJ ATUAL do médico (doctor_companies.end_date IS NULL).
+   * Cenário: médico migrou de SORT para COB, mas a Exacta importada continua marcada com SORT,
+   * fazendo o cruzamento jogar tudo como "Só no Exacta". Esta ação corrige o cadastro do item
+   * de forma definitiva — após rodar, é necessário "Reprocessar" para refletir na conciliação.
+   */
+  const handleReassignMigratedDoctors = async () => {
+    if (!paymentId) return;
+    try {
+      setProcessing(true);
+      const { data: pis, error: piErr } = await (supabase as any)
+        .from("payment_items")
+        .select("id, doctor_id, company_name")
+        .eq("payment_id", paymentId)
+        .not("doctor_id", "is", null);
+      if (piErr) throw piErr;
+      const rows = (pis ?? []) as Array<{ id: string; doctor_id: string; company_name: string | null }>;
+      const doctorIds = Array.from(new Set(rows.map((r) => r.doctor_id).filter(Boolean)));
+      if (doctorIds.length === 0) {
+        toast({ title: "Sem médicos com cadastro", description: "Nenhum item tem doctor_id resolvido — reatribuição precisa de vínculo canônico." });
+        return;
+      }
+      const { data: dcs, error: dcErr } = await (supabase as any)
+        .from("doctor_companies")
+        .select("doctor_id, company_id, start_date, end_date")
+        .in("doctor_id", doctorIds)
+        .is("end_date", null);
+      if (dcErr) throw dcErr;
+      const activeByDoctor = new Map<string, string>();
+      for (const dc of (dcs ?? []) as Array<{ doctor_id: string; company_id: string; start_date: string | null }>) {
+        const prev = activeByDoctor.get(dc.doctor_id);
+        if (!prev) { activeByDoctor.set(dc.doctor_id, dc.company_id); }
+      }
+      if (activeByDoctor.size === 0) {
+        toast({ title: "Sem vínculos ativos", description: "Nenhum médico tem PJ ativa em doctor_companies.", variant: "destructive" });
+        return;
+      }
+      const companyIds = Array.from(new Set(Array.from(activeByDoctor.values())));
+      const { data: comps, error: cErr } = await (supabase as any)
+        .from("companies")
+        .select("id, name")
+        .in("id", companyIds);
+      if (cErr) throw cErr;
+      const compNameById = new Map<string, string>();
+      for (const c of (comps ?? []) as Array<{ id: string; name: string }>) compNameById.set(c.id, c.name);
+
+      const normCompany = (s: string | null | undefined) =>
+        String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "").trim();
+
+      const updates: Array<{ id: string; from: string; to: string }> = [];
+      for (const r of rows) {
+        const activeCompanyId = activeByDoctor.get(r.doctor_id);
+        if (!activeCompanyId) continue;
+        const newName = compNameById.get(activeCompanyId);
+        if (!newName) continue;
+        if (normCompany(r.company_name) === normCompany(newName)) continue;
+        updates.push({ id: r.id, from: r.company_name ?? "(vazio)", to: newName });
+      }
+      if (updates.length === 0) {
+        toast({ title: "Nada a reatribuir", description: "Todos os itens já estão na PJ atual do médico." });
+        return;
+      }
+      const preview = new Map<string, number>();
+      for (const u of updates) {
+        const key = `${u.from} → ${u.to}`;
+        preview.set(key, (preview.get(key) ?? 0) + 1);
+      }
+      const previewText = Array.from(preview.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([k, v]) => `• ${k}: ${v} item(ns)`)
+        .join("\n");
+      const ok = window.confirm(
+        `Reatribuir empresa de ${updates.length} item(ns) com base na PJ ATUAL do médico (doctor_companies)?\n\n${previewText}\n\nIsto altera company_name dos payment_items de forma DEFINITIVA. Após confirmar, clique em "Reprocessar agora" para refletir na conciliação.`
+      );
+      if (!ok) return;
+
+      const byTarget = new Map<string, string[]>();
+      for (const u of updates) {
+        const arr = byTarget.get(u.to) ?? [];
+        arr.push(u.id);
+        byTarget.set(u.to, arr);
+      }
+      for (const [target, ids] of byTarget) {
+        for (let i = 0; i < ids.length; i += 500) {
+          const chunk = ids.slice(i, i + 500);
+          const { error: uErr } = await (supabase as any)
+            .from("payment_items")
+            .update({ company_name: target })
+            .in("id", chunk);
+          if (uErr) throw uErr;
+        }
+      }
+      toast({
+        title: "Reatribuição concluída",
+        description: `${updates.length} item(ns) atualizado(s). Clique em "Reprocessar agora" para rodar o cruzamento.`,
+      });
+    } catch (e: any) {
+      console.error("[Reatribuição PJ migrada]", e);
+      toast({ title: "Erro", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleReprocessFromCurrent = async () => {
     if (!run?.id || items.length === 0) {
       toast({
