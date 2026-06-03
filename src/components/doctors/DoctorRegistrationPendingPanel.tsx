@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Building2, Stethoscope, Link2, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, Building2, Stethoscope, Link2, RefreshCw, Search, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type Row = {
