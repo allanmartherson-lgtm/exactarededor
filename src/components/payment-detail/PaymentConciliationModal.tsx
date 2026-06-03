@@ -1011,6 +1011,7 @@ export function PaymentConciliationModal({
       }
 
       let removidosPorRemessa = 0;
+      const remessaBefore = exactaItemsForRun.length;
       if (lotePeriodStart) {
         const before = exactaItemsForRun.length;
         const kept: PaymentItemRow[] = [];
@@ -1025,6 +1026,15 @@ export function PaymentConciliationModal({
         exactaItemsForRun.length = 0;
         exactaItemsForRun.push(...kept);
         console.log('[Conciliação] Filtro remessa:', { lotePeriodStart, before, removidos: removidosPorRemessa, restantes: exactaItemsForRun.length });
+        setRemittanceFilterStats({
+          lotePeriodStart,
+          before,
+          removidos: removidosPorRemessa,
+          restantes: exactaItemsForRun.length,
+          source: override ? 'override' : 'auto',
+        });
+      } else {
+        setRemittanceFilterStats(null);
       }
 
 
