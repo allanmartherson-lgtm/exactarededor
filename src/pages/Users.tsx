@@ -278,6 +278,7 @@ const Users = () => {
       department: r.department, birth_date: r.birth_date,
       roles: (r.requested_roles ?? ["analista"]) as AppRole[], send_invite: true,
       primary_hospital_id: "",
+      additional_hospital_ids: [],
     });
     setAccessRequestId(r.id);
     setOpen(true);
