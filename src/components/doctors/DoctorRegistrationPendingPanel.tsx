@@ -163,6 +163,7 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
   const totalItems = unlinked.reduce((s, r) => s + Number(r.items_count || 0), 0);
 
   return (
+    <>
     <Card className="overflow-hidden">
       <CardHeader>
         <CardTitle className="text-base flex items-center justify-between gap-3">
