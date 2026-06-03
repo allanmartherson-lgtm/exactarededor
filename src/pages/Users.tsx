@@ -10,6 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription,
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
+import { UserHospitalsManager } from "@/components/UserHospitalsManager";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
@@ -36,6 +37,7 @@ const Users = () => {
   const [form, setForm] = useState({
     email: "", full_name: "", phone: "", cpf: "", role_title: "", department: "", birth_date: "",
     roles: [] as AppRole[], send_invite: true, primary_hospital_id: "" as string,
+    additional_hospital_ids: [] as string[],
   });
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
@@ -276,6 +278,7 @@ const Users = () => {
       department: r.department, birth_date: r.birth_date,
       roles: (r.requested_roles ?? ["analista"]) as AppRole[], send_invite: true,
       primary_hospital_id: "",
+      additional_hospital_ids: [],
     });
     setAccessRequestId(r.id);
     setOpen(true);
@@ -400,7 +403,7 @@ const Users = () => {
     }
   };
   const resetForm = () => {
-    setForm({ email: "", full_name: "", phone: "", cpf: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true, primary_hospital_id: "" });
+    setForm({ email: "", full_name: "", phone: "", cpf: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true, primary_hospital_id: "", additional_hospital_ids: [] });
     setAccessRequestId(null);
     setTempPwd(null);
   };
@@ -435,6 +438,31 @@ const Users = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      // Vínculos adicionais (multi-tenant): grava em user_hospitals com a role
+      // mais privilegiada do usuário (validador > diretor > admin > analista).
+      const newUserId = data?.user_id as string | undefined;
+      const extras = form.additional_hospital_ids.filter((id) => id && id !== form.primary_hospital_id);
+      if (newUserId && extras.length) {
+        const linkRole: AppRole = form.roles.includes("validador")
+          ? "validador"
+          : form.roles.includes("diretor")
+            ? "diretor"
+            : form.roles.includes("admin")
+              ? "admin"
+              : "analista";
+        const rows = extras.map((hospital_id) => ({ user_id: newUserId, hospital_id, role: linkRole }));
+        const { error: linkErr } = await supabase
+          .from("user_hospitals")
+          .upsert(rows, { onConflict: "user_id,hospital_id,role" });
+        if (linkErr) {
+          toast({
+            title: "Usuário criado, mas alguns vínculos falharam",
+            description: linkErr.message,
+            variant: "destructive",
+          });
+        }
+      }
+
       if (data?.temp_password) {
         setTempPwd(data.temp_password);
         toast({ title: "Usuário criado", description: "Compartilhe a senha temporária abaixo." });
@@ -445,6 +473,7 @@ const Users = () => {
       }
       load();
       loadRequests();
+
     } catch (e: any) {
       toast({ title: "Erro ao criar usuário", description: e.message, variant: "destructive" });
     } finally {
@@ -534,6 +563,39 @@ const Users = () => {
                       Hospital pré-selecionado quando o usuário fizer login. Ele pode trocar a qualquer momento pelo seletor do topo. O vínculo de acesso ao hospital é criado automaticamente.
                     </p>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Hospitais adicionais</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {hospitalsList.length === 0 && (
+                        <span className="text-xs text-muted-foreground">Nenhum hospital ativo cadastrado.</span>
+                      )}
+                      {hospitalsList
+                        .filter((h) => h.id !== form.primary_hospital_id)
+                        .map((h) => {
+                          const checked = form.additional_hospital_ids.includes(h.id);
+                          return (
+                            <Button
+                              key={h.id}
+                              type="button"
+                              size="sm"
+                              variant={checked ? "default" : "outline"}
+                              onClick={() => setForm({
+                                ...form,
+                                additional_hospital_ids: checked
+                                  ? form.additional_hospital_ids.filter((x) => x !== h.id)
+                                  : [...form.additional_hospital_ids, h.id],
+                              })}
+                            >
+                              {h.name} ({h.state_uf})
+                            </Button>
+                          );
+                        })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Selecione hospitais extras em que o usuário deve operar (multi-tenant). Para admin e diretor o acesso já é global — esses vínculos são usados apenas pelos demais papéis.
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label>Papéis</Label>
                     <div className="flex flex-wrap gap-2">
@@ -825,6 +887,18 @@ const Users = () => {
                     <Input type="date" value={editingUser.birth_date} onChange={(e) => setEditingUser({ ...editingUser, birth_date: e.target.value })} />
                   </div>
                 </section>
+
+                <section className="space-y-2 border-t pt-4">
+                  <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Hospitais vinculados</h4>
+                  <UserHospitalsManager
+                    userId={editingUser.id}
+                    userRoles={currentRoles}
+                    primaryHospitalId={(currentUser?.primary_hospital_id as string | null) ?? null}
+                    hospitals={hospitalsList}
+                  />
+                </section>
+
+
 
                 <section className="space-y-2 border-t pt-4">
                   <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Ações</h4>
