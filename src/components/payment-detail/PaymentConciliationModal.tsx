@@ -524,14 +524,35 @@ export function PaymentConciliationModal({
     [paymentItems],
   );
 
-  // Mapa payment_item_id → quantidade Exacta original (vinda da base do lote).
-  // Usado para exibir a coluna "Qtd Exacta" na tabela de conciliação com o
-  // numeral real da planilha — não o valor inferido por valor/regra.
+  // Mapa payment_item_id → quantidade Exacta AGREGADA por (empresa+atendimento+TUSS+médico).
+  // O motor de conciliação colapsa segmentos do mesmo procedimento/médico em um item
+  // virtual com sumQty. Para que a coluna "Qtd Exacta" reflita esse total — e não a
+  // qty de uma única linha-rep —, somamos aqui o mesmo group key, atribuindo o total
+  // a TODOS os ids do grupo (qualquer um pode ser o rep escolhido pelo motor).
   const exactaQtyById = useMemo(() => {
-    const m = new Map<string, number | null>();
+    const norm = (s: string | null | undefined) =>
+      String(s ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const groups = new Map<string, { ids: string[]; sumQty: number; hasQty: boolean }>();
     for (const it of paymentItems) {
+      const att = String((it as any).attendance_number ?? "").trim();
+      const code = String((it as any).procedure_code ?? "").trim();
+      const comp = norm((it as any).company_name);
+      const docId = (it as any).doctor_id ?? null;
+      const docDoc = String((it as any).doctor_document ?? "").replace(/\D/g, "");
+      const docName = norm((it as any).doctor_name);
+      const dk = docId ? `id:${docId}` : docDoc ? `crm:${docDoc}` : docName ? `nm:${docName}` : "_";
+      const key = att && code ? `${comp}|${att}|${code}|${dk}` : `__solo:${it.id}`;
       const q = (it as { quantity?: number | null }).quantity;
-      m.set(it.id, q == null ? null : Number(q));
+      const qn = q == null ? null : Number(q);
+      let g = groups.get(key);
+      if (!g) { g = { ids: [], sumQty: 0, hasQty: false }; groups.set(key, g); }
+      g.ids.push(it.id);
+      if (qn != null && Number.isFinite(qn)) { g.sumQty += qn; g.hasQty = true; }
+    }
+    const m = new Map<string, number | null>();
+    for (const g of groups.values()) {
+      const val = g.hasQty ? g.sumQty : null;
+      for (const id of g.ids) m.set(id, val);
     }
     return m;
   }, [paymentItems]);
