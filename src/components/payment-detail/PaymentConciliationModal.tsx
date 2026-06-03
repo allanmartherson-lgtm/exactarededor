@@ -356,8 +356,8 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-02T22:30:00Z";
-const RECONCILIATION_LOGIC_VERSION_LABEL = "TUSS tolerante a 7d/8d (dígito verificador) · chave empresa+atendimento+TUSS · empresa_ausente · sem_atendimento";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-03T19:40:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "TUSS tolerante a 7d/8d · chave hospital por empresa+atendimento+TUSS+médico+função · reprocessamento saneia qtd inflada";
 
 export function PaymentConciliationModal({
   open,
@@ -1408,7 +1408,10 @@ export function PaymentConciliationModal({
 
       // --- Agregação Produção ---
       // Faz uma passada inicial nas linhas filtradas, computa chave canônica
-      // de empresa+atendimento+TUSS+médico, e soma Valor e Quantidade.
+      // de empresa+atendimento+TUSS+médico+função. A função entra como parte
+      // da identidade do ato porque médico não resolvido no cadastro pode cair
+      // em `_no_doctor_`; sem a função, principal e auxiliares do mesmo
+      // atendimento/código podiam colapsar e inflar a quantidade do hospital.
       const hospitalCompanySet = new Set<string>();
       type ProdAgg = { rep: Record<string, unknown>; valSum: number; qtySum: number; routes: Set<string> };
       const prodAggMap = new Map<string, ProdAgg>();
@@ -1436,10 +1439,11 @@ export function PaymentConciliationModal({
           : null;
         const dk = doctorKeyFromRow(hospDocId, crmDigits, getCell(row, "doctor"));
         const normCode = normalizeCode(code);
-        // Chave inclui doctorKey: segmentos do MESMO médico no mesmo ato
-        // colapsam (parciais/ajustes), mas principal e auxiliar permanecem
+        // Chave inclui doctorKey + roleKey: segmentos do MESMO médico/função
+        // colapsam (parciais/ajustes), mas principal e auxiliares permanecem
         // como linhas separadas para casar com suas contrapartidas na Exacta.
-        const aggKey = `${normAtt(att)}|${normCode}|${dk}`;
+        const roleKey = normRole(getCell(row, "role")) || "_no_role_";
+        const aggKey = `${normAtt(att)}|${normCode}|${dk}|${roleKey}`;
         const valHosp = toVal(getCell(row, "value"));
         const qtyHosp = Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1;
         const routeN = normRoute(getCell(row, "accessRoute"));
@@ -2270,6 +2274,17 @@ export function PaymentConciliationModal({
 
     const rows: Record<string, unknown>[] = hospitalItems.map((it) => {
       const hospDiag = it.match_diagnostics?.hospital;
+      const qExacta = it.payment_item_id ? exactaQtyById.get(it.payment_item_id) : null;
+      const qHospitalRaw = (it as any).quantity;
+      const qHospital = qHospitalRaw == null ? null : Number(qHospitalRaw);
+      const valueMatches = Math.abs(Number(it.valor_hospital ?? 0) - Number(it.valor_exacta ?? 0)) < 0.02;
+      const inflatedQty =
+        qExacta != null &&
+        qHospital != null &&
+        Number.isFinite(Number(qExacta)) &&
+        Number.isFinite(qHospital) &&
+        qHospital > Number(qExacta) &&
+        valueMatches;
       return {
         __company: it.company_name ?? "",
         __att: it.attendance_number ?? "",
@@ -2280,7 +2295,7 @@ export function PaymentConciliationModal({
         __procName: it.procedure_name ?? "",
         __date: it.procedure_date ?? "",
         __role: hospDiag?.role ?? (it as any).role ?? "",
-        __qty: (it as any).quantity ?? "",
+        __qty: inflatedQty ? Number(qExacta) : (qHospitalRaw ?? ""),
         __route: hospDiag?.route ?? "",
         __agreement: it.agreement_text ?? "",
       };
