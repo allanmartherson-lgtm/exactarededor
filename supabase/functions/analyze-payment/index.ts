@@ -1266,7 +1266,23 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const versionRows: VersionRow[] = [];
     const obsRows: ObsRow[] = [];
 
+    // Sub-Onda 2A — Caminho 2: carimbo consistente de applied_calc_method.
+    // Constrói mapas de lookup para resolver calculation_type quando o motor
+    // não o reportou em r.calculation_type_used (caso conhecido em valor_fixo,
+    // pacote* e percentual_sobre_convenio). Ordem: rule_calculations.id (via
+    // applied_calc_id) → rules.calculation_type (via matched_rule_id).
+    const calcTypeByCalcId: Record<string, string | null> = {};
+    const calcTypeByRuleId: Record<string, string | null> = {};
+    for (const rule of rules as any[]) {
+      if (rule?.id) calcTypeByRuleId[rule.id] = rule.calculation_type ?? null;
+      const calcs = Array.isArray(rule?.calculations) ? rule.calculations : [];
+      for (const c of calcs) {
+        if (c?.id) calcTypeByCalcId[c.id] = c.calculation_type ?? null;
+      }
+    }
+
     for (const r of results) {
+
       const it = itemsById[r.item_id];
       const aiJ = aiJustifications[r.item_id];
       const finalAlerts = [...r.alerts, ...(aiJ?.extra_alerts ?? [])];
