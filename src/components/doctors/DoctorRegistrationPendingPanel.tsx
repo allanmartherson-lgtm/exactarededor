@@ -180,7 +180,17 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
                 Nenhuma PJ pagadora sem vínculo no cadastro do médico.
               </p>
             ) : (
-              <div className="divide-y divide-border">
+              <>
+                <div className="px-4 py-2 flex items-center justify-between gap-2 border-b border-border bg-muted/20">
+                  <p className="text-xs text-muted-foreground">
+                    Médico e PJ já cadastrados, mas o vínculo nunca foi criado. Um vínculo resolve todos os itens daquele par.
+                  </p>
+                  <Button size="sm" variant="default" disabled={bulkLinking} onClick={bulkLinkAll}>
+                    {bulkLinking ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Link2 className="h-3.5 w-3.5 mr-1" />}
+                    Vincular todos ({unlinked.length})
+                  </Button>
+                </div>
+                <div className="divide-y divide-border">
                 {unlinked.map((r, i) => (
                   <div key={i} className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-muted/30">
                     <div className="min-w-0 flex-1">
