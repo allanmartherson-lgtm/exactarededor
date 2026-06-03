@@ -1144,22 +1144,61 @@ export function PaymentConciliationModal({
         }
       }
 
+      // ===== DIAGNÓSTICO DE PIPELINE — por etapa, por terceiro =====
+      // Para cada etapa de filtragem, conta linhas dropadas e por quê.
+      // Crítico para diagnosticar "só no Exacta" causado por mapping ausente
+      // de terceiro, fora de competência ou remessa.
+      const DEBUG_ATT = '9108966';
+      const DEBUG_CODE = '31103529';
+      const isDebugRow = (row: Record<string, unknown>): boolean => {
+        const colA = srcColMap['attendance'];
+        const colC = srcColMap['procCode'];
+        if (!colA || !colC) return false;
+        const a = String(row[colA] ?? '').replace(/\D/g, '');
+        const c = String(row[colC] ?? '').replace(/\D/g, '');
+        return a === DEBUG_ATT && (c === DEBUG_CODE || c === DEBUG_CODE.slice(0, 7));
+      };
+      // Conta TODAS as linhas alvo no arquivo bruto antes de qualquer filtro
+      const debugRowsBruto = srcRows.filter(isDebugRow);
+      console.log(`[DEBUG-CASE ${DEBUG_ATT}/${DEBUG_CODE}] linhas no arquivo bruto: ${debugRowsBruto.length}`, debugRowsBruto);
+
+      const dropByTerceiro = new Map<string, number>();
       const filteredRows = srcRows.filter((row) => {
         const col = srcColMap["company"];
         const terceiro = col ? String(row[col] ?? "").trim() : "";
-        return terceiro && srcMapping[terceiro];
+        const ok = !!(terceiro && srcMapping[terceiro]);
+        if (!ok) {
+          const key = terceiro || '(vazio)';
+          dropByTerceiro.set(key, (dropByTerceiro.get(key) ?? 0) + 1);
+          if (isDebugRow(row)) {
+            console.warn('[DEBUG-ROW] DROPADA no filtro de terceiro:', { terceiro, temMapping: !!srcMapping[terceiro], row });
+          }
+        } else if (isDebugRow(row)) {
+          console.log('[DEBUG-ROW] passou filtro de terceiro:', { terceiro, mapeadoPara: srcMapping[terceiro] });
+        }
+        return ok;
       });
+      if (dropByTerceiro.size > 0) {
+        console.warn('[Conciliação] linhas DESCARTADAS por terceiro não mapeado:', Object.fromEntries(dropByTerceiro));
+      }
 
       // Filtro de procedimentos — exclui Consultas/Visitas por padrão
       const GRUPOS_EXCLUIR = new Set(['CONSULTAS', 'VISITAS']);
       const colGrupo = srcColMap['grupo'] ?? null;
 
+      let dropByGrupo = 0;
       const rowsAposGrupo = srcExcludeConsultas && colGrupo
         ? filteredRows.filter(row => {
             const grupo = String(row[colGrupo] ?? '').trim();
-            return !GRUPOS_EXCLUIR.has(grupo.toUpperCase());
+            const ok = !GRUPOS_EXCLUIR.has(grupo.toUpperCase());
+            if (!ok) {
+              dropByGrupo++;
+              if (isDebugRow(row)) console.warn('[DEBUG-ROW] DROPADA pelo filtro de grupo CBHPM:', { grupo });
+            }
+            return ok;
           })
         : filteredRows;
+      if (dropByGrupo > 0) console.log('[Conciliação] descartadas por grupo (Consultas/Visitas):', dropByGrupo);
 
       // PASSO 0 — filtro de competência por procedure_date.
       // Pega o conjunto de meses (YYYY-MM) presentes nos itens do lote Exacta
@@ -1180,13 +1219,20 @@ export function PaymentConciliationModal({
           const d = toDateStr(row[colDate]);
           if (!d) return true; // sem data na linha → não descarta (analista decide)
           const ok = competencyMonths.has(d.slice(0, 7));
-          if (!ok) foraCompetencia++;
+          if (!ok) {
+            foraCompetencia++;
+            if (isDebugRow(row)) console.warn('[DEBUG-ROW] DROPADA pelo filtro de competência:', { data: d, competencias: Array.from(competencyMonths) });
+          }
           return ok;
         });
         console.log('[Conciliação] competência:', Array.from(competencyMonths).join(','), '· descartadas fora de competência:', foraCompetencia);
       } else {
         console.warn('[Conciliação] filtro de competência DESLIGADO — Exacta sem procedure_date ou produção sem coluna de data mapeada.');
       }
+
+      // Trace final: confirma se a linha-alvo sobreviveu a TODOS os filtros
+      const debugRowsRestantes = rowsParaCruzamento.filter(isDebugRow);
+      console.log(`[DEBUG-CASE ${DEBUG_ATT}/${DEBUG_CODE}] linhas que chegaram ao cruzamento: ${debugRowsRestantes.length}`, debugRowsRestantes);
 
       const sampleRow = rowsParaCruzamento[0];
       if (sampleRow) {
