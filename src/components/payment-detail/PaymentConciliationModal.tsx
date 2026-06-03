@@ -3496,6 +3496,17 @@ export function PaymentConciliationModal({
                   variant="outline"
                   className="shrink-0 h-7 text-xs"
                   disabled={processing}
+                  onClick={handleReassignMigratedDoctors}
+                  title="Para médicos que migraram de PJ (ex.: SORT→COB) mas cuja base Exacta ainda traz a empresa antiga, atualiza company_name dos itens usando a PJ ativa em doctor_companies. Depois rode Reprocessar."
+                >
+                  <Building2 className="h-3.5 w-3.5 mr-1.5" />
+                  Reatribuir PJ migrada
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 h-7 text-xs"
+                  disabled={processing}
                   onClick={handleReprocessFromCurrent}
                   title="Recruza esta conciliação sem precisar subir a planilha de novo. Usa os mesmos vínculos de empresa já confirmados e aplica as regras atualizadas."
                 >
