@@ -356,8 +356,8 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-03T21:00:00Z";
-const RECONCILIATION_LOGIC_VERSION_LABEL = "Valor só compara em percentual_sobre_convenio; demais regras (pacote/fixo/tabela/bônus/complemento) comparam apenas quantidade";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-03T22:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "Regras estruturais (pacote/valor_fixo/tabela_diferenciada/bônus) têm impacto financeiro = 0 e decisão de grupo é feita pela regra de (empresa+código), inclusive sem match Exacta; componentes de pacote são reconhecidos como embutidos";
 
 export function PaymentConciliationModal({
   open,
@@ -1513,6 +1513,45 @@ export function PaymentConciliationModal({
         const att = getCell(row, "attendance");
         if (att) hospitalAttendances.add(normAtt(att));
       }
+
+      // === Índice por (empresa + código) — fonte de regras ===
+      // Resolve o TIPO de regra a partir dos próprios payment_items, mesmo
+      // quando a linha do hospital não casou com nenhuma linha Exacta. Garante
+      // que itens de pacote/valor_fixo/tabela_diferenciada/bônus sigam o
+      // RAMO 3 (sem comparação de valor) inclusive quando estão sem match.
+      const normMethod = (m: unknown): string =>
+        String(m ?? "").toLowerCase().trim().replace(/\s+/g, "_");
+      const ruleMethodByCompanyCode = new Map<string, string>();
+      // Conjunto de chaves (empresa|atendimento) onde já existe linha Exacta
+      // paga via PACOTE (cirurgião principal recebeu o consolidado).
+      // Componentes do pacote (auxiliares, anestesia, visitas, pareceres) que
+      // aparecem só no extrato do hospital são honorários embutidos — não são
+      // "só hospital" e não geram impacto financeiro.
+      const packageAttendanceKeys = new Set<string>();
+      for (const it of exactaItemsForRun) {
+        const cn = normCompany(it.company_name);
+        const cd = normalizeCode(it.procedure_code);
+        const cm = normMethod((it as any).applied_calc_method);
+        if (cd && cm && !ruleMethodByCompanyCode.has(`${cn}|${cd}`)) {
+          ruleMethodByCompanyCode.set(`${cn}|${cd}`, cm);
+        }
+        if (cm.startsWith("pacote") && it.attendance_number) {
+          packageAttendanceKeys.add(`${cn}|${normAtt(it.attendance_number)}`);
+        }
+      }
+      const lookupCalcMethod = (companyRaw: unknown, codeRaw: unknown): string => {
+        const cn = normCompany(companyRaw);
+        for (const v of codeVariants(codeRaw)) {
+          const m = ruleMethodByCompanyCode.get(`${cn}|${v}`);
+          if (m) return m;
+        }
+        return "";
+      };
+      const isPackageAttendance = (companyRaw: unknown, attRaw: unknown): boolean => {
+        if (!attRaw) return false;
+        return packageAttendanceKeys.has(`${normCompany(companyRaw)}|${normAtt(attRaw)}`);
+      };
+
       const toInsert: Array<Record<string, unknown>> = [];
       let conciliado = 0,
         valor_divergente = 0,
@@ -1812,36 +1851,33 @@ export function PaymentConciliationModal({
           //     existe nos dois lados e se a QUANTIDADE bate (Ramo 3 / fixo).
           //   - Sem regra alguma → Repasse 100%: compara valor com o bruto (Ramo 1).
           const TOL_ABS = 0.02;
-          const calcMethodNorm = String(calcMethod ?? '').toLowerCase().trim().replace(/\s+/g, '_');
-          const isPercentRule = calcMethodNorm === 'percentual_sobre_convenio' && valExpected > 0;
-          // Tem regra aplicada quando o motor marcou um rótulo OU um método de cálculo.
-          // Rótulos como "Camada 2 — Sem acordo" entram aqui mesmo com calcMethod null,
-          // porque indicam que a regra-pai (tabela/pacote/fixo) já definiu o esperado.
-          const hasRule = ruleLabel.trim().length > 0 || !!calcMethod;
-          const isFixed = !isPercentRule && hasRule;
+          const matchCalcMethodNorm = String(calcMethod ?? '').toLowerCase().trim().replace(/\s+/g, '_');
+          // Fonte de verdade: regra vinculada a (empresa + código). Só recorre
+          // ao applied_calc_method do match se o índice de regras estiver vazio.
+          const resolvedMethod = lookupCalcMethod(mappedCompany, code) || matchCalcMethodNorm;
+          const isPercentRule = resolvedMethod === 'percentual_sobre_convenio' && valExpected > 0;
+          const isFixed = !!resolvedMethod && FIXED_CALC_METHODS.has(resolvedMethod);
 
           if (isFixed) {
-            // RAMO 3 — VALOR FIXO / PACOTE / BÔNUS — valor não aplicável.
-            // Divergência aqui é de QUANTIDADE de atendimentos por código,
-            // nunca de valor unitário.
+            // RAMO 3 — VALOR FIXO / PACOTE / TABELA DIFERENCIADA / BÔNUS.
+            // Valor NÃO se aplica: o que importa é presença (empresa + atendimento
+            // + médico + código TUSS) e quantidade. Impacto financeiro = 0 SEMPRE.
             const qtyMed = Number((match as any).quantity ?? 1) || 1;
             const qtyHospExplicit = Number(String(qtyHosp ?? "").replace(",", ".")) || 0;
-            const qtyHospInferred = valExpected > 0 ? Math.round(valHosp / valExpected) : 0;
-            const qtyHospFinal = qtyHospExplicit > 0 ? qtyHospExplicit : qtyHospInferred;
-            const qtyOk = qtyHospFinal > 0 && qtyHospFinal === qtyMed;
-            const valuePerUnitOk = valExpected > 0 && Math.abs(valHosp - valExpected * qtyMed) < TOL_ABS;
+            // Sem inferência de quantidade por divisão (valHosp / valExpected):
+            // não faz sentido em pacote/fixo. Se a base não traz quantidade
+            // explícita, presença já basta para conciliar.
+            const qtyOk = qtyHospExplicit === 0 || qtyHospExplicit === qtyMed;
 
-            if (qtyOk || valuePerUnitOk) {
+            if (qtyOk) {
               base.status = "conciliado";
               conciliado++;
             } else {
               base.status = "qtd_divergente";
               qtd_divergente++;
-              const qtyTxt = qtyHospFinal > 0 ? `${qtyHospFinal}` : "indefinida";
-              base.ia_obs = `Valor não aplicável (regra fixa: ${calcMethod}). Unitário ${formatCurrency(valExpected)} × esperado ${qtyMed} = ${formatCurrency(valExpected * qtyMed)}. Hospital pagou ${formatCurrency(valHosp)} (qtd ${qtyTxt}). Diferença é de quantidade de atendimentos, não de valor unitário.`;
-              divergencia_valor += Math.abs(valHosp - valExpected * qtyMed);
-              if (valHosp > valExpected * qtyMed) risco_mais += valHosp - valExpected * qtyMed;
-              else risco_menos += valExpected * qtyMed - valHosp;
+              base.ia_obs = `Regra "${calcMethod ?? resolvedMethod}" — valor não comparado (impacto financeiro = 0). Quantidade esperada: ${qtyMed}; hospital: ${qtyHospExplicit}. Divergência é de quantidade de atendimentos, não de valor.`;
+              // NÃO acumular divergencia_valor, risco_mais ou risco_menos:
+              // regras estruturais nunca geram divergência financeira.
             }
           } else if (isPercentRule) {
             // RAMO 2 — ACORDO COM % — esperado já calculado pela engine.
@@ -1902,10 +1938,32 @@ export function PaymentConciliationModal({
           so_hospital++;
           risco_mais += valHosp;
         } else {
-          base.status = "so_hospital";
-          base.ia_obs = `Item de ${mappedCompany} (atendimento ${att}, TUSS ${code}) presente no extrato hospitalar mas ausente na base Exacta para esta empresa.`;
-          so_hospital++;
-          risco_mais += valHosp;
+          // Sem match na Exacta para este (empresa+atendimento+código).
+          // Antes de classificar como "só hospital" (com risco), consulta a
+          // regra vinculada a (empresa+código). Se for PACOTE e o atendimento
+          // já tem cirurgião principal pago via pacote, este código é
+          // componente embutido (auxiliar, anestesia, visita, parecer) — NÃO
+          // é só hospital e NÃO gera risco financeiro. Se for FIXO/TABELA/
+          // BÔNUS, trata como qtd_divergente sem impacto financeiro.
+          const resolvedMethod = lookupCalcMethod(mappedCompany, code);
+          const isPacote = resolvedMethod.startsWith("pacote");
+          const isFixedNoMatch = !!resolvedMethod && FIXED_CALC_METHODS.has(resolvedMethod);
+          if (isPacote && isPackageAttendance(mappedCompany, att)) {
+            base.status = "conciliado";
+            base.applied_calc_method = resolvedMethod;
+            base.ia_obs = `Componente embutido em PACOTE (regra "${resolvedMethod}") — atendimento ${att} já consolidado no pagamento do cirurgião principal na Exacta. TUSS ${code} é parte do pacote, sem pagamento separado. Sem impacto financeiro.`;
+            conciliado++;
+          } else if (isFixedNoMatch) {
+            base.status = "qtd_divergente";
+            base.applied_calc_method = resolvedMethod;
+            base.ia_obs = `Regra "${resolvedMethod}" para TUSS ${code} (empresa ${mappedCompany}) — sem linha correspondente na Exacta. Valor não é comparado em regras estruturais; divergência registrada como quantidade. Sem impacto financeiro.`;
+            qtd_divergente++;
+          } else {
+            base.status = "so_hospital";
+            base.ia_obs = `Item de ${mappedCompany} (atendimento ${att}, TUSS ${code}) presente no extrato hospitalar mas ausente na base Exacta para esta empresa.`;
+            so_hospital++;
+            risco_mais += valHosp;
+          }
         }
         toInsert.push(base);
       }
