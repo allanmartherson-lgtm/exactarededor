@@ -356,8 +356,8 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-03T19:40:00Z";
-const RECONCILIATION_LOGIC_VERSION_LABEL = "TUSS tolerante a 7d/8d · chave hospital por empresa+atendimento+TUSS+médico+função · reprocessamento saneia qtd inflada";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-03T21:00:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "Valor só compara em percentual_sobre_convenio; demais regras (pacote/fixo/tabela/bônus/complemento) comparam apenas quantidade";
 
 export function PaymentConciliationModal({
   open,
