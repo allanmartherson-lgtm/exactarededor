@@ -125,11 +125,13 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
   // Tabela de itens — quebras suaves para não cortar texto longo
   autoTable(doc, {
     startY: cursorYTop,
-    head: [["Médico", "Doc", "Descrição", "Valor", "IA"]],
+    head: [["Médico", "Doc", "Convênio", "Descrição", "Qtd", "Valor", "IA"]],
     body: items.map((i) => [
       i.doctor_name,
       i.doctor_document ?? "",
+      (i as any).agreement_text ?? (i as any).convenio_slug ?? "",
       i.description ?? "",
+      String((i as any).quantity ?? 1),
       formatCurrency(i.gross_amount),
       i.ai_status,
     ]),
