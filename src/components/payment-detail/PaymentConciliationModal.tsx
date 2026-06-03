@@ -1361,7 +1361,7 @@ export function PaymentConciliationModal({
       // separados no mesmo bucket — o scoreCandidate desempata depois.
       const exactaByKey = new Map<string, PaymentItemRow[]>();
       const exactaCompanySet = new Set<string>();
-      type ExactaGroup = { rep: PaymentItemRow; ids: string[]; sumProc: number; sumGross: number; sumQty: number };
+      type ExactaGroup = { rep: PaymentItemRow; ids: string[]; sumProc: number; sumGross: number; sumQty: number; routes: Set<string> };
       const exactaGroupsByVariant = new Map<string, Map<string, ExactaGroup>>();
       for (const it of exactaItemsForRun) {
         const compNorm = normCompany(it.company_name);
@@ -1374,23 +1374,30 @@ export function PaymentConciliationModal({
           if (!groups) { groups = new Map(); exactaGroupsByVariant.set(k, groups); }
           let g = groups.get(dk);
           if (!g) {
-            g = { rep: it, ids: [], sumProc: 0, sumGross: 0, sumQty: 0 };
+            g = { rep: it, ids: [], sumProc: 0, sumGross: 0, sumQty: 0, routes: new Set() };
             groups.set(dk, g);
           }
           g.ids.push(it.id);
           g.sumProc += Number((it as any).procedure_amount ?? 0) || 0;
           g.sumGross += Number((it as any).gross_amount ?? 0) || 0;
           g.sumQty += Number((it as any).quantity ?? 1) || 0;
+          const r = normRoute((it as any).access_route);
+          if (r) g.routes.add(r);
         }
       }
       for (const [k, groups] of exactaGroupsByVariant.entries()) {
         const arr: PaymentItemRow[] = [];
         for (const g of groups.values()) {
           if (g.ids.length === 1) { arr.push(g.rep); continue; }
+          // Quando colapsamos N segmentos do mesmo médico/ato com VIAS distintas,
+          // o virtual perde informação de via — zera access_route para o matcher
+          // tratar como "ausente" e não rejeitar por via divergente.
+          const mixedRoute = g.routes.size > 1;
           const virtual: PaymentItemRow = Object.assign({}, g.rep, {
             procedure_amount: g.sumProc,
             gross_amount: g.sumGross,
             quantity: g.sumQty,
+            access_route: mixedRoute ? null : (g.rep as any).access_route,
             __aggregated_ids: g.ids,
           } as any) as PaymentItemRow;
           arr.push(virtual);
