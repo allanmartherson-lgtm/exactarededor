@@ -2274,6 +2274,17 @@ export function PaymentConciliationModal({
 
     const rows: Record<string, unknown>[] = hospitalItems.map((it) => {
       const hospDiag = it.match_diagnostics?.hospital;
+      const qExacta = it.payment_item_id ? exactaQtyById.get(it.payment_item_id) : null;
+      const qHospitalRaw = (it as any).quantity;
+      const qHospital = qHospitalRaw == null ? null : Number(qHospitalRaw);
+      const valueMatches = Math.abs(Number(it.valor_hospital ?? 0) - Number(it.valor_exacta ?? 0)) < 0.02;
+      const inflatedQty =
+        qExacta != null &&
+        qHospital != null &&
+        Number.isFinite(Number(qExacta)) &&
+        Number.isFinite(qHospital) &&
+        qHospital > Number(qExacta) &&
+        valueMatches;
       return {
         __company: it.company_name ?? "",
         __att: it.attendance_number ?? "",
@@ -2284,7 +2295,7 @@ export function PaymentConciliationModal({
         __procName: it.procedure_name ?? "",
         __date: it.procedure_date ?? "",
         __role: hospDiag?.role ?? (it as any).role ?? "",
-        __qty: (it as any).quantity ?? "",
+        __qty: inflatedQty ? Number(qExacta) : (qHospitalRaw ?? ""),
         __route: hospDiag?.route ?? "",
         __agreement: it.agreement_text ?? "",
       };
