@@ -1581,6 +1581,7 @@ export function PaymentConciliationModal({
       // divergente — somamos todos os irmãos da mesma chave.
       const expectedByKey = new Map<string, number>();
       const grossByKey = new Map<string, number>();
+      const procedureAmountByKey = new Map<string, number>();
       for (const it of exactaItemsForRun) {
         const cn = normCompany(it.company_name);
         const att = normAtt(it.attendance_number ?? "");
@@ -1589,6 +1590,7 @@ export function PaymentConciliationModal({
         const key = `${cn}|${att}|${med}|${cd}`;
         expectedByKey.set(key, (expectedByKey.get(key) ?? 0) + (Number((it as unknown as { expected_amount?: number }).expected_amount) || 0));
         grossByKey.set(key, (grossByKey.get(key) ?? 0) + (Number((it as unknown as { gross_amount?: number }).gross_amount) || 0));
+        procedureAmountByKey.set(key, (procedureAmountByKey.get(key) ?? 0) + (Number((it as unknown as { procedure_amount?: number }).procedure_amount) || 0));
       }
       const lookupExpected = (cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
         const cn = normCompany(cmpRaw);
@@ -1606,6 +1608,16 @@ export function PaymentConciliationModal({
         const med = normName(String(medRaw ?? ""));
         for (const v of codeVariants(codeRaw)) {
           const val = grossByKey.get(`${cn}|${att}|${med}|${v}`);
+          if (val !== undefined) return val;
+        }
+        return 0;
+      };
+      const lookupProcedureAmount = (cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
+        const cn = normCompany(cmpRaw);
+        const att = normAtt(String(attRaw ?? ""));
+        const med = normName(String(medRaw ?? ""));
+        for (const v of codeVariants(codeRaw)) {
+          const val = procedureAmountByKey.get(`${cn}|${att}|${med}|${v}`);
           if (val !== undefined) return val;
         }
         return 0;
