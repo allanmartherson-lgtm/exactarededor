@@ -116,27 +116,11 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
     return !error;
   };
 
-  const linkPj = async (doctorId: string, companyId: string) => {
-    setLinking(`${doctorId}|${companyId}`);
-    const ok = await upsertLink(doctorId, companyId);
-    setLinking(null);
-    if (!ok) {
-      toast({ title: "Não foi possível vincular", description: "Verifique sobreposição de vigência.", variant: "destructive" });
-      return;
-    }
-    setRows((prev) => prev.filter((r) => !(r.doctor_id === doctorId && r.company_id === companyId)));
-  };
-
-  const bulkLinkAll = async () => {
-    if (!unlinked.length) return;
-    const msg = divergentCount > 0
-      ? `Vincular ${unlinked.length} par(es)? ${divergentCount} divergente(s) terão a PJ atual encerrada e substituída pela PJ que pagou no lote.`
-      : `Vincular ${unlinked.length} par(es) médico↔PJ?`;
-    if (!confirm(msg)) return;
+  const executeLinks = async (targets: Row[]) => {
     setBulkLinking(true);
     let ok = 0, skipped = 0;
     const resolved = new Set<string>();
-    for (const r of unlinked) {
+    for (const r of targets) {
       if (!r.doctor_id || !r.company_id) { skipped++; continue; }
       const success = await upsertLink(r.doctor_id, r.company_id);
       if (!success) { skipped++; continue; }
@@ -146,11 +130,35 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
     setRows((prev) => prev.filter((r) => !resolved.has(`${r.doctor_id}|${r.company_id}`)));
     setBulkLinking(false);
     toast({
-      title: "Vínculos criados",
-      description: `${ok} vínculo(s) criado(s)${skipped ? ` · ${skipped} ignorado(s)` : ""}.`,
+      title: targets.length === 1 ? "Vínculo atualizado" : "Vínculos atualizados",
+      description: `${ok} criado(s)${skipped ? ` · ${skipped} ignorado(s)` : ""}.`,
     });
     load();
   };
+
+  const linkPj = async (row: Row) => {
+    if (!row.doctor_id || !row.company_id) return;
+    const link = activeLinks.get(row.doctor_id);
+    const divergent = !!(link && link.company_id !== row.company_id);
+    if (divergent) {
+      setConfirmPayload({ rows: [row], mode: "single" });
+      return;
+    }
+    setLinking(`${row.doctor_id}|${row.company_id}`);
+    const ok = await upsertLink(row.doctor_id, row.company_id);
+    setLinking(null);
+    if (!ok) {
+      toast({ title: "Não foi possível vincular", description: "Verifique sobreposição de vigência.", variant: "destructive" });
+      return;
+    }
+    setRows((prev) => prev.filter((r) => !(r.doctor_id === row.doctor_id && r.company_id === row.company_id)));
+  };
+
+  const bulkLinkAll = () => {
+    if (!unlinked.length) return;
+    setConfirmPayload({ rows: unlinked, mode: "bulk" });
+  };
+
 
   const totalItems = unlinked.reduce((s, r) => s + Number(r.items_count || 0), 0);
 
