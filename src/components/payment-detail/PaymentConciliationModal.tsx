@@ -1851,36 +1851,33 @@ export function PaymentConciliationModal({
           //     existe nos dois lados e se a QUANTIDADE bate (Ramo 3 / fixo).
           //   - Sem regra alguma → Repasse 100%: compara valor com o bruto (Ramo 1).
           const TOL_ABS = 0.02;
-          const calcMethodNorm = String(calcMethod ?? '').toLowerCase().trim().replace(/\s+/g, '_');
-          const isPercentRule = calcMethodNorm === 'percentual_sobre_convenio' && valExpected > 0;
-          // Tem regra aplicada quando o motor marcou um rótulo OU um método de cálculo.
-          // Rótulos como "Camada 2 — Sem acordo" entram aqui mesmo com calcMethod null,
-          // porque indicam que a regra-pai (tabela/pacote/fixo) já definiu o esperado.
-          const hasRule = ruleLabel.trim().length > 0 || !!calcMethod;
-          const isFixed = !isPercentRule && hasRule;
+          const matchCalcMethodNorm = String(calcMethod ?? '').toLowerCase().trim().replace(/\s+/g, '_');
+          // Fonte de verdade: regra vinculada a (empresa + código). Só recorre
+          // ao applied_calc_method do match se o índice de regras estiver vazio.
+          const resolvedMethod = lookupCalcMethod(mappedCompany, code) || matchCalcMethodNorm;
+          const isPercentRule = resolvedMethod === 'percentual_sobre_convenio' && valExpected > 0;
+          const isFixed = !!resolvedMethod && FIXED_CALC_METHODS.has(resolvedMethod);
 
           if (isFixed) {
-            // RAMO 3 — VALOR FIXO / PACOTE / BÔNUS — valor não aplicável.
-            // Divergência aqui é de QUANTIDADE de atendimentos por código,
-            // nunca de valor unitário.
+            // RAMO 3 — VALOR FIXO / PACOTE / TABELA DIFERENCIADA / BÔNUS.
+            // Valor NÃO se aplica: o que importa é presença (empresa + atendimento
+            // + médico + código TUSS) e quantidade. Impacto financeiro = 0 SEMPRE.
             const qtyMed = Number((match as any).quantity ?? 1) || 1;
             const qtyHospExplicit = Number(String(qtyHosp ?? "").replace(",", ".")) || 0;
-            const qtyHospInferred = valExpected > 0 ? Math.round(valHosp / valExpected) : 0;
-            const qtyHospFinal = qtyHospExplicit > 0 ? qtyHospExplicit : qtyHospInferred;
-            const qtyOk = qtyHospFinal > 0 && qtyHospFinal === qtyMed;
-            const valuePerUnitOk = valExpected > 0 && Math.abs(valHosp - valExpected * qtyMed) < TOL_ABS;
+            // Sem inferência de quantidade por divisão (valHosp / valExpected):
+            // não faz sentido em pacote/fixo. Se a base não traz quantidade
+            // explícita, presença já basta para conciliar.
+            const qtyOk = qtyHospExplicit === 0 || qtyHospExplicit === qtyMed;
 
-            if (qtyOk || valuePerUnitOk) {
+            if (qtyOk) {
               base.status = "conciliado";
               conciliado++;
             } else {
               base.status = "qtd_divergente";
               qtd_divergente++;
-              const qtyTxt = qtyHospFinal > 0 ? `${qtyHospFinal}` : "indefinida";
-              base.ia_obs = `Valor não aplicável (regra fixa: ${calcMethod}). Unitário ${formatCurrency(valExpected)} × esperado ${qtyMed} = ${formatCurrency(valExpected * qtyMed)}. Hospital pagou ${formatCurrency(valHosp)} (qtd ${qtyTxt}). Diferença é de quantidade de atendimentos, não de valor unitário.`;
-              divergencia_valor += Math.abs(valHosp - valExpected * qtyMed);
-              if (valHosp > valExpected * qtyMed) risco_mais += valHosp - valExpected * qtyMed;
-              else risco_menos += valExpected * qtyMed - valHosp;
+              base.ia_obs = `Regra "${calcMethod ?? resolvedMethod}" — valor não comparado (impacto financeiro = 0). Quantidade esperada: ${qtyMed}; hospital: ${qtyHospExplicit}. Divergência é de quantidade de atendimentos, não de valor.`;
+              // NÃO acumular divergencia_valor, risco_mais ou risco_menos:
+              // regras estruturais nunca geram divergência financeira.
             }
           } else if (isPercentRule) {
             // RAMO 2 — ACORDO COM % — esperado já calculado pela engine.
