@@ -538,6 +538,39 @@ const Users = () => {
                     </p>
                   </div>
                   <div className="space-y-2">
+                    <Label>Hospitais adicionais</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {hospitalsList.length === 0 && (
+                        <span className="text-xs text-muted-foreground">Nenhum hospital ativo cadastrado.</span>
+                      )}
+                      {hospitalsList
+                        .filter((h) => h.id !== form.primary_hospital_id)
+                        .map((h) => {
+                          const checked = form.additional_hospital_ids.includes(h.id);
+                          return (
+                            <Button
+                              key={h.id}
+                              type="button"
+                              size="sm"
+                              variant={checked ? "default" : "outline"}
+                              onClick={() => setForm({
+                                ...form,
+                                additional_hospital_ids: checked
+                                  ? form.additional_hospital_ids.filter((x) => x !== h.id)
+                                  : [...form.additional_hospital_ids, h.id],
+                              })}
+                            >
+                              {h.name} ({h.state_uf})
+                            </Button>
+                          );
+                        })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Selecione hospitais extras em que o usuário deve operar (multi-tenant). Para admin e diretor o acesso já é global — esses vínculos são usados apenas pelos demais papéis.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Papéis</Label>
                     <div className="flex flex-wrap gap-2">
                       {ROLES.map((r) => {
