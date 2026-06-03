@@ -1397,7 +1397,32 @@ export function PaymentConciliationModal({
         // de médico/função/via/qtd. Sem isso, linhas com mesmo att+code de médicos
         // diferentes (ex.: principal vs auxiliar) ou de vias diferentes (única vs
         // mesma via) cruzavam valor errado e geravam divergência falsa.
-        const available = candidates.filter((m) => !matchedExactaIds.has(m.id));
+        //
+        // Resolução de médico é ALIAS-AWARE: `hospDoctorId` e `medDoctorId` são
+        // resolvidos por `resolveDoctor()` (registryLookup), que consulta
+        // `doctor_aliases`. Logo, "Dr. João S." na produção e "João Silva" na
+        // Exacta resolvem ao MESMO doctor_id se houver alias cadastrado.
+        //
+        // FILTRO DURO DE DATA (date-only): a chave canônica é
+        // atendimento + médico + DATA. Um mesmo paciente pode ter procedimentos
+        // em dias distintos com o mesmo TUSS — sem o filtro de data, casaríamos
+        // o item errado. Comparação é YYYY-MM-DD (toDateStr já descarta horário
+        // dos dois lados); se uma das datas está ausente, não rejeita (defesa).
+        const onlyDate = (v: unknown): string | null => {
+          if (!v) return null;
+          const s = String(v);
+          const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+          return m ? m[1] : toDateStr(v);
+        };
+        const hospDateOnly = dateStr; // toDateStr já normaliza
+        const available = candidates.filter((m) => {
+          if (matchedExactaIds.has(m.id)) return false;
+          if (hospDateOnly) {
+            const medDateOnly = onlyDate((m as any).procedure_date);
+            if (medDateOnly && medDateOnly !== hospDateOnly) return false;
+          }
+          return true;
+        });
         const docHospN = normName(doctor);
         const roleHospN = normRole(roleHosp);
         const routeHospN = normRoute(routeHosp);
