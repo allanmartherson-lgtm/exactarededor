@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Building2, Stethoscope, Link2, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, Building2, Stethoscope, Link2, RefreshCw, Search, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type Row = {
@@ -29,6 +30,7 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [linking, setLinking] = useState<string | null>(null);
+  const [bulkLinking, setBulkLinking] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -71,6 +73,34 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
     setRows((prev) => prev.filter((r) => !(r.doctor_id === doctorId && r.company_id === companyId)));
   };
 
+  const bulkLinkAll = async () => {
+    if (!unlinked.length) return;
+    if (!confirm(`Vincular ${unlinked.length} par(es) médico↔PJ de uma vez? A data de início será hoje.`)) return;
+    setBulkLinking(true);
+    const today = new Date().toISOString().slice(0, 10);
+    let ok = 0, skipped = 0;
+    const resolved = new Set<string>();
+    for (const r of unlinked) {
+      if (!r.doctor_id || !r.company_id) { skipped++; continue; }
+      const { error } = await supabase
+        .from("doctor_companies")
+        .insert({ doctor_id: r.doctor_id, company_id: r.company_id, start_date: today });
+      if (error) { skipped++; continue; }
+      ok++;
+      resolved.add(`${r.doctor_id}|${r.company_id}`);
+    }
+    setRows((prev) => prev.filter((r) => !resolved.has(`${r.doctor_id}|${r.company_id}`)));
+    setBulkLinking(false);
+    toast({
+      title: "Vínculos criados",
+      description: `${ok} vínculo(s) criado(s)${skipped ? ` · ${skipped} ignorado(s) (sobreposição ou erro)` : ""}.`,
+    });
+  };
+
+  const totalItems = unlinked.reduce((s, r) => s + Number(r.items_count || 0), 0);
+
+
+
 
   return (
     <Card className="overflow-hidden">
@@ -80,7 +110,7 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <span>Pendências de cadastro</span>
             <Badge variant="outline" className="text-[10px]">
-              {unregistered.length} médico(s) • {unlinked.length} PJ(s)
+              {unregistered.length} médico(s) • {unlinked.length} PJ(s) • {totalItems} item(s)
             </Badge>
           </div>
           <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
@@ -150,7 +180,17 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
                 Nenhuma PJ pagadora sem vínculo no cadastro do médico.
               </p>
             ) : (
-              <div className="divide-y divide-border">
+              <>
+                <div className="px-4 py-2 flex items-center justify-between gap-2 border-b border-border bg-muted/20">
+                  <p className="text-xs text-muted-foreground">
+                    Médico e PJ já cadastrados, mas o vínculo nunca foi criado. Um vínculo resolve todos os itens daquele par.
+                  </p>
+                  <Button size="sm" variant="default" disabled={bulkLinking} onClick={bulkLinkAll}>
+                    {bulkLinking ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Link2 className="h-3.5 w-3.5 mr-1" />}
+                    Vincular todos ({unlinked.length})
+                  </Button>
+                </div>
+                <div className="divide-y divide-border">
                 {unlinked.map((r, i) => (
                   <div key={i} className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-muted/30">
                     <div className="min-w-0 flex-1">
@@ -179,7 +219,8 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
                     </Button>
                   </div>
                 ))}
-              </div>
+                </div>
+              </>
             )}
           </TabsContent>
         </Tabs>
