@@ -2160,9 +2160,13 @@ export function PaymentConciliationModal({
         .slice(0, 10)
         .map(([k, v]) => `• ${k}: ${v} item(ns)`)
         .join("\n");
-      const ok = window.confirm(
-        `Reatribuir empresa de ${updates.length} item(ns) com base na PJ ATUAL do médico (doctor_companies)?\n\n${previewText}\n\nIsto altera company_name dos payment_items de forma DEFINITIVA. Após confirmar, clique em "Reprocessar agora" para refletir na conciliação.`
-      );
+      const ok = await confirmDialog({
+        tone: "warning",
+        title: "Reatribuir PJ com base no cadastro atual",
+        description: `${updates.length} item(ns) terão a empresa alterada de forma definitiva conforme a PJ vinculada ao médico hoje (doctor_companies). Após confirmar, clique em "Reprocessar agora" para refletir na conciliação.`,
+        details: previewText,
+        confirmText: "Reatribuir",
+      });
       if (!ok) return;
 
       const byTarget = new Map<string, string[]>();
