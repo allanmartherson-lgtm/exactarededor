@@ -37,6 +37,7 @@ const Users = () => {
   const [form, setForm] = useState({
     email: "", full_name: "", phone: "", cpf: "", role_title: "", department: "", birth_date: "",
     roles: [] as AppRole[], send_invite: true, primary_hospital_id: "" as string,
+    additional_hospital_ids: [] as string[],
   });
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
