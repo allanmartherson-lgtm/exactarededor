@@ -82,8 +82,22 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
   useEffect(() => {
     if (!companyId) return;
     void loadLinks();
+
+    // Realtime: vínculos editados na tela de Médicos (ou outra aba) refletem aqui.
+    const ch = supabase
+      .channel(`doctor_companies:${companyId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "doctor_companies", filter: `company_id=eq.${companyId}` },
+        () => { void loadLinks(); },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
+
 
   // debounce de busca
   useEffect(() => {
