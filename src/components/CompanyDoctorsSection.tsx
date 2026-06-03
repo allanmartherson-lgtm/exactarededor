@@ -184,17 +184,51 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
 
     // Caso 1: vínculo ATIVO em outra PJ → pedir confirmação para transferir
     if (active) {
+      const prevCompanyName = active.companies?.name ?? "(empresa desconhecida)";
+      const willDeletePrev = !!(active.start_date && active.start_date >= start);
       const ok = await confirmDialog({
         title: "Transferir vínculo do médico?",
         description: (
-          <>
-            <strong>{doctor.full_name}</strong> tem vínculo aberto com{" "}
-            <strong>{active.companies?.name ?? "(empresa desconhecida)"}</strong>
-            {active.start_date ? ` desde ${fmtBR(active.start_date)}` : ""}.
-            <br />
-            Para vincular nesta empresa a partir de <strong>{fmtBR(start)}</strong>, o vínculo anterior
-            precisa ser encerrado em <strong>{fmtBR(dayBefore)}</strong>.
-          </>
+          <div className="space-y-3">
+            <p>
+              <strong>{doctor.full_name}</strong> tem vínculo aberto com{" "}
+              <strong>{prevCompanyName}</strong>
+              {active.start_date ? ` desde ${fmtBR(active.start_date)}` : ""}.
+            </p>
+            <div className="rounded-md border border-border bg-muted/30 p-3 text-xs space-y-2">
+              <div className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px]">
+                Pré-visualização da vigência
+              </div>
+              <div className="grid grid-cols-[60px_1fr] gap-x-3 gap-y-2 items-start">
+                <span className="text-muted-foreground pt-0.5">Antes</span>
+                <div>
+                  <Badge variant="outline" className="mr-1.5">{prevCompanyName}</Badge>
+                  {fmtBR(active.start_date)} <span className="text-muted-foreground">→</span>{" "}
+                  <span className="text-muted-foreground">em aberto</span>
+                </div>
+
+                <span className="text-muted-foreground pt-0.5">Depois</span>
+                <div className="space-y-1.5">
+                  <div>
+                    <Badge variant="outline" className="mr-1.5">{prevCompanyName}</Badge>
+                    {willDeletePrev ? (
+                      <span className="text-destructive">removido (vínculo zero-day em {fmtBR(active.start_date)})</span>
+                    ) : (
+                      <>
+                        {fmtBR(active.start_date)} <span className="text-muted-foreground">→</span>{" "}
+                        <strong>{fmtBR(dayBefore)}</strong>
+                      </>
+                    )}
+                  </div>
+                  <div>
+                    <Badge variant="secondary" className="mr-1.5">Nova PJ</Badge>
+                    <strong>{fmtBR(start)}</strong> <span className="text-muted-foreground">→</span>{" "}
+                    <span className="text-muted-foreground">em aberto</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         ),
         details:
           "O vínculo anterior fica com data de encerramento no dia anterior à nova vigência (para evitar sobreposição) e o novo vínculo começa na data escolhida. O histórico é preservado — pagamentos anteriores continuam atribuídos à PJ correta.",
