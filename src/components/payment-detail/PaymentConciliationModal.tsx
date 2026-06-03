@@ -356,8 +356,8 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-03T22:30:00Z";
-const RECONCILIATION_LOGIC_VERSION_LABEL = "Regras estruturais (pacote/valor_fixo/tabela_diferenciada/bônus) têm impacto financeiro = 0 e decisão de grupo é feita pela regra de (empresa+código), inclusive sem match Exacta; componentes de pacote são reconhecidos como embutidos";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-03T23:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
   open,
@@ -1855,7 +1855,7 @@ export function PaymentConciliationModal({
           // Fonte de verdade: regra vinculada a (empresa + código). Só recorre
           // ao applied_calc_method do match se o índice de regras estiver vazio.
           const resolvedMethod = lookupCalcMethod(mappedCompany, code) || matchCalcMethodNorm;
-          const isPercentRule = resolvedMethod === 'percentual_sobre_convenio' && valExpected > 0;
+          const isPercentRule = (resolvedMethod === 'percentual_convenio' || resolvedMethod === 'percentual_sobre_convenio') && valExpected > 0;
           const isFixed = !!resolvedMethod && FIXED_CALC_METHODS.has(resolvedMethod);
 
           if (isFixed) {
@@ -1946,12 +1946,12 @@ export function PaymentConciliationModal({
           // é só hospital e NÃO gera risco financeiro. Se for FIXO/TABELA/
           // BÔNUS, trata como qtd_divergente sem impacto financeiro.
           const resolvedMethod = lookupCalcMethod(mappedCompany, code);
-          const isPacote = resolvedMethod.startsWith("pacote");
           const isFixedNoMatch = !!resolvedMethod && FIXED_CALC_METHODS.has(resolvedMethod);
-          if (isPacote && isPackageAttendance(mappedCompany, att)) {
+          const attendanceIsPackage = isPackageAttendance(mappedCompany, att);
+          if (attendanceIsPackage) {
             base.status = "conciliado";
-            base.applied_calc_method = resolvedMethod;
-            base.ia_obs = `Componente embutido em PACOTE (regra "${resolvedMethod}") — atendimento ${att} já consolidado no pagamento do cirurgião principal na Exacta. TUSS ${code} é parte do pacote, sem pagamento separado. Sem impacto financeiro.`;
+            base.applied_calc_method = resolvedMethod || "pacote";
+            base.ia_obs = `Componente embutido em PACOTE — atendimento ${att} (empresa ${mappedCompany}) já consolidado no pagamento do cirurgião principal na Exacta via regra de pacote. TUSS ${code} é componente (auxiliar/anestesia/visita/parecer) sem pagamento separado. Sem impacto financeiro.`;
             conciliado++;
           } else if (isFixedNoMatch) {
             base.status = "qtd_divergente";
