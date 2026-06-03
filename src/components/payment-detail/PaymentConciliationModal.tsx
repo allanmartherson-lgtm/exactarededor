@@ -2201,9 +2201,19 @@ export function PaymentConciliationModal({
       });
       return;
     }
-    // Só considera linhas que vieram do hospital (ignora "só Exacta",
-    // que são reinferidas naturalmente no matching).
-    const hospitalItems = items.filter((it) => it.status !== "so_exacta");
+    // Só considera linhas que vieram do hospital (ignora "só Exacta" e
+    // "possível pacote", que são reinferidas naturalmente no matching).
+    // CRÍTICO: itens com valor_hospital <= 0 NÃO representam linha real do
+    // hospital — são candidatos derivados do Exacta (so_exacta, possivel_pacote,
+    // ou casos onde o hospital não pagou). Reconstruí-los como linhas do
+    // hospital infla a quantidade agregada (cada um adiciona +1 ao qtySum do
+    // mesmo médico/ato), causando o efeito de qty dobrando a cada reprocesso.
+    const hospitalItems = items.filter(
+      (it) =>
+        it.status !== "so_exacta" &&
+        it.status !== "possivel_pacote" &&
+        Number(it.valor_hospital ?? 0) > 0,
+    );
     const soExactaCount = items.length - hospitalItems.length;
     if (hospitalItems.length === 0) {
       toast({
