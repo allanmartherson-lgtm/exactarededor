@@ -1261,12 +1261,10 @@ export function PaymentConciliationModal({
           : null;
         const dk = doctorKeyFromRow(hospDocId, crmDigits, getCell(row, "doctor"));
         const normCode = normalizeCode(code);
-        // Agregação: NÃO incluímos `dk` na chave porque o mesmo ato (mesmo
-        // att+TUSS) frequentemente aparece em segmentos com médicos distintos
-        // (principal + auxiliar) e queremos colapsá-los num único item de
-        // produção para casar com o único item da Exacta. `dk` continua sendo
-        // calculado e usado depois pelo scoreCandidate como desempate.
-        const aggKey = `${normAtt(att)}|${normCode}`;
+        // Chave inclui doctorKey: segmentos do MESMO médico no mesmo ato
+        // colapsam (parciais/ajustes), mas principal e auxiliar permanecem
+        // como linhas separadas para casar com suas contrapartidas na Exacta.
+        const aggKey = `${normAtt(att)}|${normCode}|${dk}`;
         const valHosp = toVal(getCell(row, "value"));
         const qtyHosp = Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1;
         const existing = prodAggMap.get(aggKey);
