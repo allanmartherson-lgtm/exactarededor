@@ -39,6 +39,7 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
   const [q, setQ] = useState("");
   const [linking, setLinking] = useState<string | null>(null);
   const [bulkLinking, setBulkLinking] = useState(false);
+  const [confirmPayload, setConfirmPayload] = useState<{ rows: Row[]; mode: "single" | "bulk" } | null>(null);
 
   const load = async () => {
     setLoading(true);
