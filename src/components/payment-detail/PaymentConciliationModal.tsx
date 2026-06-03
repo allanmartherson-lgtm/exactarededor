@@ -1105,9 +1105,12 @@ export function PaymentConciliationModal({
         return str.replace(/\D/g, '');
       };
 
-      // CHAVE PRIMÁRIA: empresa + atendimento + código TUSS.
-      // Antes a chave era apenas att+code — itens com o mesmo nº de
-      // atendimento em empresas diferentes podiam cruzar erroneamente.
+      // CHAVE PRIMÁRIA: atendimento + código TUSS.
+      // O lote já é escopado por grupo (uma empresa), então incluir empresa
+      // na chave introduz falso negativo quando o `company_name` da Exacta
+      // foi importado com grafia ligeiramente diferente do `terceiro` do
+      // hospital. Empresa continua sendo validada via `companyMissing` antes
+      // do lookup, e usada no score como desempate.
       const normCompany = (s: unknown): string =>
         String(s ?? "")
           .toLowerCase()
@@ -1115,8 +1118,8 @@ export function PaymentConciliationModal({
           .replace(/[\u0300-\u036f]/g, "")
           .replace(/[^a-z0-9]+/g, "")
           .trim();
-      const makeKey = (company: unknown, att: unknown, code: unknown): string =>
-        `${normCompany(company)}|${normAtt(att)}|${normalizeCode(code)}`;
+      const makeKey = (_company: unknown, att: unknown, code: unknown): string =>
+        `${normAtt(att)}|${normalizeCode(code)}`;
 
       const normName = (s: unknown): string =>
         String(s ?? "")
@@ -1186,48 +1189,23 @@ export function PaymentConciliationModal({
       };
 
       // --- Agregação Exacta ---
-      // Indexa por (empresa+atendimento+TUSS) e, dentro do bucket, colapsa
-      // itens com mesma doctorKey somando procedure_amount/gross_amount/quantity.
+      // Indexa por (atendimento+TUSS). Itens com mesmo (att+TUSS) entram no
+      // mesmo bucket como candidatos independentes; o scoreCandidate depois
+      // desempata por médico/função/via. NÃO colapsamos itens da Exacta entre
+      // si — cada linha da Exacta representa um repasse distinto e precisa
+      // poder ser marcada individualmente como matched.
       const exactaByKey = new Map<string, PaymentItemRow[]>();
       const exactaCompanySet = new Set<string>();
-      type ExactaGroup = { rep: PaymentItemRow; ids: string[]; sumProc: number; sumGross: number; sumQty: number };
-      const exactaGroupsByVariant = new Map<string, Map<string, ExactaGroup>>();
       for (const it of exactaItemsForRun) {
         const compNorm = normCompany(it.company_name);
         if (compNorm) exactaCompanySet.add(compNorm);
         if (!it.attendance_number || !it.procedure_code) continue;
-        const dk = doctorKeyFromItem(it);
         for (const v of codeVariants(it.procedure_code)) {
           const k = makeKey(it.company_name, it.attendance_number, v);
-          let groups = exactaGroupsByVariant.get(k);
-          if (!groups) { groups = new Map(); exactaGroupsByVariant.set(k, groups); }
-          let g = groups.get(dk);
-          if (!g) {
-            g = { rep: it, ids: [], sumProc: 0, sumGross: 0, sumQty: 0 };
-            groups.set(dk, g);
-          }
-          g.ids.push(it.id);
-          g.sumProc += Number((it as any).procedure_amount ?? 0) || 0;
-          g.sumGross += Number((it as any).gross_amount ?? 0) || 0;
-          g.sumQty += Number((it as any).quantity ?? 1) || 0;
+          let arr = exactaByKey.get(k);
+          if (!arr) { arr = []; exactaByKey.set(k, arr); }
+          arr.push(it);
         }
-      }
-      // Materializa os buckets agregados — cada grupo vira UM virtual item
-      // (shallow copy do representante, com valores/qtd somados e os ids reais
-      // dos itens originais guardados em __aggregated_ids para reconciliação).
-      for (const [k, groups] of exactaGroupsByVariant.entries()) {
-        const arr: PaymentItemRow[] = [];
-        for (const g of groups.values()) {
-          if (g.ids.length === 1) { arr.push(g.rep); continue; }
-          const virtual: PaymentItemRow = Object.assign({}, g.rep, {
-            procedure_amount: g.sumProc,
-            gross_amount: g.sumGross,
-            quantity: g.sumQty,
-            __aggregated_ids: g.ids,
-          } as any) as PaymentItemRow;
-          arr.push(virtual);
-        }
-        exactaByKey.set(k, arr);
       }
 
       // --- Agregação Produção ---
@@ -1259,7 +1237,12 @@ export function PaymentConciliationModal({
           : null;
         const dk = doctorKeyFromRow(hospDocId, crmDigits, getCell(row, "doctor"));
         const normCode = normalizeCode(code);
-        const aggKey = `${normCompany(mapped)}|${normAtt(att)}|${normCode}|${dk}`;
+        // Agregação: NÃO incluímos `dk` na chave porque o mesmo ato (mesmo
+        // att+TUSS) frequentemente aparece em segmentos com médicos distintos
+        // (principal + auxiliar) e queremos colapsá-los num único item de
+        // produção para casar com o único item da Exacta. `dk` continua sendo
+        // calculado e usado depois pelo scoreCandidate como desempate.
+        const aggKey = `${normAtt(att)}|${normCode}`;
         const valHosp = toVal(getCell(row, "value"));
         const qtyHosp = Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1;
         const existing = prodAggMap.get(aggKey);
