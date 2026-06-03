@@ -448,6 +448,14 @@ export function PaymentConciliationModal({
   // contemplar produção antiga (ex.: lote retroativo de remessa).
   const [periodStartOverride, setPeriodStartOverride] = useState<string>("");
   const [periodStartAuto, setPeriodStartAuto] = useState<string>("");
+  // Auditoria: estatísticas do filtro de remessa aplicado no último processamento.
+  const [remittanceFilterStats, setRemittanceFilterStats] = useState<{
+    lotePeriodStart: string;
+    before: number;
+    removidos: number;
+    restantes: number;
+    source: 'override' | 'auto';
+  } | null>(null);
 
   // Carrega a competência do lote uma vez, para pré-preencher o seletor.
   useEffect(() => {
