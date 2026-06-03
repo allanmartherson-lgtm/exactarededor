@@ -93,27 +93,28 @@ export const HospitalSwitcher = ({ className }: { className?: string }) => {
           variant="outline"
           size="sm"
           className={cn(
-            "h-9 gap-2 pl-2 pr-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-colors",
+            "h-10 gap-2.5 pl-2.5 pr-2.5 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-colors",
             className,
           )}
           aria-label="Trocar hospital ativo"
         >
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary">
+          <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary shrink-0">
             <Building2 className="h-3.5 w-3.5" />
           </div>
-          <div className="flex flex-col items-start leading-tight">
+          <div className="flex flex-col items-start leading-tight min-w-0">
             <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
               Hospital
             </span>
-            <span className="truncate max-w-[180px] text-sm font-medium">
+            <span className="truncate max-w-[220px] text-sm font-medium">
               {hospital.name}
             </span>
           </div>
-          <Badge variant="secondary" className="ml-1 text-[10px] font-normal">
+          <Badge variant="secondary" className="ml-1 text-[10px] font-normal shrink-0">
             {hospital.state_uf}
           </Badge>
-          <ChevronsUpDown className="h-3.5 w-3.5 opacity-60 ml-0.5" />
+          <ChevronsUpDown className="h-3.5 w-3.5 opacity-60 ml-0.5 shrink-0" />
         </Button>
+
       </PopoverTrigger>
       <PopoverContent
         align="end"
