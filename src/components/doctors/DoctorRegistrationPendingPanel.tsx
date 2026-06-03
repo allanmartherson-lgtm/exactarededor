@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Building2, Stethoscope, Link2, RefreshCw, Search, Loader2, ArrowRightLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Row = {
   kind: "doctor_unregistered" | "pj_not_linked";
