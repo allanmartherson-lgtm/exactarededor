@@ -356,7 +356,7 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T02:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T03:30:00Z";
 const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
@@ -1581,6 +1581,7 @@ export function PaymentConciliationModal({
       // divergente — somamos todos os irmãos da mesma chave.
       const expectedByKey = new Map<string, number>();
       const grossByKey = new Map<string, number>();
+      const procedureAmountByKey = new Map<string, number>();
       for (const it of exactaItemsForRun) {
         const cn = normCompany(it.company_name);
         const att = normAtt(it.attendance_number ?? "");
@@ -1589,6 +1590,7 @@ export function PaymentConciliationModal({
         const key = `${cn}|${att}|${med}|${cd}`;
         expectedByKey.set(key, (expectedByKey.get(key) ?? 0) + (Number((it as unknown as { expected_amount?: number }).expected_amount) || 0));
         grossByKey.set(key, (grossByKey.get(key) ?? 0) + (Number((it as unknown as { gross_amount?: number }).gross_amount) || 0));
+        procedureAmountByKey.set(key, (procedureAmountByKey.get(key) ?? 0) + (Number((it as unknown as { procedure_amount?: number }).procedure_amount) || 0));
       }
       const lookupExpected = (cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
         const cn = normCompany(cmpRaw);
@@ -1606,6 +1608,16 @@ export function PaymentConciliationModal({
         const med = normName(String(medRaw ?? ""));
         for (const v of codeVariants(codeRaw)) {
           const val = grossByKey.get(`${cn}|${att}|${med}|${v}`);
+          if (val !== undefined) return val;
+        }
+        return 0;
+      };
+      const lookupProcedureAmount = (cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
+        const cn = normCompany(cmpRaw);
+        const att = normAtt(String(attRaw ?? ""));
+        const med = normName(String(medRaw ?? ""));
+        for (const v of codeVariants(codeRaw)) {
+          const val = procedureAmountByKey.get(`${cn}|${att}|${med}|${v}`);
           if (val !== undefined) return val;
         }
         return 0;
@@ -1974,7 +1986,10 @@ export function PaymentConciliationModal({
             }
           } else if (isPercentRule) {
             // RAMO 2 — ACORDO COM % — esperado já calculado pela engine.
-            const diff = valHosp - valExpected;
+            // Comparar o que o Exacta PAGOU (procedure_amount, pós-multiplicador)
+            // contra o expected_amount — não o Valor da produção (pré-multiplicador).
+            const _pago = lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || valHosp;
+            const diff = _pago - valExpected;
             if (Math.abs(diff) < TOL_ABS) {
               base.status = "conciliado";
               conciliado++;
@@ -1984,7 +1999,7 @@ export function PaymentConciliationModal({
               const pct = Math.abs(valExpected) > TOL_ABS ? (diff / valExpected) * 100 : 0;
               const pctTxt = Math.abs(valExpected) > TOL_ABS ? `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%` : 'n/a (esperado ≈ 0)';
               const ambigPrefix = ambiguous ? `⚠ Match ambíguo — confira manualmente. ` : '';
-              base.ia_obs = `${ambigPrefix}Regra com % (${ruleLabel || calcMethod}). Esperado: ${formatCurrency(valExpected)} (bruto ${formatCurrency(valBruto)}). Hospital pagou ${formatCurrency(valHosp)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pctTxt}).`;
+              base.ia_obs = `${ambigPrefix}Regra com % (${ruleLabel || calcMethod}). Esperado: ${formatCurrency(valExpected)} (bruto ${formatCurrency(valBruto)}). Hospital pagou ${formatCurrency(_pago)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pctTxt}).`;
               divergencia_valor += Math.abs(diff);
               if (diff > 0) risco_mais += diff;
               else risco_menos += Math.abs(diff);
@@ -1994,18 +2009,19 @@ export function PaymentConciliationModal({
             // que mantém o bruto). É aqui que o número-chave bate em ~90%
             // dos casos; divergência aqui é REAL — não suavizar.
             const ref = valBruto > 0 ? valBruto : valMed; // fallback para a tabela convênio
-            const diff = valHosp - ref;
+            const _pago = lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || valHosp;
+            const diff = _pago - ref;
             if (Math.abs(ref) < TOL_ABS) {
               // Blindagem: bruto ≈ 0 e há valor pago → sinaliza sem calcular %.
-              if (Math.abs(valHosp) < TOL_ABS) {
+              if (Math.abs(_pago) < TOL_ABS) {
                 base.status = "conciliado";
                 conciliado++;
               } else {
                 base.status = "valor_divergente";
                 valor_divergente++;
-                base.ia_obs = `Repasse 100% — bruto ≈ 0 na Exacta mas hospital pagou ${formatCurrency(valHosp)}. Conferir item sem cobertura na tabela convênio.`;
-                divergencia_valor += Math.abs(valHosp);
-                risco_mais += valHosp;
+                base.ia_obs = `Repasse 100% — bruto ≈ 0 na Exacta mas hospital pagou ${formatCurrency(_pago)}. Conferir item sem cobertura na tabela convênio.`;
+                divergencia_valor += Math.abs(_pago);
+                risco_mais += _pago;
               }
             } else if (Math.abs(diff) < TOL_ABS) {
               base.status = "conciliado";
@@ -2015,7 +2031,7 @@ export function PaymentConciliationModal({
               valor_divergente++;
               const pct = (diff / ref) * 100;
               const ambigPrefix = ambiguous ? `⚠ Match ambíguo — confira manualmente. ` : '';
-              base.ia_obs = `${ambigPrefix}Repasse 100% (sem regra de %) — esperado = bruto ${formatCurrency(ref)}. Hospital pagou ${formatCurrency(valHosp)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Divergência real entre tabelas.`;
+              base.ia_obs = `${ambigPrefix}Repasse 100% (sem regra de %) — esperado = bruto ${formatCurrency(ref)}. Hospital pagou ${formatCurrency(_pago)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Divergência real entre tabelas.`;
               divergencia_valor += Math.abs(diff);
               if (diff > 0) risco_mais += diff;
               else risco_menos += Math.abs(diff);
