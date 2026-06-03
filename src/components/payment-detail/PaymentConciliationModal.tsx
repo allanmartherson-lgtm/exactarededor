@@ -1279,8 +1279,6 @@ export function PaymentConciliationModal({
         }
       }
       const aggregatedRows: ProdAgg[] = Array.from(prodAggMap.values());
-      // suprime "dk não usado" depois da mudança de chave — mantemos para o score
-      void dk;
       console.log('[Conciliação] agregação produção:', rowsParaCruzamento.length, '→', aggregatedRows.length, '· buckets Exacta:', exactaByKey.size);
 
       console.log('[Cruzamento] Empresas Exacta:', exactaCompanySet.size, 'Empresas Hospital:', hospitalCompanySet.size, 'Chaves Exacta:', exactaByKey.size);
