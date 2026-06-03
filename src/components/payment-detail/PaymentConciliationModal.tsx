@@ -2487,6 +2487,7 @@ export function PaymentConciliationModal({
     { key: "so_hospital", label: "Só no hospital", count: scopedStats.so_hospital },
     { key: "so_exacta", label: "Só no Exacta", count: scopedStats.so_exacta },
     { key: "empresa_ausente", label: "Empresa ausente", count: scopedStats.empresa_ausente },
+    { key: "possivel_pacote", label: "Possível pacote", count: scopedStats.possivel_pacote },
   ];
 
   const total = scopedStats.total;
