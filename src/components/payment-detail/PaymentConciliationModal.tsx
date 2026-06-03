@@ -1144,32 +1144,8 @@ export function PaymentConciliationModal({
         }
       }
 
-      // ===== DIAGNÓSTICO DE PIPELINE — por etapa, por terceiro =====
-      // Para cada etapa de filtragem, conta linhas dropadas e por quê.
-      // Crítico para diagnosticar "só no Exacta" causado por mapping ausente
-      // de terceiro, fora de competência ou remessa.
-      const DEBUG_ATT = '9108966';
-      const DEBUG_CODE = '31103529';
-      const isDebugRow = (row: Record<string, unknown>): boolean => {
-        const colA = srcColMap['attendance'];
-        const colC = srcColMap['procCode'];
-        if (!colA || !colC) return false;
-        const a = String(row[colA] ?? '').replace(/\D/g, '');
-        const c = String(row[colC] ?? '').replace(/\D/g, '');
-        return a === DEBUG_ATT && (c === DEBUG_CODE || c === DEBUG_CODE.slice(0, 7));
-      };
-      // Conta TODAS as linhas alvo no arquivo bruto antes de qualquer filtro
-      const debugRowsBruto = srcRows.filter(isDebugRow);
-      console.log(`[DEBUG-CASE ${DEBUG_ATT}/${DEBUG_CODE}] linhas no arquivo bruto: ${debugRowsBruto.length}`, debugRowsBruto);
-      // FALLBACK: varre TODAS as colunas procurando o atendimento — pega caso a detecção de coluna esteja errada
-      const anyColHas9108966 = srcRows.filter((r) =>
-        Object.values(r).some((v) => String(v ?? '').replace(/\D/g, '').includes(DEBUG_ATT))
-      );
-      console.log(`[DEBUG-CASE] linhas com "${DEBUG_ATT}" em QUALQUER coluna: ${anyColHas9108966.length}`,
-        anyColHas9108966.slice(0, 3));
-      console.log('[DEBUG-CASE] srcColMap detectado:', srcColMap);
-      console.log('[DEBUG-CASE] amostra srcRows[0..2]:', srcRows.slice(0, 3));
-      console.log('[DEBUG-CASE] total srcRows:', srcRows.length);
+
+
 
 
       const dropByTerceiro = new Map<string, number>();
