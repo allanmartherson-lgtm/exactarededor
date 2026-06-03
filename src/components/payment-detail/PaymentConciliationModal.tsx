@@ -1855,7 +1855,7 @@ export function PaymentConciliationModal({
           // Fonte de verdade: regra vinculada a (empresa + código). Só recorre
           // ao applied_calc_method do match se o índice de regras estiver vazio.
           const resolvedMethod = lookupCalcMethod(mappedCompany, code) || matchCalcMethodNorm;
-          const isPercentRule = resolvedMethod === 'percentual_sobre_convenio' && valExpected > 0;
+          const isPercentRule = (resolvedMethod === 'percentual_convenio' || resolvedMethod === 'percentual_sobre_convenio') && valExpected > 0;
           const isFixed = !!resolvedMethod && FIXED_CALC_METHODS.has(resolvedMethod);
 
           if (isFixed) {
