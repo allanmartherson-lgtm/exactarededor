@@ -1927,8 +1927,13 @@ export function PaymentConciliationModal({
 
           const calcMethod = (match as any).applied_calc_method as string | null;
           const ruleLabel = String((match as any).applied_rule_label ?? '');
-          const valBruto = Number((match as any).gross_amount ?? 0) || 0;
-          const valExpected = Number((match as any).expected_amount ?? 0) || 0;
+          // Soma de todos os irmãos no Exacta com a mesma chave
+          // (empresa|atendimento|médico|código) — evita falso divergente
+          // quando o Exacta quebra a produção em N linhas qty=1.
+          const _matchGross = Number((match as any).gross_amount ?? 0) || 0;
+          const _matchExpected = Number((match as any).expected_amount ?? 0) || 0;
+          const valBruto = lookupGross(mappedCompany, att, (match as any).doctor_name, code) || _matchGross;
+          const valExpected = lookupExpected(mappedCompany, att, (match as any).doctor_name, code) || _matchExpected;
 
           // === PASSO 3 — Financeiro em 3 ramos pela Regra ===
           // Regra de negócio (decidida com o usuário):
