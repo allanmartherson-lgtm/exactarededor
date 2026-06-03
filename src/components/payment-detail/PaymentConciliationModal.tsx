@@ -60,6 +60,7 @@ import { formatCurrency } from "@/lib/status";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
+import { loadDoctorRegistry, resolveDoctor, type DoctorRegistry } from "@/lib/registryLookup";
 
 function CopyAttendanceButton({ value }: { value: string | null | undefined }) {
   const [copied, setCopied] = useState(false);
@@ -199,6 +200,7 @@ const COL_FIELDS: Array<{
   { key: "patient",    label: "Paciente",       required: false, description: "Nome do paciente — enriquecimento" },
   { key: "date",       label: "Data proc.",     required: false, description: "Data do procedimento — enriquecimento" },
   { key: "agreement",  label: "Convênio",       required: false, description: "Convênio/plano de saúde — enriquece a análise e o relatório" },
+  { key: "crm",        label: "CRM",            required: false, description: "CRM do médico — chave canônica de resolução (cruza com cadastro de médicos)" },
 ];
 
 const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> => {
@@ -215,6 +217,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     company: ["terceiro", "empresa", "prestador"],
     grupo: ["grupo cbhpm", "grupocbhpm", "grupo", "grupoproc"],
     accessRoute: ["via", "viaacesso", "via acesso", "via de acesso", "viadeacesso", "viadeacessoproc"],
+    crm: ["crm", "crmmedico", "crm medico", "crmexec", "crmprofissional", "documentomedico", "documento"],
   };
   const normKey = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
@@ -888,6 +891,13 @@ export function PaymentConciliationModal({
         });
       }
 
+      // Carrega o cadastro canônico de médicos (id/CRM/CPF + aliases).
+      // Usado para resolver tanto a linha da produção quanto o item Exacta
+      // ao mesmo doctor.id — eliminando falsos positivos por variação de nome.
+      let doctorReg: DoctorRegistry | null = null;
+      try { doctorReg = await loadDoctorRegistry(); }
+      catch (e) { console.warn('[Conciliação] falha ao carregar doctorRegistry — matching cairá só por nome.', e); }
+
       const exactaItemsForRun: PaymentItemRow[] = [];
       const mappedCompanies = Array.from(currentMappedCompanies);
       const PAGE = 1000;
@@ -1194,6 +1204,15 @@ export function PaymentConciliationModal({
         const valHosp = toVal(getCell(row, "value"));
         const patient = getCell(row, "patient");
         const doctor = getCell(row, "doctor");
+        const crmHospRaw = getCell(row, "crm");
+        // Resolve a linha de produção ao cadastro canônico de médicos
+        // (CRM > nome exato > alias). Usado depois para comparar com o
+        // doctor_id já resolvido no Exacta.
+        const hospDoctorResolved = doctorReg
+          ? resolveDoctor({ name: doctor ? String(doctor) : null, crm: crmHospRaw ? String(crmHospRaw) : null }, doctorReg).doctor
+          : null;
+        const hospDoctorId = hospDoctorResolved?.id ?? null;
+        const crmHospDigits = String(crmHospRaw ?? '').replace(/\D/g, '');
         const procName = getCell(row, "procName");
         const dateRaw = getCell(row, "date");
         const roleHosp = getCell(row, "role");
@@ -1244,11 +1263,30 @@ export function PaymentConciliationModal({
           const roleMedN = normRole((m as any).doctor_role);
           const routeMedN = normRoute((m as any).access_route);
           const qtyMedN = normQty((m as any).quantity);
+          const medDoctorId = (m as any).doctor_id ?? null;
+          const crmMedDigits = String((m as any).doctor_document ?? '').replace(/\D/g, '');
           let docOk = false, roleOk = false, routeOk = false;
           let docConflict = false, roleConflict = false, routeConflict = false;
-          if (docHospN && docMedN && docHospN === docMedN) { s += 1000; docOk = true; }
-          else if (docHospN && docMedN && (docMedN.includes(docHospN) || docHospN.includes(docMedN))) { s += 400; docOk = true; }
-          else if (docHospN && docMedN) { s -= 200; docConflict = true; }
+
+          // Resolução canônica (doctor_id): sinal mais forte que nome.
+          // Quando ambos os lados resolvem ao mesmo médico cadastrado, é match
+          // certo independente de variação de nome (alias, abreviação, acento).
+          if (hospDoctorId && medDoctorId && hospDoctorId === medDoctorId) {
+            s += 2000; docOk = true;
+          } else if (hospDoctorId && medDoctorId && hospDoctorId !== medDoctorId) {
+            s -= 1500; docConflict = true;
+          } else if (crmHospDigits && crmMedDigits && crmHospDigits === crmMedDigits) {
+            s += 1800; docOk = true;
+          } else if (crmHospDigits && crmMedDigits && crmHospDigits !== crmMedDigits) {
+            s -= 1200; docConflict = true;
+          } else if (docHospN && docMedN && docHospN === docMedN) {
+            s += 1000; docOk = true;
+          } else if (docHospN && docMedN && (docMedN.includes(docHospN) || docHospN.includes(docMedN))) {
+            s += 400; docOk = true;
+          } else if (docHospN && docMedN) {
+            s -= 200; docConflict = true;
+          }
+
           if (roleHospN && roleMedN && roleHospN === roleMedN) { s += 200; roleOk = true; }
           else if (roleHospN && roleMedN) { s -= 150; roleConflict = true; }
           // Via de acesso: forte sinal quando ambos os lados informam — separa
