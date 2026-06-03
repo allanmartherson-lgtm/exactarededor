@@ -1513,6 +1513,45 @@ export function PaymentConciliationModal({
         const att = getCell(row, "attendance");
         if (att) hospitalAttendances.add(normAtt(att));
       }
+
+      // === Índice por (empresa + código) — fonte de regras ===
+      // Resolve o TIPO de regra a partir dos próprios payment_items, mesmo
+      // quando a linha do hospital não casou com nenhuma linha Exacta. Garante
+      // que itens de pacote/valor_fixo/tabela_diferenciada/bônus sigam o
+      // RAMO 3 (sem comparação de valor) inclusive quando estão sem match.
+      const normMethod = (m: unknown): string =>
+        String(m ?? "").toLowerCase().trim().replace(/\s+/g, "_");
+      const ruleMethodByCompanyCode = new Map<string, string>();
+      // Conjunto de chaves (empresa|atendimento) onde já existe linha Exacta
+      // paga via PACOTE (cirurgião principal recebeu o consolidado).
+      // Componentes do pacote (auxiliares, anestesia, visitas, pareceres) que
+      // aparecem só no extrato do hospital são honorários embutidos — não são
+      // "só hospital" e não geram impacto financeiro.
+      const packageAttendanceKeys = new Set<string>();
+      for (const it of exactaItemsForRun) {
+        const cn = normCompany(it.company_name);
+        const cd = normalizeCode(it.procedure_code);
+        const cm = normMethod((it as any).applied_calc_method);
+        if (cd && cm && !ruleMethodByCompanyCode.has(`${cn}|${cd}`)) {
+          ruleMethodByCompanyCode.set(`${cn}|${cd}`, cm);
+        }
+        if (cm.startsWith("pacote") && it.attendance_number) {
+          packageAttendanceKeys.add(`${cn}|${normAtt(it.attendance_number)}`);
+        }
+      }
+      const lookupCalcMethod = (companyRaw: unknown, codeRaw: unknown): string => {
+        const cn = normCompany(companyRaw);
+        for (const v of codeVariants(codeRaw)) {
+          const m = ruleMethodByCompanyCode.get(`${cn}|${v}`);
+          if (m) return m;
+        }
+        return "";
+      };
+      const isPackageAttendance = (companyRaw: unknown, attRaw: unknown): boolean => {
+        if (!attRaw) return false;
+        return packageAttendanceKeys.has(`${normCompany(companyRaw)}|${normAtt(attRaw)}`);
+      };
+
       const toInsert: Array<Record<string, unknown>> = [];
       let conciliado = 0,
         valor_divergente = 0,
