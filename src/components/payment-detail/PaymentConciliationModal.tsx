@@ -921,6 +921,61 @@ export function PaymentConciliationModal({
         throw new Error("Não encontrei itens Exacta para as empresas mapeadas nesta conciliação.");
       }
 
+      // === FILTRO DE COMPETÊNCIA — Pagamentos por remessa ===
+      // Regra de negócio (Rede D'Or):
+      //  • ~80% das empresas são pagas por PRODUÇÃO: pagamento no mês seguinte
+      //    ao da realização → a data do procedimento na Exacta sempre cai
+      //    DENTRO da janela de competência do lote.
+      //  • As demais são pagas por REMESSA: só pagamos quando emitimos a conta
+      //    ao convênio, o que pode demorar meses. Para essas, a data do
+      //    procedimento na Exacta é ANTERIOR à competência do lote — não há
+      //    risco de divergência (a esteira do faturamento já fechou; é só
+      //    repasse do que foi remetido).
+      //  • Conclusão: itens da Exacta com procedure_date < início da
+      //    competência saem da análise (não viram conciliado, divergente,
+      //    só_exacta nem pacote). Mantemos contagem para o log.
+      let lotePeriodStart: string | null = null;
+      try {
+        const { data: pay } = await (supabase as any)
+          .from("payments")
+          .select("competence_month, competence_months")
+          .eq("id", paymentId)
+          .single();
+        const candidates: string[] = [];
+        if (Array.isArray(pay?.competence_months)) {
+          for (const c of pay.competence_months) {
+            if (c) candidates.push(String(c).slice(0, 10));
+          }
+        }
+        if (pay?.competence_month) candidates.push(String(pay.competence_month).slice(0, 10));
+        if (candidates.length > 0) {
+          // Pega a MENOR competência e força para o dia 1 do mês
+          const earliest = candidates.sort()[0];
+          const m = earliest.match(/^(\d{4})-(\d{2})/);
+          if (m) lotePeriodStart = `${m[1]}-${m[2]}-01`;
+        }
+      } catch (e) {
+        console.warn('[Conciliação] não foi possível ler competência do lote — filtro de remessa desativado.', e);
+      }
+
+      let removidosPorRemessa = 0;
+      if (lotePeriodStart) {
+        const before = exactaItemsForRun.length;
+        const kept: PaymentItemRow[] = [];
+        for (const it of exactaItemsForRun) {
+          const d = (it as any).procedure_date as string | null;
+          if (d) {
+            const dOnly = String(d).slice(0, 10);
+            if (dOnly < lotePeriodStart) { removidosPorRemessa++; continue; }
+          }
+          kept.push(it);
+        }
+        exactaItemsForRun.length = 0;
+        exactaItemsForRun.push(...kept);
+        console.log('[Conciliação] Filtro remessa:', { lotePeriodStart, before, removidos: removidosPorRemessa, restantes: exactaItemsForRun.length });
+      }
+
+
       const { data: newRun, error: runErr } = await (supabase as any)
         .from("reconciliation_runs")
         .insert({
