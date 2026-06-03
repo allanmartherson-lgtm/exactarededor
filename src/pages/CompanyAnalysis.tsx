@@ -1622,17 +1622,24 @@ export default function CompanyAnalysis() {
             </CardContent>
           </Card>
 
-          {/* Comentário geral da empresa */}
+          {/* Comentário / Observação geral da empresa (unificado) */}
           <Card className="shadow-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <MessageSquarePlus className="h-4 w-4 text-muted-foreground" />
-                Comentário geral da empresa
+                Observação geral da empresa
               </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Use este campo para registrar comentários, observações de fluxo ou questionamentos ao diretor. Em caso de ambiguidade, marque como questionamento — o diretor será notificado para esclarecer.
+              </p>
             </CardHeader>
             <CardContent className="space-y-2">
              <Textarea
-                placeholder="Anote uma observação para esta empresa…"
+                placeholder={
+                  canActAnalista
+                    ? "Observação geral da empresa (opcional · obrigatória se houver itens acatados, mín. 20 caracteres)…"
+                    : "Observação para esta empresa (obrigatória para devolver)…"
+                }
                 value={groupDraft}
                 onChange={(e) => setGroupDraft(e.target.value)}
                 rows={3}
@@ -1652,7 +1659,7 @@ export default function CompanyAnalysis() {
                   onChange={setGroupCommentType}
                   disabled={busy}
                 />
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="is-question"
@@ -1660,11 +1667,11 @@ export default function CompanyAnalysis() {
                       onCheckedChange={(v) => setIsQuestion(!!v)}
                     />
                     <Label htmlFor="is-question" className="text-xs font-normal cursor-pointer select-none">
-                      É um questionamento ao diretor (aguarda resposta)
+                      Em caso de ambiguidade, marcar como questionamento ao diretor (aguarda resposta)
                     </Label>
                   </div>
-                  <Button size="sm" onClick={addGroupComment} disabled={busy || !groupDraft.trim()}>
-                    Adicionar comentário
+                  <Button size="sm" variant="outline" onClick={addGroupComment} disabled={busy || !groupDraft.trim()}>
+                    Salvar como comentário no histórico
                   </Button>
                 </div>
               </div>
