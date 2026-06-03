@@ -441,6 +441,44 @@ export function PaymentConciliationModal({
 
   const [step, setStep] = useState<Step>("upload");
   const [excludeConsultas, setExcludeConsultas] = useState(true);
+  // Competência inicial do lote (YYYY-MM-DD). Usada como ponto de corte para
+  // remover itens Exacta pagos por REMESSA (data anterior ao lote → já fechado
+  // pelo faturamento, sem risco de divergência). Auto-preenchida com a menor
+  // competência do payment; o analista pode sobrescrever quando o lote
+  // contemplar produção antiga (ex.: lote retroativo de remessa).
+  const [periodStartOverride, setPeriodStartOverride] = useState<string>("");
+  const [periodStartAuto, setPeriodStartAuto] = useState<string>("");
+
+  // Carrega a competência do lote uma vez, para pré-preencher o seletor.
+  useEffect(() => {
+    if (!open || !paymentId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from("payments")
+          .select("competence_month, competence_months")
+          .eq("id", paymentId)
+          .single();
+        if (cancelled || !data) return;
+        const cands: string[] = [];
+        if (Array.isArray(data.competence_months)) {
+          for (const c of data.competence_months) if (c) cands.push(String(c).slice(0, 10));
+        }
+        if (data.competence_month) cands.push(String(data.competence_month).slice(0, 10));
+        if (cands.length > 0) {
+          const earliest = cands.sort()[0];
+          const m = earliest.match(/^(\d{4})-(\d{2})/);
+          const firstDay = m ? `${m[1]}-${m[2]}-01` : earliest;
+          setPeriodStartAuto(firstDay);
+          setPeriodStartOverride((prev) => prev || firstDay);
+        }
+      } catch (e) {
+        console.warn("[Conciliação] falha ao ler competência do lote", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, paymentId]);
   const [hospitalCompanies, setHospitalCompanies] = useState<string[]>([]);
   const [companyMapping, setCompanyMapping] = useState<Record<string, string | null>>({});
   const [matchLevels, setMatchLevels] = useState<Record<string, 'exact' | 'high' | 'medium' | null>>({});
