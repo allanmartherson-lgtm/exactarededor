@@ -1105,9 +1105,12 @@ export function PaymentConciliationModal({
         return str.replace(/\D/g, '');
       };
 
-      // CHAVE PRIMÁRIA: empresa + atendimento + código TUSS.
-      // Antes a chave era apenas att+code — itens com o mesmo nº de
-      // atendimento em empresas diferentes podiam cruzar erroneamente.
+      // CHAVE PRIMÁRIA: atendimento + código TUSS.
+      // O lote já é escopado por grupo (uma empresa), então incluir empresa
+      // na chave introduz falso negativo quando o `company_name` da Exacta
+      // foi importado com grafia ligeiramente diferente do `terceiro` do
+      // hospital. Empresa continua sendo validada via `companyMissing` antes
+      // do lookup, e usada no score como desempate.
       const normCompany = (s: unknown): string =>
         String(s ?? "")
           .toLowerCase()
@@ -1115,8 +1118,8 @@ export function PaymentConciliationModal({
           .replace(/[\u0300-\u036f]/g, "")
           .replace(/[^a-z0-9]+/g, "")
           .trim();
-      const makeKey = (company: unknown, att: unknown, code: unknown): string =>
-        `${normCompany(company)}|${normAtt(att)}|${normalizeCode(code)}`;
+      const makeKey = (_company: unknown, att: unknown, code: unknown): string =>
+        `${normAtt(att)}|${normalizeCode(code)}`;
 
       const normName = (s: unknown): string =>
         String(s ?? "")
