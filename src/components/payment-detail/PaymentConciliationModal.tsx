@@ -1986,7 +1986,10 @@ export function PaymentConciliationModal({
             }
           } else if (isPercentRule) {
             // RAMO 2 — ACORDO COM % — esperado já calculado pela engine.
-            const diff = valHosp - valExpected;
+            // Comparar o que o Exacta PAGOU (procedure_amount, pós-multiplicador)
+            // contra o expected_amount — não o Valor da produção (pré-multiplicador).
+            const _pago = lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || valHosp;
+            const diff = _pago - valExpected;
             if (Math.abs(diff) < TOL_ABS) {
               base.status = "conciliado";
               conciliado++;
@@ -1996,7 +1999,7 @@ export function PaymentConciliationModal({
               const pct = Math.abs(valExpected) > TOL_ABS ? (diff / valExpected) * 100 : 0;
               const pctTxt = Math.abs(valExpected) > TOL_ABS ? `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%` : 'n/a (esperado ≈ 0)';
               const ambigPrefix = ambiguous ? `⚠ Match ambíguo — confira manualmente. ` : '';
-              base.ia_obs = `${ambigPrefix}Regra com % (${ruleLabel || calcMethod}). Esperado: ${formatCurrency(valExpected)} (bruto ${formatCurrency(valBruto)}). Hospital pagou ${formatCurrency(valHosp)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pctTxt}).`;
+              base.ia_obs = `${ambigPrefix}Regra com % (${ruleLabel || calcMethod}). Esperado: ${formatCurrency(valExpected)} (bruto ${formatCurrency(valBruto)}). Hospital pagou ${formatCurrency(_pago)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pctTxt}).`;
               divergencia_valor += Math.abs(diff);
               if (diff > 0) risco_mais += diff;
               else risco_menos += Math.abs(diff);
