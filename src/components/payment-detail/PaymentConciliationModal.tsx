@@ -2063,6 +2063,7 @@ export function PaymentConciliationModal({
     // Só considera linhas que vieram do hospital (ignora "só Exacta",
     // que são reinferidas naturalmente no matching).
     const hospitalItems = items.filter((it) => it.status !== "so_exacta");
+    const soExactaCount = items.length - hospitalItems.length;
     if (hospitalItems.length === 0) {
       toast({
         title: "Sem linhas do hospital",
@@ -2071,6 +2072,22 @@ export function PaymentConciliationModal({
       });
       return;
     }
+    // AVISO crítico: o "Reprocessar" reusa apenas linhas que já tiveram match
+    // com o hospital — itens "só Exacta" da run anterior são DESCARTADOS.
+    // Para revisitar esses casos (ex.: terceiro re-mapeado, alias novo, regra
+    // que mudou), o analista precisa rodar uma "Nova conciliação" do zero,
+    // que volta a ler a planilha hospital + base Exacta atual.
+    if (soExactaCount > 0) {
+      const ok = window.confirm(
+        `⚠️ Atenção\n\n` +
+        `Esta ação RECRUZA apenas os ${hospitalItems.length} itens que já tiveram correspondência com o hospital.\n\n` +
+        `Os ${soExactaCount} itens "só no Exacta" serão DESCARTADOS — eles não voltam a ser testados contra a planilha hospital.\n\n` +
+        `Se você quer revisar itens "só Exacta" (ex.: terceiro re-mapeado, alias novo), clique em "Cancelar" e use "Nova conciliação" para recarregar a planilha do hospital do zero.\n\n` +
+        `Continuar mesmo assim?`
+      );
+      if (!ok) return;
+    }
+
 
     const colMap: Record<string, string> = {
       company: "__company",
