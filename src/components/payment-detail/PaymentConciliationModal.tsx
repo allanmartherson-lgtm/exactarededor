@@ -1144,32 +1144,8 @@ export function PaymentConciliationModal({
         }
       }
 
-      // ===== DIAGNÓSTICO DE PIPELINE — por etapa, por terceiro =====
-      // Para cada etapa de filtragem, conta linhas dropadas e por quê.
-      // Crítico para diagnosticar "só no Exacta" causado por mapping ausente
-      // de terceiro, fora de competência ou remessa.
-      const DEBUG_ATT = '9108966';
-      const DEBUG_CODE = '31103529';
-      const isDebugRow = (row: Record<string, unknown>): boolean => {
-        const colA = srcColMap['attendance'];
-        const colC = srcColMap['procCode'];
-        if (!colA || !colC) return false;
-        const a = String(row[colA] ?? '').replace(/\D/g, '');
-        const c = String(row[colC] ?? '').replace(/\D/g, '');
-        return a === DEBUG_ATT && (c === DEBUG_CODE || c === DEBUG_CODE.slice(0, 7));
-      };
-      // Conta TODAS as linhas alvo no arquivo bruto antes de qualquer filtro
-      const debugRowsBruto = srcRows.filter(isDebugRow);
-      console.log(`[DEBUG-CASE ${DEBUG_ATT}/${DEBUG_CODE}] linhas no arquivo bruto: ${debugRowsBruto.length}`, debugRowsBruto);
-      // FALLBACK: varre TODAS as colunas procurando o atendimento — pega caso a detecção de coluna esteja errada
-      const anyColHas9108966 = srcRows.filter((r) =>
-        Object.values(r).some((v) => String(v ?? '').replace(/\D/g, '').includes(DEBUG_ATT))
-      );
-      console.log(`[DEBUG-CASE] linhas com "${DEBUG_ATT}" em QUALQUER coluna: ${anyColHas9108966.length}`,
-        anyColHas9108966.slice(0, 3));
-      console.log('[DEBUG-CASE] srcColMap detectado:', srcColMap);
-      console.log('[DEBUG-CASE] amostra srcRows[0..2]:', srcRows.slice(0, 3));
-      console.log('[DEBUG-CASE] total srcRows:', srcRows.length);
+
+
 
 
       const dropByTerceiro = new Map<string, number>();
@@ -1180,14 +1156,10 @@ export function PaymentConciliationModal({
         if (!ok) {
           const key = terceiro || '(vazio)';
           dropByTerceiro.set(key, (dropByTerceiro.get(key) ?? 0) + 1);
-          if (isDebugRow(row)) {
-            console.warn('[DEBUG-ROW] DROPADA no filtro de terceiro:', { terceiro, temMapping: !!srcMapping[terceiro], row });
-          }
-        } else if (isDebugRow(row)) {
-          console.log('[DEBUG-ROW] passou filtro de terceiro:', { terceiro, mapeadoPara: srcMapping[terceiro] });
         }
         return ok;
       });
+
       if (dropByTerceiro.size > 0) {
         console.warn('[Conciliação] linhas DESCARTADAS por terceiro não mapeado:', Object.fromEntries(dropByTerceiro));
       }
@@ -1203,8 +1175,8 @@ export function PaymentConciliationModal({
             const ok = !GRUPOS_EXCLUIR.has(grupo.toUpperCase());
             if (!ok) {
               dropByGrupo++;
-              if (isDebugRow(row)) console.warn('[DEBUG-ROW] DROPADA pelo filtro de grupo CBHPM:', { grupo });
             }
+
             return ok;
           })
         : filteredRows;
@@ -1231,7 +1203,6 @@ export function PaymentConciliationModal({
           const ok = competencyMonths.has(d.slice(0, 7));
           if (!ok) {
             foraCompetencia++;
-            if (isDebugRow(row)) console.warn('[DEBUG-ROW] DROPADA pelo filtro de competência:', { data: d, competencias: Array.from(competencyMonths) });
           }
           return ok;
         });
@@ -1240,9 +1211,7 @@ export function PaymentConciliationModal({
         console.warn('[Conciliação] filtro de competência DESLIGADO — Exacta sem procedure_date ou produção sem coluna de data mapeada.');
       }
 
-      // Trace final: confirma se a linha-alvo sobreviveu a TODOS os filtros
-      const debugRowsRestantes = rowsParaCruzamento.filter(isDebugRow);
-      console.log(`[DEBUG-CASE ${DEBUG_ATT}/${DEBUG_CODE}] linhas que chegaram ao cruzamento: ${debugRowsRestantes.length}`, debugRowsRestantes);
+
 
       const sampleRow = rowsParaCruzamento[0];
       if (sampleRow) {
@@ -2094,6 +2063,7 @@ export function PaymentConciliationModal({
     // Só considera linhas que vieram do hospital (ignora "só Exacta",
     // que são reinferidas naturalmente no matching).
     const hospitalItems = items.filter((it) => it.status !== "so_exacta");
+    const soExactaCount = items.length - hospitalItems.length;
     if (hospitalItems.length === 0) {
       toast({
         title: "Sem linhas do hospital",
@@ -2102,6 +2072,22 @@ export function PaymentConciliationModal({
       });
       return;
     }
+    // AVISO crítico: o "Reprocessar" reusa apenas linhas que já tiveram match
+    // com o hospital — itens "só Exacta" da run anterior são DESCARTADOS.
+    // Para revisitar esses casos (ex.: terceiro re-mapeado, alias novo, regra
+    // que mudou), o analista precisa rodar uma "Nova conciliação" do zero,
+    // que volta a ler a planilha hospital + base Exacta atual.
+    if (soExactaCount > 0) {
+      const ok = window.confirm(
+        `⚠️ Atenção\n\n` +
+        `Esta ação RECRUZA apenas os ${hospitalItems.length} itens que já tiveram correspondência com o hospital.\n\n` +
+        `Os ${soExactaCount} itens "só no Exacta" serão DESCARTADOS — eles não voltam a ser testados contra a planilha hospital.\n\n` +
+        `Se você quer revisar itens "só Exacta" (ex.: terceiro re-mapeado, alias novo), clique em "Cancelar" e use "Nova conciliação" para recarregar a planilha do hospital do zero.\n\n` +
+        `Continuar mesmo assim?`
+      );
+      if (!ok) return;
+    }
+
 
     const colMap: Record<string, string> = {
       company: "__company",
