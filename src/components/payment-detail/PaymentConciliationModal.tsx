@@ -241,6 +241,7 @@ const STATUS_LABEL: Record<ReconciliationItem["status"], string> = {
   so_hospital: "Só no hospital",
   so_exacta: "Só no Exacta",
   empresa_ausente: "Empresa ausente",
+  possivel_pacote: "Possível pacote de honorário",
 };
 
 const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
@@ -250,6 +251,7 @@ const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
   so_hospital: "bg-destructive/10 text-destructive border-destructive/30",
   so_exacta: "bg-primary/10 text-primary border-primary/30",
   empresa_ausente: "bg-muted text-muted-foreground border-border",
+  possivel_pacote: "bg-accent/10 text-accent-foreground border-accent/30",
 };
 
 /**
