@@ -1280,6 +1280,45 @@ export function PaymentConciliationModal({
 
       console.log('[Cruzamento] Empresas Exacta:', exactaCompanySet.size, 'Empresas Hospital:', hospitalCompanySet.size, 'Chaves Exacta:', exactaByKey.size);
 
+      // ===== DIAGNÓSTICO DETALHADO =====
+      // Mede sobreposição real de chaves att+TUSS entre os dois lados, sem
+      // considerar empresa nem médico, pra isolar onde está a perda de match.
+      {
+        const exactaAttCode = new Set<string>();
+        let exactaSemAtt = 0, exactaSemCode = 0;
+        for (const it of exactaItemsForRun) {
+          if (!it.attendance_number) { exactaSemAtt++; continue; }
+          if (!it.procedure_code) { exactaSemCode++; continue; }
+          exactaAttCode.add(`${normAtt(it.attendance_number)}|${normalizeCode(it.procedure_code)}`);
+        }
+        const prodAttCode = new Set<string>();
+        let prodSemAtt = 0, prodSemCode = 0;
+        for (const row of rowsParaCruzamento) {
+          const att = getCell(row, "attendance");
+          const code = getCell(row, "procCode");
+          if (!att) { prodSemAtt++; continue; }
+          if (!code) { prodSemCode++; continue; }
+          prodAttCode.add(`${normAtt(att)}|${normalizeCode(code)}`);
+        }
+        const intersec = new Set<string>();
+        for (const k of prodAttCode) if (exactaAttCode.has(k)) intersec.add(k);
+        const soExacta = new Set<string>();
+        for (const k of exactaAttCode) if (!prodAttCode.has(k)) soExacta.add(k);
+        const soProd = new Set<string>();
+        for (const k of prodAttCode) if (!exactaAttCode.has(k)) soProd.add(k);
+        console.log('[DIAG] Exacta total:', exactaItemsForRun.length, '· sem_att:', exactaSemAtt, '· sem_code:', exactaSemCode, '· chaves únicas att+code:', exactaAttCode.size);
+        console.log('[DIAG] Produção total:', rowsParaCruzamento.length, '· sem_att:', prodSemAtt, '· sem_code:', prodSemCode, '· chaves únicas att+code:', prodAttCode.size);
+        console.log('[DIAG] Intersecção att+code:', intersec.size, '· só Exacta (sem par em produção):', soExacta.size, '· só Produção (sem par em Exacta):', soProd.size);
+        // Amostras pra inspecionar grafia/normalização
+        console.log('[DIAG] Amostra Exacta (5):', Array.from(exactaAttCode).slice(0, 5));
+        console.log('[DIAG] Amostra Produção (5):', Array.from(prodAttCode).slice(0, 5));
+        console.log('[DIAG] Amostra só-Exacta (5):', Array.from(soExacta).slice(0, 5));
+        console.log('[DIAG] Amostra só-Produção (5):', Array.from(soProd).slice(0, 5));
+        // Empresas (normalizadas) de cada lado
+        console.log('[DIAG] Empresas Exacta normalizadas:', Array.from(exactaCompanySet).slice(0, 10));
+        console.log('[DIAG] Empresas Hospital normalizadas:', Array.from(hospitalCompanySet).slice(0, 10));
+      }
+
       const matchedExactaIds = new Set<string>();
       const toInsert: Array<Record<string, unknown>> = [];
       let conciliado = 0,
