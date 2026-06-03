@@ -401,8 +401,14 @@ export function ItemsDataGrid({
     // da página em pagamentos grandes.
     <div
       className={cn("flex flex-col min-h-[420px]", className)}
-      style={{ height: "calc(100vh - 220px)", maxHeight: "calc(100vh - 200px)" }}
+      style={{
+        // Altura adaptativa: lotes pequenos ficam compactos; lotes grandes
+        // ocupam ~toda a viewport disponível para mostrar o máximo de linhas.
+        // ~38px por linha em modo compacto + ~120px de chrome (toolbar + header + scrollbar + footer total).
+        height: `min(calc(100vh - 160px), max(420px, ${items.length * 38 + 120}px))`,
+      }}
     >
+
 
       {showToolbar && (
         <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 bg-muted/20">
