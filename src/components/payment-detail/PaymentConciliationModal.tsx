@@ -216,6 +216,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     company: ["terceiro", "empresa", "prestador"],
     grupo: ["grupo cbhpm", "grupocbhpm", "grupo", "grupoproc"],
     accessRoute: ["via", "viaacesso", "via acesso", "via de acesso", "viadeacesso", "viadeacessoproc"],
+    crm: ["crm", "crmmedico", "crm medico", "crmexec", "crmprofissional", "documentomedico", "documento"],
   };
   const normKey = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
