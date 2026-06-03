@@ -1155,33 +1155,123 @@ export function PaymentConciliationModal({
         return Number.isFinite(n) && n > 0 ? Math.round(n) : 1;
       };
 
+      // ===== PASSO 5 — Agregação por chave (Atend + CRM + TUSS) =====
+      // Antes de cruzar, colapsamos linhas que pertencem ao MESMO ato (mesmo
+      // atendimento, mesmo médico, mesmo TUSS) — comum quando o sistema de
+      // faturamento segmenta o procedimento em vários lançamentos (parciais,
+      // ajustes, vias). Sem isso, cada segmento virava uma "linha solta" e
+      // produzia falsos "Só no hospital" / "Só no Exacta".
+      //
+      // Chave de médico canônico: doctor_id resolvido > CRM em dígitos >
+      // nome normalizado > "_no_doctor_" (linha sem médico).
+      const doctorKeyFromItem = (it: PaymentItemRow): string => {
+        const did = (it as any).doctor_id;
+        if (did) return `id:${did}`;
+        const doc = String((it as any).doctor_document ?? '').replace(/\D/g, '');
+        if (doc) return `crm:${doc}`;
+        const nm = normName((it as any).doctor_name);
+        if (nm) return `nm:${nm}`;
+        return '_no_doctor_';
+      };
+      const doctorKeyFromRow = (
+        hospDoctorId: string | null,
+        crmDigits: string,
+        doctorRaw: unknown,
+      ): string => {
+        if (hospDoctorId) return `id:${hospDoctorId}`;
+        if (crmDigits) return `crm:${crmDigits}`;
+        const nm = normName(doctorRaw);
+        if (nm) return `nm:${nm}`;
+        return '_no_doctor_';
+      };
+
+      // --- Agregação Exacta ---
+      // Indexa por (empresa+atendimento+TUSS) e, dentro do bucket, colapsa
+      // itens com mesma doctorKey somando procedure_amount/gross_amount/quantity.
       const exactaByKey = new Map<string, PaymentItemRow[]>();
-      // Set de empresas presentes na Exacta — usado para classificar
-      // "empresa_ausente" (linha do hospital cuja empresa nem existe no lote Exacta).
       const exactaCompanySet = new Set<string>();
+      type ExactaGroup = { rep: PaymentItemRow; ids: string[]; sumProc: number; sumGross: number; sumQty: number };
+      const exactaGroupsByVariant = new Map<string, Map<string, ExactaGroup>>();
       for (const it of exactaItemsForRun) {
         const compNorm = normCompany(it.company_name);
         if (compNorm) exactaCompanySet.add(compNorm);
         if (!it.attendance_number || !it.procedure_code) continue;
-        // Indexa sob TODAS as variantes de TUSS (8d e 7d) — assim o
-        // lookup casa mesmo quando hospital exporta sem dígito verificador.
+        const dk = doctorKeyFromItem(it);
         for (const v of codeVariants(it.procedure_code)) {
           const k = makeKey(it.company_name, it.attendance_number, v);
-          if (!exactaByKey.has(k)) exactaByKey.set(k, []);
-          exactaByKey.get(k)!.push(it);
+          let groups = exactaGroupsByVariant.get(k);
+          if (!groups) { groups = new Map(); exactaGroupsByVariant.set(k, groups); }
+          let g = groups.get(dk);
+          if (!g) {
+            g = { rep: it, ids: [], sumProc: 0, sumGross: 0, sumQty: 0 };
+            groups.set(dk, g);
+          }
+          g.ids.push(it.id);
+          g.sumProc += Number((it as any).procedure_amount ?? 0) || 0;
+          g.sumGross += Number((it as any).gross_amount ?? 0) || 0;
+          g.sumQty += Number((it as any).quantity ?? 1) || 0;
         }
       }
+      // Materializa os buckets agregados — cada grupo vira UM virtual item
+      // (shallow copy do representante, com valores/qtd somados e os ids reais
+      // dos itens originais guardados em __aggregated_ids para reconciliação).
+      for (const [k, groups] of exactaGroupsByVariant.entries()) {
+        const arr: PaymentItemRow[] = [];
+        for (const g of groups.values()) {
+          if (g.ids.length === 1) { arr.push(g.rep); continue; }
+          const virtual: PaymentItemRow = Object.assign({}, g.rep, {
+            procedure_amount: g.sumProc,
+            gross_amount: g.sumGross,
+            quantity: g.sumQty,
+            __aggregated_ids: g.ids,
+          } as any) as PaymentItemRow;
+          arr.push(virtual);
+        }
+        exactaByKey.set(k, arr);
+      }
 
-      // Set de empresas vistas na base do hospital — usado para detectar
-      // empresas que estão SÓ no Exacta (sobra) e marcar como empresa_ausente.
+      // --- Agregação Produção ---
+      // Faz uma passada inicial nas linhas filtradas, computa chave canônica
+      // de empresa+atendimento+TUSS+médico, e soma Valor e Quantidade.
       const hospitalCompanySet = new Set<string>();
+      type ProdAgg = { rep: Record<string, unknown>; valSum: number; qtySum: number };
+      const prodAggMap = new Map<string, ProdAgg>();
       for (const row of rowsParaCruzamento) {
-        const col = srcColMap["company"];
-        const terceiro = col ? String(row[col] ?? "").trim() : "";
+        const colC = srcColMap["company"];
+        const terceiro = colC ? String(row[colC] ?? "").trim() : "";
         const mapped = srcMapping[terceiro] ?? terceiro;
         const cn = normCompany(mapped);
         if (cn) hospitalCompanySet.add(cn);
+        const att = getCell(row, "attendance");
+        const code = getCell(row, "procCode");
+        if (!att || !code) {
+          // sem chave de agregação → mantém isolada
+          prodAggMap.set(`__solo__${prodAggMap.size}`, {
+            rep: row,
+            valSum: toVal(getCell(row, "value")),
+            qtySum: Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1,
+          });
+          continue;
+        }
+        const crmDigits = String(getCell(row, "crm") ?? '').replace(/\D/g, '');
+        const hospDocId = doctorReg
+          ? resolveDoctor({ name: String(getCell(row, "doctor") ?? '') || null, crm: crmDigits || null }, doctorReg).doctor?.id ?? null
+          : null;
+        const dk = doctorKeyFromRow(hospDocId, crmDigits, getCell(row, "doctor"));
+        const normCode = normalizeCode(code);
+        const aggKey = `${normCompany(mapped)}|${normAtt(att)}|${normCode}|${dk}`;
+        const valHosp = toVal(getCell(row, "value"));
+        const qtyHosp = Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1;
+        const existing = prodAggMap.get(aggKey);
+        if (existing) {
+          existing.valSum += valHosp;
+          existing.qtySum += qtyHosp;
+        } else {
+          prodAggMap.set(aggKey, { rep: row, valSum: valHosp, qtySum: qtyHosp });
+        }
       }
+      const aggregatedRows: ProdAgg[] = Array.from(prodAggMap.values());
+      console.log('[Conciliação] agregação produção:', rowsParaCruzamento.length, '→', aggregatedRows.length, '· buckets Exacta:', exactaByKey.size);
 
       console.log('[Cruzamento] Empresas Exacta:', exactaCompanySet.size, 'Empresas Hospital:', hospitalCompanySet.size, 'Chaves Exacta:', exactaByKey.size);
 
