@@ -303,5 +303,63 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
         </Tabs>
       </CardContent>
     </Card>
+
+    <AlertDialog open={!!confirmPayload} onOpenChange={(o) => !o && setConfirmPayload(null)}>
+      <AlertDialogContent className="max-w-2xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <ArrowRightLeft className="h-4 w-4 text-destructive" />
+            {confirmPayload?.mode === "single" ? "Confirmar troca de PJ" : `Confirmar ${confirmPayload?.rows.length ?? 0} vínculo(s)`}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            O pagamento prevalece sobre o cadastro. Os vínculos abaixo serão aplicados agora — vínculos divergentes serão encerrados hoje e os novos abertos a partir de amanhã.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <ScrollArea className="max-h-[50vh] border border-border rounded-md">
+          <div className="divide-y divide-border">
+            {(confirmPayload?.rows ?? []).map((r, i) => {
+              const link = r.doctor_id ? activeLinks.get(r.doctor_id) : null;
+              const divergent = !!(link && link.company_id !== r.company_id);
+              return (
+                <div key={i} className={`px-3 py-2 text-xs ${divergent ? "bg-destructive/5" : ""}`}>
+                  <p className="font-medium text-sm">{r.doctor_name} <span className="text-muted-foreground font-mono text-[10px] ml-1">{r.doctor_document}</span></p>
+                  {divergent ? (
+                    <p className="mt-1 text-[11px] leading-relaxed">
+                      <span className="text-destructive">✕ Encerrar:</span> <strong>{link!.company_name}</strong>
+                      <br />
+                      <span className="text-green-700 dark:text-green-500">✓ Abrir:</span> <strong>{r.company_name}</strong>
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[11px]">
+                      <span className="text-green-700 dark:text-green-500">✓ Abrir:</span> <strong>{r.company_name}</strong>
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={bulkLinking}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={bulkLinking}
+            onClick={async (e) => {
+              e.preventDefault();
+              const payload = confirmPayload;
+              if (!payload) return;
+              await executeLinks(payload.rows);
+              setConfirmPayload(null);
+            }}
+          >
+            {bulkLinking ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
+            Confirmar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
+
