@@ -3146,6 +3146,7 @@ export function PaymentConciliationModal({
                     </Button>
                   )}
                 </div>
+              </div>
 
               <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
                 {hospitalCompanies.map((terceiro) => {
