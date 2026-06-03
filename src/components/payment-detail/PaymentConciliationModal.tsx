@@ -1189,48 +1189,23 @@ export function PaymentConciliationModal({
       };
 
       // --- Agregação Exacta ---
-      // Indexa por (empresa+atendimento+TUSS) e, dentro do bucket, colapsa
-      // itens com mesma doctorKey somando procedure_amount/gross_amount/quantity.
+      // Indexa por (atendimento+TUSS). Itens com mesmo (att+TUSS) entram no
+      // mesmo bucket como candidatos independentes; o scoreCandidate depois
+      // desempata por médico/função/via. NÃO colapsamos itens da Exacta entre
+      // si — cada linha da Exacta representa um repasse distinto e precisa
+      // poder ser marcada individualmente como matched.
       const exactaByKey = new Map<string, PaymentItemRow[]>();
       const exactaCompanySet = new Set<string>();
-      type ExactaGroup = { rep: PaymentItemRow; ids: string[]; sumProc: number; sumGross: number; sumQty: number };
-      const exactaGroupsByVariant = new Map<string, Map<string, ExactaGroup>>();
       for (const it of exactaItemsForRun) {
         const compNorm = normCompany(it.company_name);
         if (compNorm) exactaCompanySet.add(compNorm);
         if (!it.attendance_number || !it.procedure_code) continue;
-        const dk = doctorKeyFromItem(it);
         for (const v of codeVariants(it.procedure_code)) {
           const k = makeKey(it.company_name, it.attendance_number, v);
-          let groups = exactaGroupsByVariant.get(k);
-          if (!groups) { groups = new Map(); exactaGroupsByVariant.set(k, groups); }
-          let g = groups.get(dk);
-          if (!g) {
-            g = { rep: it, ids: [], sumProc: 0, sumGross: 0, sumQty: 0 };
-            groups.set(dk, g);
-          }
-          g.ids.push(it.id);
-          g.sumProc += Number((it as any).procedure_amount ?? 0) || 0;
-          g.sumGross += Number((it as any).gross_amount ?? 0) || 0;
-          g.sumQty += Number((it as any).quantity ?? 1) || 0;
+          let arr = exactaByKey.get(k);
+          if (!arr) { arr = []; exactaByKey.set(k, arr); }
+          arr.push(it);
         }
-      }
-      // Materializa os buckets agregados — cada grupo vira UM virtual item
-      // (shallow copy do representante, com valores/qtd somados e os ids reais
-      // dos itens originais guardados em __aggregated_ids para reconciliação).
-      for (const [k, groups] of exactaGroupsByVariant.entries()) {
-        const arr: PaymentItemRow[] = [];
-        for (const g of groups.values()) {
-          if (g.ids.length === 1) { arr.push(g.rep); continue; }
-          const virtual: PaymentItemRow = Object.assign({}, g.rep, {
-            procedure_amount: g.sumProc,
-            gross_amount: g.sumGross,
-            quantity: g.sumQty,
-            __aggregated_ids: g.ids,
-          } as any) as PaymentItemRow;
-          arr.push(virtual);
-        }
-        exactaByKey.set(k, arr);
       }
 
       // --- Agregação Produção ---
