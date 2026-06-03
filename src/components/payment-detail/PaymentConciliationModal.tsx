@@ -60,6 +60,7 @@ import { formatCurrency } from "@/lib/status";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
+import { loadDoctorRegistry, resolveDoctor, type DoctorRegistry } from "@/lib/registryLookup";
 
 function CopyAttendanceButton({ value }: { value: string | null | undefined }) {
   const [copied, setCopied] = useState(false);
