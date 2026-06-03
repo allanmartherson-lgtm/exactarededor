@@ -47,7 +47,15 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(0);
   const [showPicker, setShowPicker] = useState(false);
+  const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const reqId = useRef(0);
+
+  const addDays = (iso: string, days: number) => {
+    const d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+
 
   // carrega vínculos atuais + nomes dos médicos vinculados
   const loadLinks = async () => {
@@ -141,8 +149,10 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
   };
 
   const add = async (doctor: Doctor) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const first = await tryInsert(doctor.id, today);
+    const start = startDate || new Date().toISOString().slice(0, 10);
+    const dayBefore = addDays(start, -1);
+
+    const first = await tryInsert(doctor.id, start);
     if (!first.error) { await finishAdd(doctor, "Médico vinculado"); return; }
 
     const msg = (first.error.message ?? "").toLowerCase();
@@ -152,14 +162,14 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
       return;
     }
 
-    // Busca TODOS vínculos do médico que tocam em "hoje" (constraint usa range inclusivo)
-    // — inclusive os já encerrados hoje (zero-day), que continuam bloqueando o insert.
+    // Busca TODOS vínculos do médico cujo intervalo toca a data escolhida
+    // (constraint usa range inclusivo — vínculos encerrados no próprio "start" também bloqueiam).
     const { data: conflicts } = await supabase
       .from("doctor_companies")
       .select("id, company_id, start_date, end_date, companies:company_id(name)")
       .eq("doctor_id", doctor.id)
-      .lte("start_date", today)
-      .or(`end_date.is.null,end_date.gte.${today}`);
+      .lte("start_date", start)
+      .or(`end_date.is.null,end_date.gte.${start}`);
 
     type Row = {
       id: string;
@@ -182,21 +192,20 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
             <strong>{active.companies?.name ?? "(empresa desconhecida)"}</strong>
             {active.start_date ? ` desde ${fmtBR(active.start_date)}` : ""}.
             <br />
-            Para vincular a esta empresa, o vínculo anterior precisa ser encerrado.
+            Para vincular nesta empresa a partir de <strong>{fmtBR(start)}</strong>, o vínculo anterior
+            precisa ser encerrado em <strong>{fmtBR(dayBefore)}</strong>.
           </>
         ),
         details:
-          "O vínculo anterior fica com data de encerramento de ontem (para evitar sobreposição) e um novo vínculo é criado começando hoje. O histórico é preservado.",
+          "O vínculo anterior fica com data de encerramento no dia anterior à nova vigência (para evitar sobreposição) e o novo vínculo começa na data escolhida. O histórico é preservado — pagamentos anteriores continuam atribuídos à PJ correta.",
         tone: "warning",
         confirmText: "Transferir agora",
         cancelText: "Cancelar",
       });
       if (!ok) return;
 
-      // Encerra o ativo em "ontem" (e não hoje) para não colidir com o novo start=hoje
-      const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
-      // Se o vínculo começou hoje (zero-day), não dá pra encerrar ontem → deleta
-      if (active.start_date && active.start_date >= today) {
+      // Se o vínculo começou no mesmo dia ou depois, não dá pra encerrar antes → deleta
+      if (active.start_date && active.start_date >= start) {
         const del = await supabase.from("doctor_companies").delete().eq("id", active.id);
         if (del.error) {
           toast({ title: "Falha ao remover vínculo anterior", description: del.error.message, variant: "destructive" });
@@ -205,7 +214,7 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
       } else {
         const upd = await supabase
           .from("doctor_companies")
-          .update({ end_date: yesterday, end_reason: "transferencia_vinculo" })
+          .update({ end_date: dayBefore, end_reason: "transferencia_vinculo" })
           .eq("id", active.id);
         if (upd.error) {
           toast({ title: "Falha ao encerrar vínculo anterior", description: upd.error.message, variant: "destructive" });
@@ -214,23 +223,21 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
       }
     }
 
-    // Caso 2: vínculos JÁ ENCERRADOS hoje que ainda bloqueiam o range inclusivo
-    // (resquício de um encerramento manual no mesmo dia). Reduz end_date em 1 dia,
-    // ou remove se for zero-day (start==end==hoje), para liberar o range.
+    // Caso 2: vínculos JÁ ENCERRADOS que ainda bloqueiam o range inclusivo
+    // (encerrados no próprio dia da nova vigência). Recua end_date em 1 dia,
+    // ou remove se for zero-day, para liberar o range.
     for (const c of closed) {
       if (!c.end_date) continue;
-      if (c.start_date && c.start_date >= today) {
-        // zero-day no mesmo dia → remover (não há histórico relevante)
+      if (c.start_date && c.start_date >= start) {
         const del = await supabase.from("doctor_companies").delete().eq("id", c.id);
         if (del.error) {
           toast({ title: "Falha ao limpar vínculo residual", description: del.error.message, variant: "destructive" });
           return;
         }
-      } else if (c.end_date >= today) {
-        const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+      } else if (c.end_date >= start) {
         const upd = await supabase
           .from("doctor_companies")
-          .update({ end_date: yesterday })
+          .update({ end_date: dayBefore })
           .eq("id", c.id);
         if (upd.error) {
           toast({ title: "Falha ao ajustar vínculo anterior", description: upd.error.message, variant: "destructive" });
@@ -240,12 +247,13 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
     }
 
     // Retry insert
-    const second = await tryInsert(doctor.id, today);
+    const second = await tryInsert(doctor.id, start);
     if (second.error) {
       toast({ title: "Não foi possível vincular", description: second.error.message, variant: "destructive" });
       return;
     }
     await finishAdd(doctor, active ? "Vínculo transferido" : "Médico vinculado");
+
   };
 
 
@@ -311,6 +319,21 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
         </Button>
       ) : (
         <div className="border border-border rounded-md p-2 space-y-2">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="link-start-date" className="text-xs text-muted-foreground shrink-0">
+              Início do vínculo
+            </Label>
+            <Input
+              id="link-start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="h-8 w-40"
+            />
+            <span className="text-[11px] text-muted-foreground">
+              Se houver vínculo em outra PJ, será encerrado no dia anterior a esta data.
+            </span>
+          </div>
           <div className="flex items-center gap-2 border-b border-border pb-1.5">
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
             <Input
@@ -322,6 +345,7 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
             />
             {searching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
           </div>
+
           <div className="max-h-56 overflow-y-auto space-y-1">
             {!searching && visibleResults.length === 0 ? (
               <p className="text-xs text-muted-foreground p-2">
