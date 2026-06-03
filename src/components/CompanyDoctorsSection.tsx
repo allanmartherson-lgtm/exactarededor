@@ -128,13 +128,6 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
     [linkedDoctors, activeLinks],
   );
 
-  const insertLink = async (doctorId: string) => {
-    const today = new Date().toISOString().slice(0, 10);
-    return supabase
-      .from("doctor_companies")
-      .insert({ doctor id: doctorId, company_id: companyId, start_date: today } as any);
-  };
-
   const add = async (doctor: Doctor) => {
     const today = new Date().toISOString().slice(0, 10);
     const { error } = await supabase
