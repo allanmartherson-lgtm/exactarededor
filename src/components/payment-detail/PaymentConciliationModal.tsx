@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { confirmDialog } from "@/lib/confirm";
 import {
   Table,
   TableBody,
