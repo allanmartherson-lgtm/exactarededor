@@ -975,7 +975,7 @@ export function PaymentConciliationModal({
       for (let from = 0; from < 50000; from += PAGE) {
         let q = (supabase as any)
           .from("payment_items")
-          .select("*")
+          .select("*, calc:rule_calculations!applied_calc_id(calculation_type, package_included_codes)")
           .eq("payment_id", paymentId)
           .order("created_at")
           .range(from, from + PAGE - 1);
