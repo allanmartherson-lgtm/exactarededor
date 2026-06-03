@@ -932,11 +932,33 @@ export function PaymentConciliationModal({
         return v != null && String(v).trim() !== "" ? v : null;
       };
 
+      // Parser BR/US-aware com suporte a negativos (glosa/estorno).
+      // - "(123,45)" e "-123,45" → -123.45
+      // - "3.159,88" (BR) → 3159.88 ; "3,159.88" (US) → 3159.88
+      // - Decide qual separador é decimal pelo último a aparecer.
       const toVal = (v: unknown): number => {
         if (v == null || v === "") return 0;
-        if (typeof v === "number") return isNaN(v) ? 0 : v;
-        const s = String(v).replace(/[R$\s.]/g, "").replace(",", ".");
-        return parseFloat(s) || 0;
+        if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+        let s = String(v).trim();
+        if (!s) return 0;
+        let neg = false;
+        if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+        s = s.replace(/[R$\s]/g, "");
+        if (s.startsWith("-")) { neg = !neg; s = s.slice(1); }
+        const hasComma = s.includes(",");
+        const hasDot = s.includes(".");
+        if (hasComma && hasDot) {
+          if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
+            s = s.replace(/\./g, "").replace(",", ".");
+          } else {
+            s = s.replace(/,/g, "");
+          }
+        } else if (hasComma) {
+          s = s.replace(/\./g, "").replace(",", ".");
+        }
+        const n = parseFloat(s);
+        if (!Number.isFinite(n)) return 0;
+        return neg ? -n : n;
       };
 
       // Extrai SOMENTE a data (YYYY-MM-DD) — hora é descartada por design
