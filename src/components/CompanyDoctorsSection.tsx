@@ -346,6 +346,9 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
           Gerenciar <ExternalLink className="h-3 w-3" />
         </Link>
       </div>
+      <p className="text-[11px] text-muted-foreground bg-muted/40 border border-border rounded px-2 py-1">
+        Alterações aqui e no cadastro do médico são sincronizadas automaticamente entre as duas telas.
+      </p>
       <div className="flex flex-wrap gap-1.5 min-h-[28px]">
         {linked.length === 0 && (
           <span className="text-xs text-muted-foreground">Nenhum médico vinculado.</span>
