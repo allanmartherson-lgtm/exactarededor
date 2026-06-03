@@ -356,7 +356,7 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T01:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T02:30:00Z";
 const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
@@ -1574,6 +1574,44 @@ export function PaymentConciliationModal({
         package_members_added: _packageMembersAdded,
       });
 
+      // Soma agregada de expected_amount/gross_amount por chave
+      // (empresa|atendimento|médico|código). Exacta pode quebrar a mesma
+      // produção em N linhas (qty=1 cada) enquanto a produção do hospital
+      // vem agregada (qty=N). Comparar apenas o item matched gera falso
+      // divergente — somamos todos os irmãos da mesma chave.
+      const expectedByKey = new Map<string, number>();
+      const grossByKey = new Map<string, number>();
+      for (const it of exactaItemsForRun) {
+        const cn = normCompany(it.company_name);
+        const att = normAtt(it.attendance_number ?? "");
+        const med = normName((it as unknown as { doctor_name?: string }).doctor_name ?? "");
+        const cd = normalizeCode(it.procedure_code);
+        const key = `${cn}|${att}|${med}|${cd}`;
+        expectedByKey.set(key, (expectedByKey.get(key) ?? 0) + (Number((it as unknown as { expected_amount?: number }).expected_amount) || 0));
+        grossByKey.set(key, (grossByKey.get(key) ?? 0) + (Number((it as unknown as { gross_amount?: number }).gross_amount) || 0));
+      }
+      const lookupExpected = (cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
+        const cn = normCompany(cmpRaw);
+        const att = normAtt(String(attRaw ?? ""));
+        const med = normName(String(medRaw ?? ""));
+        for (const v of codeVariants(codeRaw)) {
+          const val = expectedByKey.get(`${cn}|${att}|${med}|${v}`);
+          if (val !== undefined) return val;
+        }
+        return 0;
+      };
+      const lookupGross = (cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
+        const cn = normCompany(cmpRaw);
+        const att = normAtt(String(attRaw ?? ""));
+        const med = normName(String(medRaw ?? ""));
+        for (const v of codeVariants(codeRaw)) {
+          const val = grossByKey.get(`${cn}|${att}|${med}|${v}`);
+          if (val !== undefined) return val;
+        }
+        return 0;
+      };
+
+
       const lookupCalcMethod = (companyRaw: unknown, codeRaw: unknown): string => {
         const cn = normCompany(companyRaw);
         for (const v of codeVariants(codeRaw)) {
@@ -1889,8 +1927,13 @@ export function PaymentConciliationModal({
 
           const calcMethod = (match as any).applied_calc_method as string | null;
           const ruleLabel = String((match as any).applied_rule_label ?? '');
-          const valBruto = Number((match as any).gross_amount ?? 0) || 0;
-          const valExpected = Number((match as any).expected_amount ?? 0) || 0;
+          // Soma de todos os irmãos no Exacta com a mesma chave
+          // (empresa|atendimento|médico|código) — evita falso divergente
+          // quando o Exacta quebra a produção em N linhas qty=1.
+          const _matchGross = Number((match as any).gross_amount ?? 0) || 0;
+          const _matchExpected = Number((match as any).expected_amount ?? 0) || 0;
+          const valBruto = lookupGross(mappedCompany, att, (match as any).doctor_name, code) || _matchGross;
+          const valExpected = lookupExpected(mappedCompany, att, (match as any).doctor_name, code) || _matchExpected;
 
           // === PASSO 3 — Financeiro em 3 ramos pela Regra ===
           // Regra de negócio (decidida com o usuário):
