@@ -1175,8 +1175,8 @@ export function PaymentConciliationModal({
             const ok = !GRUPOS_EXCLUIR.has(grupo.toUpperCase());
             if (!ok) {
               dropByGrupo++;
-              if (isDebugRow(row)) console.warn('[DEBUG-ROW] DROPADA pelo filtro de grupo CBHPM:', { grupo });
             }
+
             return ok;
           })
         : filteredRows;
