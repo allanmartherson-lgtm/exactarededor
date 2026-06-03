@@ -356,7 +356,7 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T00:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T01:30:00Z";
 const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
@@ -2007,10 +2007,10 @@ export function PaymentConciliationModal({
               : `Componente embutido em PACOTE — atendimento ${att} (empresa ${mappedCompany}) consolidado no pagamento do principal via regra de pacote. Sem impacto financeiro.`;
             conciliado++;
           } else if (isFixedNoMatch) {
-            base.status = "qtd_divergente";
+            base.status = "so_hospital";
             base.applied_calc_method = resolvedMethod;
-            base.ia_obs = `Regra "${resolvedMethod}" para TUSS ${code} (empresa ${mappedCompany}) — sem linha correspondente na Exacta. Valor não é comparado em regras estruturais; divergência registrada como quantidade. Sem impacto financeiro.`;
-            qtd_divergente++;
+            base.ia_obs = `Regra "${resolvedMethod}" — TUSS ${code} presente no hospital mas AUSENTE no Exacta para a empresa ${mappedCompany}. Regra estrutural: valor não comparado. Verificar se houve omissão de pagamento.`;
+            so_hospital++;
           } else {
             base.status = "so_hospital";
             base.ia_obs = `Item de ${mappedCompany} (atendimento ${att}, TUSS ${code}) presente no extrato hospitalar mas ausente na base Exacta para esta empresa.`;
