@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { confirmDialog } from "@/lib/confirm";
 import {
   Table,
   TableBody,
@@ -2159,9 +2160,13 @@ export function PaymentConciliationModal({
         .slice(0, 10)
         .map(([k, v]) => `• ${k}: ${v} item(ns)`)
         .join("\n");
-      const ok = window.confirm(
-        `Reatribuir empresa de ${updates.length} item(ns) com base na PJ ATUAL do médico (doctor_companies)?\n\n${previewText}\n\nIsto altera company_name dos payment_items de forma DEFINITIVA. Após confirmar, clique em "Reprocessar agora" para refletir na conciliação.`
-      );
+      const ok = await confirmDialog({
+        tone: "warning",
+        title: "Reatribuir PJ com base no cadastro atual",
+        description: `${updates.length} item(ns) terão a empresa alterada de forma definitiva conforme a PJ vinculada ao médico hoje (doctor_companies). Após confirmar, clique em "Reprocessar agora" para refletir na conciliação.`,
+        details: previewText,
+        confirmText: "Reatribuir",
+      });
       if (!ok) return;
 
       const byTarget = new Map<string, string[]>();
@@ -2229,13 +2234,21 @@ export function PaymentConciliationModal({
     // que mudou), o analista precisa rodar uma "Nova conciliação" do zero,
     // que volta a ler a planilha hospital + base Exacta atual.
     if (soExactaCount > 0) {
-      const ok = window.confirm(
-        `⚠️ Atenção\n\n` +
-        `Esta ação RECRUZA apenas os ${hospitalItems.length} itens que já tiveram correspondência com o hospital.\n\n` +
-        `Os ${soExactaCount} itens "só no Exacta" serão DESCARTADOS — eles não voltam a ser testados contra a planilha hospital.\n\n` +
-        `Se você quer revisar itens "só Exacta" (ex.: terceiro re-mapeado, alias novo), clique em "Cancelar" e use "Nova conciliação" para recarregar a planilha do hospital do zero.\n\n` +
-        `Continuar mesmo assim?`
-      );
+      const ok = await confirmDialog({
+        tone: "warning",
+        title: "Reprocessar conciliação atual",
+        description: (
+          <>
+            Esta ação recruza apenas os <b>{hospitalItems.length}</b> itens que já tiveram correspondência com o hospital.
+            <br /><br />
+            Os <b>{soExactaCount}</b> itens "só no Exacta" serão <b>descartados</b> — eles não voltam a ser testados contra a planilha hospital.
+            <br /><br />
+            Se você quer revisar itens "só Exacta" (ex.: terceiro re-mapeado, alias novo), cancele e use <b>"Nova conciliação"</b> para recarregar a planilha do hospital do zero.
+          </>
+        ),
+        confirmText: "Reprocessar mesmo assim",
+        cancelText: "Cancelar",
+      });
       if (!ok) return;
     }
 
