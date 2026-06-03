@@ -1511,7 +1511,14 @@ export function PaymentConciliationModal({
         };
 
         if (match) {
-          matchedExactaIds.add(match.id);
+          // Quando o match é um item agregado (vários segmentos colapsados),
+          // marca TODOS os ids originais como consumidos para não sobrar como "só no Exacta".
+          const aggIds = (match as any).__aggregated_ids as string[] | undefined;
+          if (aggIds && aggIds.length > 0) {
+            for (const aid of aggIds) matchedExactaIds.add(aid);
+          } else {
+            matchedExactaIds.add(match.id);
+          }
           const valMed = getConvenioValue(match);
           base.payment_item_id = match.id;
           base.valor_exacta = valMed;
