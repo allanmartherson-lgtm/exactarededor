@@ -1204,6 +1204,15 @@ export function PaymentConciliationModal({
         const valHosp = toVal(getCell(row, "value"));
         const patient = getCell(row, "patient");
         const doctor = getCell(row, "doctor");
+        const crmHospRaw = getCell(row, "crm");
+        // Resolve a linha de produção ao cadastro canônico de médicos
+        // (CRM > nome exato > alias). Usado depois para comparar com o
+        // doctor_id já resolvido no Exacta.
+        const hospDoctorResolved = doctorReg
+          ? resolveDoctor({ name: doctor ? String(doctor) : null, crm: crmHospRaw ? String(crmHospRaw) : null }, doctorReg).doctor
+          : null;
+        const hospDoctorId = hospDoctorResolved?.id ?? null;
+        const crmHospDigits = String(crmHospRaw ?? '').replace(/\D/g, '');
         const procName = getCell(row, "procName");
         const dateRaw = getCell(row, "date");
         const roleHosp = getCell(row, "role");
