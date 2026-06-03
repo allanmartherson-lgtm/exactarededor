@@ -1,19 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Stethoscope, X, ExternalLink } from "lucide-react";
+import { Stethoscope, X, ExternalLink, Loader2, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { confirmDialog } from "@/lib/confirm";
 
 interface Doctor {
   id: string;
   full_name: string;
-  crm: string;
-  crm_uf: string;
-  active: boolean;
+  crm: string | null;
+  crm_uf: string | null;
 }
 
 interface LinkRow {
@@ -22,39 +22,98 @@ interface LinkRow {
   end_date: string | null;
 }
 
-const norm = (s: string) =>
-  (s ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-
 const fmtBR = (iso: string | null) =>
   iso ? new Date(iso + "T00:00:00").toLocaleDateString("pt-BR") : "—";
 
+const PAGE = 30;
+
 /**
  * Lista, adiciona e encerra vínculos de médicos a uma empresa.
- * Vínculo tem vigência (start_date / end_date). Encerrar = setar end_date,
- * preserva histórico para auditoria e para o motor de pagamento/glosa.
+ *
+ * Busca server-side (debounced + paginada) — necessário porque a base
+ * tem milhares de médicos e o fetch único cliente-side ficava capado em 1000.
+ *
+ * Conflito de vigência (constraint `doctor_companies_no_overlap`): quando o
+ * médico já tem vínculo aberto em outra empresa, oferecemos transferir
+ * (encerra o anterior + cria o novo) em vez de só bloquear.
  */
 export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
-  const [allDoctors, setAllDoctors] = useState<Doctor[]>([]);
   const [links, setLinks] = useState<LinkRow[]>([]);
+  const [linkedDoctors, setLinkedDoctors] = useState<Record<string, Doctor>>({});
   const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [results, setResults] = useState<Doctor[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(0);
   const [showPicker, setShowPicker] = useState(false);
+  const reqId = useRef(0);
+
+  // carrega vínculos atuais + nomes dos médicos vinculados
+  const loadLinks = async () => {
+    const { data } = await supabase
+      .from("doctor_companies")
+      .select("doctor_id,start_date,end_date")
+      .eq("company_id", companyId);
+    const ls = (data ?? []) as LinkRow[];
+    setLinks(ls);
+    const ids = Array.from(new Set(ls.filter((l) => !l.end_date).map((l) => l.doctor_id)));
+    if (ids.length) {
+      const { data: docs } = await supabase
+        .from("doctors")
+        .select("id,full_name,crm,crm_uf")
+        .in("id", ids);
+      const map: Record<string, Doctor> = {};
+      for (const d of (docs ?? []) as Doctor[]) map[d.id] = d;
+      setLinkedDoctors(map);
+    } else {
+      setLinkedDoctors({});
+    }
+  };
 
   useEffect(() => {
     if (!companyId) return;
-    (async () => {
-      const [d, l] = await Promise.all([
-        supabase.from("doctors").select("id,full_name,crm,crm_uf,active").order("full_name").limit(20000),
-        supabase
-          .from("doctor_companies")
-          .select("doctor_id,start_date,end_date")
-          .eq("company_id", companyId),
-      ]);
-      setAllDoctors((d.data ?? []) as Doctor[]);
-      setLinks((l.data ?? []) as LinkRow[]);
-    })();
+    void loadLinks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
 
-  // Vínculos ativos = end_date IS NULL (em aberto)
+  // debounce de busca
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    if (showPicker) setPage(0);
+  }, [debounced, showPicker]);
+
+  // busca server-side
+  useEffect(() => {
+    if (!showPicker) return;
+    const myId = ++reqId.current;
+    setSearching(true);
+    const from = page * PAGE;
+    const to = from + PAGE - 1;
+    let q = supabase
+      .from("doctors")
+      .select("id,full_name,crm,crm_uf", { count: "exact" })
+      .eq("active", true);
+    const term = debounced.trim();
+    if (term) {
+      const safe = term.replace(/[%,]/g, " ");
+      const ors = [`full_name.ilike.%${safe}%`];
+      if (/^\d+$/.test(term)) ors.push(`crm.ilike.%${term}%`);
+      q = q.or(ors.join(","));
+    }
+    q.order("full_name").range(from, to).then(({ data, count }) => {
+      if (reqId.current !== myId) return;
+      const next = (data ?? []) as Doctor[];
+      setResults((prev) => (page === 0 ? next : [...prev, ...next]));
+      setHasMore((count ?? 0) > to + 1);
+      setSearching(false);
+    });
+  }, [debounced, page, showPicker]);
+
   const activeLinks = useMemo(() => links.filter((l) => !l.end_date), [links]);
   const activeIds = useMemo(() => new Set(activeLinks.map((l) => l.doctor_id)), [activeLinks]);
 
@@ -62,37 +121,96 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
     () =>
       activeLinks
         .map((l) => {
-          const d = allDoctors.find((x) => x.id === l.doctor_id);
+          const d = linkedDoctors[l.doctor_id];
           return d ? { ...d, start_date: l.start_date } : null;
         })
         .filter(Boolean) as (Doctor & { start_date: string | null })[],
-    [allDoctors, activeLinks],
+    [linkedDoctors, activeLinks],
   );
 
-  const available = useMemo(() => {
-    const q = norm(search);
-    return allDoctors
-      .filter((d) => !activeIds.has(d.id))
-      .filter((d) => !q || norm(`${d.full_name} ${d.crm} ${d.crm_uf}`).includes(q));
-  }, [allDoctors, activeIds, search]);
-
-  const add = async (doctorId: string) => {
+  const add = async (doctor: Doctor) => {
     const today = new Date().toISOString().slice(0, 10);
     const { error } = await supabase
       .from("doctor_companies")
-      .insert({ doctor_id: doctorId, company_id: companyId, start_date: today });
-    if (error) {
-      toast({
-        title: "Não foi possível vincular",
-        description: "Este médico já possui PJ vigente em sobreposição. Encerre a anterior primeiro.",
-        variant: "destructive",
-      });
+      .insert({ doctor_id: doctor.id, company_id: companyId, start_date: today });
+
+    if (!error) {
+      await loadLinks();
+      setSearch("");
+      setShowPicker(false);
+      toast({ title: "Médico vinculado", description: doctor.full_name });
       return;
     }
-    setLinks([...links, { doctor_id: doctorId, start_date: today, end_date: null }]);
+
+    // Conflito de sobreposição → oferecer transferência
+    const msg = (error.message ?? "").toLowerCase();
+    const isOverlap = /overlap|exclusion|no_overlap|conflict/.test(msg);
+    if (!isOverlap) {
+      toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    // Buscar vínculo aberto atual em outra empresa
+    const { data: cur } = await supabase
+      .from("doctor_companies")
+      .select("id, company_id, start_date, companies:company_id(name)")
+      .eq("doctor_id", doctor.id)
+      .is("end_date", null)
+      .order("start_date", { ascending: false })
+      .limit(1);
+    const current = (cur ?? [])[0] as
+      | { id: string; company_id: string; start_date: string | null; companies?: { name: string } | null }
+      | undefined;
+    const currentCompanyName = current?.companies?.name ?? "(empresa desconhecida)";
+
+    const ok = await confirmDialog({
+      title: "Transferir vínculo do médico?",
+      description: (
+        <>
+          <strong>{doctor.full_name}</strong> já tem vínculo aberto com{" "}
+          <strong>{currentCompanyName}</strong>{current?.start_date ? ` (desde ${fmtBR(current.start_date)})` : ""}.
+          <br />
+          Para vincular a esta empresa, o vínculo anterior precisa ser encerrado hoje.
+        </>
+      ),
+      details: "Esta ação preserva o histórico — o vínculo anterior fica com data de encerramento de hoje, e um novo vínculo é criado começando hoje.",
+      tone: "warning",
+      confirmText: "Transferir agora",
+      cancelText: "Cancelar",
+    });
+    if (!ok || !current) return;
+
+    // 1) encerra o anterior
+    const upd = await supabase
+      .from("doctor_companies")
+      .update({ end_date: today, end_reason: "transferencia_vinculo" })
+      .eq("id", current.id);
+    if (upd.error) {
+      toast({ title: "Falha ao encerrar vínculo anterior", description: upd.error.message, variant: "destructive" });
+      return;
+    }
+    // 2) cria o novo
+    const ins = await supabase
+      .from("doctor_companies")
+      .insert({ doctor_id: doctor.id, company_id: companyId, start_date: today });
+    if (ins.error) {
+      toast({ title: "Falha ao criar novo vínculo", description: ins.error.message, variant: "destructive" });
+      return;
+    }
+    await loadLinks();
+    setSearch("");
+    setShowPicker(false);
+    toast({ title: "Vínculo transferido", description: `${doctor.full_name} agora está vinculado a esta empresa.` });
   };
 
   const end = async (doctorId: string) => {
+    const ok = await confirmDialog({
+      title: "Encerrar vínculo?",
+      description: "O vínculo será encerrado hoje. O histórico é preservado para auditoria.",
+      tone: "warning",
+      confirmText: "Encerrar",
+    });
+    if (!ok) return;
     const today = new Date().toISOString().slice(0, 10);
     const { error } = await supabase
       .from("doctor_companies")
@@ -101,9 +219,7 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
       .eq("company_id", companyId)
       .is("end_date", null);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    setLinks(links.map((l) =>
-      l.doctor_id === doctorId && !l.end_date ? { ...l, end_date: today } : l,
-    ));
+    await loadLinks();
   };
 
 
@@ -114,6 +230,8 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
       </p>
     );
   }
+
+  const visibleResults = results.filter((d) => !activeIds.has(d.id));
 
   return (
     <div className="space-y-2">
@@ -147,31 +265,47 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
         </Button>
       ) : (
         <div className="border border-border rounded-md p-2 space-y-2">
-          <Input
-            autoFocus
-            placeholder="Buscar por nome ou CRM..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <div className="max-h-40 overflow-y-auto space-y-1">
-            {available.length === 0 ? (
+          <div className="flex items-center gap-2 border-b border-border pb-1.5">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Input
+              autoFocus
+              placeholder="Buscar por nome ou CRM..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="border-0 shadow-none focus-visible:ring-0 h-8 px-0"
+            />
+            {searching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+          </div>
+          <div className="max-h-56 overflow-y-auto space-y-1">
+            {!searching && visibleResults.length === 0 ? (
               <p className="text-xs text-muted-foreground p-2">
-                {allDoctors.length === 0
-                  ? "Nenhum médico cadastrado ainda."
-                  : "Nenhum médico encontrado."}
+                Nenhum médico encontrado{debounced ? ` para "${debounced}"` : ""}.
               </p>
             ) : (
-              available.slice(0, 500).map((d) => (
+              visibleResults.map((d) => (
                 <button
                   key={d.id}
                   type="button"
-                  onClick={() => { add(d.id); }}
+                  onClick={() => { void add(d); }}
                   className="w-full text-left text-sm hover:bg-muted/50 rounded px-2 py-1 flex items-center justify-between gap-2"
                 >
-                  <span>{d.full_name}</span>
-                  <span className="text-xs text-muted-foreground cell-mono">{d.crm}/{d.crm_uf}</span>
+                  <span className="truncate">{d.full_name}</span>
+                  <span className="text-xs text-muted-foreground cell-mono shrink-0">{d.crm ?? "—"}/{d.crm_uf ?? ""}</span>
                 </button>
               ))
+            )}
+            {hasMore && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                disabled={searching}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                {searching ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : null}
+                Carregar mais
+              </Button>
             )}
           </div>
           <div className="flex justify-end">
