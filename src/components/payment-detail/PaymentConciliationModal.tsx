@@ -1802,25 +1802,23 @@ export function PaymentConciliationModal({
           const ruleLabel = String((match as any).applied_rule_label ?? '');
           const valBruto = Number((match as any).gross_amount ?? 0) || 0;
           const valExpected = Number((match as any).expected_amount ?? 0) || 0;
-          const isFixed = isFixedCalcMethod(calcMethod) && valExpected > 0;
 
           // === PASSO 3 — Financeiro em 3 ramos pela Regra ===
-          // (1) Tabela fixa / pacote / valor fixo / bônus → valor NÃO aplicável
-          //     (sinal é a quantidade, não o valor).
-          // (2) Acordo com % (regra calculou expected_amount ≠ bruto) → comparar
-          //     Valor Repasse (hospital) com expected_amount.
-          // (3) Repasse 100% (sem regra ou regra que mantém o bruto) → comparar
-          //     Valor Repasse (hospital) com Valor Bruto.
-          // Blindagem: se a referência (bruto/expected) ≈ 0, não calcula % e
-          // sinaliza divergência sem razão numérica absurda.
+          // Regra de negócio (decidida com o usuário):
+          //   - percentual_sobre_convenio  → compara VALOR (Ramo 2)
+          //   - pacote / valor_fixo / tabela_diferenciada / bonus / complemento
+          //     / exclusao / regra_vias / qualquer rótulo "Camada 2", "Sem acordo",
+          //     "Pacote", "Tabela" → valor NÃO se aplica; só conta se o item
+          //     existe nos dois lados e se a QUANTIDADE bate (Ramo 3 / fixo).
+          //   - Sem regra alguma → Repasse 100%: compara valor com o bruto (Ramo 1).
           const TOL_ABS = 0.02;
-          const isPercentRule = !isFixed && valExpected > 0
-            && (calcMethod === 'percentual_sobre_convenio'
-                || calcMethod === 'tabela_diferenciada'
-                || calcMethod === 'complemento'
-                || /\b(\d{1,3})\s*%/.test(ruleLabel)
-                || /dobra|acordo|cbhpm|porte/i.test(ruleLabel))
-            && Math.abs(valExpected - valBruto) > TOL_ABS;
+          const calcMethodNorm = String(calcMethod ?? '').toLowerCase().trim().replace(/\s+/g, '_');
+          const isPercentRule = calcMethodNorm === 'percentual_sobre_convenio' && valExpected > 0;
+          // Tem regra aplicada quando o motor marcou um rótulo OU um método de cálculo.
+          // Rótulos como "Camada 2 — Sem acordo" entram aqui mesmo com calcMethod null,
+          // porque indicam que a regra-pai (tabela/pacote/fixo) já definiu o esperado.
+          const hasRule = ruleLabel.trim().length > 0 || !!calcMethod;
+          const isFixed = !isPercentRule && hasRule;
 
           if (isFixed) {
             // RAMO 3 — VALOR FIXO / PACOTE / BÔNUS — valor não aplicável.
