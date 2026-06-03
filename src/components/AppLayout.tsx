@@ -1040,6 +1040,18 @@ export const AppLayout = () => {
           })}
         </nav>
 
+        {/* Hospital switcher (sidebar) */}
+        {!sidebarCollapsed && (
+          <div
+            style={{
+              padding: "8px 10px",
+              borderTop: "1px solid hsl(var(--sidebar-border))",
+            }}
+          >
+            <HospitalSwitcher className="w-full justify-start" />
+          </div>
+        )}
+
         {/* Footer */}
         <div
           className="flex flex-col gap-2"
@@ -1049,6 +1061,7 @@ export const AppLayout = () => {
             alignItems: sidebarCollapsed ? "center" : "stretch",
           }}
         >
+
           {sidebarCollapsed ? (
             <>
               <Tooltip>
