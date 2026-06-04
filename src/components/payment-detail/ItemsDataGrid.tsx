@@ -1550,6 +1550,51 @@ function ItemDetailsRow({
     </p>
   );
 
+  const isBonus = (it as any).tipo_linha === "complemento_bonus";
+  if (isBonus) {
+    return (
+      <tr className="border-b bg-amber-50/40 dark:bg-amber-950/15">
+        <td colSpan={colSpan} className="p-0 align-top">
+          <div
+            className={cn("sticky left-0 px-3 sm:px-4 py-3 sm:py-4", TEXT_BODY)}
+            style={{ width: "min(100%, calc(100vw - 1rem))", maxWidth: "calc(100vw - 1rem)" }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-4 w-4 text-amber-600" />
+              <span className="text-sm font-bold text-amber-800 dark:text-amber-200">Linha de bônus</span>
+              <span className="text-[11px] text-muted-foreground">
+                Esta linha é um complemento automático ao honorário do procedimento pai.
+              </span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-[12px]">
+              <div>
+                <p className={cn(TEXT_LABEL)}>Atendimento</p>
+                <p className="font-mono">{it.attendance_number ?? "—"}</p>
+              </div>
+              <div>
+                <p className={cn(TEXT_LABEL)}>Médico</p>
+                <p>{it.doctor_name ?? "—"}</p>
+              </div>
+              <div>
+                <p className={cn(TEXT_LABEL)}>Regra aplicada</p>
+                <p>{(it as any).applied_rule_label ?? "—"}</p>
+              </div>
+              <div>
+                <p className={cn(TEXT_LABEL)}>Valor do bônus</p>
+                <p className="tabular-nums font-semibold text-amber-700">
+                  {formatCurrency(Number(it.gross_amount ?? 0))}
+                </p>
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <p className={cn(TEXT_LABEL)}>Referência (item pai)</p>
+                <p className="font-mono text-[11px] break-all">{(it as any).origem_referencia ?? "—"}</p>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    );
+  }
   return (
     <tr className="border-b bg-muted/20">
       <td colSpan={colSpan} className="p-0 align-top">
