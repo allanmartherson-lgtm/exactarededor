@@ -4310,6 +4310,12 @@ export function PaymentConciliationModal({
                                           );
                                         })()}
 
+                                        <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums text-muted-foreground" title="Vl. Repasse — valor pós-acordo informado pelo hospital">
+                                          {(() => {
+                                            const vra = Number((it as any).valor_repasse_acordo) || 0;
+                                            return vra > 0 ? formatCurrency(vra) : "—";
+                                          })()}
+                                        </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums" style={{ color: it.valor_regra ? undefined : 'hsl(var(--muted-foreground))' }}>
                                           {it.valor_regra
                                             ? formatCurrency(Number(it.valor_regra))
