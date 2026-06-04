@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope, Trash2, SlidersHorizontal } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope, Trash2, SlidersHorizontal, Receipt } from "lucide-react";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
@@ -965,12 +965,11 @@ const Payments = () => {
               tone: "primary" as const,
             },
             {
-              label: "Lotes atrasados",
-              value: String(kpis.delayed),
-              hint: "SLA estourado ou em risco",
-              icon: Clock,
-              tone: "destructive" as const,
-              hintTone: kpis.delayed > 0 ? "destructive" : "muted",
+              label: "Pós-aprovação (NF)",
+              value: String(kpis.postApproval),
+              hint: "Aprovados aguardando ciclo de NF",
+              icon: Receipt,
+              tone: "info" as const,
             },
             {
               label: "Aguardando validação",
@@ -995,6 +994,7 @@ const Payments = () => {
               destructive: "bg-destructive/10 text-destructive",
               warning: "bg-warning/10 text-warning",
               success: "bg-success/10 text-success",
+              info: "bg-info/10 text-info",
             };
             return (
               <div
