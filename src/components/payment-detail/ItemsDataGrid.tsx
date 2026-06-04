@@ -1380,7 +1380,7 @@ function RowMain({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-end items-center gap-1">
-              {onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
+              {!isBonus && onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
                 <Button
                   size="icon"
                   variant="ghost"
@@ -1392,7 +1392,7 @@ function RowMain({
                   <CheckCircle2 className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {onUndoAcceptItem && it.ai_status === "acatado" && (
+              {!isBonus && onUndoAcceptItem && it.ai_status === "acatado" && (
                 <Button
                   size="icon"
                   variant="ghost"
@@ -1403,7 +1403,7 @@ function RowMain({
                   <RotateCcw className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {onEditItem && (
+              {!isBonus && onEditItem && (
                 <Button
                   size="icon"
                   variant="ghost"
@@ -1414,7 +1414,7 @@ function RowMain({
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {onDeleteItem && (
+              {!isBonus && onDeleteItem && (
                 <Button
                   size="icon"
                   variant="ghost"
