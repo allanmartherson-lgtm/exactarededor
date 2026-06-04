@@ -4,9 +4,13 @@ import { MemoryRouter } from "react-router-dom";
 import { ItemsDataGrid } from "../ItemsDataGrid";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 
-// Mock supabase usado por useSectorAliases internamente
+// Mock useSectorAliases — não precisamos resolver setores nestes testes
+vi.mock("@/hooks/useSectorAliases", () => ({
+  useSectorAliases: () => null,
+}));
+
+// Mock supabase usado por outros caminhos indiretos
 vi.mock("@/integrations/supabase/client", () => {
-  const ok = () => Promise.resolve({ data: [], error: null });
   const chain: any = new Proxy({}, {
     get(_t, prop: string) {
       if (prop === "then") return undefined;
