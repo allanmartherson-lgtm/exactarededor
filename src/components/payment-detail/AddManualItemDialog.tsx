@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,27 +10,21 @@ import { DoctorCombobox, type DoctorOption } from "@/components/DoctorCombobox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus } from "lucide-react";
+import { AlertTriangle, Loader2, Plus } from "lucide-react";
 
 /**
  * Modal para inclusão manual de itens em um pagamento.
  *
- * Casos de uso:
- *  - Bônus que o motor não conseguiu aplicar automaticamente (ex.: atendimento
- *    só com auxiliar — exige inclusão manual do bônus do principal).
- *  - Pendências identificadas pelo analista: honorário que ficou de fora da
- *    base hospitalar e precisa ser pago neste lote.
+ * Tipos suportados (campo "Tipo de lançamento"):
+ *  - honorario: procedimento padrão — exige TUSS + Função
+ *  - bonus / complemento / pendencia_anterior / outros: lançamentos extras
+ *    onde TUSS e Função são opcionais. Setor segue obrigatório em todos.
  *
- * O analista escolhe ao salvar entre:
- *  - "Avulso aprovado": entra como `ai_status='aprovado'`, `expected_amount`
- *    igual ao valor digitado, sem diferença — equivale a um item que o
- *    motor já validou.
- *  - "Validar pelas regras": entra como `ai_status='pendente'` e será
- *    avaliado na próxima reanálise (o analista precisa rodar "Reaplicar
- *    regras" depois).
- *
- * Todos os itens criados aqui têm `source='manual'` e gravam o
- * `created_by_user_id` para auditoria.
+ * Validações adicionais:
+ *  - Setor é selecionado da tabela `sectors` (cadastro estadual).
+ *  - Via de acesso vira dropdown com opções padronizadas.
+ *  - Médico → consulta `doctor_companies` para alertar (não bloquear) se o
+ *    médico não estiver vinculado à empresa do pagamento.
  */
 
 export type AddManualItemDialogProps = {
@@ -43,6 +37,15 @@ export type AddManualItemDialogProps = {
 };
 
 type Mode = "avulso" | "validar";
+type LancType = "honorario" | "bonus" | "complemento" | "pendencia_anterior" | "outros";
+
+const LANC_TYPES: { value: LancType; label: string; hint: string }[] = [
+  { value: "honorario", label: "Honorário (procedimento)", hint: "Lançamento padrão — TUSS e função obrigatórios." },
+  { value: "bonus", label: "Bônus", hint: "Bônus do principal (atendimento só com auxiliar) ou bônus avulso." },
+  { value: "complemento", label: "Complemento", hint: "Complementação de honorário já pago em outro lote." },
+  { value: "pendencia_anterior", label: "Pendência de competência anterior", hint: "Item esquecido em competências passadas." },
+  { value: "outros", label: "Outros", hint: "Outros lançamentos avulsos." },
+];
 
 const DOCTOR_ROLES = [
   "Cirurgião Principal",
@@ -53,6 +56,18 @@ const DOCTOR_ROLES = [
   "Anestesista",
   "Outro",
 ];
+
+const ACCESS_ROUTES = [
+  "Convencional",
+  "Videolaparoscópica",
+  "Robótica",
+  "Endoscópica",
+  "Percutânea",
+  "Híbrida",
+  "Outra",
+];
+
+type SectorOption = { slug: string; name: string };
 
 export function AddManualItemDialog({
   open,
@@ -65,24 +80,68 @@ export function AddManualItemDialog({
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
 
+  const [lancType, setLancType] = useState<LancType>("honorario");
   const [attendance, setAttendance] = useState("");
   const [patient, setPatient] = useState("");
   const [doctor, setDoctor] = useState<DoctorOption | null>(null);
+  const [doctorLinked, setDoctorLinked] = useState<boolean | null>(null);
   const [procedureDate, setProcedureDate] = useState("");
-  const [accessRoute, setAccessRoute] = useState("");
+  const [accessRoute, setAccessRoute] = useState<string>("none");
   const [doctorRole, setDoctorRole] = useState<string>("Cirurgião Principal");
   const [quantity, setQuantity] = useState<string>("1");
   const [tuss, setTuss] = useState("");
   const [procedureName, setProcedureName] = useState("");
-  const [sector, setSector] = useState("");
+  const [sectorSlug, setSectorSlug] = useState<string>("");
+  const [sectors, setSectors] = useState<SectorOption[]>([]);
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<Mode>("avulso");
   const [note, setNote] = useState("");
 
+  const isProcedure = lancType === "honorario";
+
+  // Carregar setores ativos do cadastro
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("sectors")
+        .select("slug,name")
+        .eq("active", true)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+      if (error) {
+        console.error("[AddManualItemDialog] sectors load", error);
+        return;
+      }
+      setSectors((data ?? []) as SectorOption[]);
+    })();
+  }, [open]);
+
+  // Verificar vínculo médico ↔ empresa
+  useEffect(() => {
+    if (!doctor?.id || !companyId) { setDoctorLinked(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("doctor_companies")
+        .select("id")
+        .eq("doctor_id", doctor.id)
+        .eq("company_id", companyId)
+        .limit(1);
+      if (cancelled) return;
+      if (error) { setDoctorLinked(null); return; }
+      setDoctorLinked((data?.length ?? 0) > 0);
+    })();
+    return () => { cancelled = true; };
+  }, [doctor?.id, companyId]);
+
   const reset = () => {
-    setAttendance(""); setPatient(""); setDoctor(null); setProcedureDate("");
-    setAccessRoute(""); setDoctorRole("Cirurgião Principal"); setQuantity("1");
-    setTuss(""); setProcedureName(""); setSector(""); setAmount(""); setMode("avulso"); setNote("");
+    setLancType("honorario");
+    setAttendance(""); setPatient(""); setDoctor(null); setDoctorLinked(null);
+    setProcedureDate(""); setAccessRoute("none");
+    setDoctorRole("Cirurgião Principal"); setQuantity("1");
+    setTuss(""); setProcedureName(""); setSectorSlug(""); setAmount("");
+    setMode("avulso"); setNote("");
   };
 
   const parsedAmount = (() => {
@@ -95,10 +154,13 @@ export function AddManualItemDialog({
     patient.trim().length > 0 &&
     !!doctor &&
     procedureDate.length > 0 &&
-    tuss.replace(/\D/g, "").length >= 6 &&
+    sectorSlug.length > 0 &&
     Number(quantity) > 0 &&
     Number.isFinite(parsedAmount) &&
-    parsedAmount > 0;
+    parsedAmount > 0 &&
+    (!isProcedure || tuss.replace(/\D/g, "").length >= 6);
+
+  const selectedSector = sectors.find((s) => s.slug === sectorSlug);
 
   const submit = async () => {
     if (!valid || !doctor) return;
@@ -107,18 +169,28 @@ export function AddManualItemDialog({
       const findings: Record<string, unknown> = {
         manual: true,
         manual_mode: mode,
+        manual_type: lancType,
+        ...(doctorLinked === false ? { doctor_not_linked_to_company: true } : {}),
         ...(note.trim() ? { ai_note: note.trim() } : {}),
       };
       if (mode === "avulso") {
         findings.calculation_explanation =
-          `Inclusão manual aprovada pelo analista. Valor (${parsedAmount.toFixed(2)}) tratado como repasse final, sem validação automática.${note.trim() ? ` Justificativa: ${note.trim()}` : ""}`;
-        findings.matched_rules = ["Inclusão manual"];
+          `Inclusão manual aprovada pelo analista (${lancType}). Valor (${parsedAmount.toFixed(2)}) tratado como repasse final, sem validação automática.${note.trim() ? ` Justificativa: ${note.trim()}` : ""}`;
+        findings.matched_rules = [`Inclusão manual — ${lancType}`];
       } else {
         findings.calculation_explanation =
-          `Item incluído manualmente para validação pelo motor. Rode "Reaplicar regras" para gerar o cálculo.${note.trim() ? ` Justificativa: ${note.trim()}` : ""}`;
+          `Item incluído manualmente (${lancType}) para validação pelo motor. Rode "Reaplicar regras" para gerar o cálculo.${note.trim() ? ` Justificativa: ${note.trim()}` : ""}`;
       }
 
-      const payload = {
+      // tipo_linha: usa nomes existentes quando possível
+      const tipoLinha =
+        lancType === "honorario" ? "honorario" :
+        lancType === "bonus" ? "complemento_bonus" :
+        lancType === "complemento" ? "complemento" :
+        lancType === "pendencia_anterior" ? "pendencia_anterior" :
+        "outros";
+
+      const payload: any = {
         payment_id: paymentId,
         company_id: companyId,
         company_name: companyName,
@@ -126,12 +198,13 @@ export function AddManualItemDialog({
         patient_name: patient.trim(),
         doctor_id: doctor.id,
         doctor_name: doctor.name,
-        doctor_role: doctorRole,
+        doctor_role: isProcedure ? doctorRole : (doctorRole || null),
         procedure_date: procedureDate,
-        access_route: accessRoute.trim() || null,
-        procedure_code: tuss.replace(/\D/g, ""),
+        access_route: accessRoute && accessRoute !== "none" ? accessRoute : null,
+        procedure_code: isProcedure ? tuss.replace(/\D/g, "") : (tuss.replace(/\D/g, "") || null),
         procedure_name: procedureName.trim() || null,
-        sector: sector.trim() || null,
+        sector: selectedSector?.name ?? null,
+        sector_slug: sectorSlug,
         quantity: Number(quantity),
         gross_amount: parsedAmount,
         procedure_amount: parsedAmount,
@@ -140,12 +213,12 @@ export function AddManualItemDialog({
         ai_findings: findings,
         source: "manual",
         item_origem: "inclusao_manual",
-        tipo_linha: "honorario",
+        tipo_linha: tipoLinha,
         created_by_user_id: user?.id ?? null,
         manual_note: note.trim() || null,
       };
 
-      const { error } = await supabase.from("payment_items").insert(payload as any);
+      const { error } = await supabase.from("payment_items").insert(payload);
       if (error) throw error;
 
       toast.success(
@@ -164,6 +237,8 @@ export function AddManualItemDialog({
     }
   };
 
+  const currentType = LANC_TYPES.find((t) => t.value === lancType)!;
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && !saving) { reset(); } onOpenChange(v); }}>
       <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
@@ -172,11 +247,23 @@ export function AddManualItemDialog({
             <Plus className="h-4 w-4" /> Adicionar item manual
           </DialogTitle>
           <DialogDescription>
-            Inclua um honorário avulso para <strong>{companyName}</strong>. Use quando o item não veio na base hospitalar (pendência identificada, bônus do principal em atendimento só com auxiliar etc.).
+            Inclua um lançamento avulso para <strong>{companyName}</strong>. Use quando o item não veio na base hospitalar (pendência, bônus do principal, complemento etc.).
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 py-2">
+          {/* Tipo de lançamento */}
+          <div className="md:col-span-2 space-y-1 rounded-md border bg-muted/20 p-3">
+            <Label htmlFor="lanc-type">Tipo de lançamento *</Label>
+            <Select value={lancType} onValueChange={(v) => setLancType(v as LancType)}>
+              <SelectTrigger id="lanc-type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {LANC_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{currentType.hint}</p>
+          </div>
+
           <div className="space-y-1">
             <Label htmlFor="att">Nº Atendimento *</Label>
             <Input id="att" value={attendance} onChange={(e) => setAttendance(e.target.value)} placeholder="ex.: 9144319" />
@@ -189,6 +276,15 @@ export function AddManualItemDialog({
           <div className="space-y-1 md:col-span-2">
             <Label>Médico *</Label>
             <DoctorCombobox value={doctor} onChange={setDoctor} />
+            {doctor && doctorLinked === false && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-300/70 bg-amber-50/50 dark:bg-amber-950/20 p-2 text-xs text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  <strong>{doctor.name}</strong> não está vinculado à empresa <strong>{companyName}</strong>.
+                  Confirme o vínculo no cadastro antes de pagar — repasse depende do doctor_companies.
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -196,7 +292,7 @@ export function AddManualItemDialog({
             <Input id="date" type="date" value={procedureDate} onChange={(e) => setProcedureDate(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="role">Função *</Label>
+            <Label htmlFor="role">Função {isProcedure ? "*" : "(opcional)"}</Label>
             <Select value={doctorRole} onValueChange={setDoctorRole}>
               <SelectTrigger id="role"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -206,8 +302,8 @@ export function AddManualItemDialog({
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="tuss">TUSS *</Label>
-            <Input id="tuss" value={tuss} onChange={(e) => setTuss(e.target.value)} placeholder="8 dígitos" inputMode="numeric" />
+            <Label htmlFor="tuss">TUSS {isProcedure ? "*" : "(opcional)"}</Label>
+            <Input id="tuss" value={tuss} onChange={(e) => setTuss(e.target.value)} placeholder={isProcedure ? "8 dígitos" : "opcional"} inputMode="numeric" />
           </div>
           <div className="space-y-1">
             <Label htmlFor="proc">Descrição do procedimento</Label>
@@ -216,7 +312,13 @@ export function AddManualItemDialog({
 
           <div className="space-y-1">
             <Label htmlFor="acc">Via de acesso</Label>
-            <Input id="acc" value={accessRoute} onChange={(e) => setAccessRoute(e.target.value)} placeholder="opcional" />
+            <Select value={accessRoute} onValueChange={setAccessRoute}>
+              <SelectTrigger id="acc"><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Não se aplica —</SelectItem>
+                {ACCESS_ROUTES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <Label htmlFor="qty">Quantidade *</Label>
@@ -224,8 +326,13 @@ export function AddManualItemDialog({
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="sec">Setor</Label>
-            <Input id="sec" value={sector} onChange={(e) => setSector(e.target.value)} placeholder="ex.: Centro Cirúrgico" />
+            <Label htmlFor="sec">Setor *</Label>
+            <Select value={sectorSlug} onValueChange={setSectorSlug}>
+              <SelectTrigger id="sec"><SelectValue placeholder="Selecione o setor do cadastro" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {sectors.map((s) => <SelectItem key={s.slug} value={s.slug}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <Label htmlFor="amt">Valor a pagar (R$) *</Label>
