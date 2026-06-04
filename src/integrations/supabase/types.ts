@@ -3270,6 +3270,7 @@ export type Database = {
           convenio_value_totalized: boolean
           cost_center_code: string | null
           created_at: string
+          created_by_user_id: string | null
           description: string | null
           doctor_document: string | null
           doctor_email: string | null
@@ -3291,6 +3292,7 @@ export type Database = {
           id: string
           item_hash: string | null
           item_origem: string | null
+          manual_note: string | null
           origem_reconciliation_item_id: string | null
           origem_referencia: string | null
           patient_name: string | null
@@ -3306,6 +3308,7 @@ export type Database = {
           sector_matched_by: string | null
           sector_original: string | null
           sector_slug: string | null
+          source: string
           specialty: string | null
           tipo_item: string | null
           tipo_linha: string | null
@@ -3338,6 +3341,7 @@ export type Database = {
           convenio_value_totalized?: boolean
           cost_center_code?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           description?: string | null
           doctor_document?: string | null
           doctor_email?: string | null
@@ -3359,6 +3363,7 @@ export type Database = {
           id?: string
           item_hash?: string | null
           item_origem?: string | null
+          manual_note?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
           patient_name?: string | null
@@ -3374,6 +3379,7 @@ export type Database = {
           sector_matched_by?: string | null
           sector_original?: string | null
           sector_slug?: string | null
+          source?: string
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
@@ -3406,6 +3412,7 @@ export type Database = {
           convenio_value_totalized?: boolean
           cost_center_code?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           description?: string | null
           doctor_document?: string | null
           doctor_email?: string | null
@@ -3427,6 +3434,7 @@ export type Database = {
           id?: string
           item_hash?: string | null
           item_origem?: string | null
+          manual_note?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
           patient_name?: string | null
@@ -3442,6 +3450,7 @@ export type Database = {
           sector_matched_by?: string | null
           sector_original?: string | null
           sector_slug?: string | null
+          source?: string
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
