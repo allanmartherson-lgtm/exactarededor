@@ -1462,6 +1462,7 @@ export function PaymentConciliationModal({
             valSum: toVal(getCell(row, "value")),
             qtySum: Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1,
             routes: new Set(),
+            repasseSum: toVal(getCell(row, "valueRepasse")),
           });
           continue;
         }
@@ -1477,17 +1478,19 @@ export function PaymentConciliationModal({
         const roleKey = normRole(getCell(row, "role")) || "_no_role_";
         const aggKey = `${normAtt(att)}|${normCode}|${dk}|${roleKey}`;
         const valHosp = toVal(getCell(row, "value"));
+        const valHospRepasse = toVal(getCell(row, "valueRepasse"));
         const qtyHosp = Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1;
         const routeN = normRoute(getCell(row, "accessRoute"));
         const existing = prodAggMap.get(aggKey);
         if (existing) {
           existing.valSum += valHosp;
           existing.qtySum += qtyHosp;
+          existing.repasseSum = (existing.repasseSum ?? 0) + valHospRepasse;
           if (routeN) existing.routes.add(routeN);
         } else {
           const routes = new Set<string>();
           if (routeN) routes.add(routeN);
-          prodAggMap.set(aggKey, { rep: row, valSum: valHosp, qtySum: qtyHosp, routes });
+          prodAggMap.set(aggKey, { rep: row, valSum: valHosp, qtySum: qtyHosp, routes, repasseSum: valHospRepasse });
         }
       }
       const aggregatedRows: ProdAgg[] = Array.from(prodAggMap.values());
