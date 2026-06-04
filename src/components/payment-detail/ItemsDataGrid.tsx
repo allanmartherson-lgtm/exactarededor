@@ -797,8 +797,13 @@ export function ItemsDataGrid({
                       <div className="min-w-0 flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-bold">
-                              <Sparkles className="h-2.5 w-2.5" /> Bônus FdS
+                            <span
+                              role="img"
+                              aria-label="Linha de bônus de plantão de final de semana"
+                              data-testid="bonus-badge-mobile"
+                              className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-700 px-1.5 py-0.5 text-[10px] font-bold"
+                            >
+                              <Sparkles className="h-2.5 w-2.5" aria-hidden="true" /> Bônus FdS
                             </span>
                             <span className="truncate text-[12px] text-amber-900 dark:text-amber-100 font-medium">
                               {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
