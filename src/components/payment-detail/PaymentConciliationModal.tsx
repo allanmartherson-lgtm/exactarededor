@@ -532,6 +532,7 @@ export function PaymentConciliationModal({
   const [companyMapping, setCompanyMapping] = useState<Record<string, string | null>>({});
   const [matchLevels, setMatchLevels] = useState<Record<string, 'exact' | 'high' | 'medium' | null>>({});
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([]);
+  const [preReportOpen, setPreReportOpen] = useState(false);
   const [parsedColMap, setParsedColMap] = useState<Record<string, string>>({});
   const [pendingFileName, setPendingFileName] = useState<string>("");
 
