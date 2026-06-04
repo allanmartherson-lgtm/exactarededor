@@ -161,6 +161,7 @@ type ReconciliationItem = {
   applied_rule_label: string | null;
   applied_calc_method: string | null;
   valor_regra?: number | null;
+  valor_pago_exacta?: number | null;
   action_taken?: string | null;
   action_by?: string | null;
   action_at?: string | null;
@@ -388,7 +389,7 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T05:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T06:30:00Z";
 const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
@@ -1973,6 +1974,9 @@ export function PaymentConciliationModal({
           base.applied_rule_label = (match as any).applied_rule_label ?? null;
           base.applied_calc_method = (match as any).applied_calc_method ?? null;
           base.valor_regra = (match as any).expected_amount ?? null;
+          // gross_amount = valor PAGO ao médico pós-acordo (ex: base × 200%);
+          // procedure_amount fallback é o valor cru de matching. Coluna informativa.
+          base.valor_pago_exacta = lookupGross(mappedCompany, att, (match as any).doctor_name, code) || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || 0;
 
           const calcMethod = (match as any).applied_calc_method as string | null;
           const ruleLabel = String((match as any).applied_rule_label ?? '');
@@ -2023,9 +2027,11 @@ export function PaymentConciliationModal({
             }
           } else if (isPercentRule) {
             // RAMO 2 — ACORDO COM % — esperado já calculado pela engine.
-            // Comparar o que o Exacta PAGOU (procedure_amount, pós-multiplicador)
-            // contra o expected_amount — não o Valor da produção (pré-multiplicador).
-            const _pago = lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || valHosp;
+            // Comparar o que o Exacta PAGOU (gross_amount, pós-multiplicador)
+            // contra o expected_amount. procedure_amount é o valor CRU do
+            // convênio (base de matching, igual ao hospital) e gera falso
+            // divergente se usado como _pago aqui.
+            const _pago = lookupGross(mappedCompany, att, (match as any).doctor_name, code) || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || valHosp;
             const diff = _pago - valExpected;
             if (Math.abs(diff) < TOL_ABS) {
               base.status = "conciliado";
@@ -4229,6 +4235,9 @@ export function PaymentConciliationModal({
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right text-muted-foreground" title="Vl. Repasse — valor pós-acordo informado pelo hospital (base × % do acordo)">
                                     Valor Acordo
                                   </TableHead>
+                                  <TableHead className="px-3 py-1.5 text-[10px] text-right text-muted-foreground" title="Valor efetivamente pago pelo Exacta ao médico — gross_amount pós-acordo">
+                                    VALOR PAGO
+                                  </TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     Valor Regra
                                   </TableHead>
@@ -4316,6 +4325,12 @@ export function PaymentConciliationModal({
                                             return vra > 0 ? formatCurrency(vra) : "—";
                                           })()}
                                         </TableCell>
+                                        <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums text-muted-foreground" title="Valor efetivamente pago pelo Exacta ao médico — gross_amount pós-acordo">
+                                          {(() => {
+                                            const vpe = Number((it as any).valor_pago_exacta) || 0;
+                                            return vpe > 0 ? formatCurrency(vpe) : "—";
+                                          })()}
+                                        </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums" style={{ color: it.valor_regra ? undefined : 'hsl(var(--muted-foreground))' }}>
                                           {it.valor_regra
                                             ? formatCurrency(Number(it.valor_regra))
@@ -4361,7 +4376,7 @@ export function PaymentConciliationModal({
                                       </TableRow>
                                       {isRowOpen && (it.ia_obs || it.match_diagnostics) && (
                                         <TableRow key={`${it.id}-exp`}>
-                                          <TableCell colSpan={13} className="bg-muted/30 px-4 py-3">
+                                          <TableCell colSpan={14} className="bg-muted/30 px-4 py-3">
                                             <div className="flex gap-3">
                                               <Lightbulb className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                                               <div className="flex-1">
