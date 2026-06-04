@@ -4637,18 +4637,29 @@ export function PaymentConciliationModal({
                                   Hospital:{" "}
                                   <strong className="tabular-nums">{formatCurrency(totalHosp)}</strong>
                                 </span>
-                                <span
-                                  className={cn(
-                                    "font-semibold tabular-nums",
-                                    totalHosp - totalMed > 0
-                                      ? "text-destructive"
-                                      : totalHosp - totalMed < 0
-                                        ? "text-success"
-                                        : "text-muted-foreground",
-                                  )}
-                                >
-                                  Δ {formatCurrency(Math.abs(totalHosp - totalMed))}
-                                </span>
+                                {(() => {
+                                  // Se houver itens com valor_pago_exacta, totalizar a diferença real (pago − regra).
+                                  // Caso contrário, cai no Δ tradicional (hospital − exacta).
+                                  const itemsWithVpe = companyItems.filter((i: any) => Number(i.valor_pago_exacta) > 0 && i.valor_regra != null);
+                                  const useRuleDiff = itemsWithVpe.length > 0;
+                                  const ruleDiff = itemsWithVpe.reduce((s: number, i: any) => s + (Number(i.valor_pago_exacta) - Number(i.valor_regra)), 0);
+                                  const delta = useRuleDiff ? ruleDiff : (totalHosp - totalMed);
+                                  return (
+                                    <span
+                                      className={cn(
+                                        "font-semibold tabular-nums",
+                                        delta > 0
+                                          ? "text-destructive"
+                                          : delta < 0
+                                            ? "text-success"
+                                            : "text-muted-foreground",
+                                      )}
+                                      title={useRuleDiff ? "Σ (Valor Pago Exacta − Valor Regra) dos itens com regra" : "Hospital − Exacta"}
+                                    >
+                                      Δ {formatCurrency(Math.abs(delta))}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
