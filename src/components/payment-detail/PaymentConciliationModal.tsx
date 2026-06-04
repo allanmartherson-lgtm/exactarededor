@@ -2998,19 +2998,29 @@ export function PaymentConciliationModal({
     );
     cursorY += 4;
 
-    const tableData = itemsToExport.map((it) => [
-      STATUS_LABEL[it.status],
-      it.company_name ?? "",
-      it.doctor_name ?? "",
-      it.procedure_code ?? "",
-      it.procedure_name ?? "",
-      it.procedure_date ? formatDateBR(it.procedure_date) : "",
-      fmtQty(getQtyExacta(it)),
-      fmtQty(getQtyHospital(it)),
-      `R$ ${Number(it.valor_exacta).toFixed(2)}`,
-      `R$ ${Number(it.valor_hospital).toFixed(2)}`,
-      it.applied_rule_label ?? "",
-    ]);
+    const fmtBR = (n: number | null | undefined) =>
+      n != null && Number.isFinite(n) ? `R$ ${Number(n).toFixed(2)}` : "—";
+
+    const tableData = itemsToExport.map((it) => {
+      const vpe = (it as unknown as { valor_pago_exacta?: number | null }).valor_pago_exacta;
+      const dr = computeDiffRegra(it);
+      return [
+        STATUS_LABEL[it.status],
+        it.company_name ?? "",
+        it.doctor_name ?? "",
+        it.procedure_code ?? "",
+        it.procedure_name ?? "",
+        it.procedure_date ? formatDateBR(it.procedure_date) : "",
+        fmtQty(getQtyExacta(it)),
+        fmtQty(getQtyHospital(it)),
+        `R$ ${Number(it.valor_exacta).toFixed(2)}`,
+        `R$ ${Number(it.valor_hospital).toFixed(2)}`,
+        fmtBR(vpe != null ? Number(vpe) : null),
+        fmtBR(it.valor_regra != null ? Number(it.valor_regra) : null),
+        fmtBR(dr),
+        it.applied_rule_label ?? "",
+      ];
+    });
 
     const STATUS_FILL: Record<string, [number, number, number]> = {
       "Conciliado": [240, 253, 244],
@@ -3020,17 +3030,16 @@ export function PaymentConciliationModal({
       "Só no Exacta": [239, 246, 255],
     };
 
-    // 11 colunas — somam 1.0. Procedimento e Regra são as mais largas para
-    // acomodar texto descritivo; quantidades são colunas estreitas centradas.
-    const widthFractions = [0.07, 0.12, 0.10, 0.06, 0.20, 0.06, 0.05, 0.05, 0.075, 0.075, 0.13];
+    // 14 colunas — Procedimento e Regra são as mais largas; valores monetários estreitos.
+    const widthFractions = [0.06, 0.10, 0.09, 0.05, 0.14, 0.05, 0.04, 0.04, 0.06, 0.06, 0.06, 0.06, 0.07, 0.12];
     const colWidths = widthFractions.map((f) => +(tableWidth * f).toFixed(2));
 
     autoTable(doc, {
       startY: cursorY + 2,
-      head: [["Status", "Empresa", "Médico", "TUSS", "Procedimento", "Data", "Qtd Ex.", "Qtd Ho.", "Exacta", "Hospital", "Regra Exacta"]],
+      head: [["Status", "Empresa", "Médico", "TUSS", "Procedimento", "Data", "Qtd Ex.", "Qtd Ho.", "Exacta", "Hospital", "V. Pago", "V. Regra", "Dif. Regra", "Regra Exacta"]],
       body: tableData,
-      styles: { fontSize: 7, cellPadding: 1.8, overflow: "linebreak", valign: "middle" },
-      headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255, fontStyle: "bold", fontSize: 7.5, halign: "left" },
+      styles: { fontSize: 6.5, cellPadding: 1.5, overflow: "linebreak", valign: "middle" },
+      headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255, fontStyle: "bold", fontSize: 7, halign: "left" },
       columnStyles: {
         0: { cellWidth: colWidths[0] },
         1: { cellWidth: colWidths[1] },
@@ -3042,7 +3051,10 @@ export function PaymentConciliationModal({
         7: { cellWidth: colWidths[7], halign: "center" },
         8: { cellWidth: colWidths[8], halign: "right" },
         9: { cellWidth: colWidths[9], halign: "right" },
-        10: { cellWidth: colWidths[10] },
+        10: { cellWidth: colWidths[10], halign: "right" },
+        11: { cellWidth: colWidths[11], halign: "right" },
+        12: { cellWidth: colWidths[12], halign: "right" },
+        13: { cellWidth: colWidths[13] },
       },
       didParseCell: (data) => {
         if (data.section === "body") {
