@@ -389,7 +389,7 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T08:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T09:30:00Z";
 const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
@@ -1980,7 +1980,7 @@ export function PaymentConciliationModal({
           if (!base.agreement_text) base.agreement_text = (match as any).agreement_text ?? null;
           base.applied_rule_label = (match as any).applied_rule_label ?? null;
           base.applied_calc_method = (match as any).applied_calc_method ?? null;
-          base.valor_regra = (match as any).expected_amount ?? null;
+          base.valor_regra = lookupExpected(mappedCompany, att, (match as any).doctor_name, code) || (match as any).expected_amount || null;
           // gross_amount = valor PAGO ao médico pós-acordo (ex: base × 200%);
           // procedure_amount fallback é o valor cru de matching. Coluna informativa.
           base.valor_pago_exacta = lookupGross(mappedCompany, att, (match as any).doctor_name, code) || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || 0;
