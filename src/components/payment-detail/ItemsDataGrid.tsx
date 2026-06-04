@@ -915,9 +915,12 @@ export function ItemsDataGrid({
                 const isExpanded = expandedId === it.id;
                 const itemOrigem = (it as any).item_origem as string | null | undefined;
                 const isAdjust = !!itemOrigem && itemOrigem !== "pagamento_atual";
+                const isBonus = (it as any).tipo_linha === "complemento_bonus";
                 const prev = idx > 0 ? filtered[idx - 1] : null;
-                const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual";
-                const isFirstAdjust = isAdjust && !prevIsAdjust;
+                const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual" && (prev as any).tipo_linha !== "complemento_bonus";
+                const prevIsBonus = !!prev && (prev as any).tipo_linha === "complemento_bonus";
+                const isFirstAdjust = isAdjust && !isBonus && !prevIsAdjust;
+                const isFirstBonus = isBonus && !prevIsBonus;
                 return (
                   <Fragment key={it.id}>
 
@@ -936,6 +939,16 @@ export function ItemsDataGrid({
                           }}
                         >
                           Ajustes de conciliação
+                        </td>
+                      </tr>
+                    )}
+                    {isFirstBonus && (
+                      <tr key={`bonus-sep-${it.id}`}>
+                        <td
+                          colSpan={totalCols}
+                          className="px-4 py-1.5 bg-amber-100/70 dark:bg-amber-950/30 text-[10px] font-bold uppercase tracking-[0.06em] text-amber-800 dark:text-amber-200"
+                        >
+                          Bônus de final de semana
                         </td>
                       </tr>
                     )}
