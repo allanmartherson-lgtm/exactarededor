@@ -700,9 +700,12 @@ export function ItemsDataGrid({
               const diverges = expected != null && Math.abs(Number(expected) - Number(it.gross_amount ?? 0)) > 0.01;
               const itemOrigem = (it as any).item_origem as string | null | undefined;
               const isAdjust = !!itemOrigem && itemOrigem !== "pagamento_atual";
+              const isBonus = (it as any).tipo_linha === "complemento_bonus";
               const prev = idx > 0 ? filtered[idx - 1] : null;
-              const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual";
-              const isFirstAdjust = isAdjust && !prevIsAdjust;
+              const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual" && (prev as any).tipo_linha !== "complemento_bonus";
+              const prevIsBonus = !!prev && (prev as any).tipo_linha === "complemento_bonus";
+              const isFirstAdjust = isAdjust && !isBonus && !prevIsAdjust;
+              const isFirstBonus = isBonus && !prevIsBonus;
               return (
                 <Fragment key={it.id}>
 
@@ -714,6 +717,40 @@ export function ItemsDataGrid({
                       Ajustes de conciliação
                     </li>
                   )}
+                  {isFirstBonus && (
+                    <li
+                      key={`bonus-sep-${it.id}`}
+                      className="px-4 py-2 bg-amber-100/70 dark:bg-amber-950/30 text-[10px] font-bold uppercase tracking-[0.06em] text-amber-800 dark:text-amber-200"
+                    >
+                      Bônus de final de semana
+                    </li>
+                  )}
+                  {isBonus ? (
+                    <li
+                      key={it.id}
+                      className={cn(
+                        "px-3 py-2 cursor-pointer hover:bg-amber-100/40 transition-colors border-l-2 border-amber-400 bg-amber-50/60 dark:bg-amber-950/20",
+                      )}
+                      onClick={() => { selectRow(it.id); openDetail(it.id); }}
+                    >
+                      <div className="min-w-0 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-bold">
+                              <Sparkles className="h-2.5 w-2.5" /> Bônus FdS
+                            </span>
+                            <span className="truncate text-[12px] text-amber-900 dark:text-amber-100 font-medium">
+                              {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">{it.doctor_name ?? "—"}</p>
+                        </div>
+                        <span className="tabular-nums font-semibold text-amber-700 text-[12px] shrink-0">
+                          {formatCurrency(Number(it.gross_amount ?? 0))}
+                        </span>
+                      </div>
+                    </li>
+                  ) : (
                   <li
                     key={it.id}
                     className={cn(
@@ -764,7 +801,7 @@ export function ItemsDataGrid({
                       </div>
                     </div>
                   </li>
-                </Fragment>
+                  )}
 
               );
             })}
