@@ -1980,7 +1980,7 @@ export function PaymentConciliationModal({
           if (!base.agreement_text) base.agreement_text = (match as any).agreement_text ?? null;
           base.applied_rule_label = (match as any).applied_rule_label ?? null;
           base.applied_calc_method = (match as any).applied_calc_method ?? null;
-          base.valor_regra = (match as any).expected_amount ?? null;
+          base.valor_regra = lookupExpected(mappedCompany, att, (match as any).doctor_name, code) || (match as any).expected_amount || null;
           // gross_amount = valor PAGO ao médico pós-acordo (ex: base × 200%);
           // procedure_amount fallback é o valor cru de matching. Coluna informativa.
           base.valor_pago_exacta = lookupGross(mappedCompany, att, (match as any).doctor_name, code) || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || 0;
