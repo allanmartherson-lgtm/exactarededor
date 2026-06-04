@@ -2534,11 +2534,25 @@ export function analyzeItem(
           const motivo = hit.reason ? ` (motivo: ${hit.reason})` : "";
           const purposeLabel = hit.purpose === "sem_acordo" ? "Sem acordo" : "Exclusão";
           const paid = Number(item.gross_amount ?? 0);
+          // Sem acordo: repasse deve ser idêntico ao valor base do convênio (procedure_amount).
+          // Não há cálculo de percentual/tabela — é 1:1.
+          // Se procedure_amount ausente, usa o pago como fallback (sem base para comparar).
+          const hasProcedureAmount = item.procedure_amount != null;
+          const expectedBase = hasProcedureAmount
+            ? Number(item.procedure_amount)
+            : paid;
+          const { status: diffStatus, diff_pct: diffPct } = classifyDiff(expectedBase, paid, winner, ctx);
+          const semAcordoAlerts: string[] = [];
+          if (hasProcedureAmount && diffStatus !== "aprovado") {
+            semAcordoAlerts.push(
+              `Sem acordo: repasse (R$ ${paid.toFixed(2)}) diverge do valor base do convênio (R$ ${expectedBase.toFixed(2)}).`,
+            );
+          }
           return {
             item_id: item.id,
-            status: "aprovado",
-            expected_amount: paid,
-            diff_pct: 0,
+            status: diffStatus,
+            expected_amount: expectedBase,
+            diff_pct: diffPct,
             matched_rule_id: winner.id,
             matched_rule_name: `Camada 2 — ${purposeLabel}: ${hit.table_name} (via regra "${winner.name}")`,
             matched_priority: "regra_bloqueio",
@@ -2546,9 +2560,10 @@ export function analyzeItem(
             calculation_explanation:
               `Bloqueado pela Camada 2 — código TUSS ${code} consta na tabela "${hit.table_name}" ` +
               `(${purposeLabel.toLowerCase()}) vinculada à regra "${winner.name}"${motivo}. ` +
-              `Regra de cálculo ignorada — esperado = valor pago pelo convênio (R$ ${paid.toFixed(2)}).`,
-            alerts: [], // Removido alerta de tabela de exceção (comportamento esperado)
-            needs_ai_review: false,
+              `Sem acordo: esperado = valor base do convênio (R$ ${expectedBase.toFixed(2)})` +
+              (!hasProcedureAmount ? ` (procedure_amount ausente — sem base para comparação).` : `.`),
+            alerts: semAcordoAlerts,
+            needs_ai_review: diffStatus !== "aprovado",
             needs_human_review: false,
           };
         }
