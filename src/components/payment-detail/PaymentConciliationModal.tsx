@@ -1494,6 +1494,13 @@ export function PaymentConciliationModal({
           prodAggMap.set(aggKey, { rep: row, valSum: valHosp, qtySum: qtyHosp, routes, repasseSum: valHospRepasse });
         }
       }
+      // Remover itens com qty líquida ≤ 0 — foram incluídos e depois removidos/estornados na base hospitalar.
+      // Sem entrada no hospital → o Exacta irá para "só no Exacta" (classificação correta).
+      prodAggMap.forEach((agg, key) => {
+        if ((agg.qtySum ?? 0) <= 0) {
+          prodAggMap.delete(key);
+        }
+      });
       const aggregatedRows: ProdAgg[] = Array.from(prodAggMap.values());
       console.log('[Conciliação] agregação produção:', rowsParaCruzamento.length, '→', aggregatedRows.length, '· buckets Exacta:', exactaByKey.size);
 
