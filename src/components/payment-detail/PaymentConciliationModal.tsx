@@ -3761,14 +3761,27 @@ export function PaymentConciliationModal({
                         value={mapped ?? "__ignore__"}
                         onChange={(e) => {
                           const val = e.target.value;
+                          const newName = val === "__ignore__" ? null : val;
+                          const prevName = mapped ?? null;
                           setCompanyMapping((prev) => ({
                             ...prev,
-                            [terceiro]: val === "__ignore__" ? null : val,
+                            [terceiro]: newName,
                           }));
                           setMatchLevels((prev) => ({
                             ...prev,
                             [terceiro]: val === "__ignore__" ? null : 'exact',
                           }));
+                          // Auditoria: nova versão do vínculo (trigger marca anteriores como não-corrente)
+                          if (paymentId && newName !== prevName) {
+                            void logCompanyMapping({
+                              paymentId,
+                              reconciliationRunId: run?.id ?? null,
+                              hospitalCompanyRaw: terceiro,
+                              exactaCompanyId: newName ? companyNameToId[newName] ?? null : null,
+                              decision: val === "__ignore__" ? "ignored" : "manual",
+                              changedBy: user?.id ?? null,
+                            });
+                          }
                         }}
                         className="h-8 text-xs border border-border rounded-md bg-background px-2 shrink-0 w-[260px]"
                       >
@@ -3779,6 +3792,7 @@ export function PaymentConciliationModal({
                           </option>
                         ))}
                       </select>
+
                     </div>
                   );
                 })}
