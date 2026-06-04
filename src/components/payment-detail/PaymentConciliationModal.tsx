@@ -389,7 +389,7 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T07:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T08:30:00Z";
 const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
@@ -2038,7 +2038,10 @@ export function PaymentConciliationModal({
             // contra o expected_amount. procedure_amount é o valor CRU do
             // convênio (base de matching, igual ao hospital) e gera falso
             // divergente se usado como _pago aqui.
-            const _pago = lookupGross(mappedCompany, att, (match as any).doctor_name, code) || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || valHosp;
+            const _pago = lookupGross(mappedCompany, att, (match as any).doctor_name, code)
+              || lookupExpected(mappedCompany, att, (match as any).doctor_name, code)
+              || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code)
+              || valHosp;
             const diff = _pago - valExpected;
             if (Math.abs(diff) < TOL_ABS) {
               base.status = "conciliado";
