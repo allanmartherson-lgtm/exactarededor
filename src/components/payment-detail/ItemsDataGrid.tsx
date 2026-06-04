@@ -1192,12 +1192,31 @@ function RowMain({
         {colVis.via && (
           <td className={cn(cell, TEXT_BODY)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
-        <td className={cn(cell, "font-mono", TEXT_META)}>{it.procedure_code ?? "—"}</td>
-        <td className={cn(cellPad, "text-right tabular-nums font-mono border-b whitespace-nowrap", TEXT_META, baseCellBg)}>
-          {Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Number(it.quantity) : 1}
+        <td className={cn(cell, "font-mono", TEXT_META)}>
+          {isBonus ? (
+            <span className="inline-flex items-center gap-1 text-amber-700 font-semibold">
+              <Sparkles className="h-3 w-3" /> Bônus
+            </span>
+          ) : (it.procedure_code ?? "—")}
         </td>
-        <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? it.description ?? ""}>
-          <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
+        <td className={cn(cellPad, "text-right tabular-nums font-mono border-b whitespace-nowrap", TEXT_META, baseCellBg)}>
+          {isBonus
+            ? "—"
+            : (Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Number(it.quantity) : 1)}
+        </td>
+        <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? (it as any).applied_rule_label ?? it.description ?? ""}>
+          {isBonus ? (
+            <span className="inline-flex items-center gap-1.5 min-w-0">
+              <span className="inline-flex items-center rounded border border-amber-300 bg-amber-100 text-amber-700 px-1 text-[10px] font-bold shrink-0">
+                🎯 FdS
+              </span>
+              <span className="truncate block text-amber-900 dark:text-amber-100">
+                {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
+              </span>
+            </span>
+          ) : (
+            <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
+          )}
         </td>
         {colVis.setor_lido && (() => {
           const planilhaSetor = rawSetor ?? it.sector ?? null;
