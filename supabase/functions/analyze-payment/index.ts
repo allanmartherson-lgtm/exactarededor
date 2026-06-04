@@ -1556,6 +1556,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // via origem_referencia. Não altera rulesEngine.ts; apenas persistência.
     const bonusLinesToInsert: Record<string, unknown>[] = [];
     const bonusCompanyNames = new Set<string>();
+    // Invariantes do split (capturados ANTES de mutar u.expected_amount):
+    // - bonusTotalByCompany: soma dos bônus extraídos por empresa.
+    //   Após o split deve bater com soma(expected) das linhas de bônus inseridas.
+    // - preSplitExpectedByCompany: soma(expected) dos pais ANTES da reversão.
+    //   Deve bater com soma(expected pais pós-revert) + bonusTotalByCompany.
+    const bonusTotalByCompany: Record<string, number> = {};
+    const preSplitExpectedByCompany: Record<string, number> = {};
     for (const u of itemUpdates) {
       if (u.applied_calc_method !== "bonus") continue;
       const parent = itemsById[u.id];
@@ -1564,6 +1571,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const exp = u.expected_amount;
       if (exp == null || exp <= parentGross + 0.01) continue;
       const bonusAmt = Number((exp - parentGross).toFixed(2));
+      const compKey = (parent.company_name ?? "Sem empresa").trim() || "Sem empresa";
+      preSplitExpectedByCompany[compKey] = (preSplitExpectedByCompany[compKey] ?? 0) + exp;
+      bonusTotalByCompany[compKey] = (bonusTotalByCompany[compKey] ?? 0) + bonusAmt;
       // Procedimento volta a refletir só o honorário base.
       u.expected_amount = parentGross;
       bonusLinesToInsert.push({
