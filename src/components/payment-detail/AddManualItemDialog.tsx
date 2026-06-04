@@ -58,13 +58,9 @@ const DOCTOR_ROLES = [
 ];
 
 const ACCESS_ROUTES = [
-  "Convencional",
-  "Videolaparoscópica",
-  "Robótica",
-  "Endoscópica",
-  "Percutânea",
-  "Híbrida",
-  "Outra",
+  "Única ou Principal",
+  "Mesma Via de Acesso",
+  "Vias de Acesso Diferentes",
 ];
 
 type SectorOption = { slug: string; name: string };
