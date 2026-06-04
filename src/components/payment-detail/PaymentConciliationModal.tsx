@@ -3816,6 +3816,15 @@ export function PaymentConciliationModal({
                     ← Voltar
                   </Button>
                   <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreReportOpen(true)}
+                    disabled={hospitalCompanies.length === 0}
+                  >
+                    <FileText className="h-3.5 w-3.5 mr-1.5" />
+                    Ver relatório
+                  </Button>
+                  <Button
                     size="sm"
                     disabled={processing || exactCount === 0}
                     onClick={() => {
@@ -3830,9 +3839,6 @@ export function PaymentConciliationModal({
                         ),
                       );
                       const keep = prevCompanies.filter((c) => !mapped.includes(c));
-                      // Só pergunta se já existe uma run anterior cobrindo
-                      // empresas que NÃO estão neste arquivo. Caso contrário,
-                      // simplesmente reprocessa (comportamento atual).
                       if (run?.id && keep.length > 0) {
                         setScopeDialogInfo({
                           newCompanies: mapped,
@@ -3856,7 +3862,39 @@ export function PaymentConciliationModal({
                   </Button>
                 </div>
               </div>
+
+              {/* Relatório pré-conciliação */}
+              {paymentId && (
+                <PreReconciliationReport
+                  open={preReportOpen}
+                  onOpenChange={setPreReportOpen}
+                  hospitalCompanies={hospitalCompanies}
+                  companyMapping={companyMapping}
+                  matchLevels={matchLevels}
+                  hospitalRows={(() => {
+                    const companyCol = parsedColMap["company"] || "";
+                    const attCol = parsedColMap["attendance"] || "";
+                    const codeCol = parsedColMap["procedure_code"] || "";
+                    const docCol = parsedColMap["doctor"] || "";
+                    const out: HospitalRowLite[] = [];
+                    for (const r of parsedRows) {
+                      out.push({
+                        company: companyCol ? String(r[companyCol] ?? "").trim() : "",
+                        attendance: attCol ? String(r[attCol] ?? "").trim() : "",
+                        code: codeCol ? String(r[codeCol] ?? "").trim() : "",
+                        doctor: docCol ? String(r[docCol] ?? "").trim() : "",
+                        qty: 1,
+                      });
+                    }
+                    return out;
+                  })()}
+                  onConfirm={() => {
+                    handleProcessReconciliation("replace");
+                  }}
+                />
+              )}
             </div>
+
           )}
 
           {!loading && step === "result" && run && (
