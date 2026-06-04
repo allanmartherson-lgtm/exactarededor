@@ -390,7 +390,7 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T11:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T12:30:00Z";
 const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
@@ -2609,6 +2609,7 @@ export function PaymentConciliationModal({
   const scopedStats = useMemo(() => {
     let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0, empresa_ausente = 0, possivel_pacote = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
+    let diferenca_total = 0;
     for (const it of scopedItems) {
       if (it.status === "conciliado") conciliado++;
       else if (it.status === "valor_divergente") valor_divergente++;
@@ -2623,6 +2624,18 @@ export function PaymentConciliationModal({
         const diff = vh - vm;
         divergencia_valor += Math.abs(diff);
         if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
+        // DIFERENÇA TOTAL: prioriza diferenca_regra persistida; fallback
+        // calcula (valor_pago_exacta - valor_regra) quando ambos disponíveis.
+        const dr = (it as any).diferenca_regra;
+        if (typeof dr === "number" && Number.isFinite(dr)) {
+          diferenca_total += dr;
+        } else {
+          const vpe = Number((it as any).valor_pago_exacta);
+          const vr = Number(it.valor_regra);
+          if (Number.isFinite(vpe) && Number.isFinite(vr)) {
+            diferenca_total += vpe - vr;
+          }
+        }
       } else if (it.status === "qtd_divergente") {
         const vr = Number(it.valor_regra) || 0;
         if (vr > 0) {
@@ -2640,9 +2653,10 @@ export function PaymentConciliationModal({
     return {
       total: scopedItems.length,
       conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta, empresa_ausente, possivel_pacote,
-      risco_mais, risco_menos, divergencia_valor,
+      risco_mais, risco_menos, divergencia_valor, diferenca_total,
     };
   }, [scopedItems]);
+
 
   const filteredItems = useMemo(() => {
     if (activeFilter === "todos") return scopedItems;
@@ -3979,22 +3993,34 @@ export function PaymentConciliationModal({
 
               {/* Impacto financeiro */}
               <Card>
-                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Risco pagamento a mais{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
+                      Diferença total{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
                     </p>
-                    <p className="text-lg font-bold text-destructive mt-1">
-                      {formatCurrency(scopedStats.risco_mais)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Risco pagamento a menos{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
-                    </p>
-                    <p className="text-lg font-bold text-success mt-1">
-                      {formatCurrency(scopedStats.risco_menos)}
-                    </p>
+                    {(() => {
+                      const dt = scopedStats.diferenca_total;
+                      const isZero = Math.abs(dt) < 0.005;
+                      const colorClass = isZero
+                        ? "text-success"
+                        : dt > 0
+                          ? "text-destructive"
+                          : "text-warning";
+                      const label = isZero
+                        ? "Tudo correto"
+                        : dt > 0
+                          ? "Pago a mais"
+                          : "Pago a menos";
+                      const sign = isZero ? "" : dt > 0 ? "+" : "-";
+                      return (
+                        <>
+                          <p className={`text-lg font-bold mt-1 ${colorClass}`}>
+                            {sign}{formatCurrency(Math.abs(dt))}
+                          </p>
+                          <p className={`text-[10px] mt-0.5 ${colorClass}`}>{label}</p>
+                        </>
+                      );
+                    })()}
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -4006,6 +4032,7 @@ export function PaymentConciliationModal({
                   </div>
                 </CardContent>
               </Card>
+
 
               {/* Tabs de filtro */}
               <div className="filter-tabs flex flex-wrap gap-2 border-b border-border pb-2">
