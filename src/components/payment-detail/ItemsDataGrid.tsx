@@ -1432,8 +1432,12 @@ function RowMain({
         )}
         <td className={cn(cell, "font-mono", TEXT_META)}>
           {isBonus ? (
-            <span className="inline-flex items-center gap-1 text-amber-700 font-semibold">
-              <Sparkles className="h-3 w-3" /> Bônus
+            <span
+              role="img"
+              aria-label="Bônus de final de semana (não é um código TUSS)"
+              className="inline-flex items-center gap-1 text-amber-900 dark:text-amber-100 font-semibold"
+            >
+              <Sparkles className="h-3 w-3" aria-hidden="true" /> Bônus
             </span>
           ) : (it.procedure_code ?? "—")}
         </td>
