@@ -63,6 +63,11 @@ import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 import { loadDoctorRegistry, resolveDoctor, type DoctorRegistry } from "@/lib/registryLookup";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FileText } from "lucide-react";
+import { logCompanyMapping } from "@/lib/companyMappingAudit";
+import { CompanyMappingHistory } from "./CompanyMappingHistory";
+import { PreReconciliationReport, type HospitalRowLite } from "./PreReconciliationReport";
 
 function CopyAttendanceButton({ value }: { value: string | null | undefined }) {
   const [copied, setCopied] = useState(false);
@@ -390,7 +395,7 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T12:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T13:00:00Z";
 const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
@@ -527,6 +532,7 @@ export function PaymentConciliationModal({
   const [companyMapping, setCompanyMapping] = useState<Record<string, string | null>>({});
   const [matchLevels, setMatchLevels] = useState<Record<string, 'exact' | 'high' | 'medium' | null>>({});
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([]);
+  const [preReportOpen, setPreReportOpen] = useState(false);
   const [parsedColMap, setParsedColMap] = useState<Record<string, string>>({});
   const [pendingFileName, setPendingFileName] = useState<string>("");
 
@@ -558,6 +564,22 @@ export function PaymentConciliationModal({
       ).sort(),
     [paymentItems],
   );
+
+  // Resolução nome→id (gravar exacta_company_id no histórico).
+  const companyNameToId = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const it of paymentItems) {
+      const n = (it as any).company_name;
+      const id = (it as any).company_id;
+      if (n && id && !m[n]) m[n] = id;
+    }
+    return m;
+  }, [paymentItems]);
+  const companyIdToName = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const [n, id] of Object.entries(companyNameToId)) m[id] = n;
+    return m;
+  }, [companyNameToId]);
 
   // Mapa payment_item_id → quantidade Exacta AGREGADA por (empresa+atendimento+TUSS+médico).
   // O motor de conciliação colapsa segmentos do mesmo procedimento/médico em um item
@@ -3573,6 +3595,55 @@ export function PaymentConciliationModal({
                 </div>
               </div>
 
+              {/* Histórico de versões dos vínculos para este pagamento */}
+              {paymentId && (
+                <CompanyMappingHistory
+                  paymentId={paymentId}
+                  companyIdToName={companyIdToName}
+                />
+              )}
+
+              {/* Rótulos das colunas: esquerda=base de conciliação (hospital), direita=base do pagamento (Exacta) */}
+              <TooltipProvider>
+                <div className="flex items-center justify-between px-3 py-2 bg-card border border-border rounded-lg">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-help">
+                        <div className="w-3 h-3 rounded bg-muted-foreground/30 border border-border" />
+                        <div>
+                          <p className="text-xs font-semibold">Base de conciliação (hospital)</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {hospitalCompanies.length} empresa(s) do extrato hospitalar
+                          </p>
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[320px]">
+                      Empresas como aparecem no extrato/planilha hospitalar enviada. São a base do
+                      cruzamento — para cada uma, escolha a empresa equivalente do lote Exacta.
+                    </TooltipContent>
+                  </Tooltip>
+                  <span className="text-xs text-muted-foreground font-mono">hospital → Exacta</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-help">
+                        <div>
+                          <p className="text-xs font-semibold text-right">Base do pagamento (lote Exacta)</p>
+                          <p className="text-[10px] text-muted-foreground text-right">
+                            {loteCompanies.length} empresa(s) cadastradas neste lote
+                          </p>
+                        </div>
+                        <div className="w-3 h-3 rounded bg-success/40 border border-success/60" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[320px]">
+                      Empresas cadastradas neste pagamento/lote do Exacta. É o universo permitido
+                      para vinculação. "Ignorar" exclui a linha da conciliação.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
+
               <div className="flex gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-success" /> Auto-vinculado
@@ -3584,6 +3655,7 @@ export function PaymentConciliationModal({
                   <div className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Não encontrado
                 </span>
               </div>
+
 
               <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-lg">
                 <input
@@ -3689,14 +3761,27 @@ export function PaymentConciliationModal({
                         value={mapped ?? "__ignore__"}
                         onChange={(e) => {
                           const val = e.target.value;
+                          const newName = val === "__ignore__" ? null : val;
+                          const prevName = mapped ?? null;
                           setCompanyMapping((prev) => ({
                             ...prev,
-                            [terceiro]: val === "__ignore__" ? null : val,
+                            [terceiro]: newName,
                           }));
                           setMatchLevels((prev) => ({
                             ...prev,
                             [terceiro]: val === "__ignore__" ? null : 'exact',
                           }));
+                          // Auditoria: nova versão do vínculo (trigger marca anteriores como não-corrente)
+                          if (paymentId && newName !== prevName) {
+                            void logCompanyMapping({
+                              paymentId,
+                              reconciliationRunId: run?.id ?? null,
+                              hospitalCompanyRaw: terceiro,
+                              exactaCompanyId: newName ? companyNameToId[newName] ?? null : null,
+                              decision: val === "__ignore__" ? "ignored" : "manual",
+                              changedBy: user?.id ?? null,
+                            });
+                          }
                         }}
                         className="h-8 text-xs border border-border rounded-md bg-background px-2 shrink-0 w-[260px]"
                       >
@@ -3707,6 +3792,7 @@ export function PaymentConciliationModal({
                           </option>
                         ))}
                       </select>
+
                     </div>
                   );
                 })}
@@ -3730,6 +3816,15 @@ export function PaymentConciliationModal({
                     ← Voltar
                   </Button>
                   <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreReportOpen(true)}
+                    disabled={hospitalCompanies.length === 0}
+                  >
+                    <FileText className="h-3.5 w-3.5 mr-1.5" />
+                    Ver relatório
+                  </Button>
+                  <Button
                     size="sm"
                     disabled={processing || exactCount === 0}
                     onClick={() => {
@@ -3744,9 +3839,6 @@ export function PaymentConciliationModal({
                         ),
                       );
                       const keep = prevCompanies.filter((c) => !mapped.includes(c));
-                      // Só pergunta se já existe uma run anterior cobrindo
-                      // empresas que NÃO estão neste arquivo. Caso contrário,
-                      // simplesmente reprocessa (comportamento atual).
                       if (run?.id && keep.length > 0) {
                         setScopeDialogInfo({
                           newCompanies: mapped,
@@ -3770,7 +3862,39 @@ export function PaymentConciliationModal({
                   </Button>
                 </div>
               </div>
+
+              {/* Relatório pré-conciliação */}
+              {paymentId && (
+                <PreReconciliationReport
+                  open={preReportOpen}
+                  onOpenChange={setPreReportOpen}
+                  hospitalCompanies={hospitalCompanies}
+                  companyMapping={companyMapping}
+                  matchLevels={matchLevels}
+                  hospitalRows={(() => {
+                    const companyCol = parsedColMap["company"] || "";
+                    const attCol = parsedColMap["attendance"] || "";
+                    const codeCol = parsedColMap["procedure_code"] || "";
+                    const docCol = parsedColMap["doctor"] || "";
+                    const out: HospitalRowLite[] = [];
+                    for (const r of parsedRows) {
+                      out.push({
+                        company: companyCol ? String(r[companyCol] ?? "").trim() : "",
+                        attendance: attCol ? String(r[attCol] ?? "").trim() : "",
+                        code: codeCol ? String(r[codeCol] ?? "").trim() : "",
+                        doctor: docCol ? String(r[docCol] ?? "").trim() : "",
+                        qty: 1,
+                      });
+                    }
+                    return out;
+                  })()}
+                  onConfirm={() => {
+                    handleProcessReconciliation("replace");
+                  }}
+                />
+              )}
             </div>
+
           )}
 
           {!loading && step === "result" && run && (
