@@ -1445,7 +1445,7 @@ export function PaymentConciliationModal({
       // em `_no_doctor_`; sem a função, principal e auxiliares do mesmo
       // atendimento/código podiam colapsar e inflar a quantidade do hospital.
       const hospitalCompanySet = new Set<string>();
-      type ProdAgg = { rep: Record<string, unknown>; valSum: number; qtySum: number; routes: Set<string> };
+      type ProdAgg = { rep: Record<string, unknown>; valSum: number; qtySum: number; routes: Set<string>; repasseSum: number };
       const prodAggMap = new Map<string, ProdAgg>();
       for (const row of rowsParaCruzamento) {
         const colC = srcColMap["company"];
