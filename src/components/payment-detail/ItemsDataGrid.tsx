@@ -1129,7 +1129,10 @@ function RowMain({
     ruleName = r?.name ?? matchedNames[0];
   }
 
-  const baseCellBg = isExpanded
+  const isBonus = (it as any).tipo_linha === "complemento_bonus";
+  const baseCellBg = isBonus
+    ? "bg-amber-50/60 dark:bg-amber-950/20"
+    : isExpanded
     ? "bg-primary/10"
     : isActive
     ? "bg-primary/5"
