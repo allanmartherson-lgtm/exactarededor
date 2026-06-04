@@ -22,6 +22,7 @@ import {
   type AppliedCalcMethod,
 } from "../_shared/calcMethodMapping.ts";
 import { classifyDuplicateMatch, evaluateDuplicate, type DuplicateOverridePayload } from "../_shared/itemHash.ts";
+// rebuild: allowlist estrita para group_company_links com doctors preenchido (2026-06-04)
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
