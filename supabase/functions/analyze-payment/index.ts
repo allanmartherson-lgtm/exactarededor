@@ -1576,6 +1576,24 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       bonusTotalByCompany[compKey] = (bonusTotalByCompany[compKey] ?? 0) + bonusAmt;
       // Procedimento volta a refletir só o honorário base.
       u.expected_amount = parentGross;
+      // Espelhar a reversão dentro de ai_findings (JSONB lido pela UI).
+      if (u.ai_findings && typeof u.ai_findings === "object") {
+        const af = u.ai_findings as Record<string, unknown>;
+        af.expected_amount = parentGross;
+        // Remover alerts originados da divergência do bônus.
+        if (Array.isArray(af.alerts)) {
+          const bonusRe = /b[oô]nus|R\$\s?1[\.\s]?500/i;
+          const filtered = (af.alerts as unknown[]).filter((a) => {
+            const s = typeof a === "string" ? a : JSON.stringify(a ?? "");
+            return !bonusRe.test(s);
+          });
+          af.alerts = filtered;
+        }
+      }
+      // Após reverter, expected == gross para o pai → aprovar.
+      if (u.ai_status === "reprovado" || u.ai_status === "alerta") {
+        u.ai_status = "aprovado";
+      }
       bonusLinesToInsert.push({
         payment_id,
         doctor_name: parent.doctor_name ?? null,
