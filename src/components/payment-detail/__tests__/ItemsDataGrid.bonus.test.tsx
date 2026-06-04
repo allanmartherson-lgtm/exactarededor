@@ -122,7 +122,8 @@ describe("ItemsDataGrid - separador de bônus removido", () => {
     const pIdx = ids.indexOf("parent");
     const oIdx = ids.indexOf("other");
     const bIdx = ids.indexOf("bonus");
-    expect(pIdx).toBeLessThan(oIdx);
+    // 'Paciente Dois' (other) < 'Paciente Um' (parent) em asc
+    expect(oIdx).toBeLessThan(pIdx);
     expect(bIdx).toBe(pIdx + 1); // bônus ainda colado ao pai
   });
 });
