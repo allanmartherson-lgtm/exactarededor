@@ -916,24 +916,206 @@ export function ItemsDataGrid({
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
-                {colVis.atendimento && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Atend.</th>}
-                <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]")}>Paciente</th>
-                {colVis.convenio && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Convênio</th>}
-                {colVis.via && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Via</th>}
-                <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>TUSS</th>
-                <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Qtd</th>
-                <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>
-                {colVis.setor_lido && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)</th>}
-                {colVis.setor_inferido && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Sistema)</th>}
-                <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Médico</th>
-                {colVis.funcao && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função</th>}
-                {colVis.regra && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra</th>}
-                <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Valor Repasse</th>
-                <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Esperado</th>
-                {colVis.diferenca && <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Diferença</th>}
-                <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Status</th>
-                {colVis.observacao && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.</th>}
-                {canEdit && <th className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap")}>Ações</th>}
+                {(() => {
+                  // Helper inline para th sortável. Botão acessível por teclado
+                  // (Enter/Space), aria-sort dinâmico, ícone indica direção.
+                  const SortIcon = ({ k }: { k: SortKey }) => {
+                    if (sortKey !== k)
+                      return <ChevronsUpDown className="h-3 w-3 opacity-40 shrink-0" aria-hidden="true" />;
+                    return sortDir === "asc"
+                      ? <ChevronUp className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      : <ChevronDown className="h-3 w-3 shrink-0" aria-hidden="true" />;
+                  };
+                  const ariaSortOf = (k: SortKey): "ascending" | "descending" | "none" =>
+                    sortKey !== k ? "none" : sortDir === "asc" ? "ascending" : "descending";
+                  // Não usado diretamente — apenas para clareza visual nas chamadas abaixo.
+                  void ariaSortOf;
+                  return null;
+                })()}
+                {colVis.atendimento && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Atend.</th>}
+                <th
+                  scope="col"
+                  aria-sort={sortKey === "paciente" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]")}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("paciente")}
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    aria-label={`Ordenar por Paciente${sortKey === "paciente" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                  >
+                    Paciente
+                    {sortKey === "paciente"
+                      ? (sortDir === "asc"
+                          ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                          : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                      : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                  </button>
+                </th>
+                {colVis.convenio && (
+                  <th
+                    scope="col"
+                    aria-sort={sortKey === "convenio" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                    className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("convenio")}
+                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                      aria-label={`Ordenar por Convênio${sortKey === "convenio" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                    >
+                      Convênio
+                      {sortKey === "convenio"
+                        ? (sortDir === "asc"
+                            ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                            : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                        : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                    </button>
+                  </th>
+                )}
+                {colVis.via && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Via</th>}
+                <th
+                  scope="col"
+                  aria-sort={sortKey === "tuss" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("tuss")}
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    aria-label={`Ordenar por TUSS${sortKey === "tuss" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                  >
+                    TUSS
+                    {sortKey === "tuss"
+                      ? (sortDir === "asc"
+                          ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                          : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                      : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                  </button>
+                </th>
+                <th
+                  scope="col"
+                  aria-sort={sortKey === "qtd" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                  className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("qtd")}
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
+                    aria-label={`Ordenar por Quantidade${sortKey === "qtd" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                  >
+                    Qtd
+                    {sortKey === "qtd"
+                      ? (sortDir === "asc"
+                          ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                          : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                      : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                  </button>
+                </th>
+                <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>
+                {colVis.setor_lido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)</th>}
+                {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Sistema)</th>}
+                <th
+                  scope="col"
+                  aria-sort={sortKey === "medico" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("medico")}
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    aria-label={`Ordenar por Médico${sortKey === "medico" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                  >
+                    Médico
+                    {sortKey === "medico"
+                      ? (sortDir === "asc"
+                          ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                          : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                      : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                  </button>
+                </th>
+                {colVis.funcao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função</th>}
+                {colVis.regra && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra</th>}
+                <th
+                  scope="col"
+                  aria-sort={sortKey === "gross" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                  className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("gross")}
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
+                    aria-label={`Ordenar por Valor Repasse${sortKey === "gross" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                  >
+                    Valor Repasse
+                    {sortKey === "gross"
+                      ? (sortDir === "asc"
+                          ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                          : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                      : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                  </button>
+                </th>
+                <th
+                  scope="col"
+                  aria-sort={sortKey === "esperado" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                  className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("esperado")}
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
+                    aria-label={`Ordenar por Esperado${sortKey === "esperado" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                  >
+                    Esperado
+                    {sortKey === "esperado"
+                      ? (sortDir === "asc"
+                          ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                          : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                      : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                  </button>
+                </th>
+                {colVis.diferenca && (
+                  <th
+                    scope="col"
+                    aria-sort={sortKey === "diferenca" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                    className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("diferenca")}
+                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
+                      aria-label={`Ordenar por Diferença${sortKey === "diferenca" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                    >
+                      Diferença
+                      {sortKey === "diferenca"
+                        ? (sortDir === "asc"
+                            ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                            : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                        : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                    </button>
+                  </th>
+                )}
+                <th
+                  scope="col"
+                  aria-sort={sortKey === "status" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("status")}
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    aria-label={`Ordenar por Status${sortKey === "status" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                  >
+                    Status
+                    {sortKey === "status"
+                      ? (sortDir === "asc"
+                          ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                          : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                      : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                  </button>
+                </th>
+                {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.</th>}
+                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap")}>Ações</th>}
               </tr>
             </thead>
             <tbody>
