@@ -994,6 +994,7 @@ const Payments = () => {
               destructive: "bg-destructive/10 text-destructive",
               warning: "bg-warning/10 text-warning",
               success: "bg-success/10 text-success",
+              info: "bg-info/10 text-info",
             };
             return (
               <div
