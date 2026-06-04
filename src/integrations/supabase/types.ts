@@ -4928,6 +4928,7 @@ export type Database = {
           attendance_number: string | null
           company_name: string | null
           created_at: string
+          diferenca_regra: number | null
           doctor_name: string | null
           hospital_id: string | null
           ia_obs: string | null
@@ -4961,6 +4962,7 @@ export type Database = {
           attendance_number?: string | null
           company_name?: string | null
           created_at?: string
+          diferenca_regra?: number | null
           doctor_name?: string | null
           hospital_id?: string | null
           ia_obs?: string | null
@@ -4994,6 +4996,7 @@ export type Database = {
           attendance_number?: string | null
           company_name?: string | null
           created_at?: string
+          diferenca_regra?: number | null
           doctor_name?: string | null
           hospital_id?: string | null
           ia_obs?: string | null
