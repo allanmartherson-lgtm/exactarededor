@@ -595,15 +595,48 @@ export function ItemsDataGrid({
               ))}
             </SelectContent>
           </Select>
-          <Button
-            size="sm"
-            variant={onlyAlerts ? "default" : "outline"}
-            className="h-8 text-xs"
-            onClick={() => setOnlyAlerts((v) => !v)}
-          >
-            <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-            Só com alertas
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant={(onlyAlerts || onlyManualBonus) ? "default" : "outline"}
+                className="h-8 text-xs"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+                {onlyManualBonus
+                  ? "Manuais / Bônus / Compl."
+                  : onlyAlerts
+                  ? "Só com alertas"
+                  : "Filtrar itens"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-60">
+              <DropdownMenuLabel>Filtros rápidos</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => { setOnlyAlerts(true); setOnlyManualBonus(false); }}
+                className={cn(onlyAlerts && "bg-accent")}
+              >
+                <AlertTriangle className="h-3.5 w-3.5 mr-2 text-warning" />
+                Só com alertas
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => { setOnlyManualBonus(true); setOnlyAlerts(false); }}
+                className={cn(onlyManualBonus && "bg-accent")}
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-2 text-indigo-600" />
+                Manuais, bônus e complemento
+              </DropdownMenuItem>
+              {(onlyAlerts || onlyManualBonus) && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => { setOnlyAlerts(false); setOnlyManualBonus(false); }}>
+                    Limpar este filtro
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             size="sm"
             variant={onlyNeedsReview ? "default" : "outline"}
