@@ -4944,7 +4944,9 @@ export type Database = {
           status: string
           valor_exacta: number
           valor_hospital: number
+          valor_pago_exacta: number | null
           valor_regra: number | null
+          valor_repasse_acordo: number | null
         }
         Insert: {
           action_at?: string | null
@@ -4975,7 +4977,9 @@ export type Database = {
           status?: string
           valor_exacta?: number
           valor_hospital?: number
+          valor_pago_exacta?: number | null
           valor_regra?: number | null
+          valor_repasse_acordo?: number | null
         }
         Update: {
           action_at?: string | null
@@ -5006,7 +5010,9 @@ export type Database = {
           status?: string
           valor_exacta?: number
           valor_hospital?: number
+          valor_pago_exacta?: number | null
           valor_regra?: number | null
+          valor_repasse_acordo?: number | null
         }
         Relationships: [
           {
