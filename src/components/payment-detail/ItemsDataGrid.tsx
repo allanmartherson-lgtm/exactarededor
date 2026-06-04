@@ -921,22 +921,6 @@ export function ItemsDataGrid({
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
-                {(() => {
-                  // Helper inline para th sortável. Botão acessível por teclado
-                  // (Enter/Space), aria-sort dinâmico, ícone indica direção.
-                  const SortIcon = ({ k }: { k: SortKey }) => {
-                    if (sortKey !== k)
-                      return <ChevronsUpDown className="h-3 w-3 opacity-40 shrink-0" aria-hidden="true" />;
-                    return sortDir === "asc"
-                      ? <ChevronUp className="h-3 w-3 shrink-0" aria-hidden="true" />
-                      : <ChevronDown className="h-3 w-3 shrink-0" aria-hidden="true" />;
-                  };
-                  const ariaSortOf = (k: SortKey): "ascending" | "descending" | "none" =>
-                    sortKey !== k ? "none" : sortDir === "asc" ? "ascending" : "descending";
-                  // Não usado diretamente — apenas para clareza visual nas chamadas abaixo.
-                  void ariaSortOf;
-                  return null;
-                })()}
                 {colVis.atendimento && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Atend.</th>}
                 <th
                   scope="col"
