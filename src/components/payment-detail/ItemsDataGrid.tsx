@@ -717,14 +717,6 @@ export function ItemsDataGrid({
                       Ajustes de conciliação
                     </li>
                   )}
-                  {isFirstBonus && (
-                    <li
-                      key={`bonus-sep-${it.id}`}
-                      className="px-4 py-2 bg-amber-100/70 dark:bg-amber-950/30 text-[10px] font-bold uppercase tracking-[0.06em] text-amber-800 dark:text-amber-200"
-                    >
-                      Bônus de final de semana
-                    </li>
-                  )}
                   {isBonus ? (
                     <li
                       key={it.id}
@@ -939,16 +931,6 @@ export function ItemsDataGrid({
                           }}
                         >
                           Ajustes de conciliação
-                        </td>
-                      </tr>
-                    )}
-                    {isFirstBonus && (
-                      <tr key={`bonus-sep-${it.id}`}>
-                        <td
-                          colSpan={totalCols}
-                          className="px-4 py-1.5 bg-amber-100/70 dark:bg-amber-950/30 text-[10px] font-bold uppercase tracking-[0.06em] text-amber-800 dark:text-amber-200"
-                        >
-                          Bônus de final de semana
                         </td>
                       </tr>
                     )}
