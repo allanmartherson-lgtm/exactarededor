@@ -1939,6 +1939,7 @@ export function PaymentConciliationModal({
           procedure_date: dateStr,
 
           valor_hospital: valHosp,
+          valor_repasse_acordo: valHospRepasse,
           valor_exacta: 0,
           payment_item_id: null,
           company_name: mappedCompany,
