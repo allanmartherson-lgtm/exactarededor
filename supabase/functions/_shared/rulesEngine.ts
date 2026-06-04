@@ -683,9 +683,10 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
     const ds = (link.doctors ?? []) as any;
     if (ds.length === 0) return true;
     if (matchDoctorInList(ds, item)) return true;
-    // Allowlist estrita explícita
-    if (link.auto_include_new_doctors === false) continue;
-    // Auto-include: respeita exclusão explícita
+    // Lista de médicos preenchida = allowlist por padrão.
+    // auto_include_new_doctors deve ser explicitamente true para incluir quem não está na lista.
+    if (link.auto_include_new_doctors !== true) continue;
+    // Auto-include explícito: respeita exclusão explícita
     const excluded = (link.excluded_doctors ?? []) as any;
     if (matchDoctorInList(excluded, item)) continue;
     return true;
