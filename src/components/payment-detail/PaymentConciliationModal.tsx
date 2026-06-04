@@ -1626,41 +1626,37 @@ export function PaymentConciliationModal({
       const grossByKey = new Map<string, number>();
       const procedureAmountByKey = new Map<string, number>();
       for (const it of exactaItemsForRun) {
-        const cn = normCompany(it.company_name);
         const att = normAtt(it.attendance_number ?? "");
         const med = normName((it as unknown as { doctor_name?: string }).doctor_name ?? "");
         const cd = normalizeCode(it.procedure_code);
-        const key = `${cn}|${att}|${med}|${cd}`;
+        const key = `${att}|${med}|${cd}`;
         expectedByKey.set(key, (expectedByKey.get(key) ?? 0) + (Number((it as unknown as { expected_amount?: number }).expected_amount) || 0));
         grossByKey.set(key, (grossByKey.get(key) ?? 0) + (Number((it as unknown as { gross_amount?: number }).gross_amount) || 0));
         procedureAmountByKey.set(key, (procedureAmountByKey.get(key) ?? 0) + (Number((it as unknown as { procedure_amount?: number }).procedure_amount) || 0));
       }
-      const lookupExpected = (cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
-        const cn = normCompany(cmpRaw);
+      const lookupExpected = (_cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
         const att = normAtt(String(attRaw ?? ""));
         const med = normName(String(medRaw ?? ""));
         for (const v of codeVariants(codeRaw)) {
-          const val = expectedByKey.get(`${cn}|${att}|${med}|${v}`);
+          const val = expectedByKey.get(`${att}|${med}|${v}`);
           if (val !== undefined) return val;
         }
         return 0;
       };
-      const lookupGross = (cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
-        const cn = normCompany(cmpRaw);
+      const lookupGross = (_cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
         const att = normAtt(String(attRaw ?? ""));
         const med = normName(String(medRaw ?? ""));
         for (const v of codeVariants(codeRaw)) {
-          const val = grossByKey.get(`${cn}|${att}|${med}|${v}`);
+          const val = grossByKey.get(`${att}|${med}|${v}`);
           if (val !== undefined) return val;
         }
         return 0;
       };
-      const lookupProcedureAmount = (cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
-        const cn = normCompany(cmpRaw);
+      const lookupProcedureAmount = (_cmpRaw: unknown, attRaw: unknown, medRaw: unknown, codeRaw: unknown): number => {
         const att = normAtt(String(attRaw ?? ""));
         const med = normName(String(medRaw ?? ""));
         for (const v of codeVariants(codeRaw)) {
-          const val = procedureAmountByKey.get(`${cn}|${att}|${med}|${v}`);
+          const val = procedureAmountByKey.get(`${att}|${med}|${v}`);
           if (val !== undefined) return val;
         }
         return 0;
