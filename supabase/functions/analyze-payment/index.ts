@@ -1549,6 +1549,52 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
 
+    // ===== Split de bônus: o motor de regras soma o bônus no expected_amount
+    // do item de procedimento. Aqui revertemos isso — o procedimento volta
+    // a ter só seu honorário base, e o bônus vira uma linha independente
+    // (tipo_linha='complemento_bonus', tipo_item='bonus') ligada ao item pai
+    // via origem_referencia. Não altera rulesEngine.ts; apenas persistência.
+    const bonusLinesToInsert: Record<string, unknown>[] = [];
+    const bonusCompanyNames = new Set<string>();
+    for (const u of itemUpdates) {
+      if (u.applied_calc_method !== "bonus") continue;
+      const parent = itemsById[u.id];
+      if (!parent) continue;
+      const parentGross = Number(parent.gross_amount ?? 0);
+      const exp = u.expected_amount;
+      if (exp == null || exp <= parentGross + 0.01) continue;
+      const bonusAmt = Number((exp - parentGross).toFixed(2));
+      // Procedimento volta a refletir só o honorário base.
+      u.expected_amount = parentGross;
+      bonusLinesToInsert.push({
+        payment_id,
+        doctor_name: parent.doctor_name ?? null,
+        doctor_id: parent.doctor_id ?? null,
+        company_name: parent.company_name ?? null,
+        company_id: parent.company_id ?? null,
+        attendance_number: parent.attendance_number ?? null,
+        sector: parent.sector ?? null,
+        procedure_date: parent.procedure_date ?? null,
+        gross_amount: bonusAmt,
+        expected_amount: bonusAmt,
+        procedure_name: u.applied_rule_label,
+        tipo_linha: "complemento_bonus",
+        tipo_item: "bonus",
+        item_origem: "pagamento_atual",
+        origem_referencia: u.id,
+        applied_calc_method: "bonus",
+        applied_rule_label: u.applied_rule_label,
+        applied_rule_id: u.applied_rule_id,
+        ai_status: "aprovado",
+        applied_at: new Date().toISOString(),
+        validation_findings: [],
+        convenio_value_totalized: false,
+        authorized_exception: false,
+        empresa_tem_pool: false,
+      });
+      if (parent.company_name) bonusCompanyNames.add(parent.company_name);
+    }
+
     // Helper: executa promessas em chunks paralelos (limita conexões simultâneas).
     const runChunked = async <T,>(arr: T[], size: number, fn: (x: T) => Promise<unknown>) => {
       for (let i = 0; i < arr.length; i += size) {
@@ -1580,6 +1626,36 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
     });
     console.timeEnd(`${__t} writes_payment_items`);
+
+    // Idempotência: apaga linhas de bônus prévias deste payment para as
+    // empresas que este worker está processando — evita duplicar em reanálise.
+    if (bonusCompanyNames.size > 0) {
+      await supabase
+        .from("payment_items")
+        .delete()
+        .eq("payment_id", payment_id)
+        .eq("tipo_linha", "complemento_bonus")
+        .eq("tipo_item", "bonus")
+        .in("company_name", Array.from(bonusCompanyNames));
+    }
+    if (bonusLinesToInsert.length > 0) {
+      for (let i = 0; i < bonusLinesToInsert.length; i += 200) {
+        const slice = bonusLinesToInsert.slice(i, i + 200);
+        const { error: bonusErr } = await supabase.from("payment_items").insert(slice);
+        if (bonusErr) console.error(`${__t} bonus_insert_error`, bonusErr);
+      }
+      // Garante que o cálculo de total_amount dos grupos inclua as novas linhas.
+      for (const b of bonusLinesToInsert) {
+        items.push({
+          id: `__bonus_${(b.origem_referencia as string) ?? Math.random()}`,
+          doctor_name: (b.doctor_name as string) ?? null,
+          doctor_id: (b.doctor_id as string) ?? null,
+          company_name: (b.company_name as string) ?? null,
+          company_id: (b.company_id as string) ?? null,
+          gross_amount: Number(b.gross_amount ?? 0),
+        } as unknown as ItemInput);
+      }
+    }
 
     // Inserts em bulk (uma chamada por tabela; chunked por segurança em lotes grandes).
     if (versionRows.length) {
