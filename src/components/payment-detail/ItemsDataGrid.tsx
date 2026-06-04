@@ -177,6 +177,35 @@ export function ItemsDataGrid({
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
 
+  // Ordenação clicável das colunas. Bônus sempre permanece ancorado ao item
+  // pai (lógica de re-anexar logo após o sort principal). Quando nenhum
+  // sortKey está definido, mantém o default (status + gross_amount desc).
+  type SortKey =
+    | "paciente"
+    | "convenio"
+    | "tuss"
+    | "qtd"
+    | "medico"
+    | "gross"
+    | "esperado"
+    | "diferenca"
+    | "status";
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) {
+      // 3-state cycle: asc → desc → none (volta ao default)
+      if (sortDir === "asc") setSortDir("desc");
+      else {
+        setSortKey(null);
+        setSortDir("asc");
+      }
+    } else {
+      setSortKey(k);
+      setSortDir("asc");
+    }
+  };
+
   const [colVis, setColVis] = useState<Record<OptionalColKey, boolean>>(() => {
     if (typeof window === "undefined") return DEFAULT_COL_VISIBILITY;
     try {
