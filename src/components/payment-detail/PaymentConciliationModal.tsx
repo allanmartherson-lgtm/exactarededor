@@ -2609,6 +2609,7 @@ export function PaymentConciliationModal({
   const scopedStats = useMemo(() => {
     let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0, empresa_ausente = 0, possivel_pacote = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
+    let diferenca_total = 0;
     for (const it of scopedItems) {
       if (it.status === "conciliado") conciliado++;
       else if (it.status === "valor_divergente") valor_divergente++;
@@ -2623,6 +2624,18 @@ export function PaymentConciliationModal({
         const diff = vh - vm;
         divergencia_valor += Math.abs(diff);
         if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
+        // DIFERENÇA TOTAL: prioriza diferenca_regra persistida; fallback
+        // calcula (valor_pago_exacta - valor_regra) quando ambos disponíveis.
+        const dr = (it as any).diferenca_regra;
+        if (typeof dr === "number" && Number.isFinite(dr)) {
+          diferenca_total += dr;
+        } else {
+          const vpe = Number((it as any).valor_pago_exacta);
+          const vr = Number(it.valor_regra);
+          if (Number.isFinite(vpe) && Number.isFinite(vr)) {
+            diferenca_total += vpe - vr;
+          }
+        }
       } else if (it.status === "qtd_divergente") {
         const vr = Number(it.valor_regra) || 0;
         if (vr > 0) {
@@ -2640,9 +2653,10 @@ export function PaymentConciliationModal({
     return {
       total: scopedItems.length,
       conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta, empresa_ausente, possivel_pacote,
-      risco_mais, risco_menos, divergencia_valor,
+      risco_mais, risco_menos, divergencia_valor, diferenca_total,
     };
   }, [scopedItems]);
+
 
   const filteredItems = useMemo(() => {
     if (activeFilter === "todos") return scopedItems;
