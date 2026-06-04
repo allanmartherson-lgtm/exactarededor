@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertBanner } from "./AlertBanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -174,6 +175,7 @@ export function ItemsDataGrid({
   const [statusFilter, setStatusFilter] = useState<string>("__all__");
   const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+  const [onlyManualBonus, setOnlyManualBonus] = useState(false);
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
 
@@ -274,13 +276,27 @@ export function ItemsDataGrid({
     const term = filter.trim().toLowerCase();
     const pat = patientFilter.trim().toLowerCase();
     const base = items.filter((it) => {
-      const isBonus = (it as any).tipo_linha === "complemento_bonus";
+      const tl = (it as any).tipo_linha as string | null | undefined;
+      const src = (it as any).source as string | null | undefined;
+      const origem = (it as any).item_origem as string | null | undefined;
+      const isBonus = tl === "complemento_bonus";
+      const isComplemento = tl === "complemento" || tl === "outros";
+      const isManual = src === "manual" || origem === "inclusao_manual";
+      const isInformativo = isBonus || isComplemento || isManual;
       const alerts = (it.ai_findings?.alerts ?? []) as string[];
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
       const needsReview = !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review;
-      // Bônus nunca é escondido por filtros de alerta — ele acompanha o pai.
-      if (!isBonus) {
-        if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
+      // Filtro "Manuais/Bônus/Complemento" — mostra somente esses lançamentos.
+      if (onlyManualBonus) {
+        if (!isInformativo) return false;
+      }
+      // Filtro "Só com alertas" — esconde lançamentos informativos (não são erro).
+      // Bônus só permanece ancorado ao pai quando NENHUM filtro restritivo está ativo.
+      if (onlyAlerts) {
+        if (isInformativo) return false;
+        if (alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
+      }
+      if (!isInformativo) {
         if (onlyNeedsReview && !needsReview) return false;
         if (onlyValidationAlerts) {
           const vf = (it as any).validation_findings;
@@ -410,7 +426,7 @@ export function ItemsDataGrid({
     }
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, onlyValidationAlerts, groupStatus, sortKey, sortDir]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, groupStatus, sortKey, sortDir]);
 
 
   // Totais da seleção atual (após filtros).
@@ -579,15 +595,48 @@ export function ItemsDataGrid({
               ))}
             </SelectContent>
           </Select>
-          <Button
-            size="sm"
-            variant={onlyAlerts ? "default" : "outline"}
-            className="h-8 text-xs"
-            onClick={() => setOnlyAlerts((v) => !v)}
-          >
-            <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-            Só com alertas
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant={(onlyAlerts || onlyManualBonus) ? "default" : "outline"}
+                className="h-8 text-xs"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+                {onlyManualBonus
+                  ? "Manuais / Bônus / Compl."
+                  : onlyAlerts
+                  ? "Só com alertas"
+                  : "Filtrar itens"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-60">
+              <DropdownMenuLabel>Filtros rápidos</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => { setOnlyAlerts(true); setOnlyManualBonus(false); }}
+                className={cn(onlyAlerts && "bg-accent")}
+              >
+                <AlertTriangle className="h-3.5 w-3.5 mr-2 text-warning" />
+                Só com alertas
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => { setOnlyManualBonus(true); setOnlyAlerts(false); }}
+                className={cn(onlyManualBonus && "bg-accent")}
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-2 text-indigo-600" />
+                Manuais, bônus e complemento
+              </DropdownMenuItem>
+              {(onlyAlerts || onlyManualBonus) && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => { setOnlyAlerts(false); setOnlyManualBonus(false); }}>
+                    Limpar este filtro
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             size="sm"
             variant={onlyNeedsReview ? "default" : "outline"}
@@ -607,7 +656,7 @@ export function ItemsDataGrid({
             <ShieldAlert className="h-3.5 w-3.5 mr-1" />
             Alertas assistenciais
           </Button>
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyNeedsReview || onlyValidationAlerts) && (
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts) && (
             <Button
               size="sm"
               variant="ghost"
@@ -615,7 +664,7 @@ export function ItemsDataGrid({
               onClick={() => {
                 setFilter(""); setPatientFilter("");
                 setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
-                setOnlyAlerts(false); setOnlyNeedsReview(false);
+                setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyNeedsReview(false);
                 setOnlyValidationAlerts(false);
               }}
             >
