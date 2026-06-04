@@ -1706,6 +1706,7 @@ export function PaymentConciliationModal({
         const code = getCell(row, "procCode");
         // Valor e quantidade AGREGADOS (somatório dos segmentos do mesmo ato).
         const valHosp = agg.valSum;
+        const valHospRepasse = (agg as any).repasseSum ?? 0;
         const patient = getCell(row, "patient");
         const doctor = getCell(row, "doctor");
         const crmHospRaw = getCell(row, "crm");
