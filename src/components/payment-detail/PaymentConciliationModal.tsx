@@ -162,6 +162,7 @@ type ReconciliationItem = {
   applied_calc_method: string | null;
   valor_regra?: number | null;
   valor_pago_exacta?: number | null;
+  diferenca_regra?: number | null;
   action_taken?: string | null;
   action_by?: string | null;
   action_at?: string | null;
@@ -389,7 +390,7 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T10:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T11:30:00Z";
 const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
@@ -2039,6 +2040,7 @@ export function PaymentConciliationModal({
               || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code)
               || valHosp;
             const diff = _pago - valExpected;
+            base.diferenca_regra = diff;
             if (Math.abs(diff) < TOL_ABS) {
               base.status = "conciliado";
               conciliado++;
@@ -4343,27 +4345,34 @@ export function PaymentConciliationModal({
                                             : "—"}
                                         </TableCell>
                                         {(() => {
-                                          // Base de comparação: valor que o hospital efetivamente reconheceu.
-                                          // Se o hospital não tem o item (so_exacta) ou registrou estorno/negativo,
-                                          // a comparação correta é vs o valor da Exacta — não somar o módulo do
-                                          // valor negativo do hospital, que infla a diferença artificialmente.
-                                          const vr = it.valor_regra ? Number(it.valor_regra) : null;
+                                          // DIFERENÇA REGRA = quanto o Exacta pagou a mais/menos vs o esperado pela regra.
+                                          // Prioriza valor_pago_exacta − valor_regra (o que efetivamente importa para o médico).
+                                          // Fallback: diferenca_regra armazenado; depois valor_regra − valor_hospital (legado).
+                                          const vr = it.valor_regra != null ? Number(it.valor_regra) : null;
+                                          const vpe = Number((it as any).valor_pago_exacta) || 0;
                                           const vh = Number(it.valor_hospital) || 0;
                                           const ve = Number(it.valor_exacta) || 0;
-                                          const base = vh > 0 ? vh : ve;
-                                          const hasBase = vr != null && base > 0;
-                                          const diff = hasBase ? vr! - base : null;
+                                          let diff: number | null = null;
+                                          let tooltip = "";
+                                          if (vpe > 0 && vr != null) {
+                                            diff = vpe - vr;
+                                            tooltip = "Valor Pago Exacta − Valor Regra";
+                                          } else if (it.diferenca_regra != null) {
+                                            diff = Number(it.diferenca_regra);
+                                            tooltip = "Diferença calculada pela engine";
+                                          } else if (vr != null) {
+                                            const base = vh > 0 ? vh : ve;
+                                            if (base > 0) { diff = vr - base; tooltip = vh > 0 ? "Valor Regra − Valor Hospital" : "Hospital ausente/estorno — comparado vs Valor Exacta"; }
+                                          }
                                           return (
                                             <TableCell
                                               className="px-3 py-2 text-[12px] text-right tabular-nums font-semibold"
                                               style={{
                                                 color: diff == null
                                                   ? 'hsl(var(--muted-foreground))'
-                                                  : (diff > 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'),
+                                                  : (diff > 0.02 ? 'hsl(var(--destructive))' : 'hsl(var(--success))'),
                                               }}
-                                              title={vh > 0
-                                                ? "Valor Regra − Valor Hospital"
-                                                : "Hospital ausente/estorno — comparado vs Valor Exacta"}
+                                              title={tooltip}
                                             >
                                               {diff == null ? "—" : formatCurrency(diff)}
                                             </TableCell>
@@ -4628,18 +4637,29 @@ export function PaymentConciliationModal({
                                   Hospital:{" "}
                                   <strong className="tabular-nums">{formatCurrency(totalHosp)}</strong>
                                 </span>
-                                <span
-                                  className={cn(
-                                    "font-semibold tabular-nums",
-                                    totalHosp - totalMed > 0
-                                      ? "text-destructive"
-                                      : totalHosp - totalMed < 0
-                                        ? "text-success"
-                                        : "text-muted-foreground",
-                                  )}
-                                >
-                                  Δ {formatCurrency(Math.abs(totalHosp - totalMed))}
-                                </span>
+                                {(() => {
+                                  // Se houver itens com valor_pago_exacta, totalizar a diferença real (pago − regra).
+                                  // Caso contrário, cai no Δ tradicional (hospital − exacta).
+                                  const itemsWithVpe = companyItems.filter((i: any) => Number(i.valor_pago_exacta) > 0 && i.valor_regra != null);
+                                  const useRuleDiff = itemsWithVpe.length > 0;
+                                  const ruleDiff = itemsWithVpe.reduce((s: number, i: any) => s + (Number(i.valor_pago_exacta) - Number(i.valor_regra)), 0);
+                                  const delta = useRuleDiff ? ruleDiff : (totalHosp - totalMed);
+                                  return (
+                                    <span
+                                      className={cn(
+                                        "font-semibold tabular-nums",
+                                        delta > 0
+                                          ? "text-destructive"
+                                          : delta < 0
+                                            ? "text-success"
+                                            : "text-muted-foreground",
+                                      )}
+                                      title={useRuleDiff ? "Σ (Valor Pago Exacta − Valor Regra) dos itens com regra" : "Hospital − Exacta"}
+                                    >
+                                      Δ {formatCurrency(Math.abs(delta))}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
