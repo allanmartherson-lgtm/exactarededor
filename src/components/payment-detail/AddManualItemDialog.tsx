@@ -37,13 +37,12 @@ export type AddManualItemDialogProps = {
 };
 
 type Mode = "avulso" | "validar";
-type LancType = "honorario" | "bonus" | "complemento" | "pendencia_anterior" | "outros";
+type LancType = "honorario" | "bonus" | "complemento" | "outros";
 
 const LANC_TYPES: { value: LancType; label: string; hint: string }[] = [
   { value: "honorario", label: "Honorário (procedimento)", hint: "Lançamento padrão — TUSS e função obrigatórios." },
   { value: "bonus", label: "Bônus", hint: "Bônus do principal (atendimento só com auxiliar) ou bônus avulso." },
-  { value: "complemento", label: "Complemento", hint: "Complementação de honorário já pago em outro lote." },
-  { value: "pendencia_anterior", label: "Pendência de competência anterior", hint: "Item esquecido em competências passadas." },
+  { value: "complemento", label: "Complemento", hint: "Complementação de honorário já pago em outro lote ou competência anterior." },
   { value: "outros", label: "Outros", hint: "Outros lançamentos avulsos." },
 ];
 
