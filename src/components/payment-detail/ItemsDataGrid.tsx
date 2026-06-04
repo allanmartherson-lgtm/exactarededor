@@ -175,6 +175,7 @@ export function ItemsDataGrid({
   const [statusFilter, setStatusFilter] = useState<string>("__all__");
   const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+  const [onlyManualBonus, setOnlyManualBonus] = useState(false);
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
 
