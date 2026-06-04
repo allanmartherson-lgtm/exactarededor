@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
+import { AddManualItemDialog } from "@/components/payment-detail/AddManualItemDialog";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
@@ -288,6 +289,7 @@ export default function CompanyAnalysis() {
   const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "" });
   const [savingItem, setSavingItem] = useState(false);
   const [deleteItem, setDeleteItem] = useState<PaymentItemRow | null>(null);
+  const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
   const [postConcluirOpen, setPostConcluirOpen] = useState(false);
@@ -1596,13 +1598,22 @@ export default function CompanyAnalysis() {
           <HighlightBanner observations={obs} profiles={profiles} />
           <Card className="shadow-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Itens</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {items.length} itens · use os filtros do grid para focar em status, convênio, médico ou alertas.
-                {payment?.processing_timeout_occurred && (
-                  <span className="ml-2 text-destructive font-medium">⚠️ Algumas justificativas da IA podem estar ausentes por timeout.</span>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base">Itens</CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    {items.length} itens · use os filtros do grid para focar em status, convênio, médico ou alertas.
+                    {payment?.processing_timeout_occurred && (
+                      <span className="ml-2 text-destructive font-medium">⚠️ Algumas justificativas da IA podem estar ausentes por timeout.</span>
+                    )}
+                  </p>
+                </div>
+                {canEditCompany && (
+                  <Button size="sm" variant="outline" onClick={() => setManualItemOpen(true)} className="shrink-0">
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar item manual
+                  </Button>
                 )}
-              </p>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <ItemsDataGrid
@@ -1621,6 +1632,16 @@ export default function CompanyAnalysis() {
               />
             </CardContent>
           </Card>
+          {group && (
+            <AddManualItemDialog
+              open={manualItemOpen}
+              onOpenChange={setManualItemOpen}
+              paymentId={id!}
+              companyId={group.company_id ?? null}
+              companyName={group.company_name}
+              onCreated={() => { void load(); }}
+            />
+          )}
 
           {/* Comentário / Observação geral da empresa (unificado) */}
           <Card className="shadow-card">
