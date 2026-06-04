@@ -182,7 +182,6 @@ export function AddManualItemDialog({
         lancType === "honorario" ? "honorario" :
         lancType === "bonus" ? "complemento_bonus" :
         lancType === "complemento" ? "complemento" :
-        lancType === "pendencia_anterior" ? "pendencia_anterior" :
         "outros";
 
       const payload: any = {
