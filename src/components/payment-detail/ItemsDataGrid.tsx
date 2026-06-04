@@ -1524,7 +1524,12 @@ function RowMain({
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
           {isBonus ? (
-            <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+            <span
+              role="status"
+              aria-label="Status: bônus aplicado automaticamente"
+              data-testid="bonus-status-badge"
+              className="inline-flex items-center rounded-full border border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-700 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+            >
               Bônus
             </span>
           ) : (
