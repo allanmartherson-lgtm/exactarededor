@@ -294,7 +294,10 @@ export function ItemsDataGrid({
       // Bônus só permanece ancorado ao pai quando NENHUM filtro restritivo está ativo.
       if (onlyAlerts) {
         if (isInformativo) return false;
-        if (alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
+        // Só mostra se realmente está em estado de alerta/reprovação.
+        // Itens aprovados/acatados/seguidos não devem aparecer mesmo que
+        // tenham alerts[] residuais no ai_findings.
+        if (it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
       }
       if (!isInformativo) {
         if (onlyNeedsReview && !needsReview) return false;
