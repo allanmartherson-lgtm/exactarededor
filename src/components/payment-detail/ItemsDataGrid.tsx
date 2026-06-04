@@ -1236,10 +1236,10 @@ function RowMain({
         {colVis.regra && (
           <td className={cn(cell, TEXT_META)} title={ruleName}>{ruleName}</td>
         )}
-        <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
+        <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-amber-700 font-semibold")}>
           <span className="inline-flex items-center justify-end">
             {formatCurrency(grossN)}
-            {(it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
+            {!isBonus && (it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
               <span style={{
                 fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 9999,
                 background: (it as any).item_origem === 'conciliacao_credito' ? 'hsl(var(--success-soft))' : 'hsl(var(--destructive-soft))',
@@ -1257,11 +1257,11 @@ function RowMain({
             cellPad,
             TEXT_BODY,
             "text-right tabular-nums whitespace-nowrap border-b font-medium",
-            diverges ? "text-warning-foreground" : "text-foreground",
+            isBonus ? "text-muted-foreground" : (diverges ? "text-warning-foreground" : "text-foreground"),
             baseCellBg,
           )}
         >
-          {expN != null ? formatCurrency(expN) : "—"}
+          {isBonus ? "—" : (expN != null ? formatCurrency(expN) : "—")}
         </td>
         {colVis.diferenca && (
           <td
@@ -1269,11 +1269,11 @@ function RowMain({
               cellPad,
               TEXT_BODY,
               "text-right tabular-nums whitespace-nowrap border-b",
-              diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
+              isBonus ? "text-muted-foreground" : (diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground"),
               baseCellBg,
             )}
           >
-            {diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—"}
+            {isBonus ? "—" : (diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—")}
           </td>
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
