@@ -802,6 +802,7 @@ export function ItemsDataGrid({
                     </div>
                   </li>
                   )}
+                </Fragment>
 
               );
             })}
