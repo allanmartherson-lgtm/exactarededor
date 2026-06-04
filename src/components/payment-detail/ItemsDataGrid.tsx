@@ -1449,8 +1449,12 @@ function RowMain({
         <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? (it as any).applied_rule_label ?? it.description ?? ""}>
           {isBonus ? (
             <span className="inline-flex items-center gap-1.5 min-w-0">
-              <span className="inline-flex items-center rounded border border-amber-300 bg-amber-100 text-amber-700 px-1 text-[10px] font-bold shrink-0">
-                🎯 FdS
+              <span
+                role="img"
+                aria-label="Bônus de plantão de final de semana"
+                className="inline-flex items-center rounded border border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-700 px-1 text-[10px] font-bold shrink-0"
+              >
+                <span aria-hidden="true">🎯 FdS</span>
               </span>
               <span className="truncate block text-amber-900 dark:text-amber-100">
                 {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
