@@ -4914,6 +4914,86 @@ export type Database = {
           },
         ]
       }
+      reconciliation_company_mappings: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          created_at: string
+          decision: string
+          exacta_company_id: string | null
+          hospital_company_norm: string
+          hospital_company_raw: string
+          id: string
+          is_current: boolean
+          payment_id: string
+          previous_exacta_company_id: string | null
+          reason: string | null
+          reconciliation_run_id: string | null
+          version: number
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          created_at?: string
+          decision: string
+          exacta_company_id?: string | null
+          hospital_company_norm: string
+          hospital_company_raw: string
+          id?: string
+          is_current?: boolean
+          payment_id: string
+          previous_exacta_company_id?: string | null
+          reason?: string | null
+          reconciliation_run_id?: string | null
+          version?: number
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          created_at?: string
+          decision?: string
+          exacta_company_id?: string | null
+          hospital_company_norm?: string
+          hospital_company_raw?: string
+          id?: string
+          is_current?: boolean
+          payment_id?: string
+          previous_exacta_company_id?: string | null
+          reason?: string | null
+          reconciliation_run_id?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_company_mappings_exacta_company_id_fkey"
+            columns: ["exacta_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_company_mappings_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "reconciliation_company_mappings_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_company_mappings_reconciliation_run_id_fkey"
+            columns: ["reconciliation_run_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reconciliation_items: {
         Row: {
           action_at: string | null
