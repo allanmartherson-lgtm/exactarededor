@@ -2877,7 +2877,9 @@ export function PaymentConciliationModal({
     const headers = [
       "Status", "Empresa", "Médico", "Paciente", "Atendimento",
       "Cód. TUSS", "Procedimento", "Qtd Exacta", "Qtd Hospital", "Data", "Convênio",
-      "Exacta (R$)", "Hospital (R$)", "Diferença (R$)",
+      "Exacta (R$)", "Hospital (R$)",
+      "Valor Acordo (R$)", "Valor Pago (R$)", "Valor Regra (R$)",
+      "Diferença Regra (R$)", "Diferença Bruta (R$)",
       "Regra Exacta", "Método Cálculo", "Observação IA",
     ];
 
@@ -2890,28 +2892,37 @@ export function PaymentConciliationModal({
       }
       return s;
     };
-    const fmtNum = (n: number) =>
-      Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : "";
+    const fmtNum = (n: number | null | undefined) =>
+      n != null && Number.isFinite(n) ? Number(n).toFixed(2).replace(".", ",") : "";
 
-    const rows = itemsToExport.map((it) => [
-      STATUS_LABEL[it.status],
-      it.company_name ?? "",
-      it.doctor_name ?? "",
-      it.patient_name ?? "",
-      it.attendance_number ?? "",
-      it.procedure_code ?? "",
-      it.procedure_name ?? "",
-      fmtQty(getQtyExacta(it)),
-      fmtQty(getQtyHospital(it)),
-      it.procedure_date ? formatDateBR(it.procedure_date) : "",
-      it.agreement_text ?? "",
-      fmtNum(Number(it.valor_exacta)),
-      fmtNum(Number(it.valor_hospital)),
-      fmtNum(Number((it.valor_hospital - it.valor_exacta).toFixed(2))),
-      it.applied_rule_label ?? "",
-      it.applied_calc_method ?? "",
-      it.ia_obs ?? "",
-    ]);
+    const rows = itemsToExport.map((it) => {
+      const vra = (it as unknown as { valor_repasse_acordo?: number | null }).valor_repasse_acordo;
+      const vpe = (it as unknown as { valor_pago_exacta?: number | null }).valor_pago_exacta;
+      const dr = computeDiffRegra(it);
+      return [
+        STATUS_LABEL[it.status],
+        it.company_name ?? "",
+        it.doctor_name ?? "",
+        it.patient_name ?? "",
+        it.attendance_number ?? "",
+        it.procedure_code ?? "",
+        it.procedure_name ?? "",
+        fmtQty(getQtyExacta(it)),
+        fmtQty(getQtyHospital(it)),
+        it.procedure_date ? formatDateBR(it.procedure_date) : "",
+        it.agreement_text ?? "",
+        fmtNum(Number(it.valor_exacta)),
+        fmtNum(Number(it.valor_hospital)),
+        fmtNum(vra != null ? Number(vra) : null),
+        fmtNum(vpe != null ? Number(vpe) : null),
+        fmtNum(it.valor_regra != null ? Number(it.valor_regra) : null),
+        fmtNum(dr),
+        fmtNum(Number((it.valor_hospital - it.valor_exacta).toFixed(2))),
+        it.applied_rule_label ?? "",
+        it.applied_calc_method ?? "",
+        it.ia_obs ?? "",
+      ];
+    });
 
     const csv = [headers, ...rows]
       .map((r) => r.map(escape).join(";"))
