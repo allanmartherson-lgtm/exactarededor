@@ -3993,7 +3993,7 @@ export function PaymentConciliationModal({
 
               {/* Impacto financeiro */}
               <Card>
-                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CardContent className="p-4">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Diferença total{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
@@ -4021,14 +4021,6 @@ export function PaymentConciliationModal({
                         </>
                       );
                     })()}
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Divergência de valores{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
-                    </p>
-                    <p className="text-lg font-bold text-warning mt-1">
-                      {formatCurrency(scopedStats.divergencia_valor)}
-                    </p>
                   </div>
                 </CardContent>
               </Card>
