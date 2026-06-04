@@ -965,12 +965,11 @@ const Payments = () => {
               tone: "primary" as const,
             },
             {
-              label: "Lotes atrasados",
-              value: String(kpis.delayed),
-              hint: "SLA estourado ou em risco",
-              icon: Clock,
-              tone: "destructive" as const,
-              hintTone: kpis.delayed > 0 ? "destructive" : "muted",
+              label: "Pós-aprovação (NF)",
+              value: String(kpis.postApproval),
+              hint: "Aprovados aguardando ciclo de NF",
+              icon: Receipt,
+              tone: "info" as const,
             },
             {
               label: "Aguardando validação",
