@@ -55,7 +55,7 @@ const makeItem = (over: Partial<PaymentItemRow> & Record<string, any>): PaymentI
 const renderGrid = (items: PaymentItemRow[]) =>
   render(
     <MemoryRouter>
-      <ItemsDataGrid items={items} groupStatus="em_analise" rulesIndex={{}} rulesByName={{}} />
+      <ItemsDataGrid items={items} groupStatus="em_analise_ia" rulesIndex={{}} rulesByName={{}} />
     </MemoryRouter>,
   );
 
