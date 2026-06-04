@@ -162,6 +162,7 @@ type ReconciliationItem = {
   applied_calc_method: string | null;
   valor_regra?: number | null;
   valor_pago_exacta?: number | null;
+  diferenca_regra?: number | null;
   action_taken?: string | null;
   action_by?: string | null;
   action_at?: string | null;
