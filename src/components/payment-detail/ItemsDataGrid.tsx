@@ -241,15 +241,19 @@ export function ItemsDataGrid({
   const filtered = useMemo(() => {
     const term = filter.trim().toLowerCase();
     const pat = patientFilter.trim().toLowerCase();
-    return items.filter((it) => {
+    const base = items.filter((it) => {
+      const isBonus = (it as any).tipo_linha === "complemento_bonus";
       const alerts = (it.ai_findings?.alerts ?? []) as string[];
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
       const needsReview = !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review;
-      if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
-      if (onlyNeedsReview && !needsReview) return false;
-      if (onlyValidationAlerts) {
-        const vf = (it as any).validation_findings;
-        if (!Array.isArray(vf) || vf.length === 0) return false;
+      // Bônus nunca é escondido por filtros de alerta — ele acompanha o pai.
+      if (!isBonus) {
+        if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
+        if (onlyNeedsReview && !needsReview) return false;
+        if (onlyValidationAlerts) {
+          const vf = (it as any).validation_findings;
+          if (!Array.isArray(vf) || vf.length === 0) return false;
+        }
       }
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
@@ -272,8 +276,14 @@ export function ItemsDataGrid({
       // Ajustes de conciliação sempre no final
       const aIsAdjust = !!(a as any).item_origem && (a as any).item_origem !== "pagamento_atual";
       const bIsAdjust = !!(b as any).item_origem && (b as any).item_origem !== "pagamento_atual";
-      if (aIsAdjust && !bIsAdjust) return 1;
-      if (!aIsAdjust && bIsAdjust) return -1;
+      const aIsBonus = (a as any).tipo_linha === "complemento_bonus";
+      const bIsBonus = (b as any).tipo_linha === "complemento_bonus";
+      // Bônus não obedece a ordenação principal — será realocado abaixo.
+      // Ajustes de conciliação (não-bônus) ficam no final.
+      const aPureAdjust = aIsAdjust && !aIsBonus;
+      const bPureAdjust = bIsAdjust && !bIsBonus;
+      if (aPureAdjust && !bPureAdjust) return 1;
+      if (!aPureAdjust && bPureAdjust) return -1;
       const prioOf = (it: typeof items[number]) => {
         const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
         if (eff === "reprovado") return 0;
@@ -287,6 +297,50 @@ export function ItemsDataGrid({
       if (pa !== pb) return pa - pb;
       return Number(b.gross_amount ?? 0) - Number(a.gross_amount ?? 0);
     });
+
+    // Segunda passagem: cada linha de bônus é movida para imediatamente após
+    // o item pai do mesmo atendimento (procedimento com maior gross_amount).
+    // Se o pai não estiver na lista filtrada, o bônus permanece no final
+    // do bloco do atendimento (ou no fim absoluto, se não houver itens do
+    // mesmo atendimento).
+    const bonuses = base.filter((x) => (x as any).tipo_linha === "complemento_bonus");
+    if (bonuses.length === 0) return base;
+    const nonBonus = base.filter((x) => (x as any).tipo_linha !== "complemento_bonus");
+    const result: typeof base = [];
+    // Para cada item não-bônus, anexa os bônus do mesmo atendimento cujo
+    // pai (maior gross dentro do atendimento) é este item.
+    const parentIdByAtt = new Map<string, string>();
+    const grossByAtt = new Map<string, number>();
+    for (const it of nonBonus) {
+      const att = (it.attendance_number ?? "").toString();
+      if (!att) continue;
+      const g = Number(it.gross_amount ?? 0);
+      const curG = grossByAtt.get(att);
+      if (curG == null || g > curG) {
+        grossByAtt.set(att, g);
+        parentIdByAtt.set(att, it.id);
+      }
+    }
+    const bonusByParentId = new Map<string, typeof bonuses>();
+    const orphanBonus: typeof bonuses = [];
+    for (const b of bonuses) {
+      const att = (b.attendance_number ?? "").toString();
+      const parentId = att ? parentIdByAtt.get(att) : undefined;
+      if (parentId) {
+        const arr = bonusByParentId.get(parentId) ?? [];
+        arr.push(b);
+        bonusByParentId.set(parentId, arr);
+      } else {
+        orphanBonus.push(b);
+      }
+    }
+    for (const it of nonBonus) {
+      result.push(it);
+      const attached = bonusByParentId.get(it.id);
+      if (attached) result.push(...attached);
+    }
+    if (orphanBonus.length) result.push(...orphanBonus);
+    return result;
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, onlyValidationAlerts, groupStatus]);
 
 
@@ -646,9 +700,12 @@ export function ItemsDataGrid({
               const diverges = expected != null && Math.abs(Number(expected) - Number(it.gross_amount ?? 0)) > 0.01;
               const itemOrigem = (it as any).item_origem as string | null | undefined;
               const isAdjust = !!itemOrigem && itemOrigem !== "pagamento_atual";
+              const isBonus = (it as any).tipo_linha === "complemento_bonus";
               const prev = idx > 0 ? filtered[idx - 1] : null;
-              const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual";
-              const isFirstAdjust = isAdjust && !prevIsAdjust;
+              const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual" && (prev as any).tipo_linha !== "complemento_bonus";
+              const prevIsBonus = !!prev && (prev as any).tipo_linha === "complemento_bonus";
+              const isFirstAdjust = isAdjust && !isBonus && !prevIsAdjust;
+              const isFirstBonus = isBonus && !prevIsBonus;
               return (
                 <Fragment key={it.id}>
 
@@ -660,6 +717,40 @@ export function ItemsDataGrid({
                       Ajustes de conciliação
                     </li>
                   )}
+                  {isFirstBonus && (
+                    <li
+                      key={`bonus-sep-${it.id}`}
+                      className="px-4 py-2 bg-amber-100/70 dark:bg-amber-950/30 text-[10px] font-bold uppercase tracking-[0.06em] text-amber-800 dark:text-amber-200"
+                    >
+                      Bônus de final de semana
+                    </li>
+                  )}
+                  {isBonus ? (
+                    <li
+                      key={it.id}
+                      className={cn(
+                        "px-3 py-2 cursor-pointer hover:bg-amber-100/40 transition-colors border-l-2 border-amber-400 bg-amber-50/60 dark:bg-amber-950/20",
+                      )}
+                      onClick={() => { selectRow(it.id); openDetail(it.id); }}
+                    >
+                      <div className="min-w-0 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-bold">
+                              <Sparkles className="h-2.5 w-2.5" /> Bônus FdS
+                            </span>
+                            <span className="truncate text-[12px] text-amber-900 dark:text-amber-100 font-medium">
+                              {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">{it.doctor_name ?? "—"}</p>
+                        </div>
+                        <span className="tabular-nums font-semibold text-amber-700 text-[12px] shrink-0">
+                          {formatCurrency(Number(it.gross_amount ?? 0))}
+                        </span>
+                      </div>
+                    </li>
+                  ) : (
                   <li
                     key={it.id}
                     className={cn(
@@ -710,6 +801,7 @@ export function ItemsDataGrid({
                       </div>
                     </div>
                   </li>
+                  )}
                 </Fragment>
 
               );
@@ -823,9 +915,12 @@ export function ItemsDataGrid({
                 const isExpanded = expandedId === it.id;
                 const itemOrigem = (it as any).item_origem as string | null | undefined;
                 const isAdjust = !!itemOrigem && itemOrigem !== "pagamento_atual";
+                const isBonus = (it as any).tipo_linha === "complemento_bonus";
                 const prev = idx > 0 ? filtered[idx - 1] : null;
-                const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual";
-                const isFirstAdjust = isAdjust && !prevIsAdjust;
+                const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual" && (prev as any).tipo_linha !== "complemento_bonus";
+                const prevIsBonus = !!prev && (prev as any).tipo_linha === "complemento_bonus";
+                const isFirstAdjust = isAdjust && !isBonus && !prevIsAdjust;
+                const isFirstBonus = isBonus && !prevIsBonus;
                 return (
                   <Fragment key={it.id}>
 
@@ -844,6 +939,16 @@ export function ItemsDataGrid({
                           }}
                         >
                           Ajustes de conciliação
+                        </td>
+                      </tr>
+                    )}
+                    {isFirstBonus && (
+                      <tr key={`bonus-sep-${it.id}`}>
+                        <td
+                          colSpan={totalCols}
+                          className="px-4 py-1.5 bg-amber-100/70 dark:bg-amber-950/30 text-[10px] font-bold uppercase tracking-[0.06em] text-amber-800 dark:text-amber-200"
+                        >
+                          Bônus de final de semana
                         </td>
                       </tr>
                     )}
@@ -1024,7 +1129,10 @@ function RowMain({
     ruleName = r?.name ?? matchedNames[0];
   }
 
-  const baseCellBg = isExpanded
+  const isBonus = (it as any).tipo_linha === "complemento_bonus";
+  const baseCellBg = isBonus
+    ? "bg-amber-50/60 dark:bg-amber-950/20"
+    : isExpanded
     ? "bg-primary/10"
     : isActive
     ? "bg-primary/5"
@@ -1084,12 +1192,31 @@ function RowMain({
         {colVis.via && (
           <td className={cn(cell, TEXT_BODY)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
-        <td className={cn(cell, "font-mono", TEXT_META)}>{it.procedure_code ?? "—"}</td>
-        <td className={cn(cellPad, "text-right tabular-nums font-mono border-b whitespace-nowrap", TEXT_META, baseCellBg)}>
-          {Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Number(it.quantity) : 1}
+        <td className={cn(cell, "font-mono", TEXT_META)}>
+          {isBonus ? (
+            <span className="inline-flex items-center gap-1 text-amber-700 font-semibold">
+              <Sparkles className="h-3 w-3" /> Bônus
+            </span>
+          ) : (it.procedure_code ?? "—")}
         </td>
-        <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? it.description ?? ""}>
-          <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
+        <td className={cn(cellPad, "text-right tabular-nums font-mono border-b whitespace-nowrap", TEXT_META, baseCellBg)}>
+          {isBonus
+            ? "—"
+            : (Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Number(it.quantity) : 1)}
+        </td>
+        <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? (it as any).applied_rule_label ?? it.description ?? ""}>
+          {isBonus ? (
+            <span className="inline-flex items-center gap-1.5 min-w-0">
+              <span className="inline-flex items-center rounded border border-amber-300 bg-amber-100 text-amber-700 px-1 text-[10px] font-bold shrink-0">
+                🎯 FdS
+              </span>
+              <span className="truncate block text-amber-900 dark:text-amber-100">
+                {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
+              </span>
+            </span>
+          ) : (
+            <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
+          )}
         </td>
         {colVis.setor_lido && (() => {
           const planilhaSetor = rawSetor ?? it.sector ?? null;
@@ -1109,10 +1236,10 @@ function RowMain({
         {colVis.regra && (
           <td className={cn(cell, TEXT_META)} title={ruleName}>{ruleName}</td>
         )}
-        <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
+        <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-amber-700 font-semibold")}>
           <span className="inline-flex items-center justify-end">
             {formatCurrency(grossN)}
-            {(it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
+            {!isBonus && (it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
               <span style={{
                 fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 9999,
                 background: (it as any).item_origem === 'conciliacao_credito' ? 'hsl(var(--success-soft))' : 'hsl(var(--destructive-soft))',
@@ -1130,11 +1257,11 @@ function RowMain({
             cellPad,
             TEXT_BODY,
             "text-right tabular-nums whitespace-nowrap border-b font-medium",
-            diverges ? "text-warning-foreground" : "text-foreground",
+            isBonus ? "text-muted-foreground" : (diverges ? "text-warning-foreground" : "text-foreground"),
             baseCellBg,
           )}
         >
-          {expN != null ? formatCurrency(expN) : "—"}
+          {isBonus ? "—" : (expN != null ? formatCurrency(expN) : "—")}
         </td>
         {colVis.diferenca && (
           <td
@@ -1142,14 +1269,19 @@ function RowMain({
               cellPad,
               TEXT_BODY,
               "text-right tabular-nums whitespace-nowrap border-b",
-              diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
+              isBonus ? "text-muted-foreground" : (diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground"),
               baseCellBg,
             )}
           >
-            {diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—"}
+            {isBonus ? "—" : (diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—")}
           </td>
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
+          {isBonus ? (
+            <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+              Bônus
+            </span>
+          ) : (
           <div className="flex flex-row flex-wrap items-center gap-1">
           {it.ai_status === "acatado" ? (
             <span
@@ -1235,6 +1367,7 @@ function RowMain({
             );
           })()}
           </div>
+          )}
         </td>
         {colVis.observacao && (
           <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
@@ -1247,7 +1380,7 @@ function RowMain({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-end items-center gap-1">
-              {onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
+              {!isBonus && onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
                 <Button
                   size="icon"
                   variant="ghost"
@@ -1259,7 +1392,7 @@ function RowMain({
                   <CheckCircle2 className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {onUndoAcceptItem && it.ai_status === "acatado" && (
+              {!isBonus && onUndoAcceptItem && it.ai_status === "acatado" && (
                 <Button
                   size="icon"
                   variant="ghost"
@@ -1270,7 +1403,7 @@ function RowMain({
                   <RotateCcw className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {onEditItem && (
+              {!isBonus && onEditItem && (
                 <Button
                   size="icon"
                   variant="ghost"
@@ -1281,7 +1414,7 @@ function RowMain({
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {onDeleteItem && (
+              {!isBonus && onDeleteItem && (
                 <Button
                   size="icon"
                   variant="ghost"
@@ -1417,6 +1550,51 @@ function ItemDetailsRow({
     </p>
   );
 
+  const isBonus = (it as any).tipo_linha === "complemento_bonus";
+  if (isBonus) {
+    return (
+      <tr className="border-b bg-amber-50/40 dark:bg-amber-950/15">
+        <td colSpan={colSpan} className="p-0 align-top">
+          <div
+            className={cn("sticky left-0 px-3 sm:px-4 py-3 sm:py-4", TEXT_BODY)}
+            style={{ width: "min(100%, calc(100vw - 1rem))", maxWidth: "calc(100vw - 1rem)" }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-4 w-4 text-amber-600" />
+              <span className="text-sm font-bold text-amber-800 dark:text-amber-200">Linha de bônus</span>
+              <span className="text-[11px] text-muted-foreground">
+                Esta linha é um complemento automático ao honorário do procedimento pai.
+              </span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-[12px]">
+              <div>
+                <p className={cn(TEXT_LABEL)}>Atendimento</p>
+                <p className="font-mono">{it.attendance_number ?? "—"}</p>
+              </div>
+              <div>
+                <p className={cn(TEXT_LABEL)}>Médico</p>
+                <p>{it.doctor_name ?? "—"}</p>
+              </div>
+              <div>
+                <p className={cn(TEXT_LABEL)}>Regra aplicada</p>
+                <p>{(it as any).applied_rule_label ?? "—"}</p>
+              </div>
+              <div>
+                <p className={cn(TEXT_LABEL)}>Valor do bônus</p>
+                <p className="tabular-nums font-semibold text-amber-700">
+                  {formatCurrency(Number(it.gross_amount ?? 0))}
+                </p>
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <p className={cn(TEXT_LABEL)}>Referência (item pai)</p>
+                <p className="font-mono text-[11px] break-all">{(it as any).origem_referencia ?? "—"}</p>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    );
+  }
   return (
     <tr className="border-b bg-muted/20">
       <td colSpan={colSpan} className="p-0 align-top">
