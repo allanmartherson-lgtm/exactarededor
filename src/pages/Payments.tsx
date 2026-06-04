@@ -597,8 +597,8 @@ const Payments = () => {
   const activeCount = archivedView ? Math.max(0, totalRows - archivedCount) : totalRows;
 
   // KPIs server-side — agregam o universo filtrado inteiro (não só a página).
-  const [serverKpis, setServerKpis] = useState<{ totalOpen: number; waitingValidation: number; waitingApproval: number; delayed: number; activeTotal: number; competence: string | null }>(
-    { totalOpen: 0, waitingValidation: 0, waitingApproval: 0, delayed: 0, activeTotal: 0, competence: null },
+  const [serverKpis, setServerKpis] = useState<{ totalOpen: number; waitingValidation: number; waitingApproval: number; postApproval: number; delayed: number; activeTotal: number; competence: string | null }>(
+    { totalOpen: 0, waitingValidation: 0, waitingApproval: 0, postApproval: 0, delayed: 0, activeTotal: 0, competence: null },
   );
   useEffect(() => {
     let cancelled = false;
@@ -612,6 +612,7 @@ const Payments = () => {
           totalOpen: Number(p.totalOpen ?? 0),
           waitingValidation: Number(p.waitingValidation ?? 0),
           waitingApproval: Number(p.waitingApproval ?? 0),
+          postApproval: Number(p.postApproval ?? 0),
           delayed: Number(p.delayed ?? 0),
           activeTotal: Number(p.activeTotal ?? 0),
           competence: p.competence ?? null,
@@ -974,14 +975,16 @@ const Payments = () => {
             {
               label: "Aguardando validação",
               value: String(kpis.waitingValidation),
-              hint: "Na fila do validador",
+              hint: "Analista, supervisor ou devolvido",
               icon: UserCheck,
               tone: "warning" as const,
             },
             {
               label: "Aguardando aprovação",
               value: String(kpis.waitingApproval),
-              hint: kpis.competence ? `Comp. ${formatCompetence(`${kpis.competence}-01`)}` : "Na fila do diretor",
+              hint: kpis.competence
+                ? `Diretor · comp. ${formatCompetence(`${kpis.competence}-01`)}`
+                : "Fila do diretor",
               icon: User,
               tone: "success" as const,
             },
