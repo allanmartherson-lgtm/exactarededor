@@ -276,13 +276,27 @@ export function ItemsDataGrid({
     const term = filter.trim().toLowerCase();
     const pat = patientFilter.trim().toLowerCase();
     const base = items.filter((it) => {
-      const isBonus = (it as any).tipo_linha === "complemento_bonus";
+      const tl = (it as any).tipo_linha as string | null | undefined;
+      const src = (it as any).source as string | null | undefined;
+      const origem = (it as any).item_origem as string | null | undefined;
+      const isBonus = tl === "complemento_bonus";
+      const isComplemento = tl === "complemento" || tl === "outros";
+      const isManual = src === "manual" || origem === "inclusao_manual";
+      const isInformativo = isBonus || isComplemento || isManual;
       const alerts = (it.ai_findings?.alerts ?? []) as string[];
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
       const needsReview = !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review;
-      // Bônus nunca é escondido por filtros de alerta — ele acompanha o pai.
-      if (!isBonus) {
-        if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
+      // Filtro "Manuais/Bônus/Complemento" — mostra somente esses lançamentos.
+      if (onlyManualBonus) {
+        if (!isInformativo) return false;
+      }
+      // Filtro "Só com alertas" — esconde lançamentos informativos (não são erro).
+      // Bônus só permanece ancorado ao pai quando NENHUM filtro restritivo está ativo.
+      if (onlyAlerts) {
+        if (isInformativo) return false;
+        if (alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
+      }
+      if (!isInformativo) {
         if (onlyNeedsReview && !needsReview) return false;
         if (onlyValidationAlerts) {
           const vf = (it as any).validation_findings;
