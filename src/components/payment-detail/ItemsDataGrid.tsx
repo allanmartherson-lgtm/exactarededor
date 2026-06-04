@@ -790,7 +790,7 @@ export function ItemsDataGrid({
                     <li
                       key={it.id}
                       className={cn(
-                        "px-3 py-2 cursor-pointer hover:bg-amber-100/40 transition-colors border-l-2 border-amber-400 bg-amber-50/60 dark:bg-amber-950/20",
+                        "px-3 py-2 cursor-pointer hover:bg-indigo-100/40 transition-colors border-l-2 border-indigo-400 bg-indigo-50/60 dark:bg-indigo-950/20",
                       )}
                       onClick={() => { selectRow(it.id); openDetail(it.id); }}
                     >
@@ -801,17 +801,17 @@ export function ItemsDataGrid({
                               role="img"
                               aria-label="Linha de bônus de plantão de final de semana"
                               data-testid="bonus-badge-mobile"
-                              className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-700 px-1.5 py-0.5 text-[10px] font-bold"
+                              className="inline-flex items-center gap-1 rounded-full border border-indigo-400 bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-100 dark:border-indigo-700 px-1.5 py-0.5 text-[10px] font-bold"
                             >
                               <Sparkles className="h-2.5 w-2.5" aria-hidden="true" /> Bônus FdS
                             </span>
-                            <span className="truncate text-[12px] text-amber-900 dark:text-amber-100 font-medium">
+                            <span className="truncate text-[12px] text-indigo-900 dark:text-indigo-100 font-medium">
                               {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
                             </span>
                           </div>
                           <p className="text-[11px] text-muted-foreground truncate mt-0.5">{it.doctor_name ?? "—"}</p>
                         </div>
-                        <span className="tabular-nums font-semibold text-amber-700 text-[12px] shrink-0">
+                        <span className="tabular-nums font-semibold text-indigo-700 text-[12px] shrink-0">
                           {formatCurrency(Number(it.gross_amount ?? 0))}
                         </span>
                       </div>
@@ -1353,7 +1353,7 @@ function RowMain({
 
   const isBonus = (it as any).tipo_linha === "complemento_bonus";
   const baseCellBg = isBonus
-    ? "bg-amber-50/60 dark:bg-amber-950/20"
+    ? "bg-indigo-50/60 dark:bg-indigo-950/20"
     : isExpanded
     ? "bg-primary/10"
     : isActive
@@ -1419,7 +1419,7 @@ function RowMain({
             <span
               role="img"
               aria-label="Bônus de final de semana (não é um código TUSS)"
-              className="inline-flex items-center gap-1 text-amber-900 dark:text-amber-100 font-semibold"
+              className="inline-flex items-center gap-1 text-indigo-900 dark:text-indigo-100 font-semibold"
             >
               <Sparkles className="h-3 w-3" aria-hidden="true" /> Bônus
             </span>
@@ -1436,11 +1436,11 @@ function RowMain({
               <span
                 role="img"
                 aria-label="Bônus de plantão de final de semana"
-                className="inline-flex items-center rounded border border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-700 px-1 text-[10px] font-bold shrink-0"
+                className="inline-flex items-center rounded border border-indigo-400 bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-100 dark:border-indigo-700 px-1 text-[10px] font-bold shrink-0"
               >
                 <span aria-hidden="true">🎯 FdS</span>
               </span>
-              <span className="truncate block text-amber-900 dark:text-amber-100">
+              <span className="truncate block text-indigo-900 dark:text-indigo-100">
                 {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
               </span>
             </span>
@@ -1466,7 +1466,7 @@ function RowMain({
         {colVis.regra && (
           <td className={cn(cell, TEXT_META)} title={ruleName}>{ruleName}</td>
         )}
-        <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-amber-700 font-semibold")}>
+        <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
           <span className="inline-flex items-center justify-end">
             {formatCurrency(grossN)}
             {!isBonus && (it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
@@ -1512,7 +1512,7 @@ function RowMain({
               role="status"
               aria-label="Status: bônus aplicado automaticamente"
               data-testid="bonus-status-badge"
-              className="inline-flex items-center rounded-full border border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-700 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+              className="inline-flex items-center rounded-full border border-indigo-400 bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-100 dark:border-indigo-700 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
             >
               Bônus
             </span>
@@ -1788,15 +1788,15 @@ function ItemDetailsRow({
   const isBonus = (it as any).tipo_linha === "complemento_bonus";
   if (isBonus) {
     return (
-      <tr className="border-b bg-amber-50/40 dark:bg-amber-950/15">
+      <tr className="border-b bg-indigo-50/40 dark:bg-indigo-950/15">
         <td colSpan={colSpan} className="p-0 align-top">
           <div
             className={cn("sticky left-0 px-3 sm:px-4 py-3 sm:py-4", TEXT_BODY)}
             style={{ width: "min(100%, calc(100vw - 1rem))", maxWidth: "calc(100vw - 1rem)" }}
           >
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-4 w-4 text-amber-600" />
-              <span className="text-sm font-bold text-amber-800 dark:text-amber-200">Linha de bônus</span>
+              <Sparkles className="h-4 w-4 text-indigo-600" />
+              <span className="text-sm font-bold text-indigo-800 dark:text-indigo-200">Linha de bônus</span>
               <span className="text-[11px] text-muted-foreground">
                 Esta linha é um complemento automático ao honorário do procedimento pai.
               </span>
@@ -1816,7 +1816,7 @@ function ItemDetailsRow({
               </div>
               <div>
                 <p className={cn(TEXT_LABEL)}>Valor do bônus</p>
-                <p className="tabular-nums font-semibold text-amber-700">
+                <p className="tabular-nums font-semibold text-indigo-700">
                   {formatCurrency(Number(it.gross_amount ?? 0))}
                 </p>
               </div>
