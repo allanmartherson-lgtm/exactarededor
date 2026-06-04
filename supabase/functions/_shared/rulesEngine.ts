@@ -11,6 +11,8 @@
  *   7. setor "outro" (master geral)
  *   8. default por setor (hemodinâmica = 88%; demais = 100%)
  *   9. setor_master_geral (master absoluto de fallback)
+ *
+ * Última correção: Camada 2 sem_acordo usa procedure_amount como base (não gross_amount).
  */
 
 import { applyConvenioStems, recordLearnedAlias } from "./convenioStems.ts";
