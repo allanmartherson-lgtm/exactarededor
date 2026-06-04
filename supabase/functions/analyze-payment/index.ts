@@ -1601,6 +1601,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         company_name: parent.company_name ?? null,
         company_id: parent.company_id ?? null,
         attendance_number: parent.attendance_number ?? null,
+        patient_name: parent.patient_name ?? null,
         sector: parent.sector ?? null,
         procedure_date: parent.procedure_date ?? null,
         gross_amount: bonusAmt,
