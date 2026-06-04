@@ -2040,6 +2040,7 @@ export function PaymentConciliationModal({
               || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code)
               || valHosp;
             const diff = _pago - valExpected;
+            base.diferenca_regra = diff;
             if (Math.abs(diff) < TOL_ABS) {
               base.status = "conciliado";
               conciliado++;
