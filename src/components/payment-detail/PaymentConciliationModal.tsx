@@ -224,6 +224,7 @@ const COL_FIELDS: Array<{
   { key: "attendance", label: "Nº atendimento", required: true, description: "Número do atendimento hospitalar — chave principal de cruzamento" },
   { key: "procCode",   label: "Código TUSS",    required: true, description: "Código TUSS/CBHPM do procedimento — chave secundária de cruzamento" },
   { key: "value",      label: "Valor repasse",  required: true, description: "Valor cobrado pelo hospital — base da comparação financeira" },
+  { key: "valueRepasse", label: "Vl. Repasse (acordo)", required: false, description: "Valor de repasse com acordo já aplicado — coluna 'Vl. Repasse' da planilha hospitalar" },
   { key: "doctor",     label: "Médico executante", required: false, description: "Nome do médico — usado para enriquecer o resultado e filtros futuros" },
   { key: "role",       label: "Função / papel", required: false, description: "Papel do profissional (cirurgião, anestesista…) — diferencia quando o mesmo médico atua em funções distintas" },
   { key: "accessRoute",label: "Via de acesso",  required: false, description: "Via de acesso (única, mesma via, outra via) — diferencia linhas do mesmo código com valores legítimos distintos" },
@@ -246,6 +247,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     doctor: ["médico exec.", "medico exec.", "medicoexec", "medico", "profissional"],
     date: ["dt. proced.", "dt proced", "data", "dataatendimento", "dtproced"],
     value: ["vl. rep. calc.", "vl rep calc", "vlrepcalc", "valor", "valorbruto"],
+    valueRepasse: ["vl. repasse", "vlrepasse", "vl repasse", "repasse", "vl.repasse"],
     company: ["terceiro", "empresa", "prestador"],
     grupo: ["grupo cbhpm", "grupocbhpm", "grupo", "grupoproc"],
     accessRoute: ["via", "viaacesso", "via acesso", "via de acesso", "viadeacesso", "viadeacessoproc"],
@@ -386,7 +388,7 @@ const isFixedCalcMethod = (m: string | null | undefined): boolean => {
  * regra fixa), atualizar esta data. Runs criados antes desta data são
  * automaticamente considerados defasados e o usuário é convidado a reprocessar.
  */
-const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T04:30:00Z";
+const RECONCILIATION_LOGIC_VERSION_DATE = "2026-06-04T05:30:00Z";
 const RECONCILIATION_LOGIC_VERSION_LABEL = "Percentual sobre convênio reconhece 'percentual_convenio' (RAMO 2 valor esperado); componente de pacote é suprimido por atendimento principal pago via pacote, mesmo sem método no código componente";
 
 export function PaymentConciliationModal({
@@ -1443,7 +1445,7 @@ export function PaymentConciliationModal({
       // em `_no_doctor_`; sem a função, principal e auxiliares do mesmo
       // atendimento/código podiam colapsar e inflar a quantidade do hospital.
       const hospitalCompanySet = new Set<string>();
-      type ProdAgg = { rep: Record<string, unknown>; valSum: number; qtySum: number; routes: Set<string> };
+      type ProdAgg = { rep: Record<string, unknown>; valSum: number; qtySum: number; routes: Set<string>; repasseSum: number };
       const prodAggMap = new Map<string, ProdAgg>();
       for (const row of rowsParaCruzamento) {
         const colC = srcColMap["company"];
@@ -1460,6 +1462,7 @@ export function PaymentConciliationModal({
             valSum: toVal(getCell(row, "value")),
             qtySum: Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1,
             routes: new Set(),
+            repasseSum: toVal(getCell(row, "valueRepasse")),
           });
           continue;
         }
@@ -1475,17 +1478,19 @@ export function PaymentConciliationModal({
         const roleKey = normRole(getCell(row, "role")) || "_no_role_";
         const aggKey = `${normAtt(att)}|${normCode}|${dk}|${roleKey}`;
         const valHosp = toVal(getCell(row, "value"));
+        const valHospRepasse = toVal(getCell(row, "valueRepasse"));
         const qtyHosp = Number(String(getCell(row, "quantity") ?? "1").replace(",", ".")) || 1;
         const routeN = normRoute(getCell(row, "accessRoute"));
         const existing = prodAggMap.get(aggKey);
         if (existing) {
           existing.valSum += valHosp;
           existing.qtySum += qtyHosp;
+          existing.repasseSum = (existing.repasseSum ?? 0) + valHospRepasse;
           if (routeN) existing.routes.add(routeN);
         } else {
           const routes = new Set<string>();
           if (routeN) routes.add(routeN);
-          prodAggMap.set(aggKey, { rep: row, valSum: valHosp, qtySum: qtyHosp, routes });
+          prodAggMap.set(aggKey, { rep: row, valSum: valHosp, qtySum: qtyHosp, routes, repasseSum: valHospRepasse });
         }
       }
       const aggregatedRows: ProdAgg[] = Array.from(prodAggMap.values());
@@ -1701,6 +1706,7 @@ export function PaymentConciliationModal({
         const code = getCell(row, "procCode");
         // Valor e quantidade AGREGADOS (somatório dos segmentos do mesmo ato).
         const valHosp = agg.valSum;
+        const valHospRepasse = (agg as any).repasseSum ?? 0;
         const patient = getCell(row, "patient");
         const doctor = getCell(row, "doctor");
         const crmHospRaw = getCell(row, "crm");
@@ -1933,6 +1939,7 @@ export function PaymentConciliationModal({
           procedure_date: dateStr,
 
           valor_hospital: valHosp,
+          valor_repasse_acordo: valHospRepasse,
           valor_exacta: 0,
           payment_item_id: null,
           company_name: mappedCompany,
@@ -4219,6 +4226,9 @@ export function PaymentConciliationModal({
                                     Qtd Hosp.
                                   </TableHead>
 
+                                  <TableHead className="px-3 py-1.5 text-[10px] text-right text-muted-foreground" title="Vl. Repasse — valor pós-acordo informado pelo hospital (base × % do acordo)">
+                                    Valor Acordo
+                                  </TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     Valor Regra
                                   </TableHead>
@@ -4300,6 +4310,12 @@ export function PaymentConciliationModal({
                                           );
                                         })()}
 
+                                        <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums text-muted-foreground" title="Vl. Repasse — valor pós-acordo informado pelo hospital">
+                                          {(() => {
+                                            const vra = Number((it as any).valor_repasse_acordo) || 0;
+                                            return vra > 0 ? formatCurrency(vra) : "—";
+                                          })()}
+                                        </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums" style={{ color: it.valor_regra ? undefined : 'hsl(var(--muted-foreground))' }}>
                                           {it.valor_regra
                                             ? formatCurrency(Number(it.valor_regra))
@@ -4345,7 +4361,7 @@ export function PaymentConciliationModal({
                                       </TableRow>
                                       {isRowOpen && (it.ia_obs || it.match_diagnostics) && (
                                         <TableRow key={`${it.id}-exp`}>
-                                          <TableCell colSpan={12} className="bg-muted/30 px-4 py-3">
+                                          <TableCell colSpan={13} className="bg-muted/30 px-4 py-3">
                                             <div className="flex gap-3">
                                               <Lightbulb className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                                               <div className="flex-1">
