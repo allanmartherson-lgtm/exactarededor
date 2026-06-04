@@ -2038,7 +2038,10 @@ export function PaymentConciliationModal({
             // contra o expected_amount. procedure_amount é o valor CRU do
             // convênio (base de matching, igual ao hospital) e gera falso
             // divergente se usado como _pago aqui.
-            const _pago = lookupGross(mappedCompany, att, (match as any).doctor_name, code) || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || valHosp;
+            const _pago = lookupGross(mappedCompany, att, (match as any).doctor_name, code)
+              || lookupExpected(mappedCompany, att, (match as any).doctor_name, code)
+              || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code)
+              || valHosp;
             const diff = _pago - valExpected;
             if (Math.abs(diff) < TOL_ABS) {
               base.status = "conciliado";
