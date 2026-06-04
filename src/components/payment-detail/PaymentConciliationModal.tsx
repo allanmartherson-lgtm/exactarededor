@@ -247,6 +247,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     doctor: ["médico exec.", "medico exec.", "medicoexec", "medico", "profissional"],
     date: ["dt. proced.", "dt proced", "data", "dataatendimento", "dtproced"],
     value: ["vl. rep. calc.", "vl rep calc", "vlrepcalc", "valor", "valorbruto"],
+    valueRepasse: ["vl. repasse", "vlrepasse", "vl repasse", "repasse", "vl.repasse"],
     company: ["terceiro", "empresa", "prestador"],
     grupo: ["grupo cbhpm", "grupocbhpm", "grupo", "grupoproc"],
     accessRoute: ["via", "viaacesso", "via acesso", "via de acesso", "viadeacesso", "viadeacessoproc"],
