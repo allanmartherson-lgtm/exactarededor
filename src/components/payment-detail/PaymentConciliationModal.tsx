@@ -2035,38 +2035,51 @@ export function PaymentConciliationModal({
               else risco_menos += Math.abs(diff);
             }
           } else {
-            // RAMO 1 — REPASSE 100% — esperado = bruto (sem regra ou regra
-            // que mantém o bruto). É aqui que o número-chave bate em ~90%
-            // dos casos; divergência aqui é REAL — não suavizar.
-            const ref = valBruto > 0 ? valBruto : valMed; // fallback para a tabela convênio
-            const _pago = lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || valHosp;
-            const diff = _pago - ref;
-            if (Math.abs(ref) < TOL_ABS) {
-              // Blindagem: bruto ≈ 0 e há valor pago → sinaliza sem calcular %.
-              if (Math.abs(_pago) < TOL_ABS) {
+            // Pre-check: se Exacta e hospital já concordam no valor pago,
+            // não faz sentido comparar contra um bruto de referência
+            // inaplicável ("Camada 2 — Sem acordo", tabela_diferenciada/
+            // valor_fixo sem expected calculado). Os dois sistemas
+            // concordam → conciliado.
+            const _pagoRamo1 = lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || valHosp;
+            if (Math.abs(_pagoRamo1 - valHosp) < TOL_ABS) {
+              base.status = "conciliado";
+              base.ia_obs = `Exacta (${formatCurrency(_pagoRamo1)}) e hospital (${formatCurrency(valHosp)}) iguais — produção e pagamento consistentes.`;
+              conciliado++;
+            } else {
+              // RAMO 1 — REPASSE 100% — esperado = bruto (sem regra ou regra
+              // que mantém o bruto). É aqui que o número-chave bate em ~90%
+              // dos casos; divergência aqui é REAL — não suavizar.
+              const ref = valBruto > 0 ? valBruto : valMed; // fallback para a tabela convênio
+              const _pago = _pagoRamo1;
+              const diff = _pago - ref;
+              if (Math.abs(ref) < TOL_ABS) {
+                // Blindagem: bruto ≈ 0 e há valor pago → sinaliza sem calcular %.
+                if (Math.abs(_pago) < TOL_ABS) {
+                  base.status = "conciliado";
+                  conciliado++;
+                } else {
+                  base.status = "valor_divergente";
+                  valor_divergente++;
+                  base.ia_obs = `Repasse 100% — bruto ≈ 0 na Exacta mas hospital pagou ${formatCurrency(_pago)}. Conferir item sem cobertura na tabela convênio.`;
+                  divergencia_valor += Math.abs(_pago);
+                  risco_mais += _pago;
+                }
+              } else if (Math.abs(diff) < TOL_ABS) {
                 base.status = "conciliado";
                 conciliado++;
               } else {
                 base.status = "valor_divergente";
                 valor_divergente++;
-                base.ia_obs = `Repasse 100% — bruto ≈ 0 na Exacta mas hospital pagou ${formatCurrency(_pago)}. Conferir item sem cobertura na tabela convênio.`;
-                divergencia_valor += Math.abs(_pago);
-                risco_mais += _pago;
+                const pct = (diff / ref) * 100;
+                const ambigPrefix = ambiguous ? `⚠ Match ambíguo — confira manualmente. ` : '';
+                base.ia_obs = `${ambigPrefix}Repasse 100% (sem regra de %) — esperado = bruto ${formatCurrency(ref)}. Hospital pagou ${formatCurrency(_pago)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Divergência real entre tabelas.`;
+                divergencia_valor += Math.abs(diff);
+                if (diff > 0) risco_mais += diff;
+                else risco_menos += Math.abs(diff);
               }
-            } else if (Math.abs(diff) < TOL_ABS) {
-              base.status = "conciliado";
-              conciliado++;
-            } else {
-              base.status = "valor_divergente";
-              valor_divergente++;
-              const pct = (diff / ref) * 100;
-              const ambigPrefix = ambiguous ? `⚠ Match ambíguo — confira manualmente. ` : '';
-              base.ia_obs = `${ambigPrefix}Repasse 100% (sem regra de %) — esperado = bruto ${formatCurrency(ref)}. Hospital pagou ${formatCurrency(_pago)}. Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Divergência real entre tabelas.`;
-              divergencia_valor += Math.abs(diff);
-              if (diff > 0) risco_mais += diff;
-              else risco_menos += Math.abs(diff);
             }
           }
+
         } else if (companyMissing) {
           base.status = "empresa_ausente";
           base.ia_obs = `Empresa "${mappedCompany}" não existe no lote Exacta. Verifique vínculo de empresa ou se o lote está completo.`;
