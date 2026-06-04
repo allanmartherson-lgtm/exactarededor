@@ -310,12 +310,49 @@ export function ItemsDataGrid({
       const bIsAdjust = !!(b as any).item_origem && (b as any).item_origem !== "pagamento_atual";
       const aIsBonus = (a as any).tipo_linha === "complemento_bonus";
       const bIsBonus = (b as any).tipo_linha === "complemento_bonus";
-      // Bônus não obedece a ordenação principal — será realocado abaixo.
+      // Bônus não obedece a ordenação principal — será realocado abaixo
+      // (sempre logo após o item pai do mesmo atendimento).
       // Ajustes de conciliação (não-bônus) ficam no final.
       const aPureAdjust = aIsAdjust && !aIsBonus;
       const bPureAdjust = bIsAdjust && !bIsBonus;
       if (aPureAdjust && !bPureAdjust) return 1;
       if (!aPureAdjust && bPureAdjust) return -1;
+
+      // Ordenação escolhida pelo usuário (clique no header) tem prioridade
+      // sobre o default. Bônus continuará sendo realocado abaixo do pai.
+      if (sortKey) {
+        const valueFor = (it: typeof items[number]) => {
+          switch (sortKey) {
+            case "paciente": return getPatient(it).toLowerCase();
+            case "convenio": return getConvenio(it).toLowerCase();
+            case "tuss": return (it.procedure_code ?? "").toString();
+            case "qtd": return Number(it.quantity ?? 1);
+            case "medico": return (it.doctor_name ?? "").toLowerCase();
+            case "gross": return Number(it.gross_amount ?? 0);
+            case "esperado": return Number(it.ai_findings?.expected_amount ?? 0);
+            case "diferenca": {
+              const exp = it.ai_findings?.expected_amount;
+              return exp != null ? Number(exp) - Number(it.gross_amount ?? 0) : 0;
+            }
+            case "status": {
+              const order: Record<string, number> = {
+                reprovado: 0, alerta: 1, pendente: 2, acatado: 3, aprovado: 4, seguido: 4,
+              };
+              const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
+              return order[eff] ?? 5;
+            }
+          }
+        };
+        const va = valueFor(a);
+        const vb = valueFor(b);
+        let cmp = 0;
+        if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+        else cmp = String(va).localeCompare(String(vb), "pt-BR", { numeric: true, sensitivity: "base" });
+        if (cmp !== 0) return sortDir === "asc" ? cmp : -cmp;
+        // Tiebreaker estável: gross_amount desc
+        return Number(b.gross_amount ?? 0) - Number(a.gross_amount ?? 0);
+      }
+
       const prioOf = (it: typeof items[number]) => {
         const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
         if (eff === "reprovado") return 0;
