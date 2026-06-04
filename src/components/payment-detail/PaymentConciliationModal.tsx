@@ -1042,8 +1042,31 @@ export function PaymentConciliationModal({
         exactaItemsForRun.push(...rows);
         if (rows.length < PAGE) break;
       }
+      // === FILTRO — Itens que NÃO entram em conciliação ===
+      // Bônus, complemento e lançamentos manuais (qualquer tipo) nunca aparecem
+      // na base hospitalar de faturamento. Mantê-los geraria "só no Exacta"
+      // permanente. Eles são lançamentos avulsos/automáticos do próprio Exacta.
+      {
+        const EXCLUDED_TIPO_LINHA = new Set(["complemento_bonus", "complemento", "outros"]);
+        const before = exactaItemsForRun.length;
+        const kept = exactaItemsForRun.filter((it) => {
+          const tl = (it as any).tipo_linha as string | null | undefined;
+          const src = (it as any).source as string | null | undefined;
+          const origem = (it as any).item_origem as string | null | undefined;
+          if (tl && EXCLUDED_TIPO_LINHA.has(tl)) return false;
+          if (src === "manual") return false;
+          if (origem === "inclusao_manual") return false;
+          return true;
+        });
+        const removed = before - kept.length;
+        if (removed > 0) {
+          console.log('[Conciliação] Excluídos da análise (bônus/complemento/manual):', { before, removed, restantes: kept.length });
+        }
+        exactaItemsForRun.length = 0;
+        exactaItemsForRun.push(...kept);
+      }
       if (exactaItemsForRun.length === 0) {
-        throw new Error("Não encontrei itens Exacta para as empresas mapeadas nesta conciliação.");
+        throw new Error("Não encontrei itens Exacta elegíveis para conciliação (após filtrar bônus/complemento/manuais).");
       }
 
       // === FILTRO DE COMPETÊNCIA — Pagamentos por remessa ===
