@@ -4226,6 +4226,9 @@ export function PaymentConciliationModal({
                                     Qtd Hosp.
                                   </TableHead>
 
+                                  <TableHead className="px-3 py-1.5 text-[10px] text-right text-muted-foreground" title="Vl. Repasse — valor pós-acordo informado pelo hospital (base × % do acordo)">
+                                    Valor Acordo
+                                  </TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     Valor Regra
                                   </TableHead>
