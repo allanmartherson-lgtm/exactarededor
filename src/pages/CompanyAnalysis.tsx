@@ -326,10 +326,19 @@ export default function CompanyAnalysis() {
   const counts = useMemo(() => {
     const c = { aprovado: 0, pendente: 0, alerta: 0, reprovado: 0, alertasTotal: 0, criticosTotal: 0 };
     for (const it of items) {
+      const tl = (it as any).tipo_linha as string | null | undefined;
+      const src = (it as any).source as string | null | undefined;
+      const origem = (it as any).item_origem as string | null | undefined;
+      const isInformativo =
+        tl === "complemento_bonus" || tl === "complemento" || tl === "outros" ||
+        src === "manual" || origem === "inclusao_manual";
+
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
       const bucket: ItemAiStatus = eff === "seguido" ? "aprovado" : (eff as ItemAiStatus);
       c[bucket] = (c[bucket] ?? 0) + 1;
-      
+
+      if (isInformativo) continue; // bônus/complemento/manual não contam como alerta
+
       const alerts = (it.ai_findings?.alerts ?? []) as string[];
       if (alerts.length > 0) {
         if (it.ai_status === "reprovado") c.criticosTotal += 1;
