@@ -565,6 +565,22 @@ export function PaymentConciliationModal({
     [paymentItems],
   );
 
+  // Resolução nome→id (gravar exacta_company_id no histórico).
+  const companyNameToId = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const it of paymentItems) {
+      const n = (it as any).company_name;
+      const id = (it as any).company_id;
+      if (n && id && !m[n]) m[n] = id;
+    }
+    return m;
+  }, [paymentItems]);
+  const companyIdToName = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const [n, id] of Object.entries(companyNameToId)) m[id] = n;
+    return m;
+  }, [companyNameToId]);
+
   // Mapa payment_item_id → quantidade Exacta AGREGADA por (empresa+atendimento+TUSS+médico).
   // O motor de conciliação colapsa segmentos do mesmo procedimento/médico em um item
   // virtual com sumQty. Para que a coluna "Qtd Exacta" reflita esse total — e não a
