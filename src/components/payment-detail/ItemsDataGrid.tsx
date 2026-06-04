@@ -1277,6 +1277,11 @@ function RowMain({
           </td>
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
+          {isBonus ? (
+            <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+              Bônus
+            </span>
+          ) : (
           <div className="flex flex-row flex-wrap items-center gap-1">
           {it.ai_status === "acatado" ? (
             <span
@@ -1362,6 +1367,7 @@ function RowMain({
             );
           })()}
           </div>
+          )}
         </td>
         {colVis.observacao && (
           <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
