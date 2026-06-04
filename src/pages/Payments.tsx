@@ -975,14 +975,16 @@ const Payments = () => {
             {
               label: "Aguardando validação",
               value: String(kpis.waitingValidation),
-              hint: "Na fila do validador",
+              hint: "Analista, supervisor ou devolvido",
               icon: UserCheck,
               tone: "warning" as const,
             },
             {
               label: "Aguardando aprovação",
               value: String(kpis.waitingApproval),
-              hint: kpis.competence ? `Comp. ${formatCompetence(`${kpis.competence}-01`)}` : "Na fila do diretor",
+              hint: kpis.competence
+                ? `Diretor · comp. ${formatCompetence(`${kpis.competence}-01`)}`
+                : "Fila do diretor",
               icon: User,
               tone: "success" as const,
             },
