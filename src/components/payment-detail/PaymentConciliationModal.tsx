@@ -224,6 +224,7 @@ const COL_FIELDS: Array<{
   { key: "attendance", label: "Nº atendimento", required: true, description: "Número do atendimento hospitalar — chave principal de cruzamento" },
   { key: "procCode",   label: "Código TUSS",    required: true, description: "Código TUSS/CBHPM do procedimento — chave secundária de cruzamento" },
   { key: "value",      label: "Valor repasse",  required: true, description: "Valor cobrado pelo hospital — base da comparação financeira" },
+  { key: "valueRepasse", label: "Vl. Repasse (acordo)", required: false, description: "Valor de repasse com acordo já aplicado — coluna 'Vl. Repasse' da planilha hospitalar" },
   { key: "doctor",     label: "Médico executante", required: false, description: "Nome do médico — usado para enriquecer o resultado e filtros futuros" },
   { key: "role",       label: "Função / papel", required: false, description: "Papel do profissional (cirurgião, anestesista…) — diferencia quando o mesmo médico atua em funções distintas" },
   { key: "accessRoute",label: "Via de acesso",  required: false, description: "Via de acesso (única, mesma via, outra via) — diferencia linhas do mesmo código com valores legítimos distintos" },
