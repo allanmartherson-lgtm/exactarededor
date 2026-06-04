@@ -2740,36 +2740,56 @@ export function PaymentConciliationModal({
     return q == null ? null : Number(q);
   };
 
+  // Calcula "Diferença Regra" no mesmo critério da UI (DataGrid):
+  // prioriza (valor_pago_exacta − valor_regra); fallback para
+  // diferenca_regra persistido; nulo quando nada é comparável.
+  const computeDiffRegra = (it: ReconciliationItem): number | null => {
+    const vr = it.valor_regra != null ? Number(it.valor_regra) : null;
+    const vpe = Number((it as unknown as { valor_pago_exacta?: number | null }).valor_pago_exacta) || 0;
+    if (vr != null && vpe > 0) return Number((vpe - vr).toFixed(2));
+    if (it.diferenca_regra != null) return Number(it.diferenca_regra);
+    return null;
+  };
+
   const handleExportXlsx = (itemsToExport: ReconciliationItem[], scopeLabel: string) => {
     if (!run) return;
 
-    const data = itemsToExport.map((it) => ({
-      "Status": STATUS_LABEL[it.status],
-      "Empresa": it.company_name ?? "",
-      "Médico": it.doctor_name ?? "",
-      "Paciente": it.patient_name ?? "",
-      "Atendimento": it.attendance_number ?? "",
-      "Cód. TUSS": it.procedure_code ?? "",
-      "Procedimento": it.procedure_name ?? "",
-      "Qtd Exacta": fmtQty(getQtyExacta(it)),
-      "Qtd Hospital": fmtQty(getQtyHospital(it)),
-      "Data": it.procedure_date ? formatDateBR(it.procedure_date) : "",
-      "Convênio": it.agreement_text ?? "",
-      "Exacta (R$)": Number(it.valor_exacta),
-      "Hospital (R$)": Number(it.valor_hospital),
-      "Diferença (R$)": Number((it.valor_hospital - it.valor_exacta).toFixed(2)),
-      "Regra Exacta": it.applied_rule_label ?? "",
-      "Método Cálculo": it.applied_calc_method ?? "",
-      "Observação IA": it.ia_obs ?? "",
-    }));
+    const data = itemsToExport.map((it) => {
+      const vra = (it as unknown as { valor_repasse_acordo?: number | null }).valor_repasse_acordo;
+      const vpe = (it as unknown as { valor_pago_exacta?: number | null }).valor_pago_exacta;
+      const dr = computeDiffRegra(it);
+      return {
+        "Status": STATUS_LABEL[it.status],
+        "Empresa": it.company_name ?? "",
+        "Médico": it.doctor_name ?? "",
+        "Paciente": it.patient_name ?? "",
+        "Atendimento": it.attendance_number ?? "",
+        "Cód. TUSS": it.procedure_code ?? "",
+        "Procedimento": it.procedure_name ?? "",
+        "Qtd Exacta": fmtQty(getQtyExacta(it)),
+        "Qtd Hospital": fmtQty(getQtyHospital(it)),
+        "Data": it.procedure_date ? formatDateBR(it.procedure_date) : "",
+        "Convênio": it.agreement_text ?? "",
+        "Exacta (R$)": Number(it.valor_exacta),
+        "Hospital (R$)": Number(it.valor_hospital),
+        "Valor Acordo (R$)": vra != null ? Number(vra) : "",
+        "Valor Pago (R$)": vpe != null ? Number(vpe) : "",
+        "Valor Regra (R$)": it.valor_regra != null ? Number(it.valor_regra) : "",
+        "Diferença Regra (R$)": dr != null ? dr : "",
+        "Diferença Bruta (R$)": Number((it.valor_hospital - it.valor_exacta).toFixed(2)),
+        "Regra Exacta": it.applied_rule_label ?? "",
+        "Método Cálculo": it.applied_calc_method ?? "",
+        "Observação IA": it.ia_obs ?? "",
+      };
+    });
 
     const ws = XLSX.utils.json_to_sheet(data);
 
     ws["!cols"] = [
       { wch: 18 }, { wch: 38 }, { wch: 30 }, { wch: 30 }, { wch: 14 },
       { wch: 14 }, { wch: 48 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
-      { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 36 },
-      { wch: 20 }, { wch: 60 },
+      { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 },
+      { wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 36 }, { wch: 20 }, { wch: 60 },
     ];
 
     const headerRange = XLSX.utils.decode_range(ws['!ref'] ?? 'A1');
