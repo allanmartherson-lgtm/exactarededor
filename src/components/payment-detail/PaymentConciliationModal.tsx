@@ -3595,6 +3595,55 @@ export function PaymentConciliationModal({
                 </div>
               </div>
 
+              {/* Histórico de versões dos vínculos para este pagamento */}
+              {paymentId && (
+                <CompanyMappingHistory
+                  paymentId={paymentId}
+                  companyIdToName={companyIdToName}
+                />
+              )}
+
+              {/* Rótulos das colunas: esquerda=base de conciliação (hospital), direita=base do pagamento (Exacta) */}
+              <TooltipProvider>
+                <div className="flex items-center justify-between px-3 py-2 bg-card border border-border rounded-lg">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-help">
+                        <div className="w-3 h-3 rounded bg-muted-foreground/30 border border-border" />
+                        <div>
+                          <p className="text-xs font-semibold">Base de conciliação (hospital)</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {hospitalCompanies.length} empresa(s) do extrato hospitalar
+                          </p>
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[320px]">
+                      Empresas como aparecem no extrato/planilha hospitalar enviada. São a base do
+                      cruzamento — para cada uma, escolha a empresa equivalente do lote Exacta.
+                    </TooltipContent>
+                  </Tooltip>
+                  <span className="text-xs text-muted-foreground font-mono">hospital → Exacta</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-help">
+                        <div>
+                          <p className="text-xs font-semibold text-right">Base do pagamento (lote Exacta)</p>
+                          <p className="text-[10px] text-muted-foreground text-right">
+                            {loteCompanies.length} empresa(s) cadastradas neste lote
+                          </p>
+                        </div>
+                        <div className="w-3 h-3 rounded bg-success/40 border border-success/60" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[320px]">
+                      Empresas cadastradas neste pagamento/lote do Exacta. É o universo permitido
+                      para vinculação. "Ignorar" exclui a linha da conciliação.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
+
               <div className="flex gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-success" /> Auto-vinculado
@@ -3606,6 +3655,7 @@ export function PaymentConciliationModal({
                   <div className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Não encontrado
                 </span>
               </div>
+
 
               <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-lg">
                 <input
