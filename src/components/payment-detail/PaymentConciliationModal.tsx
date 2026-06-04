@@ -3993,22 +3993,34 @@ export function PaymentConciliationModal({
 
               {/* Impacto financeiro */}
               <Card>
-                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Risco pagamento a mais{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
+                      Diferença total{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
                     </p>
-                    <p className="text-lg font-bold text-destructive mt-1">
-                      {formatCurrency(scopedStats.risco_mais)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Risco pagamento a menos{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
-                    </p>
-                    <p className="text-lg font-bold text-success mt-1">
-                      {formatCurrency(scopedStats.risco_menos)}
-                    </p>
+                    {(() => {
+                      const dt = scopedStats.diferenca_total;
+                      const isZero = Math.abs(dt) < 0.005;
+                      const colorClass = isZero
+                        ? "text-success"
+                        : dt > 0
+                          ? "text-destructive"
+                          : "text-warning";
+                      const label = isZero
+                        ? "Tudo correto"
+                        : dt > 0
+                          ? "Pago a mais"
+                          : "Pago a menos";
+                      const sign = isZero ? "" : dt > 0 ? "+" : "-";
+                      return (
+                        <>
+                          <p className={`text-lg font-bold mt-1 ${colorClass}`}>
+                            {sign}{formatCurrency(Math.abs(dt))}
+                          </p>
+                          <p className={`text-[10px] mt-0.5 ${colorClass}`}>{label}</p>
+                        </>
+                      );
+                    })()}
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -4020,6 +4032,7 @@ export function PaymentConciliationModal({
                   </div>
                 </CardContent>
               </Card>
+
 
               {/* Tabs de filtro */}
               <div className="filter-tabs flex flex-wrap gap-2 border-b border-border pb-2">
