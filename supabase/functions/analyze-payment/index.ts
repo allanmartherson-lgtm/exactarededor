@@ -1845,6 +1845,114 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     }
     console.timeEnd(`${__t} upsert_company_groups`);
 
+    // ===== Verificação pós-split de bônus =====
+    // Garante que os totais não regrediram após mover o bônus para uma linha
+    // independente. Três invariantes:
+    //  (1) por empresa: soma(expected) dos itens persistidos = pré-split (somar
+    //      o expected dos pais antes da reversão deve bater com expected pós +
+    //      expected das novas linhas de bônus).
+    //  (2) por empresa: total_amount do payment_company_groups = soma(gross)
+    //      dos itens da empresa no DB (inclui linhas de bônus).
+    //  (3) lote: soma(total_amount) dos grupos = soma(gross) de TODOS os itens
+    //      do payment no DB.
+    // Divergências viram payment_observation (sistema) com tipo `aviso` e log.
+    if (bonusLinesToInsert.length > 0) {
+      try {
+        const EPS = 0.05;
+        const compsToCheck = Array.from(new Set([
+          ...Object.keys(bonusTotalByCompany),
+          ...Object.keys(preSplitExpectedByCompany),
+        ]));
+
+        // Lê itens persistidos das empresas afetadas (com paginação leve).
+        const itemsByCompany: Record<string, { gross: number; expected: number; bonus: number }> = {};
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data: page, error: vErr } = await supabase
+            .from("payment_items")
+            .select("company_name,gross_amount,expected_amount,tipo_item")
+            .eq("payment_id", payment_id)
+            .range(from, from + PAGE - 1);
+          if (vErr) { console.error(`${__t} verify_read_error`, vErr); break; }
+          for (const row of (page ?? [])) {
+            const r = row as any;
+            const key = (r.company_name ?? "Sem empresa").toString().trim() || "Sem empresa";
+            const bucket = itemsByCompany[key] ?? (itemsByCompany[key] = { gross: 0, expected: 0, bonus: 0 });
+            bucket.gross += Number(r.gross_amount ?? 0);
+            bucket.expected += Number(r.expected_amount ?? 0);
+            if (r.tipo_item === "bonus") bucket.bonus += Number(r.expected_amount ?? 0);
+          }
+          if (!page || page.length < PAGE) break;
+        }
+
+        // Lê grupos atualizados.
+        const { data: groupsAfter } = await supabase
+          .from("payment_company_groups")
+          .select("company_name,total_amount")
+          .eq("payment_id", payment_id);
+        const groupTotalByCompany: Record<string, number> = {};
+        let groupsTotalSum = 0;
+        for (const g of (groupsAfter ?? [])) {
+          const key = (g as any).company_name?.toString().trim() || "Sem empresa";
+          const t = Number((g as any).total_amount ?? 0);
+          groupTotalByCompany[key] = (groupTotalByCompany[key] ?? 0) + t;
+          groupsTotalSum += t;
+        }
+
+        const divergences: string[] = [];
+
+        // (1) bônus extraído == bônus persistido
+        for (const comp of compsToCheck) {
+          const expectedBonus = Number((bonusTotalByCompany[comp] ?? 0).toFixed(2));
+          const persistedBonus = Number((itemsByCompany[comp]?.bonus ?? 0).toFixed(2));
+          if (Math.abs(expectedBonus - persistedBonus) > EPS) {
+            divergences.push(
+              `[${comp}] bônus extraído R$ ${expectedBonus.toFixed(2)} ≠ bônus persistido R$ ${persistedBonus.toFixed(2)}`,
+            );
+          }
+        }
+
+        // (2) total_amount do grupo == soma(gross) dos itens da empresa
+        for (const comp of compsToCheck) {
+          const grossDb = Number((itemsByCompany[comp]?.gross ?? 0).toFixed(2));
+          const groupTotal = Number((groupTotalByCompany[comp] ?? 0).toFixed(2));
+          if (Math.abs(grossDb - groupTotal) > EPS) {
+            divergences.push(
+              `[${comp}] grupo total_amount R$ ${groupTotal.toFixed(2)} ≠ Σ gross itens R$ ${grossDb.toFixed(2)}`,
+            );
+          }
+        }
+
+        // (3) lote: Σ total_amount dos grupos == Σ gross de todos os itens
+        const allGross = Object.values(itemsByCompany).reduce((s, v) => s + v.gross, 0);
+        if (Math.abs(allGross - groupsTotalSum) > EPS) {
+          divergences.push(
+            `[lote] Σ grupos R$ ${groupsTotalSum.toFixed(2)} ≠ Σ gross itens R$ ${allGross.toFixed(2)}`,
+          );
+        }
+
+        if (divergences.length > 0) {
+          const msg =
+            `⚠️ Divergência pós-split de bônus (${bonusLinesToInsert.length} linha(s) inserida(s)): ` +
+            divergences.join(" · ");
+          console.error(`${__t} bonus_split_invariant_failed`, msg);
+          await supabase.from("payment_observations").insert({
+            payment_id,
+            author_type: "sistema",
+            message: msg,
+          });
+        } else {
+          console.log(
+            `${__t} bonus_split_invariants_ok bonus_lines=${bonusLinesToInsert.length} companies=${compsToCheck.length}`,
+          );
+        }
+      } catch (verifyErr) {
+        console.error(`${__t} bonus_split_verify_error`, verifyErr);
+      }
+    }
+
+
+
     // Notifica o analista que a IA concluiu (Evento 2)
     if (obsTransition) {
       console.log(`Triggering notify-analyst-event (ia_concluded) for payment ${payment_id}`);
