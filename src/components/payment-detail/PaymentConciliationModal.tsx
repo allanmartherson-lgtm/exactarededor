@@ -644,6 +644,41 @@ export function PaymentConciliationModal({
     };
   }, [open, loteCompanies]);
 
+  /**
+   * Remove de uma lista de reconciliation_items qualquer registro cujo
+   * payment_item associado seja bônus, complemento ou lançamento manual —
+   * esses itens nunca aparecem na base hospitalar, então não devem entrar
+   * em contagens, indicadores nem no PDF/relatório de conciliação.
+   */
+  const filterOutNonReconcilable = async (rows: ReconciliationItem[]): Promise<ReconciliationItem[]> => {
+    const ids = Array.from(new Set(rows.map((r) => r.payment_item_id).filter(Boolean))) as string[];
+    if (ids.length === 0) return rows;
+    const excluded = new Set<string>();
+    const EXCLUDED_TIPO_LINHA = new Set(["complemento_bonus", "complemento", "outros"]);
+    const PAGE = 500;
+    for (let i = 0; i < ids.length; i += PAGE) {
+      const slice = ids.slice(i, i + PAGE);
+      const { data, error } = await (supabase as any)
+        .from("payment_items")
+        .select("id, tipo_linha, source, item_origem")
+        .in("id", slice);
+      if (error) {
+        console.warn("[Conciliação] filterOutNonReconcilable: falha ao consultar payment_items", error);
+        continue;
+      }
+      for (const r of (data ?? []) as Array<{ id: string; tipo_linha: string | null; source: string | null; item_origem: string | null }>) {
+        if ((r.tipo_linha && EXCLUDED_TIPO_LINHA.has(r.tipo_linha)) || r.source === "manual" || r.item_origem === "inclusao_manual") {
+          excluded.add(r.id);
+        }
+      }
+    }
+    if (excluded.size === 0) return rows;
+    const before = rows.length;
+    const kept = rows.filter((r) => !r.payment_item_id || !excluded.has(r.payment_item_id));
+    console.log("[Conciliação] Itens não-conciliáveis excluídos do resumo:", { before, removidos: before - kept.length, restantes: kept.length });
+    return kept;
+  };
+
   const loadLatestRun = async () => {
     setLoading(true);
     try {
