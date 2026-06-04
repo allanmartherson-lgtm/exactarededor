@@ -241,15 +241,19 @@ export function ItemsDataGrid({
   const filtered = useMemo(() => {
     const term = filter.trim().toLowerCase();
     const pat = patientFilter.trim().toLowerCase();
-    return items.filter((it) => {
+    const base = items.filter((it) => {
+      const isBonus = (it as any).tipo_linha === "complemento_bonus";
       const alerts = (it.ai_findings?.alerts ?? []) as string[];
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
       const needsReview = !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review;
-      if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
-      if (onlyNeedsReview && !needsReview) return false;
-      if (onlyValidationAlerts) {
-        const vf = (it as any).validation_findings;
-        if (!Array.isArray(vf) || vf.length === 0) return false;
+      // Bônus nunca é escondido por filtros de alerta — ele acompanha o pai.
+      if (!isBonus) {
+        if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
+        if (onlyNeedsReview && !needsReview) return false;
+        if (onlyValidationAlerts) {
+          const vf = (it as any).validation_findings;
+          if (!Array.isArray(vf) || vf.length === 0) return false;
+        }
       }
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
@@ -272,8 +276,14 @@ export function ItemsDataGrid({
       // Ajustes de conciliação sempre no final
       const aIsAdjust = !!(a as any).item_origem && (a as any).item_origem !== "pagamento_atual";
       const bIsAdjust = !!(b as any).item_origem && (b as any).item_origem !== "pagamento_atual";
-      if (aIsAdjust && !bIsAdjust) return 1;
-      if (!aIsAdjust && bIsAdjust) return -1;
+      const aIsBonus = (a as any).tipo_linha === "complemento_bonus";
+      const bIsBonus = (b as any).tipo_linha === "complemento_bonus";
+      // Bônus não obedece a ordenação principal — será realocado abaixo.
+      // Ajustes de conciliação (não-bônus) ficam no final.
+      const aPureAdjust = aIsAdjust && !aIsBonus;
+      const bPureAdjust = bIsAdjust && !bIsBonus;
+      if (aPureAdjust && !bPureAdjust) return 1;
+      if (!aPureAdjust && bPureAdjust) return -1;
       const prioOf = (it: typeof items[number]) => {
         const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
         if (eff === "reprovado") return 0;
@@ -287,6 +297,50 @@ export function ItemsDataGrid({
       if (pa !== pb) return pa - pb;
       return Number(b.gross_amount ?? 0) - Number(a.gross_amount ?? 0);
     });
+
+    // Segunda passagem: cada linha de bônus é movida para imediatamente após
+    // o item pai do mesmo atendimento (procedimento com maior gross_amount).
+    // Se o pai não estiver na lista filtrada, o bônus permanece no final
+    // do bloco do atendimento (ou no fim absoluto, se não houver itens do
+    // mesmo atendimento).
+    const bonuses = base.filter((x) => (x as any).tipo_linha === "complemento_bonus");
+    if (bonuses.length === 0) return base;
+    const nonBonus = base.filter((x) => (x as any).tipo_linha !== "complemento_bonus");
+    const result: typeof base = [];
+    // Para cada item não-bônus, anexa os bônus do mesmo atendimento cujo
+    // pai (maior gross dentro do atendimento) é este item.
+    const parentIdByAtt = new Map<string, string>();
+    const grossByAtt = new Map<string, number>();
+    for (const it of nonBonus) {
+      const att = (it.attendance_number ?? "").toString();
+      if (!att) continue;
+      const g = Number(it.gross_amount ?? 0);
+      const curG = grossByAtt.get(att);
+      if (curG == null || g > curG) {
+        grossByAtt.set(att, g);
+        parentIdByAtt.set(att, it.id);
+      }
+    }
+    const bonusByParentId = new Map<string, typeof bonuses>();
+    const orphanBonus: typeof bonuses = [];
+    for (const b of bonuses) {
+      const att = (b.attendance_number ?? "").toString();
+      const parentId = att ? parentIdByAtt.get(att) : undefined;
+      if (parentId) {
+        const arr = bonusByParentId.get(parentId) ?? [];
+        arr.push(b);
+        bonusByParentId.set(parentId, arr);
+      } else {
+        orphanBonus.push(b);
+      }
+    }
+    for (const it of nonBonus) {
+      result.push(it);
+      const attached = bonusByParentId.get(it.id);
+      if (attached) result.push(...attached);
+    }
+    if (orphanBonus.length) result.push(...orphanBonus);
+    return result;
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, onlyValidationAlerts, groupStatus]);
 
 
