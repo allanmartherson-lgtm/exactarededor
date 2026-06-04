@@ -672,7 +672,10 @@ export function PaymentConciliationModal({
           all.push(...rows);
           if (rows.length < pageSize) break;
         }
-        setItems(all);
+        // Exclui retroativamente bônus/complemento/manuais de runs antigos —
+        // contagens, indicadores e PDF não devem considerá-los.
+        const filtered = await filterOutNonReconcilable(all);
+        setItems(filtered);
         setStep("result");
       } else {
         setRun(null);
