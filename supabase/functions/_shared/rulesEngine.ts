@@ -1591,8 +1591,10 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
     } else {
       isUrgencia = /urgencia|urgência|emergencia|emergência|pronto/i.test(item.description ?? "");
     }
-    if (c.elective_mode === "eletivo" && isUrgencia) return { ok: false, reason: "eletivo_urgencia" };
-    if (c.elective_mode === "urgencia" && !isUrgencia) return { ok: false, reason: "eletivo_urgencia" };
+    // Aceita "eletiva" (valor canônico salvo pela UI) e "eletivo" (legado).
+    const mode = c.elective_mode;
+    if ((mode === "eletivo" || mode === "eletiva") && isUrgencia) return { ok: false, reason: "eletivo_urgencia" };
+    if ((mode === "urgencia" || mode === "urgência") && !isUrgencia) return { ok: false, reason: "eletivo_urgencia" };
   }
 
   // ---- Escopo de códigos para cálculos do tipo PACOTE ----
