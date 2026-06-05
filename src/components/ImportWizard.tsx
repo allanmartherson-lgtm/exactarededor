@@ -930,6 +930,33 @@ function downloadTemplate(profile: ImportProfile, title: string) {
 
 
 /**
+ * Exporta o relatório de auditoria de resolução de CRM como CSV.
+ * Inclui todas as linhas (não apenas as 200 exibidas em tela).
+ */
+function downloadResolutionCsv(
+  report: { row: number; crm: string; uf: string | null; method: "crm+uf" | "crm-only" | "novo"; reason: string }[],
+) {
+  const esc = (v: any) => {
+    const s = v == null ? "" : String(v);
+    return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = ["linha", "crm", "uf", "metodo", "justificativa"].join(";");
+  const lines = report.map((r) => [r.row, r.crm, r.uf ?? "", r.method, r.reason].map(esc).join(";"));
+  const csv = "\uFEFF" + [header, ...lines].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  a.href = url;
+  a.download = `auditoria-crm-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+
  * Aplica overrides manuais de UF (atribuição em massa) sobre os registros
  * antes da validação/commit. Só preenche UF quando ela está vazia, para não
  * sobrescrever um valor explícito vindo do arquivo.
