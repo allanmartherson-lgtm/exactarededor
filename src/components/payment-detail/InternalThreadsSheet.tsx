@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, MessageCircleQuestion, Plus, Building2, Lock } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CheckCircle2, MessageCircleQuestion, Plus, Building2, Lock, Search, X, SlidersHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/status";
@@ -69,6 +71,12 @@ export function InternalThreadsSheet({
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  // Filtros avançados
+  const [query, setQuery] = useState("");
+  const [companyFilter, setCompanyFilter] = useState<string>("all"); // group_id | "all" | "lote"
+  const [userFilter, setUserFilter] = useState<string>("all");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
@@ -101,6 +109,19 @@ export function InternalThreadsSheet({
     [groups],
   );
 
+  // Lista única de autores envolvidos.
+  const authors = useMemo(() => {
+    const map = new Map<string, string>();
+    rows.forEach((r) => { if (!map.has(r.author_id)) map.set(r.author_id, r.author_name); });
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows]);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const hasAdvancedFilter =
+    !!normalizedQuery || companyFilter !== "all" || userFilter !== "all";
+
   const threads = useMemo(() => {
     const roots = rows.filter((r) => !r.parent_id);
     const childrenByParent = new Map<string, Row[]>();
@@ -114,18 +135,46 @@ export function InternalThreadsSheet({
     return roots
       .map((root) => ({ root, replies: childrenByParent.get(root.id) ?? [] }))
       .filter((t) => {
-        if (filter === "abertos") return t.root.status !== "encerrada";
-        if (filter === "encerrados") return t.root.status === "encerrada";
+        if (filter === "abertos" && t.root.status === "encerrada") return false;
+        if (filter === "encerrados" && t.root.status !== "encerrada") return false;
+
+        if (companyFilter === "lote" && t.root.company_group_id !== null) return false;
+        if (companyFilter !== "all" && companyFilter !== "lote" &&
+            t.root.company_group_id !== companyFilter) return false;
+
+        if (userFilter !== "all") {
+          const involved = t.root.author_id === userFilter ||
+            t.replies.some((r) => r.author_id === userFilter);
+          if (!involved) return false;
+        }
+
+        if (normalizedQuery) {
+          const haystack = [
+            t.root.message,
+            t.root.author_name,
+            groupName(t.root.company_group_id),
+            ...t.replies.map((r) => `${r.message} ${r.author_name}`),
+          ].join(" ").toLowerCase();
+          if (!haystack.includes(normalizedQuery)) return false;
+        }
+
         return true;
       })
       .sort((a, b) => (a.root.status === "encerrada" ? 1 : 0) - (b.root.status === "encerrada" ? 1 : 0) ||
         new Date(b.root.created_at).getTime() - new Date(a.root.created_at).getTime());
-  }, [rows, filter]);
+  }, [rows, filter, companyFilter, userFilter, normalizedQuery, groupName]);
 
   const openCount = useMemo(
     () => rows.filter((r) => !r.parent_id && r.status !== "encerrada").length,
     [rows],
   );
+  const totalRoots = useMemo(() => rows.filter((r) => !r.parent_id).length, [rows]);
+
+  const clearFilters = () => {
+    setQuery("");
+    setCompanyFilter("all");
+    setUserFilter("all");
+  };
 
   const toggle = (id: string) =>
     setExpanded((prev) => {
@@ -201,6 +250,89 @@ export function InternalThreadsSheet({
               <Plus className="h-4 w-4 mr-1.5" /> Nova pergunta
             </Button>
           </div>
+
+          {/* Busca + filtros avançados */}
+          <div className="pt-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar por palavra, autor ou empresa..."
+                  className="pl-8 h-9 text-sm"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Limpar busca"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <Button
+                variant={advancedOpen || hasAdvancedFilter ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setAdvancedOpen((v) => !v)}
+                className="h-9"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
+                Filtros
+                {hasAdvancedFilter && (
+                  <Badge variant="outline" className="ml-1.5 h-4 px-1 text-[10px] bg-primary/10 text-primary border-primary/30">
+                    on
+                  </Badge>
+                )}
+              </Button>
+            </div>
+
+            {advancedOpen && (
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as empresas</SelectItem>
+                    <SelectItem value="lote">Somente do lote (sem empresa)</SelectItem>
+                    {groups.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>{g.company_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={userFilter} onValueChange={setUserFilter}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Usuário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os usuários</SelectItem>
+                    {authors.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {hasAdvancedFilter && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="col-span-2 h-8 text-xs text-muted-foreground hover:text-foreground justify-start"
+                  >
+                    <X className="h-3 w-3 mr-1" /> Limpar filtros
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {(hasAdvancedFilter || filter !== "abertos") && !loading && (
+              <p className="text-[11px] text-muted-foreground">
+                Mostrando <strong>{threads.length}</strong> de {totalRoots} conversa(s).
+              </p>
+            )}
+          </div>
         </SheetHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
@@ -211,11 +343,13 @@ export function InternalThreadsSheet({
             </>
           ) : threads.length === 0 ? (
             <div className="text-center py-12 text-sm text-muted-foreground">
-              Nenhuma conversa {filter === "abertos" ? "aberta" : filter === "encerrados" ? "encerrada" : ""}.
+              {hasAdvancedFilter
+                ? "Nenhuma conversa corresponde aos filtros."
+                : `Nenhuma conversa ${filter === "abertos" ? "aberta" : filter === "encerrados" ? "encerrada" : ""}.`}
             </div>
           ) : (
             threads.map(({ root, replies: rep }) => {
-              const isOpen = expanded.has(root.id);
+              const isOpen = expanded.has(root.id) || !!normalizedQuery;
               const closed = root.status === "encerrada";
               return (
                 <div
