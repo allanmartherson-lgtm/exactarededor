@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -553,8 +553,14 @@ const Companies = () => {
                       <Button variant="ghost" size="icon" onClick={() => { setEditing(item); setOpen(true); }} className="h-8 w-8">
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => remove(item.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleActive(item)}
+                        className={`h-8 w-8 ${item.active ? "text-muted-foreground hover:text-destructive" : "text-muted-foreground hover:text-emerald-600"}`}
+                        title={item.active ? "Inativar (preserva histórico)" : "Reativar"}
+                      >
+                        <Power className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
