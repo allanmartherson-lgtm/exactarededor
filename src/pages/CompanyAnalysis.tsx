@@ -16,6 +16,7 @@ import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryP
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { CompanyQuestionsThread } from "@/components/payment-detail/CompanyQuestionsThread";
+import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { DeductionsBanner } from "@/components/payment-detail/DeductionsBanner";
 import { FinancialCompositionStrip } from "@/components/payment-detail/FinancialCompositionStrip";
 import { useFinancialComposition } from "@/hooks/useFinancialComposition";
@@ -292,6 +293,38 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
+
+  // FAB de Conversas — escopo desta empresa. Conta perguntas e rola até o thread.
+  const questionsThreadRef = useRef<HTMLDivElement | null>(null);
+  const [openQuestionsCount, setOpenQuestionsCount] = useState(0);
+  useEffect(() => {
+    if (!groupId) return;
+    let alive = true;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from("payment_questions")
+        .select("id", { count: "exact", head: true })
+        .eq("company_group_id", groupId);
+      if (alive) setOpenQuestionsCount(count ?? 0);
+    };
+    fetchCount();
+    const ch = supabase
+      .channel(`cqt-fab-${groupId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_questions", filter: `company_group_id=eq.${groupId}` },
+        () => fetchCount(),
+      )
+      .subscribe();
+    return () => {
+      alive = false;
+      supabase.removeChannel(ch);
+    };
+  }, [groupId]);
+  const scrollToQuestions = () => {
+    questionsThreadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const [postConcluirOpen, setPostConcluirOpen] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
@@ -1560,11 +1593,13 @@ export default function CompanyAnalysis() {
 
       {/* Thread de questionamentos — analista só vê quando há perguntas; validador/diretor sempre veem (podem iniciar). */}
       {id && groupId && (
-        <CompanyQuestionsThread
-          paymentId={id}
-          companyGroupId={groupId}
-          hideIfEmpty={isAnalista && !isAdminOrDiretor && !isValidador}
-        />
+        <div ref={questionsThreadRef} className="scroll-mt-24">
+          <CompanyQuestionsThread
+            paymentId={id}
+            companyGroupId={groupId}
+            hideIfEmpty={isAnalista && !isAdminOrDiretor && !isValidador}
+          />
+        </div>
       )}
 
       {/* ABAS */}
@@ -1954,6 +1989,15 @@ export default function CompanyAnalysis() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* FAB Conversas — escopo desta empresa. Posicionado acima do footer sticky para não cobrir os botões de ação. */}
+      {id && groupId && (
+        <QuestionsFab
+          openCount={openQuestionsCount}
+          onClick={scrollToQuestions}
+          className="bottom-24"
+        />
+      )}
     </div>
   );
 }
