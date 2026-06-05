@@ -1514,6 +1514,13 @@ function RowMain({
         {colVis.setor_inferido && (
           <td className={cn(cell, TEXT_META)} title={resolvedSystemSector ?? ""}>{formatSectorName(resolvedSystemSector)}</td>
         )}
+        {colVis.tipo_entrada && (() => {
+          const raw = ((it as unknown as { attendance_character?: string | null }).attendance_character ?? "").toString().trim();
+          const label = raw
+            ? (/^elet/i.test(raw) ? "Eletivo" : /^urg/i.test(raw) ? "Urgência" : /^emerg/i.test(raw) ? "Emergência" : raw)
+            : "—";
+          return <td className={cn(cell, TEXT_META)} title={raw}>{label}</td>;
+        })()}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
           <span className="truncate block">{it.doctor_name}</span>
         </td>
