@@ -48,6 +48,7 @@ import { recordObservation, type ObservationType } from "@/lib/observations";
 import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
+import { AskQuestionDialog } from "@/components/payment-detail/AskQuestionDialog";
 import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPatternSuggest";
 import { ProductionValidationButton } from "@/components/payment-detail/ProductionValidationButton";
 import { ProductionValidationPanel } from "@/components/payment-detail/ProductionValidationPanel";
@@ -224,6 +225,10 @@ const PaymentDetail = () => {
   const [reprocessingAi, setReprocessingAi] = useState(false);
   const [skippedCompanies, setSkippedCompanies] = useState<Array<{ company_name: string; status: string }>>([]);
   const [validatingRules, setValidatingRules] = useState(false);
+  // Diálogo de "Fazer questionamento" — escopo lote ou empresa específica.
+  const [askQuestion, setAskQuestion] = useState<
+    null | { groupId?: string | null; companyName?: string | null }
+  >(null);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
   const [bulkConcludeOpen, setBulkConcludeOpen] = useState(false);
@@ -1215,7 +1220,12 @@ const PaymentDetail = () => {
   // Pendentes: empresas que o analista ainda não concluiu.
   const groupsReadyToSend = groups.filter((g) => g.status === "concluida_analista" || g.status === "devolvido_analista");
   const groupsPendingAnalyst = groups.filter((g) => g.status === "revisao_analista");
-  const canSendForValidation = isAnalista && groupsReadyToSend.length > 0;
+  // Visão limpa por papel: quando o usuário acumula validador/diretor (sem ser admin),
+  // a tela não mostra ações que pertencem à rotina do analista.
+  const isAdmin = hasRole("admin");
+  const showAnalystActions =
+    isAdmin || (hasRole("analista") && !hasRole("validador") && !hasRole("diretor"));
+  const canSendForValidation = showAnalystActions && groupsReadyToSend.length > 0;
   const isOwner = payment.created_by === user?.id;
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista", "cancelado"];
   const canCancel = (isOwner || isDiretor || isAnalista) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
@@ -1867,6 +1877,18 @@ const PaymentDetail = () => {
                 </Button>
               );
             })()}
+            {(isAnalista || isValidador || isDiretor) && !isNfPhase && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:inline-flex"
+                title="Abrir questionamento interno sobre este lote"
+                onClick={() => setAskQuestion({ groupId: null, companyName: null })}
+              >
+                <MessageCircleQuestion className="h-4 w-4 mr-1.5 text-primary" />
+                Fazer questionamento
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Mais ações">
@@ -2365,7 +2387,7 @@ const PaymentDetail = () => {
         })()}
 
 
-          {isAnalista && groupsPendingAnalyst.length > 0 && (
+          {showAnalystActions && groupsPendingAnalyst.length > 0 && (
             <div className="flex items-center gap-3 px-4 py-2 bg-info-soft border border-info/30 rounded-lg text-sm flex-wrap">
               <span className="w-2 h-2 rounded-full bg-info flex-shrink-0" />
               <span className="font-medium text-muted-foreground">Concluir análise em massa</span>
@@ -2388,7 +2410,7 @@ const PaymentDetail = () => {
             </div>
           )}
 
-          {isAnalista && groups.some((g) => g.status === "revisao_pos_aprovacao") && (
+          {showAnalystActions && groups.some((g) => g.status === "revisao_pos_aprovacao") && (
             <div className="flex items-center gap-3 px-4 py-2 bg-teal-50 dark:bg-teal-950/30 border border-teal-300/60 dark:border-teal-800 rounded-lg text-sm flex-wrap">
               <span className="w-2 h-2 rounded-full bg-teal-600 flex-shrink-0" />
               <span className="font-medium text-teal-900 dark:text-teal-200">Liberar pedidos de NF em massa</span>
@@ -3126,6 +3148,20 @@ const PaymentDetail = () => {
                     hasReconciliationRun={hasReconciliationRun}
                     onOpenConciliation={() => openCompanyConciliation(g.company_name)}
                   />
+                  {(isAnalista || isValidador || isDiretor) && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
+                        title={`Fazer questionamento sobre ${g.company_name}`}
+                        onClick={() => setAskQuestion({ groupId: g.id, companyName: g.company_name })}
+                      >
+                        <MessageCircleQuestion className="h-3.5 w-3.5 mr-1" />
+                        Fazer questionamento
+                      </Button>
+                    </div>
+                  )}
                   {expandedGroups.has(g.id) && (
                     <PrivateCompanyNote
                       note={privateNotes[g.id]?.note ?? ""}
@@ -3350,7 +3386,7 @@ const PaymentDetail = () => {
           <ExceptionPatternSuggest paymentId={id} />
         )}
 
-        {isAnalista && !isValidador && !isDiretor && groups.some((g) => g.status === "revisao_analista" || g.status === "devolvido_analista") && (
+        {showAnalystActions && groups.some((g) => g.status === "revisao_analista" || g.status === "devolvido_analista") && (
           <BatchSuggestPanel items={items} onAcceptBatch={handleAcceptBatch} />
         )}
 
@@ -3457,6 +3493,19 @@ const PaymentDetail = () => {
           onDone={load}
           open={productionValidationOpen}
           onOpenChange={setProductionValidationOpen}
+        />
+      )}
+      {id && user && (
+        <AskQuestionDialog
+          open={askQuestion !== null}
+          onOpenChange={(o) => { if (!o) setAskQuestion(null); }}
+          paymentId={id}
+          paymentStatus={payment.status as string}
+          authorId={user.id}
+          authorRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
+          companyGroupId={askQuestion?.groupId ?? null}
+          companyName={askQuestion?.companyName ?? null}
+          onCreated={load}
         />
       )}
     </>
