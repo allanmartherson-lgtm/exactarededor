@@ -265,6 +265,10 @@ export default function Conversas() {
         <TabsContent value="medicos" className="flex flex-col flex-1 min-h-0 mt-3">
           <ConversasDoctorsTab />
         </TabsContent>
+
+        <TabsContent value="internas" className="flex flex-col flex-1 min-h-0 mt-3">
+          <ConversasInternasTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
