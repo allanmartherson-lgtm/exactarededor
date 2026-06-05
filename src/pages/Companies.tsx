@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle, Wallet } from "lucide-react";
+import { Building2, Plus, Power, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle, Wallet } from "lucide-react";
 import { CompanyFinancialAdjustmentsDialog } from "@/components/CompanyFinancialAdjustmentsDialog";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { FormDialog } from "@/components/FormDialog";
@@ -22,15 +22,17 @@ import { dedupEmails, normalizeEmail, parseEmailList, tryAddEmail } from "@/lib/
 
 interface Company {
   id: string;
+  code: string | null;
   name: string;
   document: string | null;
   aliases: string[];
   notes: string | null;
+  active: boolean;
   /** E-mails de destino para pedidos de NF (TO). O e-mail do médico vai como CC. */
   invoice_emails: string[];
 }
 
-const empty: Company = { id: "", name: "", document: "", aliases: [], notes: "", invoice_emails: [] };
+const empty: Company = { id: "", code: null, name: "", document: "", aliases: [], notes: "", active: true, invoice_emails: [] };
 
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
@@ -68,6 +70,7 @@ const Companies = () => {
   const [aliasInput, setAliasInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [search, setSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importResults, setImportResults] = useState<{
@@ -162,10 +165,17 @@ const Companies = () => {
     setOpen(false); setEditing(empty); setAliasInput(""); setEmailInput(""); load();
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("Excluir empresa?")) return;
-    const { error } = await supabase.from("companies").delete().eq("id", id);
+  // Soft delete: exclusão física foi bloqueada por trigger no banco para preservar
+  // histórico de pagamentos, vínculos e financeiro. Use inativação.
+  const toggleActive = async (item: Company) => {
+    const next = !item.active;
+    const msg = next
+      ? `Reativar ${item.name}?`
+      : `Inativar ${item.name}?\n\nO cadastro fica preservado (histórico de pagamentos intacto) e pode ser reativado a qualquer momento.`;
+    if (!confirm(msg)) return;
+    const { error } = await supabase.from("companies").update({ active: next } as any).eq("id", item.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: next ? "Empresa reativada" : "Empresa inativada" });
     load();
   };
 
@@ -323,18 +333,22 @@ const Companies = () => {
     }
   };
 
-  const filtered = search.trim()
-    ? items.filter((c) =>
-        [c.name, c.document ?? "", ...(c.aliases ?? [])].join(" ").toLowerCase().includes(search.toLowerCase())
-      )
-    : items;
+  const filtered = useMemo(() => {
+    const base = showInactive ? items : items.filter((c) => c.active);
+    if (!search.trim()) return base;
+    const q = search.toLowerCase();
+    return base.filter((c) =>
+      [c.name, c.code ?? "", c.document ?? "", ...(c.aliases ?? [])]
+        .join(" ").toLowerCase().includes(q)
+    );
+  }, [items, search, showInactive]);
 
   return (
     <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
       <PageHeader title="Empresas" description="Cadastro de clínicas/PJs para reconhecimento automático nas planilhas." />
       <div className="p-4 md:p-8 w-full mx-auto space-y-4">
           <div className="flex items-center justify-between gap-3">
-          <Input placeholder="Buscar por nome, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
+          <Input placeholder="Buscar por nome, código, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
               <Download className="h-4 w-4 mr-2" /> Modelo
