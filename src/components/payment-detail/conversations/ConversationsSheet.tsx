@@ -74,10 +74,12 @@ type Props = {
   onComposeConsumed?: () => void;
 };
 
-const STATUS_META: Record<MessageRow["status"], { label: string; tone: string }> = {
-  pendente: { label: "Pendente", tone: "bg-chat-sla-bad/15 text-chat-sla-bad border-chat-sla-bad/30" },
-  respondida: { label: "Respondida", tone: "bg-chat-sla-ok/15 text-chat-sla-ok border-chat-sla-ok/30" },
-  encerrada: { label: "Encerrada", tone: "bg-chat-muted/15 text-chat-muted border-chat-border" },
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "muted";
+
+const STATUS_META: Record<MessageRow["status"], { label: string; variant: BadgeVariant }> = {
+  pendente: { label: "Pendente", variant: "destructive" },
+  respondida: { label: "Respondida", variant: "success" },
+  encerrada: { label: "Encerrada", variant: "muted" },
 };
 
 const EVENT_LABEL: Record<EventType, (ev: EventRow, profiles: Record<string, string>) => string> = {
