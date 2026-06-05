@@ -112,6 +112,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       setResult(null);
       setImportMode(supportedModes[0] ?? "append");
       setReplaceConfirm("");
+      setUfOverrides({});
     }
   }, [open]);
 
