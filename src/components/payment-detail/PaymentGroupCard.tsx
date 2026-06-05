@@ -71,6 +71,8 @@ export type PaymentGroupCardProps = {
   hasReconciliationRun?: boolean;
   /** Abre o modal de conciliação já filtrado para esta empresa. */
   onOpenConciliation?: () => void;
+  /** Abre o questionamento para esta empresa (mostra botão dentro do card). */
+  onAskQuestion?: () => void;
 };
 
 /**
