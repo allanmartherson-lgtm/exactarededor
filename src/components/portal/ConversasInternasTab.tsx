@@ -150,8 +150,17 @@ export function ConversasInternasTab() {
     );
   }, [groups, search]);
 
+  const formatWhen = (iso: string) => {
+    const d = new Date(iso);
+    const diffMs = Date.now() - d.getTime();
+    if (diffMs < 1000 * 60 * 60 * 24) {
+      return formatDistanceToNow(d, { addSuffix: true, locale: ptBR });
+    }
+    return format(d, "dd/MM HH:mm", { locale: ptBR });
+  };
+
   return (
-    <div className="flex flex-col gap-3 flex-1 min-h-0">
+    <div className="grid grid-rows-[auto_1fr] gap-3 h-full min-h-0">
       <Input
         placeholder="Buscar lote, mensagem, autor…"
         value={search}
@@ -159,7 +168,7 @@ export function ConversasInternasTab() {
         className="md:max-w-sm"
       />
 
-      <div className="border border-border rounded-lg bg-card overflow-y-auto min-h-0 flex-1">
+      <div className="border border-border rounded-lg bg-card overflow-y-auto min-h-0">
         {loading && (
           <div className="p-3 flex flex-col gap-2">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -180,45 +189,52 @@ export function ConversasInternasTab() {
               type="button"
               onClick={() => navigate(`/pagamentos/${g.paymentId}?conversas=1`)}
               className={cn(
-                "w-full text-left px-3 py-3 border-b border-border/60 last:border-b-0 transition-colors flex flex-col gap-1 hover:bg-muted/50",
+                "w-full text-left px-4 py-3 border-b border-border/60 last:border-b-0 transition-colors flex flex-col gap-1.5 hover:bg-muted/50",
+                g.unread > 0 && "bg-primary/[0.03]",
               )}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground min-w-0">
-                  <FileText className="h-3 w-3 flex-shrink-0" />
+                  <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                   <span className="truncate">Lote {g.paymentLabel}</span>
                 </span>
-                <span className="text-[10.5px] text-muted-foreground flex-shrink-0">
-                  {format(new Date(g.lastAt), "dd/MM HH:mm", { locale: ptBR })}
+                <span className="text-[11px] text-muted-foreground flex-shrink-0" title={format(new Date(g.lastAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}>
+                  {formatWhen(g.lastAt)}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span
                   className={cn(
-                    "text-[13px] truncate flex items-center gap-1.5",
+                    "text-[13px] truncate flex items-center gap-1.5 min-w-0",
                     g.unread > 0 ? "font-semibold text-foreground" : "text-foreground",
                   )}
                 >
-                  <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                  {g.lastAuthor}
-                </span>
-                {g.unread > 0 && (
-                  <span className="min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold flex items-center justify-center px-1">
-                    {g.unread > 9 ? "9+" : g.unread}
+                  <MessageSquare className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="truncate">{g.lastAuthor}</span>
+                  <span className="text-[11px] text-muted-foreground font-normal flex-shrink-0">
+                    · {g.totalMessages} {g.totalMessages === 1 ? "msg" : "msgs"}
                   </span>
-                )}
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[12px] text-muted-foreground truncate flex-1">
-                  {g.lastPreview}
                 </span>
-                <Badge
-                  variant={g.status === "encerrada" ? "muted" : g.status === "respondida" ? "success" : "warning"}
-                  className="text-[10px] py-0 px-1.5 h-4"
-                >
-                  {g.status === "encerrada" ? "Encerrada" : g.status === "respondida" ? "Respondida" : "Pendente"}
-                </Badge>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <Badge
+                    variant={g.status === "encerrada" ? "muted" : g.status === "respondida" ? "success" : "warning"}
+                    className="text-[10px] py-0 px-1.5 h-[18px]"
+                  >
+                    {g.status === "encerrada" ? "Encerrada" : g.status === "respondida" ? "Respondida" : "Pendente"}
+                  </Badge>
+                  {g.unread > 0 && (
+                    <span className="min-w-[20px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold flex items-center justify-center px-1.5">
+                      {g.unread > 9 ? "9+" : g.unread}
+                    </span>
+                  )}
+                </div>
               </div>
+              <p className={cn(
+                "text-[12.5px] line-clamp-2 leading-snug",
+                g.unread > 0 ? "text-foreground/90" : "text-muted-foreground",
+              )}>
+                {g.lastPreview}
+              </p>
             </button>
           ))}
       </div>
