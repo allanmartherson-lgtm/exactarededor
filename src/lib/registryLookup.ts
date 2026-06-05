@@ -17,13 +17,15 @@ export type DoctorRegistryEntry = {
   id: string;
   full_name: string;
   crm: string | null;
+  crm_uf: string | null;
   cpf: string | null;
 };
 export type ConvenioRegistryEntry = { slug: string; name: string };
 export type SectorRegistryEntry = { slug: string; name: string };
 
 export type DoctorRegistry = {
-  byCrm: Map<string, DoctorRegistryEntry>;
+  byCrm: Map<string, DoctorRegistryEntry>; // só dígitos (UF desconhecida)
+  byCrmUf: Map<string, DoctorRegistryEntry>; // chave "<digitos>/<UF>" — match preciso
   byCpf: Map<string, DoctorRegistryEntry>;
   byAlias: Map<string, DoctorRegistryEntry>; // covers full_name (seeded) + aliases
 };
