@@ -777,6 +777,26 @@ const PaymentDetail = () => {
       toast({ title: "Nenhum grupo disponível para envio", variant: "destructive" });
       return;
     }
+    // Gate: mesmo bloqueio do envio normal — médico provisório precisa aprovação admin.
+    {
+      const { data: itemRows } = await supabase
+        .from("payment_items").select("doctor_id").eq("payment_id", id).not("doctor_id", "is", null);
+      const doctorIds = Array.from(new Set(((itemRows ?? []) as Array<{ doctor_id: string | null }>)
+        .map((r) => r.doctor_id).filter(Boolean) as string[]));
+      if (doctorIds.length > 0) {
+        const { data: pendingDocs } = await supabase
+          .from("doctors").select("full_name").in("id", doctorIds).eq("pending_admin_review", true);
+        if (pendingDocs && pendingDocs.length > 0) {
+          const names = Array.from(new Set(pendingDocs.map((d: any) => d.full_name).filter(Boolean))).slice(0, 5);
+          toast({
+            title: "Envio bloqueado: cadastros provisórios pendentes",
+            description: `Aguardando aprovação do administrador para: ${names.join(", ")}${pendingDocs.length > 5 ? "…" : ""}.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
     setBusy(true);
     await autoClaim();
     for (const g of targets) {
