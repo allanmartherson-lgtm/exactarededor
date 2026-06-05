@@ -321,7 +321,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] xl:max-w-7xl w-full max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[98vw] w-[98vw] sm:max-w-[98vw] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {title} · {stepLabel(step)}
@@ -390,7 +390,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
             <div>
               <Label className="mb-2 block">Mapeamento de colunas</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,320px))] gap-x-4 gap-y-2">
                 {profile.fields.map((f) => (
                   <div key={f.key} className="space-y-1">
                     <Label className="text-xs flex items-center justify-between">
