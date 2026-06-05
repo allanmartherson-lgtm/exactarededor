@@ -75,7 +75,7 @@ export function AskQuestionDialog({
       message: `${prefix}${text}`,
       item_id: itemId ?? null,
       is_question: true,
-      observation_type: "questionamento",
+      observation_type: "informativo",
     });
     setBusy(false);
     if (!res.ok) {
