@@ -3,46 +3,59 @@ const LoginAnimation = () => {
     <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden gap-0">
       <style>{`
         @keyframes rdor-in {
-          0%   { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
+          0%   { opacity: 0; transform: translate3d(0, 24px, 0); }
+          100% { opacity: 1; transform: translate3d(0, 0, 0); }
         }
         @keyframes rdor-up {
-          0%   { transform: translateY(0); }
-          100% { transform: translateY(-28px); }
+          0%   { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(0, -28px, 0); }
         }
         @keyframes divider-in {
           0%   { opacity: 0; width: 0; }
           100% { opacity: 1; width: 180px; }
         }
         @keyframes sub-in {
-          0%   { opacity: 0; }
-          100% { opacity: 0.45; }
+          0%   { opacity: 0; transform: translate3d(0, 4px, 0); }
+          100% { opacity: 0.45; transform: translate3d(0, 0, 0); }
         }
         @keyframes exacta-in {
-          0%   { opacity: 0; transform: translateY(16px); }
-          100% { opacity: 1; transform: translateY(0); }
+          0%   { opacity: 0; transform: translate3d(0, 14px, 0); }
+          100% { opacity: 1; transform: translate3d(0, 0, 0); }
         }
 
+        /* Sequência:
+           0.0s → 1.0s   Rede D'Or entra
+           1.6s → 2.4s   Rede D'Or sobe
+           2.2s → 2.8s   Divisor cresce
+           2.6s → 3.1s   Label "apresenta"
+           2.9s → 3.7s   Exacta entra
+        */
         .rdor-enter {
-          animation: rdor-in 1.2s ease forwards;
-          opacity: 0;
+          animation: rdor-in 1s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
         .rdor-shift {
-          animation: rdor-in 1.2s ease forwards, rdor-up 0.8s 4s ease forwards;
-          opacity: 0;
+          animation:
+            rdor-in 1s cubic-bezier(0.22, 1, 0.36, 1) both,
+            rdor-up 0.8s 1.6s cubic-bezier(0.65, 0, 0.35, 1) both;
         }
         .divider-line {
-          animation: divider-in 0.6s 4.6s ease forwards;
-          opacity: 0;
-          width: 0;
+          animation: divider-in 0.6s 2.2s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
         .sub-label {
-          animation: sub-in 0.5s 5s ease forwards;
-          opacity: 0;
+          animation: sub-in 0.5s 2.6s ease-out both;
         }
         .exacta-block {
-          animation: exacta-in 0.8s 5.2s cubic-bezier(0.34,1.2,0.64,1) forwards;
-          opacity: 0;
+          animation: exacta-in 0.8s 2.9s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .rdor-enter, .rdor-shift, .divider-line, .sub-label, .exacta-block {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+          }
+          .divider-line { width: 180px !important; }
+          .sub-label { opacity: 0.45 !important; }
         }
       `}</style>
 
