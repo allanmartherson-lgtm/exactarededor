@@ -193,7 +193,27 @@ export function ConversasInternasTab() {
             <button
               key={g.paymentId}
               type="button"
-              onClick={() => navigate(`/pagamentos/${g.paymentId}?conversas=1`)}
+              onClick={async () => {
+                // Marca como lidas todas as mensagens não autoradas pelo usuário atual
+                // assim que ele abre a conversa, antes de navegar para o detalhe.
+                if (user && g.unread > 0) {
+                  const unreadIds = rows
+                    .filter((r) => r.payment_id === g.paymentId && r.author_id !== user.id && !reads.has(r.id))
+                    .map((r) => r.id);
+                  if (unreadIds.length) {
+                    const payload = unreadIds.map((id) => ({ message_id: id, user_id: user.id }));
+                    await supabase
+                      .from("payment_question_reads" as never)
+                      .upsert(payload, { onConflict: "message_id,user_id" } as never);
+                    setReads((prev) => {
+                      const next = new Set(prev);
+                      unreadIds.forEach((id) => next.add(id));
+                      return next;
+                    });
+                  }
+                }
+                navigate(`/pagamentos/${g.paymentId}?conversas=1`);
+              }}
               className={cn(
                 "w-full text-left px-4 py-3 border-b border-border/60 last:border-b-0 transition-colors flex flex-col gap-1.5 hover:bg-muted/50",
                 g.unread > 0 && "bg-primary/[0.03]",
