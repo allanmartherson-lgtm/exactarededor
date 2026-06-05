@@ -17,6 +17,7 @@ import {
   ChevronsRight,
   Settings,
   Menu,
+  Contrast,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
