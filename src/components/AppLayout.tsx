@@ -17,6 +17,7 @@ import {
   ChevronsRight,
   Settings,
   Menu,
+  Contrast,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -169,6 +170,29 @@ const ThemeToggle = () => {
       aria-label={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
     >
       {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </Button>
+  );
+};
+
+const ContrastToggle = () => {
+  const { contrast, toggleContrast } = useTheme();
+  const active = contrast === "high";
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleContrast}
+      className={cn(
+        "h-8 w-8 rounded-md",
+        active
+          ? "text-foreground bg-muted"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted",
+      )}
+      aria-label={active ? "Desativar alto contraste" : "Ativar alto contraste"}
+      aria-pressed={active}
+      title={active ? "Alto contraste ativado" : "Ativar alto contraste"}
+    >
+      <Contrast className="h-4 w-4" />
     </Button>
   );
 };
@@ -1045,6 +1069,7 @@ export const AppLayout = () => {
               <NotificationBell />
               <div className="hidden md:flex items-center gap-1">
                 <ThemeToggle />
+                <ContrastToggle />
                 <LayoutToggle />
               </div>
 
@@ -1240,6 +1265,7 @@ export const AppLayout = () => {
                 <LogOut className="h-3.5 w-3.5" />
               </Button>
               <ThemeToggle />
+              <ContrastToggle />
               <LayoutToggle />
             </>
           ) : (
@@ -1291,6 +1317,7 @@ export const AppLayout = () => {
           </div>
           <div className="flex items-center gap-1">
             <ThemeToggle />
+            <ContrastToggle />
             <LayoutToggle />
           </div>
           <SidebarVersionFooter />
