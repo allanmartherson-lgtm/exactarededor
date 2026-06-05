@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
   normalize,
+  parseCrm,
   createDoctorAlias,
   createConvenioAlias,
   createSectorAlias,
@@ -16,6 +17,7 @@ import {
   type ConvenioRegistry,
   type SectorRegistry,
 } from "@/lib/registryLookup";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type UnresolvedGroup = {
   kind: "doctor" | "convenio" | "sector";
