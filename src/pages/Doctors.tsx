@@ -26,8 +26,8 @@ const DOCTORS_IMPORT_PROFILE: ImportProfile = {
   supportedModes: ["append", "update", "replace"],
   fields: [
     { key: "full_name", label: "Nome completo", required: true, aliases: ["nome pessoa", "nome_pessoa", "nomepessoa", "nome", "medico", "médico", "nome_completo"] },
-    { key: "crm", label: "CRM", required: true, uniqueKey: true, aliases: ["crm", "registro"] },
-    { key: "crm_uf", label: "UF do CRM", required: true, uniqueKey: true, aliases: ["uf", "estado", "uf_crm"] },
+    { key: "crm", label: "CRM", required: true, uniqueKey: true, aliases: ["crm", "registro", "crm/uf", "crm uf", "nr_crm"] },
+    { key: "crm_uf", label: "UF do CRM", required: false, uniqueKey: true, aliases: ["uf", "estado", "uf_crm", "uf crm", "crm_uf"] },
     { key: "email", label: "E-mail", aliases: ["email", "e-mail"] },
     { key: "phone", label: "Telefone", aliases: ["telefone", "celular", "fone"] },
     { key: "specialties", label: "Especialidades", type: "array", aliases: ["especialidade", "especialidades"] },
