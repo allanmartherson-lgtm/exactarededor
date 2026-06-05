@@ -1194,6 +1194,7 @@ export function ItemsDataGrid({
                   (colVis.via ? 1 : 0) +
                   (colVis.setor_lido ? 1 : 0) +
                   (colVis.setor_inferido ? 1 : 0) +
+                  (colVis.tipo_entrada ? 1 : 0) +
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (colVis.diferenca ? 1 : 0) +
