@@ -212,6 +212,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
     if (!el) return;
     const update = () => setContainerW(el.clientWidth);
     update();
+    if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
