@@ -316,7 +316,7 @@ export default function Doctors() {
             if (ok) {
               const { error: propErr } = await supabase
                 .from("payment_items")
-                .update(diff)
+                .update(diff as any)
                 .eq("doctor_id", savedId)
                 .in("payment_id", openIds);
               if (propErr) {
