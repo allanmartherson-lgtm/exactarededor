@@ -22,6 +22,12 @@ interface Props {
   pageSize?: number;
   /** Display selected as "Nome · CNPJ". When false shows only name. */
   showDocumentInTrigger?: boolean;
+  /**
+   * Visual estilo "chip" alinhado ao HospitalSwitcher do topbar
+   * (h-10, ícone em quadrado, label "EMPRESA" acima do nome).
+   * Use em barras de filtro proeminentes.
+   */
+  prominent?: boolean;
 }
 
 const PAGE = 20;
