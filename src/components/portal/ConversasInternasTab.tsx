@@ -204,7 +204,7 @@ export function ConversasInternasTab() {
                     const payload = unreadIds.map((id) => ({ message_id: id, user_id: user.id }));
                     await supabase
                       .from("payment_question_reads" as never)
-                      .upsert(payload, { onConflict: "message_id,user_id" } as never);
+                      .upsert(payload as never, { onConflict: "message_id,user_id" } as never);
                     setReads((prev) => {
                       const next = new Set(prev);
                       unreadIds.forEach((id) => next.add(id));
