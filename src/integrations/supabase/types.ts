@@ -405,9 +405,12 @@ export type Database = {
       }
       companies: {
         Row: {
+          active: boolean
           aliases: string[]
+          code: string
           created_at: string
           created_by: string | null
+          deactivated_at: string | null
           document: string | null
           id: string
           invoice_emails: string[]
@@ -418,9 +421,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active?: boolean
           aliases?: string[]
+          code?: string
           created_at?: string
           created_by?: string | null
+          deactivated_at?: string | null
           document?: string | null
           id?: string
           invoice_emails?: string[]
@@ -431,9 +437,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active?: boolean
           aliases?: string[]
+          code?: string
           created_at?: string
           created_by?: string | null
+          deactivated_at?: string | null
           document?: string | null
           id?: string
           invoice_emails?: string[]
@@ -1145,7 +1154,9 @@ export type Database = {
         Row: {
           active: boolean
           aliases: string[]
+          code: string
           created_at: string
+          deactivated_at: string | null
           name: string
           notes: string | null
           operator_code: string | null
@@ -1157,7 +1168,9 @@ export type Database = {
         Insert: {
           active?: boolean
           aliases?: string[]
+          code?: string
           created_at?: string
+          deactivated_at?: string | null
           name: string
           notes?: string | null
           operator_code?: string | null
@@ -1169,7 +1182,9 @@ export type Database = {
         Update: {
           active?: boolean
           aliases?: string[]
+          code?: string
           created_at?: string
+          deactivated_at?: string | null
           name?: string
           notes?: string | null
           operator_code?: string | null
@@ -1239,10 +1254,12 @@ export type Database = {
       cost_centers: {
         Row: {
           active: boolean
+          code: string
           code_p10: string | null
           code_p12: string
           code_pai: string | null
           created_at: string
+          deactivated_at: string | null
           hospital_id: string | null
           id: string
           imported_at: string
@@ -1257,10 +1274,12 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          code?: string
           code_p10?: string | null
           code_p12: string
           code_pai?: string | null
           created_at?: string
+          deactivated_at?: string | null
           hospital_id?: string | null
           id?: string
           imported_at?: string
@@ -1275,10 +1294,12 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          code?: string
           code_p10?: string | null
           code_p12?: string
           code_pai?: string | null
           created_at?: string
+          deactivated_at?: string | null
           hospital_id?: string | null
           id?: string
           imported_at?: string
@@ -1722,12 +1743,14 @@ export type Database = {
         Row: {
           active: boolean
           birth_date: string | null
+          code: string
           cpf: string | null
           created_at: string
           created_by: string | null
           created_by_user_id: string | null
           crm: string
           crm_uf: string
+          deactivated_at: string | null
           email: string | null
           full_name: string
           id: string
@@ -1743,12 +1766,14 @@ export type Database = {
         Insert: {
           active?: boolean
           birth_date?: string | null
+          code?: string
           cpf?: string | null
           created_at?: string
           created_by?: string | null
           created_by_user_id?: string | null
           crm: string
           crm_uf: string
+          deactivated_at?: string | null
           email?: string | null
           full_name: string
           id?: string
@@ -1764,12 +1789,14 @@ export type Database = {
         Update: {
           active?: boolean
           birth_date?: string | null
+          code?: string
           cpf?: string | null
           created_at?: string
           created_by?: string | null
           created_by_user_id?: string | null
           crm?: string
           crm_uf?: string
+          deactivated_at?: string | null
           email?: string | null
           full_name?: string
           id?: string
@@ -5946,7 +5973,9 @@ export type Database = {
           active: boolean
           aliases: string[]
           classification: string | null
+          code: string
           created_at: string
+          deactivated_at: string | null
           name: string
           notes: string | null
           slug: string
@@ -5959,7 +5988,9 @@ export type Database = {
           active?: boolean
           aliases?: string[]
           classification?: string | null
+          code?: string
           created_at?: string
+          deactivated_at?: string | null
           name: string
           notes?: string | null
           slug: string
@@ -5972,7 +6003,9 @@ export type Database = {
           active?: boolean
           aliases?: string[]
           classification?: string | null
+          code?: string
           created_at?: string
+          deactivated_at?: string | null
           name?: string
           notes?: string | null
           slug?: string
