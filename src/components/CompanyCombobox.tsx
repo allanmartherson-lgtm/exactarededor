@@ -44,6 +44,7 @@ export function CompanyCombobox({
   className,
   pageSize = PAGE,
   showDocumentInTrigger = true,
+  prominent = false,
   autoOpen = false,
 }: Props & { autoOpen?: boolean }) {
   const [open, setOpen] = useState(autoOpen);
