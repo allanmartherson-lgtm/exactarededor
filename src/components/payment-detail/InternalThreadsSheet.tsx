@@ -38,7 +38,11 @@ type Props = {
   currentUserId: string;
   currentUserName: string;
   currentRole: "analista" | "validador" | "diretor" | "admin";
-  onNewQuestion: (scope: { groupId?: string | null; companyName?: string | null }) => void;
+  paymentStatus?: string | null;
+  /** Quando definido e o painel é (re)aberto, abre o composer já com a empresa pré-selecionada. */
+  initialCompose?: { groupId?: string | null; companyName?: string | null } | null;
+  /** Notifica o pai para que ele zere o `initialCompose` controlado. */
+  onComposeConsumed?: () => void;
 };
 
 const STATUS_LABEL: Record<Row["status"], string> = {
@@ -61,7 +65,9 @@ export function InternalThreadsSheet({
   currentUserId,
   currentUserName,
   currentRole,
-  onNewQuestion,
+  paymentStatus,
+  initialCompose,
+  onComposeConsumed,
 }: Props) {
   const { toast } = useToast();
   const [rows, setRows] = useState<Row[]>([]);
