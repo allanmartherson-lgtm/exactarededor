@@ -180,12 +180,23 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         sourceCol: String(r._meta?.sourceCol || "N/A")
       }));
 
+      // Detecção de conflitos CRM/UF e relatório de auditoria (apenas para médicos)
+      let crmConflicts: { number: string; ufs: string[]; rows: number[]; source: "file" | "registry" }[] = [];
+      let resolutionReport: { row: number; crm: string; uf: string | null; method: "crm+uf" | "crm-only" | "novo"; reason: string }[] = [];
+      if (profile.entity === "doctors") {
+        const detected = await detectCrmConflicts(records);
+        crmConflicts = detected.conflicts;
+        resolutionReport = detected.report;
+      }
+
       setValidation({
         summary: { total: allRows.length, valid: records.length, errors: errors.length, duplicates: dups.length },
         errors: errors.slice(0, 50),
         duplicates: dups.slice(0, 50),
         sample: records.slice(0, 10),
-        itemsCreated: itemsCreated.slice(0, 500) // Show up to 500 items in detail
+        itemsCreated: itemsCreated.slice(0, 500),
+        crmConflicts,
+        resolutionReport,
       });
       setStep("validate");
     } catch (e: any) {
