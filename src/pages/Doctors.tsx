@@ -268,6 +268,7 @@ export default function Doctors() {
     };
 
     let savedId = editing.id;
+    const original = editing.id ? items.find((x) => x.id === editing.id) : undefined;
     if (editing.id) {
       const { error } = await supabase.from("doctors").update(payload).eq("id", editing.id);
       if (error) { handleErr(error); return; }
@@ -276,6 +277,59 @@ export default function Doctors() {
       if (error) { handleErr(error); return; }
       savedId = data.id;
     }
+
+    // Propagação opcional para pagamentos EM ANDAMENTO (nunca para pagamentos finalizados).
+    // Status finalizados/imutáveis: pago, arquivado, cancelado, rejeitado, lancado.
+    if (editing.id && savedId && original) {
+      const diff: Record<string, any> = {};
+      if (original.full_name !== payload.full_name) diff.doctor_name = payload.full_name;
+      if ((original.email ?? null) !== payload.email) diff.doctor_email = payload.email;
+      if ((original.cpf ?? null) !== payload.cpf) diff.doctor_document = payload.cpf;
+      const prevSpec = (original.specialties ?? [])[0] ?? null;
+      const newSpec = (payload.specialties ?? [])[0] ?? null;
+      if (prevSpec !== newSpec) diff.specialty = newSpec;
+
+      if (Object.keys(diff).length > 0) {
+        const FINALIZED = ["pago", "arquivado", "cancelado", "rejeitado", "lancado"];
+        const { data: openPays } = await supabase
+          .from("payments")
+          .select("id,status")
+          .not("status", "in", `(${FINALIZED.join(",")})`);
+        const openIds = (openPays ?? []).map((p: any) => p.id);
+        if (openIds.length > 0) {
+          const { count } = await supabase
+            .from("payment_items")
+            .select("id", { count: "exact", head: true })
+            .eq("doctor_id", savedId)
+            .in("payment_id", openIds);
+          const affected = count ?? 0;
+          if (affected > 0) {
+            const changedFields = Object.keys(diff).join(", ");
+            const ok = confirm(
+              `Foram alteradas as informações deste médico (${changedFields}).\n\n` +
+              `Existem ${affected} item(ns) em ${openIds.length} pagamento(s) EM ANDAMENTO ` +
+              `vinculados a este médico.\n\n` +
+              `Deseja propagar a alteração para esses pagamentos em andamento?\n\n` +
+              `(Pagamentos finalizados — pago, arquivado, cancelado, rejeitado, lancado — ` +
+              `nunca serão alterados.)`
+            );
+            if (ok) {
+              const { error: propErr } = await supabase
+                .from("payment_items")
+                .update(diff as any)
+                .eq("doctor_id", savedId)
+                .in("payment_id", openIds);
+              if (propErr) {
+                toast({ title: "Falha ao propagar alterações", description: propErr.message, variant: "destructive" });
+              } else {
+                toast({ title: "Alterações propagadas", description: `${affected} item(ns) atualizado(s) em pagamentos em andamento.` });
+              }
+            }
+          }
+        }
+      }
+    }
+
 
     // Vínculos: diff incremental preservando histórico (vigência).
     // Removidos → encerra com end_date = hoje. Adicionados → cria com start_date = hoje.
