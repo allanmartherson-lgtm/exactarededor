@@ -242,6 +242,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     setProgress(0);
     try {
       const { allRows, records } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity, roleMapping);
+      if (profile.entity === "doctors") applyUfOverrides(records, ufOverrides);
       const totals: CommitResult = { 
         total: allRows.length, 
         inserted: 0, 
