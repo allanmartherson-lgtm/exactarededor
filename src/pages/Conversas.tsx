@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CompanyThreadChat } from "@/components/portal/CompanyThreadChat";
 import { ConversasDoctorsTab } from "@/components/portal/ConversasDoctorsTab";
+import { ConversasInternasTab } from "@/components/portal/ConversasInternasTab";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
