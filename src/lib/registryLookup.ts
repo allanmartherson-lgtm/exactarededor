@@ -99,7 +99,6 @@ export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
         .from("doctors")
         .select("id, full_name, crm, crm_uf, cpf")
         .eq("active", true)
-        .eq("pending_admin_review", false)
         .range(from, to),
     ),
     fetchAllPaginated<any>((from, to) =>
