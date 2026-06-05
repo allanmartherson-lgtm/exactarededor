@@ -867,9 +867,27 @@ function downloadTemplate(profile: ImportProfile, title: string) {
 
 
 /**
+ * Aplica overrides manuais de UF (atribuição em massa) sobre os registros
+ * antes da validação/commit. Só preenche UF quando ela está vazia, para não
+ * sobrescrever um valor explícito vindo do arquivo.
+ */
+function applyUfOverrides(records: any[], overrides: Record<string, string>) {
+  if (!overrides || Object.keys(overrides).length === 0) return;
+  for (const r of records) {
+    const number = String(r.crm ?? "").replace(/\D/g, "");
+    if (!number) continue;
+    const ov = overrides[number];
+    if (!ov) continue;
+    const current = String(r.crm_uf ?? "").toUpperCase().trim();
+    if (!current) r.crm_uf = ov.toUpperCase();
+  }
+}
+
+/**
  * Detecta conflitos de CRM/UF na importação de médicos e produz um relatório
  * de auditoria do método de resolução por linha.
  *
+
  * Conflitos:
  *  - "file": dentro do próprio arquivo há linhas com o mesmo número de CRM
  *    e UFs diferentes (ou ausentes em parte das linhas).
