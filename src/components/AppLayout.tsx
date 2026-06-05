@@ -308,7 +308,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
         className="flex items-center gap-0.5 flex-nowrap overflow-hidden"
         aria-label="Navegação principal"
       >
-        {visibleItems.map(renderItem)}
+        {visibleItems.map((it) => renderItem(it))}
 
         {overflowItems.length > 0 && (
           <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
