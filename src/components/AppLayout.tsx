@@ -174,6 +174,29 @@ const ThemeToggle = () => {
   );
 };
 
+const ContrastToggle = () => {
+  const { contrast, toggleContrast } = useTheme();
+  const active = contrast === "high";
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleContrast}
+      className={cn(
+        "h-8 w-8 rounded-md",
+        active
+          ? "text-foreground bg-muted"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted",
+      )}
+      aria-label={active ? "Desativar alto contraste" : "Ativar alto contraste"}
+      aria-pressed={active}
+      title={active ? "Alto contraste ativado" : "Ativar alto contraste"}
+    >
+      <Contrast className="h-4 w-4" />
+    </Button>
+  );
+};
+
 /* ============================================================
  * Topbar nav (with dropdown groups). Only one dropdown open at
  * a time. Closes on outside click and on route change.
