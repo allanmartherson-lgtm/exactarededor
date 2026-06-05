@@ -1215,7 +1215,12 @@ const PaymentDetail = () => {
   // Pendentes: empresas que o analista ainda não concluiu.
   const groupsReadyToSend = groups.filter((g) => g.status === "concluida_analista" || g.status === "devolvido_analista");
   const groupsPendingAnalyst = groups.filter((g) => g.status === "revisao_analista");
-  const canSendForValidation = isAnalista && groupsReadyToSend.length > 0;
+  // Visão limpa por papel: quando o usuário acumula validador/diretor (sem ser admin),
+  // a tela não mostra ações que pertencem à rotina do analista.
+  const isAdmin = hasRole("admin");
+  const showAnalystActions =
+    isAdmin || (hasRole("analista") && !hasRole("validador") && !hasRole("diretor"));
+  const canSendForValidation = showAnalystActions && groupsReadyToSend.length > 0;
   const isOwner = payment.created_by === user?.id;
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista", "cancelado"];
   const canCancel = (isOwner || isDiretor || isAnalista) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
