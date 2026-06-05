@@ -160,7 +160,7 @@ export function ConversasInternasTab() {
   };
 
   return (
-    <div className="grid grid-rows-[auto_1fr] gap-3 h-full min-h-0">
+    <div className="flex flex-col gap-3 flex-1 min-h-0">
       <Input
         placeholder="Buscar lote, mensagem, autor…"
         value={search}
@@ -168,7 +168,7 @@ export function ConversasInternasTab() {
         className="md:max-w-sm"
       />
 
-      <div className="border border-border rounded-lg bg-card overflow-y-auto min-h-0">
+      <div className="border border-border rounded-lg bg-card overflow-y-auto flex-1 min-h-[220px]">
         {loading && (
           <div className="p-3 flex flex-col gap-2">
             {Array.from({ length: 6 }).map((_, i) => (
