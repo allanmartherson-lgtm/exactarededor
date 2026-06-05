@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { recordObservation, type ObservationAuthorType } from "@/lib/observations";
+import { supabase } from "@/integrations/supabase/client";
 import { MessageCircleQuestion } from "lucide-react";
+import type { ObservationAuthorType } from "@/lib/observations";
 
 type Props = {
   open: boolean;
@@ -13,22 +14,18 @@ type Props = {
   paymentId: string;
   paymentStatus: string | null;
   authorId: string;
+  authorName?: string | null;
   authorRole: ObservationAuthorType; // analista | validador | diretor | admin
   /** Quando o questionamento é sobre uma empresa específica do lote. */
   companyGroupId?: string | null;
   companyName?: string | null;
-  /** Opcional: linkar à linha (payment_item) específica. */
-  itemId?: string | null;
   onCreated?: () => void;
 };
 
 /**
- * Diálogo único para "Fazer questionamento" interno dentro do lote.
- * Usa a infra existente de payment_observations(is_question=true), que dispara
- * notify-internal-question com o roteamento por papel:
- *   - analista  → validador (em validação) ou diretor (em aprovação)
- *   - validador → analista
- *   - diretor   → analista + validador
+ * Abre um novo "thread" de questionamento interno (payment_questions, parent_id=null).
+ * O status é mantido pelo trigger payment_questions_update_status — começa em 'pendente'.
+ * Respostas e fechamento ficam no painel de threads.
  */
 export function AskQuestionDialog({
   open,
@@ -36,10 +33,10 @@ export function AskQuestionDialog({
   paymentId,
   paymentStatus,
   authorId,
+  authorName,
   authorRole,
   companyGroupId,
   companyName,
-  itemId,
   onCreated,
 }: Props) {
   const { toast } = useToast();
@@ -49,14 +46,11 @@ export function AskQuestionDialog({
   const recipientLabel = useMemo(() => {
     if ((authorRole as string) === "diretor" || (authorRole as string) === "admin") return "Analista e Supervisor";
     if (authorRole === "validador") return "Analista";
-    // analista
     if (paymentStatus === "aguardando_aprovacao" || paymentStatus === "aprovado_em_revisao") return "Diretor";
     return "Supervisor";
   }, [authorRole, paymentStatus]);
 
-  const reset = () => {
-    setMessage("");
-  };
+  const reset = () => setMessage("");
 
   const submit = async () => {
     const text = message.trim();
@@ -65,26 +59,24 @@ export function AskQuestionDialog({
       return;
     }
     setBusy(true);
-    // Prefixo identifica empresa no histórico (não há coluna company_group_id em
-    // payment_observations; mantemos contexto no corpo da mensagem).
-    const prefix = companyName ? `[${companyName}] ` : "";
-    const res = await recordObservation({
+    const roleTag = `[${authorRole}]`;
+    const body = `${roleTag} ${text}`;
+    const { error } = await supabase.from("payment_questions").insert({
       payment_id: paymentId,
-      author_type: authorRole,
+      company_group_id: companyGroupId ?? null,
       author_id: authorId,
-      message: `${prefix}${text}`,
-      item_id: itemId ?? null,
-      is_question: true,
-      observation_type: "informativo",
+      author_name: authorName || "Equipe interna",
+      author_type: "interno",
+      message: body,
     });
     setBusy(false);
-    if (!res.ok) {
-      toast({ title: "Falha ao enviar questionamento", description: res.error, variant: "destructive" });
+    if (error) {
+      toast({ title: "Falha ao abrir questionamento", description: error.message, variant: "destructive" });
       return;
     }
     toast({
-      title: "Questionamento enviado",
-      description: `Roteado para ${recipientLabel}. Vai aparecer na fila e no sino de notificações.`,
+      title: "Questionamento aberto",
+      description: `Roteado para ${recipientLabel}. Acompanhe e responda no painel de conversas.`,
     });
     reset();
     onOpenChange(false);
@@ -103,13 +95,13 @@ export function AskQuestionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageCircleQuestion className="h-5 w-5 text-primary" />
-            Fazer questionamento
+            Novo questionamento
             {companyName && (
               <span className="text-sm font-normal text-muted-foreground truncate">— {companyName}</span>
             )}
           </DialogTitle>
           <DialogDescription>
-            Vai cair na fila de <strong>{recipientLabel}</strong> para resposta.
+            Vai abrir uma conversa para <strong>{recipientLabel}</strong> responder. Você acompanha o status no painel de conversas.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -123,13 +115,13 @@ export function AskQuestionDialog({
             autoFocus
           />
           <p className="text-[11px] text-muted-foreground">
-            A resposta aparece como observação ligada ao lote{companyName ? " e à empresa selecionada" : ""}.
+            A conversa fica aberta até alguém marcar como encerrada.
           </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={submit} disabled={busy}>
-            {busy ? "Enviando..." : "Enviar questionamento"}
+            {busy ? "Abrindo..." : "Abrir questionamento"}
           </Button>
         </DialogFooter>
       </DialogContent>
