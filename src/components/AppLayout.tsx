@@ -1048,7 +1048,7 @@ export const AppLayout = () => {
               borderTop: "1px solid hsl(var(--sidebar-border))",
             }}
           >
-            <HospitalSwitcher className="w-full justify-start" />
+            <HospitalSwitcher className="w-full h-11 justify-start rounded-lg border-primary/30 shadow-sm" />
           </div>
         )}
 
