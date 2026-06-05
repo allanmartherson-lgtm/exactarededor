@@ -47,7 +47,7 @@ export function AskQuestionDialog({
   const [busy, setBusy] = useState(false);
 
   const recipientLabel = useMemo(() => {
-    if (authorRole === "diretor" || authorRole === "admin") return "Analista e Supervisor";
+    if ((authorRole as string) === "diretor" || (authorRole as string) === "admin") return "Analista e Supervisor";
     if (authorRole === "validador") return "Analista";
     // analista
     if (paymentStatus === "aguardando_aprovacao" || paymentStatus === "aprovado_em_revisao") return "Diretor";
