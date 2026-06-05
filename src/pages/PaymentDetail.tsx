@@ -310,6 +310,8 @@ const PaymentDetail = () => {
   // Contagem de questionamentos abertos por empresa (payment_questions agrupado por company_group_id).
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [openThreadsCount, setOpenThreadsCount] = useState(0);
+  const [releaseGroup, setReleaseGroup] = useState<GroupRow | null>(null);
+  const [bulkReleaseOpen, setBulkReleaseOpen] = useState(false);
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
