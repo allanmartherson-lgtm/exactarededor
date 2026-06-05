@@ -642,6 +642,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
+            {validation.itemsCreated.length > 0 && (
               <Section icon={<CheckCircle2 className="h-4 w-4 text-success" />} title="Itens que serão criados (prévia detalhada)">
                 <div className="overflow-auto max-h-80 rounded-md border border-border">
                   <table className="text-[10px] w-full border-collapse">
