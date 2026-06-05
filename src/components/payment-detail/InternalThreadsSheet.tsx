@@ -266,9 +266,17 @@ export function InternalThreadsSheet({
             </Tabs>
             <Button
               size="sm"
-              onClick={() => onNewQuestion({ groupId: null, companyName: null })}
+              variant={composeOpen ? "secondary" : "default"}
+              onClick={() => {
+                setComposeOpen((v) => !v);
+                if (!composeOpen) {
+                  setComposeGroupId("lote");
+                  setComposeMessage("");
+                }
+              }}
             >
-              <Plus className="h-4 w-4 mr-1.5" /> Nova pergunta
+              <Plus className={cn("h-4 w-4 mr-1.5 transition-transform", composeOpen && "rotate-45")} />
+              {composeOpen ? "Cancelar" : "Nova pergunta"}
             </Button>
           </div>
 
