@@ -2370,7 +2370,7 @@ const PaymentDetail = () => {
         })()}
 
 
-          {isAnalista && groupsPendingAnalyst.length > 0 && (
+          {showAnalystActions && groupsPendingAnalyst.length > 0 && (
             <div className="flex items-center gap-3 px-4 py-2 bg-info-soft border border-info/30 rounded-lg text-sm flex-wrap">
               <span className="w-2 h-2 rounded-full bg-info flex-shrink-0" />
               <span className="font-medium text-muted-foreground">Concluir análise em massa</span>
