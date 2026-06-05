@@ -162,9 +162,13 @@ export async function loadConvenioRegistry(): Promise<ConvenioRegistry> {
 
 export async function loadSectorRegistry(): Promise<SectorRegistry> {
   const reg: SectorRegistry = { bySlug: new Map(), byAlias: new Map() };
-  const [{ data: sec }, { data: aliases }] = await Promise.all([
-    supabase.from("sectors").select("slug, name").eq("active", true),
-    supabase.from("sector_aliases").select("sector_slug, alias_normalized"),
+  const [sec, aliases] = await Promise.all([
+    fetchAllPaginated<any>((from, to) =>
+      supabase.from("sectors").select("slug, name").eq("active", true).range(from, to),
+    ),
+    fetchAllPaginated<any>((from, to) =>
+      supabase.from("sector_aliases").select("sector_slug, alias_normalized").range(from, to),
+    ),
   ]);
   for (const s of sec ?? []) {
     const e: SectorRegistryEntry = { slug: (s as any).slug, name: (s as any).name };
