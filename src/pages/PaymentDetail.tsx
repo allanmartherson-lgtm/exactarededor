@@ -688,26 +688,30 @@ const PaymentDetail = () => {
   const doSendForValidation = async (targets: typeof groups) => {
     if (!id || targets.length === 0) return;
     // Gate: bloqueia envio enquanto houver médico provisório vinculado a
-    // qualquer item dos grupos selecionados. Admin precisa aprovar primeiro.
+    // QUALQUER item deste pagamento. Admin precisa aprovar primeiro.
     {
-      const groupIds = targets.map((g) => g.id);
-      const { data: pendingItems, error: pErr } = await supabase
+      const { data: itemRows } = await supabase
         .from("payment_items")
-        .select("doctor_id, doctors!inner(full_name, pending_admin_review)")
+        .select("doctor_id")
         .eq("payment_id", id)
-        .eq("doctors.pending_admin_review", true)
-        .in("group_id" as any, groupIds)
-        .limit(50);
-      if (!pErr && pendingItems && pendingItems.length > 0) {
-        const names = Array.from(new Set(
-          pendingItems.map((it: any) => it.doctors?.full_name).filter(Boolean),
-        )).slice(0, 5);
-        toast({
-          title: "Envio bloqueado: cadastros provisórios pendentes",
-          description: `Aguardando aprovação do administrador para: ${names.join(", ")}${names.length >= 5 ? "…" : ""}.`,
-          variant: "destructive",
-        });
-        return;
+        .not("doctor_id", "is", null);
+      const doctorIds = Array.from(new Set(((itemRows ?? []) as Array<{ doctor_id: string | null }>)
+        .map((r) => r.doctor_id).filter(Boolean) as string[]));
+      if (doctorIds.length > 0) {
+        const { data: pendingDocs } = await supabase
+          .from("doctors")
+          .select("full_name")
+          .in("id", doctorIds)
+          .eq("pending_admin_review", true);
+        if (pendingDocs && pendingDocs.length > 0) {
+          const names = Array.from(new Set(pendingDocs.map((d: any) => d.full_name).filter(Boolean))).slice(0, 5);
+          toast({
+            title: "Envio bloqueado: cadastros provisórios pendentes",
+            description: `Aguardando aprovação do administrador para: ${names.join(", ")}${pendingDocs.length > 5 ? "…" : ""}.`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
     }
     setBusy(true);
