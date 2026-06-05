@@ -746,6 +746,113 @@ function downloadTemplate(profile: ImportProfile, title: string) {
 }
 
 
+/**
+ * Detecta conflitos de CRM/UF na importação de médicos e produz um relatório
+ * de auditoria do método de resolução por linha.
+ *
+ * Conflitos:
+ *  - "file": dentro do próprio arquivo há linhas com o mesmo número de CRM
+ *    e UFs diferentes (ou ausentes em parte das linhas).
+ *  - "registry": linha do arquivo trouxe CRM sem UF, e existem múltiplos
+ *    cadastros com aquele número em UFs diferentes — não dá para decidir
+ *    automaticamente qual atualizar.
+ */
+async function detectCrmConflicts(records: any[]): Promise<{
+  conflicts: { number: string; ufs: string[]; rows: number[]; source: "file" | "registry" }[];
+  report: { row: number; crm: string; uf: string | null; method: "crm+uf" | "crm-only" | "novo"; reason: string }[];
+}> {
+  const report: { row: number; crm: string; uf: string | null; method: "crm+uf" | "crm-only" | "novo"; reason: string }[] = [];
+  const fileByNumber = new Map<string, Map<string, number[]>>(); // number -> uf("" se ausente) -> rows
+  const numbersOnly = new Set<string>(); // números do arquivo sem UF
+
+  for (const r of records) {
+    const number = String(r.crm ?? "").replace(/\D/g, "");
+    const uf = String(r.crm_uf ?? "").toUpperCase().trim();
+    const row = r._meta?.row ?? 0;
+    if (!number) continue;
+    const slot = fileByNumber.get(number) ?? new Map<string, number[]>();
+    const list = slot.get(uf) ?? [];
+    list.push(row);
+    slot.set(uf, list);
+    fileByNumber.set(number, slot);
+    if (!uf) numbersOnly.add(number);
+  }
+
+  // Carrega cadastros existentes que possam colidir
+  const existingByNumber = new Map<string, string[]>();
+  try {
+    const numbersArr = Array.from(fileByNumber.keys()).filter(Boolean);
+    if (numbersArr.length) {
+      // Quebrar em chunks para evitar query gigante
+      const CHUNK = 200;
+      for (let i = 0; i < numbersArr.length; i += CHUNK) {
+        const slice = numbersArr.slice(i, i + CHUNK);
+        const { data } = await supabase
+          .from("doctors")
+          .select("crm, crm_uf")
+          .in("crm", slice);
+        for (const d of data ?? []) {
+          const n = String((d as any).crm ?? "");
+          const u = String((d as any).crm_uf ?? "").toUpperCase().trim();
+          if (!n || !u) continue;
+          const list = existingByNumber.get(n) ?? [];
+          if (!list.includes(u)) list.push(u);
+          existingByNumber.set(n, list);
+        }
+      }
+    }
+  } catch (e) {
+    // Best-effort: se falhar consulta, segue sem conflitos de cadastro
+    console.warn("[detectCrmConflicts] falha ao consultar cadastros:", (e as any)?.message);
+  }
+
+  const conflicts: { number: string; ufs: string[]; rows: number[]; source: "file" | "registry" }[] = [];
+
+  // 1) conflitos dentro do arquivo: mesmo número, UFs diferentes (incluindo "" como ausente)
+  for (const [number, slot] of fileByNumber.entries()) {
+    const ufs = Array.from(slot.keys());
+    const distinctUfs = ufs.filter((u) => u);
+    const hasMissing = ufs.includes("");
+    if (distinctUfs.length > 1 || (distinctUfs.length >= 1 && hasMissing)) {
+      const rows = ufs.flatMap((u) => slot.get(u) ?? []).sort((a, b) => a - b);
+      conflicts.push({ number, ufs: [...distinctUfs, ...(hasMissing ? ["(sem UF)"] : [])], rows, source: "file" });
+    }
+  }
+
+  // 2) conflitos contra o cadastro: linha sem UF e número cadastrado em múltiplas UFs
+  for (const number of numbersOnly) {
+    const cadUfs = existingByNumber.get(number) ?? [];
+    if (cadUfs.length > 1) {
+      const rows = (fileByNumber.get(number)?.get("") ?? []).sort((a, b) => a - b);
+      conflicts.push({ number, ufs: cadUfs, rows, source: "registry" });
+    }
+  }
+
+  // 3) relatório de auditoria por linha
+  for (const r of records) {
+    const number = String(r.crm ?? "").replace(/\D/g, "");
+    const uf = String(r.crm_uf ?? "").toUpperCase().trim() || null;
+    const row = r._meta?.row ?? 0;
+    if (!number) continue;
+    const cadUfs = existingByNumber.get(number) ?? [];
+    if (uf && cadUfs.includes(uf)) {
+      report.push({ row, crm: number, uf, method: "crm+uf", reason: `Match exato com cadastro existente CRM ${number}/${uf}` });
+    } else if (uf) {
+      report.push({ row, crm: number, uf, method: "crm+uf", reason: `Novo registro será criado com CRM ${number}/${uf}` });
+    } else if (cadUfs.length === 1) {
+      report.push({ row, crm: number, uf: cadUfs[0], method: "crm-only", reason: `Linha sem UF; cadastro único encontrado em ${cadUfs[0]}` });
+    } else if (cadUfs.length > 1) {
+      report.push({ row, crm: number, uf: null, method: "crm-only", reason: `Ambíguo: CRM ${number} cadastrado em ${cadUfs.join(", ")} — exige correção manual` });
+    } else {
+      report.push({ row, crm: number, uf: null, method: "novo", reason: `Novo CRM ${number} sem UF informada` });
+    }
+  }
+
+  return { conflicts, report };
+}
+
+
+
 function stepLabel(s: Step) {
   return { upload: "1. Upload", preview: "2. Mapeamento", role_config: "2.5 Funções", validate: "3. Validação", done: "4. Concluído" }[s];
 }
