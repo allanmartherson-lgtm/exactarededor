@@ -150,12 +150,20 @@ export async function loadSectorRegistry(): Promise<SectorRegistry> {
 // ====== resolvers (puros, sem inferência) ======
 
 export function resolveDoctor(
-  input: { name?: string | null; crm?: string | null; cpf?: string | null },
+  input: { name?: string | null; crm?: string | null; crm_uf?: string | null; cpf?: string | null },
   reg: DoctorRegistry,
 ): { doctor: DoctorRegistryEntry | null; matched_by: MatchedBy } {
-  const crm = onlyDigits(input.crm);
-  if (crm) {
-    const e = reg.byCrm.get(crm);
+  // CRM aceita formato unificado ("28923/DF") ou separado (crm + crm_uf)
+  const parsed = parseCrm(input.crm);
+  const number = parsed.number;
+  const uf = (input.crm_uf || parsed.uf || "").toUpperCase().trim();
+  if (number) {
+    if (uf) {
+      const e = reg.byCrmUf.get(crmUfKey(number, uf));
+      if (e) return { doctor: e, matched_by: "crm" };
+    }
+    // fallback: match só por número (UF desconhecida em uma das pontas)
+    const e = reg.byCrm.get(number);
     if (e) return { doctor: e, matched_by: "crm" };
   }
   const cpf = onlyDigits(input.cpf);
@@ -167,8 +175,6 @@ export function resolveDoctor(
   if (nameKey) {
     const e = reg.byAlias.get(nameKey);
     if (e) {
-      // Heurística: se a chave também é o full_name normalizado, considera "name";
-      // caso contrário, foi via alias cadastrado.
       const matched_by: MatchedBy = normalize(e.full_name) === nameKey ? "name" : "alias";
       return { doctor: e, matched_by };
     }
