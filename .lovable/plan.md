@@ -1,75 +1,92 @@
-## Contexto
+## Objetivo
+Garantir que atualizações de dados (reseed de cadastros, troca de hospital, exclusão de auth user, mudança de vínculo) nunca derrubem os portais de médico e empresa. Três camadas: **integridade no banco**, **UI tolerante**, e **diagnóstico/auto-reparo**.
 
-O `PaymentDetail` hoje mostra alguns blocos para qualquer usuário que tenha o papel **analista** acumulado, mesmo quando a pessoa está logada também como **validador** ou **diretor**. Resultado: o supervisor e o diretor veem ações que são da rotina do analista (selecionar empresas, concluir em massa, enviar lote para validação, sugerir aceites em lote). Confunde papéis e segregação de funções.
+---
 
-E falta o canal certo para o supervisor/diretor **fazer um questionamento dentro do lote** e devolver para a fila do analista (ou analista + supervisor, quando vem do diretor). A infraestrutura de "pergunta interna" já existe — `recordObservation({ is_question: true })` + edge function `notify-internal-question` — com este roteamento, exatamente o que você descreveu:
+## Camada 1 — Integridade no banco (preservar vínculos sempre)
 
-- analista pergunta → validador (em validação) ou diretor (em aprovação)
-- validador pergunta → analista
-- diretor pergunta → analista + validador
+Migration única com:
 
-Falta só expor um **botão dedicado e visível** dentro do lote.
+1. **FKs com `ON DELETE` adequado** nas tabelas de vínculo:
+   - `doctor_portal_users.user_id` → `auth.users(id) ON DELETE SET NULL` (mantém histórico, marca como órfão).
+   - `doctor_portal_users.doctor_id` → `doctors(id) ON DELETE RESTRICT` (impede apagar médico com portal ativo).
+   - `company_portal_users.user_id` → `auth.users(id) ON DELETE SET NULL`.
+   - `company_portal_users.company_id` → `companies(id) ON DELETE RESTRICT`.
+   - Mesmo padrão em `doctor_portal_user_hospitals` e `company_portal_user_hospitals` (`ON DELETE CASCADE` para o pai do vínculo, `RESTRICT` para `hospital_id`).
 
-## Parte 1 — Tirar da visão do supervisor/diretor o que é do analista
+2. **Coluna `link_health`** (enum: `ok | orphan_user | orphan_target | inactive`) em `doctor_portal_users` e `company_portal_users`, recomputada por trigger sempre que `user_id`, `doctor_id`/`company_id` ou `active` mudam.
 
-Regra: quando o usuário está com **perspectiva** de validador ou diretor (mesmo que acumule o papel analista), os blocos de atuação do analista ficam ocultos. Quem é **apenas** analista continua vendo tudo. Admin segue vendo tudo (visão completa).
+3. **Trigger pós-reseed**: na inserção em `auth.users`, se o e-mail já existe em `doctor_portal_users.email` ou `company_portal_users.email` com `user_id IS NULL`, **religa automaticamente** (UPDATE setando `user_id` e `link_health='ok'`). Isso atende "Preservar sempre" mesmo se um reseed acidentalmente recriar o auth user.
 
-Itens a esconder quando `isValidador || isDiretor` (e o usuário não está executando ação especificamente do analista):
+4. **Função `repair_portal_links()`** (SECURITY DEFINER, callable só por admin via RPC): varre vínculos órfãos e religa pelo e-mail. Retorna contagem de reparados/não reparados.
 
-- Faixa **"Concluir análise em massa — N empresa(s) ainda em revisão"** + botão **Selecionar empresas** (≈ linha 2368 e 2391 de `PaymentDetail.tsx`).
-- Faixa verde **"Empresas concluídas pelo analista — pronta(s) para envio"** + botão **Enviar lote para validação** (≈ linha 2485-2524).
-- Diálogo/atalho de **concluir em massa**.
-- Painel **BatchSuggestPanel** (já feito para esconder).
-- Botões/atalhos do analista nos cards por empresa (revisar, concluir empresa).
+5. **View `portal_links_health`**: agrega contagem por status, hospital, tipo de portal — fonte do painel de diagnóstico.
 
-Onde aplicar:
-- Centralizar uma flag `showAnalystActions = isAnalista && !isValidador && !isDiretor` (admin pode ser tratado à parte com `showAnalystActions = isAnalista || isAdmin` se você quiser que o admin enxergue tudo — recomendo sim).
-- Trocar os atuais `isAnalista &&` por `showAnalystActions &&` nos blocos listados.
+---
 
-## Parte 2 — Botão "Fazer questionamento" no lote
+## Camada 2 — UI tolerante a falhas
 
-UX:
+Auditar e blindar hooks/páginas dos portais:
 
-- **Cabeçalho do lote** (quando aplicável a todo o lote): botão `❓ Fazer questionamento` visível para validador, diretor e analista.
-- **Card de cada empresa** dentro do lote: mesmo botão, escopado àquela empresa (passa `company_group_id` no payload da pergunta).
-- Ao clicar, abre um modal:
-  - Campo de texto (mín. 10 caracteres).
-  - Auto-mostra **para quem vai** com base no papel do autor (`Você perguntando como Diretor → vai para Analista + Supervisor`).
-  - Opção "ligar a um item específico" (dropdown opcional para escolher um `payment_item`, útil quando o questionamento é sobre uma linha).
-  - Botão **Enviar questionamento**.
-- Ao enviar:
-  - Chama `recordObservation({ payment_id, item_id?, author_type, message, is_question: true, observation_type: "questionamento" })`.
-  - A própria função `recordObservation` já dispara `notify-internal-question` com roteamento por papel.
-  - Toast: "Questionamento enviado para Analista e Supervisor" (texto dinâmico).
+- `src/hooks/usePaymentDetailData.ts` — já corrigido `.single()`→`.maybeSingle()`. Aplicar o mesmo padrão em:
+  - `src/pages/InvoicePortal.tsx` (entrada do portal empresa)
+  - Hooks de Home do portal médico (queries de `payments`, `doctor_portal_users`, `doctor_companies`)
+  - Hooks de Home do portal empresa (`company_portal_users`, `companies`, `payment_company_groups`)
 
-Como o destinatário enxerga:
+- **Estados claros** quando vínculo/lote não existe no hospital ativo:
+  - "Vínculo do portal foi desativado — fale com seu gestor"
+  - "Este lote não está disponível no hospital selecionado"
+  - "Médico não vinculado a uma PJ — não é possível receber repasse"
+  - Em vez de telas brancas, erros JSON, ou redirect para `/auth` sem motivo.
 
-- Já existe `PaymentInternalQuestionsPanel` na página do pagamento listando as perguntas abertas (com link para responder). Vamos garantir que:
-  - O painel apareça também para validador e diretor (perguntas abertas que eles fizeram).
-  - O sino de notificações já recebe `notify-internal-question`.
-- A resposta usa o fluxo existente (`recordObservation` com `answers_question_id`) — sem mudança nesta etapa.
+- **Boundary específico** `<PortalErrorBoundary>` em `src/components/portal/` que captura erros de query e oferece "Tentar novamente" + "Trocar de hospital".
 
-## Onde mexer no código
+- Logging via `telemetry` com tipo `portal_link_failed` para o painel de saúde detectar problemas em produção.
 
-- `src/pages/PaymentDetail.tsx`
-  - Adicionar `showAnalystActions` e trocar gates dos blocos citados.
-  - Adicionar botão `Fazer questionamento` no cabeçalho do lote e no card de cada empresa.
-- `src/components/payment-detail/AskQuestionDialog.tsx` (novo)
-  - Modal reutilizável (lote inteiro ou empresa específica).
-  - Mostra preview do roteamento (texto computado a partir do papel do autor + status do lote).
-  - Usa `recordObservation` (sem nova RPC).
-- Sem migration: tudo persiste em `payment_observations` (já existe), com `is_question=true` e `observation_type='questionamento'`. Para escopar por empresa, gravamos `metadata` simples na mensagem (campo já existente em `payment_observations` se houver — caso contrário, usamos `item_id` quando a pergunta for sobre item, e o `company_group_id` vai numa coluna extra opcional só se você confirmar que quer rastreabilidade por empresa no histórico).
-- Sem mudanças no `notify-internal-question` (roteamento já está como você descreveu).
+---
 
-## O que **não** muda
+## Camada 3 — Painel "Saúde dos Portais"
 
-- Fluxos de Aprovar/Devolver/Questionar em lote do `PaymentBatchActionsFooter` continuam iguais (questionamento de lote ali ainda funciona). O botão novo é o atalho rápido **por empresa** que faltava.
-- Nenhuma alteração no motor de cálculo, status, glosas ou regras.
-- Observações comuns (não-pergunta) continuam funcionando como hoje.
+Nova página `src/pages/PortalHealth.tsx` (acesso admin), com:
 
-## Decisões para você confirmar
+- **Cards de resumo**: total de vínculos, órfãos por tipo, médicos sem PJ, empresas sem usuário ativo.
+- **Tabela de problemas** filtrável por hospital/tipo, com colunas: e-mail, alvo (médico/empresa), motivo (`orphan_user`/`orphan_target`/`inactive`), última atividade.
+- **Ações em massa**: "Auto-reparar selecionados" (chama `repair_portal_links()`), "Desativar selecionados", "Recriar usuário auth" (chama edge function `admin-create-portal-user`).
+- **Alerta no header** (`AppLayout`) quando há órfãos pendentes — badge vermelho com contagem, link direto pro painel.
 
-1. **Admin enxerga tudo** (analista + supervisor + diretor) ou tratamos admin igual ao validador/diretor (oculta blocos do analista)?
-2. O botão **"Fazer questionamento"** deve aparecer **por empresa** (card de cada empresa do lote) **e** no cabeçalho do lote, ou só por empresa?
-3. Quando o **analista** clica em "Fazer questionamento", queremos que ele também tenha esse atalho rápido (vai para validador/diretor conforme o estágio), ou esse botão é exclusivo de supervisor/diretor?
-4. Precisa rastrear o questionamento por **empresa específica** no banco (nova coluna `company_group_id` em `payment_observations`) ou basta deixar isso só na descrição/contexto da mensagem por enquanto?
+Rota adicionada em `src/App.tsx` protegida por `roles={['admin']}`, item de menu em `src/config/navItems.ts` na seção Administração.
+
+---
+
+## Detalhes técnicos
+
+**Arquivos a criar:**
+- `supabase/migrations/<ts>_portal_links_integrity.sql` (camada 1 inteira)
+- `src/pages/PortalHealth.tsx`
+- `src/components/portal/PortalErrorBoundary.tsx`
+- `src/hooks/usePortalLinksHealth.ts`
+
+**Arquivos a editar:**
+- `src/pages/InvoicePortal.tsx`, hooks do portal médico (a identificar via grep `.single()` em `src/hooks/use*Portal*`/`src/pages/*Portal*`)
+- `src/App.tsx` (nova rota), `src/config/navItems.ts` (item de menu), `src/components/AppLayout.tsx` (badge de alerta)
+
+**Pontos de atenção:**
+- A trigger pós-reseed lê `auth.users` — precisa ser `SECURITY DEFINER` com `search_path = public, auth`.
+- `link_health` é derivado: a coluna existe pra permitir índice/filtragem rápida no painel, mas a fonte da verdade é a trigger. Não permitir UPDATE manual.
+- `repair_portal_links()` precisa ser idempotente — pode rodar várias vezes sem efeito colateral.
+- Telemetria `portal_link_failed`: não bloquear render se a inserção falhar.
+
+---
+
+## Fora de escopo desta rodada
+- Reseed propriamente dito (a garantia é que, se rodar, os vínculos sobrevivem ou se auto-reparam).
+- Mudança no fluxo de criação de portal user (já funciona via `admin-create-portal-user`).
+- Auditoria histórica retroativa (o painel mostra estado atual; histórico fica pra outra fase se necessário).
+
+---
+
+## Ordem de execução
+1. Migration (camada 1) — precisa aprovação sua.
+2. Após aplicada, blindar UI (camada 2).
+3. Criar painel + alerta (camada 3).
+4. Rodar `repair_portal_links()` uma vez pra limpar órfãos existentes (Gilberto + qualquer outro).
