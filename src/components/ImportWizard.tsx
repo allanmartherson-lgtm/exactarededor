@@ -88,7 +88,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const [result, setResult] = useState<CommitResult | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>("append");
   const [replaceConfirm, setReplaceConfirm] = useState("");
+  // Atribuição manual de UF por número de CRM (resolve conflitos sem reabrir o arquivo)
+  const [ufOverrides, setUfOverrides] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
+
 
   const supportedModes = profile.supportedModes ?? ["append", "update"];
   const sheet = sheets.find((s) => s.name === activeSheet);
