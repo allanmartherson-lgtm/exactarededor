@@ -520,6 +520,7 @@ export function ItemsDataGrid({
     240 +
     (colVis.setor_lido ? 140 : 0) +
     (colVis.setor_inferido ? 140 : 0) +
+    (colVis.tipo_entrada ? 130 : 0) +
     180 +
     (colVis.funcao ? 120 : 0) +
     (colVis.regra ? 180 : 0) +
@@ -961,6 +962,7 @@ export function ItemsDataGrid({
               <col style={{ width: 240 }} />
               {colVis.setor_lido && <col style={{ width: 140 }} />}
               {colVis.setor_inferido && <col style={{ width: 140 }} />}
+              {colVis.tipo_entrada && <col style={{ width: 130 }} />}
               <col style={{ width: 180 }} />
               {colVis.funcao && <col style={{ width: 120 }} />}
               {colVis.regra && <col style={{ width: 180 }} />}
@@ -1056,6 +1058,7 @@ export function ItemsDataGrid({
                 <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>
                 {colVis.setor_lido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)</th>}
                 {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Sistema)</th>}
+                {colVis.tipo_entrada && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Caráter</th>}
                 <th
                   scope="col"
                   aria-sort={sortKey === "medico" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -1191,6 +1194,7 @@ export function ItemsDataGrid({
                   (colVis.via ? 1 : 0) +
                   (colVis.setor_lido ? 1 : 0) +
                   (colVis.setor_inferido ? 1 : 0) +
+                  (colVis.tipo_entrada ? 1 : 0) +
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (colVis.diferenca ? 1 : 0) +
@@ -1271,6 +1275,7 @@ export function ItemsDataGrid({
                 1 /* procedimento */ +
                 (colVis.setor_lido ? 1 : 0) +
                 (colVis.setor_inferido ? 1 : 0) +
+                (colVis.tipo_entrada ? 1 : 0) +
                 1 /* medico */ +
                 (colVis.funcao ? 1 : 0) +
                 (colVis.regra ? 1 : 0);
@@ -1509,6 +1514,13 @@ function RowMain({
         {colVis.setor_inferido && (
           <td className={cn(cell, TEXT_META)} title={resolvedSystemSector ?? ""}>{formatSectorName(resolvedSystemSector)}</td>
         )}
+        {colVis.tipo_entrada && (() => {
+          const raw = ((it as unknown as { attendance_character?: string | null }).attendance_character ?? "").toString().trim();
+          const label = raw
+            ? (/^elet/i.test(raw) ? "Eletivo" : /^urg/i.test(raw) ? "Urgência" : /^emerg/i.test(raw) ? "Emergência" : raw)
+            : "—";
+          return <td className={cn(cell, TEXT_META)} title={raw}>{label}</td>;
+        })()}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
           <span className="truncate block">{it.doctor_name}</span>
         </td>
