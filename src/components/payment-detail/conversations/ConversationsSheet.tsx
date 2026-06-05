@@ -378,24 +378,39 @@ export function ConversationsSheet(props: Props) {
                               {format(new Date(t.lastActivityAt), "dd/MM HH:mm", { locale: ptBR })}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <Badge
                               variant="outline"
-                              className={cn("text-[9px] py-0 px-1.5 h-4", STATUS_META[t.root.status].tone)}
+                              className={cn(
+                                "text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full",
+                                STATUS_META[t.root.status].tone,
+                              )}
                             >
                               {STATUS_META[t.root.status].label}
                             </Badge>
                             {t.root.company_group_id ? (
-                              <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4 bg-[hsl(213_70%_50%/0.15)] text-[hsl(213_80%_75%)] border-[hsl(213_70%_50%/0.3)]">
-                                <Building2 className="h-2 w-2 mr-0.5" /> Empresa
+                              <Badge
+                                variant="outline"
+                                className="text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full gap-1 bg-primary-soft text-primary-dark border-primary/30"
+                              >
+                                <Building2 className="h-2.5 w-2.5" /> Empresa
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4 bg-[hsl(280_55%_50%/0.15)] text-[hsl(280_70%_80%)] border-[hsl(280_55%_50%/0.3)]">
+                              <Badge
+                                variant="outline"
+                                className="text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full bg-accent text-accent-foreground border-border"
+                              >
                                 Lote
                               </Badge>
                             )}
                             {sla && (
-                              <Badge variant="outline" className={cn("text-[9px] py-0 px-1.5 h-4", sla.tone)}>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full",
+                                  sla.tone,
+                                )}
+                              >
                                 {sla.label}
                               </Badge>
                             )}
