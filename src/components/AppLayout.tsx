@@ -1265,6 +1265,7 @@ export const AppLayout = () => {
                 <LogOut className="h-3.5 w-3.5" />
               </Button>
               <ThemeToggle />
+              <ContrastToggle />
               <LayoutToggle />
             </>
           ) : (
