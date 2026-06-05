@@ -262,22 +262,22 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
     );
   };
 
-  const renderItem = (item: NavItem) => {
+  const renderItem = (item: NavItem, measuring = false) => {
     if (!isGroup(item)) return renderLeaf(item);
     const groupActive = item.children.some((c) =>
       c.to === "/" ? location.pathname === "/" : location.pathname.startsWith(c.to),
     );
-    const isOpen = openKey === item.label;
+    const isOpen = !measuring && openKey === item.label;
     return (
       <TopbarGroup
         key={item.label}
         item={item}
         isOpen={isOpen}
-        isAnyOpen={openKey !== null}
+        isAnyOpen={!measuring && openKey !== null}
         groupActive={groupActive}
-        onOpen={() => setOpenKey(item.label)}
-        onToggle={() => setOpenKey(isOpen ? null : item.label)}
-        onClose={() => setOpenKey(null)}
+        onOpen={measuring ? () => {} : () => setOpenKey(item.label)}
+        onToggle={measuring ? () => {} : () => setOpenKey(isOpen ? null : item.label)}
+        onClose={measuring ? () => {} : () => setOpenKey(null)}
         currentPath={location.pathname}
       />
     );
@@ -301,14 +301,14 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
           top: 0,
         }}
       >
-        {items.map(renderItem)}
+        {items.map((it) => renderItem(it, true))}
       </div>
 
       <nav
         className="flex items-center gap-0.5 flex-nowrap overflow-hidden"
         aria-label="Navegação principal"
       >
-        {visibleItems.map(renderItem)}
+        {visibleItems.map((it) => renderItem(it))}
 
         {overflowItems.length > 0 && (
           <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
