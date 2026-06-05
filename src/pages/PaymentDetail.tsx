@@ -3494,7 +3494,6 @@ const PaymentDetail = () => {
           onOpenChange={setProductionValidationOpen}
         />
       )}
-      {id && user && (
       {id && user && (isAnalista || isValidador || isDiretor) && !isNfPhase && (
         <>
           <QuestionsFab openCount={openThreadsCount} onClick={() => setThreadsOpen(true)} />
