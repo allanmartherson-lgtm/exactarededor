@@ -3498,11 +3498,30 @@ const PaymentDetail = () => {
           paymentId={id}
           paymentStatus={payment.status as string}
           authorId={user.id}
+          authorName={profiles[user.id] ?? user.email ?? "Equipe interna"}
           authorRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
           companyGroupId={askQuestion?.groupId ?? null}
           companyName={askQuestion?.companyName ?? null}
           onCreated={load}
         />
+      )}
+      {id && user && (isAnalista || isValidador || isDiretor) && !isNfPhase && (
+        <>
+          <QuestionsFab openCount={openThreadsCount} onClick={() => setThreadsOpen(true)} />
+          <InternalThreadsSheet
+            open={threadsOpen}
+            onOpenChange={setThreadsOpen}
+            paymentId={id}
+            groups={groups.map((g) => ({ id: g.id, company_name: g.company_name }))}
+            currentUserId={user.id}
+            currentUserName={profiles[user.id] ?? user.email ?? "Equipe interna"}
+            currentRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
+            onNewQuestion={(scope) => {
+              setThreadsOpen(false);
+              setAskQuestion(scope);
+            }}
+          />
+        </>
       )}
     </>
   );
