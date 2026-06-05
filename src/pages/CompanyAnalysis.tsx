@@ -293,6 +293,38 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
+
+  // FAB de Conversas — escopo desta empresa. Conta perguntas e rola até o thread.
+  const questionsThreadRef = useRef<HTMLDivElement | null>(null);
+  const [openQuestionsCount, setOpenQuestionsCount] = useState(0);
+  useEffect(() => {
+    if (!groupId) return;
+    let alive = true;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from("payment_questions")
+        .select("id", { count: "exact", head: true })
+        .eq("company_group_id", groupId);
+      if (alive) setOpenQuestionsCount(count ?? 0);
+    };
+    fetchCount();
+    const ch = supabase
+      .channel(`cqt-fab-${groupId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_questions", filter: `company_group_id=eq.${groupId}` },
+        () => fetchCount(),
+      )
+      .subscribe();
+    return () => {
+      alive = false;
+      supabase.removeChannel(ch);
+    };
+  }, [groupId]);
+  const scrollToQuestions = () => {
+    questionsThreadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const [postConcluirOpen, setPostConcluirOpen] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
