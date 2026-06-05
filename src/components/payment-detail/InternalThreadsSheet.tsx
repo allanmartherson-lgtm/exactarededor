@@ -224,6 +224,7 @@ export function InternalThreadsSheet({
     }
     setReplies((p) => ({ ...p, [root.id]: "" }));
     toast({ title: "Resposta enviada" });
+    load();
   };
 
   const closeThread = async (root: Row) => {
@@ -238,7 +239,9 @@ export function InternalThreadsSheet({
       return;
     }
     toast({ title: "Conversa encerrada" });
+    load();
   };
+
   const submitNewQuestion = async () => {
     const text = composeMessage.trim();
     if (text.length < 10) {
