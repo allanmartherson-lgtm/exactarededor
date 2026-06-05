@@ -48,7 +48,7 @@ import { recordObservation, type ObservationType } from "@/lib/observations";
 import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
-import { AskQuestionDialog } from "@/components/payment-detail/AskQuestionDialog";
+
 import { InternalThreadsSheet } from "@/components/payment-detail/InternalThreadsSheet";
 import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPatternSuggest";
