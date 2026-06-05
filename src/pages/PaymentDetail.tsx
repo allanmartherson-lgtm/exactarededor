@@ -3350,7 +3350,7 @@ const PaymentDetail = () => {
           <ExceptionPatternSuggest paymentId={id} />
         )}
 
-        {isAnalista && groups.some((g) => g.status === "revisao_analista" || g.status === "devolvido_analista") && (
+        {isAnalista && !isValidador && !isDiretor && groups.some((g) => g.status === "revisao_analista" || g.status === "devolvido_analista") && (
           <BatchSuggestPanel items={items} onAcceptBatch={handleAcceptBatch} />
         )}
 
