@@ -3905,7 +3905,7 @@ export function PaymentConciliationModal({
               <div className="flex items-center justify-between pt-3 border-t border-border">
                 <p className="text-xs text-muted-foreground">
                   <span className="text-success font-semibold">{exactCount}</span> confirmadas ·{" "}
-                  <span className="text-warning-foreground font-semibold">{confirmCount}</span> sugestões pendentes (não entram no cruzamento) ·{" "}
+                  <span className="text-warning-text font-semibold">{confirmCount}</span> sugestões pendentes (não entram no cruzamento) ·{" "}
                   <span className="text-muted-foreground">{pendingCount - confirmCount}</span> sem match
                 </p>
                 <div className="flex gap-2">
@@ -4411,12 +4411,12 @@ export function PaymentConciliationModal({
                                 </span>
                               )}
                               {counts.valor_divergente > 0 && (
-                                <span className="text-warning-foreground ml-2">
+                                <span className="text-warning-text ml-2">
                                   · {counts.valor_divergente} valor divergente
                                 </span>
                               )}
                               {counts.qtd_divergente > 0 && (
-                                <span className="text-warning-foreground ml-2">
+                                <span className="text-warning-text ml-2">
                                   · {counts.qtd_divergente} qtd divergente
                                 </span>
                               )}

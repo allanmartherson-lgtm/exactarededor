@@ -2331,7 +2331,7 @@ const PaymentDetail = () => {
                 <MessageCircleQuestion className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0 space-y-2">
                   <div>
-                    <p className="text-sm font-semibold text-warning-foreground">
+                    <p className="text-sm font-semibold text-warning-text">
                       {pending.length === 1
                         ? "Recebedor enviou um questionamento sobre a NF"
                         : `${pending.length} questionamentos abertos sobre a NF`}
@@ -2631,7 +2631,7 @@ const PaymentDetail = () => {
         {payment.analysis_mode === "empresa_prioritaria" && (
           <Card className="shadow-card border-warning/30 bg-warning-soft/30">
             <CardContent className="p-3 text-xs flex items-start gap-2">
-              <span className="font-semibold uppercase tracking-wide text-warning-foreground shrink-0">
+              <span className="font-semibold uppercase tracking-wide text-warning-text shrink-0">
                 Modo empresa prioritária
               </span>
               <span className="text-muted-foreground">

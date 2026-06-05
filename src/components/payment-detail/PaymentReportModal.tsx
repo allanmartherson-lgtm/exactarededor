@@ -730,7 +730,7 @@ export function PaymentReportModal({
             return (
               <Card className="border-warning/30">
                 <CardHeader className="py-3 px-4 border-b flex flex-row items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-bold text-warning-foreground">
+                  <div className="flex items-center gap-2 text-sm font-bold text-warning-text">
                     <AlertTriangle className="h-4 w-4" />
                     Alertas Assistenciais — {rows.length} ocorrência{rows.length !== 1 ? "s" : ""}
                   </div>
@@ -746,14 +746,14 @@ export function PaymentReportModal({
                         <TableHead className="text-[10px] h-8 uppercase" colSpan={2}>
                           <div className="grid grid-cols-2 gap-2">
                             <span>Item Original</span>
-                            <span className="text-warning-foreground">↔ Item Conflitante</span>
+                            <span className="text-warning-text">↔ Item Conflitante</span>
                           </div>
                         </TableHead>
                       </TableRow>
                       <TableRow className="bg-muted/30">
                         <TableHead className="text-[10px] h-7 uppercase"></TableHead>
                         <TableHead className="text-[10px] h-7 uppercase border-r">Médico · Empresa · Atend · Especialidade · Paciente · Data · Valor</TableHead>
-                        <TableHead className="text-[10px] h-7 uppercase text-warning-foreground">Médico · Empresa · Atend · Especialidade · Paciente · Data · Valor</TableHead>
+                        <TableHead className="text-[10px] h-7 uppercase text-warning-text">Médico · Empresa · Atend · Especialidade · Paciente · Data · Valor</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -790,7 +790,7 @@ export function PaymentReportModal({
                               {paciente && <span className="flex items-center gap-1"><User className="h-2.5 w-2.5" /> {paciente}</span>}
                               {data && <span>· {data}</span>}
                               {valor != null && (
-                                <span className={cn("font-semibold", isConflict ? "text-warning-foreground" : "text-foreground")}>
+                                <span className={cn("font-semibold", isConflict ? "text-warning-text" : "text-foreground")}>
                                   · {formatCurrency(valor)}
                                 </span>
                               )}
@@ -874,7 +874,7 @@ export function PaymentReportModal({
                         <div className="flex items-center gap-6 text-sm">
                           <div className="flex items-center gap-2">
                             {g.counts.aprovado > 0 && <span className="text-success text-xs font-bold">✓ {g.counts.aprovado}</span>}
-                            {g.counts.alerta > 0 && <span className="text-warning-foreground text-xs font-bold">⚠ {g.counts.alerta}</span>}
+                            {g.counts.alerta > 0 && <span className="text-warning-text text-xs font-bold">⚠ {g.counts.alerta}</span>}
                             {g.counts.reprovado > 0 && <span className="text-destructive text-xs font-bold">✗ {g.counts.reprovado}</span>}
                           </div>
                           <div className="text-right tabular-nums min-w-[120px]">

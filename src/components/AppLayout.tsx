@@ -179,62 +179,202 @@ const ThemeToggle = () => {
  * ============================================================ */
 const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnread: number }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
 
-  // Close on route change
+  // Close dropdowns on route change
   useEffect(() => {
     setOpenKey(null);
+    setMoreOpen(false);
   }, [location.pathname]);
 
+  // ---------- Overflow measurement ----------
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const measureRef = useRef<HTMLDivElement | null>(null);
+  const widthsRef = useRef<number[]>([]);
+  const [containerW, setContainerW] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(items.length);
+  const MORE_BTN_WIDTH = 78;
+  const GAP = 2;
+
+  // Measure each item's natural width (hidden row mirrors real items 1:1).
+  useLayoutEffect(() => {
+    if (!measureRef.current) return;
+    widthsRef.current = Array.from(measureRef.current.children).map(
+      (c) => (c as HTMLElement).offsetWidth,
+    );
+  }, [items]);
+
+  // Track container width
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setContainerW(el.clientWidth);
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Recompute visible count when widths or container change
+  useLayoutEffect(() => {
+    const widths = widthsRef.current;
+    if (!widths.length || !containerW) return;
+    const total = widths.reduce((s, w) => s + w, 0) + GAP * (widths.length - 1);
+    if (total <= containerW) {
+      setVisibleCount(items.length);
+      return;
+    }
+    let used = 0;
+    let count = 0;
+    const budget = containerW - MORE_BTN_WIDTH - GAP;
+    for (let i = 0; i < widths.length; i++) {
+      const next = used + widths[i] + (i > 0 ? GAP : 0);
+      if (next > budget) break;
+      used = next;
+      count = i + 1;
+    }
+    setVisibleCount(Math.max(0, count));
+  }, [containerW, items.length]);
+
+  const renderLeaf = (item: Extract<NavItem, { to: string }>) => {
+    const showBadge = item.to === "/conversas" && conversasUnread > 0;
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        end={item.to === "/"}
+        className={({ isActive }) =>
+          cn(
+            "relative inline-flex flex-col items-center justify-center gap-1 rounded-md px-3 py-1 min-w-[72px] text-[11px] leading-tight font-bold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            isActive
+              ? "bg-accent text-accent-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          )
+        }
+      >
+        <item.icon size={20} weight="fill" strokeWidth={2.25} className="flex-shrink-0" style={{ width: 20, height: 20 }} />
+        <span>{item.label}</span>
+        {showBadge && <ConversasBadgeDot count={conversasUnread} absolute />}
+      </NavLink>
+    );
+  };
+
+  const renderItem = (item: NavItem) => {
+    if (!isGroup(item)) return renderLeaf(item);
+    const groupActive = item.children.some((c) =>
+      c.to === "/" ? location.pathname === "/" : location.pathname.startsWith(c.to),
+    );
+    const isOpen = openKey === item.label;
+    return (
+      <TopbarGroup
+        key={item.label}
+        item={item}
+        isOpen={isOpen}
+        isAnyOpen={openKey !== null}
+        groupActive={groupActive}
+        onOpen={() => setOpenKey(item.label)}
+        onToggle={() => setOpenKey(isOpen ? null : item.label)}
+        onClose={() => setOpenKey(null)}
+        currentPath={location.pathname}
+      />
+    );
+  };
+
+  const visibleItems = items.slice(0, visibleCount);
+  const overflowItems = items.slice(visibleCount);
+
   return (
-    <nav
-      className="flex-1 min-w-0 flex items-center gap-0.5 flex-wrap"
-      aria-label="Navegação principal"
-    >
-      {items.map((item) => {
-        if (!isGroup(item)) {
-          const showBadge = item.to === "/conversas" && conversasUnread > 0;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              className={({ isActive }) =>
-                cn(
-                  "relative inline-flex flex-col items-center justify-center gap-1 rounded-md px-3 py-1 min-w-[72px] text-[11px] leading-tight font-bold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isActive
+    <div ref={containerRef} className="flex-1 min-w-0 relative">
+      {/* Hidden measurement row — never visible, no layout impact */}
+      <div
+        ref={measureRef}
+        aria-hidden
+        className="flex items-center gap-0.5"
+        style={{
+          position: "absolute",
+          visibility: "hidden",
+          pointerEvents: "none",
+          left: -99999,
+          top: 0,
+        }}
+      >
+        {items.map(renderItem)}
+      </div>
+
+      <nav
+        className="flex items-center gap-0.5 flex-nowrap overflow-hidden"
+        aria-label="Navegação principal"
+      >
+        {visibleItems.map(renderItem)}
+
+        {overflowItems.length > 0 && (
+          <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex flex-col items-center justify-center gap-1 rounded-md px-3 py-1 min-w-[72px] text-[11px] leading-tight font-bold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  moreOpen
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )
-              }
-            >
-              <item.icon size={20} weight="fill" strokeWidth={2.25} className="flex-shrink-0" style={{ width: 20, height: 20 }} />
-              <span>{item.label}</span>
-              {showBadge && <ConversasBadgeDot count={conversasUnread} absolute />}
-            </NavLink>
-          );
-        }
-
-        const groupActive = item.children.some((c) =>
-          c.to === "/" ? location.pathname === "/" : location.pathname.startsWith(c.to),
-        );
-        const isOpen = openKey === item.label;
-
-        return (
-          <TopbarGroup
-            key={item.label}
-            item={item}
-            isOpen={isOpen}
-            isAnyOpen={openKey !== null}
-            groupActive={groupActive}
-            onOpen={() => setOpenKey(item.label)}
-            onToggle={() => setOpenKey(isOpen ? null : item.label)}
-            onClose={() => setOpenKey(null)}
-            currentPath={location.pathname}
-          />
-        );
-      })}
-    </nav>
+                )}
+                aria-label="Mais menus"
+              >
+                <Menu size={20} strokeWidth={2.25} className="flex-shrink-0" style={{ width: 20, height: 20 }} />
+                <span className="inline-flex items-center gap-0.5">
+                  Mais
+                  <ChevronDown
+                    className={cn("size-3 transition-transform duration-150", moreOpen && "rotate-180")}
+                    strokeWidth={1.75}
+                  />
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 max-h-[70vh] overflow-y-auto">
+              {overflowItems.map((it, idx) => {
+                if (!isGroup(it)) {
+                  return (
+                    <DropdownMenuItem
+                      key={it.to}
+                      onClick={() => {
+                        setMoreOpen(false);
+                        navigate(it.to);
+                      }}
+                    >
+                      <it.icon size={16} className="mr-2 flex-shrink-0" />
+                      <span className="truncate">{it.label}</span>
+                    </DropdownMenuItem>
+                  );
+                }
+                return (
+                  <div key={it.label}>
+                    {idx > 0 && <DropdownMenuSeparator />}
+                    <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
+                      {it.label}
+                    </DropdownMenuLabel>
+                    {it.children.map((c) => (
+                      <DropdownMenuItem
+                        key={c.to}
+                        onClick={() => {
+                          setMoreOpen(false);
+                          navigate(c.to);
+                        }}
+                      >
+                        <c.icon size={16} className="mr-2 flex-shrink-0" />
+                        <span className="truncate">{c.label}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </nav>
+    </div>
   );
 };
 

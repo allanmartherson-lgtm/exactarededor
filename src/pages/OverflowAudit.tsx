@@ -113,7 +113,7 @@ const Cell = ({
       <div className="flex items-center justify-between gap-2 px-2 py-1 text-[11px] bg-muted/50">
         <span className="font-mono">{result.width}×{result.height}</span>
         {result.status === "ok" && (
-          <Badge variant="outline" className="text-success-foreground border-success/40 bg-success/10">
+          <Badge variant="outline" className="text-success-text border-success/40 bg-success/10">
             <CheckCircle2 className="h-3 w-3 mr-1" /> sem overflow
           </Badge>
         )}
@@ -228,10 +228,10 @@ const OverflowAudit = () => {
             className="w-full font-mono text-xs border border-border rounded-md p-2 bg-background min-h-[120px]"
           />
           <div className="mt-2 flex gap-2 text-xs text-muted-foreground">
-            <span>OK: <strong className="text-success-foreground">{totals.ok ?? 0}</strong></span>
+            <span>OK: <strong className="text-success-text">{totals.ok ?? 0}</strong></span>
             <span>· Falhas: <strong className="text-destructive">{totals.fail ?? 0}</strong></span>
             <span>· Pendentes: <strong>{totals.pending ?? 0}</strong></span>
-            {totals.error ? <span>· Erros: <strong className="text-warning-foreground">{totals.error}</strong></span> : null}
+            {totals.error ? <span>· Erros: <strong className="text-warning-text">{totals.error}</strong></span> : null}
           </div>
         </CardContent>
       </Card>
@@ -246,7 +246,7 @@ const OverflowAudit = () => {
                 {failed ? (
                   <XCircle className="h-4 w-4 text-destructive" />
                 ) : (
-                  <CheckCircle2 className="h-4 w-4 text-success-foreground" />
+                  <CheckCircle2 className="h-4 w-4 text-success-text" />
                 )}
                 {route}
               </CardTitle>

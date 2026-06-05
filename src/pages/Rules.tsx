@@ -1650,7 +1650,7 @@ const Rules = () => {
               <div className="space-y-6 py-4">
                 {/* Alerta */}
                 <div className="space-y-3">
-                  <Label className="text-warning-foreground font-bold uppercase text-xs">Alerta Padrão (Amarelo)</Label>
+                  <Label className="text-warning-text font-bold uppercase text-xs">Alerta Padrão (Amarelo)</Label>
                   <div className="flex gap-3">
                     <div className="flex-1 space-y-1.5">
                       <Label className="text-[10px]">Tipo</Label>
@@ -2425,7 +2425,7 @@ const Rules = () => {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="rounded-md border border-warning/30 bg-warning-soft/10 p-3 space-y-3">
                                   <div className="flex items-center justify-between">
-                                    <Label className="text-warning-foreground font-bold">ALERTA (AMARELO)</Label>
+                                    <Label className="text-warning-text font-bold">ALERTA (AMARELO)</Label>
                                     <div className="flex items-center gap-1.5">
                                       <Checkbox id="alert-inherit" checked={fAlertInherit} onCheckedChange={(v) => setFAlertInherit(!!v)} />
                                       <Label htmlFor="alert-inherit" className="text-[10px] cursor-pointer">Usar valor global</Label>

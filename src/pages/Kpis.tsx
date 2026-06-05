@@ -209,7 +209,7 @@ const KpiCard = ({
   };
   const toneIcon: Record<string, string> = {
     muted: "text-muted-foreground", info: "text-info", success: "text-success",
-    warning: "text-warning-foreground", destructive: "text-destructive",
+    warning: "text-warning-text", destructive: "text-destructive",
   };
   return (
     <Card className={`shadow-card ${toneRing[tone]}`}>

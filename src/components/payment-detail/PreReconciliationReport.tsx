@@ -135,7 +135,7 @@ export function PreReconciliationReport({
             </div>
             <div className="border border-warning/30 rounded-lg p-3 bg-warning/5">
               <p className="text-[10px] uppercase text-muted-foreground">Sugestões pendentes</p>
-              <p className="text-xl font-bold text-warning-foreground">{buckets.linkedPending.length}</p>
+              <p className="text-xl font-bold text-warning-text">{buckets.linkedPending.length}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">não entram</p>
             </div>
             <div className="border border-destructive/30 rounded-lg p-3 bg-destructive/5">
@@ -188,7 +188,7 @@ export function PreReconciliationReport({
 
           {buckets.linkedPending.length > 0 && (
             <div>
-              <p className="text-xs font-semibold mb-1.5 text-warning-foreground">
+              <p className="text-xs font-semibold mb-1.5 text-warning-text">
                 Sugestões pendentes (clique em "Confirmar" antes para incluir)
               </p>
               <ul className="text-xs text-muted-foreground space-y-0.5 max-h-[120px] overflow-y-auto">

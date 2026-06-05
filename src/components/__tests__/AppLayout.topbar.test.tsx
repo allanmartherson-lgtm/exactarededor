@@ -33,12 +33,12 @@ vi.mock("@/contexts/ThemeContext", () => ({
 import { AppLayout } from "@/components/AppLayout";
 
 /**
- * Top-level entries in fixed order. Leaves (Dashboard, Meu Perfil) render
+ * Top-level entries in fixed order. Leaves (Dashboard) render
  * as NavLinks; groups render as buttons that open dropdown menus.
+ * "Meu Perfil" lives no menu do avatar, não na nav.
  */
 const EXPECTED_TOPBAR_TOP_LEVEL = [
   "Dashboard",
-  "Meu Perfil",
   "Financeiro",
   "Relatórios",
   "Inteligência de Regras",
@@ -131,7 +131,7 @@ describe("AppLayout topbar navigation", () => {
     renderLayout();
     const nav = screen.getByRole("navigation", { name: /navegação principal/i });
 
-    const collected: string[] = ["Dashboard", "Meu Perfil"];
+    const collected: string[] = ["Dashboard"];
 
     for (const groupLabel of Object.keys(EXPECTED_GROUP_CHILDREN)) {
       const trigger = within(nav).getByRole("button", { name: new RegExp(`^${groupLabel}$`) });
@@ -144,7 +144,6 @@ describe("AppLayout topbar navigation", () => {
 
     expect(collected).toEqual([
       "Dashboard",
-      "Meu Perfil",
       "Pagamentos",
       "Pedidos de NF",
       "Ciclo de NF",

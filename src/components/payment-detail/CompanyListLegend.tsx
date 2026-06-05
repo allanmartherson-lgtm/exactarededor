@@ -43,7 +43,7 @@ export const CompanyListLegend = () => {
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="flex items-center gap-1 cursor-default text-warning-foreground">⚠ Alerta</span>
+          <span className="flex items-center gap-1 cursor-default text-warning-text">⚠ Alerta</span>
         </TooltipTrigger>
         <TooltipContent><p className="text-xs">Itens com alerta — exigem revisão.</p></TooltipContent>
       </Tooltip>

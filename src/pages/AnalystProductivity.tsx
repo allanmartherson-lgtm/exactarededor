@@ -130,7 +130,7 @@ export default function AnalystProductivity() {
   const devBadge = (n: number) => {
     if (n === 0) return <Badge className="bg-success/15 text-success border-success/30">0</Badge>;
     if (n <= 2)
-      return <Badge className="bg-warning/15 text-warning-foreground border-warning/30">{n}</Badge>;
+      return <Badge className="bg-warning/15 text-warning-text border-warning/30">{n}</Badge>;
     return <Badge className="bg-destructive/15 text-destructive border-destructive/30">{n}</Badge>;
   };
 

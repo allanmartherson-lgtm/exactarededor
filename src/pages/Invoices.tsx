@@ -69,8 +69,8 @@ const daysSince = (iso: string | null) => {
 
 const ageColorClass = (days: number | null) => {
   if (days == null) return "text-muted-foreground";
-  if (days < 3) return "text-success-foreground";
-  if (days <= 7) return "text-warning-foreground";
+  if (days < 3) return "text-success-text";
+  if (days <= 7) return "text-warning-text";
   return "text-destructive";
 };
 
@@ -370,7 +370,7 @@ const Invoices = () => {
                             </span>
                           )}
                           {!i.sent_at && !i.send_error && (
-                            <span className="inline-flex items-center gap-1 flex-shrink-0 text-warning-foreground">
+                            <span className="inline-flex items-center gap-1 flex-shrink-0 text-warning-text">
                               <Clock className="h-3 w-3" aria-hidden /> aguardando envio
                             </span>
                           )}
