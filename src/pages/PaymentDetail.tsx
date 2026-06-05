@@ -275,7 +275,7 @@ const PaymentDetail = () => {
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
   const [companySearch, setCompanySearch] = useState("");
-  const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved" | "approved_strict">("all");
+  const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "validation" | "approved" | "approved_strict">("all");
   const [onlyRegIssues, setOnlyRegIssues] = useState(false);
   const [regIssueItemIds, setRegIssueItemIds] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -2744,6 +2744,19 @@ const PaymentDetail = () => {
                 <div className="h-1.5 w-1.5 rounded-full bg-current" />
                 Divergente
               </Button>
+              <Button
+                variant={criticalFilter === "validation" ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5",
+                  criticalFilter === "validation" ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "text-indigo-600"
+                )}
+                onClick={() => setCriticalFilter("validation")}
+                title="Mostrar apenas empresas com itens que dispararam regras de validação assistencial"
+              >
+                <span className="leading-none">⊛</span>
+                Alerta assistencial
+              </Button>
               <Select 
                 value={criticalFilter === "approved" || criticalFilter === "approved_strict" ? criticalFilter : undefined} 
                 onValueChange={(v) => setCriticalFilter(v as any)}
@@ -2827,6 +2840,7 @@ const PaymentDetail = () => {
               <span>
                 {criticalFilter === "no_rule" && "Mostrando apenas empresas com itens sem regra cadastrada."}
                 {criticalFilter === "divergent" && "Mostrando apenas empresas com divergência de valores."}
+                {criticalFilter === "validation" && "Mostrando apenas empresas com alertas de validação assistencial (sobreposição, duplicidade, etc.)."}
                 {criticalFilter === "approved" && "Mostrando apenas empresas aprovadas (considera justificativas/blacklists)."}
                 {criticalFilter === "approved_strict" && "Mostrando apenas empresas 100% limpas (sem alertas ou notas da IA)."}
                 {criticalFilter === "all" && payment.analysis_mode === "empresa_prioritaria" && "Modo empresa prioritária: apenas divergências visíveis."}
@@ -2883,6 +2897,10 @@ const PaymentDetail = () => {
                 }
                 if (criticalFilter === "divergent") {
                   return it.ai_status === "reprovado" || it.ai_status === "alerta";
+                }
+                if (criticalFilter === "validation") {
+                  const f = (it as unknown as { validation_findings?: unknown }).validation_findings;
+                  return Array.isArray(f) && f.length > 0;
                 }
                 if (criticalFilter === "approved") {
                   // Flexível: status aprovado (pode ter alertas informativos ou justificativas)
@@ -3031,6 +3049,10 @@ const PaymentDetail = () => {
               const errorOnlyFilter = (it: typeof groupItemsAll[number]) => {
                 if (criticalFilter === "no_rule") return it.ai_findings?.matched_priority === "sem_regra";
                 if (criticalFilter === "divergent") return it.ai_status === "reprovado" || it.ai_status === "alerta";
+                if (criticalFilter === "validation") {
+                  const f = (it as unknown as { validation_findings?: unknown }).validation_findings;
+                  return Array.isArray(f) && f.length > 0;
+                }
                 if (criticalFilter === "approved") {
                   return it.ai_status === "aprovado";
                 }
