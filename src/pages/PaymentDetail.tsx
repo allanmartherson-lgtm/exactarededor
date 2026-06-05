@@ -225,6 +225,10 @@ const PaymentDetail = () => {
   const [reprocessingAi, setReprocessingAi] = useState(false);
   const [skippedCompanies, setSkippedCompanies] = useState<Array<{ company_name: string; status: string }>>([]);
   const [validatingRules, setValidatingRules] = useState(false);
+  // Diálogo de "Fazer questionamento" — escopo lote ou empresa específica.
+  const [askQuestion, setAskQuestion] = useState<
+    null | { groupId?: string | null; companyName?: string | null }
+  >(null);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
   const [bulkConcludeOpen, setBulkConcludeOpen] = useState(false);
