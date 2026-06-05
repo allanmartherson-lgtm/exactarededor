@@ -2744,6 +2744,19 @@ const PaymentDetail = () => {
                 <div className="h-1.5 w-1.5 rounded-full bg-current" />
                 Divergente
               </Button>
+              <Button
+                variant={criticalFilter === "validation" ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5",
+                  criticalFilter === "validation" ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "text-indigo-600"
+                )}
+                onClick={() => setCriticalFilter("validation")}
+                title="Mostrar apenas empresas com itens que dispararam regras de validação assistencial"
+              >
+                <span className="leading-none">⊛</span>
+                Alerta assistencial
+              </Button>
               <Select 
                 value={criticalFilter === "approved" || criticalFilter === "approved_strict" ? criticalFilter : undefined} 
                 onValueChange={(v) => setCriticalFilter(v as any)}
