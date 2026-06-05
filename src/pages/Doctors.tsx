@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormDialog } from "@/components/FormDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Stethoscope, Plus, Trash2, Pencil, Upload, Download, Building2, X, IdCard, Phone, Mail, Briefcase, Tag } from "lucide-react";
+import { Stethoscope, Plus, Power, Pencil, Upload, Download, Building2, X, IdCard, Phone, Mail, Briefcase, Tag } from "lucide-react";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 import { formatCPF, isValidCPF, onlyDigits as cpfOnlyDigits } from "@/lib/cpf";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -41,6 +41,7 @@ const UFS = ["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","P
 
 interface Doctor {
   id: string;
+  code: string | null;
   full_name: string;
   crm: string;
   crm_uf: string;
@@ -57,7 +58,7 @@ interface Company { id: string; name: string; document: string | null; }
 interface Link { doctor_id: string; company_id: string; start_date: string | null; end_date: string | null; end_reason: string | null; }
 
 const empty: Doctor = {
-  id: "", full_name: "", crm: "", crm_uf: "", email: "", phone: "",
+  id: "", code: null, full_name: "", crm: "", crm_uf: "", email: "", phone: "",
   specialties: [], active: true, notes: "",
   cpf: "", birth_date: "", vinculo: "",
 };
@@ -99,6 +100,7 @@ export default function Doctors() {
   const [specInput, setSpecInput] = useState("");
   const [search, setSearch] = useState("");
   const [filterCompany, setFilterCompany] = useState<string>("");
+  const [showInactive, setShowInactive] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [companySearch, setCompanySearch] = useState("");
 
@@ -392,10 +394,17 @@ export default function Doctors() {
     }
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("Excluir médico?")) return;
-    const { error } = await supabase.from("doctors").delete().eq("id", id);
+  // Soft delete: exclusão física foi bloqueada por trigger no banco para preservar
+  // histórico de pagamentos, glosas e vínculos. Alternar active=true/false é o caminho.
+  const toggleActive = async (d: Doctor) => {
+    const next = !d.active;
+    const msg = next
+      ? `Reativar ${d.full_name}?`
+      : `Inativar ${d.full_name}?\n\nO cadastro fica preservado (histórico intacto) e pode ser reativado a qualquer momento.`;
+    if (!confirm(msg)) return;
+    const { error } = await supabase.from("doctors").update({ active: next } as any).eq("id", d.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: next ? "Médico reativado" : "Médico inativado" });
     load();
   };
 
@@ -414,30 +423,28 @@ export default function Doctors() {
 
   const filtered = useMemo(() => {
     const q = norm(search);
-    
-    // Se não há busca nem filtro de empresa, retornamos a lista completa (limitada visualmente no displayItems)
-    if (!q && !filterCompany) return items;
+    const base = showInactive ? items : items.filter((d) => d.active);
 
-    const results = items.filter((d) => {
-      // Filtro de empresa se estiver ativo
+    if (!q && !filterCompany) return base;
+
+    const results = base.filter((d) => {
       if (filterCompany) {
         const cids = linksByDoctor.get(d.id) ?? [];
         if (!cids.includes(filterCompany)) return false;
       }
-      
-      // Se não há termo de busca mas passou pelo filtro de empresa
       if (!q) return true;
-      
+
       const nameMatch = norm(d.full_name).includes(q);
       const crmMatch = norm(d.crm).includes(q);
+      const codeMatch = d.code ? norm(d.code).includes(q) : false;
       const emailMatch = d.email ? norm(d.email).includes(q) : false;
       const specMatch = (d.specialties ?? []).some(s => norm(s).includes(q));
-      
-      return nameMatch || crmMatch || emailMatch || specMatch;
+
+      return nameMatch || crmMatch || codeMatch || emailMatch || specMatch;
     });
 
     return results;
-  }, [items, search, filterCompany, linksByDoctor]);
+  }, [items, search, filterCompany, linksByDoctor, showInactive]);
 
   // Se houver busca, mostramos apenas os filtrados. 
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
@@ -488,6 +495,14 @@ export default function Doctors() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant={showInactive ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowInactive((s) => !s)}
+              title="Inclui médicos inativados (cadastro preservado, mas fora de uso)"
+            >
+              {showInactive ? "Ocultar inativos" : "Mostrar inativos"}
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
@@ -777,12 +792,17 @@ export default function Doctors() {
                   <div key={d.id} className="p-4 flex items-start justify-between gap-4 hover:bg-muted/30 transition-colors">
                     <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center">
                       <div className="sm:col-span-4 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Stethoscope className="h-4 w-4 text-muted-foreground shrink-0" />
                           <p className="font-semibold text-sm truncate" title={d.full_name}>{d.full_name}</p>
                           {!d.active && <Badge variant="outline" className="text-[10px] h-4">Inativo</Badge>}
                         </div>
-                        <p className="text-xs text-muted-foreground font-mono mt-1">{d.crm}/{d.crm_uf}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {d.code && (
+                            <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono">{d.code}</code>
+                          )}
+                          <p className="text-xs text-muted-foreground font-mono">{d.crm}/{d.crm_uf}</p>
+                        </div>
                       </div>
                       <div className="sm:col-span-4 min-w-0">
                         <div className="flex flex-wrap gap-1">
@@ -805,8 +825,14 @@ export default function Doctors() {
                       <Button variant="ghost" size="icon" onClick={() => openEdit(d)} className="h-8 w-8">
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => remove(d.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleActive(d)}
+                        className={`h-8 w-8 ${d.active ? "text-muted-foreground hover:text-destructive" : "text-muted-foreground hover:text-emerald-600"}`}
+                        title={d.active ? "Inativar (preserva histórico)" : "Reativar"}
+                      >
+                        <Power className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>

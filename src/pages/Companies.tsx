@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle, Wallet } from "lucide-react";
+import { Building2, Plus, Power, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle, Wallet } from "lucide-react";
 import { CompanyFinancialAdjustmentsDialog } from "@/components/CompanyFinancialAdjustmentsDialog";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { FormDialog } from "@/components/FormDialog";
@@ -22,15 +22,17 @@ import { dedupEmails, normalizeEmail, parseEmailList, tryAddEmail } from "@/lib/
 
 interface Company {
   id: string;
+  code: string | null;
   name: string;
   document: string | null;
   aliases: string[];
   notes: string | null;
+  active: boolean;
   /** E-mails de destino para pedidos de NF (TO). O e-mail do médico vai como CC. */
   invoice_emails: string[];
 }
 
-const empty: Company = { id: "", name: "", document: "", aliases: [], notes: "", invoice_emails: [] };
+const empty: Company = { id: "", code: null, name: "", document: "", aliases: [], notes: "", active: true, invoice_emails: [] };
 
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
@@ -68,6 +70,7 @@ const Companies = () => {
   const [aliasInput, setAliasInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [search, setSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importResults, setImportResults] = useState<{
@@ -162,10 +165,17 @@ const Companies = () => {
     setOpen(false); setEditing(empty); setAliasInput(""); setEmailInput(""); load();
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("Excluir empresa?")) return;
-    const { error } = await supabase.from("companies").delete().eq("id", id);
+  // Soft delete: exclusão física foi bloqueada por trigger no banco para preservar
+  // histórico de pagamentos, vínculos e financeiro. Use inativação.
+  const toggleActive = async (item: Company) => {
+    const next = !item.active;
+    const msg = next
+      ? `Reativar ${item.name}?`
+      : `Inativar ${item.name}?\n\nO cadastro fica preservado (histórico de pagamentos intacto) e pode ser reativado a qualquer momento.`;
+    if (!confirm(msg)) return;
+    const { error } = await supabase.from("companies").update({ active: next } as any).eq("id", item.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: next ? "Empresa reativada" : "Empresa inativada" });
     load();
   };
 
@@ -323,18 +333,32 @@ const Companies = () => {
     }
   };
 
-  const filtered = search.trim()
-    ? items.filter((c) =>
-        [c.name, c.document ?? "", ...(c.aliases ?? [])].join(" ").toLowerCase().includes(search.toLowerCase())
-      )
-    : items;
+  const filtered = useMemo(() => {
+    const base = showInactive ? items : items.filter((c) => c.active);
+    if (!search.trim()) return base;
+    const q = search.toLowerCase();
+    return base.filter((c) =>
+      [c.name, c.code ?? "", c.document ?? "", ...(c.aliases ?? [])]
+        .join(" ").toLowerCase().includes(q)
+    );
+  }, [items, search, showInactive]);
 
   return (
     <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
       <PageHeader title="Empresas" description="Cadastro de clínicas/PJs para reconhecimento automático nas planilhas." />
       <div className="p-4 md:p-8 w-full mx-auto space-y-4">
-          <div className="flex items-center justify-between gap-3">
-          <Input placeholder="Buscar por nome, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+            <Input placeholder="Buscar por nome, código, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
+            <Button
+              variant={showInactive ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowInactive((s) => !s)}
+              title="Inclui empresas inativadas (cadastro preservado, mas fora de uso)"
+            >
+              {showInactive ? "Ocultar inativas" : "Mostrar inativas"}
+            </Button>
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
               <Download className="h-4 w-4 mr-2" /> Modelo
@@ -495,18 +519,24 @@ const Companies = () => {
                   <div key={item.id} className="p-4 flex items-start justify-between gap-4 hover:bg-muted/30 transition-colors">
                     <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center">
                       <div className="sm:col-span-4 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <p className="font-semibold text-sm truncate" title={item.name}>{item.name}</p>
+                          {!item.active && <Badge variant="outline" className="text-[10px] h-4">Inativa</Badge>}
                         </div>
-                        {item.document && (
-                          <p className="text-xs text-muted-foreground font-mono flex items-center gap-1 mt-1">
-                            {item.document}
-                            {isValidCNPJ(item.document)
-                              ? <ShieldCheck className="h-3 w-3 text-emerald-600" />
-                              : <ShieldAlert className="h-3 w-3 text-destructive" />}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {item.code && (
+                            <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono">{item.code}</code>
+                          )}
+                          {item.document && (
+                            <span className="text-xs text-muted-foreground font-mono flex items-center gap-1">
+                              {item.document}
+                              {isValidCNPJ(item.document)
+                                ? <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                                : <ShieldAlert className="h-3 w-3 text-destructive" />}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="sm:col-span-4 min-w-0">
                         <div className="flex flex-wrap gap-1">
@@ -539,8 +569,14 @@ const Companies = () => {
                       <Button variant="ghost" size="icon" onClick={() => { setEditing(item); setOpen(true); }} className="h-8 w-8">
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => remove(item.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleActive(item)}
+                        className={`h-8 w-8 ${item.active ? "text-muted-foreground hover:text-destructive" : "text-muted-foreground hover:text-emerald-600"}`}
+                        title={item.active ? "Inativar (preserva histórico)" : "Reativar"}
+                      >
+                        <Power className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
