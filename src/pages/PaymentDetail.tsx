@@ -687,6 +687,29 @@ const PaymentDetail = () => {
   // é fila coletiva: qualquer validador pode assumir.
   const doSendForValidation = async (targets: typeof groups) => {
     if (!id || targets.length === 0) return;
+    // Gate: bloqueia envio enquanto houver médico provisório vinculado a
+    // qualquer item dos grupos selecionados. Admin precisa aprovar primeiro.
+    {
+      const groupIds = targets.map((g) => g.id);
+      const { data: pendingItems, error: pErr } = await supabase
+        .from("payment_items")
+        .select("doctor_id, doctors!inner(full_name, pending_admin_review)")
+        .eq("payment_id", id)
+        .eq("doctors.pending_admin_review", true)
+        .in("group_id" as any, groupIds)
+        .limit(50);
+      if (!pErr && pendingItems && pendingItems.length > 0) {
+        const names = Array.from(new Set(
+          pendingItems.map((it: any) => it.doctors?.full_name).filter(Boolean),
+        )).slice(0, 5);
+        toast({
+          title: "Envio bloqueado: cadastros provisórios pendentes",
+          description: `Aguardando aprovação do administrador para: ${names.join(", ")}${names.length >= 5 ? "…" : ""}.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     setBusy(true);
     await autoClaim();
     for (const g of targets) {
