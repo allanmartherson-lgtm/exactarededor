@@ -71,6 +71,12 @@ export function InternalThreadsSheet({
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  // Filtros avançados
+  const [query, setQuery] = useState("");
+  const [companyFilter, setCompanyFilter] = useState<string>("all"); // group_id | "all" | "lote"
+  const [userFilter, setUserFilter] = useState<string>("all");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
@@ -103,6 +109,19 @@ export function InternalThreadsSheet({
     [groups],
   );
 
+  // Lista única de autores envolvidos.
+  const authors = useMemo(() => {
+    const map = new Map<string, string>();
+    rows.forEach((r) => { if (!map.has(r.author_id)) map.set(r.author_id, r.author_name); });
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows]);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const hasAdvancedFilter =
+    !!normalizedQuery || companyFilter !== "all" || userFilter !== "all";
+
   const threads = useMemo(() => {
     const roots = rows.filter((r) => !r.parent_id);
     const childrenByParent = new Map<string, Row[]>();
@@ -116,18 +135,46 @@ export function InternalThreadsSheet({
     return roots
       .map((root) => ({ root, replies: childrenByParent.get(root.id) ?? [] }))
       .filter((t) => {
-        if (filter === "abertos") return t.root.status !== "encerrada";
-        if (filter === "encerrados") return t.root.status === "encerrada";
+        if (filter === "abertos" && t.root.status === "encerrada") return false;
+        if (filter === "encerrados" && t.root.status !== "encerrada") return false;
+
+        if (companyFilter === "lote" && t.root.company_group_id !== null) return false;
+        if (companyFilter !== "all" && companyFilter !== "lote" &&
+            t.root.company_group_id !== companyFilter) return false;
+
+        if (userFilter !== "all") {
+          const involved = t.root.author_id === userFilter ||
+            t.replies.some((r) => r.author_id === userFilter);
+          if (!involved) return false;
+        }
+
+        if (normalizedQuery) {
+          const haystack = [
+            t.root.message,
+            t.root.author_name,
+            groupName(t.root.company_group_id),
+            ...t.replies.map((r) => `${r.message} ${r.author_name}`),
+          ].join(" ").toLowerCase();
+          if (!haystack.includes(normalizedQuery)) return false;
+        }
+
         return true;
       })
       .sort((a, b) => (a.root.status === "encerrada" ? 1 : 0) - (b.root.status === "encerrada" ? 1 : 0) ||
         new Date(b.root.created_at).getTime() - new Date(a.root.created_at).getTime());
-  }, [rows, filter]);
+  }, [rows, filter, companyFilter, userFilter, normalizedQuery, groupName]);
 
   const openCount = useMemo(
     () => rows.filter((r) => !r.parent_id && r.status !== "encerrada").length,
     [rows],
   );
+  const totalRoots = useMemo(() => rows.filter((r) => !r.parent_id).length, [rows]);
+
+  const clearFilters = () => {
+    setQuery("");
+    setCompanyFilter("all");
+    setUserFilter("all");
+  };
 
   const toggle = (id: string) =>
     setExpanded((prev) => {
