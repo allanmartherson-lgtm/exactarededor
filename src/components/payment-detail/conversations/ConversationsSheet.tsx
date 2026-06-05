@@ -381,40 +381,18 @@ export function ConversationsSheet(props: Props) {
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full",
-                                STATUS_META[t.root.status].tone,
-                              )}
-                            >
+                            <Badge variant={STATUS_META[t.root.status].variant}>
                               {STATUS_META[t.root.status].label}
                             </Badge>
                             {t.root.company_group_id ? (
-                              <Badge
-                                variant="outline"
-                                className="text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full gap-1 bg-primary-soft text-primary-dark border-primary/30"
-                              >
-                                <Building2 className="h-2.5 w-2.5" /> Empresa
+                              <Badge variant="info">
+                                <Building2 className="h-3 w-3" /> Empresa
                               </Badge>
                             ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full bg-accent text-accent-foreground border-border"
-                              >
-                                Lote
-                              </Badge>
+                              <Badge variant="secondary">Lote</Badge>
                             )}
                             {sla && (
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full",
-                                  sla.tone,
-                                )}
-                              >
-                                {sla.label}
-                              </Badge>
+                              <Badge variant={sla.variant}>{sla.label}</Badge>
                             )}
                           </div>
                           <p className="text-[11.5px] text-chat-muted truncate pr-3">
