@@ -48,7 +48,7 @@ const SCOPE_LABEL: Record<Thread["scope"], string> = {
 };
 
 export default function Conversas() {
-  const [tab, setTab] = useState<"empresas" | "medicos">("empresas");
+  const [tab, setTab] = useState<"empresas" | "medicos" | "internas">("empresas");
   const [threads, setThreads] = useState<Thread[]>([]);
   const [companies, setCompanies] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
