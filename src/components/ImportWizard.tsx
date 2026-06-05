@@ -535,7 +535,113 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
-            {validation.itemsCreated.length > 0 && (
+            {validation.crmConflicts && validation.crmConflicts.length > 0 && (
+              <Section
+                icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
+                title={`Conflitos de CRM/UF — corrija no arquivo antes de importar (${validation.crmConflicts.length})`}
+              >
+                <p className="text-[11px] text-muted-foreground mb-2">
+                  CRMs idênticos aparecem com UFs diferentes (ou faltando). Padronize o campo
+                  "CRM" para o formato <code className="font-mono">28923/DF</code> ou preencha a
+                  coluna UF separadamente. A importação está bloqueada até a correção.
+                </p>
+                <div className="overflow-auto max-h-56 rounded-md border border-destructive/30">
+                  <table className="text-[11px] w-full border-collapse">
+                    <thead className="bg-destructive/5 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Origem</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">CRM</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">UFs encontradas</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Linhas afetadas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validation.crmConflicts.map((c, i) => (
+                        <tr key={i} className="even:bg-muted/20">
+                          <td className="px-2 py-1 border-b border-border">
+                            {c.source === "file" ? (
+                              <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-medium">No arquivo</span>
+                            ) : (
+                              <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px] font-medium">Vs. cadastro</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1 border-b border-border font-mono">{c.number}</td>
+                          <td className="px-2 py-1 border-b border-border font-mono">{c.ufs.join(", ")}</td>
+                          <td className="px-2 py-1 border-b border-border font-mono text-muted-foreground">
+                            {c.rows.slice(0, 8).map((r) => `L${r}`).join(", ")}
+                            {c.rows.length > 8 ? ` (+${c.rows.length - 8})` : ""}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+            )}
+
+            {validation.resolutionReport && validation.resolutionReport.length > 0 && (
+              <Section
+                icon={<CheckCircle2 className="h-4 w-4 text-success" />}
+                title={`Auditoria de resolução de CRM (${validation.resolutionReport.length})`}
+              >
+                <div className="grid grid-cols-3 gap-2 mb-2 text-[11px]">
+                  <Stat
+                    label="Match CRM+UF"
+                    value={validation.resolutionReport.filter((r) => r.method === "crm+uf").length}
+                    tone="success"
+                  />
+                  <Stat
+                    label="Match só por número"
+                    value={validation.resolutionReport.filter((r) => r.method === "crm-only").length}
+                    tone="warn"
+                  />
+                  <Stat
+                    label="Novo cadastro"
+                    value={validation.resolutionReport.filter((r) => r.method === "novo").length}
+                  />
+                </div>
+                <div className="overflow-auto max-h-72 rounded-md border border-border">
+                  <table className="text-[11px] w-full border-collapse">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Linha</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">CRM</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">UF</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Método</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Justificativa</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validation.resolutionReport.slice(0, 200).map((r, i) => (
+                        <tr key={i} className="even:bg-muted/20">
+                          <td className="px-2 py-1 border-b border-border font-mono text-muted-foreground">L{r.row}</td>
+                          <td className="px-2 py-1 border-b border-border font-mono">{r.crm}</td>
+                          <td className="px-2 py-1 border-b border-border font-mono">{r.uf ?? "—"}</td>
+                          <td className="px-2 py-1 border-b border-border">
+                            {r.method === "crm+uf" && (
+                              <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] font-medium">CRM+UF</span>
+                            )}
+                            {r.method === "crm-only" && (
+                              <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-medium">Só número</span>
+                            )}
+                            {r.method === "novo" && (
+                              <span className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded text-[10px] font-medium">Novo</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1 border-b border-border text-muted-foreground">{r.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {validation.resolutionReport.length > 200 && (
+                  <p className="text-[10px] text-muted-foreground mt-2 italic text-center">
+                    Mostrando 200 de {validation.resolutionReport.length} linhas.
+                  </p>
+                )}
+              </Section>
+            )}
+
               <Section icon={<CheckCircle2 className="h-4 w-4 text-success" />} title="Itens que serão criados (prévia detalhada)">
                 <div className="overflow-auto max-h-80 rounded-md border border-border">
                   <table className="text-[10px] w-full border-collapse">
