@@ -962,6 +962,7 @@ export function ItemsDataGrid({
               <col style={{ width: 240 }} />
               {colVis.setor_lido && <col style={{ width: 140 }} />}
               {colVis.setor_inferido && <col style={{ width: 140 }} />}
+              {colVis.tipo_entrada && <col style={{ width: 130 }} />}
               <col style={{ width: 180 }} />
               {colVis.funcao && <col style={{ width: 120 }} />}
               {colVis.regra && <col style={{ width: 180 }} />}
