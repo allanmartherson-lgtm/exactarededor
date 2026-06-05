@@ -113,7 +113,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
       { data: qs },
       { data: as },
     ] = await Promise.all([
-      supabase.from("payments").select("*").eq("id", id).abortSignal(ac.signal).single(),
+      supabase.from("payments").select("*").eq("id", id).abortSignal(ac.signal).maybeSingle(),
       (async () => {
         // Paginar itens — PostgREST tem teto server-side (~1000) por requisição,
         // independente do .limit() solicitado. Sem paginar, lotes grandes ficam
