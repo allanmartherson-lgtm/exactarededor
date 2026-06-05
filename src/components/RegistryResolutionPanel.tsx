@@ -108,6 +108,7 @@ function ResolutionRow({
   sectorReg: SectorRegistry;
   onResolved: () => Promise<void>;
 }) {
+  const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
