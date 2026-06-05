@@ -583,8 +583,59 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
                     </tbody>
                   </table>
                 </div>
+
+                {/* Atribuição em massa de UF — resolve conflitos sem reabrir o arquivo */}
+                <div className="mt-3 rounded-md border border-border bg-muted/20 p-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-medium">Atribuir UF em massa</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px]"
+                      onClick={() => runValidation()}
+                      disabled={busy}
+                    >
+                      Revalidar com atribuições
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mb-2">
+                    Defina a UF correta para cada CRM em conflito. A atribuição só preenche
+                    linhas sem UF — valores explícitos no arquivo são preservados. Clique em
+                    "Revalidar" para reaplicar e liberar a importação.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {validation.crmConflicts.map((c, i) => {
+                      const options = Array.from(new Set(c.ufs.filter((u) => u && u !== "(sem UF)")));
+                      const current = ufOverrides[c.number] ?? "";
+                      return (
+                        <div key={`ov-${i}`} className="flex items-center gap-2 text-[11px]">
+                          <span className="font-mono w-24 truncate" title={`CRM ${c.number}`}>CRM {c.number}</span>
+                          <select
+                            value={current}
+                            onChange={(e) =>
+                              setUfOverrides((prev) => {
+                                const next = { ...prev };
+                                if (e.target.value) next[c.number] = e.target.value;
+                                else delete next[c.number];
+                                return next;
+                              })
+                            }
+                            className="h-7 flex-1 rounded-md border border-input bg-background px-2 text-[11px]"
+                          >
+                            <option value="">— não atribuir —</option>
+                            {options.map((u) => (
+                              <option key={u} value={u}>{u}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </Section>
             )}
+
 
             {validation.resolutionReport && validation.resolutionReport.length > 0 && (
               <Section
