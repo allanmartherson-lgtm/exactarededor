@@ -380,20 +380,27 @@ export function ConversationsSheet(props: Props) {
                               {format(new Date(t.lastActivityAt), "dd/MM HH:mm", { locale: ptBR })}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <Badge variant={STATUS_META[t.root.status].variant}>
-                              {STATUS_META[t.root.status].label}
-                            </Badge>
-                            {t.root.company_group_id ? (
-                              <Badge variant="info">
-                                <Building2 className="h-3 w-3" /> Empresa
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary">Lote</Badge>
-                            )}
-                            {sla && (
-                              <Badge variant={sla.variant}>{sla.label}</Badge>
-                            )}
+                          <div className="flex items-center gap-x-1.5 gap-y-1 flex-wrap max-h-[46px] overflow-hidden">
+                            {(() => {
+                              const pillCls = "rounded-full ring-1 ring-border/60 shadow-sm";
+                              return (
+                                <>
+                                  <Badge variant={STATUS_META[t.root.status].variant} className={pillCls}>
+                                    {STATUS_META[t.root.status].label}
+                                  </Badge>
+                                  {t.root.company_group_id ? (
+                                    <Badge variant="info" className={pillCls}>
+                                      <Building2 className="h-3 w-3" /> Empresa
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className={pillCls}>Lote</Badge>
+                                  )}
+                                  {sla && (
+                                    <Badge variant={sla.variant} className={pillCls}>{sla.label}</Badge>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                           <p className="text-[11.5px] text-chat-muted truncate pr-3">
                             <span className="text-chat-text/70">{lastMsg.author_name}:</span>{" "}
