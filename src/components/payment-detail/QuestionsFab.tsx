@@ -25,7 +25,7 @@ export function QuestionsFab({ openCount, onClick, className }: Props) {
         onClick={onClick}
         size="lg"
         className={cn(
-          "h-14 pl-5 pr-6 rounded-full shadow-elegant gap-2",
+          "h-14 pl-5 pr-6 rounded-full shadow-elevated gap-2 ring-1 ring-primary/20",
           "bg-primary text-primary-foreground hover:bg-primary/90",
         )}
       >
