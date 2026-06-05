@@ -1224,8 +1224,11 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
         else if (falsy.includes(s)) base[f.key] = false;
         else base[f.key] = def;
       } else if (f.type === "array") {
+        // Divide APENAS por separadores explícitos (,  ;  |). Nunca por espaço
+        // ou barra — nomes de especialidade contêm espaços ("Clínica Médica",
+        // "Ortopedia e Traumatologia") e barras ("Radiologia / Diagnóstico").
         const s = String(raw ?? "").trim();
-        base[f.key] = s ? s.split(/[,;|/\s]+/).map((x) => x.trim()).filter(Boolean) : [];
+        base[f.key] = s ? s.split(/[,;|]+/).map((x) => x.trim()).filter(Boolean) : [];
       } else base[f.key] = raw == null ? (f.defaultValue ?? null) : String(raw).trim();
     }
 
