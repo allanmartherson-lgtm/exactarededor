@@ -10,7 +10,7 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* ── Superfícies ─────────────────────────────────────── */
-    --background: 0 0% 98%;              /* neutro quase-branco */
+    --background: 60 8% 95%;             /* off-white levemente cinza p/ contraste com cards brancos */
     --foreground: 214 28% 7%;            /* #0D1117 quase-preto (ink) */
 
     --card: 0 0% 100%;                   /* #FFFFFF */
@@ -83,9 +83,9 @@ All colors MUST be HSL.
     --radius: 0.5rem;
 
     /* ── Sombras ────────────────────────────────────────── */
-    --shadow-soft: 0 1px 2px 0 rgb(13 17 23 / 0.04), 0 1px 3px 0 rgb(13 17 23 / 0.03);
-    --shadow-card: 0 1px 3px 0 rgb(13 17 23 / 0.05), 0 1px 2px -1px rgb(13 17 23 / 0.05);
-    --shadow-elevated: 0 4px 6px -1px rgb(13 17 23 / 0.07), 0 2px 4px -2px rgb(13 17 23 / 0.05);
+    --shadow-soft: 0 1px 2px 0 rgb(13 17 23 / 0.06), 0 1px 3px 0 rgb(13 17 23 / 0.05);
+    --shadow-card: 0 1px 2px 0 rgb(13 17 23 / 0.06), 0 2px 6px -1px rgb(13 17 23 / 0.08), 0 4px 12px -2px rgb(13 17 23 / 0.06);
+    --shadow-elevated: 0 4px 8px -1px rgb(13 17 23 / 0.1), 0 8px 20px -4px rgb(13 17 23 / 0.08);
     --shadow-inset: inset 0 1px 2px rgb(13 17 23 / 0.04);
     --shadow-control: 0 1px 2px rgb(13 17 23 / 0.04);
     --gradient-brand: linear-gradient(135deg, hsl(164 33% 26%), hsl(165 33% 36%));
