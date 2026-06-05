@@ -44,9 +44,21 @@ export function useConversasUnread(): number {
 
     void load();
     const id = window.setInterval(load, 60_000);
+
+    // Realtime: recarrega imediatamente quando há nova payment_question,
+    // nova leitura, mudança em company_threads ou doctor_messages.
+    const channel = supabase
+      .channel("conversas-unread-counter")
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_questions" }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_question_reads" }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "company_threads" }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_messages" }, () => void load())
+      .subscribe();
+
     return () => {
       cancelled = true;
       window.clearInterval(id);
+      void supabase.removeChannel(channel);
     };
   }, []);
 

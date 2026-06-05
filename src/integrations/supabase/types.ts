@@ -3799,6 +3799,35 @@ export type Database = {
           },
         ]
       }
+      payment_question_reads: {
+        Row: {
+          id: string
+          message_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          message_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          message_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_question_reads_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "payment_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_questions: {
         Row: {
           answered_at: string | null
