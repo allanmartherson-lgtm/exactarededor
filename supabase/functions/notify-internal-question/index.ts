@@ -45,8 +45,10 @@ interface Body {
   /** "created" (pergunta nova) ou "resolved" (pergunta respondida). */
   event: EventKind;
   payment_id: string;
-  /** id da observação que é a pergunta. */
+  /** id da pergunta (em payment_questions ou payment_observations, conforme `source`). */
   question_observation_id: string;
+  /** Tabela de origem. Default: payment_observations (compat). */
+  source?: "payment_questions" | "payment_observations";
   /** Papel de quem perguntou — usado para roteamento quando não há recipient_roles. */
   asker_role?: Role | null;
   /** Override opcional: papéis a notificar. Se ausente, usa matriz. */
@@ -54,6 +56,7 @@ interface Body {
   /** Para "resolved": id do usuário que respondeu (não recebe notificação). */
   responder_id?: string | null;
 }
+
 
 /** Resolve papéis-alvo a partir do papel de quem perguntou + status do lote. */
 export function defaultRecipientsForCreated(
