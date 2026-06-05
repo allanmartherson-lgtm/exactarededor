@@ -349,7 +349,7 @@ export function InternalThreadsSheet({
             </div>
           ) : (
             threads.map(({ root, replies: rep }) => {
-              const isOpen = expanded.has(root.id);
+              const isOpen = expanded.has(root.id) || !!normalizedQuery;
               const closed = root.status === "encerrada";
               return (
                 <div
