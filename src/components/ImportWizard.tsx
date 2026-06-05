@@ -1215,7 +1215,14 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
       else if (f.type === "boolean") {
         const s = String(raw ?? "").toLowerCase().trim();
         const def = f.defaultValue !== undefined ? f.defaultValue : false;
-        base[f.key] = raw == null ? def : ["1", "true", "sim", "s", "yes", "y", "ativo"].includes(s);
+        // Aceita variantes comuns de "ativo": "A" (Tasy), "ATIVO", "ATIV", "ACTIVE", etc.
+        // Importante: "A" sozinho (situação médico no Tasy) precisa virar true.
+        const truthy = ["1", "true", "sim", "s", "yes", "y", "a", "at", "ativ", "ativo", "active"];
+        const falsy = ["0", "false", "nao", "não", "n", "no", "i", "in", "inat", "inativo", "inactive"];
+        if (raw == null || s === "") base[f.key] = def;
+        else if (truthy.includes(s)) base[f.key] = true;
+        else if (falsy.includes(s)) base[f.key] = false;
+        else base[f.key] = def;
       } else if (f.type === "array") {
         const s = String(raw ?? "").trim();
         base[f.key] = s ? s.split(/[,;|/\s]+/).map((x) => x.trim()).filter(Boolean) : [];
