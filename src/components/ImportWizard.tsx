@@ -82,6 +82,8 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     duplicates: { row: number; key: string }[];
     sample: any[];
     itemsCreated: { row: number; code: string; name: string; amount: number; role: string; sourceCol: string }[];
+    crmConflicts?: { number: string; ufs: string[]; rows: number[]; source: "file" | "registry" }[];
+    resolutionReport?: { row: number; crm: string; uf: string | null; method: "crm+uf" | "crm-only" | "novo"; reason: string }[];
   } | null>(null);
   const [result, setResult] = useState<CommitResult | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>("append");
