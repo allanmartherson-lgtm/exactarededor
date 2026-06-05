@@ -3148,6 +3148,20 @@ const PaymentDetail = () => {
                     hasReconciliationRun={hasReconciliationRun}
                     onOpenConciliation={() => openCompanyConciliation(g.company_name)}
                   />
+                  {(isAnalista || isValidador || isDiretor) && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
+                        title={`Fazer questionamento sobre ${g.company_name}`}
+                        onClick={() => setAskQuestion({ groupId: g.id, companyName: g.company_name })}
+                      >
+                        <MessageCircleQuestion className="h-3.5 w-3.5 mr-1" />
+                        Fazer questionamento
+                      </Button>
+                    </div>
+                  )}
                   {expandedGroups.has(g.id) && (
                     <PrivateCompanyNote
                       note={privateNotes[g.id]?.note ?? ""}
