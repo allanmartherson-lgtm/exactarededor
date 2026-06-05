@@ -260,6 +260,36 @@ All colors MUST be HSL.
     --sidebar-border: 214 14% 16%;
     --sidebar-ring: 38 47% 61%;
   }
+
+  /* ============================================================
+   * High-contrast mode — toggle via ThemeContext (.contrast-high).
+   * Aumenta separação card/fundo, bordas e sombras em ambos os temas.
+   * ============================================================ */
+  .contrast-high {
+    --background: 220 14% 90%;
+    --card: 0 0% 100%;
+    --border: 214 16% 72%;
+    --border-strong: 214 18% 58%;
+    --border-highlight: 214 20% 50%;
+    --shadow-soft: 0 1px 2px 0 rgb(13 17 23 / 0.10), 0 2px 4px 0 rgb(13 17 23 / 0.08);
+    --shadow-card: 0 2px 4px 0 rgb(13 17 23 / 0.10), 0 4px 10px -2px rgb(13 17 23 / 0.12), 0 8px 20px -4px rgb(13 17 23 / 0.10);
+    --shadow-elevated: 0 8px 16px -2px rgb(13 17 23 / 0.18), 0 12px 28px -6px rgb(13 17 23 / 0.14);
+    --shadow-hover: 0 4px 12px rgb(13 17 23 / 0.12);
+  }
+
+  .dark.contrast-high {
+    --background: 214 32% 4%;
+    --card: 214 18% 17%;                 /* +13% L vs background — separação forte */
+    --popover: 214 18% 19%;
+    --border: 214 14% 32%;
+    --border-strong: 214 12% 44%;
+    --border-highlight: 214 16% 40%;
+    --input: 214 12% 40%;
+    --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.6), 0 2px 4px 0 rgb(0 0 0 / 0.4);
+    --shadow-card: 0 2px 4px 0 rgb(0 0 0 / 0.6), 0 4px 10px -2px rgb(0 0 0 / 0.5), 0 8px 20px -4px rgb(0 0 0 / 0.4);
+    --shadow-elevated: 0 8px 18px -2px rgb(0 0 0 / 0.7), 0 12px 28px -6px rgb(0 0 0 / 0.55);
+    --shadow-hover: 0 6px 16px rgb(0 0 0 / 0.55);
+  }
 }
 
 @layer base {
