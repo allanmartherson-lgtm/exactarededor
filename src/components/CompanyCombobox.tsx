@@ -96,21 +96,66 @@ export function CompanyCombobox({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          className={cn("justify-between font-normal", !value && "text-muted-foreground", className)}
-        >
-          <span className="truncate text-left" title={value ? (showDocumentInTrigger && value.document ? `${value.name} · ${formatCNPJ(value.document)}` : value.name) : placeholder}>
-            {value
-              ? showDocumentInTrigger && value.document
-                ? `${value.name} · ${formatCNPJ(value.document)}`
-                : value.name
-              : placeholder}
-          </span>
-          <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
-        </Button>
+        {prominent ? (
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            size="sm"
+            className={cn(
+              "h-10 gap-2.5 pl-2.5 pr-2.5 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-colors justify-between font-normal",
+              className,
+            )}
+            aria-label="Filtrar por empresa"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary shrink-0">
+                <Building2 className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex flex-col items-start leading-tight min-w-0">
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Empresa
+                </span>
+                <span
+                  className={cn(
+                    "truncate max-w-[220px] text-sm font-medium",
+                    !value && "text-muted-foreground font-normal",
+                  )}
+                  title={
+                    value
+                      ? showDocumentInTrigger && value.document
+                        ? `${value.name} · ${formatCNPJ(value.document)}`
+                        : value.name
+                      : placeholder
+                  }
+                >
+                  {value
+                    ? showDocumentInTrigger && value.document
+                      ? `${value.name} · ${formatCNPJ(value.document)}`
+                      : value.name
+                    : placeholder}
+                </span>
+              </div>
+            </div>
+            <ChevronsUpDown className="h-3.5 w-3.5 opacity-60 ml-0.5 shrink-0" />
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            className={cn("justify-between font-normal", !value && "text-muted-foreground", className)}
+          >
+            <span className="truncate text-left" title={value ? (showDocumentInTrigger && value.document ? `${value.name} · ${formatCNPJ(value.document)}` : value.name) : placeholder}>
+              {value
+                ? showDocumentInTrigger && value.document
+                  ? `${value.name} · ${formatCNPJ(value.document)}`
+                  : value.name
+                : placeholder}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent className={cn("w-[360px] p-0 max-w-[calc(100vw-2rem)]", className?.includes("w-") && "w-auto")} align="start">
         <Command shouldFilter={false}>
