@@ -29,7 +29,7 @@ function relativeTime(d: Date): string {
 
 const KIND_ICON = {
   info: { Icon: Info, cls: "text-info" },
-  warning: { Icon: AlertTriangle, cls: "text-warning-foreground" },
+  warning: { Icon: AlertTriangle, cls: "text-warning-text" },
   success: { Icon: CheckCircle2, cls: "text-success" },
   question: { Icon: MessageCircleQuestion, cls: "text-info" },
 } as const;

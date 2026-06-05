@@ -375,7 +375,7 @@ export function PaymentBatchActionsFooter({
               </ul>
             </div>
             <div>
-              <p className="font-medium mb-1 text-warning-foreground">Ficam pendentes ({pending.length})</p>
+              <p className="font-medium mb-1 text-warning-text">Ficam pendentes ({pending.length})</p>
               <ul className="text-xs space-y-0.5 max-h-32 overflow-y-auto border rounded p-2">
                 {pending.map((g) => (
                   <li key={g.id}>• {g.company_name} — {String(g.status)}</li>

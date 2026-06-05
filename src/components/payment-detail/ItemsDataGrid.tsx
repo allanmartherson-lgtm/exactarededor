@@ -912,7 +912,7 @@ export function ItemsDataGrid({
                           )}
                         </span>
                         {expected != null && (
-                          <span className={cn("tabular-nums text-[11px]", diverges ? "text-warning-foreground" : "text-muted-foreground")}>
+                          <span className={cn("tabular-nums text-[11px]", diverges ? "text-warning-text" : "text-muted-foreground")}>
                             esp. {formatCurrency(Number(expected))}
                           </span>
                         )}
@@ -1299,7 +1299,7 @@ export function ItemsDataGrid({
                           footPad,
                           "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap",
                           totals.diferenca != null && Math.abs(totals.diferenca) > 0.01
-                            ? totals.diferenca < 0 ? "text-warning-foreground" : "text-success"
+                            ? totals.diferenca < 0 ? "text-warning-text" : "text-success"
                             : "text-muted-foreground",
                         )}
                       >
@@ -1539,7 +1539,7 @@ function RowMain({
             cellPad,
             TEXT_BODY,
             "text-right tabular-nums whitespace-nowrap border-b font-medium",
-            isBonus ? "text-muted-foreground" : (diverges ? "text-warning-foreground" : "text-foreground"),
+            isBonus ? "text-muted-foreground" : (diverges ? "text-warning-text" : "text-foreground"),
             baseCellBg,
           )}
         >
@@ -1551,7 +1551,7 @@ function RowMain({
               cellPad,
               TEXT_BODY,
               "text-right tabular-nums whitespace-nowrap border-b",
-              isBonus ? "text-muted-foreground" : (diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground"),
+              isBonus ? "text-muted-foreground" : (diff != null && diverges ? (diff < 0 ? "text-warning-text" : "text-success") : "text-muted-foreground"),
               baseCellBg,
             )}
           >
@@ -2191,7 +2191,7 @@ function ItemDetailsRow({
                     {diff != null && Math.abs(diff) > 0.01 && (
                       <div className="col-span-2 min-w-0">
                         <Label>Diferença</Label>
-                        <p className={cn("tabular-nums font-medium mt-0.5", diff < 0 ? "text-warning-foreground" : "text-success")}>
+                        <p className={cn("tabular-nums font-medium mt-0.5", diff < 0 ? "text-warning-text" : "text-success")}>
                           {diff > 0 ? "+" : ""}{formatCurrency(diff)}
                           {diffPct != null && (
                             <span className="ml-1">({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</span>
