@@ -768,7 +768,17 @@ function buildImportPayload(
     const rec: Record<string, any> = { ...r, ...fixed };
     if (entity === "reference_table_items" && (rec.code == null || rec.code === "") && rec.package_id) rec.code = String(rec.package_id);
     if (entity === "doctors") {
-      if (typeof rec.crm === "string") rec.crm = rec.crm.replace(/\D/g, "");
+      // Aceita CRM unificado ("28923/DF") ou separado. Se UF vier embutida no
+      // campo CRM, extrai automaticamente quando crm_uf não foi mapeado.
+      if (typeof rec.crm === "string") {
+        const raw = rec.crm.toUpperCase().trim();
+        const ufMatch = raw.match(/\b([A-Z]{2})\b/);
+        const digits = raw.replace(/\D/g, "");
+        rec.crm = digits;
+        if (ufMatch && (!rec.crm_uf || String(rec.crm_uf).trim() === "")) {
+          rec.crm_uf = ufMatch[1];
+        }
+      }
       if (typeof rec.crm_uf === "string") rec.crm_uf = rec.crm_uf.toUpperCase().trim();
     }
     return rec;
@@ -949,9 +959,19 @@ function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportPr
     }
 
     if (entity === "doctors") {
-      if (r.crm && !/^\d+$/.test(String(r.crm).replace(/[\s.-]/g, ''))) {
-        errors.push({ row: rowNum, reason: `CRM deve conter apenas números: ${r.crm}` });
-        return;
+      // CRM pode vir unificado ("28923/DF") ou só números. Aceita ambos.
+      if (r.crm) {
+        const raw = String(r.crm).toUpperCase().trim();
+        const digits = raw.replace(/\D/g, "");
+        const rest = raw.replace(/\d/g, "").replace(/[\s./\-]/g, "");
+        if (!digits) {
+          errors.push({ row: rowNum, reason: `CRM sem número: ${r.crm}` });
+          return;
+        }
+        if (rest && !/^[A-Z]{2}$/.test(rest)) {
+          errors.push({ row: rowNum, reason: `CRM inválido (esperado número ou número/UF): ${r.crm}` });
+          return;
+        }
       }
       if (r.crm_uf && !/^[A-Z]{2}$/i.test(String(r.crm_uf).trim())) {
         errors.push({ row: rowNum, reason: `UF inválida: ${r.crm_uf}` });

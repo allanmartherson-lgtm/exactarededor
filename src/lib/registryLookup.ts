@@ -17,13 +17,15 @@ export type DoctorRegistryEntry = {
   id: string;
   full_name: string;
   crm: string | null;
+  crm_uf: string | null;
   cpf: string | null;
 };
 export type ConvenioRegistryEntry = { slug: string; name: string };
 export type SectorRegistryEntry = { slug: string; name: string };
 
 export type DoctorRegistry = {
-  byCrm: Map<string, DoctorRegistryEntry>;
+  byCrm: Map<string, DoctorRegistryEntry>; // só dígitos (UF desconhecida)
+  byCrmUf: Map<string, DoctorRegistryEntry>; // chave "<digitos>/<UF>" — match preciso
   byCpf: Map<string, DoctorRegistryEntry>;
   byAlias: Map<string, DoctorRegistryEntry>; // covers full_name (seeded) + aliases
 };
@@ -48,12 +50,30 @@ export function normalize(text: string | null | undefined): string {
 
 const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
 
+/**
+ * Aceita CRM em formato unificado ("28923/DF", "28923-DF", "28923 DF",
+ * "CRM/DF 28923") ou só números ("28923"). Retorna {number, uf}.
+ * uf vazio quando não foi possível detectar.
+ */
+export function parseCrm(raw: string | null | undefined): { number: string; uf: string } {
+  const s = String(raw ?? "").toUpperCase().trim();
+  if (!s) return { number: "", uf: "" };
+  // tenta capturar UF de 2 letras em qualquer posição
+  const ufMatch = s.match(/\b([A-Z]{2})\b/);
+  const number = s.replace(/\D/g, "");
+  const uf = ufMatch ? ufMatch[1] : "";
+  return { number, uf };
+}
+
+const crmUfKey = (number: string, uf: string | null | undefined) =>
+  `${number}/${String(uf ?? "").toUpperCase().trim()}`;
+
 // ====== loaders ======
 
 export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
-  const reg: DoctorRegistry = { byCrm: new Map(), byCpf: new Map(), byAlias: new Map() };
+  const reg: DoctorRegistry = { byCrm: new Map(), byCrmUf: new Map(), byCpf: new Map(), byAlias: new Map() };
   const [{ data: docs }, { data: aliases }] = await Promise.all([
-    supabase.from("doctors").select("id, full_name, crm, cpf").eq("active", true),
+    supabase.from("doctors").select("id, full_name, crm, crm_uf, cpf").eq("active", true),
     supabase.from("doctor_aliases").select("doctor_id, alias_normalized"),
   ]);
   const byId = new Map<string, DoctorRegistryEntry>();
@@ -62,11 +82,15 @@ export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
       id: (d as any).id,
       full_name: (d as any).full_name,
       crm: (d as any).crm ?? null,
+      crm_uf: (d as any).crm_uf ?? null,
       cpf: (d as any).cpf ?? null,
     };
     byId.set(e.id, e);
     const crm = onlyDigits(e.crm);
-    if (crm) reg.byCrm.set(crm, e);
+    if (crm) {
+      reg.byCrm.set(crm, e);
+      if (e.crm_uf) reg.byCrmUf.set(crmUfKey(crm, e.crm_uf), e);
+    }
     const cpf = onlyDigits(e.cpf);
     if (cpf) reg.byCpf.set(cpf, e);
     const nameKey = normalize(e.full_name);
@@ -126,12 +150,20 @@ export async function loadSectorRegistry(): Promise<SectorRegistry> {
 // ====== resolvers (puros, sem inferência) ======
 
 export function resolveDoctor(
-  input: { name?: string | null; crm?: string | null; cpf?: string | null },
+  input: { name?: string | null; crm?: string | null; crm_uf?: string | null; cpf?: string | null },
   reg: DoctorRegistry,
 ): { doctor: DoctorRegistryEntry | null; matched_by: MatchedBy } {
-  const crm = onlyDigits(input.crm);
-  if (crm) {
-    const e = reg.byCrm.get(crm);
+  // CRM aceita formato unificado ("28923/DF") ou separado (crm + crm_uf)
+  const parsed = parseCrm(input.crm);
+  const number = parsed.number;
+  const uf = (input.crm_uf || parsed.uf || "").toUpperCase().trim();
+  if (number) {
+    if (uf) {
+      const e = reg.byCrmUf.get(crmUfKey(number, uf));
+      if (e) return { doctor: e, matched_by: "crm" };
+    }
+    // fallback: match só por número (UF desconhecida em uma das pontas)
+    const e = reg.byCrm.get(number);
     if (e) return { doctor: e, matched_by: "crm" };
   }
   const cpf = onlyDigits(input.cpf);
@@ -143,8 +175,6 @@ export function resolveDoctor(
   if (nameKey) {
     const e = reg.byAlias.get(nameKey);
     if (e) {
-      // Heurística: se a chave também é o full_name normalizado, considera "name";
-      // caso contrário, foi via alias cadastrado.
       const matched_by: MatchedBy = normalize(e.full_name) === nameKey ? "name" : "alias";
       return { doctor: e, matched_by };
     }
