@@ -135,7 +135,13 @@ export function ConversasInternasTab() {
         status: root.status,
       });
     });
-    out.sort((a, b) => b.lastAt.localeCompare(a.lastAt));
+    // Prioriza threads com mensagens não lidas; em seguida, ordena pela mais recente.
+    out.sort((a, b) => {
+      const aHas = a.unread > 0 ? 1 : 0;
+      const bHas = b.unread > 0 ? 1 : 0;
+      if (aHas !== bHas) return bHas - aHas;
+      return b.lastAt.localeCompare(a.lastAt);
+    });
     return out;
   }, [rows, reads, payments, user]);
 
