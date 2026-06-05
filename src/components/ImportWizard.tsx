@@ -632,7 +632,13 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Button>
               <Button
                 onClick={runCommit}
-                disabled={busy || validation.summary.valid === 0 || (importMode === "replace" && replaceConfirm.trim().toUpperCase() !== "SUBSTITUIR")}
+                disabled={
+                  busy ||
+                  validation.summary.valid === 0 ||
+                  (importMode === "replace" && replaceConfirm.trim().toUpperCase() !== "SUBSTITUIR") ||
+                  (validation.crmConflicts && validation.crmConflicts.length > 0)
+                }
+                title={validation.crmConflicts && validation.crmConflicts.length > 0 ? "Resolva os conflitos de CRM/UF antes de importar" : undefined}
               >
                 {busy ? (
                   <>
