@@ -768,7 +768,17 @@ function buildImportPayload(
     const rec: Record<string, any> = { ...r, ...fixed };
     if (entity === "reference_table_items" && (rec.code == null || rec.code === "") && rec.package_id) rec.code = String(rec.package_id);
     if (entity === "doctors") {
-      if (typeof rec.crm === "string") rec.crm = rec.crm.replace(/\D/g, "");
+      // Aceita CRM unificado ("28923/DF") ou separado. Se UF vier embutida no
+      // campo CRM, extrai automaticamente quando crm_uf não foi mapeado.
+      if (typeof rec.crm === "string") {
+        const raw = rec.crm.toUpperCase().trim();
+        const ufMatch = raw.match(/\b([A-Z]{2})\b/);
+        const digits = raw.replace(/\D/g, "");
+        rec.crm = digits;
+        if (ufMatch && (!rec.crm_uf || String(rec.crm_uf).trim() === "")) {
+          rec.crm_uf = ufMatch[1];
+        }
+      }
       if (typeof rec.crm_uf === "string") rec.crm_uf = rec.crm_uf.toUpperCase().trim();
     }
     return rec;
