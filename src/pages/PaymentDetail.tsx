@@ -49,6 +49,8 @@ import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
 import { AskQuestionDialog } from "@/components/payment-detail/AskQuestionDialog";
+import { InternalThreadsSheet } from "@/components/payment-detail/InternalThreadsSheet";
+import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPatternSuggest";
 import { ProductionValidationButton } from "@/components/payment-detail/ProductionValidationButton";
 import { ProductionValidationPanel } from "@/components/payment-detail/ProductionValidationPanel";
@@ -229,6 +231,8 @@ const PaymentDetail = () => {
   const [askQuestion, setAskQuestion] = useState<
     null | { groupId?: string | null; companyName?: string | null }
   >(null);
+  // Painel lateral com todas as conversas (threads) do lote.
+  const [threadsOpen, setThreadsOpen] = useState(false);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
   const [bulkConcludeOpen, setBulkConcludeOpen] = useState(false);
@@ -305,6 +309,7 @@ const PaymentDetail = () => {
   const [analysisJob, setAnalysisJob] = useState<{ status: "em_andamento" | "concluido" | "parcial" | "cancelado" } | null>(null);
   // Contagem de questionamentos abertos por empresa (payment_questions agrupado por company_group_id).
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
+  const [openThreadsCount, setOpenThreadsCount] = useState(0);
   const [releaseGroup, setReleaseGroup] = useState<GroupRow | null>(null);
   const [bulkReleaseOpen, setBulkReleaseOpen] = useState(false);
   useEffect(() => {
@@ -313,15 +318,17 @@ const PaymentDetail = () => {
     const load = async () => {
       const { data } = await supabase
         .from("payment_questions")
-        .select("company_group_id")
+        .select("company_group_id,parent_id,status")
         .eq("payment_id", id);
       if (cancelled) return;
       const counts: Record<string, number> = {};
-      (data ?? []).forEach((r: { company_group_id: string | null }) => {
-        if (!r.company_group_id) return;
-        counts[r.company_group_id] = (counts[r.company_group_id] ?? 0) + 1;
+      let open = 0;
+      (data ?? []).forEach((r: { company_group_id: string | null; parent_id: string | null; status: string }) => {
+        if (r.company_group_id) counts[r.company_group_id] = (counts[r.company_group_id] ?? 0) + 1;
+        if (!r.parent_id && r.status !== "encerrada") open += 1;
       });
       setQuestionCounts(counts);
+      setOpenThreadsCount(open);
     };
     load();
     const ch = supabase
@@ -1877,18 +1884,7 @@ const PaymentDetail = () => {
                 </Button>
               );
             })()}
-            {(isAnalista || isValidador || isDiretor) && !isNfPhase && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden md:inline-flex"
-                title="Abrir questionamento interno sobre este lote"
-                onClick={() => setAskQuestion({ groupId: null, companyName: null })}
-              >
-                <MessageCircleQuestion className="h-4 w-4 mr-1.5 text-primary" />
-                Fazer questionamento
-              </Button>
-            )}
+            {/* "Fazer questionamento" agora vive no FAB flutuante (canto inferior direito). */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Mais ações">
@@ -3502,11 +3498,30 @@ const PaymentDetail = () => {
           paymentId={id}
           paymentStatus={payment.status as string}
           authorId={user.id}
+          authorName={profiles[user.id] ?? user.email ?? "Equipe interna"}
           authorRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
           companyGroupId={askQuestion?.groupId ?? null}
           companyName={askQuestion?.companyName ?? null}
           onCreated={load}
         />
+      )}
+      {id && user && (isAnalista || isValidador || isDiretor) && !isNfPhase && (
+        <>
+          <QuestionsFab openCount={openThreadsCount} onClick={() => setThreadsOpen(true)} />
+          <InternalThreadsSheet
+            open={threadsOpen}
+            onOpenChange={setThreadsOpen}
+            paymentId={id}
+            groups={groups.map((g) => ({ id: g.id, company_name: g.company_name }))}
+            currentUserId={user.id}
+            currentUserName={profiles[user.id] ?? user.email ?? "Equipe interna"}
+            currentRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
+            onNewQuestion={(scope) => {
+              setThreadsOpen(false);
+              setAskQuestion(scope);
+            }}
+          />
+        </>
       )}
     </>
   );
