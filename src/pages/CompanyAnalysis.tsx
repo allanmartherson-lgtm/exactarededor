@@ -16,6 +16,7 @@ import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryP
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { CompanyQuestionsThread } from "@/components/payment-detail/CompanyQuestionsThread";
+import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { DeductionsBanner } from "@/components/payment-detail/DeductionsBanner";
 import { FinancialCompositionStrip } from "@/components/payment-detail/FinancialCompositionStrip";
 import { useFinancialComposition } from "@/hooks/useFinancialComposition";
