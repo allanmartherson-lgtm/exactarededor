@@ -2898,6 +2898,10 @@ const PaymentDetail = () => {
                 if (criticalFilter === "divergent") {
                   return it.ai_status === "reprovado" || it.ai_status === "alerta";
                 }
+                if (criticalFilter === "validation") {
+                  const f = (it as unknown as { validation_findings?: unknown }).validation_findings;
+                  return Array.isArray(f) && f.length > 0;
+                }
                 if (criticalFilter === "approved") {
                   // Flexível: status aprovado (pode ter alertas informativos ou justificativas)
                   return it.ai_status === "aprovado";
