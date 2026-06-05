@@ -1593,11 +1593,13 @@ export default function CompanyAnalysis() {
 
       {/* Thread de questionamentos — analista só vê quando há perguntas; validador/diretor sempre veem (podem iniciar). */}
       {id && groupId && (
-        <CompanyQuestionsThread
-          paymentId={id}
-          companyGroupId={groupId}
-          hideIfEmpty={isAnalista && !isAdminOrDiretor && !isValidador}
-        />
+        <div ref={questionsThreadRef} className="scroll-mt-24">
+          <CompanyQuestionsThread
+            paymentId={id}
+            companyGroupId={groupId}
+            hideIfEmpty={isAnalista && !isAdminOrDiretor && !isValidador}
+          />
+        </div>
       )}
 
       {/* ABAS */}
