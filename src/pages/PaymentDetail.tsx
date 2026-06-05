@@ -49,7 +49,7 @@ import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
 
-import { InternalThreadsSheet } from "@/components/payment-detail/InternalThreadsSheet";
+import { ConversationsSheet } from "@/components/payment-detail/conversations/ConversationsSheet";
 import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPatternSuggest";
 import { ProductionValidationButton } from "@/components/payment-detail/ProductionValidationButton";
@@ -3497,15 +3497,17 @@ const PaymentDetail = () => {
       {id && user && (isAnalista || isValidador || isDiretor) && !isNfPhase && (
         <>
           <QuestionsFab openCount={openThreadsCount} onClick={() => setThreadsOpen(true)} />
-          <InternalThreadsSheet
+          <ConversationsSheet
             open={threadsOpen}
             onOpenChange={(o) => {
               setThreadsOpen(o);
               if (!o) setAskQuestion(null);
             }}
             paymentId={id}
+            paymentLabel={(payment as any).reference ?? (payment as any).competence_month ?? null}
             paymentStatus={payment.status as string}
             groups={groups.map((g) => ({ id: g.id, company_name: g.company_name }))}
+            profiles={profiles}
             currentUserId={user.id}
             currentUserName={profiles[user.id] ?? user.email ?? "Equipe interna"}
             currentRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
