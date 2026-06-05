@@ -82,6 +82,8 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     duplicates: { row: number; key: string }[];
     sample: any[];
     itemsCreated: { row: number; code: string; name: string; amount: number; role: string; sourceCol: string }[];
+    crmConflicts?: { number: string; ufs: string[]; rows: number[]; source: "file" | "registry" }[];
+    resolutionReport?: { row: number; crm: string; uf: string | null; method: "crm+uf" | "crm-only" | "novo"; reason: string }[];
   } | null>(null);
   const [result, setResult] = useState<CommitResult | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>("append");
@@ -178,12 +180,23 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         sourceCol: String(r._meta?.sourceCol || "N/A")
       }));
 
+      // Detecção de conflitos CRM/UF e relatório de auditoria (apenas para médicos)
+      let crmConflicts: { number: string; ufs: string[]; rows: number[]; source: "file" | "registry" }[] = [];
+      let resolutionReport: { row: number; crm: string; uf: string | null; method: "crm+uf" | "crm-only" | "novo"; reason: string }[] = [];
+      if (profile.entity === "doctors") {
+        const detected = await detectCrmConflicts(records);
+        crmConflicts = detected.conflicts;
+        resolutionReport = detected.report;
+      }
+
       setValidation({
         summary: { total: allRows.length, valid: records.length, errors: errors.length, duplicates: dups.length },
         errors: errors.slice(0, 50),
         duplicates: dups.slice(0, 50),
         sample: records.slice(0, 10),
-        itemsCreated: itemsCreated.slice(0, 500) // Show up to 500 items in detail
+        itemsCreated: itemsCreated.slice(0, 500),
+        crmConflicts,
+        resolutionReport,
       });
       setStep("validate");
     } catch (e: any) {
@@ -301,7 +314,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] xl:max-w-7xl w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {title} · {stepLabel(step)}
@@ -522,6 +535,113 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
+            {validation.crmConflicts && validation.crmConflicts.length > 0 && (
+              <Section
+                icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
+                title={`Conflitos de CRM/UF — corrija no arquivo antes de importar (${validation.crmConflicts.length})`}
+              >
+                <p className="text-[11px] text-muted-foreground mb-2">
+                  CRMs idênticos aparecem com UFs diferentes (ou faltando). Padronize o campo
+                  "CRM" para o formato <code className="font-mono">28923/DF</code> ou preencha a
+                  coluna UF separadamente. A importação está bloqueada até a correção.
+                </p>
+                <div className="overflow-auto max-h-56 rounded-md border border-destructive/30">
+                  <table className="text-[11px] w-full border-collapse">
+                    <thead className="bg-destructive/5 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Origem</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">CRM</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">UFs encontradas</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Linhas afetadas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validation.crmConflicts.map((c, i) => (
+                        <tr key={i} className="even:bg-muted/20">
+                          <td className="px-2 py-1 border-b border-border">
+                            {c.source === "file" ? (
+                              <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-medium">No arquivo</span>
+                            ) : (
+                              <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px] font-medium">Vs. cadastro</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1 border-b border-border font-mono">{c.number}</td>
+                          <td className="px-2 py-1 border-b border-border font-mono">{c.ufs.join(", ")}</td>
+                          <td className="px-2 py-1 border-b border-border font-mono text-muted-foreground">
+                            {c.rows.slice(0, 8).map((r) => `L${r}`).join(", ")}
+                            {c.rows.length > 8 ? ` (+${c.rows.length - 8})` : ""}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+            )}
+
+            {validation.resolutionReport && validation.resolutionReport.length > 0 && (
+              <Section
+                icon={<CheckCircle2 className="h-4 w-4 text-success" />}
+                title={`Auditoria de resolução de CRM (${validation.resolutionReport.length})`}
+              >
+                <div className="grid grid-cols-3 gap-2 mb-2 text-[11px]">
+                  <Stat
+                    label="Match CRM+UF"
+                    value={validation.resolutionReport.filter((r) => r.method === "crm+uf").length}
+                    tone="success"
+                  />
+                  <Stat
+                    label="Match só por número"
+                    value={validation.resolutionReport.filter((r) => r.method === "crm-only").length}
+                    tone="warn"
+                  />
+                  <Stat
+                    label="Novo cadastro"
+                    value={validation.resolutionReport.filter((r) => r.method === "novo").length}
+                  />
+                </div>
+                <div className="overflow-auto max-h-72 rounded-md border border-border">
+                  <table className="text-[11px] w-full border-collapse">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Linha</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">CRM</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">UF</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Método</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Justificativa</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validation.resolutionReport.slice(0, 200).map((r, i) => (
+                        <tr key={i} className="even:bg-muted/20">
+                          <td className="px-2 py-1 border-b border-border font-mono text-muted-foreground">L{r.row}</td>
+                          <td className="px-2 py-1 border-b border-border font-mono">{r.crm}</td>
+                          <td className="px-2 py-1 border-b border-border font-mono">{r.uf ?? "—"}</td>
+                          <td className="px-2 py-1 border-b border-border">
+                            {r.method === "crm+uf" && (
+                              <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] font-medium">CRM+UF</span>
+                            )}
+                            {r.method === "crm-only" && (
+                              <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-medium">Só número</span>
+                            )}
+                            {r.method === "novo" && (
+                              <span className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded text-[10px] font-medium">Novo</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1 border-b border-border text-muted-foreground">{r.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {validation.resolutionReport.length > 200 && (
+                  <p className="text-[10px] text-muted-foreground mt-2 italic text-center">
+                    Mostrando 200 de {validation.resolutionReport.length} linhas.
+                  </p>
+                )}
+              </Section>
+            )}
+
             {validation.itemsCreated.length > 0 && (
               <Section icon={<CheckCircle2 className="h-4 w-4 text-success" />} title="Itens que serão criados (prévia detalhada)">
                 <div className="overflow-auto max-h-80 rounded-md border border-border">
@@ -619,7 +739,13 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Button>
               <Button
                 onClick={runCommit}
-                disabled={busy || validation.summary.valid === 0 || (importMode === "replace" && replaceConfirm.trim().toUpperCase() !== "SUBSTITUIR")}
+                disabled={
+                  busy ||
+                  validation.summary.valid === 0 ||
+                  (importMode === "replace" && replaceConfirm.trim().toUpperCase() !== "SUBSTITUIR") ||
+                  (validation.crmConflicts && validation.crmConflicts.length > 0)
+                }
+                title={validation.crmConflicts && validation.crmConflicts.length > 0 ? "Resolva os conflitos de CRM/UF antes de importar" : undefined}
               >
                 {busy ? (
                   <>
@@ -731,6 +857,113 @@ function downloadTemplate(profile: ImportProfile, title: string) {
     .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   XLSX.writeFile(wb, `modelo_${base}.xlsx`);
 }
+
+
+/**
+ * Detecta conflitos de CRM/UF na importação de médicos e produz um relatório
+ * de auditoria do método de resolução por linha.
+ *
+ * Conflitos:
+ *  - "file": dentro do próprio arquivo há linhas com o mesmo número de CRM
+ *    e UFs diferentes (ou ausentes em parte das linhas).
+ *  - "registry": linha do arquivo trouxe CRM sem UF, e existem múltiplos
+ *    cadastros com aquele número em UFs diferentes — não dá para decidir
+ *    automaticamente qual atualizar.
+ */
+async function detectCrmConflicts(records: any[]): Promise<{
+  conflicts: { number: string; ufs: string[]; rows: number[]; source: "file" | "registry" }[];
+  report: { row: number; crm: string; uf: string | null; method: "crm+uf" | "crm-only" | "novo"; reason: string }[];
+}> {
+  const report: { row: number; crm: string; uf: string | null; method: "crm+uf" | "crm-only" | "novo"; reason: string }[] = [];
+  const fileByNumber = new Map<string, Map<string, number[]>>(); // number -> uf("" se ausente) -> rows
+  const numbersOnly = new Set<string>(); // números do arquivo sem UF
+
+  for (const r of records) {
+    const number = String(r.crm ?? "").replace(/\D/g, "");
+    const uf = String(r.crm_uf ?? "").toUpperCase().trim();
+    const row = r._meta?.row ?? 0;
+    if (!number) continue;
+    const slot = fileByNumber.get(number) ?? new Map<string, number[]>();
+    const list = slot.get(uf) ?? [];
+    list.push(row);
+    slot.set(uf, list);
+    fileByNumber.set(number, slot);
+    if (!uf) numbersOnly.add(number);
+  }
+
+  // Carrega cadastros existentes que possam colidir
+  const existingByNumber = new Map<string, string[]>();
+  try {
+    const numbersArr = Array.from(fileByNumber.keys()).filter(Boolean);
+    if (numbersArr.length) {
+      // Quebrar em chunks para evitar query gigante
+      const CHUNK = 200;
+      for (let i = 0; i < numbersArr.length; i += CHUNK) {
+        const slice = numbersArr.slice(i, i + CHUNK);
+        const { data } = await supabase
+          .from("doctors")
+          .select("crm, crm_uf")
+          .in("crm", slice);
+        for (const d of data ?? []) {
+          const n = String((d as any).crm ?? "");
+          const u = String((d as any).crm_uf ?? "").toUpperCase().trim();
+          if (!n || !u) continue;
+          const list = existingByNumber.get(n) ?? [];
+          if (!list.includes(u)) list.push(u);
+          existingByNumber.set(n, list);
+        }
+      }
+    }
+  } catch (e) {
+    // Best-effort: se falhar consulta, segue sem conflitos de cadastro
+    console.warn("[detectCrmConflicts] falha ao consultar cadastros:", (e as any)?.message);
+  }
+
+  const conflicts: { number: string; ufs: string[]; rows: number[]; source: "file" | "registry" }[] = [];
+
+  // 1) conflitos dentro do arquivo: mesmo número, UFs diferentes (incluindo "" como ausente)
+  for (const [number, slot] of fileByNumber.entries()) {
+    const ufs = Array.from(slot.keys());
+    const distinctUfs = ufs.filter((u) => u);
+    const hasMissing = ufs.includes("");
+    if (distinctUfs.length > 1 || (distinctUfs.length >= 1 && hasMissing)) {
+      const rows = ufs.flatMap((u) => slot.get(u) ?? []).sort((a, b) => a - b);
+      conflicts.push({ number, ufs: [...distinctUfs, ...(hasMissing ? ["(sem UF)"] : [])], rows, source: "file" });
+    }
+  }
+
+  // 2) conflitos contra o cadastro: linha sem UF e número cadastrado em múltiplas UFs
+  for (const number of numbersOnly) {
+    const cadUfs = existingByNumber.get(number) ?? [];
+    if (cadUfs.length > 1) {
+      const rows = (fileByNumber.get(number)?.get("") ?? []).sort((a, b) => a - b);
+      conflicts.push({ number, ufs: cadUfs, rows, source: "registry" });
+    }
+  }
+
+  // 3) relatório de auditoria por linha
+  for (const r of records) {
+    const number = String(r.crm ?? "").replace(/\D/g, "");
+    const uf = String(r.crm_uf ?? "").toUpperCase().trim() || null;
+    const row = r._meta?.row ?? 0;
+    if (!number) continue;
+    const cadUfs = existingByNumber.get(number) ?? [];
+    if (uf && cadUfs.includes(uf)) {
+      report.push({ row, crm: number, uf, method: "crm+uf", reason: `Match exato com cadastro existente CRM ${number}/${uf}` });
+    } else if (uf) {
+      report.push({ row, crm: number, uf, method: "crm+uf", reason: `Novo registro será criado com CRM ${number}/${uf}` });
+    } else if (cadUfs.length === 1) {
+      report.push({ row, crm: number, uf: cadUfs[0], method: "crm-only", reason: `Linha sem UF; cadastro único encontrado em ${cadUfs[0]}` });
+    } else if (cadUfs.length > 1) {
+      report.push({ row, crm: number, uf: null, method: "crm-only", reason: `Ambíguo: CRM ${number} cadastrado em ${cadUfs.join(", ")} — exige correção manual` });
+    } else {
+      report.push({ row, crm: number, uf: null, method: "novo", reason: `Novo CRM ${number} sem UF informada` });
+    }
+  }
+
+  return { conflicts, report };
+}
+
 
 
 function stepLabel(s: Step) {
