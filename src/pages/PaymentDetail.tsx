@@ -3495,6 +3495,19 @@ const PaymentDetail = () => {
           onOpenChange={setProductionValidationOpen}
         />
       )}
+      {id && user && (
+        <AskQuestionDialog
+          open={askQuestion !== null}
+          onOpenChange={(o) => { if (!o) setAskQuestion(null); }}
+          paymentId={id}
+          paymentStatus={payment.status as string}
+          authorId={user.id}
+          authorRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
+          companyGroupId={askQuestion?.groupId ?? null}
+          companyName={askQuestion?.companyName ?? null}
+          onCreated={load}
+        />
+      )}
     </>
   );
 };
