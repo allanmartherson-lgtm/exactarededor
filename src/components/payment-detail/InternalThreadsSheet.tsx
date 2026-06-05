@@ -83,6 +83,21 @@ export function InternalThreadsSheet({
   const [userFilter, setUserFilter] = useState<string>("all");
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
+  // Composer inline (chat-like) para abrir nova conversa sem sair do painel.
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeGroupId, setComposeGroupId] = useState<string>("lote"); // "lote" | group.id
+  const [composeMessage, setComposeMessage] = useState("");
+  const [composing, setComposing] = useState(false);
+
+  // Quando o pai pede para abrir o composer com escopo pré-definido.
+  useEffect(() => {
+    if (!open || !initialCompose) return;
+    setComposeOpen(true);
+    setComposeGroupId(initialCompose.groupId ?? "lote");
+    setComposeMessage("");
+    onComposeConsumed?.();
+  }, [open, initialCompose, onComposeConsumed]);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
