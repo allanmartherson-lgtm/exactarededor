@@ -347,8 +347,18 @@ const Companies = () => {
     <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
       <PageHeader title="Empresas" description="Cadastro de clínicas/PJs para reconhecimento automático nas planilhas." />
       <div className="p-4 md:p-8 w-full mx-auto space-y-4">
-          <div className="flex items-center justify-between gap-3">
-          <Input placeholder="Buscar por nome, código, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+            <Input placeholder="Buscar por nome, código, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
+            <Button
+              variant={showInactive ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowInactive((s) => !s)}
+              title="Inclui empresas inativadas (cadastro preservado, mas fora de uso)"
+            >
+              {showInactive ? "Ocultar inativas" : "Mostrar inativas"}
+            </Button>
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
               <Download className="h-4 w-4 mr-2" /> Modelo
@@ -509,18 +519,24 @@ const Companies = () => {
                   <div key={item.id} className="p-4 flex items-start justify-between gap-4 hover:bg-muted/30 transition-colors">
                     <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center">
                       <div className="sm:col-span-4 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <p className="font-semibold text-sm truncate" title={item.name}>{item.name}</p>
+                          {!item.active && <Badge variant="outline" className="text-[10px] h-4">Inativa</Badge>}
                         </div>
-                        {item.document && (
-                          <p className="text-xs text-muted-foreground font-mono flex items-center gap-1 mt-1">
-                            {item.document}
-                            {isValidCNPJ(item.document)
-                              ? <ShieldCheck className="h-3 w-3 text-emerald-600" />
-                              : <ShieldAlert className="h-3 w-3 text-destructive" />}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {item.code && (
+                            <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono">{item.code}</code>
+                          )}
+                          {item.document && (
+                            <span className="text-xs text-muted-foreground font-mono flex items-center gap-1">
+                              {item.document}
+                              {isValidCNPJ(item.document)
+                                ? <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                                : <ShieldAlert className="h-3 w-3 text-destructive" />}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="sm:col-span-4 min-w-0">
                         <div className="flex flex-wrap gap-1">
