@@ -642,22 +642,34 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
                 icon={<CheckCircle2 className="h-4 w-4 text-success" />}
                 title={`Auditoria de resolução de CRM (${validation.resolutionReport.length})`}
               >
-                <div className="grid grid-cols-3 gap-2 mb-2 text-[11px]">
-                  <Stat
-                    label="Match CRM+UF"
-                    value={validation.resolutionReport.filter((r) => r.method === "crm+uf").length}
-                    tone="success"
-                  />
-                  <Stat
-                    label="Match só por número"
-                    value={validation.resolutionReport.filter((r) => r.method === "crm-only").length}
-                    tone="warn"
-                  />
-                  <Stat
-                    label="Novo cadastro"
-                    value={validation.resolutionReport.filter((r) => r.method === "novo").length}
-                  />
+                <div className="flex items-center justify-between mb-2">
+                  <div className="grid grid-cols-3 gap-2 text-[11px] flex-1">
+                    <Stat
+                      label="Match CRM+UF"
+                      value={validation.resolutionReport.filter((r) => r.method === "crm+uf").length}
+                      tone="success"
+                    />
+                    <Stat
+                      label="Match só por número"
+                      value={validation.resolutionReport.filter((r) => r.method === "crm-only").length}
+                      tone="warn"
+                    />
+                    <Stat
+                      label="Novo cadastro"
+                      value={validation.resolutionReport.filter((r) => r.method === "novo").length}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px] ml-2 shrink-0"
+                    onClick={() => downloadResolutionCsv(validation.resolutionReport!)}
+                  >
+                    Exportar CSV
+                  </Button>
                 </div>
+
                 <div className="overflow-auto max-h-72 rounded-md border border-border">
                   <table className="text-[11px] w-full border-collapse">
                     <thead className="bg-muted/50 sticky top-0">
