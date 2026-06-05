@@ -150,11 +150,11 @@ All colors MUST be HSL.
 
   .dark {
     /* ── Superfícies — base ink (#0D1117) ─────────────────── */
-    --background: 214 28% 7%;
-    --foreground: 60 15% 92%;
+    --background: 214 30% 6%;
+    --foreground: 60 15% 94%;
 
-    --card: 214 22% 11%;
-    --card-foreground: 60 15% 92%;
+    --card: 214 20% 13%;                 /* +2% L vs background p/ separação clara */
+    --card-foreground: 60 15% 94%;
 
     --popover: 214 22% 13%;
     --popover-foreground: 60 15% 92%;
