@@ -14,7 +14,7 @@ import { createPasswordRecoveryClient } from "@/lib/passwordRecoveryClient";
 import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
-import EcgPulseAnimation from "@/components/auth/EcgPulseAnimation";
+import LoginAnimation from "@/components/auth/LoginAnimation";
 
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
@@ -166,9 +166,9 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex">
       {/* Painel esquerdo: animação — visível apenas em lg+ */}
-      <div className="hidden lg:flex lg:w-[55%] relative bg-[#003DA5] overflow-hidden flex-col">
+      <div className="hidden lg:flex lg:w-[55%] relative bg-[#002855] overflow-hidden flex-col">
         <div className="absolute inset-0">
-          <EcgPulseAnimation />
+          <LoginAnimation />
         </div>
 
         {/* Tagline no centro inferior */}
