@@ -275,7 +275,7 @@ const PaymentDetail = () => {
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
   const [companySearch, setCompanySearch] = useState("");
-  const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved" | "approved_strict">("all");
+  const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "validation" | "approved" | "approved_strict">("all");
   const [onlyRegIssues, setOnlyRegIssues] = useState(false);
   const [regIssueItemIds, setRegIssueItemIds] = useState<Set<string>>(new Set());
   useEffect(() => {
