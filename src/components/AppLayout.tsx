@@ -1069,6 +1069,7 @@ export const AppLayout = () => {
               <NotificationBell />
               <div className="hidden md:flex items-center gap-1">
                 <ThemeToggle />
+                <ContrastToggle />
                 <LayoutToggle />
               </div>
 
