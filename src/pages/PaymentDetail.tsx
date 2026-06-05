@@ -309,23 +309,24 @@ const PaymentDetail = () => {
   const [analysisJob, setAnalysisJob] = useState<{ status: "em_andamento" | "concluido" | "parcial" | "cancelado" } | null>(null);
   // Contagem de questionamentos abertos por empresa (payment_questions agrupado por company_group_id).
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
-  const [releaseGroup, setReleaseGroup] = useState<GroupRow | null>(null);
-  const [bulkReleaseOpen, setBulkReleaseOpen] = useState(false);
+  const [openThreadsCount, setOpenThreadsCount] = useState(0);
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
     const load = async () => {
       const { data } = await supabase
         .from("payment_questions")
-        .select("company_group_id")
+        .select("company_group_id,parent_id,status")
         .eq("payment_id", id);
       if (cancelled) return;
       const counts: Record<string, number> = {};
-      (data ?? []).forEach((r: { company_group_id: string | null }) => {
-        if (!r.company_group_id) return;
-        counts[r.company_group_id] = (counts[r.company_group_id] ?? 0) + 1;
+      let open = 0;
+      (data ?? []).forEach((r: { company_group_id: string | null; parent_id: string | null; status: string }) => {
+        if (r.company_group_id) counts[r.company_group_id] = (counts[r.company_group_id] ?? 0) + 1;
+        if (!r.parent_id && r.status !== "encerrada") open += 1;
       });
       setQuestionCounts(counts);
+      setOpenThreadsCount(open);
     };
     load();
     const ch = supabase
