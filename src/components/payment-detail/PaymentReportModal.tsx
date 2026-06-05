@@ -490,7 +490,7 @@ export function PaymentReportModal({
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-warning-foreground uppercase tracking-wider">Alertas</p>
+                  <p className="text-xs font-medium text-warning-text uppercase tracking-wider">Alertas</p>
                   <p className="text-lg font-bold">{summary.alert.count} itens</p>
                   <p className="text-sm text-muted-foreground">{formatCurrency(summary.alert.value)} ({summary.alert.pct.toFixed(1)}%)</p>
                 </div>
