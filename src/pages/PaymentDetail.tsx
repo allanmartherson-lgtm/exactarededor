@@ -1884,18 +1884,7 @@ const PaymentDetail = () => {
                 </Button>
               );
             })()}
-            {(isAnalista || isValidador || isDiretor) && !isNfPhase && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden md:inline-flex"
-                title="Abrir questionamento interno sobre este lote"
-                onClick={() => setAskQuestion({ groupId: null, companyName: null })}
-              >
-                <MessageCircleQuestion className="h-4 w-4 mr-1.5 text-primary" />
-                Fazer questionamento
-              </Button>
-            )}
+            {/* "Fazer questionamento" agora vive no FAB flutuante (canto inferior direito). */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Mais ações">
