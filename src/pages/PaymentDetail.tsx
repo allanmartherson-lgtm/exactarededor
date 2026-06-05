@@ -48,7 +48,7 @@ import { recordObservation, type ObservationType } from "@/lib/observations";
 import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
-import { AskQuestionDialog } from "@/components/payment-detail/AskQuestionDialog";
+
 import { InternalThreadsSheet } from "@/components/payment-detail/InternalThreadsSheet";
 import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPatternSuggest";
@@ -3151,7 +3151,10 @@ const PaymentDetail = () => {
                         size="sm"
                         className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
                         title={`Fazer questionamento sobre ${g.company_name}`}
-                        onClick={() => setAskQuestion({ groupId: g.id, companyName: g.company_name })}
+                        onClick={() => {
+                          setAskQuestion({ groupId: g.id, companyName: g.company_name });
+                          setThreadsOpen(true);
+                        }}
                       >
                         <MessageCircleQuestion className="h-3.5 w-3.5 mr-1" />
                         Fazer questionamento
@@ -3491,35 +3494,23 @@ const PaymentDetail = () => {
           onOpenChange={setProductionValidationOpen}
         />
       )}
-      {id && user && (
-        <AskQuestionDialog
-          open={askQuestion !== null}
-          onOpenChange={(o) => { if (!o) setAskQuestion(null); }}
-          paymentId={id}
-          paymentStatus={payment.status as string}
-          authorId={user.id}
-          authorName={profiles[user.id] ?? user.email ?? "Equipe interna"}
-          authorRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
-          companyGroupId={askQuestion?.groupId ?? null}
-          companyName={askQuestion?.companyName ?? null}
-          onCreated={load}
-        />
-      )}
       {id && user && (isAnalista || isValidador || isDiretor) && !isNfPhase && (
         <>
           <QuestionsFab openCount={openThreadsCount} onClick={() => setThreadsOpen(true)} />
           <InternalThreadsSheet
             open={threadsOpen}
-            onOpenChange={setThreadsOpen}
+            onOpenChange={(o) => {
+              setThreadsOpen(o);
+              if (!o) setAskQuestion(null);
+            }}
             paymentId={id}
+            paymentStatus={payment.status as string}
             groups={groups.map((g) => ({ id: g.id, company_name: g.company_name }))}
             currentUserId={user.id}
             currentUserName={profiles[user.id] ?? user.email ?? "Equipe interna"}
             currentRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
-            onNewQuestion={(scope) => {
-              setThreadsOpen(false);
-              setAskQuestion(scope);
-            }}
+            initialCompose={askQuestion}
+            onComposeConsumed={() => setAskQuestion(null)}
           />
         </>
       )}

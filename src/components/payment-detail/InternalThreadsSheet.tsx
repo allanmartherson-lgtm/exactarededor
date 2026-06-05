@@ -38,7 +38,11 @@ type Props = {
   currentUserId: string;
   currentUserName: string;
   currentRole: "analista" | "validador" | "diretor" | "admin";
-  onNewQuestion: (scope: { groupId?: string | null; companyName?: string | null }) => void;
+  paymentStatus?: string | null;
+  /** Quando definido e o painel é (re)aberto, abre o composer já com a empresa pré-selecionada. */
+  initialCompose?: { groupId?: string | null; companyName?: string | null } | null;
+  /** Notifica o pai para que ele zere o `initialCompose` controlado. */
+  onComposeConsumed?: () => void;
 };
 
 const STATUS_LABEL: Record<Row["status"], string> = {
@@ -61,7 +65,9 @@ export function InternalThreadsSheet({
   currentUserId,
   currentUserName,
   currentRole,
-  onNewQuestion,
+  paymentStatus,
+  initialCompose,
+  onComposeConsumed,
 }: Props) {
   const { toast } = useToast();
   const [rows, setRows] = useState<Row[]>([]);
@@ -76,6 +82,21 @@ export function InternalThreadsSheet({
   const [companyFilter, setCompanyFilter] = useState<string>("all"); // group_id | "all" | "lote"
   const [userFilter, setUserFilter] = useState<string>("all");
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Composer inline (chat-like) para abrir nova conversa sem sair do painel.
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeGroupId, setComposeGroupId] = useState<string>("lote"); // "lote" | group.id
+  const [composeMessage, setComposeMessage] = useState("");
+  const [composing, setComposing] = useState(false);
+
+  // Quando o pai pede para abrir o composer com escopo pré-definido.
+  useEffect(() => {
+    if (!open || !initialCompose) return;
+    setComposeOpen(true);
+    setComposeGroupId(initialCompose.groupId ?? "lote");
+    setComposeMessage("");
+    onComposeConsumed?.();
+  }, [open, initialCompose, onComposeConsumed]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -218,6 +239,43 @@ export function InternalThreadsSheet({
     }
     toast({ title: "Conversa encerrada" });
   };
+  const submitNewQuestion = async () => {
+    const text = composeMessage.trim();
+    if (text.length < 10) {
+      toast({ title: "Descreva o questionamento (mín. 10 caracteres)", variant: "destructive" });
+      return;
+    }
+    setComposing(true);
+    const groupId = composeGroupId === "lote" ? null : composeGroupId;
+    const groupLabel = groupId ? (groups.find((g) => g.id === groupId)?.company_name ?? "") : "";
+    const prefix = groupLabel ? `[${groupLabel}] ` : "";
+    const { error } = await supabase.from("payment_questions").insert({
+      payment_id: paymentId,
+      company_group_id: groupId,
+      author_id: currentUserId,
+      author_name: currentUserName,
+      author_type: "interno",
+      message: `[${currentRole}] ${prefix}${text}`,
+    });
+    setComposing(false);
+    if (error) {
+      toast({ title: "Falha ao abrir questionamento", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Questionamento aberto" });
+    setComposeMessage("");
+    setComposeOpen(false);
+    // Vai aparecer automaticamente na lista via realtime.
+  };
+
+  const recipientHint = useMemo(() => {
+    if (currentRole === "diretor" || currentRole === "admin") return "Analista e Supervisor";
+    if (currentRole === "validador") return "Analista";
+    return paymentStatus === "aguardando_aprovacao" || paymentStatus === "aprovado_em_revisao"
+      ? "Diretor"
+      : "Supervisor";
+  }, [currentRole, paymentStatus]);
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -245,9 +303,17 @@ export function InternalThreadsSheet({
             </Tabs>
             <Button
               size="sm"
-              onClick={() => onNewQuestion({ groupId: null, companyName: null })}
+              variant={composeOpen ? "secondary" : "default"}
+              onClick={() => {
+                setComposeOpen((v) => !v);
+                if (!composeOpen) {
+                  setComposeGroupId("lote");
+                  setComposeMessage("");
+                }
+              }}
             >
-              <Plus className="h-4 w-4 mr-1.5" /> Nova pergunta
+              <Plus className={cn("h-4 w-4 mr-1.5 transition-transform", composeOpen && "rotate-45")} />
+              {composeOpen ? "Cancelar" : "Nova pergunta"}
             </Button>
           </div>
 
@@ -336,6 +402,57 @@ export function InternalThreadsSheet({
         </SheetHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+          {composeOpen && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2 animate-in fade-in slide-in-from-top-1">
+              <div className="flex items-center gap-2">
+                <MessageCircleQuestion className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Novo questionamento</span>
+                <span className="text-[11px] text-muted-foreground ml-auto">
+                  Vai para <strong className="text-foreground">{recipientHint}</strong>
+                </span>
+              </div>
+              <Select value={composeGroupId} onValueChange={setComposeGroupId}>
+                <SelectTrigger className="h-9 text-sm bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lote">Sobre o lote inteiro</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>{g.company_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Textarea
+                value={composeMessage}
+                onChange={(e) => setComposeMessage(e.target.value)}
+                rows={3}
+                autoFocus
+                placeholder="Descreva o que você precisa esclarecer..."
+                className="text-sm bg-card"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    submitNewQuestion();
+                  }
+                }}
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">⌘/Ctrl + Enter para enviar</span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setComposeOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={submitNewQuestion}
+                    disabled={composing || composeMessage.trim().length < 10}
+                  >
+                    {composing ? "Enviando..." : "Abrir conversa"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
           {loading ? (
             <>
               <Skeleton className="h-20 w-full" />
