@@ -14,6 +14,7 @@ import {
   FileText,
   Mail,
   MessageCircle,
+  MessageCircleQuestion,
   Receipt,
   Sparkles,
 } from "lucide-react";
@@ -71,6 +72,8 @@ export type PaymentGroupCardProps = {
   hasReconciliationRun?: boolean;
   /** Abre o modal de conciliação já filtrado para esta empresa. */
   onOpenConciliation?: () => void;
+  /** Abre o questionamento para esta empresa (mostra botão dentro do card). */
+  onAskQuestion?: () => void;
 };
 
 /**
@@ -96,6 +99,7 @@ export const PaymentGroupCard = ({
   canReleaseInvoice = false,
   hasReconciliationRun = false,
   onOpenConciliation,
+  onAskQuestion,
 }: PaymentGroupCardProps) => {
   const { id: paymentId } = useParams<{ id: string }>();
   const gStatus = g.status as PaymentStatus;
@@ -423,6 +427,26 @@ export const PaymentGroupCard = ({
           </Button>
         </div>
       )}
+
+      {onAskQuestion && (
+        <div className="border-t border-border/60 bg-muted/30 px-3 py-1.5 md:px-4 flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
+            title={`Fazer questionamento sobre ${g.company_name}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAskQuestion();
+            }}
+          >
+            <MessageCircleQuestion className="h-3.5 w-3.5 mr-1" />
+            Fazer questionamento
+          </Button>
+        </div>
+      )}
+
+
 
 
       {groupExpandedEffective && nfDivergent && (
