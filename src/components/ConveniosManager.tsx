@@ -15,7 +15,7 @@ import { ShieldCheck, Plus, Pencil, X, Upload, Download } from "lucide-react";
 
 type Convenio = {
   slug: string;
-  code: string | null;
+  code?: string | null;
   name: string;
   aliases: string[];
   active: boolean;
