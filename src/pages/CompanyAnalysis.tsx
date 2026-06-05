@@ -1989,6 +1989,15 @@ export default function CompanyAnalysis() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* FAB Conversas — escopo desta empresa. Posicionado acima do footer sticky para não cobrir os botões de ação. */}
+      {id && groupId && (
+        <QuestionsFab
+          openCount={openQuestionsCount}
+          onClick={scrollToQuestions}
+          className="bottom-24"
+        />
+      )}
     </div>
   );
 }
