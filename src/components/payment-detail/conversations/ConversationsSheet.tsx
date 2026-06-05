@@ -104,18 +104,18 @@ const EVENT_LABEL: Record<EventType, (ev: EventRow, profiles: Record<string, str
 
 const SLA_HOURS_DEFAULT = 24;
 
-function slaBadge(opened: string, closed: boolean): { label: string; tone: string } | null {
+function slaBadge(opened: string, closed: boolean): { label: string; variant: BadgeVariant } | null {
   if (closed) return null;
   const ageMs = Date.now() - new Date(opened).getTime();
   const remainMs = SLA_HOURS_DEFAULT * 3600 * 1000 - ageMs;
   const hrs = Math.round(remainMs / 3600000);
   if (remainMs <= 0) {
-    return { label: `SLA -${Math.abs(hrs)}h`, tone: "bg-chat-sla-bad/15 text-chat-sla-bad border-chat-sla-bad/40" };
+    return { label: `SLA -${Math.abs(hrs)}h`, variant: "destructive" };
   }
   if (hrs <= 4) {
-    return { label: `SLA ${hrs}h`, tone: "bg-chat-sla-warn/15 text-chat-sla-warn border-chat-sla-warn/40" };
+    return { label: `SLA ${hrs}h`, variant: "warning" };
   }
-  return { label: `SLA ${hrs}h`, tone: "bg-chat-sla-ok/15 text-chat-sla-ok border-chat-sla-ok/40" };
+  return { label: `SLA ${hrs}h`, variant: "success" };
 }
 
 function dateDividerLabel(d: Date): string {
