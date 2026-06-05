@@ -520,6 +520,7 @@ export function ItemsDataGrid({
     240 +
     (colVis.setor_lido ? 140 : 0) +
     (colVis.setor_inferido ? 140 : 0) +
+    (colVis.tipo_entrada ? 130 : 0) +
     180 +
     (colVis.funcao ? 120 : 0) +
     (colVis.regra ? 180 : 0) +
