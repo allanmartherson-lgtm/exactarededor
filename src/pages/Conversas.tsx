@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CompanyThreadChat } from "@/components/portal/CompanyThreadChat";
 import { ConversasDoctorsTab } from "@/components/portal/ConversasDoctorsTab";
+import { ConversasInternasTab } from "@/components/portal/ConversasInternasTab";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -47,7 +48,7 @@ const SCOPE_LABEL: Record<Thread["scope"], string> = {
 };
 
 export default function Conversas() {
-  const [tab, setTab] = useState<"empresas" | "medicos">("empresas");
+  const [tab, setTab] = useState<"empresas" | "medicos" | "internas">("empresas");
   const [threads, setThreads] = useState<Thread[]>([]);
   const [companies, setCompanies] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -136,10 +137,11 @@ export default function Conversas() {
         description={`${threads.length} thread(s) · ${totalUnread} não lida(s)`}
       />
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "empresas" | "medicos")} className="flex flex-col flex-1 min-h-0">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "empresas" | "medicos" | "internas")} className="flex flex-col flex-1 min-h-0">
         <TabsList className="self-start">
           <TabsTrigger value="empresas">Empresas</TabsTrigger>
           <TabsTrigger value="medicos">Médicos</TabsTrigger>
+          <TabsTrigger value="internas">Internas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="empresas" className="flex flex-col gap-3 flex-1 min-h-0 mt-3">
@@ -262,6 +264,10 @@ export default function Conversas() {
 
         <TabsContent value="medicos" className="flex flex-col flex-1 min-h-0 mt-3">
           <ConversasDoctorsTab />
+        </TabsContent>
+
+        <TabsContent value="internas" className="flex flex-col flex-1 min-h-0 mt-3">
+          <ConversasInternasTab />
         </TabsContent>
       </Tabs>
     </div>
