@@ -14,6 +14,7 @@ import {
   FileText,
   Mail,
   MessageCircle,
+  MessageCircleQuestion,
   Receipt,
   Sparkles,
 } from "lucide-react";
