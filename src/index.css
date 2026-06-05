@@ -127,27 +127,25 @@ All colors MUST be HSL.
     --sidebar-border: 60 10% 88%;
     --sidebar-ring: 38 47% 61%;
 
-    /* ── Chat (Conversas) ─────────────────────────────────
-       Painel dark-first, independente do tema do app.
-       Mantém legibilidade sobre fundo escuro em ambos os modos. */
-    --chat-bg: 222 47% 11%;
-    --chat-surface: 217 33% 17%;
-    --chat-surface-2: 217 33% 22%;
-    --chat-border: 215 25% 27%;
-    --chat-text: 210 20% 92%;
-    --chat-muted: 215 16% 60%;
-    --chat-accent: 217 91% 60%;
-    --chat-accent-foreground: 0 0% 100%;
-    --chat-bubble-theirs: 217 33% 19%;
-    --chat-bubble-theirs-foreground: 210 20% 92%;
-    --chat-bubble-mine: 214 47% 26%;
-    --chat-bubble-mine-foreground: 0 0% 100%;
-    --chat-system-bg: 150 35% 18%;
-    --chat-system-foreground: 145 50% 80%;
-    --chat-unread: 0 84% 60%;
-    --chat-sla-ok: 142 71% 45%;
-    --chat-sla-warn: 25 95% 53%;
-    --chat-sla-bad: 0 84% 60%;
+    /* ── Chat (Conversas) — segue o tema do sistema ─────── */
+    --chat-bg: var(--background);
+    --chat-surface: var(--card);
+    --chat-surface-2: var(--muted);
+    --chat-border: var(--border);
+    --chat-text: var(--foreground);
+    --chat-muted: var(--muted-foreground);
+    --chat-accent: var(--primary);
+    --chat-accent-foreground: var(--primary-foreground);
+    --chat-bubble-theirs: var(--muted);
+    --chat-bubble-theirs-foreground: var(--foreground);
+    --chat-bubble-mine: var(--primary-soft);
+    --chat-bubble-mine-foreground: var(--primary-dark);
+    --chat-system-bg: var(--success-soft);
+    --chat-system-foreground: var(--success-text);
+    --chat-unread: var(--destructive);
+    --chat-sla-ok: var(--success);
+    --chat-sla-warn: var(--warning);
+    --chat-sla-bad: var(--destructive);
   }
 
   .dark {
