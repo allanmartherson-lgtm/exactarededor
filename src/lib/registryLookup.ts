@@ -107,7 +107,6 @@ export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
     ),
   ]);
   const byId = new Map<string, DoctorRegistryEntry>();
-  const byId = new Map<string, DoctorRegistryEntry>();
   for (const d of docs ?? []) {
     const e: DoctorRegistryEntry = {
       id: (d as any).id,
