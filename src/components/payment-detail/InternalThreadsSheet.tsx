@@ -250,6 +250,89 @@ export function InternalThreadsSheet({
               <Plus className="h-4 w-4 mr-1.5" /> Nova pergunta
             </Button>
           </div>
+
+          {/* Busca + filtros avançados */}
+          <div className="pt-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar por palavra, autor ou empresa..."
+                  className="pl-8 h-9 text-sm"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Limpar busca"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <Button
+                variant={advancedOpen || hasAdvancedFilter ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setAdvancedOpen((v) => !v)}
+                className="h-9"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
+                Filtros
+                {hasAdvancedFilter && (
+                  <Badge variant="outline" className="ml-1.5 h-4 px-1 text-[10px] bg-primary/10 text-primary border-primary/30">
+                    on
+                  </Badge>
+                )}
+              </Button>
+            </div>
+
+            {advancedOpen && (
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as empresas</SelectItem>
+                    <SelectItem value="lote">Somente do lote (sem empresa)</SelectItem>
+                    {groups.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>{g.company_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={userFilter} onValueChange={setUserFilter}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Usuário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os usuários</SelectItem>
+                    {authors.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {hasAdvancedFilter && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="col-span-2 h-8 text-xs text-muted-foreground hover:text-foreground justify-start"
+                  >
+                    <X className="h-3 w-3 mr-1" /> Limpar filtros
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {(hasAdvancedFilter || filter !== "abertos") && !loading && (
+              <p className="text-[11px] text-muted-foreground">
+                Mostrando <strong>{threads.length}</strong> de {totalRoots} conversa(s).
+              </p>
+            )}
+          </div>
         </SheetHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
@@ -260,7 +343,9 @@ export function InternalThreadsSheet({
             </>
           ) : threads.length === 0 ? (
             <div className="text-center py-12 text-sm text-muted-foreground">
-              Nenhuma conversa {filter === "abertos" ? "aberta" : filter === "encerrados" ? "encerrada" : ""}.
+              {hasAdvancedFilter
+                ? "Nenhuma conversa corresponde aos filtros."
+                : `Nenhuma conversa ${filter === "abertos" ? "aberta" : filter === "encerrados" ? "encerrada" : ""}.`}
             </div>
           ) : (
             threads.map(({ root, replies: rep }) => {
