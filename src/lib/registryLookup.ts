@@ -50,12 +50,30 @@ export function normalize(text: string | null | undefined): string {
 
 const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
 
+/**
+ * Aceita CRM em formato unificado ("28923/DF", "28923-DF", "28923 DF",
+ * "CRM/DF 28923") ou só números ("28923"). Retorna {number, uf}.
+ * uf vazio quando não foi possível detectar.
+ */
+export function parseCrm(raw: string | null | undefined): { number: string; uf: string } {
+  const s = String(raw ?? "").toUpperCase().trim();
+  if (!s) return { number: "", uf: "" };
+  // tenta capturar UF de 2 letras em qualquer posição
+  const ufMatch = s.match(/\b([A-Z]{2})\b/);
+  const number = s.replace(/\D/g, "");
+  const uf = ufMatch ? ufMatch[1] : "";
+  return { number, uf };
+}
+
+const crmUfKey = (number: string, uf: string | null | undefined) =>
+  `${number}/${String(uf ?? "").toUpperCase().trim()}`;
+
 // ====== loaders ======
 
 export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
-  const reg: DoctorRegistry = { byCrm: new Map(), byCpf: new Map(), byAlias: new Map() };
+  const reg: DoctorRegistry = { byCrm: new Map(), byCrmUf: new Map(), byCpf: new Map(), byAlias: new Map() };
   const [{ data: docs }, { data: aliases }] = await Promise.all([
-    supabase.from("doctors").select("id, full_name, crm, cpf").eq("active", true),
+    supabase.from("doctors").select("id, full_name, crm, crm_uf, cpf").eq("active", true),
     supabase.from("doctor_aliases").select("doctor_id, alias_normalized"),
   ]);
   const byId = new Map<string, DoctorRegistryEntry>();
@@ -64,11 +82,15 @@ export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
       id: (d as any).id,
       full_name: (d as any).full_name,
       crm: (d as any).crm ?? null,
+      crm_uf: (d as any).crm_uf ?? null,
       cpf: (d as any).cpf ?? null,
     };
     byId.set(e.id, e);
     const crm = onlyDigits(e.crm);
-    if (crm) reg.byCrm.set(crm, e);
+    if (crm) {
+      reg.byCrm.set(crm, e);
+      if (e.crm_uf) reg.byCrmUf.set(crmUfKey(crm, e.crm_uf), e);
+    }
     const cpf = onlyDigits(e.cpf);
     if (cpf) reg.byCpf.set(cpf, e);
     const nameKey = normalize(e.full_name);
