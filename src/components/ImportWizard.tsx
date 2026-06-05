@@ -1213,7 +1213,7 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
       const raw = src ? row[src] : undefined;
       if (f.type === "number") base[f.key] = parseNumber(raw);
       else if (f.type === "boolean") {
-        const s = String(raw ?? "").toLowerCase().trim();
+        const s = normalizeBooleanToken(raw);
         const def = f.defaultValue !== undefined ? f.defaultValue : false;
         // Aceita variantes comuns de "ativo": "A" (Tasy), "ATIVO", "ATIV", "ACTIVE", etc.
         // Importante: "A" sozinho (situação médico no Tasy) precisa virar true.
@@ -1285,6 +1285,16 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
     }
   });
   return result;
+}
+
+function normalizeBooleanToken(value: any): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "");
 }
 
 function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportProfile["entity"]) {
