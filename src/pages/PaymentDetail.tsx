@@ -3049,6 +3049,10 @@ const PaymentDetail = () => {
               const errorOnlyFilter = (it: typeof groupItemsAll[number]) => {
                 if (criticalFilter === "no_rule") return it.ai_findings?.matched_priority === "sem_regra";
                 if (criticalFilter === "divergent") return it.ai_status === "reprovado" || it.ai_status === "alerta";
+                if (criticalFilter === "validation") {
+                  const f = (it as unknown as { validation_findings?: unknown }).validation_findings;
+                  return Array.isArray(f) && f.length > 0;
+                }
                 if (criticalFilter === "approved") {
                   return it.ai_status === "aprovado";
                 }
