@@ -166,25 +166,43 @@ function ResolutionRow({
     setBusy(true);
     try {
       if (group.kind === "doctor") {
+        if (!user) throw new Error("Sessão expirada");
+        // Cria o médico SEMPRE como pendente de validação do administrador.
+        // RLS permite ao analista inserir desde que pending_admin_review=true
+        // e created_by_user_id=auth.uid(). Admin/diretor pode aprovar depois.
+        const parsed = parseCrm(newDoc);
         const { data, error } = await supabase
           .from("doctors")
-          .insert({ full_name: newName.trim(), crm: newDoc.trim() || "", crm_uf: "", active: true })
+          .insert({
+            full_name: newName.trim(),
+            crm: parsed.number || "",
+            crm_uf: parsed.uf || "",
+            active: true,
+            pending_admin_review: true,
+            created_by_user_id: user.id,
+            pending_review_note: `Cadastro provisório criado durante importação. Texto original na planilha: "${group.raw}".`,
+          } as any)
           .select("id")
           .single();
         if (error || !data) throw error;
         await createDoctorAlias((data as any).id, group.raw);
+        toast({
+          title: "Médico cadastrado provisoriamente",
+          description: "Aguarda validação do administrador antes do envio para validação do pagamento.",
+        });
       } else if (group.kind === "convenio") {
         const slug = (newDoc.trim() || normalize(newName).replace(/\s+/g, "_")).slice(0, 64);
         const { error } = await supabase.from("convenios").insert({ slug, name: newName.trim(), active: true });
         if (error) throw error;
         await createConvenioAlias(slug, group.raw);
+        toast({ title: "Cadastro criado", description: `${KIND_LABEL[group.kind]} cadastrado e vinculado.` });
       } else {
         const slug = (newDoc.trim() || normalize(newName).replace(/\s+/g, "_")).slice(0, 64);
         const { error } = await supabase.from("sectors").insert({ slug, name: newName.trim(), active: true });
         if (error) throw error;
         await createSectorAlias(slug, group.raw);
+        toast({ title: "Cadastro criado", description: `${KIND_LABEL[group.kind]} cadastrado e vinculado.` });
       }
-      toast({ title: "Cadastro criado", description: `${KIND_LABEL[group.kind]} cadastrado e vinculado.` });
       setShowCreate(false);
       await onResolved();
     } catch (e: any) {
