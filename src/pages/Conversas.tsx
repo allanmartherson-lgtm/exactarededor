@@ -137,10 +137,11 @@ export default function Conversas() {
         description={`${threads.length} thread(s) · ${totalUnread} não lida(s)`}
       />
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "empresas" | "medicos")} className="flex flex-col flex-1 min-h-0">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "empresas" | "medicos" | "internas")} className="flex flex-col flex-1 min-h-0">
         <TabsList className="self-start">
           <TabsTrigger value="empresas">Empresas</TabsTrigger>
           <TabsTrigger value="medicos">Médicos</TabsTrigger>
+          <TabsTrigger value="internas">Internas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="empresas" className="flex flex-col gap-3 flex-1 min-h-0 mt-3">
