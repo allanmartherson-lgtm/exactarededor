@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
-import { Check, ChevronsUpDown, Loader2, Search } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, Loader2, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCNPJ, onlyDigits } from "@/lib/cnpj";
 import { cn } from "@/lib/utils";
