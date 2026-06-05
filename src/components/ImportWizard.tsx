@@ -174,6 +174,8 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         profile.entity,
         roleMapping
       );
+      if (profile.entity === "doctors") applyUfOverrides(records, ufOverrides);
+
       
       const itemsCreated = records.map(r => ({
         row: r._meta?.row || 0,
