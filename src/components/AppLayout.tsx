@@ -20,6 +20,8 @@ import {
   Contrast,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNavLayout } from "@/contexts/NavLayoutContext";
@@ -175,25 +177,59 @@ const ThemeToggle = () => {
 };
 
 const ContrastToggle = () => {
-  const { contrast, toggleContrast } = useTheme();
-  const active = contrast === "high";
+  const { contrastLevel, setContrastLevel } = useTheme();
+  const isDefault = contrastLevel === 3;
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={toggleContrast}
-      className={cn(
-        "h-8 w-8 rounded-md",
-        active
-          ? "text-foreground bg-muted"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted",
-      )}
-      aria-label={active ? "Desativar alto contraste" : "Ativar alto contraste"}
-      aria-pressed={active}
-      title={active ? "Alto contraste ativado" : "Ativar alto contraste"}
-    >
-      <Contrast className="h-4 w-4" />
-    </Button>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-8 w-8 rounded-md",
+            isDefault
+              ? "text-muted-foreground hover:text-foreground hover:bg-muted"
+              : "text-foreground bg-muted",
+          )}
+          aria-label="Ajustar contraste"
+          title={`Contraste — nível ${contrastLevel}/5`}
+        >
+          <Contrast className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-4">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Contraste</p>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {contrastLevel}/5
+            </span>
+          </div>
+          <Slider
+            value={[contrastLevel]}
+            min={1}
+            max={5}
+            step={1}
+            onValueChange={(v) => setContrastLevel(Math.max(1, Math.min(5, v[0] ?? 3)) as 1 | 2 | 3 | 4 | 5)}
+            aria-label="Nível de contraste"
+          />
+          <div className="flex justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+            <span>Suave</span>
+            <span>Padrão</span>
+            <span>Forte</span>
+          </div>
+          {!isDefault && (
+            <button
+              type="button"
+              onClick={() => setContrastLevel(3)}
+              className="text-xs text-primary hover:underline"
+            >
+              Restaurar padrão
+            </button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 

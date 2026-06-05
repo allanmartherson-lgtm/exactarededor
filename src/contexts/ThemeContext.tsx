@@ -1,21 +1,21 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
 type Theme = "light" | "dark";
-type Contrast = "normal" | "high";
+export type ContrastLevel = 1 | 2 | 3 | 4 | 5;
 
 interface ThemeContextValue {
   theme: Theme;
   toggleTheme: () => void;
   setTheme: (t: Theme) => void;
-  contrast: Contrast;
-  toggleContrast: () => void;
-  setContrast: (c: Contrast) => void;
+  contrastLevel: ContrastLevel;
+  setContrastLevel: (n: ContrastLevel) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 const STORAGE_KEY = "exacta-theme";
-const CONTRAST_STORAGE_KEY = "exacta-contrast";
+const CONTRAST_STORAGE_KEY = "exacta-contrast-level";
+const DEFAULT_CONTRAST: ContrastLevel = 3;
 
 function getInitialTheme(): Theme {
   if (typeof window === "undefined") return "light";
@@ -24,16 +24,20 @@ function getInitialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function getInitialContrast(): Contrast {
-  if (typeof window === "undefined") return "normal";
-  const stored = window.localStorage.getItem(CONTRAST_STORAGE_KEY) as Contrast | null;
-  if (stored === "normal" || stored === "high") return stored;
-  return "normal";
+function getInitialContrast(): ContrastLevel {
+  if (typeof window === "undefined") return DEFAULT_CONTRAST;
+  const raw = window.localStorage.getItem(CONTRAST_STORAGE_KEY);
+  const n = raw ? Number(raw) : NaN;
+  if (n >= 1 && n <= 5 && Number.isInteger(n)) return n as ContrastLevel;
+  // legacy: boolean "high" key
+  const legacy = window.localStorage.getItem("exacta-contrast");
+  if (legacy === "high") return 5;
+  return DEFAULT_CONTRAST;
 }
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>(getInitialTheme);
-  const [contrast, setContrastState] = useState<Contrast>(getInitialContrast);
+  const [contrastLevel, setContrastLevelState] = useState<ContrastLevel>(getInitialContrast);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -44,17 +48,16 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.toggle("contrast-high", contrast === "high");
-    window.localStorage.setItem(CONTRAST_STORAGE_KEY, contrast);
-  }, [contrast]);
+    root.setAttribute("data-contrast", String(contrastLevel));
+    window.localStorage.setItem(CONTRAST_STORAGE_KEY, String(contrastLevel));
+  }, [contrastLevel]);
 
   const setTheme = (t: Theme) => setThemeState(t);
   const toggleTheme = () => setThemeState((t) => (t === "dark" ? "light" : "dark"));
-  const setContrast = (c: Contrast) => setContrastState(c);
-  const toggleContrast = () => setContrastState((c) => (c === "high" ? "normal" : "high"));
+  const setContrastLevel = (n: ContrastLevel) => setContrastLevelState(n);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme, contrast, toggleContrast, setContrast }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme, contrastLevel, setContrastLevel }}>
       {children}
     </ThemeContext.Provider>
   );
