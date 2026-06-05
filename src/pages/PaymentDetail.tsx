@@ -49,6 +49,8 @@ import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
 import { AskQuestionDialog } from "@/components/payment-detail/AskQuestionDialog";
+import { InternalThreadsSheet } from "@/components/payment-detail/InternalThreadsSheet";
+import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPatternSuggest";
 import { ProductionValidationButton } from "@/components/payment-detail/ProductionValidationButton";
 import { ProductionValidationPanel } from "@/components/payment-detail/ProductionValidationPanel";
@@ -229,6 +231,8 @@ const PaymentDetail = () => {
   const [askQuestion, setAskQuestion] = useState<
     null | { groupId?: string | null; companyName?: string | null }
   >(null);
+  // Painel lateral com todas as conversas (threads) do lote.
+  const [threadsOpen, setThreadsOpen] = useState(false);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
   const [bulkConcludeOpen, setBulkConcludeOpen] = useState(false);
