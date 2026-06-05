@@ -34,7 +34,6 @@ import { AppLayout } from "@/components/AppLayout";
 
 const EXPECTED_ORDER = [
   "Dashboard",
-  "Meu Perfil",
   "Pagamentos",
   "Pedidos de NF",
   "Ciclo de NF",

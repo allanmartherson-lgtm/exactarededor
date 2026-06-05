@@ -31,7 +31,6 @@ import { AppLayout } from "@/components/AppLayout";
 
 const EXPECTED = [
   "Dashboard",
-  "Meu Perfil",
   "Pagamentos",
   "Pedidos de NF",
   "Ciclo de NF",
