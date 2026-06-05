@@ -74,10 +74,12 @@ type Props = {
   onComposeConsumed?: () => void;
 };
 
-const STATUS_META: Record<MessageRow["status"], { label: string; tone: string }> = {
-  pendente: { label: "Pendente", tone: "bg-chat-sla-bad/15 text-chat-sla-bad border-chat-sla-bad/30" },
-  respondida: { label: "Respondida", tone: "bg-chat-sla-ok/15 text-chat-sla-ok border-chat-sla-ok/30" },
-  encerrada: { label: "Encerrada", tone: "bg-chat-muted/15 text-chat-muted border-chat-border" },
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "muted";
+
+const STATUS_META: Record<MessageRow["status"], { label: string; variant: BadgeVariant }> = {
+  pendente: { label: "Pendente", variant: "destructive" },
+  respondida: { label: "Respondida", variant: "success" },
+  encerrada: { label: "Encerrada", variant: "muted" },
 };
 
 const EVENT_LABEL: Record<EventType, (ev: EventRow, profiles: Record<string, string>) => string> = {
@@ -102,18 +104,18 @@ const EVENT_LABEL: Record<EventType, (ev: EventRow, profiles: Record<string, str
 
 const SLA_HOURS_DEFAULT = 24;
 
-function slaBadge(opened: string, closed: boolean): { label: string; tone: string } | null {
+function slaBadge(opened: string, closed: boolean): { label: string; variant: BadgeVariant } | null {
   if (closed) return null;
   const ageMs = Date.now() - new Date(opened).getTime();
   const remainMs = SLA_HOURS_DEFAULT * 3600 * 1000 - ageMs;
   const hrs = Math.round(remainMs / 3600000);
   if (remainMs <= 0) {
-    return { label: `SLA -${Math.abs(hrs)}h`, tone: "bg-chat-sla-bad/15 text-chat-sla-bad border-chat-sla-bad/40" };
+    return { label: `SLA -${Math.abs(hrs)}h`, variant: "destructive" };
   }
   if (hrs <= 4) {
-    return { label: `SLA ${hrs}h`, tone: "bg-chat-sla-warn/15 text-chat-sla-warn border-chat-sla-warn/40" };
+    return { label: `SLA ${hrs}h`, variant: "warning" };
   }
-  return { label: `SLA ${hrs}h`, tone: "bg-chat-sla-ok/15 text-chat-sla-ok border-chat-sla-ok/40" };
+  return { label: `SLA ${hrs}h`, variant: "success" };
 }
 
 function dateDividerLabel(d: Date): string {
@@ -379,40 +381,18 @@ export function ConversationsSheet(props: Props) {
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full",
-                                STATUS_META[t.root.status].tone,
-                              )}
-                            >
+                            <Badge variant={STATUS_META[t.root.status].variant}>
                               {STATUS_META[t.root.status].label}
                             </Badge>
                             {t.root.company_group_id ? (
-                              <Badge
-                                variant="outline"
-                                className="text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full gap-1 bg-primary-soft text-primary-dark border-primary/30"
-                              >
-                                <Building2 className="h-2.5 w-2.5" /> Empresa
+                              <Badge variant="info">
+                                <Building2 className="h-3 w-3" /> Empresa
                               </Badge>
                             ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full bg-accent text-accent-foreground border-border"
-                              >
-                                Lote
-                              </Badge>
+                              <Badge variant="secondary">Lote</Badge>
                             )}
                             {sla && (
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "text-[10.5px] font-medium leading-none py-1 px-2 h-5 rounded-full",
-                                  sla.tone,
-                                )}
-                              >
-                                {sla.label}
-                              </Badge>
+                              <Badge variant={sla.variant}>{sla.label}</Badge>
                             )}
                           </div>
                           <p className="text-[11.5px] text-chat-muted truncate pr-3">
