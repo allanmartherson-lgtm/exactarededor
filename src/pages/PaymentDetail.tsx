@@ -3504,7 +3504,7 @@ const PaymentDetail = () => {
               if (!o) setAskQuestion(null);
             }}
             paymentId={id}
-            paymentLabel={payment.codigo ?? null}
+            paymentLabel={(payment as any).reference ?? (payment as any).competence_month ?? null}
             paymentStatus={payment.status as string}
             groups={groups.map((g) => ({ id: g.id, company_name: g.company_name }))}
             profiles={profiles}
