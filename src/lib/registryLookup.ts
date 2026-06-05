@@ -137,9 +137,13 @@ export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
 
 export async function loadConvenioRegistry(): Promise<ConvenioRegistry> {
   const reg: ConvenioRegistry = { bySlug: new Map(), byAlias: new Map() };
-  const [{ data: conv }, { data: aliases }] = await Promise.all([
-    supabase.from("convenios").select("slug, name").eq("active", true),
-    supabase.from("convenio_aliases").select("convenio_slug, alias_normalized"),
+  const [conv, aliases] = await Promise.all([
+    fetchAllPaginated<any>((from, to) =>
+      supabase.from("convenios").select("slug, name").eq("active", true).range(from, to),
+    ),
+    fetchAllPaginated<any>((from, to) =>
+      supabase.from("convenio_aliases").select("convenio_slug, alias_normalized").range(from, to),
+    ),
   ]);
   for (const c of conv ?? []) {
     const e: ConvenioRegistryEntry = { slug: (c as any).slug, name: (c as any).name };
