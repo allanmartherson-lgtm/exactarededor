@@ -1139,7 +1139,8 @@ const Payments = () => {
                 value={companyFilter}
                 onChange={setCompanyFilter}
                 placeholder="Filtrar por empresa (CNPJ)…"
-                className="min-w-0 md:min-w-[240px] w-full md:w-auto"
+                prominent
+                className="min-w-0 md:min-w-[260px] w-full md:w-auto"
               />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
