@@ -14,7 +14,7 @@ import { Layers, Plus, Pencil, X, Upload, Loader2 } from "lucide-react";
 
 type Sector = {
   slug: string;
-  code: string | null;
+  code?: string | null;
   name: string;
   aliases: string[];
   active: boolean;
