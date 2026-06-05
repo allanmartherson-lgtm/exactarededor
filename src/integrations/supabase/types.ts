@@ -840,30 +840,36 @@ export type Database = {
           active: boolean
           company_id: string
           created_at: string
+          email: string | null
           id: string
           invited_at: string
           invited_by: string | null
-          user_id: string
+          link_health: Database["public"]["Enums"]["portal_link_health"]
+          user_id: string | null
         }
         Insert: {
           accepted_at?: string | null
           active?: boolean
           company_id: string
           created_at?: string
+          email?: string | null
           id?: string
           invited_at?: string
           invited_by?: string | null
-          user_id: string
+          link_health?: Database["public"]["Enums"]["portal_link_health"]
+          user_id?: string | null
         }
         Update: {
           accepted_at?: string | null
           active?: boolean
           company_id?: string
           created_at?: string
+          email?: string | null
           id?: string
           invited_at?: string
           invited_by?: string | null
-          user_id?: string
+          link_health?: Database["public"]["Enums"]["portal_link_health"]
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -1664,30 +1670,36 @@ export type Database = {
           active: boolean
           created_at: string
           doctor_id: string
+          email: string | null
           id: string
           invited_at: string
           invited_by: string | null
-          user_id: string
+          link_health: Database["public"]["Enums"]["portal_link_health"]
+          user_id: string | null
         }
         Insert: {
           accepted_at?: string | null
           active?: boolean
           created_at?: string
           doctor_id: string
+          email?: string | null
           id?: string
           invited_at?: string
           invited_by?: string | null
-          user_id: string
+          link_health?: Database["public"]["Enums"]["portal_link_health"]
+          user_id?: string | null
         }
         Update: {
           accepted_at?: string | null
           active?: boolean
           created_at?: string
           doctor_id?: string
+          email?: string | null
           id?: string
           invited_at?: string
           invited_by?: string | null
-          user_id?: string
+          link_health?: Database["public"]["Enums"]["portal_link_health"]
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -6543,6 +6555,21 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_links_health: {
+        Row: {
+          accepted_at: string | null
+          active: boolean | null
+          created_at: string | null
+          email: string | null
+          id: string | null
+          link_health: Database["public"]["Enums"]["portal_link_health"] | null
+          portal_type: string | null
+          target_id: string | null
+          target_name: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       rules_pending_doctors_summary: {
         Row: {
           pending_companies: number | null
@@ -7300,6 +7327,7 @@ export type Database = {
         }
         Returns: string
       }
+      repair_portal_links: { Args: never; Returns: Json }
       reply_question: {
         Args: {
           p_author_id: string
@@ -7466,6 +7494,7 @@ export type Database = {
         | "em_questionamento"
         | "aprovado_parcial"
         | "revisao_pos_aprovacao"
+      portal_link_health: "ok" | "orphan_user" | "orphan_target" | "inactive"
       reference_table_kind:
         | "simples"
         | "cbhpm"
@@ -7722,6 +7751,7 @@ export const Constants = {
         "aprovado_parcial",
         "revisao_pos_aprovacao",
       ],
+      portal_link_health: ["ok", "orphan_user", "orphan_target", "inactive"],
       reference_table_kind: [
         "simples",
         "cbhpm",
