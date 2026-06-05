@@ -2840,6 +2840,7 @@ const PaymentDetail = () => {
               <span>
                 {criticalFilter === "no_rule" && "Mostrando apenas empresas com itens sem regra cadastrada."}
                 {criticalFilter === "divergent" && "Mostrando apenas empresas com divergência de valores."}
+                {criticalFilter === "validation" && "Mostrando apenas empresas com alertas de validação assistencial (sobreposição, duplicidade, etc.)."}
                 {criticalFilter === "approved" && "Mostrando apenas empresas aprovadas (considera justificativas/blacklists)."}
                 {criticalFilter === "approved_strict" && "Mostrando apenas empresas 100% limpas (sem alertas ou notas da IA)."}
                 {criticalFilter === "all" && payment.analysis_mode === "empresa_prioritaria" && "Modo empresa prioritária: apenas divergências visíveis."}
