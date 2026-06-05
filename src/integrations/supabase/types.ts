@@ -1713,12 +1713,15 @@ export type Database = {
           cpf: string | null
           created_at: string
           created_by: string | null
+          created_by_user_id: string | null
           crm: string
           crm_uf: string
           email: string | null
           full_name: string
           id: string
           notes: string | null
+          pending_admin_review: boolean
+          pending_review_note: string | null
           phone: string | null
           specialties: string[]
           state_uf: string | null
@@ -1731,12 +1734,15 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_user_id?: string | null
           crm: string
           crm_uf: string
           email?: string | null
           full_name: string
           id?: string
           notes?: string | null
+          pending_admin_review?: boolean
+          pending_review_note?: string | null
           phone?: string | null
           specialties?: string[]
           state_uf?: string | null
@@ -1749,12 +1755,15 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_user_id?: string | null
           crm?: string
           crm_uf?: string
           email?: string | null
           full_name?: string
           id?: string
           notes?: string | null
+          pending_admin_review?: boolean
+          pending_review_note?: string | null
           phone?: string | null
           specialties?: string[]
           state_uf?: string | null
