@@ -77,6 +77,7 @@ const loadConversas = () => import("./pages/Conversas.tsx");
 const loadHospitals = () => import("./pages/Hospitals.tsx");
 const loadSelectHospital = () => import("./pages/SelectHospital.tsx");
 const loadPortalUsers = () => import("./pages/PortalUsers.tsx");
+const loadPortalHealth = () => import("./pages/PortalHealth.tsx");
 const loadHospitalSwitchLog = () => import("./pages/HospitalSwitchLog.tsx");
 const loadApproveMagicLink = () => import("./pages/ApproveMagicLink.tsx");
 const loadNotificationPreferences = () => import("./pages/NotificationPreferences.tsx");
@@ -137,6 +138,7 @@ const Conversas = lazy(loadConversas);
 const Hospitals = lazy(loadHospitals);
 const SelectHospital = lazy(loadSelectHospital);
 const PortalUsers = lazy(loadPortalUsers);
+const PortalHealth = lazy(loadPortalHealth);
 const HospitalSwitchLog = lazy(loadHospitalSwitchLog);
 const ApproveMagicLink = lazy(loadApproveMagicLink);
 const NotificationPreferences = lazy(loadNotificationPreferences);
@@ -270,6 +272,7 @@ const App = () => (
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
                   <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
                   <Route path="/portal-usuarios" element={<ProtectedRoute roles={["admin"]}><PortalUsers /></ProtectedRoute>} />
+                  <Route path="/portal-saude" element={<ProtectedRoute roles={["admin"]}><PortalHealth /></ProtectedRoute>} />
                   <Route path="/produtividade-analistas" element={<ProtectedRoute roles={["diretor", "admin"]}><AnalystProductivity /></ProtectedRoute>} />
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
