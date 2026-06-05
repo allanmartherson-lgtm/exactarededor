@@ -13,7 +13,7 @@ export const ProtectedRoute = ({ children, roles }: ProtectedRouteProps) => {
   const { needsSelection, loading: hospitalLoading } = useHospital();
   const location = useLocation();
 
-  if (loading || (user && roles && rolesLoading) || (user && hospitalLoading)) {
+  if (loading || (user && rolesLoading) || (user && hospitalLoading)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
