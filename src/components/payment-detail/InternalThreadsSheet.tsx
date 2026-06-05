@@ -239,6 +239,43 @@ export function InternalThreadsSheet({
     }
     toast({ title: "Conversa encerrada" });
   };
+  const submitNewQuestion = async () => {
+    const text = composeMessage.trim();
+    if (text.length < 10) {
+      toast({ title: "Descreva o questionamento (mín. 10 caracteres)", variant: "destructive" });
+      return;
+    }
+    setComposing(true);
+    const groupId = composeGroupId === "lote" ? null : composeGroupId;
+    const groupLabel = groupId ? (groups.find((g) => g.id === groupId)?.company_name ?? "") : "";
+    const prefix = groupLabel ? `[${groupLabel}] ` : "";
+    const { error } = await supabase.from("payment_questions").insert({
+      payment_id: paymentId,
+      company_group_id: groupId,
+      author_id: currentUserId,
+      author_name: currentUserName,
+      author_type: "interno",
+      message: `[${currentRole}] ${prefix}${text}`,
+    });
+    setComposing(false);
+    if (error) {
+      toast({ title: "Falha ao abrir questionamento", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Questionamento aberto" });
+    setComposeMessage("");
+    setComposeOpen(false);
+    // Vai aparecer automaticamente na lista via realtime.
+  };
+
+  const recipientHint = useMemo(() => {
+    if (currentRole === "diretor" || currentRole === "admin") return "Analista e Supervisor";
+    if (currentRole === "validador") return "Analista";
+    return paymentStatus === "aguardando_aprovacao" || paymentStatus === "aprovado_em_revisao"
+      ? "Diretor"
+      : "Supervisor";
+  }, [currentRole, paymentStatus]);
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
