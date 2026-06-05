@@ -402,6 +402,57 @@ export function InternalThreadsSheet({
         </SheetHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+          {composeOpen && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2 animate-in fade-in slide-in-from-top-1">
+              <div className="flex items-center gap-2">
+                <MessageCircleQuestion className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Novo questionamento</span>
+                <span className="text-[11px] text-muted-foreground ml-auto">
+                  Vai para <strong className="text-foreground">{recipientHint}</strong>
+                </span>
+              </div>
+              <Select value={composeGroupId} onValueChange={setComposeGroupId}>
+                <SelectTrigger className="h-9 text-sm bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lote">Sobre o lote inteiro</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>{g.company_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Textarea
+                value={composeMessage}
+                onChange={(e) => setComposeMessage(e.target.value)}
+                rows={3}
+                autoFocus
+                placeholder="Descreva o que você precisa esclarecer..."
+                className="text-sm bg-card"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    submitNewQuestion();
+                  }
+                }}
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">⌘/Ctrl + Enter para enviar</span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setComposeOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={submitNewQuestion}
+                    disabled={composing || composeMessage.trim().length < 10}
+                  >
+                    {composing ? "Enviando..." : "Abrir conversa"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
           {loading ? (
             <>
               <Skeleton className="h-20 w-full" />
