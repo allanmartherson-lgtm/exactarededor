@@ -88,7 +88,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const [result, setResult] = useState<CommitResult | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>("append");
   const [replaceConfirm, setReplaceConfirm] = useState("");
+  // Atribuição manual de UF por número de CRM (resolve conflitos sem reabrir o arquivo)
+  const [ufOverrides, setUfOverrides] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
+
 
   const supportedModes = profile.supportedModes ?? ["append", "update"];
   const sheet = sheets.find((s) => s.name === activeSheet);
@@ -109,6 +112,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       setResult(null);
       setImportMode(supportedModes[0] ?? "append");
       setReplaceConfirm("");
+      setUfOverrides({});
     }
   }, [open]);
 
@@ -170,6 +174,8 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         profile.entity,
         roleMapping
       );
+      if (profile.entity === "doctors") applyUfOverrides(records, ufOverrides);
+
       
       const itemsCreated = records.map(r => ({
         row: r._meta?.row || 0,
@@ -236,6 +242,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     setProgress(0);
     try {
       const { allRows, records } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity, roleMapping);
+      if (profile.entity === "doctors") applyUfOverrides(records, ufOverrides);
       const totals: CommitResult = { 
         total: allRows.length, 
         inserted: 0, 
@@ -576,30 +583,93 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
                     </tbody>
                   </table>
                 </div>
+
+                {/* Atribuição em massa de UF — resolve conflitos sem reabrir o arquivo */}
+                <div className="mt-3 rounded-md border border-border bg-muted/20 p-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-medium">Atribuir UF em massa</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px]"
+                      onClick={() => runValidation()}
+                      disabled={busy}
+                    >
+                      Revalidar com atribuições
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mb-2">
+                    Defina a UF correta para cada CRM em conflito. A atribuição só preenche
+                    linhas sem UF — valores explícitos no arquivo são preservados. Clique em
+                    "Revalidar" para reaplicar e liberar a importação.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {validation.crmConflicts.map((c, i) => {
+                      const options = Array.from(new Set(c.ufs.filter((u) => u && u !== "(sem UF)")));
+                      const current = ufOverrides[c.number] ?? "";
+                      return (
+                        <div key={`ov-${i}`} className="flex items-center gap-2 text-[11px]">
+                          <span className="font-mono w-24 truncate" title={`CRM ${c.number}`}>CRM {c.number}</span>
+                          <select
+                            value={current}
+                            onChange={(e) =>
+                              setUfOverrides((prev) => {
+                                const next = { ...prev };
+                                if (e.target.value) next[c.number] = e.target.value;
+                                else delete next[c.number];
+                                return next;
+                              })
+                            }
+                            className="h-7 flex-1 rounded-md border border-input bg-background px-2 text-[11px]"
+                          >
+                            <option value="">— não atribuir —</option>
+                            {options.map((u) => (
+                              <option key={u} value={u}>{u}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </Section>
             )}
+
 
             {validation.resolutionReport && validation.resolutionReport.length > 0 && (
               <Section
                 icon={<CheckCircle2 className="h-4 w-4 text-success" />}
                 title={`Auditoria de resolução de CRM (${validation.resolutionReport.length})`}
               >
-                <div className="grid grid-cols-3 gap-2 mb-2 text-[11px]">
-                  <Stat
-                    label="Match CRM+UF"
-                    value={validation.resolutionReport.filter((r) => r.method === "crm+uf").length}
-                    tone="success"
-                  />
-                  <Stat
-                    label="Match só por número"
-                    value={validation.resolutionReport.filter((r) => r.method === "crm-only").length}
-                    tone="warn"
-                  />
-                  <Stat
-                    label="Novo cadastro"
-                    value={validation.resolutionReport.filter((r) => r.method === "novo").length}
-                  />
+                <div className="flex items-center justify-between mb-2">
+                  <div className="grid grid-cols-3 gap-2 text-[11px] flex-1">
+                    <Stat
+                      label="Match CRM+UF"
+                      value={validation.resolutionReport.filter((r) => r.method === "crm+uf").length}
+                      tone="success"
+                    />
+                    <Stat
+                      label="Match só por número"
+                      value={validation.resolutionReport.filter((r) => r.method === "crm-only").length}
+                      tone="warn"
+                    />
+                    <Stat
+                      label="Novo cadastro"
+                      value={validation.resolutionReport.filter((r) => r.method === "novo").length}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px] ml-2 shrink-0"
+                    onClick={() => downloadResolutionCsv(validation.resolutionReport!)}
+                  >
+                    Exportar CSV
+                  </Button>
                 </div>
+
                 <div className="overflow-auto max-h-72 rounded-md border border-border">
                   <table className="text-[11px] w-full border-collapse">
                     <thead className="bg-muted/50 sticky top-0">
@@ -860,9 +930,54 @@ function downloadTemplate(profile: ImportProfile, title: string) {
 
 
 /**
+ * Exporta o relatório de auditoria de resolução de CRM como CSV.
+ * Inclui todas as linhas (não apenas as 200 exibidas em tela).
+ */
+function downloadResolutionCsv(
+  report: { row: number; crm: string; uf: string | null; method: "crm+uf" | "crm-only" | "novo"; reason: string }[],
+) {
+  const esc = (v: any) => {
+    const s = v == null ? "" : String(v);
+    return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = ["linha", "crm", "uf", "metodo", "justificativa"].join(";");
+  const lines = report.map((r) => [r.row, r.crm, r.uf ?? "", r.method, r.reason].map(esc).join(";"));
+  const csv = "\uFEFF" + [header, ...lines].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  a.href = url;
+  a.download = `auditoria-crm-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+
+ * Aplica overrides manuais de UF (atribuição em massa) sobre os registros
+ * antes da validação/commit. Só preenche UF quando ela está vazia, para não
+ * sobrescrever um valor explícito vindo do arquivo.
+ */
+function applyUfOverrides(records: any[], overrides: Record<string, string>) {
+  if (!overrides || Object.keys(overrides).length === 0) return;
+  for (const r of records) {
+    const number = String(r.crm ?? "").replace(/\D/g, "");
+    if (!number) continue;
+    const ov = overrides[number];
+    if (!ov) continue;
+    const current = String(r.crm_uf ?? "").toUpperCase().trim();
+    if (!current) r.crm_uf = ov.toUpperCase();
+  }
+}
+
+/**
  * Detecta conflitos de CRM/UF na importação de médicos e produz um relatório
  * de auditoria do método de resolução por linha.
  *
+
  * Conflitos:
  *  - "file": dentro do próprio arquivo há linhas com o mesmo número de CRM
  *    e UFs diferentes (ou ausentes em parte das linhas).
