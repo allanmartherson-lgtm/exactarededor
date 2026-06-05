@@ -70,11 +70,41 @@ const crmUfKey = (number: string, uf: string | null | undefined) =>
 
 // ====== loaders ======
 
+/**
+ * Pagina todas as linhas de uma query Supabase ignorando o teto default
+ * de 1000. Necessário para `doctors` (>4k linhas) — sem isso o resolver
+ * perde médicos cadastrados e quebra o lookup estrito.
+ */
+async function fetchAllPaginated<T>(
+  buildQuery: (from: number, to: number) => any,
+  pageSize = 1000,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const to = from + pageSize - 1;
+    const { data, error } = await buildQuery(from, to);
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return out;
+}
+
 export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
   const reg: DoctorRegistry = { byCrm: new Map(), byCrmUf: new Map(), byCpf: new Map(), byAlias: new Map() };
-  const [{ data: docs }, { data: aliases }] = await Promise.all([
-    supabase.from("doctors").select("id, full_name, crm, crm_uf, cpf").eq("active", true),
-    supabase.from("doctor_aliases").select("doctor_id, alias_normalized"),
+  const [docs, aliases] = await Promise.all([
+    fetchAllPaginated<any>((from, to) =>
+      supabase
+        .from("doctors")
+        .select("id, full_name, crm, crm_uf, cpf")
+        .eq("active", true)
+        .eq("pending_admin_review", false)
+        .range(from, to),
+    ),
+    fetchAllPaginated<any>((from, to) =>
+      supabase.from("doctor_aliases").select("doctor_id, alias_normalized").range(from, to),
+    ),
   ]);
   const byId = new Map<string, DoctorRegistryEntry>();
   for (const d of docs ?? []) {
