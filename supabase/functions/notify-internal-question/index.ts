@@ -45,8 +45,10 @@ interface Body {
   /** "created" (pergunta nova) ou "resolved" (pergunta respondida). */
   event: EventKind;
   payment_id: string;
-  /** id da observação que é a pergunta. */
+  /** id da pergunta (em payment_questions ou payment_observations, conforme `source`). */
   question_observation_id: string;
+  /** Tabela de origem. Default: payment_observations (compat). */
+  source?: "payment_questions" | "payment_observations";
   /** Papel de quem perguntou — usado para roteamento quando não há recipient_roles. */
   asker_role?: Role | null;
   /** Override opcional: papéis a notificar. Se ausente, usa matriz. */
@@ -54,6 +56,7 @@ interface Body {
   /** Para "resolved": id do usuário que respondeu (não recebe notificação). */
   responder_id?: string | null;
 }
+
 
 /** Resolve papéis-alvo a partir do papel de quem perguntou + status do lote. */
 export function defaultRecipientsForCreated(
@@ -95,9 +98,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    const source = body.source ?? "payment_observations";
+    const isQuestionsTable = source === "payment_questions";
+
+    const questionSelect = isQuestionsTable
+      ? "id, payment_id, author_id, author_type, message, created_at, status, parent_id"
+      : "id, payment_id, author_id, author_type, message, created_at, resolved_at, resolved_by";
+
     const { data: question } = await supabase
-      .from("payment_observations")
-      .select("id, payment_id, author_id, author_type, message, created_at, resolved_at, resolved_by")
+      .from(source)
+      .select(questionSelect)
       .eq("id", body.question_observation_id)
       .maybeSingle();
     if (!question) {
@@ -109,14 +119,22 @@ Deno.serve(async (req) => {
     // Se for resolução, verifica se restam outras perguntas abertas no lote
     let isLastInCycle = false;
     if (body.event === "resolved") {
-      const { count } = await supabase
-        .from("payment_observations")
-        .select("*", { count: "exact", head: true })
-        .eq("payment_id", body.payment_id)
-        .eq("is_question", true)
-        .is("resolved_at", null);
-      
+      const openQuery = isQuestionsTable
+        ? supabase
+            .from("payment_questions")
+            .select("*", { count: "exact", head: true })
+            .eq("payment_id", body.payment_id)
+            .is("parent_id", null)
+            .neq("status", "encerrada")
+        : supabase
+            .from("payment_observations")
+            .select("*", { count: "exact", head: true })
+            .eq("payment_id", body.payment_id)
+            .eq("is_question", true)
+            .is("resolved_at", null);
+      const { count } = await openQuery;
       isLastInCycle = (count === 0);
+
       
       // Regra: notificação dispara apenas quando o ÚLTIMO questionamento é respondido
       if (!isLastInCycle) {

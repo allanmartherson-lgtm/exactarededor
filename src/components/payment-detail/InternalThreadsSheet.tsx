@@ -224,6 +224,7 @@ export function InternalThreadsSheet({
     }
     setReplies((p) => ({ ...p, [root.id]: "" }));
     toast({ title: "Resposta enviada" });
+    load();
   };
 
   const closeThread = async (root: Row) => {
@@ -238,7 +239,9 @@ export function InternalThreadsSheet({
       return;
     }
     toast({ title: "Conversa encerrada" });
+    load();
   };
+
   const submitNewQuestion = async () => {
     const text = composeMessage.trim();
     if (text.length < 10) {
@@ -249,24 +252,44 @@ export function InternalThreadsSheet({
     const groupId = composeGroupId === "lote" ? null : composeGroupId;
     const groupLabel = groupId ? (groups.find((g) => g.id === groupId)?.company_name ?? "") : "";
     const prefix = groupLabel ? `[${groupLabel}] ` : "";
-    const { error } = await supabase.from("payment_questions").insert({
-      payment_id: paymentId,
-      company_group_id: groupId,
-      author_id: currentUserId,
-      author_name: currentUserName,
-      author_type: "interno",
-      message: `[${currentRole}] ${prefix}${text}`,
-    });
+    const { data: inserted, error } = await supabase
+      .from("payment_questions")
+      .insert({
+        payment_id: paymentId,
+        company_group_id: groupId,
+        author_id: currentUserId,
+        author_name: currentUserName,
+        author_type: "interno",
+        message: `[${currentRole}] ${prefix}${text}`,
+      })
+      .select("id")
+      .single();
     setComposing(false);
     if (error) {
       toast({ title: "Falha ao abrir questionamento", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Questionamento aberto" });
+    toast({ title: "Questionamento aberto", description: `Notificando ${recipientHint}.` });
     setComposeMessage("");
     setComposeOpen(false);
-    // Vai aparecer automaticamente na lista via realtime.
+    // Reload imediato (realtime é redundante, mas garante UX).
+    load();
+    // Dispara notificação (e-mail + WhatsApp). Falha silenciosa não bloqueia UX.
+    if (inserted?.id) {
+      supabase.functions
+        .invoke("notify-internal-question", {
+          body: {
+            event: "created",
+            payment_id: paymentId,
+            question_observation_id: inserted.id,
+            source: "payment_questions",
+            asker_role: currentRole,
+          },
+        })
+        .catch((e) => console.warn("notify-internal-question failed", e));
+    }
   };
+
 
   const recipientHint = useMemo(() => {
     if (currentRole === "diretor" || currentRole === "admin") return "Analista e Supervisor";
