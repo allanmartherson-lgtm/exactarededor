@@ -3,48 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, type PaymentStatus } from "@/lib/status";
-import { Activity, Clock, RotateCcw, CheckCircle2, Receipt, AlertTriangle, TrendingUp, ArrowUp, ArrowDown, AlertCircle } from "lucide-react";
+import {
+  Activity, Clock, RotateCcw, CheckCircle2, Receipt, AlertTriangle,
+  TrendingUp, ArrowUp, ArrowDown, AlertCircle, Info,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  buildWindows, computeMetrics, deltaPct, deltaPoints,
+  type HistoryLite, type InvoiceLite, type ObsLite, type PaymentLite,
+} from "@/lib/kpiMetrics";
 
 type Range = 7 | 30 | 90;
-
-interface PaymentLite {
-  id: string;
-  status: PaymentStatus;
-  total_amount: number | string;
-  created_at: string;
-  updated_at: string;
-  approved_at: string | null;
-  validated_at: string | null;
-  created_by: string | null;
-  validated_by: string | null;
-  approved_by: string | null;
-}
-
-interface ObsLite {
-  payment_id: string;
-  status_from: PaymentStatus | null;
-  status_to: PaymentStatus | null;
-  created_at: string;
-}
-
-interface HistoryLite {
-  payment_id: string;
-  status_from: PaymentStatus | null;
-  status_to: PaymentStatus | null;
-  changed_at: string;
-}
-
-interface InvoiceLite {
-  id: string;
-  status: string;
-  payment_id: string;
-  created_at: string;
-  ai_validation: { divergences?: string[] } | null;
-}
 
 const fmtHours = (h: number | null) => {
   if (h == null || !isFinite(h)) return "—";
@@ -52,27 +25,19 @@ const fmtHours = (h: number | null) => {
   if (h < 48) return `${h.toFixed(1)}h`;
   return `${(h / 24).toFixed(1)}d`;
 };
-const pct = (n: number, d: number) => (d === 0 ? null : (n / d) * 100);
 const pctStr = (p: number | null) => (p == null ? "—" : `${Math.round(p)}%`);
 
-type Metrics = {
-  total: number;
-  valor: number;
-  ttApprov: number | null;
-  ttValid: number | null;
-  validadosCount: number;
-  aprovadosCount: number;
-  devolucoes: number;
-  taxaDevolucao: number | null;
-  pagos: number;
-  rejeitados: number;
-  taxaConclusao: number | null;
-  nfTotal: number;
-  nfDiv: number;
-  nfConc: number;
-  taxaDivergencia: number | null;
-  throughput: number;
-};
+const stageBuckets: { label: string; statuses: PaymentStatus[]; tone: string }[] = [
+  { label: "Análise IA", statuses: ["em_analise_ia", "revisao_analista"], tone: "bg-info" },
+  { label: "Validação", statuses: ["aguardando_validacao"], tone: "bg-warning" },
+  { label: "Aprovação", statuses: ["aguardando_aprovacao"], tone: "bg-warning" },
+  { label: "NF solicitada", statuses: ["aprovado", "pedido_nf_enviado", "aprovado_em_revisao"], tone: "bg-info" },
+  { label: "NF recebida", statuses: ["nf_recebida"], tone: "bg-info" },
+  { label: "NF conciliada", statuses: ["nf_conciliada"], tone: "bg-success" },
+  { label: "Pago", statuses: ["pago"], tone: "bg-success" },
+  { label: "Devolvido / questionado", statuses: ["devolvido_analista", "nf_questionada", "aprovado_com_ressalva"], tone: "bg-destructive" },
+  { label: "Rejeitado", statuses: ["rejeitado"], tone: "bg-muted" },
+];
 
 const Kpis = () => {
   const { user, hasRole } = useAuth();
@@ -92,14 +57,11 @@ const Kpis = () => {
   const isValidador = hasRole("validador");
   const isAnalista = hasRole("analista");
   const seesAll = isAdmin || isDiretor;
+  const invoicesUnscoped = seesAll || isValidador;
 
   useEffect(() => {
     document.title = "KPIs | Exacta";
-    const now = Date.now();
-    const ms = range * 24 * 60 * 60 * 1000;
-    const sinceCurr = new Date(now - ms).toISOString();
-    const sincePrev = new Date(now - 2 * ms).toISOString();
-    const untilPrev = sinceCurr;
+    const { sinceCurr, sincePrev, untilPrev } = buildWindows(range);
     setLoading(true);
 
     const cols = "id,status,total_amount,liquido_total,created_at,updated_at,approved_at,validated_at,created_by,validated_by,approved_by";
@@ -127,8 +89,7 @@ const Kpis = () => {
   }, [range]);
 
   const filterByRole = (list: PaymentLite[]) => {
-    if (seesAll) return list;
-    if (isValidador) return list;
+    if (seesAll || isValidador) return list;
     if (isAnalista && user?.id) return list.filter((p) => p.created_by === user.id);
     return [];
   };
@@ -136,87 +97,17 @@ const Kpis = () => {
   const myPayments = useMemo(() => filterByRole(payments), [payments, seesAll, isValidador, isAnalista, user?.id]);
   const myPaymentsPrev = useMemo(() => filterByRole(paymentsPrev), [paymentsPrev, seesAll, isValidador, isAnalista, user?.id]);
 
-  const computeMetrics = (
-    pmts: PaymentLite[],
-    observ: ObsLite[],
-    hist: HistoryLite[],
-    invs: InvoiceLite[],
-    days: number,
-  ): Metrics => {
-    const total = pmts.length;
-    const valor = pmts.reduce((s, p: any) => s + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
-    const idSet = new Set(pmts.map((p) => p.id));
-    const createdById = new Map(pmts.map((p) => [p.id, new Date(p.created_at).getTime()] as const));
+  const metrics = useMemo(() => computeMetrics({
+    payments: myPayments, observations: obs, history, invoices, rangeDays: range, invoicesUnscoped,
+  }), [myPayments, obs, history, invoices, range, invoicesUnscoped]);
+  const metricsPrev = useMemo(() => computeMetrics({
+    payments: myPaymentsPrev, observations: obsPrev, history: historyPrev, invoices: invoicesPrev, rangeDays: range, invoicesUnscoped,
+  }), [myPaymentsPrev, obsPrev, historyPrev, invoicesPrev, range, invoicesUnscoped]);
 
-    // Tempos via history (status_to)
-    const firstTransition = (target: (s: PaymentStatus | null) => boolean) => {
-      const byPayment = new Map<string, number>();
-      for (const h of hist) {
-        if (!idSet.has(h.payment_id)) continue;
-        if (!target(h.status_to)) continue;
-        const t = new Date(h.changed_at).getTime();
-        const prev = byPayment.get(h.payment_id);
-        if (prev == null || t < prev) byPayment.set(h.payment_id, t);
-      }
-      return byPayment;
-    };
-
-    const validTransitions = firstTransition((s) => s === "aguardando_aprovacao");
-    const apprTransitions = firstTransition((s) => s === "aprovado" || s === "aprovado_em_revisao");
-
-    const computeAvg = (transitions: Map<string, number>, fallbackField: "validated_at" | "approved_at") => {
-      const samples: number[] = [];
-      for (const p of pmts) {
-        const created = createdById.get(p.id)!;
-        let t = transitions.get(p.id);
-        if (t == null) {
-          const fb = (p as any)[fallbackField] as string | null;
-          if (fb) t = new Date(fb).getTime();
-        }
-        if (t == null) continue;
-        const diff = (t - created) / 3_600_000;
-        if (diff >= 0) samples.push(diff);
-      }
-      if (!samples.length) return { avg: null as number | null, count: 0 };
-      return { avg: samples.reduce((a, b) => a + b, 0) / samples.length, count: samples.length };
-    };
-
-    const valid = computeAvg(validTransitions, "validated_at");
-    const appr = computeAvg(apprTransitions, "approved_at");
-
-    const devolucoes = observ.filter((o) => idSet.has(o.payment_id) && o.status_to === "devolvido_analista").length;
-    const taxaDevolucao = pct(devolucoes, total);
-
-    const pagos = pmts.filter((p) => p.status === "pago" || p.status === "arquivado").length;
-    const rejeitados = pmts.filter((p) => p.status === "rejeitado").length;
-    const taxaConclusao = pct(pagos, total);
-
-    const myInv = seesAll || isValidador ? invs : invs.filter((iv) => idSet.has(iv.payment_id));
-    const nfTotal = myInv.length;
-    const nfDiv = myInv.filter((iv) => iv.status === "divergente" || (iv.ai_validation?.divergences?.length ?? 0) > 0).length;
-    const nfConc = myInv.filter((iv) => iv.status === "conciliada").length;
-    const taxaDivergencia = pct(nfDiv, nfTotal);
-
-    return {
-      total, valor,
-      ttApprov: appr.avg, aprovadosCount: appr.count,
-      ttValid: valid.avg, validadosCount: valid.count,
-      devolucoes, taxaDevolucao,
-      pagos, rejeitados, taxaConclusao,
-      nfTotal, nfDiv, nfConc, taxaDivergencia,
-      throughput: total / Math.max(days, 1),
-    };
-  };
-
-  const metrics = useMemo(() => computeMetrics(myPayments, obs, history, invoices, range), [myPayments, obs, history, invoices, range, seesAll, isValidador]);
-  const metricsPrev = useMemo(() => computeMetrics(myPaymentsPrev, obsPrev, historyPrev, invoicesPrev, range), [myPaymentsPrev, obsPrev, historyPrev, invoicesPrev, range, seesAll, isValidador]);
-
-  // Bottleneck
   const bottleneck = useMemo(() => {
     if (!myPayments.length) return null;
-    const buckets = stageBuckets;
     let best: { label: string; count: number } | null = null;
-    for (const b of buckets) {
+    for (const b of stageBuckets) {
       const c = myPayments.filter((p) => b.statuses.includes(p.status)).length;
       if (!best || c > best.count) best = { label: b.label, count: c };
     }
@@ -237,6 +128,7 @@ const Kpis = () => {
           ))}
           <span className="text-xs text-muted-foreground ml-auto">
             {seesAll ? "Visão completa" : isValidador ? "Visão da equipe" : "Apenas suas bases"}
+            {" · Variação vs "}{range} dias anteriores.
           </span>
         </div>
 
@@ -260,33 +152,44 @@ const Kpis = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            <KpiGroup title="Volume">
-              <KpiCard icon={Activity} label="Bases criadas" value={String(metrics.total)} hint={formatCurrency(metrics.valor)}
-                delta={deltaPct(metrics.total, metricsPrev.total)} higherIsBetter />
-              <KpiCard icon={TrendingUp} label="Throughput" value={`${metrics.throughput.toFixed(1)}/dia`} hint={`média em ${range} dias`} tone="info"
-                delta={deltaPct(metrics.throughput, metricsPrev.throughput)} higherIsBetter />
-            </KpiGroup>
+            {/* Pares de grupos lado-a-lado em telas ≥xl. Cada grupo mantém 2 colunas internas */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-6 gap-y-6">
+              <KpiGroup title="Volume">
+                <KpiCard icon={Activity} label="Bases criadas" value={String(metrics.total)} hint={formatCurrency(metrics.valor)}
+                  definition="Pagamentos com created_at dentro da janela selecionada (após o filtro de papel)."
+                  delta={deltaPct(metrics.total, metricsPrev.total)} higherIsBetter />
+                <KpiCard icon={TrendingUp} label="Throughput" value={`${metrics.throughput.toFixed(1)}/dia`} hint={`média em ${range} dias`} tone="info"
+                  definition={`Bases criadas ÷ ${range} dias. Mede ritmo médio de chegada.`}
+                  delta={deltaPct(metrics.throughput, metricsPrev.throughput)} higherIsBetter />
+              </KpiGroup>
 
-            <KpiGroup title="Velocidade">
-              <KpiCard icon={Clock} label="Tempo até validação" value={fmtHours(metrics.ttValid)} hint={`${metrics.validadosCount} validadas`} tone="info"
-                delta={deltaPct(metrics.ttValid, metricsPrev.ttValid)} higherIsBetter={false} />
-              <KpiCard icon={Clock} label="Tempo até aprovação" value={fmtHours(metrics.ttApprov)} hint={`${metrics.aprovadosCount} aprovadas`}
-                delta={deltaPct(metrics.ttApprov, metricsPrev.ttApprov)} higherIsBetter={false} />
-            </KpiGroup>
+              <KpiGroup title="Velocidade">
+                <KpiCard icon={Clock} label="Tempo até validação" value={fmtHours(metrics.ttValid)} hint={`${metrics.validadosCount} validadas`} tone="info"
+                  definition="Média de (primeiro changed_at com status_to = 'aguardando_aprovacao' em payment_status_history) − created_at. Pagamentos sem essa transição NÃO entram na média (não contam zero). Usa validated_at apenas como fallback quando não há transição no histórico."
+                  delta={deltaPct(metrics.ttValid, metricsPrev.ttValid)} higherIsBetter={false} />
+                <KpiCard icon={Clock} label="Tempo até aprovação" value={fmtHours(metrics.ttApprov)} hint={`${metrics.aprovadosCount} aprovadas`}
+                  definition="Média de (primeiro changed_at com status_to ∈ {'aprovado','aprovado_em_revisao'}) − created_at. Pagamentos sem essa transição não entram. approved_at usado só como fallback."
+                  delta={deltaPct(metrics.ttApprov, metricsPrev.ttApprov)} higherIsBetter={false} />
+              </KpiGroup>
 
-            <KpiGroup title="Qualidade">
-              <KpiCard icon={RotateCcw} label="Taxa de devolução" value={pctStr(metrics.taxaDevolucao)} hint={`${metrics.devolucoes} eventos`} tone="warning"
-                delta={deltaPoints(metrics.taxaDevolucao, metricsPrev.taxaDevolucao)} higherIsBetter={false} unit="pp" />
-              <KpiCard icon={AlertTriangle} label="Taxa de divergência NF" value={pctStr(metrics.taxaDivergencia)} hint={`${metrics.nfDiv} divergentes`} tone="destructive"
-                delta={deltaPoints(metrics.taxaDivergencia, metricsPrev.taxaDivergencia)} higherIsBetter={false} unit="pp" />
-            </KpiGroup>
+              <KpiGroup title="Qualidade">
+                <KpiCard icon={RotateCcw} label="Taxa de devolução" value={pctStr(metrics.taxaDevolucao)} hint={`${metrics.devolucoes} eventos`} tone="warning"
+                  definition="Eventos em payment_observations com status_to = 'devolvido_analista' ÷ total de bases criadas no período."
+                  delta={deltaPoints(metrics.taxaDevolucao, metricsPrev.taxaDevolucao)} higherIsBetter={false} unit="pp" />
+                <KpiCard icon={AlertTriangle} label="Taxa de divergência NF" value={pctStr(metrics.taxaDivergencia)} hint={`${metrics.nfDiv} divergentes`} tone="destructive"
+                  definition="NFs com status 'divergente' OU ai_validation.divergences > 0, dividido pelo total de NFs criadas na janela."
+                  delta={deltaPoints(metrics.taxaDivergencia, metricsPrev.taxaDivergencia)} higherIsBetter={false} unit="pp" />
+              </KpiGroup>
 
-            <KpiGroup title="Saída">
-              <KpiCard icon={CheckCircle2} label="Taxa de conclusão" value={pctStr(metrics.taxaConclusao)} hint={`${metrics.pagos} pagas / ${metrics.rejeitados} rejeitadas`} tone="success"
-                delta={deltaPoints(metrics.taxaConclusao, metricsPrev.taxaConclusao)} higherIsBetter unit="pp" />
-              <KpiCard icon={Receipt} label="NFs no período" value={String(metrics.nfTotal)} hint={`${metrics.nfConc} conciliadas`}
-                delta={deltaPct(metrics.nfTotal, metricsPrev.nfTotal)} higherIsBetter />
-            </KpiGroup>
+              <KpiGroup title="Saída">
+                <KpiCard icon={CheckCircle2} label="Taxa de conclusão" value={pctStr(metrics.taxaConclusao)} hint={`${metrics.pagos} pagas / ${metrics.rejeitados} rejeitadas`} tone="success"
+                  definition="Bases em status 'pago' ou 'arquivado' ÷ total de bases criadas na janela."
+                  delta={deltaPoints(metrics.taxaConclusao, metricsPrev.taxaConclusao)} higherIsBetter unit="pp" />
+                <KpiCard icon={Receipt} label="NFs no período" value={String(metrics.nfTotal)} hint={`${metrics.nfConc} conciliadas`}
+                  definition={`NFs criadas dentro da janela. ${invoicesUnscoped ? "Visão agregada (todas)." : "Restrito às suas bases."}`}
+                  delta={deltaPct(metrics.nfTotal, metricsPrev.nfTotal)} higherIsBetter />
+              </KpiGroup>
+            </div>
           </div>
         )}
 
@@ -301,30 +204,22 @@ const Kpis = () => {
   );
 };
 
-const deltaPct = (curr: number | null, prev: number | null): number | null => {
-  if (curr == null || prev == null) return null;
-  if (prev === 0) return null;
-  return ((curr - prev) / Math.abs(prev)) * 100;
-};
-const deltaPoints = (curr: number | null, prev: number | null): number | null => {
-  if (curr == null || prev == null) return null;
-  return curr - prev;
-};
-
 const KpiGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="space-y-2">
     <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{title}</p>
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">{children}</div>
+    {/* Mobile/tablet: 1 col (empilhado). md+: 2 colunas. Em grupos pareados (xl) mantém 2 colunas internas. */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">{children}</div>
   </div>
 );
 
 const KpiCard = ({
-  icon: Icon, label, value, hint, tone = "muted", delta, higherIsBetter, unit = "%",
+  icon: Icon, label, value, hint, tone = "muted", delta, higherIsBetter, unit = "%", definition,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string; value: string; hint?: string;
   tone?: "muted" | "info" | "success" | "warning" | "destructive";
   delta?: number | null; higherIsBetter?: boolean; unit?: "%" | "pp";
+  definition?: string;
 }) => {
   const toneRing: Record<string, string> = {
     muted: "border-border", info: "border-info/30", success: "border-success/30",
@@ -345,8 +240,9 @@ const KpiCard = ({
       ? `${Math.abs(delta).toFixed(1)} pp`
       : `${Math.abs(delta).toFixed(0)}%`;
     deltaEl = (
-      <span className={cn("inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums", color)}>
-        <Arrow className="h-3 w-3" />{display}
+      <span className={cn("inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums", color)}
+        aria-label={`Variação vs período anterior: ${good ? "melhor" : "pior"} em ${display}`}>
+        <Arrow className="h-3 w-3" aria-hidden />{display}
       </span>
     );
   }
@@ -355,8 +251,24 @@ const KpiCard = ({
     <Card className={`shadow-card ${toneRing[tone]}`}>
       <CardContent className="p-4 space-y-1.5">
         <div className="flex items-center gap-2">
-          <Icon className={`h-4 w-4 ${toneIcon[tone]}`} />
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+          <Icon className={`h-4 w-4 ${toneIcon[tone]}`} aria-hidden />
+          <span className="text-xs uppercase tracking-wider text-muted-foreground flex-1 min-w-0">{label}</span>
+          {definition && (
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Como ${label} é calculado`}
+                  className="text-muted-foreground/60 hover:text-foreground transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                {definition}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
         <div className="flex items-baseline gap-2 flex-wrap">
           <p className="text-2xl font-semibold tabular-nums">{value}</p>
@@ -367,18 +279,6 @@ const KpiCard = ({
     </Card>
   );
 };
-
-const stageBuckets: { label: string; statuses: PaymentStatus[]; tone: string }[] = [
-  { label: "Análise IA", statuses: ["em_analise_ia", "revisao_analista"], tone: "bg-info" },
-  { label: "Validação", statuses: ["aguardando_validacao"], tone: "bg-warning" },
-  { label: "Aprovação", statuses: ["aguardando_aprovacao"], tone: "bg-warning" },
-  { label: "NF solicitada", statuses: ["aprovado", "pedido_nf_enviado", "aprovado_em_revisao"], tone: "bg-info" },
-  { label: "NF recebida", statuses: ["nf_recebida"], tone: "bg-info" },
-  { label: "NF conciliada", statuses: ["nf_conciliada"], tone: "bg-success" },
-  { label: "Pago", statuses: ["pago"], tone: "bg-success" },
-  { label: "Devolvido / questionado", statuses: ["devolvido_analista", "nf_questionada", "aprovado_com_ressalva"], tone: "bg-destructive" },
-  { label: "Rejeitado", statuses: ["rejeitado"], tone: "bg-muted" },
-];
 
 const StageBreakdown = ({ payments }: { payments: PaymentLite[] }) => {
   const total = payments.length || 1;

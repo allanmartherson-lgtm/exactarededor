@@ -125,11 +125,11 @@ describe("computeAvgHours", () => {
 });
 
 describe("computeMetrics", () => {
-  const baseArgs = (over: { payments?: PaymentLite[]; history?: HistoryLite[]; observations?: ObsLite[]; invoices?: InvoiceLite[] } = {}) => ({
-    payments: [],
-    observations: [],
-    history: [],
-    invoices: [],
+  const baseArgs = (over: Partial<Parameters<typeof computeMetrics>[0]> = {}) => ({
+    payments: [] as PaymentLite[],
+    observations: [] as ObsLite[],
+    history: [] as HistoryLite[],
+    invoices: [] as InvoiceLite[],
     rangeDays: 30,
     invoicesUnscoped: false,
     ...over,
