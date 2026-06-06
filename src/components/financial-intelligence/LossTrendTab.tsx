@@ -122,7 +122,11 @@ export const LossTrendTab = () => {
         {!rows ? (
           <Skeleton className="h-72 w-full" />
         ) : chartData.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Sem dados.</p>
+          <p className="text-sm text-muted-foreground text-center py-8">
+            {rows.length === 0
+              ? "Sem dados."
+              : `Dados insuficientes para tendência confiável — são necessários ao menos 2 meses completos (atualmente: ${completeCount}).`}
+          </p>
         ) : (
           <>
             <div className="h-72 w-full">
@@ -142,6 +146,11 @@ export const LossTrendTab = () => {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            {hiddenCount > 0 && (
+              <p className="text-xs text-muted-foreground italic">
+                Meses incompletos/parciais são ocultados ({hiddenCount} ocultado{hiddenCount > 1 ? "s" : ""}).
+              </p>
+            )}
             {alerts.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Alertas de alta</p>
