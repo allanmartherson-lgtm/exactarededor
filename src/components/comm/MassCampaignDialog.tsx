@@ -47,6 +47,13 @@ interface Props {
 type Company = { id: string; name: string };
 type Doctor = { id: string; full_name: string };
 
+// Formata "YYYY-MM" (ou "YYYY-MM-DD") → "MM/YYYY" (padrão BR)
+function formatCompetenceBR(ym: string | null | undefined): string {
+  if (!ym) return "";
+  const m = ym.match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[2]}/${m[1]}` : ym;
+}
+
 export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const { user } = useAuth();
   const [title, setTitle] = useState("");
@@ -79,21 +86,23 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         table: "companies" | "doctors",
         select: string,
         order: string,
-      ): Promise<T[]> => {
+      ): Promise<{ rows: T[]; expected: number | null }> => {
         const PAGE = 1000;
         const out: T[] = [];
+        let expected: number | null = null;
         for (let from = 0; ; from += PAGE) {
-          const { data, error } = await supabase
+          const { data, error, count } = await supabase
             .from(table)
-            .select(select)
+            .select(select, from === 0 ? { count: "exact" } : undefined)
             .eq("active", true)
             .order(order)
             .range(from, from + PAGE - 1);
           if (error || !data) break;
+          if (from === 0 && typeof count === "number") expected = count;
           out.push(...(data as unknown as T[]));
           if (data.length < PAGE) break;
         }
-        return out;
+        return { rows: out, expected };
       };
 
       const [c, d] = await Promise.all([
@@ -104,13 +113,29 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
           "full_name",
         ),
       ]);
-      setCompanies(c);
-      setDoctors(d.map((x) => ({ id: x.id, full_name: x.full_name })));
+      // Validação: garante que a paginação trouxe o total exato do servidor.
+      if (c.expected !== null && c.rows.length !== c.expected) {
+        console.warn(
+          `[MassCampaign] Empresas: carregadas ${c.rows.length} de ${c.expected} esperadas`,
+        );
+      }
+      if (d.expected !== null && d.rows.length !== d.expected) {
+        console.warn(
+          `[MassCampaign] Médicos: carregados ${d.rows.length} de ${d.expected} esperados`,
+        );
+      }
+      setCompanies(c.rows);
+      setDoctors(d.rows.map((x) => ({ id: x.id, full_name: x.full_name })));
       const set = new Set<string>();
-      d.forEach((x) => (x.specialties ?? []).forEach((s) => s && set.add(s)));
+      d.rows.forEach((x) => (x.specialties ?? []).forEach((s) => s && set.add(s)));
       setSpecialtyOptions(Array.from(set).sort((a, b) => a.localeCompare(b)));
     })();
   }, [open]);
+
+
+
+
+
 
 
   const reset = () => {
@@ -613,7 +638,7 @@ function BatchCompanyPicker({
                 <SelectItem value="__all__">Todas</SelectItem>
                 {competences.map((c) => (
                   <SelectItem key={c} value={c}>
-                    {c}
+                    {formatCompetenceBR(c)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -633,7 +658,7 @@ function BatchCompanyPicker({
                   <SelectItem key={p.id} value={p.id}>
                     {p.reference}
                     {p.payment_type ? ` · ${p.payment_type}` : ""}
-                    {p.competence_month ? ` · ${p.competence_month.slice(0, 7)}` : ""}
+                    {p.competence_month ? ` · ${formatCompetenceBR(p.competence_month)}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
