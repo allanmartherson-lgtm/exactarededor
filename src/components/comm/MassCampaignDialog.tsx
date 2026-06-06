@@ -302,10 +302,10 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-muted-foreground">Combinação</span>
                 <Select value={mode} onValueChange={(v) => setMode(v as "or" | "and")}>
-                  <SelectTrigger className="h-8 w-[110px]">
+                  <SelectTrigger className="h-8 w-[170px] whitespace-nowrap">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="min-w-[170px]">
                     <SelectItem value="or">OU (união)</SelectItem>
                     <SelectItem value="and">E (interseção)</SelectItem>
                   </SelectContent>
