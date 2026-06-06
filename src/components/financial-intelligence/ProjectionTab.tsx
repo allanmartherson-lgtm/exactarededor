@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SurfaceCard, SurfaceCardHeader } from "@/components/shared/SurfacePrimitives";
 import { Calculator, ArrowDown, ArrowUp, Minus } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatBRL, mean } from "@/lib/financialStats";
+import { formatBRL, mean, median } from "@/lib/financialStats";
 
 interface PaymentRow {
   competence_month: string | null;
