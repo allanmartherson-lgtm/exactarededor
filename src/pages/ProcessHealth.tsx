@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,19 @@ const PILLS: { value: TabValue; label: string }[] = [
 ];
 
 export default function ProcessHealth() {
-  const [active, setActive] = useState<TabValue>("produtividade");
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const aliasMap: Record<string, TabValue> = {
+    produtividade: "produtividade",
+    accuracy: "accuracy",
+    dwell: "dwell",
+    returns: "returns",
+    "tempo-estagio": "dwell",
+    "taxa-devolucao": "returns",
+    acuracia: "accuracy",
+  };
+  const initial: TabValue = (tabParam && aliasMap[tabParam]) || "produtividade";
+  const [active, setActive] = useState<TabValue>(initial);
 
   useEffect(() => {
     document.title = "Saúde do Processo | Exacta";
