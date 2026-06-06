@@ -131,7 +131,7 @@ export const LossTrendTab = () => {
   }, [rows]);
 
   const colors = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#a855f7"];
-  const lastMonthKey = chartData.length > 0 ? (chartData[chartData.length - 1].month as string) : null;
+  
 
   return (
     <SurfaceCard>
