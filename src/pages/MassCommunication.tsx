@@ -97,6 +97,9 @@ export default function MassCommunication() {
   const [openDialog, setOpenDialog] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approveTarget, setApproveTarget] = useState<Campaign | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<Campaign | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const load = async () => {
     setLoading(true);
