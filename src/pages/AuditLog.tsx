@@ -64,6 +64,8 @@ const AuditLog = () => {
   const [rolesByUser, setRolesByUser] = useState<Map<string, AppRole[]>>(new Map());
   const [ruleNames, setRuleNames] = useState<Map<string, string>>(new Map());
   const [paymentRefs, setPaymentRefs] = useState<Map<string, string>>(new Map());
+  /** chave: `${entity_type}:${entity_id}` → "CODE — Nome" ou "Nome" */
+  const [entityNames, setEntityNames] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
 
   // filtros
