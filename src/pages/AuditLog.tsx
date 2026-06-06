@@ -35,6 +35,12 @@ const ENTITY_LABELS: Record<string, string> = {
   rule_calculation: "Cálculo da regra",
   payment: "Pagamento",
   payment_item: "Item de pagamento",
+  doctor: "Médico",
+  company: "Empresa",
+  convenio: "Convênio",
+  sector: "Setor",
+  cost_center: "Centro de custo",
+  user: "Usuário",
 };
 const ACTION_LABELS: Record<string, string> = {
   create: "Criação",
@@ -58,6 +64,8 @@ const AuditLog = () => {
   const [rolesByUser, setRolesByUser] = useState<Map<string, AppRole[]>>(new Map());
   const [ruleNames, setRuleNames] = useState<Map<string, string>>(new Map());
   const [paymentRefs, setPaymentRefs] = useState<Map<string, string>>(new Map());
+  /** chave: `${entity_type}:${entity_id}` → "CODE — Nome" ou "Nome" */
+  const [entityNames, setEntityNames] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
 
   // filtros
@@ -87,10 +95,24 @@ const AuditLog = () => {
       const actorIds = Array.from(new Set(list.map((e) => e.actor_id).filter(Boolean) as string[]));
       const ruleIds = Array.from(new Set(list.filter((e) => e.entity_type === "rule").map((e) => e.entity_id)));
       const paymentIds = Array.from(new Set(list.filter((e) => e.entity_type === "payment").map((e) => e.entity_id)));
+      const idsByType = (t: string) =>
+        Array.from(new Set(list.filter((e) => e.entity_type === t).map((e) => e.entity_id)));
+      const doctorIds = idsByType("doctor");
+      const companyIds = idsByType("company");
+      const convenioIds = idsByType("convenio");
+      const sectorIds = idsByType("sector");
+      const costCenterIds = idsByType("cost_center");
+      const userEntityIds = idsByType("user");
+      const allProfileIds = Array.from(new Set([...actorIds, ...userEntityIds]));
 
-      const [pr, rr, ru, pa] = await Promise.all([
-        actorIds.length
-          ? supabase.from("profiles").select("id,email,full_name").in("id", actorIds)
+      const fetchByIds = (table: string, ids: string[], cols = "id,code,name") =>
+        ids.length
+          ? supabase.from(table as any).select(cols).in("id", ids)
+          : Promise.resolve({ data: [] as any[] } as any);
+
+      const [pr, rr, ru, pa, dr, co, cv, se, cc] = await Promise.all([
+        allProfileIds.length
+          ? supabase.from("profiles").select("id,email,full_name").in("id", allProfileIds)
           : Promise.resolve({ data: [] as Profile[] } as any),
         actorIds.length
           ? supabase.from("user_roles").select("user_id,role").in("user_id", actorIds)
@@ -101,6 +123,11 @@ const AuditLog = () => {
         paymentIds.length
           ? supabase.from("payments").select("id,reference").in("id", paymentIds)
           : Promise.resolve({ data: [] as { id: string; reference: string }[] } as any),
+        fetchByIds("doctors", doctorIds),
+        fetchByIds("companies", companyIds),
+        fetchByIds("convenios", convenioIds),
+        fetchByIds("sectors", sectorIds),
+        fetchByIds("cost_centers", costCenterIds),
       ]);
       const pmap = new Map<string, Profile>();
       ((pr as any).data ?? []).forEach((p: Profile) => pmap.set(p.id, p));
@@ -118,6 +145,26 @@ const AuditLog = () => {
       const prefMap = new Map<string, string>();
       ((pa as any).data ?? []).forEach((p: any) => prefMap.set(p.id, p.reference));
       setPaymentRefs(prefMap);
+
+      const eMap = new Map<string, string>();
+      const fillRegistry = (type: string, rows: any[]) => {
+        rows.forEach((r: any) => {
+          const label = r.code ? `${r.code} — ${r.name ?? ""}`.trim() : (r.name ?? "");
+          if (label) eMap.set(`${type}:${r.id}`, label);
+        });
+      };
+      fillRegistry("doctor", (dr as any).data ?? []);
+      fillRegistry("company", (co as any).data ?? []);
+      fillRegistry("convenio", (cv as any).data ?? []);
+      fillRegistry("sector", (se as any).data ?? []);
+      fillRegistry("cost_center", (cc as any).data ?? []);
+      // usuários (entity_type=user) resolvem via profiles já buscado
+      userEntityIds.forEach((uid) => {
+        const p = pmap.get(uid);
+        const label = p?.full_name || p?.email;
+        if (label) eMap.set(`user:${uid}`, label);
+      });
+      setEntityNames(eMap);
       setLoading(false);
     })();
   }, []);
@@ -152,7 +199,11 @@ const AuditLog = () => {
       }
       if (term) {
         const name =
-          (e.entity_type === "rule" ? ruleNames.get(e.entity_id) : paymentRefs.get(e.entity_id)) ?? "";
+          (e.entity_type === "rule"
+            ? ruleNames.get(e.entity_id)
+            : e.entity_type === "payment"
+              ? paymentRefs.get(e.entity_id)
+              : entityNames.get(`${e.entity_type}:${e.entity_id}`)) ?? "";
         const m = actorMeta(e.actor_id);
         const haystack = `${e.company_name ?? ""} ${e.company_document ?? ""} ${name} ${m.label} ${m.email ?? ""}`.toLowerCase();
         if (!haystack.includes(term)) return false;
@@ -160,7 +211,7 @@ const AuditLog = () => {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, profiles, rolesByUser, ruleNames, paymentRefs, filterEntity, filterAction, filterRole, filterCompany, filterText]);
+  }, [entries, profiles, rolesByUser, ruleNames, paymentRefs, entityNames, filterEntity, filterAction, filterRole, filterCompany, filterText]);
 
   const clearFilters = () => {
     setFilterEntity("todos");
@@ -245,8 +296,14 @@ const AuditLog = () => {
                 {filtered.map((e) => {
                   const open = !!expanded[e.id];
                   const actor = actorMeta(e.actor_id);
+                  const resolvedName =
+                    e.entity_type === "rule"
+                      ? ruleNames.get(e.entity_id)
+                      : e.entity_type === "payment"
+                        ? paymentRefs.get(e.entity_id)
+                        : entityNames.get(`${e.entity_type}:${e.entity_id}`);
                   const entityLabel =
-                    (e.entity_type === "rule" ? ruleNames.get(e.entity_id) : paymentRefs.get(e.entity_id)) ??
+                    resolvedName ??
                     `${ENTITY_LABELS[e.entity_type] ?? e.entity_type} ${e.entity_id.slice(0, 8)}`;
                   const cnpjDigits = e.company_document ? onlyDigits(e.company_document) : "";
                   const cnpjValid = cnpjDigits ? isValidCNPJ(cnpjDigits) : null;
