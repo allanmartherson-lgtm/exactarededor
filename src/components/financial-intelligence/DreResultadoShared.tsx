@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RefreshCw, AlertCircle, ChevronRight, ExternalLink } from "lucide-react";
+import { StatusBadge } from "@/components/StatusBadge";
+import type { PaymentStatus } from "@/lib/status";
 
 export type DreRow = {
   competencia: string;
@@ -251,7 +253,7 @@ export function DreConsolidadoSection({ dre }: { dre: DreRow[] }) {
                 {drillRows.map((d) => (
                   <TableRow key={d.payment_id}>
                     <TableCell className="font-mono text-xs">{d.reference}</TableCell>
-                    <TableCell><Badge variant="outline">{d.status}</Badge></TableCell>
+                    <TableCell><StatusBadge status={d.status as PaymentStatus} /></TableCell>
                     <TableCell className="text-right">{d.items_count}</TableCell>
                     <TableCell className="text-right">{fmt(d.bruto)}</TableCell>
                     <TableCell className="text-right text-red-600">{fmt(d.glosas)}</TableCell>
@@ -319,7 +321,7 @@ export function PosicaoAbertoSection({ open }: { open: OpenRow[] }) {
               ) : open.slice(0, 100).map((r) => (
                 <TableRow key={r.payment_id}>
                   <TableCell className="font-mono text-xs">{r.reference}</TableCell>
-                  <TableCell><Badge variant="outline">{r.status}</Badge></TableCell>
+                  <TableCell><StatusBadge status={r.status as PaymentStatus} /></TableCell>
                   <TableCell>{r.company_name ?? "—"}</TableCell>
                   <TableCell className="text-xs">{new Date(r.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" })}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(r.liquido)}</TableCell>
