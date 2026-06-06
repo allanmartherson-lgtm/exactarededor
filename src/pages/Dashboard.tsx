@@ -1313,7 +1313,25 @@ const Dashboard = () => {
       });
     };
     void fetchSupervisorTotals();
-    return () => { cancelled = true; };
+
+    // Realtime: refaz a contagem sempre que pendências ou threads mudam.
+    // Debounce simples (200ms) para coalescer rajadas de eventos.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { void fetchSupervisorTotals(); }, 200);
+    };
+    const channel = supabase
+      .channel("supervisor-dashboard-counts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pendencias" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "company_threads" }, schedule)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
   }, [isValidador]);
 
 
