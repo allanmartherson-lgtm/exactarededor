@@ -1401,6 +1401,7 @@ export const AppLayout = () => {
                 </Button>
               )}
               <PortalUnreadBadge />
+              <InboxBadge />
               <NotificationBell />
               <LayoutToggle />
             </div>
