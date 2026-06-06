@@ -74,7 +74,7 @@ const ageColorClass = (days: number | null) => {
   return "text-destructive";
 };
 
-const Invoices = () => {
+const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { user, hasRole } = useAuth();
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [openInvoice, setOpenInvoice] = useState<InvoiceRow | null>(null);
@@ -291,8 +291,8 @@ const Invoices = () => {
 
   return (
     <>
-      <PageHeader title="Notas Fiscais" description="Pedidos enviados e notas recebidas." />
-      <div className="p-8">
+      {!embedded && <PageHeader title="Notas Fiscais" description="Pedidos enviados e notas recebidas." />}
+      <div className={embedded ? "" : "p-8"}>
         <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="mb-4">
           <TabsList className="filter-tabs">
             {TAB_ORDER.map((t) => (

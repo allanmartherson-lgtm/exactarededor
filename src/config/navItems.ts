@@ -81,8 +81,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ALL_ROLES,
     children: [
       { to: "/pagamentos", label: "Pagamentos", icon: Wallet, iconName: "Wallet", roles: ALL_ROLES },
-      { to: "/notas-fiscais", label: "Pedidos de NF", icon: Receipt, iconName: "Receipt", roles: ALL_ROLES },
-      { to: "/ciclo-nf", label: "Ciclo de NF", icon: FileWarning, iconName: "FileWarning", roles: ALL_ROLES },
+      { to: "/notas-fiscais", label: "Notas Fiscais", icon: Receipt, iconName: "Receipt", roles: ALL_ROLES },
       { to: "/glosas", label: "Glosas e Conciliação", icon: ShieldX, iconName: "ShieldX", roles: ["diretor", "admin", "analista", "validador"] as const },
       { to: "/sistema/journal", label: "Livro Contábil", icon: BookOpen, iconName: "BookOpen", roles: ["admin", "diretor"] },
     ],
@@ -159,8 +158,7 @@ export const NAV_ITEMS: NavItem[] = [
 export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: string }> = [
   { label: "Dashboard", iconName: "LayoutDashboard" },
   { label: "Pagamentos", iconName: "Wallet" },
-  { label: "Pedidos de NF", iconName: "Receipt" },
-  { label: "Ciclo de NF", iconName: "FileWarning" },
+  { label: "Notas Fiscais", iconName: "Receipt" },
   { label: "Glosas e Conciliação", iconName: "ShieldX" },
   { label: "Livro Contábil", iconName: "BookOpen" },
   { label: "Pendências", iconName: "ListChecksIcon" },

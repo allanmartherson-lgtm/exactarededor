@@ -62,6 +62,7 @@ const loadSidebarDiagnostic = () => import("./pages/SidebarDiagnostic.tsx");
 const loadOverflowAudit = () => import("./pages/OverflowAudit.tsx");
 const loadFinancialIntelligence = () => import("./pages/FinancialIntelligence.tsx");
 const loadNfCycle = () => import("./pages/NfCycle.tsx");
+const loadNotasFiscaisHub = () => import("./pages/NotasFiscaisHub.tsx");
 const loadObservationInsights = () => import("./pages/ObservationInsights.tsx");
 const loadAnalystProductivity = () => import("./pages/AnalystProductivity.tsx");
 const loadAbout = () => import("./pages/About.tsx");
@@ -127,6 +128,7 @@ const SidebarDiagnostic = lazy(loadSidebarDiagnostic);
 const OverflowAudit = lazy(loadOverflowAudit);
 const FinancialIntelligence = lazy(loadFinancialIntelligence);
 const NfCycle = lazy(loadNfCycle);
+const NotasFiscaisHub = lazy(loadNotasFiscaisHub);
 const ObservationInsights = lazy(loadObservationInsights);
 const AnalystProductivity = lazy(loadAnalystProductivity);
 const About = lazy(loadAbout);
@@ -246,12 +248,12 @@ const App = () => (
                   <Route path="/pagamentos/novo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewPayment /></ProtectedRoute>} />
                   <Route path="/pagamentos/:id" element={<PaymentDetail />} />
                   <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
-                  <Route path="/notas-fiscais" element={<Invoices />} />
+                  <Route path="/notas-fiscais" element={<NotasFiscaisHub />} />
                   <Route path="/kpis" element={<Kpis />} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><AgingRecebiveis /></ProtectedRoute>} />
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
-                  <Route path="/ciclo-nf" element={<NfCycle />} />
+                  <Route path="/ciclo-nf" element={<Navigate to="/notas-fiscais" replace />} />
                   <Route path="/glosas" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><Glosas /></ProtectedRoute>} />
                   <Route path="/pendencias" element={<Pendencias />} />
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
