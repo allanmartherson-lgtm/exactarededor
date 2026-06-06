@@ -15,6 +15,7 @@ Deno.serve(async (req) => {
     .from("comm_campaigns")
     .select("id,scheduled_for")
     .eq("status", "agendada")
+    .eq("approval_status", "approved")
     .lte("scheduled_for", new Date().toISOString())
     .limit(20);
 
