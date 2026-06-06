@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SurfaceCard, SurfaceCardHeader } from "@/components/shared/SurfacePrimitives";
-import { Calculator, ArrowDown, ArrowUp, Minus } from "lucide-react";
+import { Calculator, ArrowDown, ArrowUp, Minus, Info } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatBRL, mean, median } from "@/lib/financialStats";
 
 interface PaymentRow {
@@ -167,35 +168,61 @@ export const ProjectionTab = () => {
         {!result ? (
           <Skeleton className="h-32 w-full" />
         ) : result.hasProjection ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-lg border p-5">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                Projeção
-              </p>
-              <p className="text-3xl font-light tabular-nums">{formatBRL(result.projection)}</p>
+          <TooltipProvider delayDuration={200}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-lg border p-5">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                    Projeção
+                  </p>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Como é calculada a projeção">
+                        <Info className="h-3.5 w-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      Média simples dos últimos 3 meses fechados (mês corrente e meses incompletos — total &lt; 30% da mediana — são ignorados).
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <p className="text-3xl font-light tabular-nums">{formatBRL(result.projection)}</p>
+              </div>
+              <div className="rounded-lg border p-5">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  Mês de referência {result.lastClosedYm ? `(${fmtMonth(result.lastClosedYm)})` : ""}
+                </p>
+                <p className="text-3xl font-light tabular-nums">{formatBRL(result.lastClosed)}</p>
+              </div>
+              <div className="rounded-lg border p-5">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                    Variação vs último completo
+                  </p>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Como é calculada a variação">
+                        <Info className="h-3.5 w-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      (projeção − último mês fechado) ÷ último mês fechado. Positivo (vermelho) = tendência de alta vs o último mês; negativo (verde) = tendência de queda.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <p className="text-3xl font-light tabular-nums flex items-center gap-2">
+                  {result.delta > 0 ? (
+                    <ArrowUp className="h-6 w-6 text-destructive" />
+                  ) : result.delta < 0 ? (
+                    <ArrowDown className="h-6 w-6 text-success" />
+                  ) : (
+                    <Minus className="h-6 w-6 text-muted-foreground" />
+                  )}
+                  {result.delta.toFixed(1)}%
+                </p>
+              </div>
             </div>
-            <div className="rounded-lg border p-5">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                Mês de referência {result.lastClosedYm ? `(${fmtMonth(result.lastClosedYm)})` : ""}
-              </p>
-              <p className="text-3xl font-light tabular-nums">{formatBRL(result.lastClosed)}</p>
-            </div>
-            <div className="rounded-lg border p-5">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                Variação vs último completo
-              </p>
-              <p className="text-3xl font-light tabular-nums flex items-center gap-2">
-                {result.delta > 0 ? (
-                  <ArrowUp className="h-6 w-6 text-destructive" />
-                ) : result.delta < 0 ? (
-                  <ArrowDown className="h-6 w-6 text-success" />
-                ) : (
-                  <Minus className="h-6 w-6 text-muted-foreground" />
-                )}
-                {result.delta.toFixed(1)}%
-              </p>
-            </div>
-          </div>
+          </TooltipProvider>
         ) : (
           <div className="rounded-lg border border-dashed p-5 bg-muted/30 text-sm text-muted-foreground">
             Dados insuficientes para projeção confiável — são necessários ao menos 3 meses completos
