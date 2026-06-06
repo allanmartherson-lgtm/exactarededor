@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
 import { createPasswordRecoveryClient, preparePasswordRecoveryCodeVerifier } from "@/lib/passwordRecoveryClient";
+import { supabase as mainSupabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Página pública que captura o token enviado por email (convite ou recuperação)
@@ -121,6 +123,10 @@ const SetPassword = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [flow, setFlow] = useState<AuthFlow>("recovery");
   const [recoveryClient] = useState(() => createPasswordRecoveryClient({ skipAutoInitialize: true }));
+  // Cliente ativo para updateUser — pode ser o recoveryClient (PKCE/token_hash)
+  // ou o client principal (quando o hash #access_token já foi consumido por ele
+  // via detectSessionInUrl antes da SetPassword montar).
+  const activeClientRef = useRef<SupabaseClient>(recoveryClient);
 
   useEffect(() => {
     document.title = "Definir senha | Exacta Approval";
@@ -175,11 +181,39 @@ const SetPassword = () => {
     //    automaticamente e disparar o evento correto.
     const { data: sub } = recoveryClient.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      console.info("[auth recovery] evento onAuthStateChange", { event, hasSession: Boolean(session) });
+      console.info("[auth recovery] evento onAuthStateChange (recoveryClient)", { event, hasSession: Boolean(session) });
       if (event === "PASSWORD_RECOVERY") {
+        activeClientRef.current = recoveryClient;
         markReady("recovery");
       } else if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
+        activeClientRef.current = recoveryClient;
         markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
+      }
+    });
+
+    // O client principal tem detectSessionInUrl=true por padrão e pode ter
+    // consumido o hash #access_token=... antes desta página montar. Nesse caso,
+    // ele já contém a sessão de recovery — usamos ele para updateUser.
+    const { data: mainSub } = mainSupabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      console.info("[auth recovery] evento onAuthStateChange (mainClient)", { event, hasSession: Boolean(session) });
+      if (event === "PASSWORD_RECOVERY") {
+        activeClientRef.current = mainSupabase;
+        markReady("recovery");
+      } else if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
+        activeClientRef.current = mainSupabase;
+        markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
+      }
+    });
+
+    // Checagem sincrona inicial: se o client principal já tem sessão (porque
+    // detectSessionInUrl rodou antes de nós), aceita imediatamente.
+    void mainSupabase.auth.getSession().then(({ data }) => {
+      if (cancelled || settled) return;
+      if (data.session) {
+        console.info("[auth recovery] sessão encontrada no client principal — aceitando como recovery");
+        activeClientRef.current = mainSupabase;
+        markReady(authUrl.type === "invite" ? "invite" : "recovery");
       }
     });
 
@@ -260,6 +294,7 @@ const SetPassword = () => {
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
+      mainSub.subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -273,18 +308,20 @@ const SetPassword = () => {
       return;
     }
     setPhase("saving");
-    const { error } = await recoveryClient.auth.updateUser({ password: parsed.data.password });
+    const client = activeClientRef.current;
+    const { error } = await client.auth.updateUser({ password: parsed.data.password });
     if (error) {
       console.error("[auth recovery] erro retornado ao tentar updateUser", error);
       setPhase("ready");
       toast({ title: "Erro ao salvar senha", description: error.message, variant: "destructive" });
       return;
     }
-    await recoveryClient.auth.signOut();
+    await client.auth.signOut();
     setPhase("done");
     toast({ title: "Senha definida", description: "Entre novamente com sua nova senha." });
     setTimeout(() => navigate("/auth", { replace: true }), 800);
   };
+
 
   if (phase === "done") return <Navigate to="/auth" replace />;
 
