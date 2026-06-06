@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { lazy, Suspense, useEffect } from "react";
@@ -285,7 +285,7 @@ const App = () => (
                   <Route path="/sistema/avisos" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemAnnouncementsAdmin /></ProtectedRoute>} />
                   <Route path="/sistema/journal" element={<ProtectedRoute roles={["admin", "diretor"]}><FinancialJournal /></ProtectedRoute>} />
                   <Route path="/relatorios/dre" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><DreReport /></ProtectedRoute>} />
-                  <Route path="/relatorios/saude-dinheiro" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><MoneyHealth /></ProtectedRoute>} />
+                  <Route path="/relatorios/saude-dinheiro" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/relatorios/observabilidade" element={<ProtectedRoute roles={["diretor", "admin"]}><BusinessObservability /></ProtectedRoute>} />
                   <Route path="/sistema/integracoes" element={<ProtectedRoute roles={["admin", "diretor"]}><IntegrationsAdmin /></ProtectedRoute>} />
                   <Route path="/configuracoes/notificacoes" element={<NotificationPreferences />} />
