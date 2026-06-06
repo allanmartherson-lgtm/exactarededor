@@ -182,7 +182,6 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Convênios", iconName: "ShieldCheck" },
   { label: "Tipos de pagamento", iconName: "Tag" },
   { label: "Pools de rateio", iconName: "Split" },
-  { label: "Relatório de pools", iconName: "Split" },
   { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },
   { label: "Acessos dos Portais", iconName: "Building2" },
