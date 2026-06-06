@@ -158,11 +158,13 @@ export default function ProcedureSpecialtyMap({ embedded = false }: { embedded?:
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Mapa Código → Especialidade Médica"
-        description="O motor de regras usa este mapa para inferir a especialidade médica de cada item, independente do tipo de ato (Cirurgia/Anestesia/Visita) trazido na base."
-        icon={Stethoscope}
-      />
+      {!embedded && (
+        <PageHeader
+          title="Mapa Código → Especialidade Médica"
+          description="O motor de regras usa este mapa para inferir a especialidade médica de cada item, independente do tipo de ato (Cirurgia/Anestesia/Visita) trazido na base."
+          icon={Stethoscope}
+        />
+      )}
 
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant="outline" className={STATUS_BADGE.sugerido}>{counts.sugerido} sugeridas</Badge>
