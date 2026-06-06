@@ -1,48 +1,78 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldAlert, ArrowRight } from "lucide-react";
+import { ShieldAlert, ArrowRight, AlertTriangle, DollarSign, Layers, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 
-type ValidationImpact = {
+type RuleAgg = {
+  rule_name: string;
   alertas: number;
   valor: number;
-  byRule: Map<string, { alertas: number; valor: number }>;
+  acatados: number;
+  lotes: Set<string>;
 };
+
+type Totals = {
+  alertas: number;
+  valor: number;
+  acatados: number;
+  lotes: number;
+  byRule: Map<string, RuleAgg>;
+};
+
+const EMPTY: Totals = { alertas: 0, valor: 0, acatados: 0, lotes: 0, byRule: new Map() };
 
 export function ValidationRiskSection() {
   const [loading, setLoading] = useState(true);
-  const [validationImpact, setValidationImpact] = useState<ValidationImpact>({
-    alertas: 0,
-    valor: 0,
-    byRule: new Map(),
-  });
+  const [data, setData] = useState<Totals>(EMPTY);
 
   useEffect(() => {
     (async () => {
       const { data: items } = await supabase
         .from("payment_items")
-        .select("gross_amount, validation_findings")
+        .select("gross_amount, payment_id, validation_findings, ai_status")
         .not("validation_findings", "is", null)
         .neq("validation_findings", "[]");
 
-      const byRule = new Map<string, { alertas: number; valor: number }>();
+      const byRule = new Map<string, RuleAgg>();
+      const allLotes = new Set<string>();
       let totalAlertas = 0;
       let totalValor = 0;
+      let totalAcatados = 0;
+
       for (const it of items ?? []) {
         const findings = it.validation_findings as any[];
         if (!Array.isArray(findings)) continue;
+        const isAcatado = (it as any).ai_status === "acatado";
         for (const f of findings) {
-          if (!f.rule_name) continue;
-          const cur = byRule.get(f.rule_name) ?? { alertas: 0, valor: 0 };
+          const key = f.rule_id || f.rule_name;
+          if (!key) continue;
+          const cur = byRule.get(key) ?? {
+            rule_name: f.rule_name || key,
+            alertas: 0,
+            valor: 0,
+            acatados: 0,
+            lotes: new Set<string>(),
+          };
           cur.alertas += 1;
           cur.valor += Number(it.gross_amount ?? 0);
-          byRule.set(f.rule_name, cur);
-          totalAlertas++;
+          if (isAcatado) cur.acatados += 1;
+          if (it.payment_id) cur.lotes.add(it.payment_id);
+          byRule.set(key, cur);
+          totalAlertas += 1;
           totalValor += Number(it.gross_amount ?? 0);
+          if (isAcatado) totalAcatados += 1;
+          if (it.payment_id) allLotes.add(it.payment_id);
         }
       }
-      setValidationImpact({ alertas: totalAlertas, valor: totalValor, byRule });
+
+      setData({
+        alertas: totalAlertas,
+        valor: totalValor,
+        acatados: totalAcatados,
+        lotes: allLotes.size,
+        byRule,
+      });
       setLoading(false);
     })();
   }, []);
@@ -67,141 +97,193 @@ export function ValidationRiskSection() {
     );
   }
 
-  if (validationImpact.byRule.size === 0) {
-    return (
-      <div
-        style={{
-          background: "hsl(var(--card))",
-          border: "1px solid hsl(var(--border))",
-          borderRadius: 12,
-          padding: 22,
-          textAlign: "center",
-          fontSize: 13,
-          color: "hsl(var(--muted-foreground))",
-        }}
-      >
-        Nenhum alerta de validação em aberto.
-      </div>
-    );
-  }
+  const taxaAcate = data.alertas > 0 ? (data.acatados / data.alertas) * 100 : 0;
+
+  const kpis = [
+    { label: "Alertas ativos", value: data.alertas.toLocaleString("pt-BR"), Icon: AlertTriangle },
+    { label: "Valor em risco", value: formatCurrency(data.valor), Icon: DollarSign },
+    { label: "Lotes afetados", value: data.lotes.toLocaleString("pt-BR"), Icon: Layers },
+    { label: "Taxa de acate", value: `${taxaAcate.toFixed(0)}%`, Icon: CheckCircle2 },
+  ];
 
   return (
-    <section>
-      <div
-        style={{
-          background: "hsl(var(--card))",
-          border: "1px solid hsl(var(--border))",
-          borderRadius: 12,
-        }}
-      >
-        <div
-          className="flex items-center justify-between gap-3"
-          style={{ padding: "18px 22px", borderBottom: "1px solid hsl(var(--border))" }}
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "hsl(var(--bubble-yellow-bg))",
-                color: "hsl(var(--bubble-yellow-fg))",
-              }}
-            >
-              <ShieldAlert size={14} />
-            </div>
-            <h3
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "hsl(var(--foreground))",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              Impacto financeiro por regra de validação
-            </h3>
-          </div>
-          <Link
-            to="/regras/validacao"
-            style={{
-              fontSize: 12,
-              color: "#9A6B3A",
-              fontWeight: 500,
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-            }}
+    <section className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {kpis.map(({ label, value, Icon }) => (
+          <div
+            key={label}
+            className="rounded-xl border bg-card p-4 flex items-center gap-3"
+            style={{ borderColor: "hsl(var(--border))" }}
           >
-            Gerenciar regras <ArrowRight size={13} />
-          </Link>
-        </div>
-        <div>
-          {Array.from(validationImpact.byRule.entries()).map(([name, data], i, arr) => (
             <div
-              key={name}
+              className="flex items-center justify-center rounded-lg"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "14px 22px",
-                borderBottom: i < arr.length - 1 ? "1px solid hsl(var(--border))" : "none",
-                background: i % 2 === 0 ? "transparent" : "hsl(var(--muted) / 0.3)",
+                width: 36,
+                height: 36,
+                background: "hsl(var(--muted))",
+                color: "hsl(var(--muted-foreground))",
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))" }}>{name}</div>
-                <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
-                  {data.alertas} alerta{data.alertas !== 1 ? "s" : ""} detectado{data.alertas !== 1 ? "s" : ""}
-                </div>
-              </div>
+              <Icon size={16} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs text-muted-foreground">{label}</div>
+              <div className="text-lg font-semibold tabular-nums">{value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {data.byRule.size === 0 ? (
+        <div
+          style={{
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: 12,
+            padding: 22,
+            textAlign: "center",
+            fontSize: 13,
+            color: "hsl(var(--muted-foreground))",
+          }}
+        >
+          Nenhum alerta de validação em aberto.
+        </div>
+      ) : (
+        <div
+          style={{
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: 12,
+          }}
+        >
+          <div
+            className="flex items-center justify-between gap-3"
+            style={{ padding: "18px 22px", borderBottom: "1px solid hsl(var(--border))" }}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
               <div
                 style={{
-                  background: "hsl(var(--bubble-yellow-bg))",
-                  border: "1px solid hsl(var(--bubble-yellow-fg) / 0.3)",
+                  width: 28,
+                  height: 28,
                   borderRadius: 8,
-                  padding: "4px 12px",
-                  fontSize: 13,
-                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "hsl(var(--bubble-yellow-bg))",
                   color: "hsl(var(--bubble-yellow-fg))",
+                }}
+              >
+                <ShieldAlert size={14} />
+              </div>
+              <h3
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "hsl(var(--foreground))",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Impacto financeiro por regra de validação
+              </h3>
+            </div>
+            <Link
+              to="/regras/validacao"
+              style={{
+                fontSize: 12,
+                color: "#9A6B3A",
+                fontWeight: 500,
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              Gerenciar regras <ArrowRight size={13} />
+            </Link>
+          </div>
+          <div>
+            {Array.from(data.byRule.entries()).map(([key, d], i, arr) => {
+              const taxa = d.alertas > 0 ? (d.acatados / d.alertas) * 100 : 0;
+              return (
+                <div
+                  key={key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "14px 22px",
+                    borderBottom: i < arr.length - 1 ? "1px solid hsl(var(--border))" : "none",
+                    background: i % 2 === 0 ? "transparent" : "hsl(var(--muted) / 0.3)",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))" }}>
+                      {d.rule_name}
+                    </div>
+                    <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
+                      {d.alertas} alerta{d.alertas !== 1 ? "s" : ""} · {d.lotes.size} lote
+                      {d.lotes.size !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "hsl(var(--muted-foreground))",
+                      fontVariantNumeric: "tabular-nums",
+                      width: 110,
+                      textAlign: "right",
+                      flexShrink: 0,
+                    }}
+                    title={`${d.acatados} de ${d.alertas} acatados`}
+                  >
+                    Acate: {taxa.toFixed(0)}%
+                  </div>
+                  <div
+                    style={{
+                      background: "hsl(var(--bubble-yellow-bg))",
+                      border: "1px solid hsl(var(--bubble-yellow-fg) / 0.3)",
+                      borderRadius: 8,
+                      padding: "4px 12px",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "hsl(var(--bubble-yellow-fg))",
+                      fontVariantNumeric: "tabular-nums",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {formatCurrency(d.valor)}
+                  </div>
+                </div>
+              );
+            })}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "14px 22px",
+                background: "#fdf5ec",
+                borderTop: "1px solid hsl(var(--border))",
+                borderRadius: "0 0 12px 12px",
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#9A6B3A" }}>
+                Total em risco — {data.alertas} alertas · {data.lotes} lotes · acate {taxaAcate.toFixed(0)}%
+              </span>
+              <span
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: "#9A6B3A",
                   fontVariantNumeric: "tabular-nums",
-                  flexShrink: 0,
                 }}
               >
                 {formatCurrency(data.valor)}
-              </div>
+              </span>
             </div>
-          ))}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "14px 22px",
-              background: "#fdf5ec",
-              borderTop: "1px solid hsl(var(--border))",
-              borderRadius: "0 0 12px 12px",
-            }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#9A6B3A" }}>
-              Total em risco — {validationImpact.alertas} alertas
-            </span>
-            <span
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                color: "#9A6B3A",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {formatCurrency(validationImpact.valor)}
-            </span>
           </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
