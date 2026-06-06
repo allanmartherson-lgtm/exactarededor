@@ -179,7 +179,6 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Empresas", iconName: "Building2" },
   { label: "Médicos", iconName: "Stethoscope" },
-  { label: "Mapa Especialidades", iconName: "Stethoscope" },
   { label: "Setores e Centros de Custos", iconName: "Network" },
   { label: "Convênios", iconName: "ShieldCheck" },
   { label: "Tipos de pagamento", iconName: "Tag" },
