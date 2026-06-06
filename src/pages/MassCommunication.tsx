@@ -30,6 +30,15 @@ import { Plus, Send } from "lucide-react";
 import { MassCampaignDialog } from "@/components/comm/MassCampaignDialog";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Campaign = {
   id: string;
@@ -88,6 +97,9 @@ export default function MassCommunication() {
   const [openDialog, setOpenDialog] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approveTarget, setApproveTarget] = useState<Campaign | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<Campaign | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -166,32 +178,59 @@ export default function MassCommunication() {
     }
   };
 
-  const approve = async (id: string) => {
+  // Helper: RPC com retry simples para falhas transitórias
+  const callRpcWithRetry = async (fn: "approve_campaign" | "reject_campaign", args: Record<string, unknown>) => {
+    let lastErr: { message: string } | null = null;
+    for (let i = 1; i <= 2; i++) {
+      const { error } = await supabase.rpc(fn as never, args as never);
+      if (!error) return { error: null };
+      lastErr = error;
+      await new Promise((r) => setTimeout(r, 600 * i));
+    }
+    return { error: lastErr };
+  };
+
+  const doApprove = async () => {
+    if (!approveTarget) return;
+    const id = approveTarget.id;
     setApprovingId(id);
-    const { error } = await supabase.rpc("approve_campaign", { _campaign_id: id });
+    setItems((prev) => prev.map((c) => (c.id === id ? { ...c, approval_status: "approved" } : c)));
+    setApproveTarget(null);
+    const { error } = await callRpcWithRetry("approve_campaign", { _campaign_id: id });
     if (error) {
+      void load();
       setApprovingId(null);
-      toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
+      toast({ title: "Falha ao aprovar", description: `${error.message}. Tentamos 2 vezes.`, variant: "destructive" });
       return;
     }
     await notifyDecision(id, "approved");
     setApprovingId(null);
-    toast({ title: "Campanha aprovada", description: "Analista notificado por e-mail." });
+    toast({ title: "Campanha aprovada", description: "Analista notificado por e-mail e inbox." });
     void load();
   };
 
-  const reject = async (id: string) => {
-    const reason = window.prompt("Motivo da rejeição (opcional):") ?? "";
+  const doReject = async () => {
+    if (!rejectTarget) return;
+    const reason = rejectReason.trim();
+    if (reason.length < 5) {
+      toast({ title: "Motivo obrigatório", description: "Mínimo 5 caracteres.", variant: "destructive" });
+      return;
+    }
+    const id = rejectTarget.id;
     setApprovingId(id);
-    const { error } = await supabase.rpc("reject_campaign", { _campaign_id: id, _reason: reason });
+    setItems((prev) => prev.map((c) => (c.id === id ? { ...c, approval_status: "rejected", rejection_reason: reason } : c)));
+    setRejectTarget(null);
+    setRejectReason("");
+    const { error } = await callRpcWithRetry("reject_campaign", { _campaign_id: id, _reason: reason });
     if (error) {
+      void load();
       setApprovingId(null);
-      toast({ title: "Falha ao rejeitar", description: error.message, variant: "destructive" });
+      toast({ title: "Falha ao rejeitar", description: `${error.message}. Tentamos 2 vezes.`, variant: "destructive" });
       return;
     }
     await notifyDecision(id, "rejected", reason);
     setApprovingId(null);
-    toast({ title: "Campanha rejeitada", description: "Analista notificado por e-mail." });
+    toast({ title: "Campanha rejeitada", description: "Motivo registrado e analista notificado." });
     void load();
   };
 
@@ -303,7 +342,7 @@ export default function MassCommunication() {
                             size="sm"
                             variant="default"
                             disabled={approvingId === c.id}
-                            onClick={() => void approve(c.id)}
+                            onClick={() => setApproveTarget(c)}
                           >
                             Aprovar
                           </Button>
@@ -311,7 +350,7 @@ export default function MassCommunication() {
                             size="sm"
                             variant="outline"
                             disabled={approvingId === c.id}
-                            onClick={() => void reject(c.id)}
+                            onClick={() => { setRejectTarget(c); setRejectReason(""); }}
                           >
                             Rejeitar
                           </Button>
@@ -352,6 +391,60 @@ export default function MassCommunication() {
           void load();
         }}
       />
+
+      {/* Confirmação visual de aprovação */}
+      <AlertDialog open={!!approveTarget} onOpenChange={(o) => !o && setApproveTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aprovar campanha?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-medium text-foreground">"{approveTarget?.title}"</span> será liberada
+              para disparo. O analista será notificado por e-mail e na caixa de notificações.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void doApprove()}>Aprovar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Rejeição com motivo obrigatório */}
+      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeitar campanha</DialogTitle>
+            <DialogDescription>
+              Descreva o motivo para o analista. O texto será registrado no histórico e enviado por e-mail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label className="text-[12px]">Motivo (mínimo 5 caracteres) *</Label>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Ex: revisar a mensagem antes de enviar, faltam dados de contato…"
+              rows={4}
+              autoFocus
+            />
+            <span className={`text-[11px] ${rejectReason.trim().length >= 5 ? "text-muted-foreground" : "text-destructive"}`}>
+              {rejectReason.trim().length}/5 caracteres mínimos
+            </span>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setRejectTarget(null); setRejectReason(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={rejectReason.trim().length < 5}
+              onClick={() => void doReject()}
+            >
+              Rejeitar e notificar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

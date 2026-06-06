@@ -347,6 +347,7 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 doctors={doctors}
                 selected={selDoctors}
                 onChange={setSelDoctors}
+                companyIds={selCompanies}
               />
             </div>
           </div>
@@ -767,12 +768,15 @@ function DoctorPicker({
   doctors,
   selected,
   onChange,
+  companyIds = [],
 }: {
   doctors: Doctor[];
   selected: string[];
   onChange: (next: string[]) => void;
+  companyIds?: string[];
 }) {
   const [q, setQ] = useState("");
+  const [loadingCompanyDocs, setLoadingCompanyDocs] = useState(false);
   const set = new Set(selected);
   const filtered = q
     ? doctors.filter((d) => d.full_name.toLowerCase().includes(q.toLowerCase())).slice(0, 20)
@@ -780,6 +784,33 @@ function DoctorPicker({
 
   const selectAll = () => onChange(doctors.map((d) => d.id));
   const clearAll = () => onChange([]);
+
+  const selectFromCompanies = async () => {
+    if (companyIds.length === 0) return;
+    setLoadingCompanyDocs(true);
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from("doctor_companies")
+      .select("doctor_id, start_date, end_date")
+      .in("company_id", companyIds);
+    setLoadingCompanyDocs(false);
+    if (error) return;
+    const docIds = Array.from(
+      new Set(
+        (data ?? [])
+          .filter((r) => {
+            // só vínculos vigentes
+            if (r.start_date && r.start_date > today) return false;
+            if (r.end_date && r.end_date < today) return false;
+            return true;
+          })
+          .map((r) => r.doctor_id as string),
+      ),
+    );
+    // merge sem duplicar
+    const merged = Array.from(new Set([...selected, ...docIds]));
+    onChange(merged);
+  };
 
   return (
     <div className="flex flex-col gap-1">
@@ -793,6 +824,19 @@ function DoctorPicker({
         >
           Selecionar todos ({doctors.length})
         </button>
+        {companyIds.length > 0 && (
+          <button
+            type="button"
+            onClick={() => void selectFromCompanies()}
+            disabled={loadingCompanyDocs}
+            className="text-[11px] px-2 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-50"
+            title="Adiciona à seleção todos os médicos vinculados às empresas escolhidas"
+          >
+            {loadingCompanyDocs
+              ? "Carregando…"
+              : `Selecionar médicos das ${companyIds.length} empresa(s) selecionada(s)`}
+          </button>
+        )}
         {selected.length > 0 && (
           <button
             type="button"

@@ -2647,6 +2647,42 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          link: string | null
+          payload: Json
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          link?: string | null
+          payload?: Json
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          link?: string | null
+          payload?: Json
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invoice_question_attachments: {
         Row: {
           author_id: string | null
@@ -7566,6 +7602,7 @@ export type Database = {
         Returns: string
       }
       mark_all_doctor_notifications_read: { Args: never; Returns: number }
+      mark_all_notifications_read: { Args: never; Returns: undefined }
       mark_campaign_read: {
         Args: { _recipient_id: string }
         Returns: undefined
@@ -7574,6 +7611,7 @@ export type Database = {
         Args: { p_id: string }
         Returns: boolean
       }
+      mark_notification_read: { Args: { _id: string }; Returns: undefined }
       mark_portal_thread_read: {
         Args: { p_payment_id: string; p_payment_item_id?: string }
         Returns: number

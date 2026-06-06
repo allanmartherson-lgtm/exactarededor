@@ -38,6 +38,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/config/navItems";
 import { useQueueNotifications } from "@/hooks/useQueueNotifications";
 import { NotificationBell } from "@/components/NotificationBell";
+import { InboxBadge } from "@/components/InboxBadge";
 import { PortalUnreadBadge } from "@/components/portal/PortalUnreadBadge";
 import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
 import { SystemAnnouncementBanner } from "@/components/SystemAnnouncementBanner";
@@ -1102,6 +1103,7 @@ export const AppLayout = () => {
               )}
               <HospitalSwitcher className="hidden md:inline-flex" />
               <PortalUnreadBadge />
+              <InboxBadge />
               <NotificationBell />
               <div className="hidden md:flex items-center gap-1">
                 <ThemeToggle />
@@ -1399,6 +1401,7 @@ export const AppLayout = () => {
                 </Button>
               )}
               <PortalUnreadBadge />
+              <InboxBadge />
               <NotificationBell />
               <LayoutToggle />
             </div>
