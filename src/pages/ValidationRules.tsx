@@ -887,7 +887,7 @@ export default function ValidationRules() {
             const rulesInGroup = filteredRules.filter(r => r.action === action);
             if (rulesInGroup.length === 0) return null;
             const collapsed = !!groupCollapsed[action];
-            const totalAlerts = rulesInGroup.reduce((acc, r) => acc + (ruleImpact.get(r.id)?.alertas ?? 0), 0);
+            
             return (
               <div key={action} className={`rounded-lg border ${color}`}>
                 <button
