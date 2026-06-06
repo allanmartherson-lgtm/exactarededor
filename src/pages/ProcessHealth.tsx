@@ -199,9 +199,14 @@ function ProdutividadeSection() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <BarChart2 className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">Produtividade da Equipe</h2>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">Produtividade da Equipe</h2>
+          </div>
+          <p className="text-xs text-muted-foreground max-w-2xl">
+            Quantas ações cada pessoa fez no período (lotes processados, validações, aprovações) e quantas devoluções recebeu. Menos devolução = melhor qualidade.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <ToggleGroup
@@ -356,6 +361,9 @@ function AccuracySection() {
   const { accuracy, loading } = useObservability();
   return (
     <div className="space-y-4">
+      <p className="text-xs text-muted-foreground max-w-3xl">
+        Mede a confiabilidade da pré-classificação da IA: a "Acurácia" é a % de itens em que o analista manteve a sugestão da IA sem sobrescrever.
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Itens analisados</CardTitle></CardHeader>
@@ -377,7 +385,7 @@ function AccuracySection() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <BrainCircuit className="h-4 w-4" /> Distribuição por ai_status
+            <BrainCircuit className="h-4 w-4" /> Distribuição por classificação da IA
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -407,6 +415,9 @@ function DwellSection() {
         <CardTitle className="flex items-center gap-2 text-base">
           <Clock className="h-4 w-4" /> Tempo médio em cada status (últimos 90 dias)
         </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Quanto tempo os pagamentos ficam parados em cada status. P50 = mediana; P90 = 90% levam até esse tempo (P90 alto indica uma cauda de casos muito lentos).
+        </p>
       </CardHeader>
       <CardContent>
         <Table>
@@ -448,6 +459,9 @@ function ReturnsSection() {
         <CardTitle className="flex items-center gap-2 text-base">
           <Undo2 className="h-4 w-4" /> Taxa de devolução (últimos 30 dias)
         </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          % de pagamentos devolvidos entre etapas — mede retrabalho. Quanto menor, melhor.
+        </p>
       </CardHeader>
       <CardContent>
         <Table>
