@@ -67,7 +67,7 @@ export default function MoneyHealth() {
     })();
   }, []);
 
-  const maxCount = Math.max(1, ...funnel.map((f) => f.payment_count));
+  const maxValue = Math.max(1, ...funnel.map((f) => Number(f.total_value) || 0));
 
   const sevBadge = (s: string) =>
     s === "alta" ? "destructive" : s === "media" ? "default" : "secondary";
@@ -97,7 +97,7 @@ export default function MoneyHealth() {
           <TabsContent value="funnel">
             <Card>
               <CardHeader>
-                <CardTitle>Funil de pagamentos por estágio</CardTitle>
+                <CardTitle>Funil de pagamentos por estágio (barras proporcionais ao valor)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {loading && <p className="text-sm text-muted-foreground">Carregando…</p>}
@@ -109,13 +109,13 @@ export default function MoneyHealth() {
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">{s.stage}</span>
                       <span className="text-muted-foreground">
-                        {s.payment_count} pagto(s) · {formatCurrency(s.total_value)} · {s.avg_age_days}d
+                        {s.payment_count} pagto(s) · {formatCurrency(s.total_value)} · tempo médio parado: {s.avg_age_days}d
                       </span>
                     </div>
                     <div className="h-2 bg-muted rounded">
                       <div
                         className="h-2 bg-primary rounded"
-                        style={{ width: `${(s.payment_count / maxCount) * 100}%` }}
+                        style={{ width: `${((Number(s.total_value) || 0) / maxValue) * 100}%` }}
                       />
                     </div>
                   </div>
