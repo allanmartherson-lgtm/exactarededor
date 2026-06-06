@@ -226,7 +226,18 @@ export default function MassCommunication() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
+                      <Badge variant={APPROVAL_VARIANT[c.approval_status]} className="text-[10px]">
+                        {APPROVAL_LABEL[c.approval_status]}
+                      </Badge>
+                      {c.approval_status === "rejected" && c.rejection_reason && (
+                        <span className="text-[10px] text-destructive" title={c.rejection_reason}>
+                          {c.rejection_reason.slice(0, 40)}
+                          {c.rejection_reason.length > 40 ? "…" : ""}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-[12px]">
                     {c.scheduled_for
