@@ -25,11 +25,10 @@ const cachePasswordAuthUrl = () => {
 
   if (isPasswordAuthFlow && hasAuthParams) {
     sessionStorage.setItem(PASSWORD_AUTH_URL_CACHE_KEY, JSON.stringify({ href: window.location.href, savedAt: Date.now() }));
-
-    if (!isPasswordRoute) {
-      url.pathname = "/auth/reset-password";
-      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-    }
+    url.pathname = "/auth/reset-password";
+    url.search = "";
+    url.hash = "";
+    window.history.replaceState(window.history.state, "", url.pathname);
   }
 };
 
