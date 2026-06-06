@@ -84,6 +84,7 @@ const loadNotificationPreferences = () => import("./pages/NotificationPreference
 const loadIntegrationsAdmin = () => import("./pages/IntegrationsAdmin.tsx");
 const loadCommunicationSupervision = () => import("./pages/CommunicationSupervision.tsx");
 const loadProcessHealth = () => import("./pages/ProcessHealth.tsx");
+const loadMedicosHub = () => import("./pages/MedicosHub.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
