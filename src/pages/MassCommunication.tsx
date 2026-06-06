@@ -38,6 +38,11 @@ type Campaign = {
   audience: Record<string, unknown>;
   allow_reply: boolean;
   status: "rascunho" | "agendada" | "enviando" | "concluida" | "cancelada" | "falhou";
+  approval_status: "pending" | "approved" | "rejected";
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
+  created_by: string | null;
   scheduled_for: string | null;
   dispatched_at: string | null;
   totals: Record<string, unknown>;
@@ -60,6 +65,18 @@ const STATUS_LABEL: Record<Campaign["status"], string> = {
   concluida: "Concluída",
   cancelada: "Cancelada",
   falhou: "Falhou",
+};
+
+const APPROVAL_VARIANT: Record<Campaign["approval_status"], "default" | "secondary" | "destructive" | "outline"> = {
+  pending: "secondary",
+  approved: "default",
+  rejected: "destructive",
+};
+
+const APPROVAL_LABEL: Record<Campaign["approval_status"], string> = {
+  pending: "Aguarda aprovação",
+  approved: "Aprovada",
+  rejected: "Rejeitada",
 };
 
 export default function MassCommunication() {
