@@ -4,6 +4,7 @@ import { TrendingUp } from "lucide-react";
 import { LossTrendTab } from "@/components/financial-intelligence/LossTrendTab";
 import { ProjectionTab } from "@/components/financial-intelligence/ProjectionTab";
 import { DoctorConcentrationTab } from "@/components/financial-intelligence/DoctorConcentrationTab";
+import { ValidationRiskSection } from "@/components/financial-intelligence/ValidationRiskSection";
 import {
   useDreData,
   DreFilters,
@@ -13,7 +14,7 @@ import {
 } from "@/components/financial-intelligence/DreResultadoShared";
 import { cn } from "@/lib/utils";
 
-type TabValue = "dre-consolidado" | "posicao-aberto" | "tendencia" | "projecao" | "concentracao";
+type TabValue = "dre-consolidado" | "posicao-aberto" | "tendencia" | "projecao" | "concentracao" | "em-risco";
 
 const RESULT_TABS: TabValue[] = ["dre-consolidado", "posicao-aberto"];
 
@@ -31,6 +32,7 @@ const GROUPS: { label: string; items: { value: TabValue; label: string }[] }[] =
       { value: "tendencia", label: "Tendência" },
       { value: "projecao", label: "Projeção" },
       { value: "concentracao", label: "Concentração" },
+      { value: "em-risco", label: "Em risco" },
     ],
   },
 ];
@@ -99,6 +101,7 @@ export default function FinancialIntelligence() {
         {active === "tendencia" && <LossTrendTab />}
         {active === "projecao" && <ProjectionTab />}
         {active === "concentracao" && <DoctorConcentrationTab />}
+        {active === "em-risco" && <ValidationRiskSection />}
       </div>
     </div>
   );
