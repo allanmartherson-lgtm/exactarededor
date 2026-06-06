@@ -21,12 +21,10 @@ export default function FinancialIntelligence() {
       <div className="p-6">
         <Tabs defaultValue="tendencia" className="space-y-4">
           <TabsList className="flex h-auto flex-wrap items-center gap-1 p-1">
-            <TabsTrigger value="pjs-travadas" className={triggerClass}>PJs travadas</TabsTrigger>
             <TabsTrigger value="tendencia" className={triggerClass}>Tendência</TabsTrigger>
             <TabsTrigger value="projecao" className={triggerClass}>Projeção</TabsTrigger>
             <TabsTrigger value="concentracao" className={triggerClass}>Concentração</TabsTrigger>
           </TabsList>
-          <TabsContent value="pjs-travadas"><StuckCompaniesTab /></TabsContent>
           <TabsContent value="tendencia"><LossTrendTab /></TabsContent>
           <TabsContent value="projecao"><ProjectionTab /></TabsContent>
           <TabsContent value="concentracao"><DoctorConcentrationTab /></TabsContent>
