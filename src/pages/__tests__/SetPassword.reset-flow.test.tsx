@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import Auth from "@/pages/Auth";
 import SetPassword from "@/pages/SetPassword";
 
 const { recoveryAuth, mainAuth } = vi.hoisted(() => ({
@@ -12,6 +13,7 @@ const { recoveryAuth, mainAuth } = vi.hoisted(() => ({
     initialize: vi.fn(),
     updateUser: vi.fn(),
     signOut: vi.fn(),
+    resetPasswordForEmail: vi.fn(),
   },
   mainAuth: {
     onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
@@ -30,6 +32,21 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: { auth: mainAuth },
 }));
 
+vi.mock("@/integrations/lovable", () => ({
+  lovable: { auth: { signInWithOAuth: vi.fn() } },
+}));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    user: null,
+    loading: false,
+    roles: [],
+    rolesLoading: false,
+    accountActive: true,
+    signIn: vi.fn(),
+  }),
+}));
+
 vi.mock("@/hooks/use-toast", () => ({
   toast: vi.fn(),
 }));
@@ -38,6 +55,19 @@ const renderResetPage = () => {
   window.history.pushState({}, "", "/auth/reset-password?token_hash=reset-token&type=recovery");
   return render(
     <MemoryRouter initialEntries={["/auth/reset-password?token_hash=reset-token&type=recovery"]}>
+      <SetPassword />
+    </MemoryRouter>,
+  );
+};
+
+const renderResetPageWithCachedToken = () => {
+  sessionStorage.setItem("exacta-password-auth-url", JSON.stringify({
+    href: "http://localhost:3000/auth/reset-password?token_hash=reset-token&type=recovery",
+    savedAt: Date.now(),
+  }));
+  window.history.pushState({}, "", "/auth/reset-password");
+  return render(
+    <MemoryRouter initialEntries={["/auth/reset-password"]}>
       <SetPassword />
     </MemoryRouter>,
   );
@@ -59,6 +89,25 @@ describe("SetPassword reset flow", () => {
     mainAuth.signOut.mockResolvedValue({ error: null });
     mainAuth.getSession.mockResolvedValue({ data: { session: null } });
     mainAuth.signInWithPassword.mockResolvedValue({ data: { session: { user: { email: "allan.martherson@icloud.com" } } }, error: null });
+    recoveryAuth.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+  });
+
+  it("solicita link de recuperação pela tela de login", async () => {
+    render(
+      <MemoryRouter initialEntries={["/auth"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "allan.martherson@icloud.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /esqueci minha senha/i }));
+
+    await waitFor(() => {
+      expect(recoveryAuth.resetPasswordForEmail).toHaveBeenCalledWith(
+        "allan.martherson@icloud.com",
+        { redirectTo: "http://localhost:3000/auth/reset-password" },
+      );
+    });
   });
 
   it("valida o token, salva a nova senha e confirma login imediato", async () => {
@@ -90,5 +139,12 @@ describe("SetPassword reset flow", () => {
 
     expect(await screen.findByText(/senha salva, mas login imediato falhou/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /salvar nova senha/i })).toBeEnabled();
+  });
+
+  it("usa o token salvo no cache quando a URL já foi limpa no boot", async () => {
+    renderResetPageWithCachedToken();
+
+    expect(await screen.findByRole("button", { name: /salvar nova senha/i })).toBeInTheDocument();
+    expect(recoveryAuth.verifyOtp).toHaveBeenCalledWith({ token_hash: "reset-token", type: "recovery" });
   });
 });
