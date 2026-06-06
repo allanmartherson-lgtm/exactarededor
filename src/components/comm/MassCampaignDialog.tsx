@@ -726,11 +726,35 @@ function DoctorPicker({
   const [q, setQ] = useState("");
   const set = new Set(selected);
   const filtered = q
-    ? doctors.filter((d) => d.full_name.toLowerCase().includes(q.toLowerCase())).slice(0, 12)
+    ? doctors.filter((d) => d.full_name.toLowerCase().includes(q.toLowerCase())).slice(0, 20)
     : [];
+
+  const selectAll = () => onChange(doctors.map((d) => d.id));
+  const clearAll = () => onChange([]);
+
   return (
     <div className="flex flex-col gap-1">
       <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar médico por nome…" />
+
+      <div className="flex items-center gap-2 flex-wrap pt-1">
+        <button
+          type="button"
+          onClick={selectAll}
+          className="text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted"
+        >
+          Selecionar todos ({doctors.length})
+        </button>
+        {selected.length > 0 && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-[11px] px-2 py-0.5 rounded border border-border hover:bg-destructive/10"
+          >
+            Limpar ({selected.length})
+          </button>
+        )}
+      </div>
+
       {filtered.length > 0 && (
         <div className="border border-border rounded-md max-h-48 overflow-y-auto">
           {filtered.map((d) => (
@@ -752,7 +776,7 @@ function DoctorPicker({
       )}
       {selected.length > 0 && (
         <div className="flex gap-1 flex-wrap pt-1">
-          {selected.map((id) => {
+          {selected.slice(0, 100).map((id) => {
             const d = doctors.find((x) => x.id === id);
             return (
               <button
@@ -766,8 +790,14 @@ function DoctorPicker({
               </button>
             );
           })}
+          {selected.length > 100 && (
+            <span className="text-[11px] text-muted-foreground px-2 py-0.5">
+              +{selected.length - 100} médico(s)
+            </span>
+          )}
         </div>
       )}
     </div>
   );
 }
+
