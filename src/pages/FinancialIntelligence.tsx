@@ -1,34 +1,104 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { TrendingUp } from "lucide-react";
 import { LossTrendTab } from "@/components/financial-intelligence/LossTrendTab";
 import { ProjectionTab } from "@/components/financial-intelligence/ProjectionTab";
 import { DoctorConcentrationTab } from "@/components/financial-intelligence/DoctorConcentrationTab";
+import {
+  useDreData,
+  DreFilters,
+  DreKpis,
+  DreConsolidadoSection,
+  PosicaoAbertoSection,
+} from "@/components/financial-intelligence/DreResultadoShared";
+import { cn } from "@/lib/utils";
 
+type TabValue = "dre-consolidado" | "posicao-aberto" | "tendencia" | "projecao" | "concentracao";
+
+const RESULT_TABS: TabValue[] = ["dre-consolidado", "posicao-aberto"];
+
+const GROUPS: { label: string; items: { value: TabValue; label: string }[] }[] = [
+  {
+    label: "Resultado",
+    items: [
+      { value: "dre-consolidado", label: "DRE Consolidado" },
+      { value: "posicao-aberto", label: "Posição em Aberto" },
+    ],
+  },
+  {
+    label: "Análise",
+    items: [
+      { value: "tendencia", label: "Tendência" },
+      { value: "projecao", label: "Projeção" },
+      { value: "concentracao", label: "Concentração" },
+    ],
+  },
+];
 
 export default function FinancialIntelligence() {
-  const triggerClass =
-    "font-medium text-muted-foreground hover:bg-muted hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm";
+  const [active, setActive] = useState<TabValue>("dre-consolidado");
+  const dreData = useDreData();
+  const showResultShared = RESULT_TABS.includes(active);
 
   return (
     <div>
       <PageHeader
         title="Inteligência Financeira"
-        description="Tendências de gasto, projeção e concentração de risco"
+        description="Resultado (DRE e posição em aberto) e análise (tendências, projeção e concentração)"
         icon={TrendingUp}
         showBack={false}
       />
-      <div className="p-6">
-        <Tabs defaultValue="tendencia" className="space-y-4">
-          <TabsList className="flex h-auto flex-wrap items-center gap-1 p-1">
-            <TabsTrigger value="tendencia" className={triggerClass}>Tendência</TabsTrigger>
-            <TabsTrigger value="projecao" className={triggerClass}>Projeção</TabsTrigger>
-            <TabsTrigger value="concentracao" className={triggerClass}>Concentração</TabsTrigger>
-          </TabsList>
-          <TabsContent value="tendencia"><LossTrendTab /></TabsContent>
-          <TabsContent value="projecao"><ProjectionTab /></TabsContent>
-          <TabsContent value="concentracao"><DoctorConcentrationTab /></TabsContent>
-        </Tabs>
+      <div className="p-6 space-y-6">
+        <nav className="flex flex-wrap gap-x-8 gap-y-4" aria-label="Seções de Inteligência Financeira">
+          {GROUPS.map((group) => (
+            <div key={group.label} className="flex flex-col gap-2">
+              <span className="text-xs uppercase tracking-wider text-muted-foreground/90 font-semibold">
+                {group.label}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {group.items.map((item) => {
+                  const isActive = active === item.value;
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setActive(item.value)}
+                      className={cn(
+                        "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                      aria-pressed={isActive}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {showResultShared && (
+          <div className="space-y-4">
+            <DreFilters
+              from={dreData.from}
+              setFrom={dreData.setFrom}
+              to={dreData.to}
+              setTo={dreData.setTo}
+              loading={dreData.loading}
+              onReload={dreData.load}
+            />
+            <DreKpis dre={dreData.dre} open={dreData.open} />
+          </div>
+        )}
+
+        {active === "dre-consolidado" && <DreConsolidadoSection dre={dreData.dre} />}
+        {active === "posicao-aberto" && <PosicaoAbertoSection open={dreData.open} />}
+        {active === "tendencia" && <LossTrendTab />}
+        {active === "projecao" && <ProjectionTab />}
+        {active === "concentracao" && <DoctorConcentrationTab />}
       </div>
     </div>
   );
