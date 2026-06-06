@@ -391,6 +391,60 @@ export default function MassCommunication() {
           void load();
         }}
       />
+
+      {/* Confirmação visual de aprovação */}
+      <AlertDialog open={!!approveTarget} onOpenChange={(o) => !o && setApproveTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aprovar campanha?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-medium text-foreground">"{approveTarget?.title}"</span> será liberada
+              para disparo. O analista será notificado por e-mail e na caixa de notificações.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void doApprove()}>Aprovar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Rejeição com motivo obrigatório */}
+      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeitar campanha</DialogTitle>
+            <DialogDescription>
+              Descreva o motivo para o analista. O texto será registrado no histórico e enviado por e-mail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label className="text-[12px]">Motivo (mínimo 5 caracteres) *</Label>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Ex: revisar a mensagem antes de enviar, faltam dados de contato…"
+              rows={4}
+              autoFocus
+            />
+            <span className={`text-[11px] ${rejectReason.trim().length >= 5 ? "text-muted-foreground" : "text-destructive"}`}>
+              {rejectReason.trim().length}/5 caracteres mínimos
+            </span>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setRejectTarget(null); setRejectReason(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={rejectReason.trim().length < 5}
+              onClick={() => void doReject()}
+            >
+              Rejeitar e notificar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
