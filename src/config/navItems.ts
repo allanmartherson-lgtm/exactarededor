@@ -108,7 +108,7 @@ export const NAV_ITEMS: NavItem[] = [
       
       
       { to: "/relatorios/observabilidade", label: "Observabilidade de Negócio", icon: BrainCircuit, iconName: "BrainCircuit", roles: ["diretor", "admin"] as const },
-      { to: "/recebiveis", label: "Recebíveis", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
+      { to: "/recebiveis", label: "Contas a Pagar", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
       { to: "/inteligencia-financeira", label: "Inteligência Financeira", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
     ],
   },
@@ -199,7 +199,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "DRE & Posição em Aberto", iconName: "TrendingUp" },
   
   { label: "Observabilidade de Negócio", iconName: "BrainCircuit" },
-  { label: "Recebíveis", iconName: "TrendingDown" },
+  { label: "Contas a Pagar", iconName: "TrendingDown" },
   { label: "Inteligência Financeira", iconName: "TrendingUp" },
   { label: "Regras de Pagamento", iconName: "BadgeDollarSign" },
   { label: "Regras de Validação", iconName: "ShieldCheck" },

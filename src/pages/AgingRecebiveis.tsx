@@ -155,7 +155,7 @@ export default function AgingRecebiveis() {
   }, []);
 
   useEffect(() => {
-    document.title = "Aging de Recebíveis | Exacta";
+    document.title = "Aging de Contas a Pagar | Exacta";
     load();
   }, [load]);
 
@@ -207,9 +207,9 @@ export default function AgingRecebiveis() {
   };
 
   const modeSubtitles: Record<AgingMode, string> = {
-    competencia: "Dias desde o início do mês seguinte à competência do serviço",
-    emissao_nf: "Dias desde o envio do pedido de nota fiscal à empresa",
-    aprovacao: "Dias desde a aprovação pela diretoria",
+    competencia: "Tempo que as PJs aguardam pagamento, contado a partir do início do mês seguinte à competência do serviço",
+    emissao_nf: "Tempo que as PJs aguardam pagamento, contado a partir do envio do pedido de nota fiscal",
+    aprovacao: "Tempo que as PJs aguardam pagamento, contado a partir da aprovação pela diretoria",
   };
 
   return (
@@ -217,7 +217,7 @@ export default function AgingRecebiveis() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
-            Aging de <span style={{ fontWeight: 700 }}>Recebíveis</span>
+            Aging de <span style={{ fontWeight: 700 }}>Contas a Pagar</span>
           </h1>
           <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
             DF Star · {modeSubtitles[mode]}
@@ -273,7 +273,7 @@ export default function AgingRecebiveis() {
                 {loading ? "—" : formatCurrency(f.valor)}
               </div>
               <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
-                {loading ? "—" : `${f.count} empresa${f.count !== 1 ? "s" : ""}`}
+                {loading ? "—" : `${f.count} PJ${f.count !== 1 ? "s" : ""}`}
               </div>
             </div>
           ))}
@@ -288,7 +288,7 @@ export default function AgingRecebiveis() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Wallet size={16} style={{ color: "#9A6B3A" }} />
             <span style={{ fontSize: 13, fontWeight: 600, color: "#9A6B3A" }}>
-              Total em aberto — {comMarco.length} empresa{comMarco.length !== 1 ? "s" : ""}
+              Total a pagar — {comMarco.length} PJ{comMarco.length !== 1 ? "s" : ""}
             </span>
           </div>
           <span style={{ fontSize: 20, fontWeight: 600, color: "#9A6B3A", fontVariantNumeric: "tabular-nums" }}>
@@ -296,20 +296,20 @@ export default function AgingRecebiveis() {
           </span>
           {semMarco.length > 0 && (
             <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
-              + {semMarco.length} empresa{semMarco.length !== 1 ? "s" : ""} sem data de {modeLabels[mode].toLowerCase()} disponível
+              + {semMarco.length} PJ{semMarco.length !== 1 ? "s" : ""} sem data de {modeLabels[mode].toLowerCase()} disponível
             </span>
           )}
         </div>
       )}
 
       <section>
-        <SectionLabel>Detalhamento por empresa</SectionLabel>
+        <SectionLabel>Detalhamento por PJ</SectionLabel>
         <SurfaceCard>
           <SurfaceCardHeader
-            title="Empresas em aberto"
+            title="PJs aguardando pagamento"
             icon={TrendingDown}
             iconColor="copper"
-            sub={`Ordenado por maior tempo em aberto · marco: ${modeLabels[mode]}`}
+            sub={`Ordenado por maior tempo aguardando · marco: ${modeLabels[mode]}`}
             rightAction={
               <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
                 {comMarco.length} registros
@@ -322,7 +322,7 @@ export default function AgingRecebiveis() {
             padding: "8px 22px", background: "hsl(var(--muted) / 0.5)",
             borderBottom: "1px solid hsl(var(--border))", gap: 12,
           }}>
-            {["EMPRESA", "STATUS", "MARCO", "DIAS", "VALOR"].map(h => (
+            {["PJ", "STATUS", "MARCO", "DIAS", "VALOR"].map(h => (
               <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "hsl(var(--muted-foreground))", letterSpacing: "0.07em", textTransform: "uppercase" as const, textAlign: h === "VALOR" || h === "DIAS" ? "right" as const : "left" as const }}>
                 {h}
               </div>
@@ -337,7 +337,7 @@ export default function AgingRecebiveis() {
             </div>
           ) : sorted.length === 0 ? (
             <div style={{ padding: "40px 22px", textAlign: "center", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
-              Nenhuma empresa com {modeLabels[mode].toLowerCase()} registrada.
+              Nenhuma PJ com {modeLabels[mode].toLowerCase()} registrada.
             </div>
           ) : (
             <div>
