@@ -303,13 +303,13 @@ export default function AgingRecebiveis() {
       )}
 
       <section>
-        <SectionLabel>Detalhamento por empresa</SectionLabel>
+        <SectionLabel>Detalhamento por PJ</SectionLabel>
         <SurfaceCard>
           <SurfaceCardHeader
-            title="Empresas em aberto"
+            title="PJs aguardando pagamento"
             icon={TrendingDown}
             iconColor="copper"
-            sub={`Ordenado por maior tempo em aberto · marco: ${modeLabels[mode]}`}
+            sub={`Ordenado por maior tempo aguardando · marco: ${modeLabels[mode]}`}
             rightAction={
               <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
                 {comMarco.length} registros
