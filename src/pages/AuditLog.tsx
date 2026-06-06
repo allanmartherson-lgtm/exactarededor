@@ -35,6 +35,12 @@ const ENTITY_LABELS: Record<string, string> = {
   rule_calculation: "Cálculo da regra",
   payment: "Pagamento",
   payment_item: "Item de pagamento",
+  doctor: "Médico",
+  company: "Empresa",
+  convenio: "Convênio",
+  sector: "Setor",
+  cost_center: "Centro de custo",
+  user: "Usuário",
 };
 const ACTION_LABELS: Record<string, string> = {
   create: "Criação",
