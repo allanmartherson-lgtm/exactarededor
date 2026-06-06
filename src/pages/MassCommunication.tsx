@@ -136,6 +136,31 @@ export default function MassCommunication() {
     void load();
   };
 
+  const approve = async (id: string) => {
+    setApprovingId(id);
+    const { error } = await supabase.rpc("approve_campaign", { _campaign_id: id });
+    setApprovingId(null);
+    if (error) {
+      toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Campanha aprovada" });
+    void load();
+  };
+
+  const reject = async (id: string) => {
+    const reason = window.prompt("Motivo da rejeição (opcional):") ?? "";
+    setApprovingId(id);
+    const { error } = await supabase.rpc("reject_campaign", { _campaign_id: id, _reason: reason });
+    setApprovingId(null);
+    if (error) {
+      toast({ title: "Falha ao rejeitar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Campanha rejeitada" });
+    void load();
+  };
+
   const rows = useMemo(() => items, [items]);
 
   return (
