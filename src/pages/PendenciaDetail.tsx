@@ -41,6 +41,8 @@ type Pendencia = {
   attendance_number: string | null;
   agreement_name: string;
   doctor_name: string;
+  doctor_id: string | null;
+  opened_by: "empresa" | "medico";
   subject: string;
   description: string;
   status: PendStatus;
