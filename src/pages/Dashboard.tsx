@@ -679,6 +679,13 @@ const Dashboard = () => {
   const [recentApprovedData, setRecentApprovedData] = useState<Array<{ id: string; total_amount: number | null; liquido_total: number | null; approved_at: string | null }>>([]);
   const [recentRejectedCount, setRecentRejectedCount] = useState(0);
   const [teamOpenQuestionsCount, setTeamOpenQuestionsCount] = useState(0);
+  // Supervisor (validador) — totais de acompanhamento, sem sininho.
+  const [supervisorCounts, setSupervisorCounts] = useState({
+    pendOpen: 0,        // pendências abertas/em análise/respondidas (não resolvidas/canceladas)
+    pendHighOpen: 0,    // subset acima com prioridade alta
+    threadsAndamento: 0, // conversas com status != "fechada"
+    threadsAwaiting: 0,  // conversas com unread_for_internal > 0 (empresa enviou)
+  });
   const [diretorAprovacaoPayments, setDiretorAprovacaoPayments] = useState<PaymentRow[]>([]);
   const {
     owner: pipelineOwner,
@@ -1270,6 +1277,47 @@ const Dashboard = () => {
     return () => { cancelled = true; };
   }, [isDiretor, isValidador]);
 
+  // Supervisor (validador/admin) — totais para o card "Empresas que acompanho".
+  // Conta pendências em aberto e conversas (em andamento / aguardando resposta interna)
+  // em todas as empresas visíveis ao supervisor (já filtradas pelas RLS internas).
+  // Sem sino: é só acompanhamento.
+  useEffect(() => {
+    if (!isValidador) return;
+    let cancelled = false;
+    const fetchSupervisorTotals = async () => {
+      const [pendAll, pendHigh, thAll, thAwaiting] = await Promise.all([
+        supabase
+          .from("pendencias" as never)
+          .select("id", { count: "exact", head: true })
+          .in("status", ["aberta", "em_analise", "respondida"]),
+        supabase
+          .from("pendencias" as never)
+          .select("id", { count: "exact", head: true })
+          .in("status", ["aberta", "em_analise", "respondida"])
+          .eq("priority", "alta"),
+        supabase
+          .from("company_threads" as never)
+          .select("id", { count: "exact", head: true })
+          .neq("status", "fechada"),
+        supabase
+          .from("company_threads" as never)
+          .select("id", { count: "exact", head: true })
+          .gt("unread_for_internal", 0),
+      ]);
+      if (cancelled) return;
+      setSupervisorCounts({
+        pendOpen: pendAll.count ?? 0,
+        pendHighOpen: pendHigh.count ?? 0,
+        threadsAndamento: thAll.count ?? 0,
+        threadsAwaiting: thAwaiting.count ?? 0,
+      });
+    };
+    void fetchSupervisorTotals();
+    return () => { cancelled = true; };
+  }, [isValidador]);
+
+
+
 
 
 
@@ -1583,6 +1631,65 @@ const Dashboard = () => {
             </div>
           </section>
         )}
+
+        {/* Acompanhamento — pendências e conversas das empresas (sem sininho). */}
+        <section aria-labelledby="supervisor-acompanhamento">
+          <SectionLabel>Acompanhamento das empresas</SectionLabel>
+          <SurfaceCard>
+            <SurfaceCardHeader
+              title="Pendências e conversas em aberto"
+              icon={MessageCircle}
+              iconColor="teal"
+              rightAction={
+                <Link to="/conversas" style={{ fontSize: 12, color: "hsl(var(--accent-foreground))", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  Abrir conversas <ArrowRight size={13} />
+                </Link>
+              }
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", padding: "16px 22px", gap: 0 }}>
+              <Link
+                to="/pendencias"
+                style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 16px", textDecoration: "none", color: "inherit", borderRight: "1px solid hsl(var(--border))" }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.02em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase" }}>
+                  Pendências relatadas
+                </span>
+                <span style={{ fontSize: 26, fontWeight: 300, color: "hsl(var(--foreground))", lineHeight: 1.1 }}>
+                  {supervisorCounts.pendOpen}
+                </span>
+                <span style={{ fontSize: 11, color: supervisorCounts.pendHighOpen > 0 ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))" }}>
+                  {supervisorCounts.pendHighOpen > 0
+                    ? `${supervisorCounts.pendHighOpen} de prioridade alta`
+                    : "em aberto"}
+                </span>
+              </Link>
+              <Link
+                to="/conversas"
+                style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 16px", textDecoration: "none", color: "inherit", borderRight: "1px solid hsl(var(--border))" }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.02em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase" }}>
+                  Conversas em andamento
+                </span>
+                <span style={{ fontSize: 26, fontWeight: 300, color: "hsl(var(--foreground))", lineHeight: 1.1 }}>
+                  {supervisorCounts.threadsAndamento}
+                </span>
+                <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>não fechadas</span>
+              </Link>
+              <Link
+                to="/conversas?filter=aguardando_resposta"
+                style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 16px", textDecoration: "none", color: "inherit" }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.02em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase" }}>
+                  Aguardando resposta
+                </span>
+                <span style={{ fontSize: 26, fontWeight: 300, color: supervisorCounts.threadsAwaiting > 0 ? "hsl(var(--warning-foreground))" : "hsl(var(--foreground))", lineHeight: 1.1 }}>
+                  {supervisorCounts.threadsAwaiting}
+                </span>
+                <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>empresa esperando o time</span>
+              </Link>
+            </div>
+          </SurfaceCard>
+        </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <SurfaceCard>
