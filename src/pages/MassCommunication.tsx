@@ -29,6 +29,7 @@ import { ptBR } from "date-fns/locale";
 import { Plus, Send } from "lucide-react";
 import { MassCampaignDialog } from "@/components/comm/MassCampaignDialog";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Campaign = {
   id: string;
