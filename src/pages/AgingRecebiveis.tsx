@@ -273,7 +273,7 @@ export default function AgingRecebiveis() {
                 {loading ? "—" : formatCurrency(f.valor)}
               </div>
               <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
-                {loading ? "—" : `${f.count} empresa${f.count !== 1 ? "s" : ""}`}
+                {loading ? "—" : `${f.count} PJ${f.count !== 1 ? "s" : ""}`}
               </div>
             </div>
           ))}
