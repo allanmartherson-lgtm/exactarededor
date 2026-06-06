@@ -128,6 +128,7 @@ const SidebarDiagnostic = lazy(loadSidebarDiagnostic);
 const OverflowAudit = lazy(loadOverflowAudit);
 const FinancialIntelligence = lazy(loadFinancialIntelligence);
 const NfCycle = lazy(loadNfCycle);
+const NotasFiscaisHub = lazy(loadNotasFiscaisHub);
 const ObservationInsights = lazy(loadObservationInsights);
 const AnalystProductivity = lazy(loadAnalystProductivity);
 const About = lazy(loadAbout);
