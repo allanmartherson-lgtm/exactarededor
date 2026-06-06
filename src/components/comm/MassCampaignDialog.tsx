@@ -638,7 +638,7 @@ function BatchCompanyPicker({
                 <SelectItem value="__all__">Todas</SelectItem>
                 {competences.map((c) => (
                   <SelectItem key={c} value={c}>
-                    {c}
+                    {formatCompetenceBR(c)}
                   </SelectItem>
                 ))}
               </SelectContent>
