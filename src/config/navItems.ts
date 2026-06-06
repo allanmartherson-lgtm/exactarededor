@@ -108,7 +108,7 @@ export const NAV_ITEMS: NavItem[] = [
       
       
       { to: "/relatorios/observabilidade", label: "Observabilidade de Negócio", icon: BrainCircuit, iconName: "BrainCircuit", roles: ["diretor", "admin"] as const },
-      { to: "/recebiveis", label: "Recebíveis", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
+      { to: "/recebiveis", label: "Contas a Pagar", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
       { to: "/inteligencia-financeira", label: "Inteligência Financeira", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
     ],
   },
