@@ -4,7 +4,7 @@ import { TrendingUp } from "lucide-react";
 import { LossTrendTab } from "@/components/financial-intelligence/LossTrendTab";
 import { ProjectionTab } from "@/components/financial-intelligence/ProjectionTab";
 import { DoctorConcentrationTab } from "@/components/financial-intelligence/DoctorConcentrationTab";
-import { StuckCompaniesTab } from "@/components/financial-intelligence/StuckCompaniesTab";
+
 
 export default function FinancialIntelligence() {
   const triggerClass =
