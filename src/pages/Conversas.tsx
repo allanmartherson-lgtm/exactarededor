@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Building2, Inbox } from "lucide-react";
+import { THREAD_SOURCE_LABEL, type ThreadSource } from "@/lib/companyThreadLookup";
 
 type Thread = {
   id: string;
@@ -38,6 +39,8 @@ type Thread = {
   last_message_preview: string | null;
   unread_for_internal: number;
   created_at: string;
+  source: ThreadSource | null;
+  campaign_id: string | null;
 };
 
 const SCOPE_LABEL: Record<Thread["scope"], string> = {
@@ -45,6 +48,14 @@ const SCOPE_LABEL: Record<Thread["scope"], string> = {
   lote: "Lote",
   nf: "NF",
   pendencia: "Pendência",
+};
+
+const SOURCE_BADGE_CLASS: Record<ThreadSource, string> = {
+  manual: "border-border text-foreground",
+  campaign_reply: "border-primary/40 text-primary",
+  pendencia: "border-amber-500/40 text-amber-600 dark:text-amber-400",
+  lote: "border-sky-500/40 text-sky-600 dark:text-sky-400",
+  nf: "border-emerald-500/40 text-emerald-600 dark:text-emerald-400",
 };
 
 export default function Conversas() {
@@ -57,6 +68,9 @@ export default function Conversas() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("aberta");
   const [scopeFilter, setScopeFilter] = useState<string>("todos");
+  const [sourceFilter, setSourceFilter] = useState<string>("todos");
+  const [campaignFilter, setCampaignFilter] = useState<string>("todas");
+  const [campaignOptions, setCampaignOptions] = useState<{ id: string; title: string }[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -90,6 +104,15 @@ export default function Conversas() {
 
   useEffect(() => {
     void load();
+    // carrega lista de campanhas para o filtro
+    void (async () => {
+      const { data } = await supabase
+        .from("comm_campaigns" as never)
+        .select("id,title")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      setCampaignOptions(((data ?? []) as unknown as { id: string; title: string }[]));
+    })();
     const channel = supabase
       .channel("conversas-inbox")
       .on(
@@ -108,6 +131,8 @@ export default function Conversas() {
     return threads.filter((t) => {
       if (statusFilter !== "todas" && t.status !== statusFilter) return false;
       if (scopeFilter !== "todos" && t.scope !== scopeFilter) return false;
+      if (sourceFilter !== "todos" && (t.source ?? "manual") !== sourceFilter) return false;
+      if (campaignFilter !== "todas" && t.campaign_id !== campaignFilter) return false;
       if (!q) return true;
       return (
         t.subject.toLowerCase().includes(q) ||
@@ -115,7 +140,7 @@ export default function Conversas() {
         (t.last_message_preview ?? "").toLowerCase().includes(q)
       );
     });
-  }, [threads, search, statusFilter, scopeFilter, companies]);
+  }, [threads, search, statusFilter, scopeFilter, sourceFilter, campaignFilter, companies]);
 
   useEffect(() => {
     if (!selectedId && filtered.length > 0) setSelectedId(filtered[0].id);
@@ -172,6 +197,32 @@ export default function Conversas() {
                 <SelectItem value="lote">Lote</SelectItem>
                 <SelectItem value="nf">Nota fiscal</SelectItem>
                 <SelectItem value="pendencia">Pendência</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="md:w-[180px]">
+                <SelectValue placeholder="Origem" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas origens</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
+                <SelectItem value="campaign_reply">Resposta de comunicado</SelectItem>
+                <SelectItem value="pendencia">Pendência</SelectItem>
+                <SelectItem value="lote">Lote</SelectItem>
+                <SelectItem value="nf">Nota fiscal</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={campaignFilter} onValueChange={setCampaignFilter}>
+              <SelectTrigger className="md:w-[220px]">
+                <SelectValue placeholder="Comunicado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todos comunicados</SelectItem>
+                {campaignOptions.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.title}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -236,9 +287,19 @@ export default function Conversas() {
                         <span className="text-[12px] text-muted-foreground truncate flex-1">
                           {t.last_message_preview ?? "—"}
                         </span>
-                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
-                          {SCOPE_LABEL[t.scope]}
-                        </Badge>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {t.source && (
+                            <Badge
+                              variant="outline"
+                              className={cn("text-[10px] py-0 px-1.5 h-4", SOURCE_BADGE_CLASS[t.source])}
+                            >
+                              {THREAD_SOURCE_LABEL[t.source]}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
+                            {SCOPE_LABEL[t.scope]}
+                          </Badge>
+                        </div>
                       </div>
                     </button>
                   );
