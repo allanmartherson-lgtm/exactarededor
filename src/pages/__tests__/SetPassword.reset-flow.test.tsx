@@ -108,6 +108,7 @@ describe("SetPassword reset flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /esqueci minha senha/i }));
 
     await waitFor(() => {
+      expect(createPasswordRecoveryClientMock).toHaveBeenCalledWith({ flowType: "implicit" });
       expect(recoveryAuth.resetPasswordForEmail).toHaveBeenCalledWith(
         "allan.martherson@icloud.com",
         { redirectTo: "http://localhost:3000/auth/reset-password" },
