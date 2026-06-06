@@ -101,6 +101,7 @@ export default function FinancialIntelligence() {
         {active === "tendencia" && <LossTrendTab />}
         {active === "projecao" && <ProjectionTab />}
         {active === "concentracao" && <DoctorConcentrationTab />}
+        {active === "em-risco" && <ValidationRiskSection />}
       </div>
     </div>
   );
