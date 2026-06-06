@@ -207,9 +207,9 @@ export default function AgingRecebiveis() {
   };
 
   const modeSubtitles: Record<AgingMode, string> = {
-    competencia: "Dias desde o início do mês seguinte à competência do serviço",
-    emissao_nf: "Dias desde o envio do pedido de nota fiscal à empresa",
-    aprovacao: "Dias desde a aprovação pela diretoria",
+    competencia: "Tempo que as PJs aguardam pagamento, contado a partir do início do mês seguinte à competência do serviço",
+    emissao_nf: "Tempo que as PJs aguardam pagamento, contado a partir do envio do pedido de nota fiscal",
+    aprovacao: "Tempo que as PJs aguardam pagamento, contado a partir da aprovação pela diretoria",
   };
 
   return (
@@ -217,7 +217,7 @@ export default function AgingRecebiveis() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
-            Aging de <span style={{ fontWeight: 700 }}>Recebíveis</span>
+            Aging de <span style={{ fontWeight: 700 }}>Contas a Pagar</span>
           </h1>
           <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
             DF Star · {modeSubtitles[mode]}
