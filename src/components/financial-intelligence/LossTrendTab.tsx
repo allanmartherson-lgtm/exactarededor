@@ -77,10 +77,10 @@ export const LossTrendTab = () => {
         subtitle="Total pago por mês — top 6 grupos"
         rightAction={
           <div className="flex gap-1">
-            <Button size="sm" variant={grouping === "specialty" ? "default" : "outline"} onClick={() => setGrouping("specialty")}>
+            <Button size="sm" variant={grouping === "especialidade" ? "default" : "outline"} onClick={() => setGrouping("especialidade")}>
               Especialidade
             </Button>
-            <Button size="sm" variant={grouping === "company" ? "default" : "outline"} onClick={() => setGrouping("company")}>
+            <Button size="sm" variant={grouping === "empresa" ? "default" : "outline"} onClick={() => setGrouping("empresa")}>
               Empresa
             </Button>
           </div>
