@@ -679,6 +679,13 @@ const Dashboard = () => {
   const [recentApprovedData, setRecentApprovedData] = useState<Array<{ id: string; total_amount: number | null; liquido_total: number | null; approved_at: string | null }>>([]);
   const [recentRejectedCount, setRecentRejectedCount] = useState(0);
   const [teamOpenQuestionsCount, setTeamOpenQuestionsCount] = useState(0);
+  // Supervisor (validador) — totais de acompanhamento, sem sininho.
+  const [supervisorCounts, setSupervisorCounts] = useState({
+    pendOpen: 0,        // pendências abertas/em análise/respondidas (não resolvidas/canceladas)
+    pendHighOpen: 0,    // subset acima com prioridade alta
+    threadsAndamento: 0, // conversas com status != "fechada"
+    threadsAwaiting: 0,  // conversas com unread_for_internal > 0 (empresa enviou)
+  });
   const [diretorAprovacaoPayments, setDiretorAprovacaoPayments] = useState<PaymentRow[]>([]);
   const {
     owner: pipelineOwner,
