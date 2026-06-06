@@ -47,6 +47,13 @@ interface Props {
 type Company = { id: string; name: string };
 type Doctor = { id: string; full_name: string };
 
+// Formata "YYYY-MM" (ou "YYYY-MM-DD") → "MM/YYYY" (padrão BR)
+function formatCompetenceBR(ym: string | null | undefined): string {
+  if (!ym) return "";
+  const m = ym.match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[2]}/${m[1]}` : ym;
+}
+
 export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const { user } = useAuth();
   const [title, setTitle] = useState("");
