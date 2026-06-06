@@ -87,7 +87,7 @@ function similarity(a: string, b: string): number {
   return common / Math.max(sa.size, sb.size);
 }
 
-export default function Doctors() {
+export default function Doctors({ embedded = false }: { embedded?: boolean } = {}) {
   const [items, setItems] = useState<Doctor[]>([]);
   const [totalDatabase, setTotalDatabase] = useState(0);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
