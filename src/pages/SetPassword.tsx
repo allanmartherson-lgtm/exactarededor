@@ -35,6 +35,7 @@ type ParsedAuthUrl = ReturnType<typeof parseAuthUrl>;
 
 const TOKEN_KEYS = ["access_token", "refresh_token", "token_hash", "token", "code"];
 const ERROR_KEYS = ["error", "error_code", "error_description"];
+const PASSWORD_RECOVERY_EMAIL_KEY = "exacta-password-recovery-email";
 
 const parseAuthUrl = (href: string) => {
   const url = new URL(href);
@@ -121,6 +122,8 @@ const SetPassword = () => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("loading");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<string[]>([]);
+  const [recoveryEmail, setRecoveryEmail] = useState<string | null>(() => sessionStorage.getItem(PASSWORD_RECOVERY_EMAIL_KEY));
   const [flow, setFlow] = useState<AuthFlow>("recovery");
   const [recoveryClient] = useState(() => createPasswordRecoveryClient({ skipAutoInitialize: true }));
   // Cliente ativo para updateUser — pode ser o recoveryClient (PKCE/token_hash)
@@ -162,6 +165,7 @@ const SetPassword = () => {
       settled = true;
       setFlow(f);
       setPhase("ready");
+      setDiagnostics((prev) => [...prev, "Sessão do link validada."]);
       finishAuthUrl();
     };
 
@@ -169,6 +173,7 @@ const SetPassword = () => {
       if (cancelled || settled) return;
       settled = true;
       console.warn("[auth recovery]", msg);
+      setDiagnostics((prev) => [...prev, `Falha na validação do link: ${msg}`]);
       setErrorMsg(msg);
       setPhase("invalid");
     };
@@ -183,6 +188,7 @@ const SetPassword = () => {
     const { data: sub } = recoveryClient.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       console.info("[auth recovery] evento onAuthStateChange (recoveryClient)", { event, hasSession: Boolean(session) });
+      if (session?.user?.email) setRecoveryEmail(session.user.email);
       if (event === "PASSWORD_RECOVERY") {
         activeClientRef.current = recoveryClient;
         markReady("recovery");
@@ -199,6 +205,7 @@ const SetPassword = () => {
     const { data: mainSub } = mainSupabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       console.info("[auth recovery] evento onAuthStateChange (mainClient)", { event, hasSession: Boolean(session) });
+      if (session?.user?.email) setRecoveryEmail(session.user.email);
       if (event === "PASSWORD_RECOVERY") {
         activeClientRef.current = mainSupabase;
         markReady("recovery");
@@ -218,6 +225,7 @@ const SetPassword = () => {
       if (cancelled || settled) return;
       if (data.session && !hasExplicitAuthToken) {
         console.info("[auth recovery] sessão encontrada no client principal — aceitando como recovery");
+        if (data.session.user.email) setRecoveryEmail(data.session.user.email);
         activeClientRef.current = mainSupabase;
         markReady(authUrl.type === "invite" ? "invite" : "recovery");
       }
@@ -237,6 +245,7 @@ const SetPassword = () => {
           console.info("[auth recovery] exchangeCodeForSession(code)", { isRecoveryVerifier: verifierState.isRecoveryVerifier });
           const { data, error } = await recoveryClient.auth.exchangeCodeForSession(authUrl.code);
           if (!error && data.session) {
+            if (data.session.user.email) setRecoveryEmail(data.session.user.email);
             markReady(verifierState.isRecoveryVerifier ? "recovery" : "session");
             return;
           }
@@ -253,6 +262,7 @@ const SetPassword = () => {
             type: otpType,
           });
           if (!error && data.session) {
+            if (data.session.user.email) setRecoveryEmail(data.session.user.email);
             markReady(otpType);
             return;
           }
@@ -263,11 +273,12 @@ const SetPassword = () => {
         //    (caso o detectSessionInUrl tenha falhado por algum motivo).
         if (authUrl.accessToken && authUrl.refreshToken) {
           console.info("[auth recovery] setSession(access_token+refresh_token)");
-          const { error } = await recoveryClient.auth.setSession({
+          const { data, error } = await recoveryClient.auth.setSession({
             access_token: authUrl.accessToken,
             refresh_token: authUrl.refreshToken,
           });
           if (!error) {
+            if (data.session?.user?.email) setRecoveryEmail(data.session.user.email);
             markReady(authUrl.type === "invite" ? "invite" : "recovery");
             return;
           }
@@ -315,17 +326,44 @@ const SetPassword = () => {
     }
     setPhase("saving");
     const client = activeClientRef.current;
-    const { error } = await client.auth.updateUser({
+    setDiagnostics((prev) => [...prev, "Salvando nova senha…"]);
+    const { data, error } = await client.auth.updateUser({
       password: parsed.data.password,
       data: { must_reset_password: false, password_changed_at: new Date().toISOString() },
     });
     if (error) {
       console.error("[auth recovery] erro retornado ao tentar updateUser", error);
       setPhase("ready");
+      setDiagnostics((prev) => [...prev, `Falha ao salvar senha: ${error.message}`]);
       toast({ title: "Erro ao salvar senha", description: error.message, variant: "destructive" });
       return;
     }
+    const emailForVerification = data.user?.email ?? recoveryEmail;
+    setDiagnostics((prev) => [...prev, "Senha salva. Validando login imediato…"]);
     await client.auth.signOut();
+    if (client !== mainSupabase) await mainSupabase.auth.signOut();
+
+    if (emailForVerification) {
+      const { error: loginError } = await mainSupabase.auth.signInWithPassword({
+        email: emailForVerification,
+        password: parsed.data.password,
+      });
+      if (loginError) {
+        console.error("[auth recovery] senha salva, mas login imediato falhou", loginError);
+        setPhase("ready");
+        setDiagnostics((prev) => [...prev, `Senha salva, mas login imediato falhou: ${loginError.message}`]);
+        toast({
+          title: "Senha salva, mas login falhou",
+          description: `A senha foi atualizada, porém a validação imediata retornou: ${loginError.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      setDiagnostics((prev) => [...prev, "Login imediato validado com sucesso."]);
+      await mainSupabase.auth.signOut();
+    } else {
+      setDiagnostics((prev) => [...prev, "Senha salva; e-mail indisponível para validação automática de login."]);
+    }
     setPhase("done");
     toast({ title: "Senha definida", description: "Entre novamente com sua nova senha." });
     setTimeout(() => navigate("/auth", { replace: true }), 800);
@@ -366,6 +404,11 @@ const SetPassword = () => {
             {phase === "invalid" && (
               <div className="space-y-4">
                 <p className="text-sm text-destructive">{errorMsg}</p>
+                {diagnostics.length > 0 && (
+                  <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+                    {diagnostics.map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}
+                  </div>
+                )}
                 <Button className="w-full" variant="outline" onClick={() => navigate("/auth", { replace: true })}>
                   Voltar ao login
                 </Button>
@@ -386,6 +429,11 @@ const SetPassword = () => {
                 <Button type="submit" className="w-full" disabled={phase === "saving"}>
                   {phase === "saving" ? "Salvando…" : flow === "invite" ? "Criar senha e entrar" : "Salvar nova senha"}
                 </Button>
+                {diagnostics.length > 0 && (
+                  <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+                    {diagnostics.map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}
+                  </div>
+                )}
               </form>
             )}
           </CardContent>
