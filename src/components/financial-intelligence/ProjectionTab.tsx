@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SurfaceCard, SurfaceCardHeader } from "@/components/shared/SurfacePrimitives";
-import { Calculator, ArrowDown, ArrowUp, Minus } from "lucide-react";
+import { Calculator, ArrowDown, ArrowUp, Minus, Info } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatBRL, mean, median } from "@/lib/financialStats";
 
 interface PaymentRow {
