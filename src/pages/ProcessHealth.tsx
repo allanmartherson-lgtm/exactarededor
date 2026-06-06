@@ -22,7 +22,19 @@ const PILLS: { value: TabValue; label: string }[] = [
 ];
 
 export default function ProcessHealth() {
-  const [active, setActive] = useState<TabValue>("produtividade");
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const aliasMap: Record<string, TabValue> = {
+    produtividade: "produtividade",
+    accuracy: "accuracy",
+    dwell: "dwell",
+    returns: "returns",
+    "tempo-estagio": "dwell",
+    "taxa-devolucao": "returns",
+    acuracia: "accuracy",
+  };
+  const initial: TabValue = (tabParam && aliasMap[tabParam]) || "produtividade";
+  const [active, setActive] = useState<TabValue>(initial);
 
   useEffect(() => {
     document.title = "Saúde do Processo | Exacta";
