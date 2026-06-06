@@ -321,11 +321,17 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 </label>
               </div>
               {scheduleMode === "later" && (
-                <Input
-                  type="datetime-local"
-                  value={scheduledFor}
-                  onChange={(e) => setScheduledFor(e.target.value)}
-                />
+                <div className="flex flex-col gap-1">
+                  <Input
+                    type="datetime-local"
+                    step={300}
+                    value={scheduledFor}
+                    onChange={(e) => setScheduledFor(e.target.value)}
+                  />
+                  <span className="text-[11px] text-muted-foreground">
+                    Horários em incrementos de 5 minutos.
+                  </span>
+                </div>
               )}
             </div>
           </div>
@@ -344,7 +350,7 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   );
 }
 
-/** Picker de empresas com busca por nome. */
+/** Picker de empresas com busca, "selecionar todas" e import por lote (payment). */
 function CompanyPicker({
   companies,
   selected,
@@ -355,13 +361,45 @@ function CompanyPicker({
   onChange: (next: string[]) => void;
 }) {
   const [q, setQ] = useState("");
+  const [batchOpen, setBatchOpen] = useState(false);
   const set = new Set(selected);
   const filtered = q
     ? companies.filter((c) => c.name.toLowerCase().includes(q.toLowerCase())).slice(0, 12)
     : [];
+
+  const selectAll = () => onChange(companies.map((c) => c.id));
+  const clearAll = () => onChange([]);
+
   return (
     <div className="flex flex-col gap-1">
       <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar empresa por nome…" />
+
+      <div className="flex items-center gap-2 flex-wrap pt-1">
+        <button
+          type="button"
+          onClick={selectAll}
+          className="text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted"
+        >
+          Selecionar todas ({companies.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setBatchOpen(true)}
+          className="text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted"
+        >
+          Importar do lote…
+        </button>
+        {selected.length > 0 && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-[11px] px-2 py-0.5 rounded border border-border hover:bg-destructive/10"
+          >
+            Limpar ({selected.length})
+          </button>
+        )}
+      </div>
+
       {filtered.length > 0 && (
         <div className="border border-border rounded-md max-h-48 overflow-y-auto">
           {filtered.map((c) => (
@@ -399,7 +437,219 @@ function CompanyPicker({
           })}
         </div>
       )}
+
+      <BatchCompanyPicker
+        open={batchOpen}
+        onOpenChange={setBatchOpen}
+        companies={companies}
+        onImport={(ids, replace) => {
+          if (replace) onChange(ids);
+          else {
+            const merged = Array.from(new Set([...selected, ...ids]));
+            onChange(merged);
+          }
+          setBatchOpen(false);
+        }}
+      />
     </div>
+  );
+}
+
+/** Modal de seleção de empresas a partir de um lote (payment). */
+function BatchCompanyPicker({
+  open,
+  onOpenChange,
+  companies,
+  onImport,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  companies: Company[];
+  onImport: (companyIds: string[], replace: boolean) => void;
+}) {
+  type PaymentRow = {
+    id: string;
+    reference: string;
+    payment_type: string | null;
+    competence_month: string | null;
+    status: string;
+  };
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string>("__all__");
+  const [paymentId, setPaymentId] = useState<string>("");
+  const [batchCompanies, setBatchCompanies] = useState<Company[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    void (async () => {
+      const { data } = await supabase
+        .from("payments")
+        .select("id,reference,payment_type,competence_month,status")
+        .order("created_at", { ascending: false })
+        .limit(60);
+      setPayments((data ?? []) as PaymentRow[]);
+    })();
+  }, [open]);
+
+  useEffect(() => {
+    if (!paymentId) {
+      setBatchCompanies([]);
+      setSelectedIds(new Set());
+      return;
+    }
+    void (async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("payment_company_financials")
+        .select("company_id")
+        .eq("payment_id", paymentId)
+        .limit(2000);
+      const ids = Array.from(new Set((data ?? []).map((x) => (x as { company_id: string }).company_id)));
+      const byId = new Map(companies.map((c) => [c.id, c]));
+      const rows = ids
+        .map((id) => byId.get(id))
+        .filter((x): x is Company => !!x)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setBatchCompanies(rows);
+      setSelectedIds(new Set(rows.map((r) => r.id)));
+      setLoading(false);
+    })();
+  }, [paymentId, companies]);
+
+  const types = Array.from(
+    new Set(payments.map((p) => p.payment_type).filter((x): x is string => !!x))
+  ).sort();
+  const visible = payments.filter((p) =>
+    typeFilter === "__all__" ? true : (p.payment_type ?? "") === typeFilter
+  );
+
+  const toggle = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Importar empresas de um lote</DialogTitle>
+          <DialogDescription>
+            Filtre por tipo de pagamento, escolha um lote e selecione as empresas que devem receber a campanha.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-3 py-2">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-[12px]">Tipo de pagamento</Label>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos</SelectItem>
+                {types.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-[12px]">Lote</Label>
+            <Select value={paymentId} onValueChange={setPaymentId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um lote…" />
+              </SelectTrigger>
+              <SelectContent>
+                {visible.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.reference}
+                    {p.payment_type ? ` · ${p.payment_type}` : ""}
+                    {p.competence_month ? ` · ${p.competence_month.slice(0, 7)}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {paymentId && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-[12px]">
+                  Empresas no lote ({batchCompanies.length})
+                </Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted"
+                    onClick={() => setSelectedIds(new Set(batchCompanies.map((c) => c.id)))}
+                  >
+                    Marcar todas
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted"
+                    onClick={() => setSelectedIds(new Set())}
+                  >
+                    Desmarcar
+                  </button>
+                </div>
+              </div>
+              <div className="border border-border rounded-md max-h-72 overflow-y-auto">
+                {loading && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">Carregando…</div>
+                )}
+                {!loading && batchCompanies.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Nenhuma empresa neste lote.
+                  </div>
+                )}
+                {!loading &&
+                  batchCompanies.map((c) => (
+                    <label
+                      key={c.id}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={selectedIds.has(c.id)}
+                        onCheckedChange={() => toggle(c.id)}
+                      />
+                      <span>{c.name}</span>
+                    </label>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button
+            variant="outline"
+            disabled={selectedIds.size === 0}
+            onClick={() => onImport(Array.from(selectedIds), false)}
+          >
+            Adicionar à seleção
+          </Button>
+          <Button
+            disabled={selectedIds.size === 0}
+            onClick={() => onImport(Array.from(selectedIds), true)}
+          >
+            Substituir seleção
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
