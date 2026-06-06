@@ -249,7 +249,11 @@ const SetPassword = () => {
             markReady(verifierState.isRecoveryVerifier ? "recovery" : "session");
             return;
           }
-          if (error) console.warn("[auth recovery] exchangeCodeForSession falhou", error.message);
+          if (error) {
+            console.warn("[auth recovery] exchangeCodeForSession falhou", error.message);
+            markInvalid(`Falha ao validar código do link: ${error.message}. Solicite um novo link de recuperação.`);
+            return;
+          }
         }
 
         // 3. Fallback explícito para token_hash (links manuais do edge function
@@ -266,7 +270,11 @@ const SetPassword = () => {
             markReady(otpType);
             return;
           }
-          if (error) console.warn("[auth recovery] verifyOtp falhou", error.message);
+          if (error) {
+            console.warn("[auth recovery] verifyOtp falhou", error.message);
+            markInvalid(`Link inválido ou expirado: ${error.message}. Solicite um novo link de recuperação.`);
+            return;
+          }
         }
 
         // 4. Fallback explícito para access_token+refresh_token no hash
@@ -283,6 +291,8 @@ const SetPassword = () => {
             return;
           }
           console.warn("[auth recovery] setSession falhou", error.message);
+          markInvalid(`Falha ao ativar a sessão do link: ${error.message}. Solicite um novo link de recuperação.`);
+          return;
         }
 
         await recoveryClient.auth.initialize();
