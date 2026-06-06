@@ -658,7 +658,7 @@ function BatchCompanyPicker({
                   <SelectItem key={p.id} value={p.id}>
                     {p.reference}
                     {p.payment_type ? ` · ${p.payment_type}` : ""}
-                    {p.competence_month ? ` · ${p.competence_month.slice(0, 7)}` : ""}
+                    {p.competence_month ? ` · ${formatCompetenceBR(p.competence_month)}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
