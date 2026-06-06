@@ -254,17 +254,6 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
 
             <div className="flex flex-col gap-1.5">
               <Label className="text-[12px]">Empresas</Label>
-              <MultiSelectChips
-                values={selCompanies}
-                onChange={setSelCompanies}
-                options={companies.map((c) => c.id)}
-                placeholder="Selecione empresas…"
-                allowCustom={false}
-                emptyHint="Vazio = nenhuma empresa selecionada"
-              />
-              <span className="text-[11px] text-muted-foreground">
-                Mostra IDs; a busca casa pelo nome cadastrado.
-              </span>
               <CompanyPicker
                 companies={companies}
                 selected={selCompanies}
