@@ -329,7 +329,10 @@ export function useQueueNotifications() {
             });
           }
         )
-        // Nova pendência cadastrada pelo prestador no portal — alerta analistas
+        // Nova pendência cadastrada pelo prestador no portal — alerta SOMENTE analistas.
+        // Diretor/validador NÃO recebem aqui: pendências do prestador não fazem parte
+        // do estágio de fluxo deles (eles só são notificados em aguardando_validacao /
+        // aguardando_aprovacao, via handleStatusChange acima).
         .on(
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "pendencias" },
@@ -346,15 +349,27 @@ export function useQueueNotifications() {
             const { data: c } = await supabase
               .from("companies").select("name").eq("id", n.company_id).maybeSingle();
             const companyLabel = (c?.name as string | undefined) ?? "Empresa";
+            const isHigh = n.priority === "alta";
+            const reason = isHigh ? "nova_pendencia_alta" : "nova_pendencia";
             fire(`pendencia:${n.id}`, {
-              title: n.priority === "alta"
+              title: isHigh
                 ? "Nova pendência (prioridade alta)"
                 : "Nova pendência do prestador",
               description: `${companyLabel} · ${n.created_by_name}: ${n.subject}`,
-              kind: n.priority === "alta" ? "warning" : "info",
+              kind: isHigh ? "warning" : "info",
               paymentId: n.id, // usado só como chave, path abaixo sobrescreve
               path: `/pendencias/${n.id}`,
             });
+            // Auditoria — registra a notificação recebida (best-effort).
+            const role = hasRole("admin") ? "admin" : "analista";
+            void supabase.from("pendencia_notification_log" as never).insert({
+              pendencia_id: n.id,
+              recipient_user_id: user.id,
+              recipient_role: role,
+              priority: n.priority,
+              reason,
+              channel: "in_app",
+            } as never);
           }
         )
         .subscribe();

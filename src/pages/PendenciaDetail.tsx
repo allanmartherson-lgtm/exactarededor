@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CompanyThreadChat } from "@/components/portal/CompanyThreadChat";
+import { NotificationHistoryPanel } from "@/components/pendencias/NotificationHistoryPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UserCheck, CheckCircle2 } from "lucide-react";
@@ -268,6 +269,8 @@ export default function PendenciaDetail() {
               {pend.description}
             </p>
           </div>
+
+          <NotificationHistoryPanel pendenciaId={pend.id} />
         </div>
 
         {/* Chat */}

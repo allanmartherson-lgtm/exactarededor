@@ -4309,6 +4309,47 @@ export type Database = {
           },
         ]
       }
+      pendencia_notification_log: {
+        Row: {
+          channel: string
+          created_at: string
+          id: string
+          pendencia_id: string
+          priority: string
+          reason: string
+          recipient_role: string
+          recipient_user_id: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          id?: string
+          pendencia_id: string
+          priority: string
+          reason: string
+          recipient_role: string
+          recipient_user_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          id?: string
+          pendencia_id?: string
+          priority?: string
+          reason?: string
+          recipient_role?: string
+          recipient_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pendencia_notification_log_pendencia_id_fkey"
+            columns: ["pendencia_id"]
+            isOneToOne: false
+            referencedRelation: "pendencias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pendencias: {
         Row: {
           agreement_name: string
