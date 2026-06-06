@@ -322,7 +322,7 @@ export default function AgingRecebiveis() {
             padding: "8px 22px", background: "hsl(var(--muted) / 0.5)",
             borderBottom: "1px solid hsl(var(--border))", gap: 12,
           }}>
-            {["EMPRESA", "STATUS", "MARCO", "DIAS", "VALOR"].map(h => (
+            {["PJ", "STATUS", "MARCO", "DIAS", "VALOR"].map(h => (
               <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "hsl(var(--muted-foreground))", letterSpacing: "0.07em", textTransform: "uppercase" as const, textAlign: h === "VALOR" || h === "DIAS" ? "right" as const : "left" as const }}>
                 {h}
               </div>
