@@ -53,6 +53,7 @@ export function useConversasUnread(): number {
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_question_reads" }, () => void load())
       .on("postgres_changes", { event: "*", schema: "public", table: "company_threads" }, () => void load())
       .on("postgres_changes", { event: "*", schema: "public", table: "doctor_messages" }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_notifications" }, () => void load())
       .subscribe();
 
     return () => {
