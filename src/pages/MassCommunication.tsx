@@ -342,7 +342,7 @@ export default function MassCommunication() {
                             size="sm"
                             variant="default"
                             disabled={approvingId === c.id}
-                            onClick={() => void approve(c.id)}
+                            onClick={() => setApproveTarget(c)}
                           >
                             Aprovar
                           </Button>
