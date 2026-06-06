@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
 import { createPasswordRecoveryClient, preparePasswordRecoveryCodeVerifier } from "@/lib/passwordRecoveryClient";
+import { supabase as mainSupabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Página pública que captura o token enviado por email (convite ou recuperação)
@@ -121,6 +123,10 @@ const SetPassword = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [flow, setFlow] = useState<AuthFlow>("recovery");
   const [recoveryClient] = useState(() => createPasswordRecoveryClient({ skipAutoInitialize: true }));
+  // Cliente ativo para updateUser — pode ser o recoveryClient (PKCE/token_hash)
+  // ou o client principal (quando o hash #access_token já foi consumido por ele
+  // via detectSessionInUrl antes da SetPassword montar).
+  const activeClientRef = useRef<SupabaseClient>(recoveryClient);
 
   useEffect(() => {
     document.title = "Definir senha | Exacta Approval";
