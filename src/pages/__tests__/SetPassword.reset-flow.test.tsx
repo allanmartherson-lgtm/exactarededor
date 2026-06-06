@@ -3,22 +3,23 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SetPassword from "@/pages/SetPassword";
 
-const recoveryAuth = {
-  onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
-  exchangeCodeForSession: vi.fn(),
-  verifyOtp: vi.fn(),
-  setSession: vi.fn(),
-  initialize: vi.fn(),
-  updateUser: vi.fn(),
-  signOut: vi.fn(),
-};
-
-const mainAuth = {
-  onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
-  getSession: vi.fn(),
-  signInWithPassword: vi.fn(),
-  signOut: vi.fn(),
-};
+const { recoveryAuth, mainAuth } = vi.hoisted(() => ({
+  recoveryAuth: {
+    onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+    exchangeCodeForSession: vi.fn(),
+    verifyOtp: vi.fn(),
+    setSession: vi.fn(),
+    initialize: vi.fn(),
+    updateUser: vi.fn(),
+    signOut: vi.fn(),
+  },
+  mainAuth: {
+    onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+    getSession: vi.fn(),
+    signInWithPassword: vi.fn(),
+    signOut: vi.fn(),
+  },
+}));
 
 vi.mock("@/lib/passwordRecoveryClient", () => ({
   createPasswordRecoveryClient: () => ({ auth: recoveryAuth }),
