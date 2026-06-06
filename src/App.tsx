@@ -253,7 +253,7 @@ const App = () => (
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><AgingRecebiveis /></ProtectedRoute>} />
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
-                  <Route path="/ciclo-nf" element={<NfCycle />} />
+                  <Route path="/ciclo-nf" element={<Navigate to="/notas-fiscais" replace />} />
                   <Route path="/glosas" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><Glosas /></ProtectedRoute>} />
                   <Route path="/pendencias" element={<Pendencias />} />
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
