@@ -424,10 +424,12 @@ function CompanyPicker({
   companies,
   selected,
   onChange,
+  loading = false,
 }: {
   companies: Company[];
   selected: string[];
   onChange: (next: string[]) => void;
+  loading?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [batchOpen, setBatchOpen] = useState(false);
@@ -441,7 +443,12 @@ function CompanyPicker({
 
   return (
     <div className="flex flex-col gap-1">
-      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar empresa por nome…" />
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder={loading ? "Carregando empresas…" : "Buscar empresa por nome…"}
+        disabled={loading && companies.length === 0}
+      />
 
       <div className="flex items-center gap-2 flex-wrap pt-1">
         <button
