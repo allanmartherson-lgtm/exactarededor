@@ -421,6 +421,9 @@ export type Database = {
       comm_campaigns: {
         Row: {
           allow_reply: boolean
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           audience: Json
           channels: string[]
           created_at: string
@@ -429,6 +432,7 @@ export type Database = {
           hospital_id: string | null
           id: string
           message: string
+          rejection_reason: string | null
           scheduled_for: string | null
           status: string
           title: string
@@ -437,6 +441,9 @@ export type Database = {
         }
         Insert: {
           allow_reply?: boolean
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           audience?: Json
           channels?: string[]
           created_at?: string
@@ -445,6 +452,7 @@ export type Database = {
           hospital_id?: string | null
           id?: string
           message: string
+          rejection_reason?: string | null
           scheduled_for?: string | null
           status?: string
           title: string
@@ -453,6 +461,9 @@ export type Database = {
         }
         Update: {
           allow_reply?: boolean
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           audience?: Json
           channels?: string[]
           created_at?: string
@@ -461,6 +472,7 @@ export type Database = {
           hospital_id?: string | null
           id?: string
           message?: string
+          rejection_reason?: string | null
           scheduled_for?: string | null
           status?: string
           title?: string
@@ -6966,6 +6978,7 @@ export type Database = {
         Args: { _calculations: Json; _corrections: Json; _rule_data: Json }
         Returns: Json
       }
+      approve_campaign: { Args: { _campaign_id: string }; Returns: undefined }
       approve_payment: {
         Args: {
           p_author_id: string
@@ -7648,6 +7661,10 @@ export type Database = {
           _status_to: Database["public"]["Enums"]["payment_status"]
         }
         Returns: string
+      }
+      reject_campaign: {
+        Args: { _campaign_id: string; _reason: string }
+        Returns: undefined
       }
       repair_portal_links: { Args: never; Returns: Json }
       reply_question: {
