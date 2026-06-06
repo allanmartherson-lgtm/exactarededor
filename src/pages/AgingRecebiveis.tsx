@@ -296,7 +296,7 @@ export default function AgingRecebiveis() {
           </span>
           {semMarco.length > 0 && (
             <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
-              + {semMarco.length} empresa{semMarco.length !== 1 ? "s" : ""} sem data de {modeLabels[mode].toLowerCase()} disponível
+              + {semMarco.length} PJ{semMarco.length !== 1 ? "s" : ""} sem data de {modeLabels[mode].toLowerCase()} disponível
             </span>
           )}
         </div>
