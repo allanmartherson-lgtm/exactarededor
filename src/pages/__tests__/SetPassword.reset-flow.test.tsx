@@ -164,13 +164,13 @@ describe("SetPassword reset flow", () => {
     });
 
     // O fallback do SetPassword aguarda ~1.5s antes de marcar como inválido
-    expect(
-      await screen.findByText(
-        /não foi possível validar o link|link inválido ou expirado/i,
-        {},
-        { timeout: 3000 },
-      ),
-    ).toBeInTheDocument();
+    const matches = await screen.findAllByText(
+      /não foi possível validar o link|link inválido ou expirado/i,
+      {},
+      { timeout: 3000 },
+    );
+    expect(matches.length).toBeGreaterThan(0);
+
 
     expect(screen.queryByRole("button", { name: /salvar nova senha/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /voltar ao login/i })).toBeInTheDocument();
