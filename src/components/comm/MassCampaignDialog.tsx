@@ -82,12 +82,15 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   useEffect(() => {
     if (!open) return;
     void (async () => {
+      setAudienceLoading(true);
+      setAudienceProgress({ companies: 0, doctors: 0 });
       // Paginação manual — PostgREST limita server-side a 1000 linhas por request,
       // ignorando `.limit()` maiores. Buscamos em páginas até esgotar.
       const fetchAll = async <T,>(
         table: "companies" | "doctors",
         select: string,
         order: string,
+        onProgress?: (n: number) => void,
       ): Promise<{ rows: T[]; expected: number | null }> => {
         const PAGE = 1000;
         const out: T[] = [];
@@ -102,20 +105,23 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
           if (error || !data) break;
           if (from === 0 && typeof count === "number") expected = count;
           out.push(...(data as unknown as T[]));
+          onProgress?.(out.length);
           if (data.length < PAGE) break;
         }
         return { rows: out, expected };
       };
 
       const [c, d] = await Promise.all([
-        fetchAll<Company>("companies", "id,name", "name"),
+        fetchAll<Company>("companies", "id,name", "name", (n) =>
+          setAudienceProgress((p) => ({ ...p, companies: n })),
+        ),
         fetchAll<Doctor & { specialties: string[] | null }>(
           "doctors",
           "id,full_name,specialties",
           "full_name",
+          (n) => setAudienceProgress((p) => ({ ...p, doctors: n })),
         ),
       ]);
-      // Validação: garante que a paginação trouxe o total exato do servidor.
       if (c.expected !== null && c.rows.length !== c.expected) {
         console.warn(
           `[MassCampaign] Empresas: carregadas ${c.rows.length} de ${c.expected} esperadas`,
@@ -131,6 +137,7 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
       const set = new Set<string>();
       d.rows.forEach((x) => (x.specialties ?? []).forEach((s) => s && set.add(s)));
       setSpecialtyOptions(Array.from(set).sort((a, b) => a.localeCompare(b)));
+      setAudienceLoading(false);
     })();
   }, [open]);
 
