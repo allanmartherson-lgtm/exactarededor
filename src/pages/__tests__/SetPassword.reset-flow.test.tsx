@@ -149,7 +149,6 @@ describe("SetPassword reset flow", () => {
   });
 
   it("mostra mensagem clara de link inválido/expirado quando verifyOtp falha", async () => {
-    vi.useFakeTimers();
     recoveryAuth.verifyOtp.mockResolvedValue({
       data: { session: null },
       error: { message: "Token has expired or is invalid", status: 401 },
@@ -157,32 +156,26 @@ describe("SetPassword reset flow", () => {
 
     renderResetPage();
 
-    // Aguarda verifyOtp ser chamado
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(recoveryAuth.verifyOtp).toHaveBeenCalledWith({
         token_hash: "reset-token",
         type: "recovery",
       });
     });
 
-    // Avança o timer de fallback (1.5s) que marca o link como inválido
-    await vi.advanceTimersByTimeAsync(1600);
-
-    // UI deve exibir a mensagem de link inválido/expirado
+    // O fallback do SetPassword aguarda ~1.5s antes de marcar como inválido
     expect(
-      await screen.findByText(/não foi possível validar o link|link inválido ou expirado/i),
+      await screen.findByText(
+        /não foi possível validar o link|link inválido ou expirado/i,
+        {},
+        { timeout: 3000 },
+      ),
     ).toBeInTheDocument();
 
-    // O formulário de nova senha NÃO pode estar disponível
     expect(screen.queryByRole("button", { name: /salvar nova senha/i })).not.toBeInTheDocument();
-
-    // CTA para voltar ao login deve estar visível
     expect(screen.getByRole("button", { name: /voltar ao login/i })).toBeInTheDocument();
-
-    // Garante que nenhuma tentativa de updateUser/signIn aconteceu
     expect(recoveryAuth.updateUser).not.toHaveBeenCalled();
     expect(mainAuth.signInWithPassword).not.toHaveBeenCalled();
-
-    vi.useRealTimers();
   });
 });
+
