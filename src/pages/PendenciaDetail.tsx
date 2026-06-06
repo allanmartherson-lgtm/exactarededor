@@ -105,6 +105,9 @@ export default function PendenciaDetail() {
   // Cria thread se não existir.
   const ensureThread = async () => {
     if (!pend || pend.thread_id || creatingThread || !user) return;
+    // Pendência aberta pelo médico nunca cria thread de empresa — a conversa
+    // vive em doctor_messages e é renderizada pelo DoctorPendenciaChat.
+    if (pend.opened_by === "medico") return;
     setCreatingThread(true);
     const { data, error } = await supabase
       .from("company_threads" as never)
