@@ -67,6 +67,8 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [specialtyOptions, setSpecialtyOptions] = useState<string[]>([]);
+  const [audienceLoading, setAudienceLoading] = useState(false);
+  const [audienceProgress, setAudienceProgress] = useState<{ companies: number; doctors: number }>({ companies: 0, doctors: 0 });
 
   const [selCompanies, setSelCompanies] = useState<string[]>([]);
   const [selDoctors, setSelDoctors] = useState<string[]>([]);
