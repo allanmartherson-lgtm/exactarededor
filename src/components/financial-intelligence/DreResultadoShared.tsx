@@ -313,6 +313,9 @@ export function PosicaoAbertoSection({ open }: { open: OpenRow[] }) {
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Pagamentos não pagos (exclui pagos, cancelados, rejeitados e arquivados), idade contada desde a criação do pagamento. Para o aging completo a partir da competência do serviço, veja Relatórios › Contas a Pagar.
+      </p>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {["0-15", "16-30", "31-60", "60+"].map((b) => (
           <Card key={b}>
