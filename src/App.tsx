@@ -144,6 +144,7 @@ const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
 const MassCommunication = lazy(() => import("./pages/MassCommunication.tsx"));
 const CampaignApprovalQueue = lazy(() => import("./pages/CampaignApprovalQueue.tsx"));
+const NotificationsInbox = lazy(() => import("./pages/NotificationsInbox.tsx"));
 const Hospitals = lazy(loadHospitals);
 const SelectHospital = lazy(loadSelectHospital);
 const PortalUsers = lazy(loadPortalUsers);
