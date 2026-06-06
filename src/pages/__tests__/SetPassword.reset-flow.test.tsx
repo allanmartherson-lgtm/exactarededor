@@ -147,4 +147,35 @@ describe("SetPassword reset flow", () => {
     expect(await screen.findByRole("button", { name: /salvar nova senha/i })).toBeInTheDocument();
     expect(recoveryAuth.verifyOtp).toHaveBeenCalledWith({ token_hash: "reset-token", type: "recovery" });
   });
+
+  it("mostra mensagem clara de link inválido/expirado quando verifyOtp falha", async () => {
+    recoveryAuth.verifyOtp.mockResolvedValue({
+      data: { session: null },
+      error: { message: "Token has expired or is invalid", status: 401 },
+    });
+
+    renderResetPage();
+
+    await waitFor(() => {
+      expect(recoveryAuth.verifyOtp).toHaveBeenCalledWith({
+        token_hash: "reset-token",
+        type: "recovery",
+      });
+    });
+
+    // O fallback do SetPassword aguarda ~1.5s antes de marcar como inválido
+    const matches = await screen.findAllByText(
+      /não foi possível validar o link|link inválido ou expirado/i,
+      {},
+      { timeout: 3000 },
+    );
+    expect(matches.length).toBeGreaterThan(0);
+
+
+    expect(screen.queryByRole("button", { name: /salvar nova senha/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /voltar ao login/i })).toBeInTheDocument();
+    expect(recoveryAuth.updateUser).not.toHaveBeenCalled();
+    expect(mainAuth.signInWithPassword).not.toHaveBeenCalled();
+  });
 });
+
