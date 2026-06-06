@@ -199,7 +199,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "DRE & Posição em Aberto", iconName: "TrendingUp" },
   
   { label: "Observabilidade de Negócio", iconName: "BrainCircuit" },
-  { label: "Recebíveis", iconName: "TrendingDown" },
+  { label: "Contas a Pagar", iconName: "TrendingDown" },
   { label: "Inteligência Financeira", iconName: "TrendingUp" },
   { label: "Regras de Pagamento", iconName: "BadgeDollarSign" },
   { label: "Regras de Validação", iconName: "ShieldCheck" },
