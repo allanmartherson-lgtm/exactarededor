@@ -29,6 +29,7 @@ import { ptBR } from "date-fns/locale";
 import { Plus, Send } from "lucide-react";
 import { MassCampaignDialog } from "@/components/comm/MassCampaignDialog";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Campaign = {
   id: string;
@@ -38,6 +39,11 @@ type Campaign = {
   audience: Record<string, unknown>;
   allow_reply: boolean;
   status: "rascunho" | "agendada" | "enviando" | "concluida" | "cancelada" | "falhou";
+  approval_status: "pending" | "approved" | "rejected";
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
+  created_by: string | null;
   scheduled_for: string | null;
   dispatched_at: string | null;
   totals: Record<string, unknown>;
@@ -62,11 +68,26 @@ const STATUS_LABEL: Record<Campaign["status"], string> = {
   falhou: "Falhou",
 };
 
+const APPROVAL_VARIANT: Record<Campaign["approval_status"], "default" | "secondary" | "destructive" | "outline"> = {
+  pending: "secondary",
+  approved: "default",
+  rejected: "destructive",
+};
+
+const APPROVAL_LABEL: Record<Campaign["approval_status"], string> = {
+  pending: "Aguarda aprovação",
+  approved: "Aprovada",
+  rejected: "Rejeitada",
+};
+
 export default function MassCommunication() {
+  const { hasRole } = useAuth();
+  const isSupervisor = hasRole("admin") || hasRole("diretor");
   const [items, setItems] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -112,6 +133,31 @@ export default function MassCommunication() {
       title: "Campanha disparada",
       description: `${totals?.recipients ?? 0} destinatário(s) processados.`,
     });
+    void load();
+  };
+
+  const approve = async (id: string) => {
+    setApprovingId(id);
+    const { error } = await supabase.rpc("approve_campaign", { _campaign_id: id });
+    setApprovingId(null);
+    if (error) {
+      toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Campanha aprovada" });
+    void load();
+  };
+
+  const reject = async (id: string) => {
+    const reason = window.prompt("Motivo da rejeição (opcional):") ?? "";
+    setApprovingId(id);
+    const { error } = await supabase.rpc("reject_campaign", { _campaign_id: id, _reason: reason });
+    setApprovingId(null);
+    if (error) {
+      toast({ title: "Falha ao rejeitar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Campanha rejeitada" });
     void load();
   };
 
@@ -180,7 +226,18 @@ export default function MassCommunication() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
+                      <Badge variant={APPROVAL_VARIANT[c.approval_status]} className="text-[10px]">
+                        {APPROVAL_LABEL[c.approval_status]}
+                      </Badge>
+                      {c.approval_status === "rejected" && c.rejection_reason && (
+                        <span className="text-[10px] text-destructive" title={c.rejection_reason}>
+                          {c.rejection_reason.slice(0, 40)}
+                          {c.rejection_reason.length > 40 ? "…" : ""}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-[12px]">
                     {c.scheduled_for
@@ -205,18 +262,46 @@ export default function MassCommunication() {
                     {format(new Date(c.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                   </TableCell>
                   <TableCell className="text-right">
-                    {(c.status === "rascunho" || c.status === "agendada" || c.status === "falhou") && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        disabled={sendingId === c.id}
-                        onClick={() => void dispatchNow(c.id)}
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                        {sendingId === c.id ? "Disparando…" : "Disparar agora"}
-                      </Button>
-                    )}
+                    <div className="flex flex-col gap-1.5 items-end">
+                      {isSupervisor && c.approval_status === "pending" && (
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            disabled={approvingId === c.id}
+                            onClick={() => void approve(c.id)}
+                          >
+                            Aprovar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={approvingId === c.id}
+                            onClick={() => void reject(c.id)}
+                          >
+                            Rejeitar
+                          </Button>
+                        </div>
+                      )}
+                      {!isSupervisor && c.approval_status === "pending" && (
+                        <span className="text-[11px] text-muted-foreground">
+                          Aguardando supervisor
+                        </span>
+                      )}
+                      {c.approval_status === "approved" &&
+                        (c.status === "rascunho" || c.status === "agendada" || c.status === "falhou") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                            disabled={sendingId === c.id}
+                            onClick={() => void dispatchNow(c.id)}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            {sendingId === c.id ? "Disparando…" : "Disparar agora"}
+                          </Button>
+                        )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );

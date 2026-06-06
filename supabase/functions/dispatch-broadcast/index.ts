@@ -90,6 +90,14 @@ Deno.serve(async (req) => {
   if (!["rascunho", "agendada", "enviando", "falhou"].includes(campaign.status)) {
     return json({ error: `Status inválido para envio: ${campaign.status}` }, 400);
   }
+  if (campaign.approval_status !== "approved") {
+    return json({
+      error:
+        campaign.approval_status === "pending"
+          ? "Campanha aguarda aprovação do supervisor antes do disparo."
+          : "Campanha rejeitada — não pode ser disparada.",
+    }, 403);
+  }
 
   await admin
     .from("comm_campaigns")
