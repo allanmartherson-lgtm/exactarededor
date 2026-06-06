@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CompanyThreadChat } from "@/components/portal/CompanyThreadChat";
+import { DoctorPendenciaChat } from "@/components/portal/DoctorPendenciaChat";
 import { NotificationHistoryPanel } from "@/components/pendencias/NotificationHistoryPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -40,6 +41,8 @@ type Pendencia = {
   attendance_number: string | null;
   agreement_name: string;
   doctor_name: string;
+  doctor_id: string | null;
+  opened_by: "empresa" | "medico";
   subject: string;
   description: string;
   status: PendStatus;
@@ -273,9 +276,16 @@ export default function PendenciaDetail() {
           <NotificationHistoryPanel pendenciaId={pend.id} />
         </div>
 
-        {/* Chat */}
+        {/* Chat — médico ou empresa, conforme origem da pendência */}
         <div className="flex flex-col min-h-[60vh]">
-          {pend.thread_id ? (
+          {pend.opened_by === "medico" && pend.doctor_id ? (
+            <DoctorPendenciaChat
+              pendenciaId={pend.id}
+              doctorId={pend.doctor_id}
+              doctorName={pend.doctor_name}
+              className="flex-1"
+            />
+          ) : pend.thread_id ? (
             <CompanyThreadChat
               threadId={pend.thread_id}
               companyId={pend.company_id}
