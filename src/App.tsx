@@ -84,6 +84,7 @@ const loadNotificationPreferences = () => import("./pages/NotificationPreference
 const loadIntegrationsAdmin = () => import("./pages/IntegrationsAdmin.tsx");
 const loadCommunicationSupervision = () => import("./pages/CommunicationSupervision.tsx");
 const loadProcessHealth = () => import("./pages/ProcessHealth.tsx");
+const loadMedicosHub = () => import("./pages/MedicosHub.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -105,6 +106,7 @@ const Companies = lazy(loadCompanies);
 const CompanyAliases = lazy(loadCompanyAliases);
 const Doctors = lazy(loadDoctors);
 const ProcedureSpecialtyMap = lazy(loadProcedureSpecialtyMap);
+const MedicosHub = lazy(loadMedicosHub);
 const Sectors = lazy(loadSectors);
 const Convenios = lazy(loadConvenios);
 const CostCenters = lazy(loadCostCenters);
@@ -262,8 +264,8 @@ const App = () => (
                   
                   <Route path="/empresas" element={<ProtectedRoute roles={["diretor", "admin"]}><Companies /></ProtectedRoute>} />
                   <Route path="/empresas/apelidos" element={<ProtectedRoute roles={["diretor", "admin"]}><CompanyAliases /></ProtectedRoute>} />
-                  <Route path="/medicos" element={<ProtectedRoute roles={["diretor", "admin"]}><Doctors /></ProtectedRoute>} />
-                  <Route path="/mapa-especialidades" element={<ProtectedRoute roles={["diretor", "admin"]}><ProcedureSpecialtyMap /></ProtectedRoute>} />
+                  <Route path="/medicos" element={<ProtectedRoute roles={["diretor", "admin"]}><MedicosHub /></ProtectedRoute>} />
+                  <Route path="/mapa-especialidades" element={<Navigate to="/medicos" replace />} />
                   <Route path="/setores" element={<ProtectedRoute roles={["diretor", "admin"]}><Sectors /></ProtectedRoute>} />
                   <Route path="/convenios" element={<ProtectedRoute roles={["diretor", "admin"]}><Convenios /></ProtectedRoute>} />
                   <Route path="/centros-de-custo" element={<CostCenters />} />

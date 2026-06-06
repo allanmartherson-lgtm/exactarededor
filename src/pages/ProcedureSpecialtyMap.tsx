@@ -38,7 +38,7 @@ const STATUS_BADGE: Record<Row["status"], string> = {
   rejeitado: "bg-muted text-muted-foreground border-border",
 };
 
-export default function ProcedureSpecialtyMap() {
+export default function ProcedureSpecialtyMap({ embedded = false }: { embedded?: boolean } = {}) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
@@ -158,11 +158,13 @@ export default function ProcedureSpecialtyMap() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Mapa Código → Especialidade Médica"
-        description="O motor de regras usa este mapa para inferir a especialidade médica de cada item, independente do tipo de ato (Cirurgia/Anestesia/Visita) trazido na base."
-        icon={Stethoscope}
-      />
+      {!embedded && (
+        <PageHeader
+          title="Mapa Código → Especialidade Médica"
+          description="O motor de regras usa este mapa para inferir a especialidade médica de cada item, independente do tipo de ato (Cirurgia/Anestesia/Visita) trazido na base."
+          icon={Stethoscope}
+        />
+      )}
 
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant="outline" className={STATUS_BADGE.sugerido}>{counts.sugerido} sugeridas</Badge>
