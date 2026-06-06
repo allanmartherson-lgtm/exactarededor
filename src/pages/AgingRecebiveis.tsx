@@ -155,7 +155,7 @@ export default function AgingRecebiveis() {
   }, []);
 
   useEffect(() => {
-    document.title = "Aging de Recebíveis | Exacta";
+    document.title = "Aging de Contas a Pagar | Exacta";
     load();
   }, [load]);
 
