@@ -347,6 +347,7 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 doctors={doctors}
                 selected={selDoctors}
                 onChange={setSelDoctors}
+                companyIds={selCompanies}
               />
             </div>
           </div>
