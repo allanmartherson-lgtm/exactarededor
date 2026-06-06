@@ -81,7 +81,7 @@ const APPROVAL_LABEL: Record<Campaign["approval_status"], string> = {
 };
 
 export default function MassCommunication() {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const isSupervisor = hasRole("admin") || hasRole("diretor");
   const [items, setItems] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,14 +109,34 @@ export default function MassCommunication() {
     void load();
     const ch = supabase
       .channel("comm-campaigns")
-      .on("postgres_changes", { event: "*", schema: "public", table: "comm_campaigns" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "comm_campaigns" }, (payload) => {
+        // Toast para o analista quando o supervisor decide sobre uma campanha sua.
+        if (
+          payload.eventType === "UPDATE" &&
+          user?.id &&
+          (payload.new as { created_by?: string })?.created_by === user.id &&
+          (payload.old as { approval_status?: string })?.approval_status === "pending"
+        ) {
+          const next = (payload.new as { approval_status?: string; title?: string; rejection_reason?: string | null }).approval_status;
+          const title = (payload.new as { title?: string }).title ?? "campanha";
+          if (next === "approved") {
+            toast({ title: "Campanha aprovada", description: `"${title}" foi liberada para disparo.` });
+          } else if (next === "rejected") {
+            const reason = (payload.new as { rejection_reason?: string | null }).rejection_reason;
+            toast({
+              title: "Campanha rejeitada",
+              description: reason ? `"${title}" — ${reason}` : `"${title}" foi rejeitada.`,
+              variant: "destructive",
+            });
+          }
+        }
         void load();
       })
       .subscribe();
     return () => {
       void supabase.removeChannel(ch);
     };
-  }, []);
+  }, [user?.id]);
 
   const dispatchNow = async (id: string) => {
     setSendingId(id);
