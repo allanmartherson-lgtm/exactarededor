@@ -84,6 +84,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/notas-fiscais", label: "Pedidos de NF", icon: Receipt, iconName: "Receipt", roles: ALL_ROLES },
       { to: "/ciclo-nf", label: "Ciclo de NF", icon: FileWarning, iconName: "FileWarning", roles: ALL_ROLES },
       { to: "/glosas", label: "Glosas e Conciliação", icon: ShieldX, iconName: "ShieldX", roles: ["diretor", "admin", "analista", "validador"] as const },
+      { to: "/sistema/journal", label: "Livro Contábil", icon: BookOpen, iconName: "BookOpen", roles: ["admin", "diretor"] },
     ],
   },
   {
@@ -105,77 +106,49 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { to: "/kpis", label: "KPIs", icon: BarChart2, iconName: "BarChart2", roles: ALL_ROLES },
       { to: "/executivo", label: "Executivo", icon: BarChart3, iconName: "BarChart3", roles: ["diretor", "admin"] as const },
-      
-      
       { to: "/saude-processo", label: "Saúde do Processo", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/recebiveis", label: "Contas a Pagar", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
       { to: "/inteligencia-financeira", label: "Inteligência Financeira", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
     ],
   },
   {
-    label: "Inteligência de Regras",
-    icon: BrainCircuit,
-    iconName: "BrainCircuit",
-    roles: ["admin"],
+    label: "Configurações",
+    icon: SlidersHorizontal,
+    iconName: "SlidersHorizontal",
+    roles: ALL_ROLES,
     children: [
       { to: "/regras/pagamento", label: "Regras de Pagamento", icon: BadgeDollarSign, iconName: "BadgeDollarSign", roles: ["admin"] },
       { to: "/regras/validacao", label: "Regras de Validação", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin"] },
       { to: "/regras/simulador", label: "Simulador de Regras", icon: FlaskConical, iconName: "FlaskConical", roles: ["admin"] },
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["admin"] },
-    ],
-  },
-  {
-    label: "Cadastros",
-    icon: ClipboardList,
-    iconName: "ClipboardList",
-    roles: ["admin", "diretor"],
-    children: [
       { to: "/empresas", label: "Empresas", icon: Building2, iconName: "Building2", roles: ["admin"] },
       { to: "/medicos", label: "Médicos", icon: Stethoscope, iconName: "Stethoscope", roles: ["admin"] },
       { to: "/mapa-especialidades", label: "Mapa Especialidades", icon: Stethoscope, iconName: "Stethoscope", roles: ["admin"] },
       { to: "/centros-de-custo", label: "Setores e Centros de Custos", icon: Network, iconName: "Network", roles: ALL_ROLES },
       { to: "/convenios", label: "Convênios", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor"] },
       { to: "/tipos-pagamento", label: "Tipos de pagamento", icon: Tag, iconName: "Tag", roles: ["admin", "diretor"] },
-    ],
-  },
-  {
-    label: "Parametrização",
-    icon: SlidersHorizontal,
-    iconName: "SlidersHorizontal",
-    roles: ["admin", "diretor"],
-    children: [
       { to: "/pools", label: "Pools de rateio", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
       { to: "/pools/relatorios", label: "Relatório de pools", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
       { to: "/prazos-sla", label: "Prazos e SLA", icon: Timer, iconName: "Timer", roles: ["admin"] },
     ],
   },
   {
-    label: "Acesso",
-    icon: Users,
-    iconName: "Users",
-    roles: ["diretor", "admin", "validador"],
+    label: "Administração",
+    icon: Settings,
+    iconName: "Settings",
+    roles: ALL_ROLES,
     children: [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
       { to: "/portal-usuarios", label: "Acessos dos Portais", icon: Building2, iconName: "Building2", roles: ["admin"] },
       { to: "/portal-saude", label: "Saúde dos Portais", icon: Activity, iconName: "Activity", roles: ["admin"] },
-      
       { to: "/saude", label: "Saúde do Motor", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin", "validador"] },
       { to: "/auditoria/hospitais", label: "Trocas de Hospital", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor"] },
       { to: "/anomalias-status", label: "Anomalias de status", icon: AlertTriangle, iconName: "AlertTriangle", roles: ["diretor", "admin", "validador"] },
       { to: "/insights-observacoes", label: "Insights de Observações", icon: MessageSquare, iconName: "MessageSquare", roles: ["diretor", "admin", "validador"] },
-    ],
-  },
-  {
-    label: "Sistema",
-    icon: Settings,
-    iconName: "Settings",
-    roles: ["admin", "diretor"],
-    children: [
       { to: "/sistema/versoes", label: "Versões e Releases", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
       { to: "/sistema/feature-flags", label: "Feature Flags", icon: Flag, iconName: "Flag", roles: ["admin", "diretor"] },
       { to: "/sistema/avisos", label: "Avisos do Sistema", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor"] },
-      { to: "/sistema/journal", label: "Livro Contábil", icon: BookOpen, iconName: "BookOpen", roles: ["admin", "diretor"] },
       { to: "/sistema/integracoes", label: "Integrações de Comunicação", icon: MessageSquare, iconName: "MessageSquare", roles: ["admin", "diretor"] },
       { to: "/sobre", label: "Sobre o Exacta", icon: Info, iconName: "Info", roles: ALL_ROLES },
     ],
@@ -192,12 +165,12 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Pedidos de NF", iconName: "Receipt" },
   { label: "Ciclo de NF", iconName: "FileWarning" },
   { label: "Glosas e Conciliação", iconName: "ShieldX" },
+  { label: "Livro Contábil", iconName: "BookOpen" },
   { label: "Pendências", iconName: "ListChecksIcon" },
   { label: "Conversas", iconName: "ChatsIcon" },
+  { label: "Supervisão de Atendimento", iconName: "ShieldCheck" },
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Executivo", iconName: "BarChart3" },
-  { label: "DRE & Posição em Aberto", iconName: "TrendingUp" },
-  
   { label: "Saúde do Processo", iconName: "Activity" },
   { label: "Contas a Pagar", iconName: "TrendingDown" },
   { label: "Inteligência Financeira", iconName: "TrendingUp" },
@@ -209,13 +182,14 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Médicos", iconName: "Stethoscope" },
   { label: "Mapa Especialidades", iconName: "Stethoscope" },
   { label: "Setores e Centros de Custos", iconName: "Network" },
+  { label: "Convênios", iconName: "ShieldCheck" },
   { label: "Tipos de pagamento", iconName: "Tag" },
   { label: "Pools de rateio", iconName: "Split" },
   { label: "Relatório de pools", iconName: "Split" },
   { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },
   { label: "Acessos dos Portais", iconName: "Building2" },
-  
+  { label: "Saúde dos Portais", iconName: "Activity" },
   { label: "Saúde do Motor", iconName: "Activity" },
   { label: "Auditoria", iconName: "History" },
   { label: "Trocas de Hospital", iconName: "ShieldCheck" },
@@ -224,9 +198,10 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Versões e Releases", iconName: "Rocket" },
   { label: "Feature Flags", iconName: "Flag" },
   { label: "Avisos do Sistema", iconName: "Megaphone" },
-  { label: "Livro Contábil", iconName: "BookOpen" },
+  { label: "Integrações de Comunicação", iconName: "MessageSquare" },
   { label: "Sobre o Exacta", iconName: "Info" },
 ];
+
 
 export const isGroup = (n: NavItem): n is NavGroup => "children" in n;
 
