@@ -826,47 +826,14 @@ export default function ValidationRules() {
         }
       />
 
-      {(() => {
-        const totalAlertas = [...ruleImpact.values()].reduce((a, b) => a + b.alertas, 0);
-        const totalValor = [...ruleImpact.values()].reduce((a, b) => a + b.valor, 0);
-        const allLotes = new Set<string>();
-        for (const item of (impactItems ?? [])) {
-          const findings = item.validation_findings as any[];
-          if (!Array.isArray(findings)) continue;
-          for (const f of findings) {
-            if (f.rule_id) allLotes.add(item.payment_id);
-          }
-        }
-        const totalLotes = allLotes.size;
-        const totalAcatados = [...ruleEffectiveness.values()].reduce((a, b) => a + b.acatados, 0);
-        const taxaAcateGlobal = totalAlertas > 0 ? (totalAcatados / totalAlertas) * 100 : 0;
-        if (totalAlertas === 0) return null;
-        const cards = [
-          { label: "Alertas ativos", value: String(totalAlertas), Icon: AlertTriangle, color: "amber" },
-          { label: "Valor em risco", value: formatCurrency(totalValor), Icon: DollarSign, color: "red" },
-          { label: "Lotes afetados", value: String(totalLotes), Icon: FileText, color: "blue" },
-          { label: "Taxa de acate", value: `${taxaAcateGlobal.toFixed(0)}%`, Icon: CheckCircle2, color: "green", tip: "% de alertas que foram acatados pelo analista" },
-        ] as const;
-        const colorMap: Record<string, string> = {
-          amber: "border-amber-200 bg-amber-50 text-amber-800",
-          red: "border-red-200 bg-red-50 text-red-800",
-          blue: "border-blue-200 bg-blue-50 text-blue-800",
-          green: "border-green-200 bg-green-50 text-green-800",
-        };
-        return (
-          <div className="mx-0 mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-            {cards.map(({ label, value, Icon, color, ...rest }) => (
-              <div key={label} className={`rounded-lg border p-3 ${colorMap[color]}`} title={(rest as any).tip}>
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  <span className="text-xs font-medium">{label}</span>
-                </div>
-                <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
+      <p className="mt-3 text-xs text-muted-foreground">
+        Métricas de alertas, valor em risco e taxa de acate agora em{" "}
+        <Link to="/inteligencia-financeira" className="underline hover:text-foreground">
+          Relatórios › Inteligência Financeira › Em risco
+        </Link>
+        .
+      </p>
+
 
 
       {expiringPaymentRules.length > 0 && (
