@@ -356,6 +356,119 @@ export type Database = {
           },
         ]
       }
+      comm_campaign_recipients: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          email_error: string | null
+          email_sent_at: string | null
+          email_snapshot: string | null
+          email_status: string | null
+          id: string
+          name_snapshot: string | null
+          phone_snapshot: string | null
+          portal_read_at: string | null
+          target_id: string
+          target_type: string
+          whatsapp_error: string | null
+          whatsapp_sent_at: string | null
+          whatsapp_status: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_snapshot?: string | null
+          email_status?: string | null
+          id?: string
+          name_snapshot?: string | null
+          phone_snapshot?: string | null
+          portal_read_at?: string | null
+          target_id: string
+          target_type: string
+          whatsapp_error?: string | null
+          whatsapp_sent_at?: string | null
+          whatsapp_status?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_snapshot?: string | null
+          email_status?: string | null
+          id?: string
+          name_snapshot?: string | null
+          phone_snapshot?: string | null
+          portal_read_at?: string | null
+          target_id?: string
+          target_type?: string
+          whatsapp_error?: string | null
+          whatsapp_sent_at?: string | null
+          whatsapp_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comm_campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "comm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comm_campaigns: {
+        Row: {
+          allow_reply: boolean
+          audience: Json
+          channels: string[]
+          created_at: string
+          created_by: string | null
+          dispatched_at: string | null
+          hospital_id: string | null
+          id: string
+          message: string
+          scheduled_for: string | null
+          status: string
+          title: string
+          totals: Json
+          updated_at: string
+        }
+        Insert: {
+          allow_reply?: boolean
+          audience?: Json
+          channels?: string[]
+          created_at?: string
+          created_by?: string | null
+          dispatched_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          message: string
+          scheduled_for?: string | null
+          status?: string
+          title: string
+          totals?: Json
+          updated_at?: string
+        }
+        Update: {
+          allow_reply?: boolean
+          audience?: Json
+          channels?: string[]
+          created_at?: string
+          created_by?: string | null
+          dispatched_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          message?: string
+          scheduled_for?: string | null
+          status?: string
+          title?: string
+          totals?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       communication_sla_settings: {
         Row: {
           active: boolean
