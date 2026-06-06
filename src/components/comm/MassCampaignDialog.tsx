@@ -67,6 +67,8 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [specialtyOptions, setSpecialtyOptions] = useState<string[]>([]);
+  const [audienceLoading, setAudienceLoading] = useState(false);
+  const [audienceProgress, setAudienceProgress] = useState<{ companies: number; doctors: number }>({ companies: 0, doctors: 0 });
 
   const [selCompanies, setSelCompanies] = useState<string[]>([]);
   const [selDoctors, setSelDoctors] = useState<string[]>([]);
@@ -80,12 +82,15 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   useEffect(() => {
     if (!open) return;
     void (async () => {
+      setAudienceLoading(true);
+      setAudienceProgress({ companies: 0, doctors: 0 });
       // Paginação manual — PostgREST limita server-side a 1000 linhas por request,
       // ignorando `.limit()` maiores. Buscamos em páginas até esgotar.
       const fetchAll = async <T,>(
         table: "companies" | "doctors",
         select: string,
         order: string,
+        onProgress?: (n: number) => void,
       ): Promise<{ rows: T[]; expected: number | null }> => {
         const PAGE = 1000;
         const out: T[] = [];
@@ -100,20 +105,23 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
           if (error || !data) break;
           if (from === 0 && typeof count === "number") expected = count;
           out.push(...(data as unknown as T[]));
+          onProgress?.(out.length);
           if (data.length < PAGE) break;
         }
         return { rows: out, expected };
       };
 
       const [c, d] = await Promise.all([
-        fetchAll<Company>("companies", "id,name", "name"),
+        fetchAll<Company>("companies", "id,name", "name", (n) =>
+          setAudienceProgress((p) => ({ ...p, companies: n })),
+        ),
         fetchAll<Doctor & { specialties: string[] | null }>(
           "doctors",
           "id,full_name,specialties",
           "full_name",
+          (n) => setAudienceProgress((p) => ({ ...p, doctors: n })),
         ),
       ]);
-      // Validação: garante que a paginação trouxe o total exato do servidor.
       if (c.expected !== null && c.rows.length !== c.expected) {
         console.warn(
           `[MassCampaign] Empresas: carregadas ${c.rows.length} de ${c.expected} esperadas`,
@@ -129,6 +137,7 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
       const set = new Set<string>();
       d.rows.forEach((x) => (x.specialties ?? []).forEach((s) => s && set.add(s)));
       setSpecialtyOptions(Array.from(set).sort((a, b) => a.localeCompare(b)));
+      setAudienceLoading(false);
     })();
   }, [open]);
 
@@ -293,10 +302,10 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-muted-foreground">Combinação</span>
                 <Select value={mode} onValueChange={(v) => setMode(v as "or" | "and")}>
-                  <SelectTrigger className="h-8 w-[110px]">
+                  <SelectTrigger className="h-8 w-[170px] whitespace-nowrap">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="min-w-[170px]">
                     <SelectItem value="or">OU (união)</SelectItem>
                     <SelectItem value="and">E (interseção)</SelectItem>
                   </SelectContent>
@@ -305,11 +314,19 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[12px]">Empresas</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-[12px]">Empresas</Label>
+                {audienceLoading && (
+                  <span className="text-[11px] text-muted-foreground animate-pulse">
+                    Carregando empresas… {audienceProgress.companies > 0 ? audienceProgress.companies : ""}
+                  </span>
+                )}
+              </div>
               <CompanyPicker
                 companies={companies}
                 selected={selCompanies}
                 onChange={setSelCompanies}
+                loading={audienceLoading}
               />
             </div>
 
@@ -407,10 +424,12 @@ function CompanyPicker({
   companies,
   selected,
   onChange,
+  loading = false,
 }: {
   companies: Company[];
   selected: string[];
   onChange: (next: string[]) => void;
+  loading?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [batchOpen, setBatchOpen] = useState(false);
@@ -424,7 +443,12 @@ function CompanyPicker({
 
   return (
     <div className="flex flex-col gap-1">
-      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar empresa por nome…" />
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder={loading ? "Carregando empresas…" : "Buscar empresa por nome…"}
+        disabled={loading && companies.length === 0}
+      />
 
       <div className="flex items-center gap-2 flex-wrap pt-1">
         <button

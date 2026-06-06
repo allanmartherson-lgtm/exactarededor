@@ -81,7 +81,7 @@ const APPROVAL_LABEL: Record<Campaign["approval_status"], string> = {
 };
 
 export default function MassCommunication() {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const isSupervisor = hasRole("admin") || hasRole("diretor");
   const [items, setItems] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,14 +109,34 @@ export default function MassCommunication() {
     void load();
     const ch = supabase
       .channel("comm-campaigns")
-      .on("postgres_changes", { event: "*", schema: "public", table: "comm_campaigns" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "comm_campaigns" }, (payload) => {
+        // Toast para o analista quando o supervisor decide sobre uma campanha sua.
+        if (
+          payload.eventType === "UPDATE" &&
+          user?.id &&
+          (payload.new as { created_by?: string })?.created_by === user.id &&
+          (payload.old as { approval_status?: string })?.approval_status === "pending"
+        ) {
+          const next = (payload.new as { approval_status?: string; title?: string; rejection_reason?: string | null }).approval_status;
+          const title = (payload.new as { title?: string }).title ?? "campanha";
+          if (next === "approved") {
+            toast({ title: "Campanha aprovada", description: `"${title}" foi liberada para disparo.` });
+          } else if (next === "rejected") {
+            const reason = (payload.new as { rejection_reason?: string | null }).rejection_reason;
+            toast({
+              title: "Campanha rejeitada",
+              description: reason ? `"${title}" — ${reason}` : `"${title}" foi rejeitada.`,
+              variant: "destructive",
+            });
+          }
+        }
         void load();
       })
       .subscribe();
     return () => {
       void supabase.removeChannel(ch);
     };
-  }, []);
+  }, [user?.id]);
 
   const dispatchNow = async (id: string) => {
     setSendingId(id);
@@ -136,15 +156,27 @@ export default function MassCommunication() {
     void load();
   };
 
+  const notifyDecision = async (id: string, decision: "approved" | "rejected", reason?: string) => {
+    try {
+      await supabase.functions.invoke("notify-campaign-decision", {
+        body: { campaign_id: id, decision, reason },
+      });
+    } catch {
+      /* não bloqueia o fluxo */
+    }
+  };
+
   const approve = async (id: string) => {
     setApprovingId(id);
     const { error } = await supabase.rpc("approve_campaign", { _campaign_id: id });
-    setApprovingId(null);
     if (error) {
+      setApprovingId(null);
       toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Campanha aprovada" });
+    await notifyDecision(id, "approved");
+    setApprovingId(null);
+    toast({ title: "Campanha aprovada", description: "Analista notificado por e-mail." });
     void load();
   };
 
@@ -152,12 +184,14 @@ export default function MassCommunication() {
     const reason = window.prompt("Motivo da rejeição (opcional):") ?? "";
     setApprovingId(id);
     const { error } = await supabase.rpc("reject_campaign", { _campaign_id: id, _reason: reason });
-    setApprovingId(null);
     if (error) {
+      setApprovingId(null);
       toast({ title: "Falha ao rejeitar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Campanha rejeitada" });
+    await notifyDecision(id, "rejected", reason);
+    setApprovingId(null);
+    toast({ title: "Campanha rejeitada", description: "Analista notificado por e-mail." });
     void load();
   };
 

@@ -143,6 +143,7 @@ const Pendencias = lazy(loadPendencias);
 const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
 const MassCommunication = lazy(() => import("./pages/MassCommunication.tsx"));
+const CampaignApprovalQueue = lazy(() => import("./pages/CampaignApprovalQueue.tsx"));
 const Hospitals = lazy(loadHospitals);
 const SelectHospital = lazy(loadSelectHospital);
 const PortalUsers = lazy(loadPortalUsers);
@@ -260,6 +261,7 @@ const App = () => (
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
                   <Route path="/conversas" element={<Conversas />} />
                   <Route path="/comunicacao/massa" element={<ProtectedRoute roles={["admin", "diretor", "analista"]}><MassCommunication /></ProtectedRoute>} />
+                  <Route path="/comunicacao/aprovacoes" element={<ProtectedRoute roles={["admin", "diretor"]}><CampaignApprovalQueue /></ProtectedRoute>} />
                   <Route path="/comunicacao/supervisao" element={<ProtectedRoute roles={["admin", "diretor"]}><CommunicationSupervision /></ProtectedRoute>} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><HealthMonitoring /></ProtectedRoute>} />
                   <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
