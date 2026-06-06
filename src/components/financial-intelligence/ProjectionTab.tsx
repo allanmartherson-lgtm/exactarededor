@@ -83,15 +83,53 @@ export const ProjectionTab = () => {
     }
     const allMonths = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
     const partial = allMonths.find(([m]) => m === curYm) ?? null;
-    const closedMonths = allMonths.filter(([m]) => m !== curYm);
-    if (closedMonths.length === 0) {
-      return { projection: 0, lastClosed: 0, lastClosedYm: null as string | null, delta: 0, closedMonths: [], partial };
+    const nonCurrent = allMonths.filter(([m]) => m !== curYm);
+
+    // Detect incomplete months: total < 30% of median of the others
+    const incompleteSet = new Set<string>();
+    if (nonCurrent.length >= 2) {
+      const values = nonCurrent.map(([, v]) => v);
+      const med = median(values);
+      const threshold = med * 0.3;
+      for (const [m, v] of nonCurrent) {
+        if (v < threshold) incompleteSet.add(m);
+      }
     }
-    const last3 = closedMonths.slice(-3).map(([, v]) => v);
+
+    const completeMonths = nonCurrent.filter(([m]) => !incompleteSet.has(m));
+    const monthsWithFlag = nonCurrent.map(([m, v]) => ({
+      ym: m,
+      val: v,
+      flag: incompleteSet.has(m) ? ("incompleto" as const) : ("ok" as const),
+    }));
+
+    if (completeMonths.length < 3) {
+      return {
+        hasProjection: false as const,
+        completeCount: completeMonths.length,
+        projection: 0,
+        lastClosed: 0,
+        lastClosedYm: null as string | null,
+        delta: 0,
+        monthsWithFlag,
+        partial,
+      };
+    }
+
+    const last3 = completeMonths.slice(-3).map(([, v]) => v);
     const projection = mean(last3);
-    const [lastClosedYm, lastClosed] = closedMonths[closedMonths.length - 1];
+    const [lastClosedYm, lastClosed] = completeMonths[completeMonths.length - 1];
     const delta = lastClosed > 0 ? ((projection - lastClosed) / lastClosed) * 100 : 0;
-    return { projection, lastClosed, lastClosedYm, delta, closedMonths, partial };
+    return {
+      hasProjection: true as const,
+      completeCount: completeMonths.length,
+      projection,
+      lastClosed,
+      lastClosedYm,
+      delta,
+      monthsWithFlag,
+      partial,
+    };
   }, [rows]);
 
   const breakdown = useMemo(() => {
@@ -106,7 +144,7 @@ export const ProjectionTab = () => {
       byCat.set(cat, (byCat.get(cat) ?? 0) + v);
       total += v;
     }
-    const projection = result?.projection ?? 0;
+    const projection = result?.hasProjection ? result.projection : 0;
     return Array.from(byCat.entries())
       .map(([cat, val]) => ({
         cat,
