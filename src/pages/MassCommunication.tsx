@@ -350,7 +350,7 @@ export default function MassCommunication() {
                             size="sm"
                             variant="outline"
                             disabled={approvingId === c.id}
-                            onClick={() => void reject(c.id)}
+                            onClick={() => { setRejectTarget(c); setRejectReason(""); }}
                           >
                             Rejeitar
                           </Button>
