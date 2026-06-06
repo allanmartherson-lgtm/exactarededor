@@ -228,46 +228,75 @@ export function DreConsolidadoSection({ dre }: { dre: DreRow[] }) {
       </Card>
 
       <Dialog open={drillOpen} onOpenChange={setDrillOpen}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>Drill-down — {drillTitle}</DialogTitle>
+        <DialogContent className="max-w-[min(96vw,1200px)] max-h-[90vh] p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b">
+            <DialogTitle className="text-base">Drill-down — {drillTitle}</DialogTitle>
+            {!drillLoading && drillRows.length > 0 && (
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
+                <div className="rounded-md border bg-muted/30 px-3 py-2">
+                  <div className="text-xs text-muted-foreground">Pagamentos</div>
+                  <div className="font-semibold">{drillRows.length}</div>
+                </div>
+                <div className="rounded-md border bg-muted/30 px-3 py-2">
+                  <div className="text-xs text-muted-foreground">Itens</div>
+                  <div className="font-semibold">{drillRows.reduce((s, d) => s + (d.items_count || 0), 0)}</div>
+                </div>
+                <div className="rounded-md border bg-muted/30 px-3 py-2">
+                  <div className="text-xs text-muted-foreground">Bruto</div>
+                  <div className="font-semibold tabular-nums">{fmt(drillRows.reduce((s, d) => s + Number(d.bruto || 0), 0))}</div>
+                </div>
+                <div className="rounded-md border bg-muted/30 px-3 py-2">
+                  <div className="text-xs text-muted-foreground">Glosas</div>
+                  <div className="font-semibold tabular-nums text-red-600">{fmt(drillRows.reduce((s, d) => s + Number(d.glosas || 0), 0))}</div>
+                </div>
+                <div className="rounded-md border bg-muted/30 px-3 py-2">
+                  <div className="text-xs text-muted-foreground">Líquido</div>
+                  <div className="font-semibold tabular-nums">{fmt(drillRows.reduce((s, d) => s + Number(d.liquido || 0), 0))}</div>
+                </div>
+              </div>
+            )}
           </DialogHeader>
-          {drillLoading ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">Carregando…</p>
-          ) : drillRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">Sem pagamentos para este recorte.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Referência</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Itens</TableHead>
-                  <TableHead className="text-right">Bruto</TableHead>
-                  <TableHead className="text-right">Glosas</TableHead>
-                  <TableHead className="text-right">Líquido</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {drillRows.map((d) => (
-                  <TableRow key={d.payment_id}>
-                    <TableCell className="font-mono text-xs">{d.reference}</TableCell>
-                    <TableCell><StatusBadge status={d.status as PaymentStatus} /></TableCell>
-                    <TableCell className="text-right">{d.items_count}</TableCell>
-                    <TableCell className="text-right">{fmt(d.bruto)}</TableCell>
-                    <TableCell className="text-right text-red-600">{fmt(d.glosas)}</TableCell>
-                    <TableCell className="text-right font-semibold">{fmt(d.liquido)}</TableCell>
-                    <TableCell>
-                      <Link to={`/pagamentos/${d.payment_id}`} className="text-primary inline-flex items-center gap-1 text-xs">
-                        Abrir <ExternalLink className="h-3 w-3" />
-                      </Link>
-                    </TableCell>
+          <div className="flex-1 overflow-auto">
+            {drillLoading ? (
+              <p className="text-sm text-muted-foreground py-12 text-center">Carregando…</p>
+            ) : drillRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-12 text-center">Sem pagamentos para este recorte.</p>
+            ) : (
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10 shadow-[0_1px_0_hsl(var(--border))]">
+                  <TableRow>
+                    <TableHead className="pl-6">Referência</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Itens</TableHead>
+                    <TableHead className="text-right">Bruto</TableHead>
+                    <TableHead className="text-right">Glosas</TableHead>
+                    <TableHead className="text-right">Líquido</TableHead>
+                    <TableHead className="pr-6 text-right">Ação</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                </TableHeader>
+                <TableBody>
+                  {drillRows.map((d) => (
+                    <TableRow key={d.payment_id} className="hover:bg-muted/40">
+                      <TableCell className="pl-6 font-medium max-w-[320px]">
+                        <div className="truncate" title={d.reference}>{d.reference}</div>
+                        <div className="text-[11px] text-muted-foreground font-mono">{new Date(d.created_at).toLocaleDateString("pt-BR")}</div>
+                      </TableCell>
+                      <TableCell><StatusBadge status={d.status as PaymentStatus} /></TableCell>
+                      <TableCell className="text-right tabular-nums">{d.items_count}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmt(d.bruto)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-red-600">{fmt(d.glosas)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-semibold">{fmt(d.liquido)}</TableCell>
+                      <TableCell className="pr-6 text-right">
+                        <Link to={`/pagamentos/${d.payment_id}`} className="text-primary inline-flex items-center gap-1 text-xs whitespace-nowrap">
+                          Abrir <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
