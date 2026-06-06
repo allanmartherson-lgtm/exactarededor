@@ -1942,7 +1942,16 @@ const Dashboard = () => {
         <section className="mt-6 md:mt-8">
           <SectionLabel>Onde o processo mais trava</SectionLabel>
           <SurfaceCard>
-            <SurfaceCardHeader title="Gargalos por etapa (tempo médio)" icon={Flame} iconColor="red" />
+            <SurfaceCardHeader
+              title="Gargalos por etapa (tempo médio)"
+              icon={Flame}
+              iconColor="red"
+              rightAction={
+                <Link to="/saude-processo?tab=tempo-estagio" style={{ fontSize: 12, color: "#9A6B3A", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  Ver detalhe <ArrowRight size={13} />
+                </Link>
+              }
+            />
             {loading ? (
               <div style={{ padding: 22 }}>
                 <Skeleton className="h-4 w-1/2 mb-3" />
