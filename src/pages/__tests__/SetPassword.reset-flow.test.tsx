@@ -110,6 +110,24 @@ describe("SetPassword reset flow", () => {
     });
   });
 
+  it("solicita reset com fluxo implicit para o link funcionar sem depender de code_verifier local", async () => {
+    render(
+      <MemoryRouter initialEntries={["/auth"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "allan.martherson@icloud.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /esqueci minha senha/i }));
+
+    await waitFor(() => {
+      expect(recoveryAuth.resetPasswordForEmail).toHaveBeenCalledWith(
+        "allan.martherson@icloud.com",
+        { redirectTo: "http://localhost:3000/auth/reset-password" },
+      );
+    });
+  });
+
   it("valida o token, salva a nova senha e confirma login imediato", async () => {
     renderResetPage();
 
