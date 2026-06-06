@@ -80,10 +80,13 @@ const APPROVAL_LABEL: Record<Campaign["approval_status"], string> = {
 };
 
 export default function MassCommunication() {
+  const { hasRole } = useAuth();
+  const isSupervisor = hasRole("admin") || hasRole("diretor");
   const [items, setItems] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
