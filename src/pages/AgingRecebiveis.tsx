@@ -337,7 +337,7 @@ export default function AgingRecebiveis() {
             </div>
           ) : sorted.length === 0 ? (
             <div style={{ padding: "40px 22px", textAlign: "center", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
-              Nenhuma empresa com {modeLabels[mode].toLowerCase()} registrada.
+              Nenhuma PJ com {modeLabels[mode].toLowerCase()} registrada.
             </div>
           ) : (
             <div>
