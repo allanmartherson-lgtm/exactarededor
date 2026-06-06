@@ -255,7 +255,6 @@ export default function ValidationRules() {
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<{ id?: string; name: string; description: string; specialties: string[]; active: boolean }>({ name: "", description: "", specialties: [], active: true });
   const [expiringPaymentRules, setExpiringPaymentRules] = useState<{ id: string; name: string; valid_until: string }[]>([]);
-  const [expiringPaymentRules, setExpiringPaymentRules] = useState<{ id: string; name: string; valid_until: string }[]>([]);
   const [groupCollapsed, setGroupCollapsed] = useState<Record<string, boolean>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRule, setHistoryRule] = useState<ValidationRule | null>(null);
