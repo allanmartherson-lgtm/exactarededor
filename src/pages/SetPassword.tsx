@@ -133,6 +133,7 @@ const SetPassword = () => {
     let cancelled = false;
     let settled = false;
     const { authUrl, usedCachedUrl } = chooseAuthUrl();
+    const hasExplicitAuthToken = Boolean(authUrl.code || authUrl.tokenHash || authUrl.accessToken || authUrl.refreshToken);
 
     console.groupCollapsed("[auth recovery] validar link");
     console.info("URL recebida", maskAuthUrl(authUrl.href));
@@ -191,26 +192,31 @@ const SetPassword = () => {
       }
     });
 
-    // O client principal tem detectSessionInUrl=true por padrão e pode ter
-    // consumido o hash #access_token=... antes desta página montar. Nesse caso,
-    // ele já contém a sessão de recovery — usamos ele para updateUser.
+    // O client principal pode conter uma sessão já logada de outro usuário.
+    // Quando o link traz token/código explícito, nunca usamos INITIAL_SESSION
+    // ou getSession() dele como fallback, senão o reset pode alterar a senha
+    // da sessão antiga em vez da conta do link.
     const { data: mainSub } = mainSupabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       console.info("[auth recovery] evento onAuthStateChange (mainClient)", { event, hasSession: Boolean(session) });
       if (event === "PASSWORD_RECOVERY") {
         activeClientRef.current = mainSupabase;
         markReady("recovery");
-      } else if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
+      } else if (event === "SIGNED_IN" && session) {
+        activeClientRef.current = mainSupabase;
+        markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
+      } else if (event === "INITIAL_SESSION" && session && !hasExplicitAuthToken) {
         activeClientRef.current = mainSupabase;
         markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
       }
     });
 
     // Checagem sincrona inicial: se o client principal já tem sessão (porque
-    // detectSessionInUrl rodou antes de nós), aceita imediatamente.
+    // detectSessionInUrl rodou antes de nós), aceita somente quando não existe
+    // token/código explícito pendente no link atual/cacheado.
     void mainSupabase.auth.getSession().then(({ data }) => {
       if (cancelled || settled) return;
-      if (data.session) {
+      if (data.session && !hasExplicitAuthToken) {
         console.info("[auth recovery] sessão encontrada no client principal — aceitando como recovery");
         activeClientRef.current = mainSupabase;
         markReady(authUrl.type === "invite" ? "invite" : "recovery");
@@ -309,7 +315,10 @@ const SetPassword = () => {
     }
     setPhase("saving");
     const client = activeClientRef.current;
-    const { error } = await client.auth.updateUser({ password: parsed.data.password });
+    const { error } = await client.auth.updateUser({
+      password: parsed.data.password,
+      data: { must_reset_password: false, password_changed_at: new Date().toISOString() },
+    });
     if (error) {
       console.error("[auth recovery] erro retornado ao tentar updateUser", error);
       setPhase("ready");
