@@ -71,7 +71,27 @@ Deno.serve(async (req) => {
          ${reason || camp.rejection_reason ? `<p><b>Motivo:</b> ${reason ?? camp.rejection_reason}</p>` : ""}
          <p><a href="${url}">Revisar campanha</a></p>`;
 
-    const results: Record<string, unknown> = { email: null };
+    const results: Record<string, unknown> = { email: null, inbox: null };
+
+    // Inbox interno (persistente) — sempre criamos, independente do canal de e-mail.
+    const { error: inboxErr } = await supabase.from("internal_notifications").insert({
+      user_id: camp.created_by,
+      kind: isApproved ? "success" : "warning",
+      title: subject,
+      body: isApproved
+        ? `Sua campanha "${title}" foi aprovada por ${supName}. Já pode ser disparada.`
+        : `Sua campanha "${title}" foi rejeitada por ${supName}.${
+            reason || camp.rejection_reason ? ` Motivo: ${reason ?? camp.rejection_reason}` : ""
+          }`,
+      link: "/comunicacao/massa",
+      payload: {
+        campaign_id,
+        decision,
+        reason: reason ?? camp.rejection_reason ?? null,
+        supervisor_name: supName,
+      },
+    });
+    results.inbox = inboxErr ? { error: inboxErr.message } : { ok: true };
 
     if (analyst?.email) {
       const lovableKey = Deno.env.get("LOVABLE_API_KEY");
