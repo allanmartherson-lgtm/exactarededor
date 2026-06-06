@@ -106,6 +106,7 @@ const Companies = lazy(loadCompanies);
 const CompanyAliases = lazy(loadCompanyAliases);
 const Doctors = lazy(loadDoctors);
 const ProcedureSpecialtyMap = lazy(loadProcedureSpecialtyMap);
+const MedicosHub = lazy(loadMedicosHub);
 const Sectors = lazy(loadSectors);
 const Convenios = lazy(loadConvenios);
 const CostCenters = lazy(loadCostCenters);
