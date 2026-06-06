@@ -107,7 +107,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/executivo", label: "Executivo", icon: BarChart3, iconName: "BarChart3", roles: ["diretor", "admin"] as const },
       
       
-      { to: "/relatorios/observabilidade", label: "Observabilidade de Negócio", icon: BrainCircuit, iconName: "BrainCircuit", roles: ["diretor", "admin"] as const },
+      { to: "/saude-processo", label: "Saúde do Processo", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/recebiveis", label: "Contas a Pagar", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
       { to: "/inteligencia-financeira", label: "Inteligência Financeira", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
     ],
@@ -158,7 +158,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
       { to: "/portal-usuarios", label: "Acessos dos Portais", icon: Building2, iconName: "Building2", roles: ["admin"] },
       { to: "/portal-saude", label: "Saúde dos Portais", icon: Activity, iconName: "Activity", roles: ["admin"] },
-      { to: "/produtividade-analistas", label: "Produtividade da Equipe", icon: BarChart2, iconName: "BarChart2", roles: ["diretor", "admin", "validador"] },
+      
       { to: "/saude", label: "Saúde do Motor", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin", "validador"] },
       { to: "/auditoria/hospitais", label: "Trocas de Hospital", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor"] },
@@ -198,7 +198,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Executivo", iconName: "BarChart3" },
   { label: "DRE & Posição em Aberto", iconName: "TrendingUp" },
   
-  { label: "Observabilidade de Negócio", iconName: "BrainCircuit" },
+  { label: "Saúde do Processo", iconName: "Activity" },
   { label: "Contas a Pagar", iconName: "TrendingDown" },
   { label: "Inteligência Financeira", iconName: "TrendingUp" },
   { label: "Regras de Pagamento", iconName: "BadgeDollarSign" },
@@ -215,7 +215,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },
   { label: "Acessos dos Portais", iconName: "Building2" },
-  { label: "Produtividade da Equipe", iconName: "BarChart2" },
+  
   { label: "Saúde do Motor", iconName: "Activity" },
   { label: "Auditoria", iconName: "History" },
   { label: "Trocas de Hospital", iconName: "ShieldCheck" },

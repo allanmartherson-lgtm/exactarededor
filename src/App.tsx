@@ -83,6 +83,7 @@ const loadApproveMagicLink = () => import("./pages/ApproveMagicLink.tsx");
 const loadNotificationPreferences = () => import("./pages/NotificationPreferences.tsx");
 const loadIntegrationsAdmin = () => import("./pages/IntegrationsAdmin.tsx");
 const loadCommunicationSupervision = () => import("./pages/CommunicationSupervision.tsx");
+const loadProcessHealth = () => import("./pages/ProcessHealth.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -144,6 +145,7 @@ const ApproveMagicLink = lazy(loadApproveMagicLink);
 const NotificationPreferences = lazy(loadNotificationPreferences);
 const IntegrationsAdmin = lazy(loadIntegrationsAdmin);
 const CommunicationSupervision = lazy(loadCommunicationSupervision);
+const ProcessHealth = lazy(loadProcessHealth);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -273,7 +275,8 @@ const App = () => (
                   <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
                   <Route path="/portal-usuarios" element={<ProtectedRoute roles={["admin"]}><PortalUsers /></ProtectedRoute>} />
                   <Route path="/portal-saude" element={<ProtectedRoute roles={["admin"]}><PortalHealth /></ProtectedRoute>} />
-                  <Route path="/produtividade-analistas" element={<ProtectedRoute roles={["diretor", "admin"]}><AnalystProductivity /></ProtectedRoute>} />
+                  <Route path="/produtividade-analistas" element={<Navigate to="/saude-processo" replace />} />
+                  <Route path="/saude-processo" element={<ProtectedRoute roles={["diretor", "admin"]}><ProcessHealth /></ProtectedRoute>} />
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
                   <Route path="/auditoria/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><HospitalSwitchLog /></ProtectedRoute>} />
@@ -286,7 +289,7 @@ const App = () => (
                   <Route path="/sistema/journal" element={<ProtectedRoute roles={["admin", "diretor"]}><FinancialJournal /></ProtectedRoute>} />
                   <Route path="/relatorios/dre" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/relatorios/saude-dinheiro" element={<Navigate to="/inteligencia-financeira" replace />} />
-                  <Route path="/relatorios/observabilidade" element={<ProtectedRoute roles={["diretor", "admin"]}><BusinessObservability /></ProtectedRoute>} />
+                  <Route path="/relatorios/observabilidade" element={<Navigate to="/saude-processo" replace />} />
                   <Route path="/sistema/integracoes" element={<ProtectedRoute roles={["admin", "diretor"]}><IntegrationsAdmin /></ProtectedRoute>} />
                   <Route path="/configuracoes/notificacoes" element={<NotificationPreferences />} />
                   <Route path="/wcag-audit" element={<WcagAudit />} />
