@@ -268,6 +268,8 @@ export default function PendenciaDetail() {
               {pend.description}
             </p>
           </div>
+
+          <NotificationHistoryPanel pendenciaId={pend.id} />
         </div>
 
         {/* Chat */}
