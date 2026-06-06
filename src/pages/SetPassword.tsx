@@ -181,11 +181,39 @@ const SetPassword = () => {
     //    automaticamente e disparar o evento correto.
     const { data: sub } = recoveryClient.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      console.info("[auth recovery] evento onAuthStateChange", { event, hasSession: Boolean(session) });
+      console.info("[auth recovery] evento onAuthStateChange (recoveryClient)", { event, hasSession: Boolean(session) });
       if (event === "PASSWORD_RECOVERY") {
+        activeClientRef.current = recoveryClient;
         markReady("recovery");
       } else if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
+        activeClientRef.current = recoveryClient;
         markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
+      }
+    });
+
+    // O client principal tem detectSessionInUrl=true por padrão e pode ter
+    // consumido o hash #access_token=... antes desta página montar. Nesse caso,
+    // ele já contém a sessão de recovery — usamos ele para updateUser.
+    const { data: mainSub } = mainSupabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      console.info("[auth recovery] evento onAuthStateChange (mainClient)", { event, hasSession: Boolean(session) });
+      if (event === "PASSWORD_RECOVERY") {
+        activeClientRef.current = mainSupabase;
+        markReady("recovery");
+      } else if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
+        activeClientRef.current = mainSupabase;
+        markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
+      }
+    });
+
+    // Checagem sincrona inicial: se o client principal já tem sessão (porque
+    // detectSessionInUrl rodou antes de nós), aceita imediatamente.
+    void mainSupabase.auth.getSession().then(({ data }) => {
+      if (cancelled || settled) return;
+      if (data.session) {
+        console.info("[auth recovery] sessão encontrada no client principal — aceitando como recovery");
+        activeClientRef.current = mainSupabase;
+        markReady(authUrl.type === "invite" ? "invite" : "recovery");
       }
     });
 
@@ -266,9 +294,33 @@ const SetPassword = () => {
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
+      mainSub.subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const parsed = schema.safeParse({ password: fd.get("password"), confirm: fd.get("confirm") });
+    if (!parsed.success) {
+      toast({ title: "Verifique os campos", description: parsed.error.issues[0].message, variant: "destructive" });
+      return;
+    }
+    setPhase("saving");
+    const client = activeClientRef.current;
+    const { error } = await client.auth.updateUser({ password: parsed.data.password });
+    if (error) {
+      console.error("[auth recovery] erro retornado ao tentar updateUser", error);
+      setPhase("ready");
+      toast({ title: "Erro ao salvar senha", description: error.message, variant: "destructive" });
+      return;
+    }
+    await client.auth.signOut();
+    setPhase("done");
+    toast({ title: "Senha definida", description: "Entre novamente com sua nova senha." });
+    setTimeout(() => navigate("/auth", { replace: true }), 800);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
