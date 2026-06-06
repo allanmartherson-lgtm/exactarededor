@@ -1,12 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  Legend,
+  LabelList,
+} from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SurfaceCard, SurfaceCardHeader } from "@/components/shared/SurfacePrimitives";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { formatBRL, mean, median } from "@/lib/financialStats";
+
+function formatShortBRL(v: number): string {
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1).replace(".", ",")}M`;
+  if (abs >= 1_000) return `R$ ${(v / 1_000).toFixed(0)}k`;
+  return `R$ ${v.toFixed(0)}`;
+}
 
 type Grouping = "especialidade" | "empresa";
 
@@ -34,13 +51,14 @@ export const LossTrendTab = () => {
     })();
   }, [grouping]);
 
-  const { chartData, series, alerts, hiddenCount, completeCount } = useMemo(() => {
+  const { chartData, series, alerts, hiddenCount, completeCount, monthlyTotals } = useMemo(() => {
     const empty = {
       chartData: [] as Record<string, number | string>[],
       series: [] as string[],
       alerts: [] as { key: string; pct: number }[],
       hiddenCount: 0,
       completeCount: 0,
+      monthlyTotals: [] as { month: string; total: number; deltaPct: number | null }[],
     };
     if (!rows) return empty;
 
@@ -83,6 +101,13 @@ export const LossTrendTab = () => {
       return o;
     });
 
+    const monthlyTotals = months.map((m, idx) => {
+      const total = totalsByMonth.get(m) ?? 0;
+      const prev = idx > 0 ? totalsByMonth.get(months[idx - 1]) ?? 0 : 0;
+      const deltaPct = idx > 0 && prev > 0 ? ((total - prev) / prev) * 100 : null;
+      return { month: m.slice(0, 7), total, deltaPct };
+    });
+
     const alertList: { key: string; pct: number }[] = [];
     for (const k of topKeys) {
       const seriesVals = months.map(
@@ -95,10 +120,18 @@ export const LossTrendTab = () => {
         alertList.push({ key: k, pct: ((last - baseline) / baseline) * 100 });
       }
     }
-    return { chartData: data, series: topKeys, alerts: alertList, hiddenCount, completeCount: months.length };
+    return {
+      chartData: data,
+      series: topKeys,
+      alerts: alertList,
+      hiddenCount,
+      completeCount: months.length,
+      monthlyTotals,
+    };
   }, [rows]);
 
   const colors = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#a855f7"];
+  
 
   return (
     <SurfaceCard>
@@ -129,19 +162,96 @@ export const LossTrendTab = () => {
           </p>
         ) : (
           <>
-            <div className="h-72 w-full">
+            {monthlyTotals.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {monthlyTotals.map((mt) => {
+                  const up = (mt.deltaPct ?? 0) > 0;
+                  const down = (mt.deltaPct ?? 0) < 0;
+                  return (
+                    <div
+                      key={mt.month}
+                      className="flex flex-col rounded-md border bg-muted/30 px-3 py-2 min-w-[110px]"
+                    >
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                        {mt.month}
+                      </span>
+                      <span className="text-sm font-medium tabular-nums">{formatShortBRL(mt.total)}</span>
+                      <span className="flex items-center gap-0.5 text-[11px] tabular-nums text-muted-foreground">
+                        {mt.deltaPct === null ? (
+                          <>
+                            <Minus className="h-3 w-3" /> —
+                          </>
+                        ) : up ? (
+                          <>
+                            <ArrowUp className="h-3 w-3 text-destructive" />
+                            <span className="text-destructive">+{mt.deltaPct.toFixed(1)}%</span>
+                          </>
+                        ) : down ? (
+                          <>
+                            <ArrowDown className="h-3 w-3 text-success" />
+                            <span className="text-success">{mt.deltaPct.toFixed(1)}%</span>
+                          </>
+                        ) : (
+                          <>
+                            <Minus className="h-3 w-3" /> 0%
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+                <LineChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => formatBRL(v as number)} width={100} />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickFormatter={(v) => formatShortBRL(v as number)}
+                    width={70}
+                  />
                   <Tooltip
                     contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
                     formatter={(v: number) => formatBRL(v)}
+                    itemSorter={(item) => -Number(item.value ?? 0)}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                   {series.map((k, i) => (
-                    <Line key={k} type="monotone" dataKey={k} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
+                    <Line
+                      key={k}
+                      type="monotone"
+                      dataKey={k}
+                      stroke={colors[i % colors.length]}
+                      strokeWidth={2.5}
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
+                    >
+                      <LabelList
+                        dataKey={k}
+                        position="top"
+                        content={(props: Record<string, unknown>) => {
+                          const idx = props.index as number;
+                          const value = props.value as number | undefined;
+                          const x = props.x as number;
+                          const y = props.y as number;
+                          if (idx !== chartData.length - 1 || value == null) return null;
+                          return (
+                            <text
+                              x={x}
+                              y={y - 8}
+                              fontSize={10}
+                              textAnchor="middle"
+                              fill="hsl(var(--muted-foreground))"
+                            >
+                              {formatShortBRL(Number(value))}
+                            </text>
+                          );
+                        }}
+                      />
+                    </Line>
                   ))}
                 </LineChart>
               </ResponsiveContainer>
