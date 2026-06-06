@@ -7137,6 +7137,18 @@ export type Database = {
           total_in_stage: number
         }[]
       }
+      get_spend_trend: {
+        Args: {
+          p_current_month: string
+          p_grouping: string
+          p_months_back: number
+        }
+        Returns: {
+          group_key: string
+          month_bucket: string
+          total: number
+        }[]
+      }
       get_stage_dwell_time: {
         Args: { p_days?: number }
         Returns: {
