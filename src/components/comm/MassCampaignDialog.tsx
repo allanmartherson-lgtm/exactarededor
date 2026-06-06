@@ -321,11 +321,17 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 </label>
               </div>
               {scheduleMode === "later" && (
-                <Input
-                  type="datetime-local"
-                  value={scheduledFor}
-                  onChange={(e) => setScheduledFor(e.target.value)}
-                />
+                <div className="flex flex-col gap-1">
+                  <Input
+                    type="datetime-local"
+                    step={300}
+                    value={scheduledFor}
+                    onChange={(e) => setScheduledFor(e.target.value)}
+                  />
+                  <span className="text-[11px] text-muted-foreground">
+                    Horários em incrementos de 5 minutos.
+                  </span>
+                </div>
               )}
             </div>
           </div>
