@@ -199,7 +199,11 @@ const AuditLog = () => {
       }
       if (term) {
         const name =
-          (e.entity_type === "rule" ? ruleNames.get(e.entity_id) : paymentRefs.get(e.entity_id)) ?? "";
+          (e.entity_type === "rule"
+            ? ruleNames.get(e.entity_id)
+            : e.entity_type === "payment"
+              ? paymentRefs.get(e.entity_id)
+              : entityNames.get(`${e.entity_type}:${e.entity_id}`)) ?? "";
         const m = actorMeta(e.actor_id);
         const haystack = `${e.company_name ?? ""} ${e.company_document ?? ""} ${name} ${m.label} ${m.email ?? ""}`.toLowerCase();
         if (!haystack.includes(term)) return false;
@@ -207,7 +211,7 @@ const AuditLog = () => {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, profiles, rolesByUser, ruleNames, paymentRefs, filterEntity, filterAction, filterRole, filterCompany, filterText]);
+  }, [entries, profiles, rolesByUser, ruleNames, paymentRefs, entityNames, filterEntity, filterAction, filterRole, filterCompany, filterText]);
 
   const clearFilters = () => {
     setFilterEntity("todos");
