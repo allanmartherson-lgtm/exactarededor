@@ -266,15 +266,10 @@ export default function ValidationRules() {
     setLoading(true);
     const today = new Date().toISOString().slice(0, 10);
     const in30 = new Date(Date.now() + 30 * 24 * 3600000).toISOString().slice(0, 10);
-    const [{ data: vr }, { data: ag }, { data: co }, { data: itemsWithFindings }, { data: expiring }] = await Promise.all([
+    const [{ data: vr }, { data: ag }, { data: co }, { data: expiring }] = await Promise.all([
       supabase.from("validation_rules").select("*").order("created_at", { ascending: false }),
       supabase.from("assistance_groups").select("*").order("name"),
       supabase.from("companies").select("id, name"),
-      supabase
-        .from("payment_items")
-        .select("id, gross_amount, payment_id, validation_findings, ai_status, acatado_status_original")
-        .not("validation_findings", "is", null)
-        .neq("validation_findings", "[]"),
       supabase
         .from("rules")
         .select("id, name, valid_until")
@@ -294,40 +289,6 @@ export default function ValidationRules() {
       co.forEach(c => map[c.id] = c.name);
       setAllCompaniesMap(map);
     }
-
-    // Agregar impacto financeiro + efetividade por rule_id
-    const impactByRule = new Map<string, { alertas: number; valor: number; lotes: Set<string> }>();
-    const effByRule = new Map<string, { acatados: number; total: number }>();
-    for (const item of itemsWithFindings ?? []) {
-      const findings = item.validation_findings as any[];
-      if (!Array.isArray(findings)) continue;
-      const isAcatado = (item as any).ai_status === "acatado";
-      for (const f of findings) {
-        if (!f.rule_id) continue;
-        const cur = impactByRule.get(f.rule_id) ?? { alertas: 0, valor: 0, lotes: new Set() };
-        cur.alertas += 1;
-        cur.valor += Number(item.gross_amount ?? 0);
-        cur.lotes.add(item.payment_id);
-        impactByRule.set(f.rule_id, cur);
-
-        const ef = effByRule.get(f.rule_id) ?? { acatados: 0, total: 0 };
-        ef.total += 1;
-        if (isAcatado) ef.acatados += 1;
-        effByRule.set(f.rule_id, ef);
-      }
-    }
-    const impactMap = new Map<string, { alertas: number; valor: number; lotes: number }>();
-    impactByRule.forEach((v, k) => {
-      impactMap.set(k, { alertas: v.alertas, valor: v.valor, lotes: v.lotes.size });
-    });
-    const effMap = new Map<string, { acatados: number; total: number; taxaFalsoPositivo: number }>();
-    effByRule.forEach((v, k) => {
-      const taxaFalsoPositivo = v.total > 0 ? ((v.total - v.acatados) / v.total) * 100 : 0;
-      effMap.set(k, { acatados: v.acatados, total: v.total, taxaFalsoPositivo });
-    });
-    setRuleImpact(impactMap);
-    setRuleEffectiveness(effMap);
-    setImpactItems(itemsWithFindings ?? []);
 
     setLoading(false);
   };
