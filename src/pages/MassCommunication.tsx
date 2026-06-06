@@ -262,18 +262,46 @@ export default function MassCommunication() {
                     {format(new Date(c.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                   </TableCell>
                   <TableCell className="text-right">
-                    {(c.status === "rascunho" || c.status === "agendada" || c.status === "falhou") && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        disabled={sendingId === c.id}
-                        onClick={() => void dispatchNow(c.id)}
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                        {sendingId === c.id ? "Disparando…" : "Disparar agora"}
-                      </Button>
-                    )}
+                    <div className="flex flex-col gap-1.5 items-end">
+                      {isSupervisor && c.approval_status === "pending" && (
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            disabled={approvingId === c.id}
+                            onClick={() => void approve(c.id)}
+                          >
+                            Aprovar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={approvingId === c.id}
+                            onClick={() => void reject(c.id)}
+                          >
+                            Rejeitar
+                          </Button>
+                        </div>
+                      )}
+                      {!isSupervisor && c.approval_status === "pending" && (
+                        <span className="text-[11px] text-muted-foreground">
+                          Aguardando supervisor
+                        </span>
+                      )}
+                      {c.approval_status === "approved" &&
+                        (c.status === "rascunho" || c.status === "agendada" || c.status === "falhou") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                            disabled={sendingId === c.id}
+                            onClick={() => void dispatchNow(c.id)}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            {sendingId === c.id ? "Disparando…" : "Disparar agora"}
+                          </Button>
+                        )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
