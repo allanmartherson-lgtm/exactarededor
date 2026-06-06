@@ -14,7 +14,7 @@ import {
 } from "@/components/financial-intelligence/DreResultadoShared";
 import { cn } from "@/lib/utils";
 
-type TabValue = "dre-consolidado" | "posicao-aberto" | "tendencia" | "projecao" | "concentracao";
+type TabValue = "dre-consolidado" | "posicao-aberto" | "tendencia" | "projecao" | "concentracao" | "em-risco";
 
 const RESULT_TABS: TabValue[] = ["dre-consolidado", "posicao-aberto"];
 
@@ -32,6 +32,7 @@ const GROUPS: { label: string; items: { value: TabValue; label: string }[] }[] =
       { value: "tendencia", label: "Tendência" },
       { value: "projecao", label: "Projeção" },
       { value: "concentracao", label: "Concentração" },
+      { value: "em-risco", label: "Em risco" },
     ],
   },
 ];
