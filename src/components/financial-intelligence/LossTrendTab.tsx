@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SurfaceCard, SurfaceCardHeader } from "@/components/shared/SurfacePrimitives";
 import { TrendingUp } from "lucide-react";
-import { formatBRL, mean } from "@/lib/financialStats";
+import { formatBRL, mean, median } from "@/lib/financialStats";
 
 type Grouping = "especialidade" | "empresa";
 
