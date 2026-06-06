@@ -604,6 +604,25 @@ function BatchCompanyPicker({
           </div>
 
           <div className="flex flex-col gap-1.5">
+            <Label className="text-[12px]">Competência</Label>
+            <Select value={competenceFilter} onValueChange={setCompetenceFilter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todas</SelectItem>
+                {competences.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+
+
+          <div className="flex flex-col gap-1.5">
             <Label className="text-[12px]">Lote</Label>
             <Select value={paymentId} onValueChange={setPaymentId}>
               <SelectTrigger>
