@@ -199,6 +199,32 @@ export default function Conversas() {
                 <SelectItem value="pendencia">Pendência</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="md:w-[180px]">
+                <SelectValue placeholder="Origem" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas origens</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
+                <SelectItem value="campaign_reply">Resposta de comunicado</SelectItem>
+                <SelectItem value="pendencia">Pendência</SelectItem>
+                <SelectItem value="lote">Lote</SelectItem>
+                <SelectItem value="nf">Nota fiscal</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={campaignFilter} onValueChange={setCampaignFilter}>
+              <SelectTrigger className="md:w-[220px]">
+                <SelectValue placeholder="Comunicado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todos comunicados</SelectItem>
+                {campaignOptions.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,360px)_1fr] gap-3 flex-1 min-h-0">
@@ -261,9 +287,19 @@ export default function Conversas() {
                         <span className="text-[12px] text-muted-foreground truncate flex-1">
                           {t.last_message_preview ?? "—"}
                         </span>
-                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
-                          {SCOPE_LABEL[t.scope]}
-                        </Badge>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {t.source && (
+                            <Badge
+                              variant="outline"
+                              className={cn("text-[10px] py-0 px-1.5 h-4", SOURCE_BADGE_CLASS[t.source])}
+                            >
+                              {THREAD_SOURCE_LABEL[t.source]}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
+                            {SCOPE_LABEL[t.scope]}
+                          </Badge>
+                        </div>
                       </div>
                     </button>
                   );
