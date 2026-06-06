@@ -70,7 +70,7 @@ const DED_LABELS: Record<string, string> = {
   valor_referencia_externa: "Valor referência externa",
 };
 
-export default function Pools() {
+export default function Pools({ embedded = false }: { embedded?: boolean } = {}) {
   const [pools, setPools] = useState<Pool[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
@@ -226,11 +226,13 @@ export default function Pools() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold">Pools de rateio</h1>
-        <p className="text-muted-foreground">Configure rateio de produção entre empresas e ajustes financeiros recorrentes.</p>
-      </div>
+    <div className={embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"}>
+      {!embedded && (
+        <div>
+          <h1 className="text-3xl font-bold">Pools de rateio</h1>
+          <p className="text-muted-foreground">Configure rateio de produção entre empresas e ajustes financeiros recorrentes.</p>
+        </div>
+      )}
 
       <Tabs defaultValue="pools">
         <TabsList>

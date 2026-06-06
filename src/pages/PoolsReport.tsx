@@ -24,7 +24,7 @@ type Payment = { id: string; reference: string | null; competence_month: string 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function PoolsReport() {
+export default function PoolsReport({ embedded = false }: { embedded?: boolean } = {}) {
   const [runs, setRuns] = useState<Run[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
   const [payments, setPayments] = useState<Record<string, Payment>>({});
@@ -88,13 +88,15 @@ export default function PoolsReport() {
   const poolName = (id: string) => pools.find((p) => p.id === id)?.nome ?? id.slice(0, 8);
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Relatório de Pools</h1>
-        <p className="text-muted-foreground text-sm">
-          Histórico de execuções de cálculo de pools por competência.
-        </p>
-      </div>
+    <div className={embedded ? "space-y-6" : "space-y-6 p-6"}>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold">Relatório de Pools</h1>
+          <p className="text-muted-foreground text-sm">
+            Histórico de execuções de cálculo de pools por competência.
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-3 flex-wrap">
         <div className="w-64">
