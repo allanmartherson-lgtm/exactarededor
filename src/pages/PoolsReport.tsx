@@ -24,7 +24,7 @@ type Payment = { id: string; reference: string | null; competence_month: string 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function PoolsReport() {
+export default function PoolsReport({ embedded = false }: { embedded?: boolean } = {}) {
   const [runs, setRuns] = useState<Run[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
   const [payments, setPayments] = useState<Record<string, Payment>>({});
