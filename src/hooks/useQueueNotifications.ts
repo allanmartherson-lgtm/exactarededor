@@ -329,6 +329,34 @@ export function useQueueNotifications() {
             });
           }
         )
+        // Nova pendência cadastrada pelo prestador no portal — alerta analistas
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "pendencias" },
+          async (payload) => {
+            if (!isAnalista) return;
+            const n = payload.new as {
+              id: string;
+              company_id: string;
+              subject: string;
+              priority: "baixa" | "normal" | "alta";
+              created_by_name: string;
+              patient_name: string;
+            };
+            const { data: c } = await supabase
+              .from("companies").select("name").eq("id", n.company_id).maybeSingle();
+            const companyLabel = (c?.name as string | undefined) ?? "Empresa";
+            fire(`pendencia:${n.id}`, {
+              title: n.priority === "alta"
+                ? "Nova pendência (prioridade alta)"
+                : "Nova pendência do prestador",
+              description: `${companyLabel} · ${n.created_by_name}: ${n.subject}`,
+              kind: n.priority === "alta" ? "warning" : "info",
+              paymentId: n.id, // usado só como chave, path abaixo sobrescreve
+              path: `/pendencias/${n.id}`,
+            });
+          }
+        )
         .subscribe();
 
     return () => {
