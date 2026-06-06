@@ -197,7 +197,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Executivo", iconName: "BarChart3" },
   { label: "DRE & Posição em Aberto", iconName: "TrendingUp" },
-  { label: "Saúde do Dinheiro", iconName: "Activity" },
+  
   { label: "Observabilidade de Negócio", iconName: "BrainCircuit" },
   { label: "Recebíveis", iconName: "TrendingDown" },
   { label: "Inteligência Financeira", iconName: "TrendingUp" },
