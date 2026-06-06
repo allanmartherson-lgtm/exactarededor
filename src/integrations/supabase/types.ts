@@ -6285,6 +6285,41 @@ export type Database = {
         }
         Relationships: []
       }
+      thread_view_log: {
+        Row: {
+          id: string
+          thread_id: string
+          unread_before: number | null
+          viewed_at: string
+          viewer_role: string
+          viewer_user_id: string
+        }
+        Insert: {
+          id?: string
+          thread_id: string
+          unread_before?: number | null
+          viewed_at?: string
+          viewer_role: string
+          viewer_user_id: string
+        }
+        Update: {
+          id?: string
+          thread_id?: string
+          unread_before?: number | null
+          viewed_at?: string
+          viewer_role?: string
+          viewer_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_view_log_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "company_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_company_note_attachments: {
         Row: {
           created_at: string
