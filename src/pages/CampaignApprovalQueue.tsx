@@ -62,7 +62,7 @@ async function rpcWithRetry<T = unknown>(
 ): Promise<{ data: T | null; error: { message: string } | null }> {
   let lastErr: { message: string } | null = null;
   for (let i = 1; i <= maxAttempts; i++) {
-    const { data, error } = await supabase.rpc(fn as never, args);
+    const { data, error } = await (supabase.rpc as (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>)(fn, args);
     if (!error) return { data: data as T, error: null };
     lastErr = error;
     // Em erros de permissão (42501) ou validação, não adianta tentar de novo.
