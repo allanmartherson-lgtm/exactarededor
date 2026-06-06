@@ -62,6 +62,7 @@ const loadSidebarDiagnostic = () => import("./pages/SidebarDiagnostic.tsx");
 const loadOverflowAudit = () => import("./pages/OverflowAudit.tsx");
 const loadFinancialIntelligence = () => import("./pages/FinancialIntelligence.tsx");
 const loadNfCycle = () => import("./pages/NfCycle.tsx");
+const loadNotasFiscaisHub = () => import("./pages/NotasFiscaisHub.tsx");
 const loadObservationInsights = () => import("./pages/ObservationInsights.tsx");
 const loadAnalystProductivity = () => import("./pages/AnalystProductivity.tsx");
 const loadAbout = () => import("./pages/About.tsx");
