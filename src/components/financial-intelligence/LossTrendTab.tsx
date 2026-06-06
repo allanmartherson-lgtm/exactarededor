@@ -8,30 +8,29 @@ import { SurfaceCard, SurfaceCardHeader } from "@/components/shared/SurfacePrimi
 import { TrendingUp } from "lucide-react";
 import { formatBRL, mean } from "@/lib/financialStats";
 
-type Grouping = "specialty" | "company";
+type Grouping = "especialidade" | "empresa";
 
-interface PivotRow {
+interface TrendRow {
   group_key: string;
-  parent_key: string | null;
   month_bucket: string;
   total: number;
 }
 
 export const LossTrendTab = () => {
-  const [grouping, setGrouping] = useState<Grouping>("specialty");
-  const [rows, setRows] = useState<PivotRow[] | null>(null);
+  const [grouping, setGrouping] = useState<Grouping>("especialidade");
+  const [rows, setRows] = useState<TrendRow[] | null>(null);
 
   useEffect(() => {
     setRows(null);
     (async () => {
       const today = new Date();
       const current = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-      const { data } = await supabase.rpc("get_payment_pivot", {
+      const { data } = await supabase.rpc("get_spend_trend", {
         p_current_month: current,
         p_months_back: 6,
         p_grouping: grouping,
       });
-      setRows((data as PivotRow[]) ?? []);
+      setRows((data as TrendRow[]) ?? []);
     })();
   }, [grouping]);
 
