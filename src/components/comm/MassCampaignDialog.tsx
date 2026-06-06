@@ -125,12 +125,8 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     })();
   }, [open]);
 
-  // Formata "YYYY-MM" → "MM/YYYY" (padrão BR)
-  const formatCompetenceBR = (ym: string | null | undefined): string => {
-    if (!ym) return "";
-    const m = ym.match(/^(\d{4})-(\d{2})/);
-    return m ? `${m[2]}/${m[1]}` : ym;
-  };
+
+
 
 
 
