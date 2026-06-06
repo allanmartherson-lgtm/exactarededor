@@ -42,22 +42,22 @@ export async function ensureCampaignThread(params: {
   const { companyId, campaignId, subject, createdByType = "empresa", createdByUserId = null } = params;
 
   // 1) tenta achar uma thread já existente
-  const existing = await supabase
+  const existing = (await supabase
     .from("company_threads" as never)
     .select("id")
-    .eq("company_id", companyId)
-    .eq("campaign_id", campaignId)
-    .maybeSingle();
+    .eq("company_id" as never, companyId as never)
+    .eq("campaign_id" as never, campaignId as never)
+    .maybeSingle()) as { data: { id: string } | null; error: { code?: string; message: string } | null };
 
   if (existing.error && existing.error.code !== "PGRST116") {
     return { error: existing.error.message };
   }
   if (existing.data) {
-    return { id: (existing.data as { id: string }).id, created: false };
+    return { id: existing.data.id, created: false };
   }
 
   // 2) cria — se houver corrida, o índice único barra e relemos
-  const insert = await supabase
+  const insert = (await supabase
     .from("company_threads" as never)
     .insert({
       company_id: companyId,
@@ -70,19 +70,19 @@ export async function ensureCampaignThread(params: {
       status: "aberta",
     } as never)
     .select("id")
-    .single();
+    .single()) as { data: { id: string } | null; error: { message: string } | null };
 
   if (insert.error) {
     // conflito de unique → relê
-    const retry = await supabase
+    const retry = (await supabase
       .from("company_threads" as never)
       .select("id")
-      .eq("company_id", companyId)
-      .eq("campaign_id", campaignId)
-      .maybeSingle();
-    if (retry.data) return { id: (retry.data as { id: string }).id, created: false };
+      .eq("company_id" as never, companyId as never)
+      .eq("campaign_id" as never, campaignId as never)
+      .maybeSingle()) as { data: { id: string } | null };
+    if (retry.data) return { id: retry.data.id, created: false };
     return { error: insert.error.message };
   }
 
-  return { id: (insert.data as { id: string }).id, created: true };
+  return { id: insert.data!.id, created: true };
 }
