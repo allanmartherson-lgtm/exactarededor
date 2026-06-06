@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Building2, Inbox } from "lucide-react";
+import { THREAD_SOURCE_LABEL, type ThreadSource } from "@/lib/companyThreadLookup";
 
 type Thread = {
   id: string;
@@ -38,6 +39,8 @@ type Thread = {
   last_message_preview: string | null;
   unread_for_internal: number;
   created_at: string;
+  source: ThreadSource | null;
+  campaign_id: string | null;
 };
 
 const SCOPE_LABEL: Record<Thread["scope"], string> = {
@@ -45,6 +48,14 @@ const SCOPE_LABEL: Record<Thread["scope"], string> = {
   lote: "Lote",
   nf: "NF",
   pendencia: "Pendência",
+};
+
+const SOURCE_BADGE_CLASS: Record<ThreadSource, string> = {
+  manual: "border-border text-foreground",
+  campaign_reply: "border-primary/40 text-primary",
+  pendencia: "border-amber-500/40 text-amber-600 dark:text-amber-400",
+  lote: "border-sky-500/40 text-sky-600 dark:text-sky-400",
+  nf: "border-emerald-500/40 text-emerald-600 dark:text-emerald-400",
 };
 
 export default function Conversas() {
@@ -57,6 +68,9 @@ export default function Conversas() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("aberta");
   const [scopeFilter, setScopeFilter] = useState<string>("todos");
+  const [sourceFilter, setSourceFilter] = useState<string>("todos");
+  const [campaignFilter, setCampaignFilter] = useState<string>("todas");
+  const [campaignOptions, setCampaignOptions] = useState<{ id: string; title: string }[]>([]);
 
   const load = async () => {
     setLoading(true);
