@@ -74,7 +74,7 @@ const ageColorClass = (days: number | null) => {
   return "text-destructive";
 };
 
-const Invoices = () => {
+const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { user, hasRole } = useAuth();
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [openInvoice, setOpenInvoice] = useState<InvoiceRow | null>(null);
