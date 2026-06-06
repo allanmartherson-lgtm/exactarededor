@@ -158,8 +158,7 @@ export const NAV_ITEMS: NavItem[] = [
 export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: string }> = [
   { label: "Dashboard", iconName: "LayoutDashboard" },
   { label: "Pagamentos", iconName: "Wallet" },
-  { label: "Pedidos de NF", iconName: "Receipt" },
-  { label: "Ciclo de NF", iconName: "FileWarning" },
+  { label: "Notas Fiscais", iconName: "Receipt" },
   { label: "Glosas e Conciliação", iconName: "ShieldX" },
   { label: "Livro Contábil", iconName: "BookOpen" },
   { label: "Pendências", iconName: "ListChecksIcon" },
