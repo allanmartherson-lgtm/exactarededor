@@ -56,17 +56,18 @@ export function useDreData() {
 
   const load = async () => {
     setLoading(true);
+    const rpc = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
     const [dreRes, openRes] = await Promise.all([
-      supabase.rpc("get_dre_consolidated" as never, {
+      rpc("get_dre_consolidated", {
         p_competencia_from: from || null,
         p_competencia_to: to || null,
         p_company_id: null,
         p_doctor_id: null,
-      } as never),
-      supabase.rpc("get_open_position" as never, { p_company_id: null } as never),
+      }),
+      rpc("get_open_position", { p_company_id: null }),
     ]);
-    if (dreRes.data) setDre(dreRes.data as unknown as DreRow[]);
-    if (openRes.data) setOpen(openRes.data as unknown as OpenRow[]);
+    if (dreRes.data) setDre(dreRes.data as DreRow[]);
+    if (openRes.data) setOpen(openRes.data as OpenRow[]);
     setLoading(false);
   };
 
