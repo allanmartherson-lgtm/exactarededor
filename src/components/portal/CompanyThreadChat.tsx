@@ -47,7 +47,17 @@ export function CompanyThreadChat({ threadId, companyId, className }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // Marca todas mensagens da empresa como lidas (server-side update via RLS internal_all).
+  // Também registra um view log para auditoria — quem (e quando) abriu a thread.
   const markRead = useCallback(async () => {
+    // Lê o contador atual antes de zerar para gravar `unread_before` no log.
+    const { data: threadRow } = await supabase
+      .from("company_threads" as never)
+      .select("unread_for_internal")
+      .eq("id", threadId)
+      .maybeSingle();
+    const unreadBefore =
+      (threadRow as { unread_for_internal?: number } | null)?.unread_for_internal ?? null;
+
     await supabase
       .from("company_messages" as never)
       .update({ read_by_internal_at: new Date().toISOString() } as never)
@@ -59,7 +69,26 @@ export function CompanyThreadChat({ threadId, companyId, className }: Props) {
       .from("company_threads" as never)
       .update({ unread_for_internal: 0 } as never)
       .eq("id", threadId);
-  }, [threadId]);
+
+    // Audit: registra visualização (best-effort, não bloqueia UI).
+    if (user) {
+      // Descobre o papel principal do usuário pra rotular o log.
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      const roles = ((roleRows ?? []) as Array<{ role: string }>).map((r) => r.role);
+      // Prioridade: admin > diretor > validador > analista.
+      const priority = ["admin", "diretor", "validador", "analista"];
+      const role = priority.find((p) => roles.includes(p)) ?? roles[0] ?? "interno";
+      void supabase.from("thread_view_log" as never).insert({
+        thread_id: threadId,
+        viewer_user_id: user.id,
+        viewer_role: role,
+        unread_before: unreadBefore,
+      } as never);
+    }
+  }, [threadId, user]);
 
   useEffect(() => {
     let cancelled = false;
