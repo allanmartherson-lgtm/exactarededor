@@ -326,17 +326,44 @@ const SetPassword = () => {
     }
     setPhase("saving");
     const client = activeClientRef.current;
-    const { error } = await client.auth.updateUser({
+    setDiagnostics((prev) => [...prev, "Salvando nova senha…"]);
+    const { data, error } = await client.auth.updateUser({
       password: parsed.data.password,
       data: { must_reset_password: false, password_changed_at: new Date().toISOString() },
     });
     if (error) {
       console.error("[auth recovery] erro retornado ao tentar updateUser", error);
       setPhase("ready");
+      setDiagnostics((prev) => [...prev, `Falha ao salvar senha: ${error.message}`]);
       toast({ title: "Erro ao salvar senha", description: error.message, variant: "destructive" });
       return;
     }
+    const emailForVerification = data.user?.email ?? recoveryEmail;
+    setDiagnostics((prev) => [...prev, "Senha salva. Validando login imediato…"]);
     await client.auth.signOut();
+    if (client !== mainSupabase) await mainSupabase.auth.signOut();
+
+    if (emailForVerification) {
+      const { error: loginError } = await mainSupabase.auth.signInWithPassword({
+        email: emailForVerification,
+        password: parsed.data.password,
+      });
+      if (loginError) {
+        console.error("[auth recovery] senha salva, mas login imediato falhou", loginError);
+        setPhase("ready");
+        setDiagnostics((prev) => [...prev, `Senha salva, mas login imediato falhou: ${loginError.message}`]);
+        toast({
+          title: "Senha salva, mas login falhou",
+          description: `A senha foi atualizada, porém a validação imediata retornou: ${loginError.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      setDiagnostics((prev) => [...prev, "Login imediato validado com sucesso."]);
+      await mainSupabase.auth.signOut();
+    } else {
+      setDiagnostics((prev) => [...prev, "Senha salva; e-mail indisponível para validação automática de login."]);
+    }
     setPhase("done");
     toast({ title: "Senha definida", description: "Entre novamente com sua nova senha." });
     setTimeout(() => navigate("/auth", { replace: true }), 800);
@@ -377,6 +404,11 @@ const SetPassword = () => {
             {phase === "invalid" && (
               <div className="space-y-4">
                 <p className="text-sm text-destructive">{errorMsg}</p>
+                {diagnostics.length > 0 && (
+                  <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+                    {diagnostics.map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}
+                  </div>
+                )}
                 <Button className="w-full" variant="outline" onClick={() => navigate("/auth", { replace: true })}>
                   Voltar ao login
                 </Button>
@@ -397,6 +429,11 @@ const SetPassword = () => {
                 <Button type="submit" className="w-full" disabled={phase === "saving"}>
                   {phase === "saving" ? "Salvando…" : flow === "invite" ? "Criar senha e entrar" : "Salvar nova senha"}
                 </Button>
+                {diagnostics.length > 0 && (
+                  <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+                    {diagnostics.map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}
+                  </div>
+                )}
               </form>
             )}
           </CardContent>
