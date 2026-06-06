@@ -288,7 +288,7 @@ export default function AgingRecebiveis() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Wallet size={16} style={{ color: "#9A6B3A" }} />
             <span style={{ fontSize: 13, fontWeight: 600, color: "#9A6B3A" }}>
-              Total em aberto — {comMarco.length} empresa{comMarco.length !== 1 ? "s" : ""}
+              Total a pagar — {comMarco.length} PJ{comMarco.length !== 1 ? "s" : ""}
             </span>
           </div>
           <span style={{ fontSize: 20, fontWeight: 600, color: "#9A6B3A", fontVariantNumeric: "tabular-nums" }}>
