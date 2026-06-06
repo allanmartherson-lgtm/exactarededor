@@ -248,7 +248,7 @@ const App = () => (
                   <Route path="/pagamentos/novo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewPayment /></ProtectedRoute>} />
                   <Route path="/pagamentos/:id" element={<PaymentDetail />} />
                   <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
-                  <Route path="/notas-fiscais" element={<Invoices />} />
+                  <Route path="/notas-fiscais" element={<NotasFiscaisHub />} />
                   <Route path="/kpis" element={<Kpis />} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><AgingRecebiveis /></ProtectedRoute>} />
