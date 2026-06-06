@@ -114,6 +114,7 @@ export default function PendenciaDetail() {
       .insert({
         company_id: pend.company_id,
         scope: "pendencia",
+        source: "pendencia",
         subject: pend.subject.slice(0, 200),
         created_by_type: "analista",
         created_by_user_id: user.id,
