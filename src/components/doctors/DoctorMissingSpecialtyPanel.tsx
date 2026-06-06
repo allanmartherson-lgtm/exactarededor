@@ -155,12 +155,11 @@ export function DoctorMissingSpecialtyPanel() {
                       {r.matched_doctor_id ? (
                         <MultiSelectChips
                           options={COMMON_SPECIALTIES}
-                          value={draft}
+                          values={draft}
                           onChange={(v) =>
                             setDrafts((p) => ({ ...p, [r.matched_doctor_id as string]: v }))
                           }
                           placeholder="Selecionar especialidades…"
-                          allowCreate
                         />
                       ) : (
                         <span className="text-xs text-muted-foreground">Cadastre o médico em "Cadastro de médicos" para atribuir especialidade.</span>
