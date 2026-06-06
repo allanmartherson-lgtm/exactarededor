@@ -178,32 +178,59 @@ export default function MassCommunication() {
     }
   };
 
-  const approve = async (id: string) => {
+  // Helper: RPC com retry simples para falhas transitórias
+  const callRpcWithRetry = async (fn: "approve_campaign" | "reject_campaign", args: Record<string, unknown>) => {
+    let lastErr: { message: string } | null = null;
+    for (let i = 1; i <= 2; i++) {
+      const { error } = await supabase.rpc(fn as never, args as never);
+      if (!error) return { error: null };
+      lastErr = error;
+      await new Promise((r) => setTimeout(r, 600 * i));
+    }
+    return { error: lastErr };
+  };
+
+  const doApprove = async () => {
+    if (!approveTarget) return;
+    const id = approveTarget.id;
     setApprovingId(id);
-    const { error } = await supabase.rpc("approve_campaign", { _campaign_id: id });
+    setItems((prev) => prev.map((c) => (c.id === id ? { ...c, approval_status: "approved" } : c)));
+    setApproveTarget(null);
+    const { error } = await callRpcWithRetry("approve_campaign", { _campaign_id: id });
     if (error) {
+      void load();
       setApprovingId(null);
-      toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
+      toast({ title: "Falha ao aprovar", description: `${error.message}. Tentamos 2 vezes.`, variant: "destructive" });
       return;
     }
     await notifyDecision(id, "approved");
     setApprovingId(null);
-    toast({ title: "Campanha aprovada", description: "Analista notificado por e-mail." });
+    toast({ title: "Campanha aprovada", description: "Analista notificado por e-mail e inbox." });
     void load();
   };
 
-  const reject = async (id: string) => {
-    const reason = window.prompt("Motivo da rejeição (opcional):") ?? "";
+  const doReject = async () => {
+    if (!rejectTarget) return;
+    const reason = rejectReason.trim();
+    if (reason.length < 5) {
+      toast({ title: "Motivo obrigatório", description: "Mínimo 5 caracteres.", variant: "destructive" });
+      return;
+    }
+    const id = rejectTarget.id;
     setApprovingId(id);
-    const { error } = await supabase.rpc("reject_campaign", { _campaign_id: id, _reason: reason });
+    setItems((prev) => prev.map((c) => (c.id === id ? { ...c, approval_status: "rejected", rejection_reason: reason } : c)));
+    setRejectTarget(null);
+    setRejectReason("");
+    const { error } = await callRpcWithRetry("reject_campaign", { _campaign_id: id, _reason: reason });
     if (error) {
+      void load();
       setApprovingId(null);
-      toast({ title: "Falha ao rejeitar", description: error.message, variant: "destructive" });
+      toast({ title: "Falha ao rejeitar", description: `${error.message}. Tentamos 2 vezes.`, variant: "destructive" });
       return;
     }
     await notifyDecision(id, "rejected", reason);
     setApprovingId(null);
-    toast({ title: "Campanha rejeitada", description: "Analista notificado por e-mail." });
+    toast({ title: "Campanha rejeitada", description: "Motivo registrado e analista notificado." });
     void load();
   };
 
