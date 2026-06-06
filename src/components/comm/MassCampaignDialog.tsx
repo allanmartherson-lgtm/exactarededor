@@ -503,6 +503,7 @@ function BatchCompanyPicker({
   };
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [typeFilter, setTypeFilter] = useState<string>("__all__");
+  const [competenceFilter, setCompetenceFilter] = useState<string>("__all__");
   const [paymentId, setPaymentId] = useState<string>("");
   const [batchCompanies, setBatchCompanies] = useState<Company[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -515,7 +516,7 @@ function BatchCompanyPicker({
         .from("payments")
         .select("id,reference,payment_type,competence_month,status")
         .order("created_at", { ascending: false })
-        .limit(60);
+        .limit(200);
       setPayments((data ?? []) as PaymentRow[]);
     })();
   }, [open]);
@@ -548,9 +549,22 @@ function BatchCompanyPicker({
   const types = Array.from(
     new Set(payments.map((p) => p.payment_type).filter((x): x is string => !!x))
   ).sort();
-  const visible = payments.filter((p) =>
-    typeFilter === "__all__" ? true : (p.payment_type ?? "") === typeFilter
-  );
+  const competences = Array.from(
+    new Set(
+      payments
+        .map((p) => (p.competence_month ? p.competence_month.slice(0, 7) : null))
+        .filter((x): x is string => !!x),
+    ),
+  ).sort((a, b) => b.localeCompare(a));
+  const visible = payments.filter((p) => {
+    if (typeFilter !== "__all__" && (p.payment_type ?? "") !== typeFilter) return false;
+    if (competenceFilter !== "__all__") {
+      const cm = p.competence_month ? p.competence_month.slice(0, 7) : "";
+      if (cm !== competenceFilter) return false;
+    }
+    return true;
+  });
+
 
   const toggle = (id: string) => {
     setSelectedIds((prev) => {
