@@ -51,13 +51,14 @@ export const LossTrendTab = () => {
     })();
   }, [grouping]);
 
-  const { chartData, series, alerts, hiddenCount, completeCount } = useMemo(() => {
+  const { chartData, series, alerts, hiddenCount, completeCount, monthlyTotals } = useMemo(() => {
     const empty = {
       chartData: [] as Record<string, number | string>[],
       series: [] as string[],
       alerts: [] as { key: string; pct: number }[],
       hiddenCount: 0,
       completeCount: 0,
+      monthlyTotals: [] as { month: string; total: number; deltaPct: number | null }[],
     };
     if (!rows) return empty;
 
@@ -100,6 +101,13 @@ export const LossTrendTab = () => {
       return o;
     });
 
+    const monthlyTotals = months.map((m, idx) => {
+      const total = totalsByMonth.get(m) ?? 0;
+      const prev = idx > 0 ? totalsByMonth.get(months[idx - 1]) ?? 0 : 0;
+      const deltaPct = idx > 0 && prev > 0 ? ((total - prev) / prev) * 100 : null;
+      return { month: m.slice(0, 7), total, deltaPct };
+    });
+
     const alertList: { key: string; pct: number }[] = [];
     for (const k of topKeys) {
       const seriesVals = months.map(
@@ -112,10 +120,18 @@ export const LossTrendTab = () => {
         alertList.push({ key: k, pct: ((last - baseline) / baseline) * 100 });
       }
     }
-    return { chartData: data, series: topKeys, alerts: alertList, hiddenCount, completeCount: months.length };
+    return {
+      chartData: data,
+      series: topKeys,
+      alerts: alertList,
+      hiddenCount,
+      completeCount: months.length,
+      monthlyTotals,
+    };
   }, [rows]);
 
   const colors = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#a855f7"];
+  const lastMonthKey = chartData.length > 0 ? (chartData[chartData.length - 1].month as string) : null;
 
   return (
     <SurfaceCard>
