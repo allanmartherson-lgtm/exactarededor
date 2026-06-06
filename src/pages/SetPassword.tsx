@@ -322,27 +322,6 @@ const SetPassword = () => {
     setTimeout(() => navigate("/auth", { replace: true }), 800);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const parsed = schema.safeParse({ password: fd.get("password"), confirm: fd.get("confirm") });
-    if (!parsed.success) {
-      toast({ title: "Verifique os campos", description: parsed.error.issues[0].message, variant: "destructive" });
-      return;
-    }
-    setPhase("saving");
-    const { error } = await recoveryClient.auth.updateUser({ password: parsed.data.password });
-    if (error) {
-      console.error("[auth recovery] erro retornado ao tentar updateUser", error);
-      setPhase("ready");
-      toast({ title: "Erro ao salvar senha", description: error.message, variant: "destructive" });
-      return;
-    }
-    await recoveryClient.auth.signOut();
-    setPhase("done");
-    toast({ title: "Senha definida", description: "Entre novamente com sua nova senha." });
-    setTimeout(() => navigate("/auth", { replace: true }), 800);
-  };
 
   if (phase === "done") return <Navigate to="/auth" replace />;
 
