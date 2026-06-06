@@ -73,18 +73,45 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   useEffect(() => {
     if (!open) return;
     void (async () => {
+      // Paginação manual — PostgREST limita server-side a 1000 linhas por request,
+      // ignorando `.limit()` maiores. Buscamos em páginas até esgotar.
+      const fetchAll = async <T,>(
+        table: "companies" | "doctors",
+        select: string,
+        order: string,
+      ): Promise<T[]> => {
+        const PAGE = 1000;
+        const out: T[] = [];
+        for (let from = 0; ; from += PAGE) {
+          const { data, error } = await supabase
+            .from(table)
+            .select(select)
+            .eq("active", true)
+            .order(order)
+            .range(from, from + PAGE - 1);
+          if (error || !data) break;
+          out.push(...(data as unknown as T[]));
+          if (data.length < PAGE) break;
+        }
+        return out;
+      };
+
       const [c, d] = await Promise.all([
-        supabase.from("companies").select("id,name").eq("active", true).order("name").limit(2000),
-        supabase.from("doctors").select("id,full_name,specialties").eq("active", true).order("full_name").limit(5000),
+        fetchAll<Company>("companies", "id,name", "name"),
+        fetchAll<Doctor & { specialties: string[] | null }>(
+          "doctors",
+          "id,full_name,specialties",
+          "full_name",
+        ),
       ]);
-      setCompanies((c.data ?? []) as Company[]);
-      const docs = (d.data ?? []) as Array<Doctor & { specialties: string[] | null }>;
-      setDoctors(docs.map((x) => ({ id: x.id, full_name: x.full_name })));
+      setCompanies(c);
+      setDoctors(d.map((x) => ({ id: x.id, full_name: x.full_name })));
       const set = new Set<string>();
-      docs.forEach((x) => (x.specialties ?? []).forEach((s) => s && set.add(s)));
+      d.forEach((x) => (x.specialties ?? []).forEach((s) => s && set.add(s)));
       setSpecialtyOptions(Array.from(set).sort((a, b) => a.localeCompare(b)));
     })();
   }, [open]);
+
 
   const reset = () => {
     setTitle("");
