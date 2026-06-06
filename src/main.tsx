@@ -1,6 +1,5 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import App from "./App.tsx";
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
 
@@ -38,5 +37,7 @@ cachePasswordAuthUrl();
 
 const rootElement = document.getElementById("root");
 if (rootElement) {
-  createRoot(rootElement).render(<App />);
+  import("./App.tsx").then(({ default: App }) => {
+    createRoot(rootElement).render(<App />);
+  });
 }
