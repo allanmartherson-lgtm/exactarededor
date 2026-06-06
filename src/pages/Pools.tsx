@@ -70,7 +70,7 @@ const DED_LABELS: Record<string, string> = {
   valor_referencia_externa: "Valor referência externa",
 };
 
-export default function Pools() {
+export default function Pools({ embedded = false }: { embedded?: boolean } = {}) {
   const [pools, setPools] = useState<Pool[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
