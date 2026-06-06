@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SurfaceCard, SurfaceCardHeader } from "@/components/shared/SurfacePrimitives";
 import { Calculator, ArrowDown, ArrowUp, Minus } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatBRL, mean } from "@/lib/financialStats";
+import { formatBRL, mean, median } from "@/lib/financialStats";
 
 interface PaymentRow {
   competence_month: string | null;
@@ -83,15 +83,53 @@ export const ProjectionTab = () => {
     }
     const allMonths = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
     const partial = allMonths.find(([m]) => m === curYm) ?? null;
-    const closedMonths = allMonths.filter(([m]) => m !== curYm);
-    if (closedMonths.length === 0) {
-      return { projection: 0, lastClosed: 0, lastClosedYm: null as string | null, delta: 0, closedMonths: [], partial };
+    const nonCurrent = allMonths.filter(([m]) => m !== curYm);
+
+    // Detect incomplete months: total < 30% of median of the others
+    const incompleteSet = new Set<string>();
+    if (nonCurrent.length >= 2) {
+      const values = nonCurrent.map(([, v]) => v);
+      const med = median(values);
+      const threshold = med * 0.3;
+      for (const [m, v] of nonCurrent) {
+        if (v < threshold) incompleteSet.add(m);
+      }
     }
-    const last3 = closedMonths.slice(-3).map(([, v]) => v);
+
+    const completeMonths = nonCurrent.filter(([m]) => !incompleteSet.has(m));
+    const monthsWithFlag = nonCurrent.map(([m, v]) => ({
+      ym: m,
+      val: v,
+      flag: incompleteSet.has(m) ? ("incompleto" as const) : ("ok" as const),
+    }));
+
+    if (completeMonths.length < 3) {
+      return {
+        hasProjection: false as const,
+        completeCount: completeMonths.length,
+        projection: 0,
+        lastClosed: 0,
+        lastClosedYm: null as string | null,
+        delta: 0,
+        monthsWithFlag,
+        partial,
+      };
+    }
+
+    const last3 = completeMonths.slice(-3).map(([, v]) => v);
     const projection = mean(last3);
-    const [lastClosedYm, lastClosed] = closedMonths[closedMonths.length - 1];
+    const [lastClosedYm, lastClosed] = completeMonths[completeMonths.length - 1];
     const delta = lastClosed > 0 ? ((projection - lastClosed) / lastClosed) * 100 : 0;
-    return { projection, lastClosed, lastClosedYm, delta, closedMonths, partial };
+    return {
+      hasProjection: true as const,
+      completeCount: completeMonths.length,
+      projection,
+      lastClosed,
+      lastClosedYm,
+      delta,
+      monthsWithFlag,
+      partial,
+    };
   }, [rows]);
 
   const breakdown = useMemo(() => {
@@ -106,7 +144,7 @@ export const ProjectionTab = () => {
       byCat.set(cat, (byCat.get(cat) ?? 0) + v);
       total += v;
     }
-    const projection = result?.projection ?? 0;
+    const projection = result?.hasProjection ? result.projection : 0;
     return Array.from(byCat.entries())
       .map(([cat, val]) => ({
         cat,
@@ -123,12 +161,12 @@ export const ProjectionTab = () => {
         title="Projeção do próximo mês"
         icon={Calculator}
         iconColor="blue"
-        subtitle="Média dos últimos 3 meses fechados (mês corrente parcial não entra)"
+        subtitle="Média dos últimos 3 meses completos — ignora meses parciais/incompletos"
       />
       <div className="p-6">
         {!result ? (
           <Skeleton className="h-32 w-full" />
-        ) : (
+        ) : result.hasProjection ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-lg border p-5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
@@ -138,13 +176,13 @@ export const ProjectionTab = () => {
             </div>
             <div className="rounded-lg border p-5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                Último mês fechado {result.lastClosedYm ? `(${fmtMonth(result.lastClosedYm)})` : ""}
+                Mês de referência {result.lastClosedYm ? `(${fmtMonth(result.lastClosedYm)})` : ""}
               </p>
               <p className="text-3xl font-light tabular-nums">{formatBRL(result.lastClosed)}</p>
             </div>
             <div className="rounded-lg border p-5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                Variação vs último fechado
+                Variação vs último completo
               </p>
               <p className="text-3xl font-light tabular-nums flex items-center gap-2">
                 {result.delta > 0 ? (
@@ -158,15 +196,42 @@ export const ProjectionTab = () => {
               </p>
             </div>
           </div>
+        ) : (
+          <div className="rounded-lg border border-dashed p-5 bg-muted/30 text-sm text-muted-foreground">
+            Dados insuficientes para projeção confiável — são necessários ao menos 3 meses completos
+            (atualmente: {result.completeCount}).
+          </div>
         )}
-        {result && (result.closedMonths.length > 0 || result.partial) && (
+        {result && (result.monthsWithFlag.length > 0 || result.partial) && (
           <div className="mt-6 grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {result.closedMonths.map(([m, v]) => (
-              <div key={m} className="rounded border p-3 text-center">
-                <p className="text-xs text-muted-foreground">{fmtMonth(m)}</p>
-                <p className="text-sm font-medium tabular-nums mt-1">{formatBRL(v)}</p>
-              </div>
-            ))}
+            {result.monthsWithFlag.map((m) => {
+              const isIncomplete = m.flag === "incompleto";
+              return (
+                <div
+                  key={m.ym}
+                  className={
+                    isIncomplete
+                      ? "rounded border border-dashed p-3 text-center bg-muted/40"
+                      : "rounded border p-3 text-center"
+                  }
+                  title={isIncomplete ? "Mês incompleto — não entra nos cálculos" : undefined}
+                >
+                  <p className="text-xs text-muted-foreground">
+                    {fmtMonth(m.ym)}
+                    {isIncomplete && <span className="italic"> (incompleto)</span>}
+                  </p>
+                  <p
+                    className={
+                      isIncomplete
+                        ? "text-sm font-medium tabular-nums mt-1 text-muted-foreground"
+                        : "text-sm font-medium tabular-nums mt-1"
+                    }
+                  >
+                    {formatBRL(m.val)}
+                  </p>
+                </div>
+              );
+            })}
             {result.partial && (
               <div
                 key={result.partial[0]}
@@ -194,7 +259,9 @@ export const ProjectionTab = () => {
                     <TableHead>Tipo</TableHead>
                     <TableHead className="text-right">Total histórico (6m)</TableHead>
                     <TableHead className="text-right">% do total</TableHead>
-                    <TableHead className="text-right">Projeção estimada</TableHead>
+                    {result?.hasProjection && (
+                      <TableHead className="text-right">Projeção estimada</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -205,7 +272,9 @@ export const ProjectionTab = () => {
                       <TableCell className="text-right tabular-nums text-muted-foreground">
                         {b.pct.toFixed(1)}%
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{formatBRL(b.proj)}</TableCell>
+                      {result?.hasProjection && (
+                        <TableCell className="text-right tabular-nums">{formatBRL(b.proj)}</TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
