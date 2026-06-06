@@ -18,6 +18,11 @@ interface ItemRow {
   created_at: string;
 }
 
+interface SectorRow {
+  slug: string | null;
+  classification: string | null;
+}
+
 const EXCLUDED = new Set(["rascunho", "cancelado", "rejeitado"]);
 
 const MONTHS_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -30,27 +35,21 @@ function fmtMonth(ym: string): string {
   return `${MONTHS_PT[idx]}/${year.slice(2)}`;
 }
 
-function categorizeSector(sector: string | null): string {
-  if (!sector) return "Outros";
-  const s = sector.toLowerCase();
-  if (s.includes("cirurg") || s.includes("cirur")) return "Cirurgia";
-  if (s.includes("visit") || s.includes("parecer") || s.includes("consul")) return "Visitas e Pareceres";
-  if (s.includes("hemo") || s.includes("cineangiocoronariografia") || s.includes("cinecoronario")) return "Hemodinâmica";
-  if (s.includes("anest")) return "Anestesia";
-  if (s.includes("uti") || s.includes("intensiv")) return "UTI";
-  if (s.includes("endoscopi") || s.includes("colonoscopi")) return "Endoscopia";
-  return "Outros";
+function currentYm(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export const ProjectionTab = () => {
   const [rows, setRows] = useState<PaymentRow[] | null>(null);
   const [items, setItems] = useState<ItemRow[] | null>(null);
+  const [sectorMap, setSectorMap] = useState<Map<string, string> | null>(null);
 
   useEffect(() => {
     (async () => {
       const cutoff = new Date();
       cutoff.setMonth(cutoff.getMonth() - 6);
-      const [{ data: pData }, { data: iData }] = await Promise.all([
+      const [{ data: pData }, { data: iData }, { data: sData }] = await Promise.all([
         supabase
           .from("payments")
           .select("competence_month,total_amount,status")
@@ -61,37 +60,49 @@ export const ProjectionTab = () => {
           .gte("created_at", cutoff.toISOString())
           .not("gross_amount", "is", null)
           .limit(20000),
+        supabase.from("sectors").select("slug, classification"),
       ]);
       setRows((pData as PaymentRow[]) ?? []);
       setItems((iData as ItemRow[]) ?? []);
+      const map = new Map<string, string>();
+      for (const s of (sData as SectorRow[]) ?? []) {
+        if (s.slug && s.classification) map.set(s.slug.trim(), s.classification);
+      }
+      setSectorMap(map);
     })();
   }, []);
 
   const result = useMemo(() => {
     if (!rows) return null;
+    const curYm = currentYm();
     const map = new Map<string, number>();
     for (const r of rows) {
       if (!r.competence_month || EXCLUDED.has(r.status)) continue;
       const key = r.competence_month.slice(0, 7);
       map.set(key, (map.get(key) ?? 0) + Number(r.total_amount));
     }
-    const months = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-    if (months.length === 0) return { projection: 0, currentTotal: 0, delta: 0, months: [] };
-    const last3 = months.slice(-3).map(([, v]) => v);
+    const allMonths = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+    const partial = allMonths.find(([m]) => m === curYm) ?? null;
+    const closedMonths = allMonths.filter(([m]) => m !== curYm);
+    if (closedMonths.length === 0) {
+      return { projection: 0, lastClosed: 0, lastClosedYm: null as string | null, delta: 0, closedMonths: [], partial };
+    }
+    const last3 = closedMonths.slice(-3).map(([, v]) => v);
     const projection = mean(last3);
-    const currentTotal = months[months.length - 1][1];
-    const delta = currentTotal > 0 ? ((projection - currentTotal) / currentTotal) * 100 : 0;
-    return { projection, currentTotal, delta, months };
+    const [lastClosedYm, lastClosed] = closedMonths[closedMonths.length - 1];
+    const delta = lastClosed > 0 ? ((projection - lastClosed) / lastClosed) * 100 : 0;
+    return { projection, lastClosed, lastClosedYm, delta, closedMonths, partial };
   }, [rows]);
 
   const breakdown = useMemo(() => {
-    if (!items) return null;
+    if (!items || !sectorMap) return null;
     const byCat = new Map<string, number>();
     let total = 0;
     for (const it of items) {
       const v = Number(it.gross_amount) || 0;
       if (v <= 0) continue;
-      const cat = categorizeSector(it.sector);
+      const slug = it.sector?.trim();
+      const cat = (slug && sectorMap.get(slug)) || "(sem setor)";
       byCat.set(cat, (byCat.get(cat) ?? 0) + v);
       total += v;
     }
@@ -104,7 +115,7 @@ export const ProjectionTab = () => {
         proj: total > 0 ? (val / total) * projection : 0,
       }))
       .sort((a, b) => b.val - a.val);
-  }, [items, result]);
+  }, [items, sectorMap, result]);
 
   return (
     <SurfaceCard>
@@ -112,7 +123,7 @@ export const ProjectionTab = () => {
         title="Projeção do próximo mês"
         icon={Calculator}
         iconColor="blue"
-        subtitle="Média móvel dos últimos 3 meses"
+        subtitle="Média dos últimos 3 meses fechados (mês corrente parcial não entra)"
       />
       <div className="p-6">
         {!result ? (
@@ -127,13 +138,13 @@ export const ProjectionTab = () => {
             </div>
             <div className="rounded-lg border p-5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                Mês atual
+                Último mês fechado {result.lastClosedYm ? `(${fmtMonth(result.lastClosedYm)})` : ""}
               </p>
-              <p className="text-3xl font-light tabular-nums">{formatBRL(result.currentTotal)}</p>
+              <p className="text-3xl font-light tabular-nums">{formatBRL(result.lastClosed)}</p>
             </div>
             <div className="rounded-lg border p-5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                Variação
+                Variação vs último fechado
               </p>
               <p className="text-3xl font-light tabular-nums flex items-center gap-2">
                 {result.delta > 0 ? (
@@ -148,14 +159,28 @@ export const ProjectionTab = () => {
             </div>
           </div>
         )}
-        {result && result.months.length > 0 && (
+        {result && (result.closedMonths.length > 0 || result.partial) && (
           <div className="mt-6 grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {result.months.map(([m, v]) => (
+            {result.closedMonths.map(([m, v]) => (
               <div key={m} className="rounded border p-3 text-center">
                 <p className="text-xs text-muted-foreground">{fmtMonth(m)}</p>
                 <p className="text-sm font-medium tabular-nums mt-1">{formatBRL(v)}</p>
               </div>
             ))}
+            {result.partial && (
+              <div
+                key={result.partial[0]}
+                className="rounded border border-dashed p-3 text-center bg-muted/40"
+                title="Mês em andamento — não entra nos cálculos"
+              >
+                <p className="text-xs text-muted-foreground">
+                  {fmtMonth(result.partial[0])} <span className="italic">(parcial)</span>
+                </p>
+                <p className="text-sm font-medium tabular-nums mt-1 text-muted-foreground">
+                  {formatBRL(result.partial[1])}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
