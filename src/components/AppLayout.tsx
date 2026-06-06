@@ -1103,6 +1103,7 @@ export const AppLayout = () => {
               )}
               <HospitalSwitcher className="hidden md:inline-flex" />
               <PortalUnreadBadge />
+              <InboxBadge />
               <NotificationBell />
               <div className="hidden md:flex items-center gap-1">
                 <ThemeToggle />
