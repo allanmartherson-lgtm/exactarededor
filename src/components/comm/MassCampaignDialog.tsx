@@ -314,11 +314,19 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[12px]">Empresas</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-[12px]">Empresas</Label>
+                {audienceLoading && (
+                  <span className="text-[11px] text-muted-foreground animate-pulse">
+                    Carregando empresas… {audienceProgress.companies > 0 ? audienceProgress.companies : ""}
+                  </span>
+                )}
+              </div>
               <CompanyPicker
                 companies={companies}
                 selected={selCompanies}
                 onChange={setSelCompanies}
+                loading={audienceLoading}
               />
             </div>
 
