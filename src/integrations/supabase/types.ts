@@ -4360,11 +4360,13 @@ export type Database = {
           created_by_name: string
           created_by_user_id: string | null
           description: string
+          doctor_id: string | null
           doctor_name: string
           event_date: string
           event_type: string
           hospital_id: string | null
           id: string
+          opened_by: string
           patient_name: string
           payment_id: string | null
           priority: string
@@ -4383,11 +4385,13 @@ export type Database = {
           created_by_name: string
           created_by_user_id?: string | null
           description: string
+          doctor_id?: string | null
           doctor_name: string
           event_date: string
           event_type: string
           hospital_id?: string | null
           id?: string
+          opened_by?: string
           patient_name: string
           payment_id?: string | null
           priority?: string
@@ -4406,11 +4410,13 @@ export type Database = {
           created_by_name?: string
           created_by_user_id?: string | null
           description?: string
+          doctor_id?: string | null
           doctor_name?: string
           event_date?: string
           event_type?: string
           hospital_id?: string | null
           id?: string
+          opened_by?: string
           patient_name?: string
           payment_id?: string | null
           priority?: string
@@ -4426,6 +4432,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
             referencedColumns: ["id"]
           },
           {
