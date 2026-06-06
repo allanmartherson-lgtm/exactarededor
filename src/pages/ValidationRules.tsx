@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter, Check, AlertTriangle, DollarSign, FileText, History, Clock, ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter, Check, History, Clock, ChevronDown, ChevronRight } from "lucide-react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
@@ -254,10 +254,6 @@ export default function ValidationRules() {
   const [companyPicker, setCompanyPicker] = useState<CompanyOption | null>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<{ id?: string; name: string; description: string; specialties: string[]; active: boolean }>({ name: "", description: "", specialties: [], active: true });
-  const [ruleImpact, setRuleImpact] = useState<Map<string, { alertas: number; valor: number; lotes: number }>>(new Map());
-  const [ruleEffectiveness, setRuleEffectiveness] = useState<Map<string, { acatados: number; total: number; taxaFalsoPositivo: number }>>(new Map());
-  const [efficiencyOpen, setEfficiencyOpen] = useState(false);
-  const [impactItems, setImpactItems] = useState<any[]>([]);
   const [expiringPaymentRules, setExpiringPaymentRules] = useState<{ id: string; name: string; valid_until: string }[]>([]);
   const [groupCollapsed, setGroupCollapsed] = useState<Record<string, boolean>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -270,15 +266,10 @@ export default function ValidationRules() {
     setLoading(true);
     const today = new Date().toISOString().slice(0, 10);
     const in30 = new Date(Date.now() + 30 * 24 * 3600000).toISOString().slice(0, 10);
-    const [{ data: vr }, { data: ag }, { data: co }, { data: itemsWithFindings }, { data: expiring }] = await Promise.all([
+    const [{ data: vr }, { data: ag }, { data: co }, { data: expiring }] = await Promise.all([
       supabase.from("validation_rules").select("*").order("created_at", { ascending: false }),
       supabase.from("assistance_groups").select("*").order("name"),
       supabase.from("companies").select("id, name"),
-      supabase
-        .from("payment_items")
-        .select("id, gross_amount, payment_id, validation_findings, ai_status, acatado_status_original")
-        .not("validation_findings", "is", null)
-        .neq("validation_findings", "[]"),
       supabase
         .from("rules")
         .select("id, name, valid_until")
@@ -298,40 +289,6 @@ export default function ValidationRules() {
       co.forEach(c => map[c.id] = c.name);
       setAllCompaniesMap(map);
     }
-
-    // Agregar impacto financeiro + efetividade por rule_id
-    const impactByRule = new Map<string, { alertas: number; valor: number; lotes: Set<string> }>();
-    const effByRule = new Map<string, { acatados: number; total: number }>();
-    for (const item of itemsWithFindings ?? []) {
-      const findings = item.validation_findings as any[];
-      if (!Array.isArray(findings)) continue;
-      const isAcatado = (item as any).ai_status === "acatado";
-      for (const f of findings) {
-        if (!f.rule_id) continue;
-        const cur = impactByRule.get(f.rule_id) ?? { alertas: 0, valor: 0, lotes: new Set() };
-        cur.alertas += 1;
-        cur.valor += Number(item.gross_amount ?? 0);
-        cur.lotes.add(item.payment_id);
-        impactByRule.set(f.rule_id, cur);
-
-        const ef = effByRule.get(f.rule_id) ?? { acatados: 0, total: 0 };
-        ef.total += 1;
-        if (isAcatado) ef.acatados += 1;
-        effByRule.set(f.rule_id, ef);
-      }
-    }
-    const impactMap = new Map<string, { alertas: number; valor: number; lotes: number }>();
-    impactByRule.forEach((v, k) => {
-      impactMap.set(k, { alertas: v.alertas, valor: v.valor, lotes: v.lotes.size });
-    });
-    const effMap = new Map<string, { acatados: number; total: number; taxaFalsoPositivo: number }>();
-    effByRule.forEach((v, k) => {
-      const taxaFalsoPositivo = v.total > 0 ? ((v.total - v.acatados) / v.total) * 100 : 0;
-      effMap.set(k, { acatados: v.acatados, total: v.total, taxaFalsoPositivo });
-    });
-    setRuleImpact(impactMap);
-    setRuleEffectiveness(effMap);
-    setImpactItems(itemsWithFindings ?? []);
 
     setLoading(false);
   };
@@ -869,47 +826,14 @@ export default function ValidationRules() {
         }
       />
 
-      {(() => {
-        const totalAlertas = [...ruleImpact.values()].reduce((a, b) => a + b.alertas, 0);
-        const totalValor = [...ruleImpact.values()].reduce((a, b) => a + b.valor, 0);
-        const allLotes = new Set<string>();
-        for (const item of (impactItems ?? [])) {
-          const findings = item.validation_findings as any[];
-          if (!Array.isArray(findings)) continue;
-          for (const f of findings) {
-            if (f.rule_id) allLotes.add(item.payment_id);
-          }
-        }
-        const totalLotes = allLotes.size;
-        const totalAcatados = [...ruleEffectiveness.values()].reduce((a, b) => a + b.acatados, 0);
-        const taxaAcateGlobal = totalAlertas > 0 ? (totalAcatados / totalAlertas) * 100 : 0;
-        if (totalAlertas === 0) return null;
-        const cards = [
-          { label: "Alertas ativos", value: String(totalAlertas), Icon: AlertTriangle, color: "amber" },
-          { label: "Valor em risco", value: formatCurrency(totalValor), Icon: DollarSign, color: "red" },
-          { label: "Lotes afetados", value: String(totalLotes), Icon: FileText, color: "blue" },
-          { label: "Taxa de acate", value: `${taxaAcateGlobal.toFixed(0)}%`, Icon: CheckCircle2, color: "green", tip: "% de alertas que foram acatados pelo analista" },
-        ] as const;
-        const colorMap: Record<string, string> = {
-          amber: "border-amber-200 bg-amber-50 text-amber-800",
-          red: "border-red-200 bg-red-50 text-red-800",
-          blue: "border-blue-200 bg-blue-50 text-blue-800",
-          green: "border-green-200 bg-green-50 text-green-800",
-        };
-        return (
-          <div className="mx-0 mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-            {cards.map(({ label, value, Icon, color, ...rest }) => (
-              <div key={label} className={`rounded-lg border p-3 ${colorMap[color]}`} title={(rest as any).tip}>
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  <span className="text-xs font-medium">{label}</span>
-                </div>
-                <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
+      <p className="mt-3 text-xs text-muted-foreground">
+        Métricas de alertas, valor em risco e taxa de acate agora em{" "}
+        <Link to="/inteligencia-financeira" className="underline hover:text-foreground">
+          Relatórios › Inteligência Financeira › Em risco
+        </Link>
+        .
+      </p>
+
 
 
       {expiringPaymentRules.length > 0 && (
@@ -963,7 +887,7 @@ export default function ValidationRules() {
             const rulesInGroup = filteredRules.filter(r => r.action === action);
             if (rulesInGroup.length === 0) return null;
             const collapsed = !!groupCollapsed[action];
-            const totalAlerts = rulesInGroup.reduce((acc, r) => acc + (ruleImpact.get(r.id)?.alertas ?? 0), 0);
+            
             return (
               <div key={action} className={`rounded-lg border ${color}`}>
                 <button
@@ -974,11 +898,7 @@ export default function ValidationRules() {
                   {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   <span className="text-sm font-semibold">{label}</span>
                   <Badge variant="outline" className="bg-background/70">{rulesInGroup.length} regra{rulesInGroup.length !== 1 ? "s" : ""}</Badge>
-                  {totalAlerts > 0 && (
-                    <Badge variant="outline" className="bg-warning-soft text-warning-text border-warning/30">
-                      {totalAlerts} alerta{totalAlerts !== 1 ? "s" : ""} ativo{totalAlerts !== 1 ? "s" : ""}
-                    </Badge>
-                  )}
+
                 </button>
                 {!collapsed && (
                   <div className="px-3 pb-3 space-y-2">
@@ -1013,26 +933,8 @@ export default function ValidationRules() {
                               ))}
                             </div>
                           )}
-                          {(() => {
-                            const impact = ruleImpact.get(r.id);
-                            if (!impact) return null;
-                            return (
-                              <div className="mt-2 flex items-center gap-3 flex-wrap">
-                                <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
-                                  <AlertTriangle className="h-3 w-3" />
-                                  <span><strong>{impact.alertas}</strong> alerta{impact.alertas !== 1 ? "s" : ""}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1">
-                                  <DollarSign className="h-3 w-3" />
-                                  <span><strong>{formatCurrency(impact.valor)}</strong> em risco</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 border border-border rounded-md px-2 py-1">
-                                  <FileText className="h-3 w-3" />
-                                  <span>{impact.lotes} lote{impact.lotes !== 1 ? "s" : ""} afetado{impact.lotes !== 1 ? "s" : ""}</span>
-                                </div>
-                              </div>
-                            );
-                          })()}
+
+
                         </div>
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
@@ -1050,58 +952,8 @@ export default function ValidationRules() {
         )}
       </div>
 
-      <div className="mt-6">
-        <button
-          type="button"
-          onClick={() => setEfficiencyOpen(v => !v)}
-          className="flex items-center gap-2 text-sm font-medium"
-        >
-          {efficiencyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          📊 Efetividade por regra
-        </button>
-        {efficiencyOpen && (
-          <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-xs">
-              <thead className="bg-muted/40">
-                <tr className="border-b border-border">
-                  <th className="text-left py-2 px-3">Regra</th>
-                  <th className="text-right px-3">Alertas</th>
-                  <th className="text-right px-3">Valor em risco</th>
-                  <th className="text-right px-3">Acatados</th>
-                  <th className="text-right px-3">Taxa acate</th>
-                  <th className="text-right px-3">Falso-positivo est.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rules.map(r => {
-                  const impact = ruleImpact.get(r.id);
-                  const eff = ruleEffectiveness.get(r.id);
-                  if (!impact) return null;
-                  const taxaAcate = eff ? (eff.acatados / Math.max(1, eff.total)) * 100 : 0;
-                  const naoAcatados = impact.alertas - (eff?.acatados ?? 0);
-                  return (
-                    <tr key={r.id} className="border-b border-border hover:bg-muted/30">
-                      <td className="py-2 px-3 font-medium">{r.name}</td>
-                      <td className="text-right tabular-nums px-3">{impact.alertas}</td>
-                      <td className="text-right tabular-nums px-3">{formatCurrency(impact.valor)}</td>
-                      <td className="text-right tabular-nums px-3">{eff?.acatados ?? 0}</td>
-                      <td className="text-right px-3">
-                        <span className={taxaAcate > 50 ? "text-green-600" : taxaAcate > 20 ? "text-amber-600" : "text-red-600"}>
-                          {taxaAcate.toFixed(0)}%
-                        </span>
-                      </td>
-                      <td className="text-right text-muted-foreground px-3">{naoAcatados}</td>
-                    </tr>
-                  );
-                }).filter(Boolean)}
-              </tbody>
-            </table>
-            <p className="text-[10px] text-muted-foreground mt-2 px-3 pb-2">
-              * Falso-positivo estimado = alertas não acatados. Taxa de acate baixa pode indicar parâmetros muito sensíveis.
-            </p>
-          </div>
-        )}
-      </div>
+
+
 
 
 
