@@ -56,18 +56,19 @@ export function useDreData() {
 
   const load = async () => {
     setLoading(true);
-    const rpc = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
-    const [dreRes, openRes] = await Promise.all([
-      rpc("get_dre_consolidated", {
+    const [dreRes, openRes] = (await Promise.all([
+      supabase.rpc("get_dre_consolidated" as never, {
         p_competencia_from: from || null,
         p_competencia_to: to || null,
         p_company_id: null,
         p_doctor_id: null,
-      }),
-      rpc("get_open_position", { p_company_id: null }),
-    ]);
-    if (dreRes.data) setDre(dreRes.data as DreRow[]);
-    if (openRes.data) setOpen(openRes.data as OpenRow[]);
+      } as never),
+      supabase.rpc("get_open_position" as never, { p_company_id: null } as never),
+    ])) as unknown as [{ data: DreRow[] | null; error: unknown }, { data: OpenRow[] | null; error: unknown }];
+    if (dreRes.error) console.error("get_dre_consolidated error", dreRes.error);
+    if (openRes.error) console.error("get_open_position error", openRes.error);
+    setDre(dreRes.error || !dreRes.data ? [] : dreRes.data);
+    setOpen(openRes.error || !openRes.data ? [] : openRes.data);
     setLoading(false);
   };
 
@@ -172,12 +173,13 @@ export function DreConsolidadoSection({ dre }: { dre: DreRow[] }) {
       row.doctor_name ?? null,
     ].filter(Boolean).join(" · ");
     setDrillTitle(label);
-    const { data, error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>)("get_dre_drilldown", {
+    const { data, error } = await supabase.rpc("get_dre_drilldown" as never, {
       p_competencia: row.competencia,
       p_company_id: row.company_id,
       p_doctor_id: row.doctor_id,
-    });
-    if (!error && data) setDrillRows(data as typeof drillRows);
+    } as never);
+    if (error) console.error("get_dre_drilldown error", error);
+    if (!error && data) setDrillRows(data as unknown as typeof drillRows);
     else setDrillRows([]);
     setDrillLoading(false);
   };
