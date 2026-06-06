@@ -318,7 +318,7 @@ export default function AgingRecebiveis() {
           />
 
           <div style={{
-            display: "grid", gridTemplateColumns: "1fr 100px 120px 90px 90px",
+            display: "grid", gridTemplateColumns: "1fr 150px 120px 90px 90px",
             padding: "8px 22px", background: "hsl(var(--muted) / 0.5)",
             borderBottom: "1px solid hsl(var(--border))", gap: 12,
           }}>
@@ -351,7 +351,7 @@ export default function AgingRecebiveis() {
                     key={`${r.paymentId}-${r.companyName}`}
                     to={`/pagamentos/${r.paymentId}`}
                     style={{
-                      display: "grid", gridTemplateColumns: "1fr 100px 120px 90px 90px",
+                      display: "grid", gridTemplateColumns: "1fr 150px 120px 90px 90px",
                       padding: "12px 22px", gap: 12, alignItems: "center",
                       borderBottom: i < sorted.length - 1 ? "1px solid hsl(var(--border))" : "none",
                       textDecoration: "none", color: "inherit",
@@ -366,13 +366,16 @@ export default function AgingRecebiveis() {
                       </div>
                     </div>
 
-                    <div>
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const,
-                        letterSpacing: "0.05em", borderRadius: 20, padding: "2px 7px",
-                        background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))",
-                        whiteSpace: "nowrap",
-                      }}>
+                    <div style={{ minWidth: 0, overflow: "hidden" }}>
+                      <span
+                        title={r.groupStatus.replace(/_/g, " ")}
+                        style={{
+                          display: "inline-block", maxWidth: "100%",
+                          fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const,
+                          letterSpacing: "0.05em", borderRadius: 20, padding: "2px 7px",
+                          background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))",
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>
                         {r.groupStatus.replace(/_/g, " ")}
                       </span>
                     </div>
