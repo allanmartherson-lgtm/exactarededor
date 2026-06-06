@@ -20,19 +20,49 @@ export default function FinancialIntelligence() {
       <div className="p-6">
         <Tabs defaultValue="funil" className="space-y-4">
           <TabsList className="flex h-auto flex-wrap items-center gap-1 p-1">
-            <span className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/90">
               Ciclo
             </span>
-            <TabsTrigger value="funil">Funil</TabsTrigger>
-            <TabsTrigger value="pjs-travadas">PJs travadas</TabsTrigger>
+            <TabsTrigger
+              value="funil"
+              className="font-medium text-muted-foreground hover:bg-muted hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              Funil
+            </TabsTrigger>
+            <TabsTrigger
+              value="pjs-travadas"
+              className="font-medium text-muted-foreground hover:bg-muted hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              PJs travadas
+            </TabsTrigger>
             <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-            <span className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/90">
               Análise
             </span>
-            <TabsTrigger value="benchmark">Benchmark</TabsTrigger>
-            <TabsTrigger value="tendencia">Tendência</TabsTrigger>
-            <TabsTrigger value="projecao">Projeção</TabsTrigger>
-            <TabsTrigger value="concentracao">Concentração</TabsTrigger>
+            <TabsTrigger
+              value="benchmark"
+              className="font-medium text-muted-foreground hover:bg-muted hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              Benchmark
+            </TabsTrigger>
+            <TabsTrigger
+              value="tendencia"
+              className="font-medium text-muted-foreground hover:bg-muted hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              Tendência
+            </TabsTrigger>
+            <TabsTrigger
+              value="projecao"
+              className="font-medium text-muted-foreground hover:bg-muted hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              Projeção
+            </TabsTrigger>
+            <TabsTrigger
+              value="concentracao"
+              className="font-medium text-muted-foreground hover:bg-muted hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              Concentração
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="funil"><FunnelTab /></TabsContent>
           <TabsContent value="pjs-travadas"><StuckCompaniesTab /></TabsContent>
