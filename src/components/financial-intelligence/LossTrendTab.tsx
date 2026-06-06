@@ -232,12 +232,23 @@ export const LossTrendTab = () => {
                       <LabelList
                         dataKey={k}
                         position="top"
-                        fontSize={10}
-                        fill="hsl(var(--muted-foreground))"
-                        formatter={(value: unknown, _name: unknown, _props: unknown, _index: unknown, payload: Record<string, unknown>) => {
-                          const m = payload?.month as string | undefined;
-                          if (m !== lastMonthKey) return "";
-                          return formatShortBRL(Number(value) || 0);
+                        content={(props: Record<string, unknown>) => {
+                          const idx = props.index as number;
+                          const value = props.value as number | undefined;
+                          const x = props.x as number;
+                          const y = props.y as number;
+                          if (idx !== chartData.length - 1 || value == null) return null;
+                          return (
+                            <text
+                              x={x}
+                              y={y - 8}
+                              fontSize={10}
+                              textAnchor="middle"
+                              fill="hsl(var(--muted-foreground))"
+                            >
+                              {formatShortBRL(Number(value))}
+                            </text>
+                          );
                         }}
                       />
                     </Line>
