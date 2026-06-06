@@ -38,7 +38,7 @@ const STATUS_BADGE: Record<Row["status"], string> = {
   rejeitado: "bg-muted text-muted-foreground border-border",
 };
 
-export default function ProcedureSpecialtyMap() {
+export default function ProcedureSpecialtyMap({ embedded = false }: { embedded?: boolean } = {}) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
