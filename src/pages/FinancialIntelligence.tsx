@@ -14,7 +14,7 @@ export default function FinancialIntelligence() {
     <div>
       <PageHeader
         title="Inteligência Financeira"
-        description="Tendências de gasto, projeção, concentração de risco e PJs com pagamentos travados"
+        description="Tendências de gasto, projeção e concentração de risco"
         icon={TrendingUp}
         showBack={false}
       />
