@@ -4350,6 +4350,42 @@ export type Database = {
           },
         ]
       }
+      pendencia_routing_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          attempted_thread_id: string | null
+          created_at: string
+          doctor_id: string | null
+          id: string
+          opened_by: string
+          pendencia_id: string
+          reason: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          attempted_thread_id?: string | null
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+          opened_by: string
+          pendencia_id: string
+          reason: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          attempted_thread_id?: string | null
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+          opened_by?: string
+          pendencia_id?: string
+          reason?: string
+        }
+        Relationships: []
+      }
       pendencias: {
         Row: {
           agreement_name: string
