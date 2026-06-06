@@ -167,7 +167,6 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Conversas", iconName: "ChatsIcon" },
   { label: "Supervisão de Atendimento", iconName: "ShieldCheck" },
   { label: "KPIs", iconName: "BarChart2" },
-  { label: "Executivo", iconName: "BarChart3" },
   { label: "Saúde do Processo", iconName: "Activity" },
   { label: "Contas a Pagar", iconName: "TrendingDown" },
   { label: "Inteligência Financeira", iconName: "TrendingUp" },
