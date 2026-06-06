@@ -6887,6 +6887,18 @@ export type Database = {
         Args: { p_competence_month?: string; p_doctor_id: string }
         Returns: Json
       }
+      get_doctors_missing_specialty: {
+        Args: never
+        Returns: {
+          current_specialties: string[]
+          doctor_name_norm: string
+          doctor_name_raw: string
+          matched_doctor_id: string
+          matched_doctor_name: string
+          n_items: number
+          total_gross: number
+        }[]
+      }
       get_dre_consolidated: {
         Args: {
           p_company_id?: string
