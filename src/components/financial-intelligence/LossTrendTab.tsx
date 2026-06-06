@@ -162,19 +162,85 @@ export const LossTrendTab = () => {
           </p>
         ) : (
           <>
-            <div className="h-72 w-full">
+            {monthlyTotals.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {monthlyTotals.map((mt) => {
+                  const up = (mt.deltaPct ?? 0) > 0;
+                  const down = (mt.deltaPct ?? 0) < 0;
+                  return (
+                    <div
+                      key={mt.month}
+                      className="flex flex-col rounded-md border bg-muted/30 px-3 py-2 min-w-[110px]"
+                    >
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                        {mt.month}
+                      </span>
+                      <span className="text-sm font-medium tabular-nums">{formatShortBRL(mt.total)}</span>
+                      <span className="flex items-center gap-0.5 text-[11px] tabular-nums text-muted-foreground">
+                        {mt.deltaPct === null ? (
+                          <>
+                            <Minus className="h-3 w-3" /> —
+                          </>
+                        ) : up ? (
+                          <>
+                            <ArrowUp className="h-3 w-3 text-destructive" />
+                            <span className="text-destructive">+{mt.deltaPct.toFixed(1)}%</span>
+                          </>
+                        ) : down ? (
+                          <>
+                            <ArrowDown className="h-3 w-3 text-success" />
+                            <span className="text-success">{mt.deltaPct.toFixed(1)}%</span>
+                          </>
+                        ) : (
+                          <>
+                            <Minus className="h-3 w-3" /> 0%
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+                <LineChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => formatBRL(v as number)} width={100} />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickFormatter={(v) => formatShortBRL(v as number)}
+                    width={70}
+                  />
                   <Tooltip
                     contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
                     formatter={(v: number) => formatBRL(v)}
+                    itemSorter={(item) => -Number(item.value ?? 0)}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                   {series.map((k, i) => (
-                    <Line key={k} type="monotone" dataKey={k} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
+                    <Line
+                      key={k}
+                      type="monotone"
+                      dataKey={k}
+                      stroke={colors[i % colors.length]}
+                      strokeWidth={2.5}
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
+                    >
+                      <LabelList
+                        dataKey={k}
+                        position="top"
+                        fontSize={10}
+                        fill="hsl(var(--muted-foreground))"
+                        formatter={(value: unknown, _name: unknown, _props: unknown, _index: unknown, payload: Record<string, unknown>) => {
+                          const m = payload?.month as string | undefined;
+                          if (m !== lastMonthKey) return "";
+                          return formatShortBRL(Number(value) || 0);
+                        }}
+                      />
+                    </Line>
                   ))}
                 </LineChart>
               </ResponsiveContainer>
