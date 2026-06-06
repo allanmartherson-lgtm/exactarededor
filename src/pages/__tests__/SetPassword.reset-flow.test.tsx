@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Auth from "@/pages/Auth";
 import SetPassword from "@/pages/SetPassword";
 
-const { recoveryAuth, mainAuth } = vi.hoisted(() => ({
-  recoveryAuth: {
+const { recoveryAuth, mainAuth, createPasswordRecoveryClientMock } = vi.hoisted(() => {
+  const recoveryAuth = {
     onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
     exchangeCodeForSession: vi.fn(),
     verifyOtp: vi.fn(),
@@ -14,17 +14,22 @@ const { recoveryAuth, mainAuth } = vi.hoisted(() => ({
     updateUser: vi.fn(),
     signOut: vi.fn(),
     resetPasswordForEmail: vi.fn(),
-  },
-  mainAuth: {
+  };
+  const mainAuth = {
     onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
     getSession: vi.fn(),
     signInWithPassword: vi.fn(),
     signOut: vi.fn(),
-  },
-}));
+  };
+  return {
+    recoveryAuth,
+    mainAuth,
+    createPasswordRecoveryClientMock: vi.fn(() => ({ auth: recoveryAuth })),
+  };
+});
 
 vi.mock("@/lib/passwordRecoveryClient", () => ({
-  createPasswordRecoveryClient: () => ({ auth: recoveryAuth }),
+  createPasswordRecoveryClient: createPasswordRecoveryClientMock,
   preparePasswordRecoveryCodeVerifier: () => ({ hasCodeVerifier: false, isRecoveryVerifier: false }),
 }));
 
