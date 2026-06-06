@@ -73,18 +73,45 @@ export function MassCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   useEffect(() => {
     if (!open) return;
     void (async () => {
+      // Paginação manual — PostgREST limita server-side a 1000 linhas por request,
+      // ignorando `.limit()` maiores. Buscamos em páginas até esgotar.
+      const fetchAll = async <T,>(
+        table: "companies" | "doctors",
+        select: string,
+        order: string,
+      ): Promise<T[]> => {
+        const PAGE = 1000;
+        const out: T[] = [];
+        for (let from = 0; ; from += PAGE) {
+          const { data, error } = await supabase
+            .from(table)
+            .select(select)
+            .eq("active", true)
+            .order(order)
+            .range(from, from + PAGE - 1);
+          if (error || !data) break;
+          out.push(...(data as unknown as T[]));
+          if (data.length < PAGE) break;
+        }
+        return out;
+      };
+
       const [c, d] = await Promise.all([
-        supabase.from("companies").select("id,name").eq("active", true).order("name").limit(2000),
-        supabase.from("doctors").select("id,full_name,specialties").eq("active", true).order("full_name").limit(5000),
+        fetchAll<Company>("companies", "id,name", "name"),
+        fetchAll<Doctor & { specialties: string[] | null }>(
+          "doctors",
+          "id,full_name,specialties",
+          "full_name",
+        ),
       ]);
-      setCompanies((c.data ?? []) as Company[]);
-      const docs = (d.data ?? []) as Array<Doctor & { specialties: string[] | null }>;
-      setDoctors(docs.map((x) => ({ id: x.id, full_name: x.full_name })));
+      setCompanies(c);
+      setDoctors(d.map((x) => ({ id: x.id, full_name: x.full_name })));
       const set = new Set<string>();
-      docs.forEach((x) => (x.specialties ?? []).forEach((s) => s && set.add(s)));
+      d.forEach((x) => (x.specialties ?? []).forEach((s) => s && set.add(s)));
       setSpecialtyOptions(Array.from(set).sort((a, b) => a.localeCompare(b)));
     })();
   }, [open]);
+
 
   const reset = () => {
     setTitle("");
@@ -476,6 +503,7 @@ function BatchCompanyPicker({
   };
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [typeFilter, setTypeFilter] = useState<string>("__all__");
+  const [competenceFilter, setCompetenceFilter] = useState<string>("__all__");
   const [paymentId, setPaymentId] = useState<string>("");
   const [batchCompanies, setBatchCompanies] = useState<Company[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -488,7 +516,7 @@ function BatchCompanyPicker({
         .from("payments")
         .select("id,reference,payment_type,competence_month,status")
         .order("created_at", { ascending: false })
-        .limit(60);
+        .limit(200);
       setPayments((data ?? []) as PaymentRow[]);
     })();
   }, [open]);
@@ -521,9 +549,22 @@ function BatchCompanyPicker({
   const types = Array.from(
     new Set(payments.map((p) => p.payment_type).filter((x): x is string => !!x))
   ).sort();
-  const visible = payments.filter((p) =>
-    typeFilter === "__all__" ? true : (p.payment_type ?? "") === typeFilter
-  );
+  const competences = Array.from(
+    new Set(
+      payments
+        .map((p) => (p.competence_month ? p.competence_month.slice(0, 7) : null))
+        .filter((x): x is string => !!x),
+    ),
+  ).sort((a, b) => b.localeCompare(a));
+  const visible = payments.filter((p) => {
+    if (typeFilter !== "__all__" && (p.payment_type ?? "") !== typeFilter) return false;
+    if (competenceFilter !== "__all__") {
+      const cm = p.competence_month ? p.competence_month.slice(0, 7) : "";
+      if (cm !== competenceFilter) return false;
+    }
+    return true;
+  });
+
 
   const toggle = (id: string) => {
     setSelectedIds((prev) => {
@@ -561,6 +602,25 @@ function BatchCompanyPicker({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-[12px]">Competência</Label>
+            <Select value={competenceFilter} onValueChange={setCompetenceFilter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todas</SelectItem>
+                {competences.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+
 
           <div className="flex flex-col gap-1.5">
             <Label className="text-[12px]">Lote</Label>
