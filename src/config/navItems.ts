@@ -106,7 +106,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/kpis", label: "KPIs", icon: BarChart2, iconName: "BarChart2", roles: ALL_ROLES },
       { to: "/executivo", label: "Executivo", icon: BarChart3, iconName: "BarChart3", roles: ["diretor", "admin"] as const },
       { to: "/relatorios/dre", label: "DRE & Posição em Aberto", icon: TrendingUp, iconName: "TrendingUp", roles: ["diretor", "admin", "analista", "validador"] as const },
-      { to: "/relatorios/saude-dinheiro", label: "Saúde do Dinheiro", icon: Activity, iconName: "Activity", roles: ["diretor", "admin", "analista", "validador"] as const },
+      
       { to: "/relatorios/observabilidade", label: "Observabilidade de Negócio", icon: BrainCircuit, iconName: "BrainCircuit", roles: ["diretor", "admin"] as const },
       { to: "/recebiveis", label: "Recebíveis", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
       { to: "/inteligencia-financeira", label: "Inteligência Financeira", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
@@ -197,7 +197,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Executivo", iconName: "BarChart3" },
   { label: "DRE & Posição em Aberto", iconName: "TrendingUp" },
-  { label: "Saúde do Dinheiro", iconName: "Activity" },
+  
   { label: "Observabilidade de Negócio", iconName: "BrainCircuit" },
   { label: "Recebíveis", iconName: "TrendingDown" },
   { label: "Inteligência Financeira", iconName: "TrendingUp" },
