@@ -104,6 +104,15 @@ export default function Conversas() {
 
   useEffect(() => {
     void load();
+    // carrega lista de campanhas para o filtro
+    void (async () => {
+      const { data } = await supabase
+        .from("comm_campaigns" as never)
+        .select("id,title")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      setCampaignOptions(((data ?? []) as unknown as { id: string; title: string }[]));
+    })();
     const channel = supabase
       .channel("conversas-inbox")
       .on(
@@ -122,6 +131,8 @@ export default function Conversas() {
     return threads.filter((t) => {
       if (statusFilter !== "todas" && t.status !== statusFilter) return false;
       if (scopeFilter !== "todos" && t.scope !== scopeFilter) return false;
+      if (sourceFilter !== "todos" && (t.source ?? "manual") !== sourceFilter) return false;
+      if (campaignFilter !== "todas" && t.campaign_id !== campaignFilter) return false;
       if (!q) return true;
       return (
         t.subject.toLowerCase().includes(q) ||
@@ -129,7 +140,7 @@ export default function Conversas() {
         (t.last_message_preview ?? "").toLowerCase().includes(q)
       );
     });
-  }, [threads, search, statusFilter, scopeFilter, companies]);
+  }, [threads, search, statusFilter, scopeFilter, sourceFilter, campaignFilter, companies]);
 
   useEffect(() => {
     if (!selectedId && filtered.length > 0) setSelectedId(filtered[0].id);
