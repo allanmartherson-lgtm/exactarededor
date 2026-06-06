@@ -283,22 +283,27 @@ export default function AgingRecebiveis() {
       {!loading && (
         <div style={{
           background: "#fdf5ec", border: "1px solid #9A6B3A40", borderRadius: 10,
-          padding: "14px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+          padding: "14px 22px",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Wallet size={16} style={{ color: "#9A6B3A" }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#9A6B3A" }}>
-              Total a pagar — {comMarco.length} PJ{comMarco.length !== 1 ? "s" : ""}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Wallet size={16} style={{ color: "#9A6B3A" }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#9A6B3A" }}>
+                Total a pagar — {comMarco.length} PJ{comMarco.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <span style={{ fontSize: 20, fontWeight: 600, color: "#9A6B3A", fontVariantNumeric: "tabular-nums" }}>
+              {formatCurrency(totalEmAberto)}
             </span>
+            {semMarco.length > 0 && (
+              <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                + {semMarco.length} PJ{semMarco.length !== 1 ? "s" : ""} sem data de {modeLabels[mode].toLowerCase()} disponível
+              </span>
+            )}
           </div>
-          <span style={{ fontSize: 20, fontWeight: 600, color: "#9A6B3A", fontVariantNumeric: "tabular-nums" }}>
-            {formatCurrency(totalEmAberto)}
-          </span>
-          {semMarco.length > 0 && (
-            <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
-              + {semMarco.length} PJ{semMarco.length !== 1 ? "s" : ""} sem data de {modeLabels[mode].toLowerCase()} disponível
-            </span>
-          )}
+          <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 8, lineHeight: 1.5 }}>
+            Inclui tudo que ainda não foi pago, inclusive itens em revisão. Para a posição líquida já aprovada aguardando pagamento, veja Inteligência Financeira › Posição em Aberto.
+          </p>
         </div>
       )}
 
