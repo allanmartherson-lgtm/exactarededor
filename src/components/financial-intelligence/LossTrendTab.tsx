@@ -34,11 +34,41 @@ export const LossTrendTab = () => {
     })();
   }, [grouping]);
 
-  const { chartData, series, alerts } = useMemo(() => {
-    if (!rows) return { chartData: [], series: [] as string[], alerts: [] as { key: string; pct: number }[] };
-    const months = Array.from(new Set(rows.map((r) => r.month_bucket))).sort();
+  const { chartData, series, alerts, hiddenCount, completeCount } = useMemo(() => {
+    const empty = {
+      chartData: [] as Record<string, number | string>[],
+      series: [] as string[],
+      alerts: [] as { key: string; pct: number }[],
+      hiddenCount: 0,
+      completeCount: 0,
+    };
+    if (!rows) return empty;
+
+    const allMonths = Array.from(new Set(rows.map((r) => r.month_bucket))).sort();
+    const totalsByMonth = new Map<string, number>();
+    for (const r of rows) {
+      totalsByMonth.set(r.month_bucket, (totalsByMonth.get(r.month_bucket) ?? 0) + Number(r.total));
+    }
+
+    const now = new Date();
+    const curYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const nonCurrent = allMonths.filter((m) => m.slice(0, 7) !== curYm);
+
+    const med = nonCurrent.length >= 2 ? median(nonCurrent.map((m) => totalsByMonth.get(m) ?? 0)) : 0;
+    const threshold = med * 0.3;
+    const months = nonCurrent.filter((m) => (totalsByMonth.get(m) ?? 0) >= threshold);
+    const hiddenCount = allMonths.length - months.length;
+
+    if (months.length < 2) {
+      return { ...empty, hiddenCount, completeCount: months.length };
+    }
+
+    const filteredRows = rows.filter((r) => months.includes(r.month_bucket));
     const topKeys = Array.from(
-      rows.reduce((m, r) => m.set(r.group_key, (m.get(r.group_key) ?? 0) + Number(r.total)), new Map<string, number>()),
+      filteredRows.reduce(
+        (m, r) => m.set(r.group_key, (m.get(r.group_key) ?? 0) + Number(r.total)),
+        new Map<string, number>(),
+      ),
     )
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
@@ -47,7 +77,7 @@ export const LossTrendTab = () => {
     const data = months.map((m) => {
       const o: Record<string, number | string> = { month: m.slice(0, 7) };
       for (const k of topKeys) {
-        const found = rows.find((r) => r.month_bucket === m && r.group_key === k);
+        const found = filteredRows.find((r) => r.month_bucket === m && r.group_key === k);
         o[k] = Number(found?.total ?? 0);
       }
       return o;
@@ -55,15 +85,17 @@ export const LossTrendTab = () => {
 
     const alertList: { key: string; pct: number }[] = [];
     for (const k of topKeys) {
-      const series = months.map((m) => Number(rows.find((r) => r.month_bucket === m && r.group_key === k)?.total ?? 0));
-      if (series.length < 6) continue;
-      const last = series[series.length - 1];
-      const baseline = mean(series.slice(0, -1));
+      const seriesVals = months.map(
+        (m) => Number(filteredRows.find((r) => r.month_bucket === m && r.group_key === k)?.total ?? 0),
+      );
+      if (seriesVals.length < 3) continue;
+      const last = seriesVals[seriesVals.length - 1];
+      const baseline = mean(seriesVals.slice(0, -1));
       if (baseline > 0 && last > baseline * 1.15) {
         alertList.push({ key: k, pct: ((last - baseline) / baseline) * 100 });
       }
     }
-    return { chartData: data, series: topKeys, alerts: alertList };
+    return { chartData: data, series: topKeys, alerts: alertList, hiddenCount, completeCount: months.length };
   }, [rows]);
 
   const colors = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#a855f7"];
