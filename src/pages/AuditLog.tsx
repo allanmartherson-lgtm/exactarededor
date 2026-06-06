@@ -296,8 +296,14 @@ const AuditLog = () => {
                 {filtered.map((e) => {
                   const open = !!expanded[e.id];
                   const actor = actorMeta(e.actor_id);
+                  const resolvedName =
+                    e.entity_type === "rule"
+                      ? ruleNames.get(e.entity_id)
+                      : e.entity_type === "payment"
+                        ? paymentRefs.get(e.entity_id)
+                        : entityNames.get(`${e.entity_type}:${e.entity_id}`);
                   const entityLabel =
-                    (e.entity_type === "rule" ? ruleNames.get(e.entity_id) : paymentRefs.get(e.entity_id)) ??
+                    resolvedName ??
                     `${ENTITY_LABELS[e.entity_type] ?? e.entity_type} ${e.entity_id.slice(0, 8)}`;
                   const cnpjDigits = e.company_document ? onlyDigits(e.company_document) : "";
                   const cnpjValid = cnpjDigits ? isValidCNPJ(cnpjDigits) : null;
