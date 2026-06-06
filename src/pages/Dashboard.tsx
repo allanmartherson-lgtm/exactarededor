@@ -1277,6 +1277,47 @@ const Dashboard = () => {
     return () => { cancelled = true; };
   }, [isDiretor, isValidador]);
 
+  // Supervisor (validador/admin) — totais para o card "Empresas que acompanho".
+  // Conta pendências em aberto e conversas (em andamento / aguardando resposta interna)
+  // em todas as empresas visíveis ao supervisor (já filtradas pelas RLS internas).
+  // Sem sino: é só acompanhamento.
+  useEffect(() => {
+    if (!isValidador) return;
+    let cancelled = false;
+    const fetchSupervisorTotals = async () => {
+      const [pendAll, pendHigh, thAll, thAwaiting] = await Promise.all([
+        supabase
+          .from("pendencias" as never)
+          .select("id", { count: "exact", head: true })
+          .in("status", ["aberta", "em_analise", "respondida"]),
+        supabase
+          .from("pendencias" as never)
+          .select("id", { count: "exact", head: true })
+          .in("status", ["aberta", "em_analise", "respondida"])
+          .eq("priority", "alta"),
+        supabase
+          .from("company_threads" as never)
+          .select("id", { count: "exact", head: true })
+          .neq("status", "fechada"),
+        supabase
+          .from("company_threads" as never)
+          .select("id", { count: "exact", head: true })
+          .gt("unread_for_internal", 0),
+      ]);
+      if (cancelled) return;
+      setSupervisorCounts({
+        pendOpen: pendAll.count ?? 0,
+        pendHighOpen: pendHigh.count ?? 0,
+        threadsAndamento: thAll.count ?? 0,
+        threadsAwaiting: thAwaiting.count ?? 0,
+      });
+    };
+    void fetchSupervisorTotals();
+    return () => { cancelled = true; };
+  }, [isValidador]);
+
+
+
 
 
 
