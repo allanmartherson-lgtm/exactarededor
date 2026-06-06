@@ -18,11 +18,11 @@ export const createPasswordRecoveryClient = (options: PasswordRecoveryClientOpti
     storageKey: PASSWORD_RECOVERY_STORAGE_KEY,
     persistSession: true,
     autoRefreshToken: true,
-    // PKCE coloca o token de recuperação em ?code=..., que sobrevive aos
-    // redirects do preview. Hash implicit (#access_token=...) é mantido só
-    // como fallback para links antigos.
+    // Reset de senha precisa funcionar mesmo quando o link é aberto fora do
+    // browser/origem que solicitou o e-mail. Por isso o padrão aqui é implicit:
+    // PKCE depende de code_verifier em localStorage e quebra ao cruzar preview/e-mail.
     detectSessionInUrl: true,
-    flowType: options.flowType ?? "pkce",
+    flowType: options.flowType ?? "implicit",
     skipAutoInitialize: options.skipAutoInitialize,
   } as Parameters<typeof createClient>[2]["auth"] & { skipAutoInitialize?: boolean };
 

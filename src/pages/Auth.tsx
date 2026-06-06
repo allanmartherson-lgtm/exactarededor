@@ -103,7 +103,7 @@ const Auth = () => {
     sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
     sessionStorage.setItem(PASSWORD_RECOVERY_EMAIL_KEY, parsed.data);
     setResetting(true);
-    const recoveryClient = createPasswordRecoveryClient();
+    const recoveryClient = createPasswordRecoveryClient({ flowType: "implicit" });
     const { error } = await recoveryClient.auth.resetPasswordForEmail(parsed.data, {
       redirectTo: `${getPasswordRecoveryOrigin()}/auth/reset-password`,
     });

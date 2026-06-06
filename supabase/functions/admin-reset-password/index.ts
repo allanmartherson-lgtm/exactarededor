@@ -94,10 +94,11 @@ serve(async (req) => {
       },
     });
 
-    // Dispara e-mail oficial de redefinição. Se cair em rate-limit (429),
-    // seguimos adiante e devolvemos um link manual para o admin compartilhar.
+    // Dispara e-mail oficial de redefinição. IMPORTANTE: não gerar outro link
+    // se o e-mail foi enviado, pois um novo token invalida o link recém-enviado.
     let emailSent = true;
     let emailWarning: string | null = null;
+    let appLink: string | null = null;
     try {
       const mailer = createClient(SUPABASE_URL, ANON);
       const { error: resetErr } = await mailer.auth.resetPasswordForEmail(targetEmail, { redirectTo });
@@ -107,23 +108,20 @@ serve(async (req) => {
       if (status === 429) {
         emailSent = false;
         emailWarning = "Limite de envio atingido. Use o link manual abaixo para compartilhar com o usuário.";
+        const { data: gen, error: genErr } = await admin.auth.admin.generateLink({
+          type: "recovery",
+          email: targetEmail,
+          options: redirectTo ? { redirectTo } : undefined,
+        });
+        if (genErr) throw genErr;
+        const tokenHash = gen?.properties?.hashed_token ?? null;
+        appLink = redirectTo && tokenHash
+          ? `${redirectTo}?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`
+          : (gen?.properties?.action_link ?? null);
       } else {
         throw mailErr;
       }
     }
-
-    // Link manual de contingência (mesma rota/parâmetros que o e-mail oficial).
-    const { data: gen, error: genErr } = await admin.auth.admin.generateLink({
-      type: "recovery",
-      email: targetEmail,
-      options: redirectTo ? { redirectTo } : undefined,
-    });
-    if (genErr) throw genErr;
-
-    const tokenHash = gen?.properties?.hashed_token ?? null;
-    const appLink = redirectTo && tokenHash
-      ? `${redirectTo}?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`
-      : (gen?.properties?.action_link ?? null);
 
     return new Response(
       JSON.stringify({
