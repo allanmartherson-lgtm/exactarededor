@@ -1062,6 +1062,7 @@ export type Database = {
       }
       company_threads: {
         Row: {
+          campaign_id: string | null
           company_id: string
           created_at: string
           created_by_type: string
@@ -1073,12 +1074,14 @@ export type Database = {
           last_message_preview: string | null
           payment_id: string | null
           scope: string
+          source: string | null
           status: string
           subject: string
           unread_for_company: number
           unread_for_internal: number
         }
         Insert: {
+          campaign_id?: string | null
           company_id: string
           created_at?: string
           created_by_type: string
@@ -1090,12 +1093,14 @@ export type Database = {
           last_message_preview?: string | null
           payment_id?: string | null
           scope: string
+          source?: string | null
           status?: string
           subject: string
           unread_for_company?: number
           unread_for_internal?: number
         }
         Update: {
+          campaign_id?: string | null
           company_id?: string
           created_at?: string
           created_by_type?: string
@@ -1107,12 +1112,20 @@ export type Database = {
           last_message_preview?: string | null
           payment_id?: string | null
           scope?: string
+          source?: string | null
           status?: string
           subject?: string
           unread_for_company?: number
           unread_for_internal?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "company_threads_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "comm_campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "company_threads_company_id_fkey"
             columns: ["company_id"]
@@ -1569,6 +1582,7 @@ export type Database = {
           author_name: string
           author_type: string
           author_user_id: string | null
+          campaign_id: string | null
           created_at: string
           doctor_id: string
           first_response_at: string | null
@@ -1589,6 +1603,7 @@ export type Database = {
           author_name: string
           author_type: string
           author_user_id?: string | null
+          campaign_id?: string | null
           created_at?: string
           doctor_id: string
           first_response_at?: string | null
@@ -1609,6 +1624,7 @@ export type Database = {
           author_name?: string
           author_type?: string
           author_user_id?: string | null
+          campaign_id?: string | null
           created_at?: string
           doctor_id?: string
           first_response_at?: string | null
@@ -1630,6 +1646,13 @@ export type Database = {
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "comm_campaigns"
             referencedColumns: ["id"]
           },
           {
@@ -7530,6 +7553,10 @@ export type Database = {
         Returns: string
       }
       mark_all_doctor_notifications_read: { Args: never; Returns: number }
+      mark_campaign_read: {
+        Args: { _recipient_id: string }
+        Returns: undefined
+      }
       mark_doctor_notification_read: {
         Args: { p_id: string }
         Returns: boolean
