@@ -746,6 +746,7 @@ export default function Doctors() {
             <TabsTrigger value="provisional">Cadastros provisórios</TabsTrigger>
             <TabsTrigger value="pending">Pendências de cadastro</TabsTrigger>
             <TabsTrigger value="aliases">Aliases</TabsTrigger>
+            <TabsTrigger value="missing-specialty">Especialidades pendentes</TabsTrigger>
           </TabsList>
           <TabsContent value="provisional" className="mt-4">
             <DoctorPendingReviewPanel />
@@ -755,6 +756,9 @@ export default function Doctors() {
           </TabsContent>
           <TabsContent value="aliases" className="mt-4">
             <RegistryAliasesPanel kind="doctor" />
+          </TabsContent>
+          <TabsContent value="missing-specialty" className="mt-4">
+            <DoctorMissingSpecialtyPanel />
           </TabsContent>
           <TabsContent value="list" className="mt-4 space-y-3">
         <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-md px-3 py-2">
