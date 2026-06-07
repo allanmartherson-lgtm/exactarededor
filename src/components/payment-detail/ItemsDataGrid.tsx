@@ -1585,7 +1585,9 @@ function RowMain({
             baseCellBg,
           )}
         >
-          {isBonus ? "—" : (expN != null ? formatCurrency(expN) : "—")}
+          {isBonus
+            ? (!showGrossColumn && expN != null ? formatCurrency(expN) : "—")
+            : (expN != null ? formatCurrency(expN) : "—")}
         </td>
         {showDiferencaCol && (
           <td
