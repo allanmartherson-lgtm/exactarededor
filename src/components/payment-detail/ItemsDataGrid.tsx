@@ -1399,6 +1399,7 @@ function RowMain({
   onAcceptItem,
   onUndoAcceptItem,
   showGrossColumn = true,
+  showProcedureColumn = false,
   showDiferencaCol = true,
 }: {
   it: PaymentItemRowData;
