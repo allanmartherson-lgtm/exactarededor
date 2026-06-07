@@ -1396,7 +1396,7 @@ export default function CompanyAnalysis() {
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
   const canActAnalista =
-    (gStatus === "rascunho" || gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao" || isConfeccaoEditable) &&
+    (gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao" || isConfeccaoEditable) &&
     isAnalistaRole && (isOwner || isAdmin);
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
   const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
@@ -1997,7 +1997,7 @@ export default function CompanyAnalysis() {
 
               {canActAnalista && (
                 <>
-                  {(gStatus === "rascunho" || gStatus === "revisao_analista" || gStatus === "devolvido_analista" || isConfeccaoEditable) && (
+                  {(gStatus === "revisao_analista" || gStatus === "devolvido_analista" || isConfeccaoEditable) && (
                     <>
                       <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
                         <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
