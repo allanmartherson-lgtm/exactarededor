@@ -2021,11 +2021,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           .eq("payment_id", payment_id);
         const groupTotalByCompany: Record<string, number> = {};
         let groupsTotalSum = 0;
+        let scopedGroupsTotalSum = 0;
         for (const g of (groupsAfter ?? [])) {
           const key = (g as any).company_name?.toString().trim() || "Sem empresa";
           const t = Number((g as any).total_amount ?? 0);
           groupTotalByCompany[key] = (groupTotalByCompany[key] ?? 0) + t;
           groupsTotalSum += t;
+          if (compsToCheck.includes(key)) scopedGroupsTotalSum += t;
         }
 
         const divergences: string[] = [];
@@ -2052,11 +2054,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           }
         }
 
-        // (3) lote: Σ total_amount dos grupos == Σ gross de todos os itens
-        const allGross = Object.values(itemsByCompany).reduce((s, v) => s + v.gross, 0);
-        if (Math.abs(allGross - groupsTotalSum) > EPS) {
+        // (3) escopo processado: em worker por empresa, outras empresas podem
+        // estar stale de reanálises anteriores; não devem gerar falso alerta na
+        // empresa atual. Em análise global, compsToCheck cobre o lote inteiro.
+        const scopedGross = compsToCheck.reduce((s, comp) => s + (itemsByCompany[comp]?.gross ?? 0), 0);
+        if (Math.abs(scopedGross - scopedGroupsTotalSum) > EPS) {
           divergences.push(
-            `[lote] Σ grupos R$ ${groupsTotalSum.toFixed(2)} ≠ Σ gross itens R$ ${allGross.toFixed(2)}`,
+            `[escopo bônus] Σ grupos R$ ${scopedGroupsTotalSum.toFixed(2)} ≠ Σ gross itens R$ ${scopedGross.toFixed(2)}`,
           );
         }
 
