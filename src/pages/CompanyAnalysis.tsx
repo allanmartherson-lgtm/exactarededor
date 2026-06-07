@@ -1497,7 +1497,7 @@ export default function CompanyAnalysis() {
                         <Pencil className="h-3.5 w-3.5 mr-1" /> Trocar empresa
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="w-auto max-w-[min(92vw,720px)] sm:max-w-[min(92vw,720px)]">
                       <DialogHeader>
                         <DialogTitle>Trocar empresa do grupo</DialogTitle>
                         <DialogDescription>
@@ -1506,8 +1506,8 @@ export default function CompanyAnalysis() {
                           para futuras correspondências automáticas. As regras serão reaplicadas em seguida.
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="py-2">
-                        <CompanyCombobox value={newCompany} onChange={setNewCompany} className="w-full" />
+                      <div className="py-2 min-w-0">
+                        <CompanyCombobox value={newCompany} onChange={setNewCompany} className="w-full min-w-[320px] max-w-full" />
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setChangeCompanyOpen(false)} disabled={changingCompany}>
