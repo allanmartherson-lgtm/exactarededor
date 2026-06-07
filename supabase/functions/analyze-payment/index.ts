@@ -1009,93 +1009,160 @@ NUNCA mude status ou valores. Sua saída auxilia a decisão humana.
 ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${correctionContext}${historyText}`;
 
       // A IA é apenas justificativa textual; o motor determinístico já decidiu.
-      // Para empresas grandes (>25 itens) dividimos em chunks sequenciais para
-      // caber dentro do timeout por chamada e evitar rate-limit do Anthropic.
-      const AI_CHUNK_SIZE = 25;
-      const AI_TIMEOUT_MS = 60_000;
+      // CHUNKS PARALELOS COM RETRY: empresas grandes (>15 itens) eram quebradas em
+      // chunks SEQUENCIAIS, acumulando timeouts (60s × N chunks → estouro do limite
+      // de 150s da edge function) e perdendo a IA de empresas inteiras em silêncio.
+      //
+      // Mudanças contra o "trava e some" relatado em produção:
+      //  1. AI_CHUNK_SIZE 25→15: payload menor = resposta mais rápida e menos provável
+      //     de bater o timeout de upstream do Anthropic.
+      //  2. AI_TIMEOUT_MS 60s→90s: extended-thinking do Claude às vezes passa de 60s;
+      //     abortar cedo só forçava retry desnecessário.
+      //  3. AI_MAX_RETRIES=1 por chunk em AbortError/erro de rede: a maioria dos
+      //     timeouts é transitória e sucede na segunda tentativa.
+      //  4. Concorrência AI_CHUNK_CONCURRENCY=3: chunks rodam em paralelo limitado.
+      //     Reduz tempo total da IA proporcionalmente sem sobrecarregar o Anthropic.
+      //  5. Telemetria por chunk + aviso no summary: falha parcial agora aparece
+      //     em analysis_telemetry (ai_chunks_failed) e como prefixo no resumo
+      //     entregue ao usuário ("⚠️ N de M chunks da IA falharam — justificativas
+      //     incompletas"). Antes a falha era 100% silenciosa.
+      const AI_CHUNK_SIZE = 15;
+      const AI_TIMEOUT_MS = 90_000;
+      const AI_MAX_RETRIES = 1;
+      const AI_CHUNK_CONCURRENCY = 3;
+
       const aiChunks: typeof itemsForAi[] = [];
       for (let i = 0; i < itemsForAi.length; i += AI_CHUNK_SIZE) {
         aiChunks.push(itemsForAi.slice(i, i + AI_CHUNK_SIZE));
       }
+      __telemetry.ai_chunks_total = aiChunks.length;
       const summaries: string[] = [];
 
-      for (let ci = 0; ci < aiChunks.length; ci++) {
-        const chunk = aiChunks[ci];
-        const aiAbort = new AbortController();
-        const aiTimer = setTimeout(() => aiAbort.abort(), AI_TIMEOUT_MS);
-        let aiResp: Response | null = null;
-        try {
-          aiResp = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            signal: aiAbort.signal,
-            headers: {
-              "x-api-key": ANTHROPIC_API_KEY!,
-              "anthropic-version": "2023-06-01",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-5",
-              max_tokens: 4096,
-              system: systemPrompt,
-              messages: [
-                { role: "user", content: `Itens marcados pelo motor (JSON) — chunk ${ci + 1}/${aiChunks.length}:\n${JSON.stringify(chunk, null, 2)}` },
-              ],
-              tools: [{
-                name: "report_justifications",
-                description: "Justifica cada item já analisado pelo motor",
-                input_schema: {
-                  type: "object",
-                  properties: {
-                    summary: { type: "string", description: "Resumo OBJETIVO em pt-BR, máx. 2 frases, focado no que o gestor precisa decidir." },
-                    items: {
-                      type: "array",
+      // Roda UM chunk com retry em AbortError/erro de rede. Erros 4xx/5xx do
+      // Anthropic NÃO são tratados como retry — passar pelo retry só ajuda
+      // em falha transitória (timeout/rede); erro persistente fica registrado.
+      const runChunk = async (chunk: typeof itemsForAi[number], ci: number): Promise<boolean> => {
+        for (let attempt = 0; attempt <= AI_MAX_RETRIES; attempt++) {
+          const aiAbort = new AbortController();
+          const aiTimer = setTimeout(() => aiAbort.abort(), AI_TIMEOUT_MS);
+          let aiResp: Response | null = null;
+          try {
+            aiResp = await fetch("https://api.anthropic.com/v1/messages", {
+              method: "POST",
+              signal: aiAbort.signal,
+              headers: {
+                "x-api-key": ANTHROPIC_API_KEY!,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "claude-sonnet-4-5",
+                max_tokens: 4096,
+                system: systemPrompt,
+                messages: [
+                  { role: "user", content: `Itens marcados pelo motor (JSON) — chunk ${ci + 1}/${aiChunks.length}:\n${JSON.stringify(chunk, null, 2)}` },
+                ],
+                tools: [{
+                  name: "report_justifications",
+                  description: "Justifica cada item já analisado pelo motor",
+                  input_schema: {
+                    type: "object",
+                    properties: {
+                      summary: { type: "string", description: "Resumo OBJETIVO em pt-BR, máx. 2 frases, focado no que o gestor precisa decidir." },
                       items: {
-                        type: "object",
-                        properties: {
-                          id: { type: "string" },
-                          ai_note: { type: "string", description: "Justificativa curta do alerta/reprovação." },
-                          extra_alerts: { type: "array", items: { type: "string" }, description: "Alertas EXTRAS que o motor não capturou. Vazio se nada a acrescentar." },
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            ai_note: { type: "string", description: "Justificativa curta do alerta/reprovação." },
+                            extra_alerts: { type: "array", items: { type: "string" }, description: "Alertas EXTRAS que o motor não capturou. Vazio se nada a acrescentar." },
+                          },
+                          required: ["id", "ai_note", "extra_alerts"],
+                          additionalProperties: false,
                         },
-                        required: ["id", "ai_note", "extra_alerts"],
-                        additionalProperties: false,
                       },
                     },
+                    required: ["summary", "items"],
+                    additionalProperties: false,
                   },
-                  required: ["summary", "items"],
-                  additionalProperties: false,
-                },
-              }],
-              tool_choice: { type: "tool", name: "report_justifications" },
-            }),
-          });
+                }],
+                tool_choice: { type: "tool", name: "report_justifications" },
+              }),
+            });
 
-          if (aiResp && aiResp.ok) {
-            const aiData = await aiResp.json();
-            const tc = aiData.content?.find((b: any) => b.type === "tool_use");
-            if (tc) {
-              const parsed = tc.input;
-              for (const it of parsed.items ?? []) {
-                aiJustifications[it.id] = {
-                  extra_alerts: Array.isArray(it.extra_alerts) ? it.extra_alerts : [],
-                  ai_note: typeof it.ai_note === "string" ? it.ai_note : "",
-                };
+            if (aiResp.ok) {
+              const aiData = await aiResp.json();
+              const tc = aiData.content?.find((b: any) => b.type === "tool_use");
+              if (tc) {
+                const parsed = tc.input;
+                for (const it of parsed.items ?? []) {
+                  aiJustifications[it.id] = {
+                    extra_alerts: Array.isArray(it.extra_alerts) ? it.extra_alerts : [],
+                    ai_note: typeof it.ai_note === "string" ? it.ai_note : "",
+                  };
+                }
+                if (parsed.summary) summaries.push(parsed.summary);
               }
-              if (parsed.summary) summaries.push(parsed.summary);
+              return true;
             }
-          } else if (aiResp) {
-            const txt = await aiResp.text();
+
+            // 429/529 (overloaded/rate-limited) são transitórios: vale retry.
+            if (aiResp.status === 429 || aiResp.status === 529) {
+              const txt = await aiResp.text().catch(() => "");
+              console.warn(`${__t} AI ${aiResp.status} chunk ${ci + 1}/${aiChunks.length} attempt ${attempt + 1}: ${txt.slice(0, 200)}`);
+              if (attempt < AI_MAX_RETRIES) {
+                __telemetry.ai_chunks_retried++;
+                await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+                continue;
+              }
+              return false;
+            }
+
+            // Outros erros HTTP: não vale retry; loga e desiste deste chunk.
+            const txt = await aiResp.text().catch(() => "");
             console.error(`${__t} AI justification error chunk ${ci + 1}/${aiChunks.length}`, aiResp.status, txt);
-            // Falha de IA não derruba a análise — motor já decidiu tudo.
+            return false;
+          } catch (aiErr: any) {
+            // Abort/timeout/rede: retry se ainda houver tentativa.
+            const msg = aiErr?.message ?? String(aiErr);
+            const isTransient = msg.includes("abort") || msg.includes("network") || aiErr?.name === "AbortError" || aiErr?.name === "TypeError";
+            console.warn(`${__t} chamada_ia chunk ${ci + 1}/${aiChunks.length} attempt ${attempt + 1} falhou: ${msg}`);
+            if (isTransient && attempt < AI_MAX_RETRIES) {
+              __telemetry.ai_chunks_retried++;
+              await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+              continue;
+            }
+            return false;
+          } finally {
+            clearTimeout(aiTimer);
           }
-        } catch (aiErr: any) {
-          // Timeout/abort ou erro de rede — segue só com o motor determinístico.
-          console.error(`${__t} chamada_ia falhou (chunk ${ci + 1}/${aiChunks.length}):`, aiErr?.message ?? aiErr);
-        } finally {
-          clearTimeout(aiTimer);
         }
+        return false;
+      };
+
+      // Pool de concorrência simples: até AI_CHUNK_CONCURRENCY chunks em voo.
+      const indexed = aiChunks.map((c, i) => ({ chunk: c, idx: i }));
+      const failedChunks: number[] = [];
+      for (let i = 0; i < indexed.length; i += AI_CHUNK_CONCURRENCY) {
+        const slice = indexed.slice(i, i + AI_CHUNK_CONCURRENCY);
+        const results = await Promise.all(slice.map(({ chunk, idx }) => runChunk(chunk, idx)));
+        results.forEach((ok, k) => { if (!ok) failedChunks.push(slice[k].idx); });
       }
-      (aiJustifications as any).__summary = summaries.join(" ");
+      __telemetry.ai_chunks_failed = failedChunks.length;
+
+      // VISIBILIDADE: prefixa o resumo com aviso de falha parcial para que o
+      // analista NÃO interprete ausência de justificativas como "tudo certo".
+      let summaryText = summaries.join(" ");
+      if (failedChunks.length > 0) {
+        const warn = `⚠️ ${failedChunks.length} de ${aiChunks.length} chunks da IA falharam após retry — justificativas podem estar incompletas.`;
+        summaryText = `${warn} ${summaryText}`.trim();
+        console.error(`${__t} ai_partial_failure: ${failedChunks.length}/${aiChunks.length} chunks falharam (chunks ${failedChunks.join(",")})`);
+      }
+      (aiJustifications as any).__summary = summaryText;
     }
+
+
 
     console.timeEnd(`${__t} chamada_ia`);
     __telemetry.ai_ms = Date.now() - __aiStart;
