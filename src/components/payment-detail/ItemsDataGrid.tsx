@@ -1294,6 +1294,7 @@ export function ItemsDataGrid({
                       onAcceptItem={onAcceptItem}
                       onUndoAcceptItem={onUndoAcceptItem}
                       showGrossColumn={showGrossColumn}
+                      showProcedureColumn={showProcedureColumn}
                       showDiferencaCol={showDiferencaCol}
                     />
                   </Fragment>
