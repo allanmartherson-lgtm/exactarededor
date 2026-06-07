@@ -982,9 +982,9 @@ export function ItemsDataGrid({
               <col style={{ width: 180 }} />
               {colVis.funcao && <col style={{ width: 120 }} />}
               {colVis.regra && <col style={{ width: 180 }} />}
+              {showGrossColumn && <col style={{ width: 110 }} />}
               <col style={{ width: 110 }} />
-              <col style={{ width: 110 }} />
-              {colVis.diferenca && <col style={{ width: 110 }} />}
+              {showDiferencaCol && <col style={{ width: 110 }} />}
               <col style={{ width: 110 }} />
               {colVis.observacao && <col style={{ width: 70 }} />}
               {canEdit && <col style={{ width: 120 }} />}
