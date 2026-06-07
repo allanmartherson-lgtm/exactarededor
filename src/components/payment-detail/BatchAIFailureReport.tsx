@@ -1,0 +1,246 @@
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download } from "lucide-react";
+
+type FailedCompany = { company_name: string; error: string; at?: string };
+
+type Job = {
+  id: string;
+  payment_id: string;
+  status: string;
+  failed_companies: FailedCompany[] | null;
+  created_at: string;
+  finished_at: string | null;
+};
+
+type TelemetryRow = {
+  id: string;
+  job_id: string | null;
+  company_name: string | null;
+  error: string | null;
+  ai_items_count: number | null;
+  items_count: number | null;
+  created_at: string;
+};
+
+type GroupRow = {
+  id: string;
+  company_name: string | null;
+  company_id: string | null;
+};
+
+type ReportEntry = {
+  companyName: string;
+  type: "total" | "parcial";
+  reason: string;
+  groupId: string | null;
+  at?: string;
+};
+
+function parsePartial(err: string | null): { failed: number; total: number; retries?: number } | null {
+  if (!err) return null;
+  const m = err.match(/ai_partial_failure:\s*(\d+)\s*\/\s*(\d+)\s*chunks falharam(?:\s*\(retries:\s*(\d+)\))?/i);
+  if (!m) return null;
+  return { failed: Number(m[1]), total: Number(m[2]), retries: m[3] ? Number(m[3]) : undefined };
+}
+
+function norm(s: string | null | undefined): string {
+  return (s ?? "").trim().toLowerCase();
+}
+
+export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
+  const [job, setJob] = useState<Job | null>(null);
+  const [telemetry, setTelemetry] = useState<TelemetryRow[]>([]);
+  const [groups, setGroups] = useState<GroupRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data: jobData } = await supabase
+      .from("payment_processing_jobs")
+      .select("id, payment_id, status, failed_companies, created_at, finished_at")
+      .eq("payment_id", paymentId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const j = (jobData as Job | null) ?? null;
+    setJob(j);
+
+    const [{ data: tel }, { data: grp }] = await Promise.all([
+      j
+        ? supabase
+            .from("analysis_telemetry")
+            .select("id, job_id, company_name, error, ai_items_count, items_count, created_at")
+            .eq("job_id", j.id)
+        : Promise.resolve({ data: [] as TelemetryRow[] } as { data: TelemetryRow[] }),
+      supabase
+        .from("payment_company_groups")
+        .select("id, company_name, company_id")
+        .eq("payment_id", paymentId),
+    ]);
+
+    setTelemetry(((tel as TelemetryRow[]) ?? []).filter((r) => !!r.error));
+    setGroups((grp as GroupRow[]) ?? []);
+    setLoading(false);
+  }, [paymentId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) return null;
+  if (!job) return null;
+
+  const groupByName = new Map<string, GroupRow>();
+  for (const g of groups) groupByName.set(norm(g.company_name), g);
+
+  const entries: ReportEntry[] = [];
+
+  // Total failures: companies the job marked as failed (didn't finish)
+  for (const f of job.failed_companies ?? []) {
+    const g = groupByName.get(norm(f.company_name));
+    entries.push({
+      companyName: f.company_name,
+      type: "total",
+      reason: f.error || "Falha não especificada",
+      groupId: g?.id ?? null,
+      at: f.at,
+    });
+  }
+
+  // Partial failures: telemetry rows with ai_partial_failure marker
+  const seenPartial = new Set<string>();
+  for (const t of telemetry) {
+    const partial = parsePartial(t.error);
+    if (!partial) continue;
+    const key = norm(t.company_name) + "|" + t.id;
+    if (seenPartial.has(key)) continue;
+    seenPartial.add(key);
+    const g = groupByName.get(norm(t.company_name));
+    const retries = partial.retries != null ? `, ${partial.retries} retries` : "";
+    entries.push({
+      companyName: t.company_name ?? "(sem empresa)",
+      type: "parcial",
+      reason: `IA: ${partial.failed} de ${partial.total} chunks falharam após retry${retries}. Justificativas podem estar incompletas.`,
+      groupId: g?.id ?? null,
+      at: t.created_at,
+    });
+  }
+
+  if (entries.length === 0) return null;
+
+  const totalCount = entries.filter((e) => e.type === "total").length;
+  const partialCount = entries.filter((e) => e.type === "parcial").length;
+
+  const exportCsv = () => {
+    const header = ["Tipo", "Empresa", "Justificativa", "Quando", "Link"];
+    const baseUrl = window.location.origin + window.location.pathname;
+    const rows = entries.map((e) => [
+      e.type === "total" ? "Falha total" : "Falha parcial",
+      e.companyName,
+      e.reason.replace(/"/g, '""'),
+      e.at ?? "",
+      e.groupId ? `${baseUrl}#group-${e.groupId}` : "",
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `relatorio-ia-lote-${job.id.slice(0, 8)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const openEvidence = (groupId: string | null) => {
+    if (!groupId) return;
+    window.location.hash = `group-${groupId}`;
+    const el = document.getElementById(`group-${groupId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/30 dark:bg-amber-950/10">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileWarning className="h-4 w-4 text-amber-600" />
+            Relatório de falhas da IA — lote{" "}
+            <span className="font-mono text-xs text-muted-foreground">{job.id.slice(0, 8)}</span>
+            <Badge variant="outline" className="ml-1">
+              {totalCount} totais
+            </Badge>
+            <Badge variant="outline">{partialCount} parciais</Badge>
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={exportCsv}>
+              <Download className="h-3 w-3 mr-1" />
+              Exportar CSV
+            </Button>
+            <Button size="sm" variant="ghost" onClick={load}>
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Atualizar
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <ul className="divide-y divide-border/60">
+          {entries.map((e, i) => (
+            <li key={i} className="py-2.5 flex items-start gap-3">
+              <div className="mt-0.5">
+                {e.type === "total" ? (
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm">{e.companyName}</span>
+                  <Badge
+                    variant={e.type === "total" ? "destructive" : "secondary"}
+                    className="text-[10px] uppercase tracking-wide"
+                  >
+                    {e.type === "total" ? "Falha total" : "Falha parcial"}
+                  </Badge>
+                  {e.at && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {new Date(e.at).toLocaleString("pt-BR")}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1 break-words">{e.reason}</div>
+              </div>
+              <div className="shrink-0">
+                {e.groupId ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openEvidence(e.groupId)}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Abrir evidência
+                  </Button>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground italic">
+                    Empresa sem grupo no pagamento
+                  </span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default BatchAIFailureReport;
