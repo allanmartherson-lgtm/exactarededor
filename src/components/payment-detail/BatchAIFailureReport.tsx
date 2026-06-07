@@ -3,9 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download } from "lucide-react";
+import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download, Search } from "lucide-react";
 
-type FailedCompany = { company_name: string; error: string; at?: string };
+type FailedCompany = { company_name: string; company_id?: string | null; error: string; at?: string };
 
 type Job = {
   id: string;
@@ -20,6 +20,7 @@ type TelemetryRow = {
   id: string;
   job_id: string | null;
   company_name: string | null;
+  company_id?: string | null;
   error: string | null;
   ai_items_count: number | null;
   items_count: number | null;
@@ -37,6 +38,8 @@ type ReportEntry = {
   type: "total" | "parcial";
   reason: string;
   groupId: string | null;
+  companyId: string | null;
+  matchSource: "name" | "id" | "fuzzy" | "none";
   at?: string;
 };
 
@@ -49,6 +52,33 @@ function parsePartial(err: string | null): { failed: number; total: number; retr
 
 function norm(s: string | null | undefined): string {
   return (s ?? "").trim().toLowerCase();
+}
+
+// Fuzzy normalization: strip accents, legal suffixes, punctuation, collapse spaces
+function fuzzy(s: string | null | undefined): string {
+  return (s ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(ltda|me|epp|eireli|s\.?a\.?|s\/a|cnpj|cpf)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveMatch(
+  name: string | null | undefined,
+  cid: string | null | undefined,
+  byName: Map<string, GroupRow>,
+  byId: Map<string, GroupRow>,
+  byFuzzy: Map<string, GroupRow>,
+): { group: GroupRow | null; source: "name" | "id" | "fuzzy" | "none" } {
+  const n = norm(name);
+  if (n && byName.has(n)) return { group: byName.get(n)!, source: "name" };
+  if (cid && byId.has(cid)) return { group: byId.get(cid)!, source: "id" };
+  const f = fuzzy(name);
+  if (f && byFuzzy.has(f)) return { group: byFuzzy.get(f)!, source: "fuzzy" };
+  return { group: null, source: "none" };
 }
 
 export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
