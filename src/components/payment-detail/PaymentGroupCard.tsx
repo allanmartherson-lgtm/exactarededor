@@ -428,23 +428,10 @@ export const PaymentGroupCard = ({
         </div>
       )}
 
-      {onAskQuestion && (
-        <div className="border-t border-border/60 bg-muted/30 px-3 py-1.5 md:px-4 flex justify-end">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
-            title={`Fazer questionamento sobre ${g.company_name}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAskQuestion();
-            }}
-          >
-            <MessageCircleQuestion className="h-3.5 w-3.5 mr-1" />
-            Fazer questionamento
-          </Button>
-        </div>
-      )}
+      {/* Botão "Fazer questionamento" removido daqui — o canal de conversa
+          já está disponível via FAB "Conversas" (lote) e, ao abrir a empresa,
+          a thread é automaticamente escopada para aquela PJ. Mantemos a prop
+          onAskQuestion para compatibilidade, mas não renderizamos botão. */}
 
 
 
