@@ -1406,6 +1406,8 @@ function RowMain({
   onDeleteItem?: (item: PaymentItemRowData) => void;
   onAcceptItem?: (item: PaymentItemRowData) => void;
   onUndoAcceptItem?: (item: PaymentItemRowData) => void;
+  showGrossColumn?: boolean;
+  showDiferencaCol?: boolean;
 }) {
   const convenio = getAgreement(it);
   const grossN = Number(it.gross_amount ?? 0);
