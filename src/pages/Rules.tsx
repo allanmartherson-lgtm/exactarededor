@@ -13,6 +13,7 @@ import { FormDialog } from "@/components/FormDialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
