@@ -1096,25 +1096,27 @@ export function ItemsDataGrid({
                 </th>
                 {colVis.funcao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função</th>}
                 {colVis.regra && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra</th>}
-                <th
-                  scope="col"
-                  aria-sort={sortKey === "gross" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                  className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("gross")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
-                    aria-label={`Ordenar por Valor Repasse${sortKey === "gross" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                {showGrossColumn && (
+                  <th
+                    scope="col"
+                    aria-sort={sortKey === "gross" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                    className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
                   >
-                    Valor Repasse
-                    {sortKey === "gross"
-                      ? (sortDir === "asc"
-                          ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
-                          : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
-                      : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
-                  </button>
-                </th>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("gross")}
+                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
+                      aria-label={`Ordenar por Valor Repasse${sortKey === "gross" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                    >
+                      Valor Repasse
+                      {sortKey === "gross"
+                        ? (sortDir === "asc"
+                            ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                            : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                        : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                    </button>
+                  </th>
+                )}
                 <th
                   scope="col"
                   aria-sort={sortKey === "esperado" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -1124,9 +1126,9 @@ export function ItemsDataGrid({
                     type="button"
                     onClick={() => toggleSort("esperado")}
                     className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
-                    aria-label={`Ordenar por Esperado${sortKey === "esperado" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                    aria-label={`Ordenar por ${expectedLabel}${sortKey === "esperado" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
-                    Esperado
+                    {expectedLabel}
                     {sortKey === "esperado"
                       ? (sortDir === "asc"
                           ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
@@ -1134,7 +1136,7 @@ export function ItemsDataGrid({
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
                 </th>
-                {colVis.diferenca && (
+                {showDiferencaCol && (
                   <th
                     scope="col"
                     aria-sort={sortKey === "diferenca" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
