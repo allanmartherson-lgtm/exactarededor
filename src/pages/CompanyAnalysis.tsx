@@ -629,6 +629,33 @@ export default function CompanyAnalysis() {
     load();
   };
 
+  /**
+   * Finaliza a CONFECÇÃO desta empresa. Diferente de "Concluir análise":
+   * - não envia ao validador (em confecção não existe validador por empresa);
+   * - não altera o status do grupo (trigger DB só permite em_confeccao→em_analise_ia/revisao_analista/cancelado/arquivado);
+   * - apenas registra observação marcando a empresa como pronta na confecção.
+   * O envio efetivo para análise é feito no lote inteiro via "Encaminhar para análise"
+   * no PaymentDetail (sendConfeccaoForAnalysis), conforme o trigger block_confeccao_skip_to_validation.
+   */
+  const finalizeConfeccaoGroup = async () => {
+    if (!id || !group) return;
+    setBusy(true);
+    const text = groupDraft.trim();
+    await recordObservation({
+      payment_id: id,
+      author_type: myAuthorType,
+      author_id: user!.id,
+      message: `[${group.company_name}] Confecção finalizada pelo analista${text ? `: ${text}` : "."}`,
+      status_from: group.status,
+      status_to: group.status,
+    });
+    setGroupDraft("");
+    setBusy(false);
+    toast.success("Confecção desta empresa finalizada", {
+      description: "Use \"Encaminhar para análise\" no lote para enviar tudo ao motor de análise.",
+    });
+    load();
+
   const cancelBatch = async () => {
     if (!id || !group) return;
     const text = groupDraft.trim();
