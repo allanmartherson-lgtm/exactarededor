@@ -336,8 +336,11 @@ export default function Pendencias() {
                     <div className="flex flex-col">
                       <span>{p.subject}</span>
                       <span className="text-[11px] text-muted-foreground">
-                        por {p.created_by_name}
+                        por {(p.created_by_user_id && profileNames[p.created_by_user_id]) || p.created_by_name}
                         {p.assigned_to === user?.id && " · você"}
+                      </span>
+                    </div>
+                  </TableCell>
                       </span>
                     </div>
                   </TableCell>
