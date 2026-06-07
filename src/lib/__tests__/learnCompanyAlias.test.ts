@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { learnCompanyAlias } from "../learnCompanyAlias";
+import { learnCompanyAlias, shouldLearnAlias } from "../learnCompanyAlias";
 
 /**
  * Mock mínimo do cliente Supabase para testar o helper sem rede.
@@ -109,5 +109,69 @@ describe("learnCompanyAlias", () => {
     expect(c.rpc).not.toHaveBeenCalled();
     expect(c.from).not.toHaveBeenCalled();
     expect(res).toEqual({ ok: false, aliases: [], error: "raw_name vazio" });
+  });
+});
+
+/**
+ * shouldLearnAlias é a regra compartilhada entre "troca manual" e
+ * "confirmação de sugestão" no /pagamentos/novo. Garante que MESMO quando
+ * o match automático é considerado bom (analista só confirma), o sistema
+ * ainda dispara o aprendizado se o rawCompanyName do arquivo não estiver
+ * cadastrado como nome ou alias da empresa escolhida.
+ */
+describe("shouldLearnAlias", () => {
+  it("retorna true quando o rawName não é o nome nem alias da empresa (confirmação ainda aprende)", () => {
+    expect(
+      shouldLearnAlias("CHAIN VILLAR LTDA - CC", {
+        name: "Chain Villar LTDA",
+        aliases: ["Chain Villar"],
+      }),
+    ).toBe(true);
+  });
+
+  it("retorna false quando o rawName == name (case/whitespace insensitive)", () => {
+    expect(
+      shouldLearnAlias("  chain villar ltda  ", {
+        name: "Chain Villar LTDA",
+        aliases: [],
+      }),
+    ).toBe(false);
+  });
+
+  it("retorna false quando o rawName já está em aliases (case-insensitive)", () => {
+    expect(
+      shouldLearnAlias("OTOEX", {
+        name: "BSB Otorrino LTDA",
+        aliases: ["otoex", "BSB Otorrino"],
+      }),
+    ).toBe(false);
+  });
+
+  it("retorna false para rawName vazio/whitespace mesmo com empresa válida", () => {
+    const company = { name: "Acme", aliases: [] };
+    expect(shouldLearnAlias("", company)).toBe(false);
+    expect(shouldLearnAlias("   \t\n", company)).toBe(false);
+    expect(shouldLearnAlias(null, company)).toBe(false);
+    expect(shouldLearnAlias(undefined, company)).toBe(false);
+  });
+
+  it("retorna false quando company é null/undefined", () => {
+    expect(shouldLearnAlias("Acme", null)).toBe(false);
+    expect(shouldLearnAlias("Acme", undefined)).toBe(false);
+  });
+
+  it("tolera aliases nulos/undefined/com entradas vazias", () => {
+    expect(
+      shouldLearnAlias("NovoApelido", {
+        name: "Empresa X",
+        aliases: null as unknown as string[],
+      }),
+    ).toBe(true);
+    expect(
+      shouldLearnAlias("NovoApelido", {
+        name: "Empresa X",
+        aliases: ["", "  ", "outro"],
+      }),
+    ).toBe(true);
   });
 });

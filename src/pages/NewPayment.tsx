@@ -27,7 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { normalizeNumericValue } from "@/lib/utils";
 import { loadSectorAliases } from "@/hooks/useSectorAliases";
-import { learnCompanyAlias } from "@/lib/learnCompanyAlias";
+import { learnCompanyAlias, shouldLearnAlias } from "@/lib/learnCompanyAlias";
 import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -884,12 +884,9 @@ const NewPayment = () => {
 
     const rawAlias = b.rawCompanyName?.trim() ?? "";
     const candidate = companies.find((c) => c.id === picked.id);
-    const alreadyKnown =
-      !rawAlias ||
-      candidate?.name?.trim().toLowerCase() === rawAlias.toLowerCase() ||
-      (candidate?.aliases ?? []).some((a) => a.trim().toLowerCase() === rawAlias.toLowerCase());
+    const mustLearn = shouldLearnAlias(rawAlias, candidate ?? null);
 
-    if (!alreadyKnown) {
+    if (mustLearn) {
       const res = await learnCompanyAlias(supabase, { companyId: picked.id, rawName: rawAlias });
       if (res.ok) {
         setCompanies((prev) =>
