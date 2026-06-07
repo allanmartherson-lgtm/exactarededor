@@ -7161,6 +7161,10 @@ export type Database = {
         Args: { _item_id: string; _justification: string }
         Returns: Json
       }
+      admin_delete_payment: {
+        Args: { _payment_id: string }
+        Returns: undefined
+      }
       apply_calc_duplicity_resolution: {
         Args: {
           _chosen_calc_id: string
