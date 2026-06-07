@@ -126,18 +126,27 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
   if (!job) return null;
 
   const groupByName = new Map<string, GroupRow>();
-  for (const g of groups) groupByName.set(norm(g.company_name), g);
+  const groupById = new Map<string, GroupRow>();
+  const groupByFuzzy = new Map<string, GroupRow>();
+  for (const g of groups) {
+    groupByName.set(norm(g.company_name), g);
+    if (g.company_id) groupById.set(g.company_id, g);
+    const f = fuzzy(g.company_name);
+    if (f) groupByFuzzy.set(f, g);
+  }
 
   const entries: ReportEntry[] = [];
 
   // Total failures: companies the job marked as failed (didn't finish)
   for (const f of job.failed_companies ?? []) {
-    const g = groupByName.get(norm(f.company_name));
+    const { group, source } = resolveMatch(f.company_name, f.company_id, groupByName, groupById, groupByFuzzy);
     entries.push({
       companyName: f.company_name,
       type: "total",
       reason: f.error || "Falha não especificada",
-      groupId: g?.id ?? null,
+      groupId: group?.id ?? null,
+      companyId: f.company_id ?? group?.company_id ?? null,
+      matchSource: source,
       at: f.at,
     });
   }
@@ -150,16 +159,19 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
     const key = norm(t.company_name) + "|" + t.id;
     if (seenPartial.has(key)) continue;
     seenPartial.add(key);
-    const g = groupByName.get(norm(t.company_name));
+    const { group, source } = resolveMatch(t.company_name, t.company_id, groupByName, groupById, groupByFuzzy);
     const retries = partial.retries != null ? `, ${partial.retries} retries` : "";
     entries.push({
       companyName: t.company_name ?? "(sem empresa)",
       type: "parcial",
       reason: `IA: ${partial.failed} de ${partial.total} chunks falharam após retry${retries}. Justificativas podem estar incompletas.`,
-      groupId: g?.id ?? null,
+      groupId: group?.id ?? null,
+      companyId: t.company_id ?? group?.company_id ?? null,
+      matchSource: source,
       at: t.created_at,
     });
   }
+
 
   if (entries.length === 0) return null;
 
