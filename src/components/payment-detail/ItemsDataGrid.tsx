@@ -175,7 +175,8 @@ export function ItemsDataGrid({
   const isConfeccao = mode === "confeccao";
   // Em confecção a base não traz "Valor Repasse" — o sistema gera. Esperado vira o repasse calculado.
   const showGrossColumn = !isConfeccao;
-  const expectedLabel = isConfeccao ? "Valor Repasse (calculado)" : "Esperado";
+  const expectedLabel = isConfeccao ? "Repasse calculado" : "Esperado";
+  const expectedColWidth = isConfeccao ? 160 : 110;
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
   const DENSITY_PREFS_KEY = `${storageKey}.density.v1`;
 
@@ -541,7 +542,7 @@ export function ItemsDataGrid({
     (colVis.funcao ? 120 : 0) +
     (colVis.regra ? 180 : 0) +
     (showGrossColumn ? 110 : 0) +
-    110 +
+    expectedColWidth +
     (showDiferencaCol ? 110 : 0) +
     110 +
     (colVis.observacao ? 70 : 0) +
@@ -983,7 +984,7 @@ export function ItemsDataGrid({
               {colVis.funcao && <col style={{ width: 120 }} />}
               {colVis.regra && <col style={{ width: 180 }} />}
               {showGrossColumn && <col style={{ width: 110 }} />}
-              <col style={{ width: 110 }} />
+              <col style={{ width: expectedColWidth }} />
               {showDiferencaCol && <col style={{ width: 110 }} />}
               <col style={{ width: 110 }} />
               {colVis.observacao && <col style={{ width: 70 }} />}
