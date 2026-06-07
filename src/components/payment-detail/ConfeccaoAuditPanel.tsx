@@ -27,7 +27,11 @@ type CoverageStatus = "ok" | "sem_regra" | "zerado";
 function coverageOf(it: PaymentItemRow): CoverageStatus {
   const expected = Number(it.expected_amount ?? 0);
   const method = (it.applied_calc_method ?? "") as string;
-  if (!method || method === "sem_regra") return "sem_regra";
+  const ruleId = (it as unknown as { applied_rule_id?: string | null }).applied_rule_id ?? null;
+  // Camada 2 (Sem acordo / Exclusão) é regra aplicada mesmo sem método de cálculo:
+  // o motor encerra com expected = procedure_amount. Se houver applied_rule_id,
+  // o item está coberto por uma regra — não é "sem regra".
+  if (!ruleId && (!method || method === "sem_regra")) return "sem_regra";
   if (expected <= 0) return "zerado";
   return "ok";
 }
@@ -49,18 +53,37 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
   }, [items]);
 
   const grouped = useMemo(() => {
-    const m = new Map<string, { rule?: RuleLite; method: string; count: number; total: number }>();
+    const m = new Map<string, { rule?: RuleLite; method: string; count: number; total: number; label?: string }>();
     for (const it of items) {
-      const ruleId = (it.ai_findings?.matched_rule_ids?.[0] as string | undefined) ?? null;
-      const method = (it.applied_calc_method ?? "sem_regra") as string;
+      const anyIt = it as unknown as { applied_rule_id?: string | null; applied_rule_label?: string | null };
+      const ruleId =
+        anyIt.applied_rule_id ??
+        ((it.ai_findings?.matched_rule_ids?.[0] as string | undefined) ?? null);
+      const rawMethod = (it.applied_calc_method ?? "") as string;
+      // Camada 2 sem método: deriva rótulo do applied_rule_label (ex.: "Sem acordo").
+      const label = anyIt.applied_rule_label ?? null;
+      const method = rawMethod
+        ? rawMethod
+        : label && /Sem acordo/i.test(label)
+          ? "sem_acordo"
+          : label && /Exclus[ãa]o/i.test(label)
+            ? "exclusao"
+            : "sem_regra";
       const key = `${ruleId ?? "—"}|${method}`;
-      const entry = m.get(key) ?? { rule: ruleId ? rulesIndex[ruleId] : undefined, method, count: 0, total: 0 };
+      const entry = m.get(key) ?? {
+        rule: ruleId ? rulesIndex[ruleId] : undefined,
+        method,
+        count: 0,
+        total: 0,
+        label: label ?? undefined,
+      };
       entry.count++;
       entry.total += Number(it.expected_amount ?? 0);
       m.set(key, entry);
     }
     return Array.from(m.values()).sort((a, b) => b.total - a.total);
   }, [items, rulesIndex]);
+
 
   return (
     <div className="space-y-3" data-testid="confeccao-audit-panel">
