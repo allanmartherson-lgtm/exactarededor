@@ -1971,6 +1971,26 @@ export default function CompanyAnalysis() {
       </Tabs>
 
       {/* Footer sticky com ações de fluxo */}
+      {canReopenConfeccao && (
+        <div className="sticky bottom-0 z-30 -mx-3 md:-mx-6 mt-4 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
+          <div className="mx-auto max-w-[1400px] flex flex-wrap items-center justify-end gap-2">
+            <div className="mr-auto flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Confecção desta empresa finalizada — reanálise bloqueada.
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={reopenConfeccaoGroup}
+              disabled={busy}
+              className="border-amber-500/60 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+            >
+              <Undo2 className="h-4 w-4 mr-2" />
+              Reabrir confecção
+            </Button>
+          </div>
+        </div>
+      )}
       {canAct && (
         <div className="sticky bottom-0 z-30 -mx-3 md:-mx-6 mt-4 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
           <div className="mx-auto max-w-[1400px] flex flex-wrap items-center justify-end gap-2">
