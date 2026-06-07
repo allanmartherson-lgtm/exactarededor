@@ -1997,7 +1997,7 @@ export default function CompanyAnalysis() {
 
               {canActAnalista && (
                 <>
-                  {(gStatus === "rascunho" || gStatus === "revisao_analista" || gStatus === "devolvido_analista" || isConfeccaoEditable) && (
+                  {(gStatus === "revisao_analista" || gStatus === "devolvido_analista" || isConfeccaoEditable) && (
                     <>
                       <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
                         <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
