@@ -2923,6 +2923,7 @@ const PaymentDetail = () => {
                 </SelectContent>
               </Select>
               
+              {hasRole("analista") || hasRole("admin") || hasRole("diretor") ? (
                 <>
                   <Button
                     variant="outline"
@@ -2979,7 +2980,8 @@ const PaymentDetail = () => {
                 </SelectContent>
               </Select>
             </div>
-          </div>
+            </div>
+            )}
           
           {(criticalFilter !== "all" || payment.analysis_mode === "empresa_prioritaria") && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded-md border border-dashed">
