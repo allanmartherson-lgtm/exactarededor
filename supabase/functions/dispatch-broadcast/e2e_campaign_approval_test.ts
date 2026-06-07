@@ -239,7 +239,13 @@ Deno.test({
           `Vincule um connector Outlook/Gmail ao projeto para entrega real.`,
       );
     }
+  } finally {
     // ---------- cleanup ----------
+    await supa
+      .from("notification_deliveries")
+      .delete()
+      .eq("user_id", analyst_id)
+      .eq("event_key", "campaign.decision.approved");
     await supa
       .from("comm_campaign_recipients")
       .delete()
