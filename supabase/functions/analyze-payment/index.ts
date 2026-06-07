@@ -1969,7 +1969,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           company_name: g.company_name,
         };
         if (ANALYST_OWNED_FOR_REWRITE.has((existing as any).status as string)) {
-          groupUpd.status = "revisao_analista";
+          groupUpd.status = isConfeccao ? "em_confeccao" : "revisao_analista";
         }
         await supabase.from("payment_company_groups").update(groupUpd).eq("id", existing.id);
       } else {
@@ -1977,7 +1977,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           payment_id,
           company_id: g.company_id,
           company_name: g.company_name,
-          status: "revisao_analista",
+          status: isConfeccao ? "em_confeccao" : "revisao_analista",
           items_count: g.items.length,
           total_amount: total,
         }).select("id").single();
