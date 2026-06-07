@@ -314,30 +314,18 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
           setGroups((prev) => prev.filter((g) => g.id !== row.id));
         },
       )
+      // payment_items: a análise faz DELETE+INSERT em lote, e o Realtime
+      // pode entregar eventos fora de ordem ou descartar alguns sob carga.
+      // Aplicar patches CDC locais (INSERT/UPDATE/DELETE) deixava o estado
+      // com um subconjunto dos itens (ex.: 35 de 107 para a mesma empresa)
+      // mesmo com o banco íntegro. Tratamos cada evento como sinal e
+      // refazemos o fetch debounced — load() é idempotente e reconcilia o
+      // estado contra o banco, evitando contagens/somatórios incorretos no
+      // grid e nos cards financeiros.
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
-        (payload) => {
-          const row = payload.new as unknown as PaymentItemRow;
-          setItems((prev) => (prev.some((i) => i.id === row.id) ? prev : [...prev, row]));
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
-        (payload) => {
-          const row = payload.new as unknown as PaymentItemRow;
-          setItems((prev) => prev.map((i) => (i.id === row.id ? { ...i, ...row } : i)));
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
-        (payload) => {
-          const row = payload.old as Partial<PaymentItemRow>;
-          if (!row?.id) return;
-          setItems((prev) => prev.filter((i) => i.id !== row.id));
-        },
+        { event: "*", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
+        scheduleReload,
       )
       .subscribe();
     return () => {
