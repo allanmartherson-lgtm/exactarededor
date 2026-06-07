@@ -687,18 +687,67 @@ export default function CompanyAnalysis() {
     if (!id || !group) return;
     setBusy(true);
     const text = groupDraft.trim();
+    // Marca o grupo como confeccao_concluida — o dispatcher de reanálise
+    // (dispatch-payment-analysis) passa a pular esta empresa automaticamente
+    // até que ela seja reaberta.
+    const { error: upErr } = await supabase
+      .from("payment_company_groups")
+      .update({
+        confeccao_status: "confeccao_concluida",
+        confeccao_finalized_at: new Date().toISOString(),
+        confeccao_finalized_by: user!.id,
+      })
+      .eq("id", group.id);
+    if (upErr) {
+      setBusy(false);
+      return toast.error("Erro ao finalizar confecção", { description: upErr.message });
+    }
     await recordObservation({
       payment_id: id,
       author_type: myAuthorType,
       author_id: user!.id,
-      message: `[${group.company_name}] Confecção finalizada pelo analista${text ? `: ${text}` : "."}`,
+      message: `[${group.company_name}] Confecção finalizada pelo analista${text ? `: ${text}` : "."} Reanálise desta empresa fica bloqueada até reabertura.`,
       status_from: group.status,
       status_to: group.status,
     });
     setGroupDraft("");
     setBusy(false);
     toast.success("Confecção desta empresa finalizada", {
-      description: "Use \"Encaminhar para análise\" no lote para enviar tudo ao motor de análise.",
+      description: "Reanálise bloqueada até reabrir. Use \"Encaminhar para análise\" no lote para enviar tudo ao motor de análise.",
+    });
+    load();
+  };
+
+  /**
+   * Reabre a confecção desta empresa — desfaz `finalizeConfeccaoGroup`.
+   * Permite voltar a recalcular o repasse e ajustar antes de encaminhar o lote.
+   */
+  const reopenConfeccaoGroup = async () => {
+    if (!id || !group) return;
+    setBusy(true);
+    const { error: upErr } = await supabase
+      .from("payment_company_groups")
+      .update({
+        confeccao_status: "em_confeccao",
+        confeccao_finalized_at: null,
+        confeccao_finalized_by: null,
+      })
+      .eq("id", group.id);
+    if (upErr) {
+      setBusy(false);
+      return toast.error("Erro ao reabrir confecção", { description: upErr.message });
+    }
+    await recordObservation({
+      payment_id: id,
+      author_type: myAuthorType,
+      author_id: user!.id,
+      message: `[${group.company_name}] Confecção reaberta pelo analista. Reanálise desta empresa liberada novamente.`,
+      status_from: group.status,
+      status_to: group.status,
+    });
+    setBusy(false);
+    toast.success("Confecção reaberta", {
+      description: "Esta empresa volta a aceitar recálculo de repasse.",
     });
     load();
   };
@@ -1352,6 +1401,8 @@ export default function CompanyAnalysis() {
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
   const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
   const canAct = canActAnalista || canActValidador || canActDiretor;
+  const canReopenConfeccao =
+    isConfeccao && gConfeccaoStatus === "confeccao_concluida" && isAnalistaRole && (isOwner || isAdmin);
   // (removido) returner: o fluxo unificado de "Concluir análise" não distingue mais reencaminhamento aqui — o envio ao validador é feito no lote inteiro.
 
 
@@ -1920,6 +1971,26 @@ export default function CompanyAnalysis() {
       </Tabs>
 
       {/* Footer sticky com ações de fluxo */}
+      {canReopenConfeccao && (
+        <div className="sticky bottom-0 z-30 -mx-3 md:-mx-6 mt-4 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
+          <div className="mx-auto max-w-[1400px] flex flex-wrap items-center justify-end gap-2">
+            <div className="mr-auto flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Confecção desta empresa finalizada — reanálise bloqueada.
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={reopenConfeccaoGroup}
+              disabled={busy}
+              className="border-amber-500/60 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+            >
+              <Undo2 className="h-4 w-4 mr-2" />
+              Reabrir confecção
+            </Button>
+          </div>
+        </div>
+      )}
       {canAct && (
         <div className="sticky bottom-0 z-30 -mx-3 md:-mx-6 mt-4 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
           <div className="mx-auto max-w-[1400px] flex flex-wrap items-center justify-end gap-2">
