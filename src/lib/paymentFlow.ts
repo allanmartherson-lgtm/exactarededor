@@ -43,6 +43,7 @@ export const ANALYST_DONE_STATUSES: ReadonlySet<PaymentStatus> = new Set<Payment
  */
 export const ANALYST_EDITABLE_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
   "rascunho",
+  "em_confeccao",
   "em_analise_ia",
   "revisao_analista",
   "devolvido_analista",
@@ -51,6 +52,7 @@ export const ANALYST_EDITABLE_STATUSES: ReadonlySet<PaymentStatus> = new Set<Pay
 /** Status em que reimportar a base ainda é seguro. */
 export const REIMPORT_ALLOWED_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
   "rascunho",
+  "em_confeccao",
   "em_analise_ia",
   "revisao_analista",
   "devolvido_analista",

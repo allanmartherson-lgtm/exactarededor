@@ -10,6 +10,7 @@ import type { PaymentStatus } from "@/lib/status";
  * trilha em audit_log).
  */
 export const EDITABLE_COMPANY_GROUP_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+  "em_confeccao",
   "revisao_analista",
   "devolvido_analista",
 ]);
