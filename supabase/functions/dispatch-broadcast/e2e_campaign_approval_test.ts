@@ -100,6 +100,8 @@ Deno.test("E2E: aprovação de campanha notifica analista, empresa e médico", a
       full_name: doctorName,
       code: `E2E-${stamp}`,
       state_uf: "DF",
+      crm: `E2E${stamp}`,
+      crm_uf: "DF",
       email: `e2e-medico-${stamp}@example.test`,
     })
     .select("id")
