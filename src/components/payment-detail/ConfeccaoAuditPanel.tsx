@@ -51,7 +51,7 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
   const grouped = useMemo(() => {
     const m = new Map<string, { rule?: RuleLite; method: string; count: number; total: number }>();
     for (const it of items) {
-      const ruleId = (it.matched_rule_id ?? (it.ai_findings?.matched_rule_ids?.[0] as string | undefined)) ?? null;
+      const ruleId = (it.ai_findings?.matched_rule_ids?.[0] as string | undefined) ?? null;
       const method = (it.applied_calc_method ?? "sem_regra") as string;
       const key = `${ruleId ?? "—"}|${method}`;
       const entry = m.get(key) ?? { rule: ruleId ? rulesIndex[ruleId] : undefined, method, count: 0, total: 0 };
