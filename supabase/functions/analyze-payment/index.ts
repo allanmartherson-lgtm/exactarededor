@@ -1672,16 +1672,15 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       if (u.applied_calc_method !== "bonus") continue;
       const parent = itemsById[u.id];
       if (!parent) continue;
-      // Base do honorário (split do bônus):
+      // Base do honorário para split do bônus:
       // - ANÁLISE: gross_amount é o valor pago pelo hospital.
-      // - CONFECÇÃO: a base tratada pelo analista JÁ traz gross_amount preenchido
-      //   (é o valor base do repasse, essencial para o cálculo). Usamos sempre
-      //   gross_amount como fonte primária; procedure_amount serve apenas como
-      //   fallback defensivo caso a base venha incompleta.
-      const parentGrossRaw = Number(parent.gross_amount ?? 0);
-      const parentBase = parentGrossRaw > 0
-        ? parentGrossRaw
-        : Number(parent.procedure_amount ?? 0);
+      // - CONFECÇÃO: a base do analista traz apenas procedure_amount (valor cru,
+      //   sem acordo, sem cálculo). O gross_amount é PRODUZIDO pelo motor a
+      //   partir da regra — portanto para isolar o "honorário base" (sem bônus)
+      //   usamos procedure_amount, e o complemento sintético leva o restante.
+      const parentBase = isConfeccao
+        ? Number(parent.procedure_amount ?? 0)
+        : Number(parent.gross_amount ?? 0);
       const exp = u.expected_amount;
       if (exp == null || exp <= parentBase + 0.01) continue;
       const bonusAmt = Number((exp - parentBase).toFixed(2));
@@ -1764,7 +1763,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     console.time(`${__t} writes_payment_items`);
     const __writesStart = Date.now();
     await runChunked(itemUpdates, 50, async (u) => {
-      await supabase.from("payment_items").update({
+      const patch: Record<string, unknown> = {
         ai_status: u.ai_status,
         ai_findings: u.ai_findings,
         attendance_group_key: u.attendance_group_key,
@@ -1777,10 +1776,17 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_calc_method: u.applied_calc_method,
         expected_amount: u.expected_amount,
         applied_at: u.applied_at,
-        convenio_basis_detected: u.convenio_basis_detected,
-        basis_confidence: u.basis_confidence,
-      }).eq("id", u.id);
-
+        convenio_basis_detected: (u as any).convenio_basis_detected,
+        basis_confidence: (u as any).basis_confidence,
+      };
+      // CONFECÇÃO: motor PRODUZ o gross_amount (valor a pagar) a partir do
+      // expected_amount calculado pela regra. Sem regra (sem_regra ou bloqueio
+      // por duplicidade de cálculo) → grava null e mantém alerta — coerente
+      // com "motor nunca aplica default hardcoded de repasse".
+      if (isConfeccao) {
+        patch.gross_amount = u.expected_amount ?? null;
+      }
+      await supabase.from("payment_items").update(patch).eq("id", u.id);
     });
     console.timeEnd(`${__t} writes_payment_items`);
 

@@ -1,0 +1,1 @@
+ALTER TABLE public.payment_items ALTER COLUMN gross_amount DROP NOT NULL;
