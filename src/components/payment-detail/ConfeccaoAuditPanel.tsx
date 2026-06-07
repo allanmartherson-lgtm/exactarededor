@@ -172,45 +172,126 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Regras aplicadas</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Cada linha agrupa itens pela mesma regra + método de cálculo aplicado pelo motor.
+            Cada linha agrupa itens pela mesma regra + camada + método de cálculo aplicado pelo motor.
           </p>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-muted/50 text-muted-foreground">
-                <tr>
-                  <th className="text-left px-3 py-2">Regra</th>
-                  <th className="text-left px-3 py-2">Método</th>
-                  <th className="text-right px-3 py-2">Itens</th>
-                  <th className="text-right px-3 py-2">Repasse total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {grouped.length === 0 && (
+            <TooltipProvider delayDuration={150}>
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50 text-muted-foreground">
                   <tr>
-                    <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
-                      Nenhum item processado.
-                    </td>
+                    <th className="text-left px-3 py-2">Regra</th>
+                    <th className="text-left px-3 py-2">Camada</th>
+                    <th className="text-left px-3 py-2">Método</th>
+                    <th className="text-right px-3 py-2">Itens</th>
+                    <th className="text-right px-3 py-2">Repasse total</th>
                   </tr>
-                )}
-                {grouped.map((g, idx) => (
-                  <tr key={idx} className="border-t">
-                    <td className="px-3 py-2">
-                      {g.rule?.name ?? <span className="text-muted-foreground italic">sem regra</span>}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Badge variant="outline" className="font-mono text-[10px]">{g.method}</Badge>
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{g.count}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(g.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {grouped.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                        Nenhum item processado.
+                      </td>
+                    </tr>
+                  )}
+                  {grouped.map((g, idx) => {
+                    const info = CAMADA_INFO[g.camada];
+                    const methodEmpty = g.method === "sem_acordo" || g.method === "exclusao" || g.method === "sem_regra";
+                    return (
+                      <tr key={idx} className="border-t">
+                        <td className="px-3 py-2">
+                          {g.rule?.name ?? <span className="text-muted-foreground italic">sem regra</span>}
+                          {g.label && g.camada === "2" && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5">{g.label}</div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "font-mono text-[10px] cursor-help",
+                                  info.tone === "ok" && "border-emerald-500/50 text-emerald-700 dark:text-emerald-400",
+                                  info.tone === "warn" && "border-amber-500/50 text-amber-700 dark:text-amber-400",
+                                )}
+                              >
+                                {g.camada === "—" ? "—" : `Camada ${g.camada}`}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <div className="font-semibold text-xs mb-1">{info.label}</div>
+                              <div className="text-xs">{info.desc}</div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="font-mono text-[10px] cursor-help">
+                                {g.method}
+                              </Badge>
+                            </TooltipTrigger>
+                            {methodEmpty && (
+                              <TooltipContent side="top" className="max-w-xs text-xs">
+                                {g.method === "sem_acordo"
+                                  ? "Método vazio porque a Camada 2 (Sem Acordo) encerra a regra sem aplicar nenhum cálculo. O esperado é o valor base do convênio."
+                                  : g.method === "exclusao"
+                                    ? "Método vazio porque a Camada 2 (Exclusão) bloqueia o item da regra."
+                                    : "Item não foi coberto por nenhuma regra — não há método de cálculo."}
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">{g.count}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(g.total)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </TooltipProvider>
           </div>
         </CardContent>
       </Card>
+
+      {camadasPresentes.length > 0 && (
+        <Card className="shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Info className="h-3.5 w-3.5 text-muted-foreground" />
+              Legenda das camadas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(["1", "2", "3", "—"] as Camada[])
+              .filter((c) => camadasPresentes.includes(c))
+              .map((c) => {
+                const info = CAMADA_INFO[c];
+                return (
+                  <div key={c} className="flex gap-2 text-xs">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "font-mono text-[10px] shrink-0 h-fit",
+                        info.tone === "ok" && "border-emerald-500/50 text-emerald-700 dark:text-emerald-400",
+                        info.tone === "warn" && "border-amber-500/50 text-amber-700 dark:text-amber-400",
+                      )}
+                    >
+                      {c === "—" ? "—" : `Camada ${c}`}
+                    </Badge>
+                    <div>
+                      <div className="font-medium">{info.label}</div>
+                      <div className="text-muted-foreground">{info.desc}</div>
+                    </div>
+                  </div>
+                );
+              })}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
