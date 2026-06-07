@@ -20,9 +20,6 @@ export type AnalysisMode = "analise" | "confeccao";
 /** Campos que SÓ fazem sentido em Análise. */
 export const ANALISE_ONLY_FIELDS = [
   "gross_amount",
-  "diferenca_regra",
-  "valor_pago_exacta",
-  "valor_repasse_acordo",
 ] as const satisfies ReadonlyArray<keyof PaymentItemRow>;
 
 /** Campos que SÓ fazem sentido em Confecção. */
