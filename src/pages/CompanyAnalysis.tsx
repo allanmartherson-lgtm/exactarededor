@@ -2125,7 +2125,7 @@ export default function CompanyAnalysis() {
         />
       )}
 
-      {id && user && group && (
+      {id && user && group && canConverse && (
         <ConversationsSheet
           open={conversationsOpen}
           onOpenChange={setConversationsOpen}
