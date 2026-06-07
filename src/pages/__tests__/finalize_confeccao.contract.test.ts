@@ -113,4 +113,9 @@ describe("PaymentDetail · usa RPC finalize_confeccao para sair da confecção",
     expect(body).not.toMatch(/\.from\(\s*["']payments["']\s*\)\s*\.update\(/);
     expect(body).not.toMatch(/\.from\(\s*["']payment_company_groups["']\s*\)\s*\.update\([^)]*status\s*:/);
   });
+
+  it("não exibe aviso de empresas puladas quando o lote está em confecção", () => {
+    expect(pd).toMatch(/if\s*\(payment\?\.analysis_mode\s*===\s*["']confeccao["']\)\s*setSkippedCompanies\(\[\]\)/);
+    expect(pd).toMatch(/const\s+skipped\s*=\s*isConfeccaoMode\s*\?\s*\[\]\s*:/);
+  });
 });
