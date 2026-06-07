@@ -155,6 +155,60 @@ export type Database = {
           },
         ]
       }
+      ai_retry_queue: {
+        Row: {
+          attempts: number
+          company_name: string
+          created_at: string
+          finished_at: string | null
+          hospital_id: string | null
+          id: string
+          last_error: string | null
+          last_job_id: string | null
+          locked_at: string | null
+          max_attempts: number
+          next_attempt_at: string
+          payment_id: string
+          source_job_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          company_name: string
+          created_at?: string
+          finished_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          last_error?: string | null
+          last_job_id?: string | null
+          locked_at?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          payment_id: string
+          source_job_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          company_name?: string
+          created_at?: string
+          finished_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          last_error?: string | null
+          last_job_id?: string | null
+          locked_at?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          payment_id?: string
+          source_job_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       analysis_dead_letter: {
         Row: {
           attempts: number
@@ -7038,6 +7092,32 @@ export type Database = {
         Args: { _hid: string; _uid: string }
         Returns: boolean
       }
+      claim_ai_retry_batch: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          company_name: string
+          created_at: string
+          finished_at: string | null
+          hospital_id: string | null
+          id: string
+          last_error: string | null
+          last_job_id: string | null
+          locked_at: string | null
+          max_attempts: number
+          next_attempt_at: string
+          payment_id: string
+          source_job_id: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ai_retry_queue"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       comm_reply_on_behalf: {
         Args: {
           p_channel: string
@@ -7076,6 +7156,17 @@ export type Database = {
         Returns: string
       }
       delete_payment_batch: { Args: { p_payment_id: string }; Returns: Json }
+      enqueue_ai_retry: {
+        Args: {
+          p_company_name: string
+          p_error: string
+          p_hospital_id: string
+          p_job_id?: string
+          p_max_attempts?: number
+          p_payment_id: string
+        }
+        Returns: string
+      }
       enqueue_doctor_notification: {
         Args: {
           p_body: string
@@ -7115,6 +7206,10 @@ export type Database = {
           company_keys_all_doctors: string[]
           doctor_crms: string[]
         }[]
+      }
+      finalize_ai_retry: {
+        Args: { p_error?: string; p_id: string; p_success: boolean }
+        Returns: undefined
       }
       find_doctor_for_login: {
         Args: { identifier: string }
