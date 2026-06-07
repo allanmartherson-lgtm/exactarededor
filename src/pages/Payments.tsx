@@ -161,12 +161,42 @@ const PaymentPriorityBadgeInline = ({
 };
 
 
+// Persistência de filtros/busca/paginação da lista de pagamentos.
+// Mantém estado entre navegações (ex: voltar do detalhe após excluir um lote).
+const PAYMENTS_LIST_STATE_KEY = "payments:list:state:v1";
+type PersistedPaymentsState = Partial<{
+  page: number;
+  pageSize: number;
+  q: string;
+  companyFilter: CompanyOption | null;
+  doctorFilter: { id: string; full_name: string; crm: string | null; crm_uf: string | null } | null;
+  analystFilter: string;
+  typeFilter: string;
+  statusFilter: string;
+  competenceFilter: string;
+  view: "lista" | "kanban";
+  sortBy: "relevance" | "created" | "elapsed" | "status" | "priority";
+  divergenceFilter: "all" | "with" | "without";
+  questionedFilter: "all" | "with" | "without";
+  archivedView: boolean;
+}>;
+const loadPersistedPaymentsState = (): PersistedPaymentsState => {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.sessionStorage.getItem(PAYMENTS_LIST_STATE_KEY);
+    return raw ? (JSON.parse(raw) as PersistedPaymentsState) : {};
+  } catch {
+    return {};
+  }
+};
+
 const Payments = () => {
   const { roles, user } = useAuth();
   const isAnalista = roles.includes("analista") || roles.includes("admin");
   const isDiretor = roles.includes("diretor") || roles.includes("admin");
   const isAdmin = roles.includes("admin");
   const [searchParams, setSearchParams] = useSearchParams();
+  const persisted = useMemo<PersistedPaymentsState>(() => loadPersistedPaymentsState(), []);
   const [rows, setRows] = useState<Row[]>([]);
   // Paginação server-side via RPC list_payments. `totalRows` é o total filtrado
   // no banco (não só desta página); `rows` contém apenas a página atual.
