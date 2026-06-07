@@ -1,68 +1,53 @@
-# Separação de status: Confecção × Análise
+## Objetivo
+Acabar com vínculos médico↔PJ em texto livre. Toda menção vira linha em `doctor_companies` (quando o CNPJ existe no cadastro) ou fila de revisão (quando não existe). Cadastros de médico e empresa passam a refletir um ao outro.
 
-Hoje `em_confeccao` mora dentro do enum `payment_status` e divide o mesmo ciclo da Análise, distinguido só por `analysis_mode`. Vamos isolar Confecção em seu próprio enum + colunas dedicadas, com guards de banco que impedem mistura.
+## 1. Edge function `sync-doctor-company-from-notes` (one-shot + on-save)
+- Lê `doctors.notes` (todos), extrai CNPJs com regex (`\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}`) e CRMs.
+- Para cada CNPJ encontrado:
+  - Se existe em `companies.document` → cria linha em `doctor_companies` (idempotente, `ON CONFLICT DO NOTHING`).
+  - Se não existe → grava em nova tabela `doctor_link_suggestions` (status `pending`) para o admin tratar em `/medicos`.
+- Roda uma vez agora (botão "Migrar agora" no painel admin) e em todo `UPDATE doctors.notes` via trigger leve (queue na mesma tabela de sugestões).
 
-## 1. Banco — migração principal
+## 2. Tabela `doctor_link_suggestions`
+Colunas: `doctor_id`, `raw_text`, `detected_kind` (cnpj/crm), `detected_value`, `matched_company_id`/`matched_doctor_id` (nullable), `status` (pending/approved/rejected), `resolved_by`, `resolved_at`.
+RLS: admin + diretor.
+Painel em `/medicos` → aba "Pendências de cadastro" recebe novo grupo "Vínculos sugeridos por texto".
 
-**Novo enum**
-```sql
-CREATE TYPE confeccao_status AS ENUM (
-  'em_confeccao',
-  'confeccao_concluida',
-  'cancelada'
-);
-```
+## 3. Espelho no modal de empresa (`src/pages/Companies.tsx`)
+Adicionar seção "MÉDICOS VINCULADOS" idêntica em comportamento à do médico:
+- Busca + checkbox lendo/escrevendo `doctor_companies`.
+- Mesmo aviso: "Alterações refletem em tempo real no cadastro do médico."
+- Histórico de vínculos encerrados (mesma fonte usada hoje em `Doctors.tsx`).
 
-**Novas colunas** (em `payments` e `payment_company_groups`):
-- `confeccao_status confeccao_status NULL`
-- `confeccao_finalized_at timestamptz NULL`
-- `confeccao_finalized_by uuid NULL`
+## 4. Aba "Vínculos" em ambos os cadastros
+Tab nova no modal de médico **e** no de empresa:
+- Médico → lista de PJs com período (start/end), motivo de encerramento, origem (manual/observação/import).
+- PJ → mesma tabela espelhada com médicos.
+- Reaproveita componente `DoctorCompanyLinksTable` (criar).
 
-`payments.status` (enum atual) continua sendo a fonte de verdade do ciclo de **Análise**. Em modo confecção, `status` fica em `NULL`-equivalent operacional: usaremos `rascunho` como placeholder até a finalização (não aparece em telas de Análise por causa do filtro de mode).
+## 5. Renomear "Observações internas" → "Notas operacionais"
+- Label e placeholder alterados.
+- Validador no submit: se detectar CNPJ ou CRM no texto, **abre dialog** "Detectamos uma PJ/CRM. Crie o vínculo formal antes de salvar." com botão "Criar vínculo agora" (abre modal de seleção) ou "É só um lembrete, ignorar" (registra `notes_validated_at` para não avisar de novo no mesmo texto).
+- Renderiza CNPJs/CRMs detectados como chips clicáveis que abrem o modal de vínculo.
 
-**Trigger de coerência** (`enforce_mode_status_separation`):
-- Se `analysis_mode = 'confeccao'`: `confeccao_status` é obrigatório; `status` só pode ser `rascunho`, `arquivado` ou `cancelado`. Bloqueia setar `em_analise_ia`, `revisao_analista`, etc.
-- Se `analysis_mode <> 'confeccao'`: `confeccao_status` deve ser `NULL`; `status` segue o enum de Análise.
-- Bloqueia voltar de Análise para Confecção (transição unidirecional).
+## 6. Documentação
+- Atualizar `mem://constraints/vinculos-estruturados.md` com os novos pontos de entrada.
+- README curto da edge function.
 
-**Backfill** (mesma migração):
-- Lotes/grupos com `analysis_mode='confeccao'` e `status='em_confeccao'` → `confeccao_status='em_confeccao'`, `status='rascunho'`.
-- Lotes em modo confecção que já avançaram para `em_analise_ia`/`revisao_analista` (transição já feita pelo botão "Encaminhar para análise") → `confeccao_status='confeccao_concluida'`, `analysis_mode` muda para `padrao` e `status` é preservado.
+## Ordem de execução
+1. Migration: tabela `doctor_link_suggestions` + grants + RLS.
+2. Edge function de varredura/sync + botão "Migrar agora" no painel admin.
+3. Painel de revisão das sugestões.
+4. Espelho na tela de empresa.
+5. Aba "Vínculos" reutilizável.
+6. Renomeação + validador de notas.
 
-**Remoção do valor `em_confeccao` do enum `payment_status`**: NÃO faremos agora (Postgres não permite drop de valor de enum sem recriar). Em vez disso, o trigger impede novos usos; deixamos uma TODO de limpeza futura.
+## Notas técnicas
+- Trigger de inserção automática roda **somente quando CNPJ bate exatamente** no `companies.document` (sem fuzzy) — respeita a regra "Lookup estrito".
+- O texto original em `doctors.notes` **não é apagado**; só recebe um marcador `[vinculado em YYYY-MM-DD]` ao lado do CNPJ promovido, para o analista entender a origem.
+- Edge function reaproveita `src/lib/cnpj.ts` (`onlyDigits`, `formatCNPJ`).
+- Sem default hardcoded: se houver CNPJ ambíguo (ex: empresa inativa, múltiplas matches), vai para sugestão, nunca cria silenciosamente.
 
-## 2. Transição Confecção → Análise
-
-Nova função SQL `finalize_confeccao(payment_id uuid)`:
-1. Verifica `confeccao_status='em_confeccao'`.
-2. Seta `confeccao_status='confeccao_concluida'`, `confeccao_finalized_at=now()`, `confeccao_finalized_by=auth.uid()`.
-3. Faz `analysis_mode := 'padrao'`, `status := 'em_analise_ia'`.
-4. Replica nos `payment_company_groups` filhos.
-5. Registra em `audit_log` e `payment_status_history`.
-
-O botão "Finalizar Confecção" (lote) passa a chamar esta RPC em vez de mexer em `status`/`analysis_mode` direto pelo cliente.
-
-## 3. Código (frontend + edge functions)
-
-- `src/lib/status.ts`: adicionar `ConfeccaoStatus` type + labels; remover `em_confeccao` dos mapas de Análise (mantendo fallback de label para histórico).
-- `src/lib/paymentFlow.ts` e `src/lib/companyGroupGuards.ts`: tirar `em_confeccao` dos sets `ANALYST_EDITABLE_STATUSES` / `EDITABLE_COMPANY_GROUP_STATUSES`; criar `CONFECCAO_EDITABLE` separado. Helpers passam a aceitar `{ status, confeccaoStatus, analysisMode }`.
-- `src/pages/PaymentDetail.tsx`, `CompanyAnalysis.tsx`, `ItemsDataGrid.tsx`: ler `confeccao_status` para decidir banners, edição, botões. `isConfeccao` deriva de `analysis_mode==='confeccao' || confeccao_status!=null` (cobre histórico).
-- Botão "Finalizar Confecção" → chama `rpc('finalize_confeccao', …)`.
-- `supabase/functions/dispatch-payment-analysis/index.ts` e `analyze-payment/index.ts`: gate de `EDITABLE_STATUSES` em modo confecção passa a olhar `confeccao_status='em_confeccao'` em vez de `status='em_confeccao'`.
-- `NewPayment.tsx`: ao criar lote em modo confecção, inserir `confeccao_status='em_confeccao'` + `status='rascunho'`.
-
-## 4. Testes
-
-- Atualizar `CompanyAnalysis.confeccao.contract.test.ts` e `ItemsDataGrid.confeccao.test.ts` para a nova forma.
-- Novo teste de contrato: trigger rejeita `status='em_analise_ia'` quando `analysis_mode='confeccao'`; rejeita `confeccao_status` setado em modo padrão.
-- Novo teste do RPC `finalize_confeccao` (transição completa).
-
-## 5. Rollout
-
-Migração e código vão juntos. Como há apenas 1 payment + 9 grupos em `em_confeccao` em produção e 0 fluxos pendentes de validação a partir de confecção, o backfill é seguro em uma única janela.
-
-## Riscos
-- Telas legadas que ainda esperam `status='em_confeccao'` precisam ler `confeccao_status`. O passo 3 cobre as conhecidas, mas pode existir filtro avulso — vou rodar `rg` final antes de fechar.
-- Não conseguimos remover `em_confeccao` do enum sem recriar o tipo (impactaria muitas views/funções). Mantemos como valor legado bloqueado por trigger.
-
-Posso seguir com a migração?
+## Fora de escopo (próxima onda)
+- Mesma varredura em `companies.notes` e em `payment_observations` (fica para depois).
+- Inferência de CRM em notas (priorizamos CNPJ; CRM em texto livre é raro).
