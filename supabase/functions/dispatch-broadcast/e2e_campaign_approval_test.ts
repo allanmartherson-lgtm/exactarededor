@@ -208,7 +208,37 @@ Deno.test({
       (totals.empresas ?? 0) >= 1 && (totals.medicos ?? 0) >= 1,
       `Esperado empresas>=1 e medicos>=1, totals=${JSON.stringify(totals)}`,
     );
-  } finally {
+
+    // ---------- valida tentativa de envio de e-mail ao analista ----------
+    // notify-campaign-decision chama send-email-corporate, que grava em
+    // notification_deliveries (status 'sent' se houver connector linkado,
+    // 'failed' com "No email connector linked" caso contrário). Em ambos
+    // casos a entrega é registrada — o que prova que o pipeline disparou.
+    const delivery = await poll("notification_deliveries do analista", async () => {
+      const { data } = await supa
+        .from("notification_deliveries")
+        .select("id, status, error_message, target_address, event_key, user_id")
+        .eq("user_id", analyst_id)
+        .eq("event_key", `campaign.decision.approved`)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data ?? null;
+    });
+    assertEquals(delivery.target_address, analyst!.email);
+    assert(
+      ["sent", "failed", "queued"].includes(String(delivery.status)),
+      `Status inesperado: ${delivery.status}`,
+    );
+    // Diagnóstico amigável: se falhou porque não há connector linkado, isso
+    // não é um defeito do código — apenas indica que o ambiente precisa de
+    // um connector Outlook/Gmail vinculado ao projeto.
+    if (delivery.status === "failed") {
+      console.warn(
+        `[E2E] e-mail registrou falha esperada: ${delivery.error_message}. ` +
+          `Vincule um connector Outlook/Gmail ao projeto para entrega real.`,
+      );
+    }
     // ---------- cleanup ----------
     await supa
       .from("comm_campaign_recipients")
