@@ -168,16 +168,6 @@ export default function MassCommunication() {
     void load();
   };
 
-  const notifyDecision = async (id: string, decision: "approved" | "rejected", reason?: string) => {
-    try {
-      await supabase.functions.invoke("notify-campaign-decision", {
-        body: { campaign_id: id, decision, reason },
-      });
-    } catch {
-      /* não bloqueia o fluxo */
-    }
-  };
-
   // Helper: RPC com retry simples para falhas transitórias
   const callRpcWithRetry = async (fn: "approve_campaign" | "reject_campaign", args: Record<string, unknown>) => {
     let lastErr: { message: string } | null = null;
@@ -194,7 +184,6 @@ export default function MassCommunication() {
     if (!approveTarget) return;
     const id = approveTarget.id;
     setApprovingId(id);
-    setItems((prev) => prev.map((c) => (c.id === id ? { ...c, approval_status: "approved" } : c)));
     setApproveTarget(null);
     const { error } = await callRpcWithRetry("approve_campaign", { _campaign_id: id });
     if (error) {
@@ -203,9 +192,8 @@ export default function MassCommunication() {
       toast({ title: "Falha ao aprovar", description: `${error.message}. Tentamos 2 vezes.`, variant: "destructive" });
       return;
     }
-    await notifyDecision(id, "approved");
     setApprovingId(null);
-    toast({ title: "Campanha aprovada", description: "Analista notificado por e-mail e inbox." });
+    toast({ title: "Campanha aprovada", description: "Notificações e disparo serão processados automaticamente." });
     void load();
   };
 
@@ -218,7 +206,6 @@ export default function MassCommunication() {
     }
     const id = rejectTarget.id;
     setApprovingId(id);
-    setItems((prev) => prev.map((c) => (c.id === id ? { ...c, approval_status: "rejected", rejection_reason: reason } : c)));
     setRejectTarget(null);
     setRejectReason("");
     const { error } = await callRpcWithRetry("reject_campaign", { _campaign_id: id, _reason: reason });
@@ -228,9 +215,8 @@ export default function MassCommunication() {
       toast({ title: "Falha ao rejeitar", description: `${error.message}. Tentamos 2 vezes.`, variant: "destructive" });
       return;
     }
-    await notifyDecision(id, "rejected", reason);
     setApprovingId(null);
-    toast({ title: "Campanha rejeitada", description: "Motivo registrado e analista notificado." });
+    toast({ title: "Campanha rejeitada", description: "Motivo registrado e notificação processada automaticamente." });
     void load();
   };
 
