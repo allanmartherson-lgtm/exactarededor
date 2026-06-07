@@ -1308,7 +1308,6 @@ export default function CompanyAnalysis() {
   const canAct = canActAnalista || canActValidador || canActDiretor;
   // (removido) returner: o fluxo unificado de "Concluir análise" não distingue mais reencaminhamento aqui — o envio ao validador é feito no lote inteiro.
 
-  const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
 
   return (
     <div className="space-y-4 pb-32">
