@@ -26,9 +26,12 @@ const companyPage = readFileSync(
 
 describe("PaymentGroupCard · sem 'Fazer questionamento'", () => {
   it("não renderiza botão 'Fazer questionamento' no banner da empresa", () => {
-    // Aceita comentários ({/* ... */} ou //), bloqueia qualquer JSX/Button real.
-    expect(groupCard).not.toMatch(/<Button[\s\S]{0,400}?Fazer questionamento/);
-    expect(groupCard).not.toMatch(/title=\{?["`'][^"`']*Fazer questionamento/);
+    // Permite apenas em comentários ({/* ... */} ou //); proíbe JSX visível.
+    const stripped = groupCard
+      .replace(/\/\*[\s\S]*?\*\//g, "") // /* ... */
+      .replace(/\{\/\*[\s\S]*?\*\/\}/g, "") // {/* JSX comments */}
+      .replace(/^\s*\/\/.*$/gm, ""); // // line comments
+    expect(stripped).not.toMatch(/Fazer questionamento/);
   });
 
   it("não importa nem usa MessageCircleQuestion para esse botão", () => {
