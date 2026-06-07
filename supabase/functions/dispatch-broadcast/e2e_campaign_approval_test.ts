@@ -85,7 +85,8 @@ Deno.test("E2E: aprovação de campanha notifica analista, empresa e médico", a
     .from("companies")
     .insert({
       name: companyName,
-      hospital_id,
+      code: `E2E-${stamp}`,
+      state_uf: "DF",
       invoice_emails: [`e2e-empresa-${stamp}@example.test`],
     })
     .select("id")
@@ -97,7 +98,8 @@ Deno.test("E2E: aprovação de campanha notifica analista, empresa e médico", a
     .from("doctors")
     .insert({
       full_name: doctorName,
-      hospital_id,
+      code: `E2E-${stamp}`,
+      state_uf: "DF",
       email: `e2e-medico-${stamp}@example.test`,
     })
     .select("id")
