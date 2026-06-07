@@ -1594,6 +1594,16 @@ function RowMain({
             </span>
           </td>
         )}
+        {showProcedureColumn && (() => {
+          const procN = Number((it as any).procedure_amount ?? 0);
+          return (
+            <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-muted-foreground")}>
+              {isBonus ? "—" : (procN > 0 ? formatCurrency(procN) : "—")}
+            </td>
+          );
+        })()}
+
+
 
         <td
           className={cn(
