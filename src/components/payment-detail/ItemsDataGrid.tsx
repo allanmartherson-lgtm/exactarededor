@@ -540,9 +540,9 @@ export function ItemsDataGrid({
     180 +
     (colVis.funcao ? 120 : 0) +
     (colVis.regra ? 180 : 0) +
+    (showGrossColumn ? 110 : 0) +
     110 +
-    110 +
-    (colVis.diferenca ? 110 : 0) +
+    (showDiferencaCol ? 110 : 0) +
     110 +
     (colVis.observacao ? 70 : 0) +
     (canEdit ? 120 : 0);
