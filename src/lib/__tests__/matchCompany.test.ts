@@ -1,0 +1,68 @@
+/**
+ * Testes da guarda de TOKEN DISTINTIVO no matchCompany.
+ *
+ * Contexto: analistas relatam falsos-positivos quando o nome do arquivo
+ * contém um token incomum (ex.: "OTOEX", "CHAIN") e o motor de match
+ * sugere uma PJ cujos tokens significativos NÃO contêm esse termo. O
+ * sistema deve, nesses casos, NÃO empurrar uma sugestão automática —
+ * deve ficar abaixo do MATCH_REVIEW_THRESHOLD para que o painel peça
+ * seleção manual, evitando que o analista gaste tempo desfazendo
+ * sugestões obviamente erradas.
+ */
+import { describe, it, expect } from "vitest";
+import {
+  matchCompany,
+  similarity,
+  MATCH_AUTO_THRESHOLD,
+  MATCH_REVIEW_THRESHOLD,
+  type CompanyRow,
+} from "../parsePaymentFile";
+
+const companies: CompanyRow[] = [
+  { id: "c-bsb", name: "BSB Otorrino Servicos de Saude LTDA", aliases: [] },
+  { id: "c-cordeiro", name: "Cordeiro e Moura Servicos Medicos LTDA", aliases: [] },
+  { id: "c-castro", name: "Castro Almeida Ortopedia e Traumatologia LTDA", aliases: [] },
+  { id: "c-chain", name: "Chain Villar LTDA", aliases: [] },
+];
+
+describe("matchCompany — guarda de token distintivo", () => {
+  it('não auto-sugere quando o token âncora do arquivo ("OTOEX") não existe em NENHUM candidato', () => {
+    const { company, score } = matchCompany("Otoex Clinica Servicos Medicos", companies);
+    // Pode existir um best (não-nulo), mas o score precisa ficar abaixo do
+    // limiar de revisão — força painel de seleção manual.
+    expect(score).toBeLessThan(MATCH_REVIEW_THRESHOLD);
+    if (company) expect(company.id).not.toBe("c-bsb");
+  });
+
+  it('não auto-sugere "CHAIN VILLAR" como "Cordeiro e Moura"', () => {
+    const s = similarity(
+      "CHAIN VILLAR LTDA",
+      "Cordeiro e Moura Servicos Medicos LTDA",
+    );
+    expect(s).toBeLessThan(MATCH_REVIEW_THRESHOLD);
+  });
+
+  it('match exato continua sendo auto-aceito ("CHAIN VILLAR LTDA" → c-chain)', () => {
+    const { company, score } = matchCompany("CHAIN VILLAR LTDA", companies);
+    expect(company?.id).toBe("c-chain");
+    expect(score).toBeGreaterThanOrEqual(MATCH_AUTO_THRESHOLD);
+  });
+
+  it("alias cadastrado resgata mesmo nomes muito distintos", () => {
+    const withAlias: CompanyRow[] = [
+      { id: "c-bsb", name: "BSB Otorrino Servicos de Saude LTDA", aliases: ["OTOEX"] },
+    ];
+    const { company, score } = matchCompany("OTOEX", withAlias);
+    expect(company?.id).toBe("c-bsb");
+    expect(score).toBeGreaterThanOrEqual(MATCH_AUTO_THRESHOLD);
+  });
+
+  it("variações ortográficas leves continuam casando (proteção não regrediu)", () => {
+    // "Otorrino" ≈ "Otorhino" via Levenshtein em tokens ≥6 chars
+    const s = similarity(
+      "BSB Otorhino Servicos Saude",
+      "BSB Otorrino Servicos de Saude LTDA",
+    );
+    expect(s).toBeGreaterThanOrEqual(MATCH_AUTO_THRESHOLD);
+  });
+});

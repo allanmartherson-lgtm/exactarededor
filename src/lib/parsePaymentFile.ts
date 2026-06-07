@@ -329,6 +329,23 @@ export const similarity = (a: string, b: string): number => {
     else if (ratio >= 0.7 && shorter.length >= 3) score = Math.min(1, score + 0.18);
     else if (ratio >= 0.6 && shorter.length >= 2) score = Math.min(1, score + 0.1);
   }
+  // Guarda de TOKEN DISTINTIVO: nomes incomuns (ex.: "OTOEX", "CHAIN VILLAR")
+  // não podem ser auto-sugeridos para PJs cujo conteúdo significativo é totalmente
+  // diferente. Se AMBOS os lados possuem um token "âncora" (≥5 chars, não-stopword)
+  // e NENHUM token âncora do lado mais curto bate (mesmo fuzzy) com algum do outro
+  // lado, limitamos o score abaixo do MATCH_REVIEW_THRESHOLD (0.55) para forçar
+  // seleção manual em vez de empurrar um falso-positivo ao analista.
+  if (ta.length && tb.length) {
+    const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+    const shorterAnchors = shorter.filter((t) => t.length >= 5);
+    const longerAnchors = longer.filter((t) => t.length >= 5);
+    if (shorterAnchors.length && longerAnchors.length) {
+      const anchorHit = shorterAnchors.some((t) =>
+        longerAnchors.some((u) => tokensEquivalent(t, u)),
+      );
+      if (!anchorHit) score = Math.min(score, 0.5);
+    }
+  }
   return Math.min(1, score);
 };
 

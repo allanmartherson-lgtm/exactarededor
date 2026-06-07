@@ -68,4 +68,46 @@ describe("learnCompanyAlias", () => {
     const res = await learnCompanyAlias(c as never, { companyId: "x", rawName: "Acme" });
     expect(res).toEqual({ ok: true, aliases: [], error: null });
   });
+
+  // ---------- Regressão: falha do SELECT pós-RPC ----------
+  // Quando a RPC grava com sucesso mas o SELECT de recarga falha (ex.: queda
+  // de rede, RLS rara), o helper PRECISA devolver ok:false e NÃO pode entregar
+  // um array de aliases (mesmo do estado anterior) — caso contrário o caller
+  // mostraria toast verde + atualizaria a UI como se o apelido estivesse
+  // garantido, escondendo a inconsistência. O contrato é: aliases=[] + error
+  // preenchido + ok=false, forçando o caller a NÃO mexer no cache local.
+  it("após falha do SELECT, não vaza aliases nem indica sucesso", async () => {
+    const c = makeClient({ selectError: { message: "network error" } });
+    const res = await learnCompanyAlias(c as never, { companyId: "x", rawName: "Acme" });
+    expect(c.rpc).toHaveBeenCalledOnce();
+    expect(res.ok).toBe(false);
+    expect(res.aliases).toEqual([]);
+    expect(res.error).toBe("network error");
+  });
+
+  // ---------- Normalização do rawName ----------
+  it("preserva o casing original do apelido (apenas trim, sem lowercasing)", async () => {
+    const c = makeClient({ selectAliases: ["Chain Villar LTDA"] });
+    const res = await learnCompanyAlias(c as never, {
+      companyId: "x",
+      rawName: "\t  Chain Villar LTDA  \n",
+    });
+    expect(c.rpc).toHaveBeenCalledWith("learn_company_alias", {
+      _company_id: "x",
+      _raw_name: "Chain Villar LTDA", // casing intacto, whitespace removido
+    });
+    expect(res).toEqual({ ok: true, aliases: ["Chain Villar LTDA"], error: null });
+  });
+
+  it.each([
+    ["string vazia", ""],
+    ["apenas espaços", "     "],
+    ["tabs e quebras de linha", "\t\n  \t"],
+  ])("não dispara RPC quando rawName é %s", async (_label, rawName) => {
+    const c = makeClient({ selectAliases: ["nao-deveria-aparecer"] });
+    const res = await learnCompanyAlias(c as never, { companyId: "x", rawName });
+    expect(c.rpc).not.toHaveBeenCalled();
+    expect(c.from).not.toHaveBeenCalled();
+    expect(res).toEqual({ ok: false, aliases: [], error: "raw_name vazio" });
+  });
 });
