@@ -1672,15 +1672,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       if (u.applied_calc_method !== "bonus") continue;
       const parent = itemsById[u.id];
       if (!parent) continue;
-      // Base do honorário: em ANÁLISE usamos gross_amount (valor que o hospital
-      // pagou pelo procedimento); em CONFECÇÃO não há gross_amount (a base do
-      // analista só tem o valor de tabela), então usamos procedure_amount como
-      // base do split. Sem isso, parentGross=0 fazia o bônus virar o valor total
-      // (procedure+bonus) na linha sintética — e o procedimento pai zerava.
+      // Base do honorário (split do bônus):
+      // - ANÁLISE: gross_amount é o valor pago pelo hospital.
+      // - CONFECÇÃO: a base tratada pelo analista JÁ traz gross_amount preenchido
+      //   (é o valor base do repasse, essencial para o cálculo). Usamos sempre
+      //   gross_amount como fonte primária; procedure_amount serve apenas como
+      //   fallback defensivo caso a base venha incompleta.
       const parentGrossRaw = Number(parent.gross_amount ?? 0);
-      const parentBase = isConfeccao
-        ? Number(parent.procedure_amount ?? parentGrossRaw ?? 0)
-        : parentGrossRaw;
+      const parentBase = parentGrossRaw > 0
+        ? parentGrossRaw
+        : Number(parent.procedure_amount ?? 0);
       const exp = u.expected_amount;
       if (exp == null || exp <= parentBase + 0.01) continue;
       const bonusAmt = Number((exp - parentBase).toFixed(2));

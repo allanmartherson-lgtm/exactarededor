@@ -3044,11 +3044,10 @@ export function analyzePaymentItems(
     if (!it) continue;
     const key = `${r.matched_rule_id}|${bonusGroupKey(it)}`;
     const anchor = bonusGroupsSeen.get(key);
-    // Em CONFECÇÃO a base do analista não traz gross_amount (não há valor pago).
-    // Fallback para procedure_amount (valor de tabela) para que o auxiliar não
-    // fique com expected=0 quando o bônus é suprimido — preserva o repasse base
-    // do médico auxiliar (se houver outra regra calculando, ela já preencheu r.expected_amount;
-    // aqui só usamos paid como fallback para o caso suprimido).
+    // Tanto em ANÁLISE quanto em CONFECÇÃO, gross_amount é a fonte primária do
+    // valor base do médico (em confecção, é o valor base do repasse que o
+    // analista enviou na base tratada). procedure_amount serve só como fallback
+    // defensivo caso a base venha sem gross_amount preenchido.
     const paid = Number(it.gross_amount ?? it.procedure_amount ?? 0);
     if (!anchor) {
       // Grupo sem cirurgião principal — bônus pendente de inclusão manual.
