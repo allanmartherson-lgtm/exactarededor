@@ -1555,21 +1555,23 @@ function RowMain({
         {colVis.regra && (
           <td className={cn(cell, TEXT_META)} title={ruleName}>{ruleName}</td>
         )}
-        <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
-          <span className="inline-flex items-center justify-end">
-            {formatCurrency(grossN)}
-            {!isBonus && (it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
-              <span style={{
-                fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 9999,
-                background: (it as any).item_origem === 'conciliacao_credito' ? 'hsl(var(--success-soft))' : 'hsl(var(--destructive-soft))',
-                color: (it as any).item_origem === 'conciliacao_credito' ? 'hsl(var(--success))' : 'hsl(var(--destructive))',
-                marginLeft: 4, whiteSpace: 'nowrap',
-              }}>
-                {(it as any).item_origem === 'conciliacao_credito' ? 'Conc. +' : 'Conc. −'}
-              </span>
-            )}
-          </span>
-        </td>
+        {showGrossColumn && (
+          <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
+            <span className="inline-flex items-center justify-end">
+              {formatCurrency(grossN)}
+              {!isBonus && (it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 9999,
+                  background: (it as any).item_origem === 'conciliacao_credito' ? 'hsl(var(--success-soft))' : 'hsl(var(--destructive-soft))',
+                  color: (it as any).item_origem === 'conciliacao_credito' ? 'hsl(var(--success))' : 'hsl(var(--destructive))',
+                  marginLeft: 4, whiteSpace: 'nowrap',
+                }}>
+                  {(it as any).item_origem === 'conciliacao_credito' ? 'Conc. +' : 'Conc. −'}
+                </span>
+              )}
+            </span>
+          </td>
+        )}
 
         <td
           className={cn(
@@ -1582,7 +1584,7 @@ function RowMain({
         >
           {isBonus ? "—" : (expN != null ? formatCurrency(expN) : "—")}
         </td>
-        {colVis.diferenca && (
+        {showDiferencaCol && (
           <td
             className={cn(
               cellPad,
