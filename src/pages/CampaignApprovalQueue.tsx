@@ -54,21 +54,34 @@ type Campaign = {
 
 const PAGE_SIZE = 20;
 
-/** Executa uma RPC com retry simples em erros de rede/transientes. */
+/** Executa uma RPC com retry simples em erros de rede/transientes + timeout. */
 async function rpcWithRetry<T = unknown>(
   fn: string,
   args: Record<string, unknown>,
   maxAttempts = 2,
+  timeoutMs = 15000,
 ): Promise<{ data: T | null; error: { message: string } | null }> {
   let lastErr: { message: string } | null = null;
   for (let i = 1; i <= maxAttempts; i++) {
     const rpc = supabase.rpc as unknown as (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
-    const { data, error } = await rpc(fn, args);
-    if (!error) return { data: data as T, error: null };
-    lastErr = error;
-    // Em erros de permissão (42501) ou validação, não adianta tentar de novo.
-    const code = (error as { code?: string }).code;
-    if (code && !["57014", "08006", "08001"].includes(code)) break;
+    try {
+      const result = await Promise.race([
+        rpc(fn, args),
+        new Promise<{ data: null; error: { message: string; code?: string } }>((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout após ${Math.round(timeoutMs / 1000)}s aguardando ${fn}`)), timeoutMs),
+        ),
+      ]);
+      const { data, error } = result;
+      if (!error) return { data: data as T, error: null };
+      lastErr = error;
+      console.error(`[rpcWithRetry] ${fn} tentativa ${i} falhou`, error);
+      const code = (error as { code?: string }).code;
+      if (code && !["57014", "08006", "08001"].includes(code)) break;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[rpcWithRetry] ${fn} tentativa ${i} lançou exceção`, e);
+      lastErr = { message: msg };
+    }
     await new Promise((r) => setTimeout(r, 600 * i));
   }
   return { data: null, error: lastErr };
