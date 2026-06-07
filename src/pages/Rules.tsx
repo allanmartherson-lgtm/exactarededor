@@ -252,6 +252,7 @@ const Rules = () => {
   // UI local: empresas colapsadas (por company_id) e filtro de busca.
   const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set());
   const [companyLinksFilter, setCompanyLinksFilter] = useState("");
+  const [companyLinksStatusFilter, setCompanyLinksStatusFilter] = useState<"todos" | "com_excluidos" | "allowlist" | "sem_medicos" | "incompleto">("todos");
   // Sugestões de médicos por empresa (mapa company_id → médicos encontrados em payment_items).
   const [companyDoctorsMap, setCompanyDoctorsMap] = useState<Record<string, { name: string; crm?: string }[]>>({});
   const [loadingCompanyDoctorsIds, setLoadingCompanyDoctorsIds] = useState<Set<string>>(new Set());
