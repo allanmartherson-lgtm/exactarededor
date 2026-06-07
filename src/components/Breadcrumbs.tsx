@@ -113,9 +113,13 @@ export const Breadcrumbs = () => {
     segments.forEach((seg, idx) => {
       acc += `/${seg}`;
       const isLast = idx === segments.length - 1;
-      crumbs.push({ 
-        label: labelFor(acc, dynamicLabels), 
-        to: isLast ? undefined : acc 
+      // Segmento intermediário "empresa" em /pagamentos/:id/empresa/:groupId
+      // não tem rota própria — renderiza como rótulo, sem link.
+      const isOrphanSegment =
+        segments[0] === "pagamentos" && seg === "empresa" && idx === 2;
+      crumbs.push({
+        label: labelFor(acc, dynamicLabels),
+        to: isLast || isOrphanSegment ? undefined : acc,
       });
     });
   }
