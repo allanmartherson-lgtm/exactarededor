@@ -493,8 +493,22 @@ const Companies = () => {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Notas</Label>
-                  <Textarea rows={2} value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
+                  <Label>Notas operacionais</Label>
+                  <Textarea
+                    rows={2}
+                    value={editing.notes ?? ""}
+                    onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
+                    placeholder="Lembretes internos. Vínculo com médicos vai na seção abaixo, não aqui."
+                  />
+                  {(() => {
+                    const matches = (editing.notes ?? "").match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g);
+                    if (!matches || matches.length === 0) return null;
+                    return (
+                      <p className="text-xs text-destructive">
+                        ⚠ CNPJ detectado nas notas: {matches.map(formatCNPJ).join(", ")}. Notas não criam vínculo — use a seção "Médicos vinculados".
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Prazos específicos</Label>
