@@ -2110,6 +2110,12 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // [Sprint 4 - Observabilidade] Grava telemetria por empresa (best-effort).
     __telemetry.items_count = results.length;
     try {
+      // Mesmo no caminho de sucesso, gravamos um marker no campo `error` quando
+      // chunks de IA falharam — fica visível nos dashboards de saúde sem exigir
+      // migration de schema.
+      const aiPartialNote = __telemetry.ai_chunks_failed > 0
+        ? `ai_partial_failure: ${__telemetry.ai_chunks_failed}/${__telemetry.ai_chunks_total} chunks falharam (retries: ${__telemetry.ai_chunks_retried})`
+        : null;
       await supabase.from("analysis_telemetry").insert({
         job_id: __job_id ?? null,
         payment_id,
@@ -2121,6 +2127,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         items_count: __telemetry.items_count,
         ai_items_count: __telemetry.ai_items_count,
         cache_hit: __telemetry.cache_hit,
+        error: aiPartialNote,
       });
     } catch (telErr) {
       console.warn(`${__t} telemetry insert falhou`, (telErr as any)?.message ?? telErr);
