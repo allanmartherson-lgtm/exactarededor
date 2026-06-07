@@ -2020,13 +2020,11 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           .select("company_name,total_amount")
           .eq("payment_id", payment_id);
         const groupTotalByCompany: Record<string, number> = {};
-        let groupsTotalSum = 0;
         let scopedGroupsTotalSum = 0;
         for (const g of (groupsAfter ?? [])) {
           const key = (g as any).company_name?.toString().trim() || "Sem empresa";
           const t = Number((g as any).total_amount ?? 0);
           groupTotalByCompany[key] = (groupTotalByCompany[key] ?? 0) + t;
-          groupsTotalSum += t;
           if (compsToCheck.includes(key)) scopedGroupsTotalSum += t;
         }
 
