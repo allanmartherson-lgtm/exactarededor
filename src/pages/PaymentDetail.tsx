@@ -1884,7 +1884,25 @@ const PaymentDetail = () => {
                 Questionamentos ({obs.filter((o: any) => o.is_question && !o.resolved_at).length})
               </Button>
             )}
-            {(payment.status === "em_analise_ia" || payment.status === "revisao_analista" || payment.status === "devolvido_analista") && (isAnalista || isDiretor) && (
+            {/*
+              Modo CONFECÇÃO: botão direto "Recalcular repasse" — sem dialog,
+              sem filtros de alerta/reprovado (confecção não retorna esses
+              status). Apenas reexecuta o motor de cálculo em todo o lote.
+            */}
+            {isConfeccao && (isAnalista || isDiretor) && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={reprocessingAi}
+                className="hidden md:inline-flex"
+                title="Reexecuta o motor de cálculo de repasse em todo o lote (modo confecção)"
+                onClick={() => reprocessAi()}
+              >
+                <RefreshCw className={cn("h-4 w-4 mr-1.5 text-muted-foreground", reprocessingAi && "animate-spin")} />
+                {reprocessingAi ? "Recalculando..." : "Recalcular repasse"}
+              </Button>
+            )}
+            {!isConfeccao && (payment.status === "em_analise_ia" || payment.status === "revisao_analista" || payment.status === "devolvido_analista") && (isAnalista || isDiretor) && (
               <AlertDialog open={reprocessConfirmOpen} onOpenChange={setReprocessConfirmOpen}>
                 <AlertDialogTrigger asChild>
                   <Button
