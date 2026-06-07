@@ -1699,18 +1699,9 @@ export default function CompanyAnalysis() {
 
 
 
-      {/* Thread de questionamentos — auto-roteada pela PJ deste grupo.
-          Analista pode iniciar (perguntar/chamar supervisor); validador/diretor sempre veem. */}
-      {id && groupId && (
-        <div ref={questionsThreadRef} className="scroll-mt-24">
-          <CompanyQuestionsThread
-            paymentId={id}
-            companyGroupId={groupId}
-            analysisMode={isConfeccao ? "confeccao" : "analise"}
-            hideIfEmpty={false}
-          />
-        </div>
-      )}
+      {/* Thread de questionamentos foi movida para o modal de Conversas (FAB) —
+          o bloco redundante na página foi removido a pedido do usuário. */}
+
 
       {/* ABAS */}
       <Tabs defaultValue="analise" className="space-y-3">
