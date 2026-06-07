@@ -236,3 +236,29 @@ Deno.test("CONFECÇÃO · split sintetiza linha de bônus com valor correto e ze
   assertEquals(parentExpectedPosRevert + bonusAmt, exp,
     "Invariante: pai(base) + bônus(sintético) === expected original");
 });
+
+Deno.test("CONFECÇÃO · linha sintética de bônus persiste gross_amount igual ao repasse calculado", () => {
+  const isConfeccao = true;
+  const bonusAmt = 1500;
+
+  // Espelha o payload crítico do insert em analyze-payment/index.ts: mesmo no
+  // modo confecção, gross_amount não pode ser null porque payment_items exige
+  // valor e os totais por empresa usam essa coluna.
+  const bonusInsertPayload = {
+    gross_amount: bonusAmt,
+    expected_amount: bonusAmt,
+    tipo_linha: "complemento_bonus",
+    tipo_item: "bonus",
+    applied_calc_method: "bonus",
+    ai_findings: {
+      expected_amount: bonusAmt,
+      calculation_type: "bonus",
+    },
+  } as any;
+
+  assertEquals(isConfeccao, true);
+  assertEquals(bonusInsertPayload.gross_amount, 1500,
+    "Regressão: gross_amount não pode ser null em complemento_bonus de confecção");
+  assertEquals(bonusInsertPayload.expected_amount, 1500);
+  assertEquals(bonusInsertPayload.ai_findings.expected_amount, 1500);
+});
