@@ -632,10 +632,11 @@ export default function CompanyAnalysis() {
   /**
    * Finaliza a CONFECÇÃO desta empresa. Diferente de "Concluir análise":
    * - não envia ao validador (em confecção não existe validador por empresa);
-   * - não altera o status do grupo (trigger DB só permite em_confeccao→em_analise_ia/revisao_analista/cancelado/arquivado);
+   * - não muda confeccao_status do grupo (a finalização do lote é atômica e
+   *   ocorre via RPC finalize_confeccao no PaymentDetail);
    * - apenas registra observação marcando a empresa como pronta na confecção.
    * O envio efetivo para análise é feito no lote inteiro via "Encaminhar para análise"
-   * no PaymentDetail (sendConfeccaoForAnalysis), conforme o trigger block_confeccao_skip_to_validation.
+   * no PaymentDetail (sendConfeccaoForAnalysis → rpc finalize_confeccao).
    */
   const finalizeConfeccaoGroup = async () => {
     if (!id || !group) return;
@@ -1293,17 +1294,21 @@ export default function CompanyAnalysis() {
   });
 
   const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
+  // Em CONFECÇÃO, o estado vivo do grupo está em confeccao_status (gStatus fica
+  // em 'rascunho' como placeholder). Em ANÁLISE, o estado vivo é gStatus.
+  const gConfeccaoStatus = (group as any)?.confeccao_status as string | null | undefined;
+  const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+  const isConfeccaoEditable = isConfeccao && gConfeccaoStatus === "em_confeccao";
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
   const canActAnalista =
-    (gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao" || gStatus === "em_confeccao") &&
+    (gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao" || isConfeccaoEditable) &&
     isAnalistaRole && (isOwner || isAdmin);
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
   const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
   const canAct = canActAnalista || canActValidador || canActDiretor;
   // (removido) returner: o fluxo unificado de "Concluir análise" não distingue mais reencaminhamento aqui — o envio ao validador é feito no lote inteiro.
 
-  const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
 
   return (
     <div className="space-y-4 pb-32">
@@ -1885,7 +1890,7 @@ export default function CompanyAnalysis() {
 
               {canActAnalista && (
                 <>
-                  {(gStatus === "revisao_analista" || gStatus === "devolvido_analista" || (isConfeccao && gStatus === "em_confeccao")) && (
+                  {(gStatus === "revisao_analista" || gStatus === "devolvido_analista" || isConfeccaoEditable) && (
                     <>
                       <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
                         <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />

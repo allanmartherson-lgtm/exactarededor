@@ -1253,7 +1253,11 @@ const NewPayment = () => {
       .insert({
         reference: reference.trim(),
         description: description.trim() || null,
-        status: (analysisMode === "confeccao" ? "em_confeccao" : "em_analise_ia") as any,
+        // Em CONFECÇÃO, payments.status fica em 'rascunho' (placeholder);
+        // o status operacional vive em confeccao_status. Em ANÁLISE,
+        // o motor é disparado imediatamente (em_analise_ia).
+        status: (analysisMode === "confeccao" ? "rascunho" : "em_analise_ia") as any,
+        confeccao_status: (analysisMode === "confeccao" ? "em_confeccao" : null) as any,
         total_amount: total,
         items_count: allRows.length,
         source_file_path: uploadedPaths[0] ?? null,

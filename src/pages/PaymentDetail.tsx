@@ -803,16 +803,12 @@ const PaymentDetail = () => {
     }
     setBusy(true);
     try {
-      // Troca modo + status do lote: confecção → análise padrão.
-      const { error: upErr } = await supabase
-        .from("payments")
-        .update({ analysis_mode: "padrao", status: "em_analise_ia" })
-        .eq("id", id);
-      if (upErr) throw upErr;
-      // Reseta status dos grupos para em_analise_ia (motor irá repopular).
-      await supabase.from("payment_company_groups")
-        .update({ status: "em_analise_ia" })
-        .eq("payment_id", id);
+      // Transição estrutural Confecção → Análise via RPC dedicado.
+      // finalize_confeccao() troca analysis_mode, marca confeccao_status como
+      // concluída, libera os grupos para revisao_analista e respeita o guard
+      // de coerência do banco (status × analysis_mode × confeccao_status).
+      const { error: rpcErr } = await supabase.rpc("finalize_confeccao", { _payment_id: id });
+      if (rpcErr) throw rpcErr;
       await recordObservation({
         payment_id: id, author_type: "analista", author_id: user.id,
         message: `Confecção encerrada. Lote encaminhado para análise (modo padrão).`,

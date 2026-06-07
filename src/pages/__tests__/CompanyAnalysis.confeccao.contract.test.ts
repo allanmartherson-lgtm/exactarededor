@@ -54,8 +54,13 @@ describe("CompanyAnalysis · modo confecção · contrato", () => {
     expect(src).toMatch(/Marca esta empresa como pronta\. O envio para análise é feito no lote/);
   });
 
-  it("permite ações do analista em status 'em_confeccao' (recalcular/finalizar)", () => {
-    expect(src).toMatch(/isConfeccao\s*&&\s*gStatus\s*===\s*"em_confeccao"/);
+  it("permite ações do analista em confecção via confeccao_status (não mais via gStatus='em_confeccao')", () => {
+    // Após separação Confecção × Análise, o gate operacional vive em
+    // confeccao_status='em_confeccao' (gStatus fica em 'rascunho' placeholder).
+    expect(src).toMatch(/isConfeccaoEditable/);
+    expect(src).toMatch(/gConfeccaoStatus\s*===\s*"em_confeccao"/);
+    // Garante que NÃO regredimos para o padrão antigo (gStatus === 'em_confeccao').
+    expect(src).not.toMatch(/gStatus\s*===\s*"em_confeccao"/);
   });
 
   it("banner reforça que envio para análise é feito no lote inteiro", () => {
