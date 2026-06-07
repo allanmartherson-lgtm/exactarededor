@@ -2811,8 +2811,8 @@ const PaymentDetail = () => {
                 <div>
                   <p className="text-sm font-medium text-primary">Modo confecção</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    O sistema calculou o repasse de cada item pelas regras cadastradas.
-                    Revise os valores e decida se envia para validação ou exporta a planilha.
+                    O sistema calculou o repasse pelas regras cadastradas. Revise os valores e,
+                    quando estiver pronto, encaminhe para análise — só então o motor confronta com a base hospitalar.
                   </p>
                 </div>
               </div>
@@ -2822,8 +2822,8 @@ const PaymentDetail = () => {
                     <Download className="h-4 w-4" />
                     Exportar xlsx
                   </Button>
-                  <Button size="sm" onClick={sendConfeccaoForValidation} disabled={busy} className="gap-1.5">
-                    Enviar para validação
+                  <Button size="sm" onClick={sendConfeccaoForAnalysis} disabled={busy} className="gap-1.5">
+                    Encaminhar para análise
                   </Button>
                 </div>
               )}
