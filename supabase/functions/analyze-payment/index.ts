@@ -454,6 +454,23 @@ serve(async (req) => {
     if (!company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0) {
       itemsQuery.in("ai_status", ai_statuses);
     }
+
+    // Idempotência do split de bônus: linhas sintéticas de execuções anteriores
+    // não podem entrar no motor nem no cálculo de grupos da reanálise atual.
+    // Por isso limpamos o escopo antes de carregar os itens-base.
+    if (!is_dry_run && (company_name || !filterApplied)) {
+      let oldBonusDelete = supabase
+        .from("payment_items")
+        .delete()
+        .eq("payment_id", payment_id)
+        .eq("tipo_linha", "complemento_bonus")
+        .eq("tipo_item", "bonus");
+      if (company_name && typeof company_name === "string") {
+        oldBonusDelete = oldBonusDelete.eq("company_name", company_name);
+      }
+      const { error: oldBonusErr } = await oldBonusDelete;
+      if (oldBonusErr) console.error(`${__t} bonus_preclean_error`, oldBonusErr);
+    }
     const { data: itemsRaw } = await itemsQuery.limit(20000);
 
     // Quando há filtro por ai_statuses, o subset acima não inclui todos os itens
