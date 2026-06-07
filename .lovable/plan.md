@@ -1,92 +1,68 @@
-## Objetivo
-Garantir que atualizações de dados (reseed de cadastros, troca de hospital, exclusão de auth user, mudança de vínculo) nunca derrubem os portais de médico e empresa. Três camadas: **integridade no banco**, **UI tolerante**, e **diagnóstico/auto-reparo**.
+# Separação de status: Confecção × Análise
 
----
+Hoje `em_confeccao` mora dentro do enum `payment_status` e divide o mesmo ciclo da Análise, distinguido só por `analysis_mode`. Vamos isolar Confecção em seu próprio enum + colunas dedicadas, com guards de banco que impedem mistura.
 
-## Camada 1 — Integridade no banco (preservar vínculos sempre)
+## 1. Banco — migração principal
 
-Migration única com:
+**Novo enum**
+```sql
+CREATE TYPE confeccao_status AS ENUM (
+  'em_confeccao',
+  'confeccao_concluida',
+  'cancelada'
+);
+```
 
-1. **FKs com `ON DELETE` adequado** nas tabelas de vínculo:
-   - `doctor_portal_users.user_id` → `auth.users(id) ON DELETE SET NULL` (mantém histórico, marca como órfão).
-   - `doctor_portal_users.doctor_id` → `doctors(id) ON DELETE RESTRICT` (impede apagar médico com portal ativo).
-   - `company_portal_users.user_id` → `auth.users(id) ON DELETE SET NULL`.
-   - `company_portal_users.company_id` → `companies(id) ON DELETE RESTRICT`.
-   - Mesmo padrão em `doctor_portal_user_hospitals` e `company_portal_user_hospitals` (`ON DELETE CASCADE` para o pai do vínculo, `RESTRICT` para `hospital_id`).
+**Novas colunas** (em `payments` e `payment_company_groups`):
+- `confeccao_status confeccao_status NULL`
+- `confeccao_finalized_at timestamptz NULL`
+- `confeccao_finalized_by uuid NULL`
 
-2. **Coluna `link_health`** (enum: `ok | orphan_user | orphan_target | inactive`) em `doctor_portal_users` e `company_portal_users`, recomputada por trigger sempre que `user_id`, `doctor_id`/`company_id` ou `active` mudam.
+`payments.status` (enum atual) continua sendo a fonte de verdade do ciclo de **Análise**. Em modo confecção, `status` fica em `NULL`-equivalent operacional: usaremos `rascunho` como placeholder até a finalização (não aparece em telas de Análise por causa do filtro de mode).
 
-3. **Trigger pós-reseed**: na inserção em `auth.users`, se o e-mail já existe em `doctor_portal_users.email` ou `company_portal_users.email` com `user_id IS NULL`, **religa automaticamente** (UPDATE setando `user_id` e `link_health='ok'`). Isso atende "Preservar sempre" mesmo se um reseed acidentalmente recriar o auth user.
+**Trigger de coerência** (`enforce_mode_status_separation`):
+- Se `analysis_mode = 'confeccao'`: `confeccao_status` é obrigatório; `status` só pode ser `rascunho`, `arquivado` ou `cancelado`. Bloqueia setar `em_analise_ia`, `revisao_analista`, etc.
+- Se `analysis_mode <> 'confeccao'`: `confeccao_status` deve ser `NULL`; `status` segue o enum de Análise.
+- Bloqueia voltar de Análise para Confecção (transição unidirecional).
 
-4. **Função `repair_portal_links()`** (SECURITY DEFINER, callable só por admin via RPC): varre vínculos órfãos e religa pelo e-mail. Retorna contagem de reparados/não reparados.
+**Backfill** (mesma migração):
+- Lotes/grupos com `analysis_mode='confeccao'` e `status='em_confeccao'` → `confeccao_status='em_confeccao'`, `status='rascunho'`.
+- Lotes em modo confecção que já avançaram para `em_analise_ia`/`revisao_analista` (transição já feita pelo botão "Encaminhar para análise") → `confeccao_status='confeccao_concluida'`, `analysis_mode` muda para `padrao` e `status` é preservado.
 
-5. **View `portal_links_health`**: agrega contagem por status, hospital, tipo de portal — fonte do painel de diagnóstico.
+**Remoção do valor `em_confeccao` do enum `payment_status`**: NÃO faremos agora (Postgres não permite drop de valor de enum sem recriar). Em vez disso, o trigger impede novos usos; deixamos uma TODO de limpeza futura.
 
----
+## 2. Transição Confecção → Análise
 
-## Camada 2 — UI tolerante a falhas
+Nova função SQL `finalize_confeccao(payment_id uuid)`:
+1. Verifica `confeccao_status='em_confeccao'`.
+2. Seta `confeccao_status='confeccao_concluida'`, `confeccao_finalized_at=now()`, `confeccao_finalized_by=auth.uid()`.
+3. Faz `analysis_mode := 'padrao'`, `status := 'em_analise_ia'`.
+4. Replica nos `payment_company_groups` filhos.
+5. Registra em `audit_log` e `payment_status_history`.
 
-Auditar e blindar hooks/páginas dos portais:
+O botão "Finalizar Confecção" (lote) passa a chamar esta RPC em vez de mexer em `status`/`analysis_mode` direto pelo cliente.
 
-- `src/hooks/usePaymentDetailData.ts` — já corrigido `.single()`→`.maybeSingle()`. Aplicar o mesmo padrão em:
-  - `src/pages/InvoicePortal.tsx` (entrada do portal empresa)
-  - Hooks de Home do portal médico (queries de `payments`, `doctor_portal_users`, `doctor_companies`)
-  - Hooks de Home do portal empresa (`company_portal_users`, `companies`, `payment_company_groups`)
+## 3. Código (frontend + edge functions)
 
-- **Estados claros** quando vínculo/lote não existe no hospital ativo:
-  - "Vínculo do portal foi desativado — fale com seu gestor"
-  - "Este lote não está disponível no hospital selecionado"
-  - "Médico não vinculado a uma PJ — não é possível receber repasse"
-  - Em vez de telas brancas, erros JSON, ou redirect para `/auth` sem motivo.
+- `src/lib/status.ts`: adicionar `ConfeccaoStatus` type + labels; remover `em_confeccao` dos mapas de Análise (mantendo fallback de label para histórico).
+- `src/lib/paymentFlow.ts` e `src/lib/companyGroupGuards.ts`: tirar `em_confeccao` dos sets `ANALYST_EDITABLE_STATUSES` / `EDITABLE_COMPANY_GROUP_STATUSES`; criar `CONFECCAO_EDITABLE` separado. Helpers passam a aceitar `{ status, confeccaoStatus, analysisMode }`.
+- `src/pages/PaymentDetail.tsx`, `CompanyAnalysis.tsx`, `ItemsDataGrid.tsx`: ler `confeccao_status` para decidir banners, edição, botões. `isConfeccao` deriva de `analysis_mode==='confeccao' || confeccao_status!=null` (cobre histórico).
+- Botão "Finalizar Confecção" → chama `rpc('finalize_confeccao', …)`.
+- `supabase/functions/dispatch-payment-analysis/index.ts` e `analyze-payment/index.ts`: gate de `EDITABLE_STATUSES` em modo confecção passa a olhar `confeccao_status='em_confeccao'` em vez de `status='em_confeccao'`.
+- `NewPayment.tsx`: ao criar lote em modo confecção, inserir `confeccao_status='em_confeccao'` + `status='rascunho'`.
 
-- **Boundary específico** `<PortalErrorBoundary>` em `src/components/portal/` que captura erros de query e oferece "Tentar novamente" + "Trocar de hospital".
+## 4. Testes
 
-- Logging via `telemetry` com tipo `portal_link_failed` para o painel de saúde detectar problemas em produção.
+- Atualizar `CompanyAnalysis.confeccao.contract.test.ts` e `ItemsDataGrid.confeccao.test.ts` para a nova forma.
+- Novo teste de contrato: trigger rejeita `status='em_analise_ia'` quando `analysis_mode='confeccao'`; rejeita `confeccao_status` setado em modo padrão.
+- Novo teste do RPC `finalize_confeccao` (transição completa).
 
----
+## 5. Rollout
 
-## Camada 3 — Painel "Saúde dos Portais"
+Migração e código vão juntos. Como há apenas 1 payment + 9 grupos em `em_confeccao` em produção e 0 fluxos pendentes de validação a partir de confecção, o backfill é seguro em uma única janela.
 
-Nova página `src/pages/PortalHealth.tsx` (acesso admin), com:
+## Riscos
+- Telas legadas que ainda esperam `status='em_confeccao'` precisam ler `confeccao_status`. O passo 3 cobre as conhecidas, mas pode existir filtro avulso — vou rodar `rg` final antes de fechar.
+- Não conseguimos remover `em_confeccao` do enum sem recriar o tipo (impactaria muitas views/funções). Mantemos como valor legado bloqueado por trigger.
 
-- **Cards de resumo**: total de vínculos, órfãos por tipo, médicos sem PJ, empresas sem usuário ativo.
-- **Tabela de problemas** filtrável por hospital/tipo, com colunas: e-mail, alvo (médico/empresa), motivo (`orphan_user`/`orphan_target`/`inactive`), última atividade.
-- **Ações em massa**: "Auto-reparar selecionados" (chama `repair_portal_links()`), "Desativar selecionados", "Recriar usuário auth" (chama edge function `admin-create-portal-user`).
-- **Alerta no header** (`AppLayout`) quando há órfãos pendentes — badge vermelho com contagem, link direto pro painel.
-
-Rota adicionada em `src/App.tsx` protegida por `roles={['admin']}`, item de menu em `src/config/navItems.ts` na seção Administração.
-
----
-
-## Detalhes técnicos
-
-**Arquivos a criar:**
-- `supabase/migrations/<ts>_portal_links_integrity.sql` (camada 1 inteira)
-- `src/pages/PortalHealth.tsx`
-- `src/components/portal/PortalErrorBoundary.tsx`
-- `src/hooks/usePortalLinksHealth.ts`
-
-**Arquivos a editar:**
-- `src/pages/InvoicePortal.tsx`, hooks do portal médico (a identificar via grep `.single()` em `src/hooks/use*Portal*`/`src/pages/*Portal*`)
-- `src/App.tsx` (nova rota), `src/config/navItems.ts` (item de menu), `src/components/AppLayout.tsx` (badge de alerta)
-
-**Pontos de atenção:**
-- A trigger pós-reseed lê `auth.users` — precisa ser `SECURITY DEFINER` com `search_path = public, auth`.
-- `link_health` é derivado: a coluna existe pra permitir índice/filtragem rápida no painel, mas a fonte da verdade é a trigger. Não permitir UPDATE manual.
-- `repair_portal_links()` precisa ser idempotente — pode rodar várias vezes sem efeito colateral.
-- Telemetria `portal_link_failed`: não bloquear render se a inserção falhar.
-
----
-
-## Fora de escopo desta rodada
-- Reseed propriamente dito (a garantia é que, se rodar, os vínculos sobrevivem ou se auto-reparam).
-- Mudança no fluxo de criação de portal user (já funciona via `admin-create-portal-user`).
-- Auditoria histórica retroativa (o painel mostra estado atual; histórico fica pra outra fase se necessário).
-
----
-
-## Ordem de execução
-1. Migration (camada 1) — precisa aprovação sua.
-2. Após aplicada, blindar UI (camada 2).
-3. Criar painel + alerta (camada 3).
-4. Rodar `repair_portal_links()` uma vez pra limpar órfãos existentes (Gilberto + qualquer outro).
+Posso seguir com a migração?
