@@ -25,6 +25,7 @@ import {
 import { CompanyThreadChat } from "@/components/portal/CompanyThreadChat";
 import { DoctorPendenciaChat } from "@/components/portal/DoctorPendenciaChat";
 import { NotificationHistoryPanel } from "@/components/pendencias/NotificationHistoryPanel";
+import { PendenciaAttachmentsPanel } from "@/components/pendencias/PendenciaAttachmentsPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UserCheck, CheckCircle2 } from "lucide-react";
