@@ -79,6 +79,21 @@ export const Breadcrumbs = () => {
         }
       }
 
+      // Dashboard > Pendências > [Assunto]
+      if (segments[0] === "pendencias" && segments[1]) {
+        const pendId = segments[1];
+        const { data } = await supabase
+          .from("pendencias" as never)
+          .select("subject")
+          .eq("id", pendId)
+          .maybeSingle();
+        const subject = (data as { subject?: string } | null)?.subject;
+        if (subject) {
+          const truncated = subject.length > 60 ? subject.slice(0, 57) + "…" : subject;
+          newLabels[`/pendencias/${pendId}`] = truncated;
+        }
+      }
+
       setDynamicLabels(prev => ({ ...prev, ...newLabels }));
     };
 
