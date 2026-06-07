@@ -84,6 +84,7 @@ export default function Pendencias() {
   const { user } = useAuth();
   const [items, setItems] = useState<Pendencia[]>([]);
   const [companies, setCompanies] = useState<Record<string, string>>({});
+  const [profileNames, setProfileNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("abertas");
