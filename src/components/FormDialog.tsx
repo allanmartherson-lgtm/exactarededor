@@ -9,7 +9,7 @@ interface FormDialogProps {
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
-  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl" | "full";
+  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl" | "7xl" | "full";
   maxHeight?: string;
   className?: string;
 }
@@ -24,6 +24,7 @@ const maxWidthClasses = {
   "4xl": "max-w-4xl",
   "5xl": "max-w-5xl",
   "6xl": "max-w-6xl",
+  "7xl": "max-w-[88rem]",
   "full": "max-w-[98vw]",
 };
 
