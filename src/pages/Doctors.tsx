@@ -746,6 +746,7 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
             <TabsTrigger value="list">Cadastro de médicos</TabsTrigger>
             <TabsTrigger value="provisional">Cadastros provisórios</TabsTrigger>
             <TabsTrigger value="pending">Pendências de cadastro</TabsTrigger>
+            <TabsTrigger value="link-suggestions">Vínculos sugeridos</TabsTrigger>
             <TabsTrigger value="aliases">Aliases</TabsTrigger>
             <TabsTrigger value="missing-specialty">Especialidades pendentes</TabsTrigger>
           </TabsList>
@@ -754,6 +755,9 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
           </TabsContent>
           <TabsContent value="pending" className="mt-4">
             <DoctorRegistrationPendingPanel />
+          </TabsContent>
+          <TabsContent value="link-suggestions" className="mt-4">
+            <DoctorLinkSuggestionsPanel />
           </TabsContent>
           <TabsContent value="aliases" className="mt-4">
             <RegistryAliasesPanel kind="doctor" />
