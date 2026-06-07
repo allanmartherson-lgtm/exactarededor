@@ -826,27 +826,39 @@ const NewPayment = () => {
     );
     // Aprendizado: adiciona o nome bruto do arquivo como alias da empresa correta.
     // Só faz isso quando o usuário trocou de fato a sugestão automática.
+    // Usa RPC SECURITY DEFINER (learn_company_alias) porque UPDATE direto em
+    // companies é restrito a admin/diretor pela RLS — analistas falhariam em
+    // silêncio (PostgREST devolve {error}, não joga exceção, então o catch
+    // nunca disparava e o toast mentia "salvo como apelido").
     if (previousId !== picked.id) {
-      try {
-        const rawAlias = b.rawCompanyName?.trim();
-        const current = companies.find((c) => c.id === picked.id);
-        const aliases = new Set([...(current?.aliases ?? [])]);
-        if (rawAlias && !aliases.has(rawAlias)) aliases.add(rawAlias);
-        await supabase.from("companies").update({ aliases: Array.from(aliases) }).eq("id", picked.id);
-        // Atualiza o cache local de companies para refletir o novo alias
-        setCompanies((prev) =>
-          prev.map((c) => (c.id === picked.id ? { ...c, aliases: Array.from(aliases) } : c)),
-        );
-        toast({
-          title: "Empresa atualizada",
-          description: `"${rawAlias}" foi salvo como apelido de ${picked.name}. Próximas importações com esse nome serão reconhecidas automaticamente.`,
+      const rawAlias = b.rawCompanyName?.trim();
+      if (rawAlias) {
+        const { error: aliasErr } = await supabase.rpc("learn_company_alias", {
+          _company_id: picked.id,
+          _raw_name: rawAlias,
         });
-      } catch (e) {
-        // Falha de aprendizado não bloqueia a troca — apenas avisa.
-        toast({
-          title: "Empresa atualizada (sem aprender apelido)",
-          description: `Troca aplicada, mas não foi possível salvar o apelido: ${String(e)}`,
-        });
+        if (aliasErr) {
+          toast({
+            title: "Empresa atualizada (sem aprender apelido)",
+            description: `Troca aplicada, mas não foi possível salvar o apelido: ${aliasErr.message}`,
+            variant: "destructive",
+          });
+        } else {
+          // Refaz o fetch para refletir o alias real persistido no banco.
+          const { data: refreshed } = await supabase
+            .from("companies")
+            .select("aliases")
+            .eq("id", picked.id)
+            .maybeSingle();
+          const newAliases = ((refreshed as any)?.aliases ?? []) as string[];
+          setCompanies((prev) =>
+            prev.map((c) => (c.id === picked.id ? { ...c, aliases: newAliases } : c)),
+          );
+          toast({
+            title: "Empresa atualizada",
+            description: `"${rawAlias}" foi salvo como apelido de ${picked.name}. Próximas importações com esse nome serão reconhecidas automaticamente.`,
+          });
+        }
       }
     }
   };
