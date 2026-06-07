@@ -23,7 +23,7 @@ import { FinancialCompositionStrip } from "@/components/payment-detail/Financial
 import { useFinancialComposition } from "@/hooks/useFinancialComposition";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2, CheckCircle2, GitCompareArrows } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2, CheckCircle2, GitCompareArrows, Calculator } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -628,6 +628,36 @@ export default function CompanyAnalysis() {
     setPostConcluirOpen(true);
     load();
   };
+
+  /**
+   * Finaliza a CONFECÇÃO desta empresa. Diferente de "Concluir análise":
+   * - não envia ao validador (em confecção não existe validador por empresa);
+   * - não altera o status do grupo (trigger DB só permite em_confeccao→em_analise_ia/revisao_analista/cancelado/arquivado);
+   * - apenas registra observação marcando a empresa como pronta na confecção.
+   * O envio efetivo para análise é feito no lote inteiro via "Encaminhar para análise"
+   * no PaymentDetail (sendConfeccaoForAnalysis), conforme o trigger block_confeccao_skip_to_validation.
+   */
+  const finalizeConfeccaoGroup = async () => {
+    if (!id || !group) return;
+    setBusy(true);
+    const text = groupDraft.trim();
+    await recordObservation({
+      payment_id: id,
+      author_type: myAuthorType,
+      author_id: user!.id,
+      message: `[${group.company_name}] Confecção finalizada pelo analista${text ? `: ${text}` : "."}`,
+      status_from: group.status,
+      status_to: group.status,
+    });
+    setGroupDraft("");
+    setBusy(false);
+    toast.success("Confecção desta empresa finalizada", {
+      description: "Use \"Encaminhar para análise\" no lote para enviar tudo ao motor de análise.",
+    });
+    load();
+  };
+
+
 
   const cancelBatch = async () => {
     if (!id || !group) return;
@@ -1266,15 +1296,41 @@ export default function CompanyAnalysis() {
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
   const canActAnalista =
-    (gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao") &&
+    (gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao" || gStatus === "em_confeccao") &&
     isAnalistaRole && (isOwner || isAdmin);
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
   const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
   const canAct = canActAnalista || canActValidador || canActDiretor;
   // (removido) returner: o fluxo unificado de "Concluir análise" não distingue mais reencaminhamento aqui — o envio ao validador é feito no lote inteiro.
 
+  const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+
   return (
     <div className="space-y-4 pb-32">
+      {isConfeccao && (
+        <div
+          className="sticky top-0 z-40 -mx-3 md:-mx-6 mb-2 border-b-2 border-amber-500/70 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/15 backdrop-blur-sm"
+          role="status"
+          aria-label="Modo confecção ativo"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(135deg, hsl(38 92% 50% / 0.10) 0px, hsl(38 92% 50% / 0.10) 12px, transparent 12px, transparent 24px)",
+          }}
+        >
+          <div className="px-4 md:px-6 py-2 flex items-center gap-3 text-amber-700 dark:text-amber-300">
+            <div className="flex items-center gap-2 rounded-md bg-amber-500/20 px-2.5 py-1 ring-1 ring-amber-500/40">
+              <Calculator className="h-3.5 w-3.5" />
+              <span className="text-[11px] font-bold tracking-[0.18em] uppercase">Modo confecção</span>
+            </div>
+            <p className="text-xs hidden sm:block">
+              O sistema está calculando o repasse pelas regras cadastradas — ainda não há confronto com a base hospitalar.
+            </p>
+            <span className="ml-auto text-[10px] font-medium uppercase tracking-wider opacity-80 hidden md:inline">
+              Lote {payment.reference}
+            </span>
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
@@ -1826,11 +1882,13 @@ export default function CompanyAnalysis() {
 
               {canActAnalista && (
                 <>
-                  {(gStatus === "revisao_analista" || gStatus === "devolvido_analista") && (
+                  {(gStatus === "revisao_analista" || gStatus === "devolvido_analista" || (isConfeccao && gStatus === "em_confeccao")) && (
                     <>
                       <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
                         <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
-                        {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
+                        {isConfeccao
+                          ? (reanalyzing ? "Recalculando..." : "Recalcular repasse")
+                          : (reanalyzing ? "Reaplicando..." : "Reaplicar regras")}
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -1861,10 +1919,13 @@ export default function CompanyAnalysis() {
                       {(() => {
                         const temItemAcatado = items.some((i) => i.ai_status === "acatado");
                         const observacaoOk = groupDraft.trim().length >= 20;
-                        const podeEnviar = !temItemAcatado || observacaoOk;
+                        // Em confecção a observação obrigatória não se aplica — não há "acatado" indo para validador.
+                        const podeEnviar = isConfeccao ? true : (!temItemAcatado || observacaoOk);
                         const tooltip = !podeEnviar
                           ? "Preencha a observação da empresa (mín. 20 caracteres) para enviar itens acatados"
-                          : undefined;
+                          : (isConfeccao
+                              ? "Marca esta empresa como pronta. O envio para análise é feito no lote (Encaminhar para análise)."
+                              : undefined);
                         const handleClick = () => {
                           if (!podeEnviar) {
                             toast.error("Observação obrigatória", {
@@ -1873,7 +1934,11 @@ export default function CompanyAnalysis() {
                             });
                             return;
                           }
-                          sendForValidation();
+                          if (isConfeccao) {
+                            finalizeConfeccaoGroup();
+                          } else {
+                            sendForValidation();
+                          }
                         };
                         return (
                           <Button
@@ -1881,11 +1946,11 @@ export default function CompanyAnalysis() {
                             onClick={handleClick}
                             disabled={busy}
                             title={tooltip}
-                            className={podeEnviar ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+                            className={podeEnviar ? (isConfeccao ? "bg-amber-600 hover:bg-amber-700 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white") : ""}
                             variant={podeEnviar ? "default" : "secondary"}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
-                            Concluir análise
+                            {isConfeccao ? "Finalizar confecção" : "Concluir análise"}
                           </Button>
                         );
                       })()}
