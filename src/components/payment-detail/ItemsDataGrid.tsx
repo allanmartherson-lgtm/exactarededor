@@ -240,6 +240,9 @@ export function ItemsDataGrid({
     }
   }, [colVis, COLUMN_PREFS_KEY]);
   const toggleCol = (k: OptionalColKey) => setColVis((v) => ({ ...v, [k]: !v[k] }));
+  // Em confecção, "Diferença" não faz sentido (gross e expected coincidem por
+  // construção). Forçamos invisível independentemente da preferência salva.
+  const showDiferencaCol = colVis.diferenca && !isConfeccao;
 
   const [density, setDensity] = useState<Density>(() => {
     if (typeof window === "undefined") return "comfortable";
