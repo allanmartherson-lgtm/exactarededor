@@ -857,29 +857,61 @@ const NewPayment = () => {
   
   /**
    * Confirma a sugestão automática de empresa (quando o match é < 90%).
+   * Também aprende o `rawCompanyName` como apelido — ao confirmar, o analista
+   * está validando que o nome bruto do arquivo se refere à empresa sugerida,
+   * então registrar isso melhora o match das próximas importações.
    */
-  const confirmBucketCompany = (idx: number) => {
+  const confirmBucketCompany = async (idx: number) => {
     const b = buckets[idx];
     if (!b || !b.matchedCompany) return;
-    
+    const picked = b.matchedCompany;
+
     setBuckets((prev) =>
       prev.map((x, i) =>
         i === idx
           ? {
               ...x,
               manualOverride: true,
-              rows: x.rows.map((r) => ({ 
-                ...r, 
-                company_id: x.matchedCompany!.id, 
-                company_name: x.matchedCompany!.name 
+              rows: x.rows.map((r) => ({
+                ...r,
+                company_id: picked.id,
+                company_name: picked.name,
               })),
             }
           : x,
       ),
     );
+
+    const rawAlias = b.rawCompanyName?.trim() ?? "";
+    const candidate = companies.find((c) => c.id === picked.id);
+    const alreadyKnown =
+      !rawAlias ||
+      candidate?.name?.trim().toLowerCase() === rawAlias.toLowerCase() ||
+      (candidate?.aliases ?? []).some((a) => a.trim().toLowerCase() === rawAlias.toLowerCase());
+
+    if (!alreadyKnown) {
+      const res = await learnCompanyAlias(supabase, { companyId: picked.id, rawName: rawAlias });
+      if (res.ok) {
+        setCompanies((prev) =>
+          prev.map((c) => (c.id === picked.id ? { ...c, aliases: res.aliases } : c)),
+        );
+        toast({
+          title: "Empresa confirmada",
+          description: `"${rawAlias}" foi salvo como apelido de ${picked.name}.`,
+        });
+        return;
+      }
+      toast({
+        title: "Empresa confirmada (sem aprender apelido)",
+        description: `Confirmação aplicada, mas não foi possível salvar o apelido: ${res.error}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
       title: "Empresa confirmada",
-      description: `A sugestão "${b.matchedCompany.name}" foi aceita para este arquivo.`,
+      description: `A sugestão "${picked.name}" foi aceita para este arquivo.`,
     });
   };
 
