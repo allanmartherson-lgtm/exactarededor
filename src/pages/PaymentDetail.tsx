@@ -2924,8 +2924,6 @@ const PaymentDetail = () => {
               </Select>
             </div>
             )}
-            {!isConfeccao && (
-              
               {hasRole("analista") || hasRole("admin") || hasRole("diretor") ? (
                 <>
                   <Button
