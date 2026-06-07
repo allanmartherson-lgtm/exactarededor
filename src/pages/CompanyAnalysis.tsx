@@ -1324,6 +1324,7 @@ export default function CompanyAnalysis() {
             </div>
             <p className="text-xs hidden sm:block">
               O sistema está calculando o repasse pelas regras cadastradas — ainda não há confronto com a base hospitalar.
+              <span className="hidden lg:inline"> O envio para análise é feito no lote inteiro, não por empresa.</span>
             </p>
             <span className="ml-auto text-[10px] font-medium uppercase tracking-wider opacity-80 hidden md:inline">
               Lote {payment.reference}
