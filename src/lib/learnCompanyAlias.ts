@@ -44,3 +44,25 @@ export async function learnCompanyAlias(
   const aliases = (((data as { aliases?: string[] } | null)?.aliases) ?? []) as string[];
   return { ok: true, aliases, error: null };
 }
+
+/**
+ * Decide se vale chamar `learnCompanyAlias` para o par (rawName, empresa).
+ * Evita escrita redundante quando o nome bruto já é exatamente o `name` ou
+ * já está em `aliases` (comparação case-insensitive + trim). Também rejeita
+ * rawName vazio/whitespace — alinhado ao guard interno do helper.
+ *
+ * Centralizado aqui para que tanto a "troca manual" quanto a "confirmação
+ * de sugestão" em /pagamentos/novo usem a MESMA regra — e seja testável.
+ */
+export function shouldLearnAlias(
+  rawName: string | null | undefined,
+  company: { name?: string | null; aliases?: string[] | null } | null | undefined,
+): boolean {
+  const trimmed = (rawName ?? "").trim();
+  if (!trimmed) return false;
+  if (!company) return false;
+  const key = trimmed.toLowerCase();
+  if ((company.name ?? "").trim().toLowerCase() === key) return false;
+  if ((company.aliases ?? []).some((a) => (a ?? "").trim().toLowerCase() === key)) return false;
+  return true;
+}
