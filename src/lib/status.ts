@@ -8,6 +8,7 @@ export type InvoiceStatus = Database["public"]["Enums"]["invoice_status"];
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   rascunho: "Rascunho",
+  em_confeccao: "Em confecção",
   em_analise_ia: "Em análise por IA",
   revisao_analista: "Em revisão pelo analista",
   concluida_analista: "Concluída pelo analista",
@@ -36,6 +37,7 @@ type Tone = "info" | "success" | "warning" | "destructive" | "muted" | "primary"
 
 export const PAYMENT_STATUS_TONES: Record<PaymentStatus, Tone> = {
   rascunho: "muted",
+  em_confeccao: "primary",
   em_analise_ia: "info",
   revisao_analista: "primary",
   concluida_analista: "success",
