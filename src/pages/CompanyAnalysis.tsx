@@ -1810,6 +1810,13 @@ export default function CompanyAnalysis() {
         <TabsContent value="ia" className="space-y-3">
           <AiDetail items={items} versions={aiVersions} />
         </TabsContent>
+
+        {/* ABA Confecção — auditoria de cálculo (só no modo confecção) */}
+        {(payment as any)?.analysis_mode === "confeccao" && (
+          <TabsContent value="confeccao-audit" className="space-y-3">
+            <ConfeccaoAuditPanel items={items} rulesIndex={rulesIndex} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Footer sticky com ações de fluxo */}
