@@ -1125,6 +1125,14 @@ export function ItemsDataGrid({
                     </button>
                   </th>
                 )}
+                {showProcedureColumn && (
+                  <th
+                    scope="col"
+                    className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                  >
+                    Valor Faturamento
+                  </th>
+                )}
                 <th
                   scope="col"
                   aria-sort={sortKey === "esperado" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
