@@ -178,26 +178,13 @@ export default function CampaignApprovalQueue() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, statusFilter, search, channelFilter, creatorFilter, companyFilter, dateFrom, dateTo]);
 
-  const notify = async (campaign_id: string, decision: "approved" | "rejected", reason?: string) => {
-    try {
-      await supabase.functions.invoke("notify-campaign-decision", {
-        body: { campaign_id, decision, reason },
-      });
-    } catch {
-      /* não bloqueia */
-    }
-  };
-
   const doApprove = async () => {
     if (!approveTarget) return;
     const id = approveTarget.id;
     setBusyId(id);
-    // Otimista: atualiza UI imediatamente
-    setItems((prev) => prev.map((c) => (c.id === id ? { ...c, approval_status: "approved" } : c)));
     setApproveTarget(null);
     const { error } = await rpcWithRetry("approve_campaign", { _campaign_id: id });
     if (error) {
-      // Rollback
       void load();
       setBusyId(null);
       toast({
@@ -207,9 +194,9 @@ export default function CampaignApprovalQueue() {
       });
       return;
     }
-    await notify(id, "approved");
     setBusyId(null);
-    toast({ title: "Campanha aprovada", description: "Analista notificado por e-mail e inbox." });
+    toast({ title: "Campanha aprovada", description: "Notificações e disparo serão processados automaticamente." });
+    void load();
   };
 
   const doReject = async () => {
@@ -225,9 +212,6 @@ export default function CampaignApprovalQueue() {
     }
     const id = rejectTarget.id;
     setBusyId(id);
-    setItems((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, approval_status: "rejected" } : c)),
-    );
     setRejectTarget(null);
     setRejectReason("");
     const { error } = await rpcWithRetry("reject_campaign", {
@@ -243,9 +227,9 @@ export default function CampaignApprovalQueue() {
       });
       return;
     }
-    await notify(id, "rejected", reason);
     setBusyId(null);
-    toast({ title: "Campanha rejeitada", description: "Motivo registrado e analista notificado." });
+    toast({ title: "Campanha rejeitada", description: "Motivo registrado e notificação processada automaticamente." });
+    void load();
   };
 
   const clearFilters = () => {
