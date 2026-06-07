@@ -228,6 +228,9 @@ const PaymentDetail = () => {
   const [reprocessingAi, setReprocessingAi] = useState(false);
   const [skippedCompanies, setSkippedCompanies] = useState<Array<{ company_name: string; status: string }>>([]);
   const [validatingRules, setValidatingRules] = useState(false);
+  useEffect(() => {
+    if (payment?.analysis_mode === "confeccao") setSkippedCompanies([]);
+  }, [payment?.analysis_mode]);
   // Diálogo de "Fazer questionamento" — escopo lote ou empresa específica.
   const [askQuestion, setAskQuestion] = useState<
     null | { groupId?: string | null; companyName?: string | null }
@@ -1222,6 +1225,7 @@ const PaymentDetail = () => {
     if (!id || !user) return;
     setReprocessingAi(true);
     try {
+      const isConfeccaoMode = payment?.analysis_mode === "confeccao";
       // Sempre usamos o dispatcher para reanálise do lote para garantir processamento paralelo por empresa.
       const fnName = "dispatch-payment-analysis";
       const isBatch = !statuses || statuses.length === 0;
@@ -1240,14 +1244,13 @@ const PaymentDetail = () => {
         },
       });
       if (error) throw error;
-      const skipped = (data as any)?.skipped_companies ?? [];
+      const skipped = isConfeccaoMode ? [] : ((data as any)?.skipped_companies ?? []);
       setSkippedCompanies(Array.isArray(skipped) ? skipped : []);
       
       const filterDesc = statuses && statuses.length > 0 
         ? ` (filtrado por: ${statuses.join(", ")}; tolerância: ${toleranceValue * 100}%)` 
         : ` em todo o lote (tolerância: ${toleranceValue * 100}%)`;
 
-      const isConfeccaoMode = payment?.analysis_mode === "confeccao";
       await recordObservation({
         payment_id: id,
         author_type: "analista",
