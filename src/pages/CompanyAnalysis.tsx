@@ -18,6 +18,7 @@ import { PaymentReportModal } from "@/components/payment-detail/PaymentReportMod
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { CompanyQuestionsThread } from "@/components/payment-detail/CompanyQuestionsThread";
 import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
+import { ConversationsSheet } from "@/components/payment-detail/conversations/ConversationsSheet";
 import { DeductionsBanner } from "@/components/payment-detail/DeductionsBanner";
 import { FinancialCompositionStrip } from "@/components/payment-detail/FinancialCompositionStrip";
 import { useFinancialComposition } from "@/hooks/useFinancialComposition";
@@ -325,6 +326,9 @@ export default function CompanyAnalysis() {
   const scrollToQuestions = () => {
     questionsThreadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  // Modal de Conversas escopado a esta empresa — substitui a rolagem até o bloco de
+  // questionamentos, mantendo a página de análise mais enxuta.
+  const [conversationsOpen, setConversationsOpen] = useState(false);
 
   const [postConcluirOpen, setPostConcluirOpen] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
@@ -2079,12 +2083,28 @@ export default function CompanyAnalysis() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* FAB Conversas — escopo desta empresa. Posicionado acima do footer sticky para não cobrir os botões de ação. */}
-      {id && groupId && (
+      {/* FAB Conversas — abre o modal de bate-papo já escopado a esta empresa,
+          em vez de rolar até o bloco interno de questionamentos. */}
+      {id && groupId && group && (
         <QuestionsFab
           openCount={openQuestionsCount}
-          onClick={scrollToQuestions}
+          onClick={() => setConversationsOpen(true)}
           className="bottom-24"
+        />
+      )}
+      {id && user && group && (
+        <ConversationsSheet
+          open={conversationsOpen}
+          onOpenChange={setConversationsOpen}
+          paymentId={id}
+          paymentLabel={(payment as any)?.reference ?? (payment as any)?.competence_month ?? null}
+          paymentStatus={(payment?.status as string) ?? null}
+          groups={[{ id: group.id, company_name: group.company_name }]}
+          profiles={profiles}
+          currentUserId={user.id}
+          currentUserName={profiles[user.id] ?? user.email ?? "Equipe interna"}
+          currentRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
+          initialCompose={conversationsOpen ? { groupId: group.id, companyName: group.company_name } : null}
         />
       )}
     </div>
