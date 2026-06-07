@@ -1884,7 +1884,25 @@ const PaymentDetail = () => {
                 Questionamentos ({obs.filter((o: any) => o.is_question && !o.resolved_at).length})
               </Button>
             )}
-            {(payment.status === "em_analise_ia" || payment.status === "revisao_analista" || payment.status === "devolvido_analista") && (isAnalista || isDiretor) && (
+            {/*
+              Modo CONFECÇÃO: botão direto "Recalcular repasse" — sem dialog,
+              sem filtros de alerta/reprovado (confecção não retorna esses
+              status). Apenas reexecuta o motor de cálculo em todo o lote.
+            */}
+            {isConfeccao && (isAnalista || isDiretor) && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={reprocessingAi}
+                className="hidden md:inline-flex"
+                title="Reexecuta o motor de cálculo de repasse em todo o lote (modo confecção)"
+                onClick={() => reprocessAi()}
+              >
+                <RefreshCw className={cn("h-4 w-4 mr-1.5 text-muted-foreground", reprocessingAi && "animate-spin")} />
+                {reprocessingAi ? "Recalculando..." : "Recalcular repasse"}
+              </Button>
+            )}
+            {!isConfeccao && (payment.status === "em_analise_ia" || payment.status === "revisao_analista" || payment.status === "devolvido_analista") && (isAnalista || isDiretor) && (
               <AlertDialog open={reprocessConfirmOpen} onOpenChange={setReprocessConfirmOpen}>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -1898,66 +1916,7 @@ const PaymentDetail = () => {
                     {reprocessingAi ? "Processando..." : "Reanalisar lote"}
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="max-w-md">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reanalisar itens do lote?</AlertDialogTitle>
-                    <AlertDialogDescription asChild>
-                      <div className="space-y-4">
-                        <p>
-                          Selecione quais itens você deseja reanalisar e defina o critério de tolerância para divergências.
-                        </p>
-                        
-                        <div className="space-y-2">
-                          <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Tolerância aceitável:</p>
-                          <Select 
-                            value={String(toleranceValue)} 
-                            onValueChange={(v) => setToleranceValue(Number(v))}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Selecione a tolerância" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0.01">Até 1% (Padrão)</SelectItem>
-                              <SelectItem value="0.02">Até 2%</SelectItem>
-                              <SelectItem value="0.05">Até 5%</SelectItem>
-                              <SelectItem value="0.10">Até 10%</SelectItem>
-                              <SelectItem value="0.00">0% (Divergência exata)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <p className="text-[11px] text-muted-foreground italic">
-                            Divergências menores que {toleranceValue * 100}% serão marcadas como "Aprovado".
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Filtrar por status:</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {["pendente", "alerta", "reprovado", "aprovado"].map((status) => (
-                              <label key={status} className="flex items-center gap-2 text-sm p-2 rounded-md border border-border hover:bg-muted/50 cursor-pointer">
-                                <Checkbox 
-                                  checked={reprocessFilter.includes(status)}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) setReprocessFilter([...reprocessFilter, status]);
-                                    else setReprocessFilter(reprocessFilter.filter(s => s !== status));
-                                  }}
-                                />
-                                <span className="capitalize">{status}</span>
-                              </label>
-                            ))}
-                          </div>
-                          <p className="text-[11px] text-muted-foreground italic">
-                            {reprocessFilter.length === 0 
-                              ? "Nenhum filtro selecionado: reanalisará TODO o lote." 
-                              : `Reanalisando apenas itens: ${reprocessFilter.join(", ")}.`}
-                          </p>
-                        </div>
-                        
-                        <p className="text-sm pt-2">
-                          Responsável: <strong>{user?.user_metadata?.full_name || user?.email}</strong>
-                        </p>
-                      </div>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
+...
                   <AlertDialogFooter>
                     <AlertDialogCancel onClick={() => setReprocessFilter([])}>Cancelar</AlertDialogCancel>
                     <AlertDialogAction 
