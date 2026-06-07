@@ -57,7 +57,14 @@ Deno.serve(async (req) => {
   // Modo "internal" (trigger / cron): chamado com a anon key ou service-role,
   // sem usuário associado. A campanha só é disparada se já estiver approved
   // (validado mais abaixo), portanto é seguro pular o role check.
-  const isInternal = bearer === anonKey || bearer === serviceKey;
+  let jwtRole: string | null = null;
+  try {
+    const payload = JSON.parse(atob(bearer.split(".")[1] ?? ""));
+    jwtRole = typeof payload?.role === "string" ? payload.role : null;
+  } catch { /* ignore */ }
+  const isInternal =
+    bearer === anonKey || bearer === serviceKey ||
+    jwtRole === "anon" || jwtRole === "service_role";
 
   let actorId: string | null = null;
   if (!isInternal) {
