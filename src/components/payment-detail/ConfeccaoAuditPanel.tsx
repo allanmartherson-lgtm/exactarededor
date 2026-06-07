@@ -89,14 +89,13 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
   }, [items]);
 
   const grouped = useMemo(() => {
-    const m = new Map<string, { rule?: RuleLite; method: string; count: number; total: number; label?: string }>();
+    const m = new Map<string, { rule?: RuleLite; method: string; camada: Camada; count: number; total: number; label?: string }>();
     for (const it of items) {
       const anyIt = it as unknown as { applied_rule_id?: string | null; applied_rule_label?: string | null };
       const ruleId =
         anyIt.applied_rule_id ??
         ((it.ai_findings?.matched_rule_ids?.[0] as string | undefined) ?? null);
       const rawMethod = (it.applied_calc_method ?? "") as string;
-      // Camada 2 sem método: deriva rótulo do applied_rule_label (ex.: "Sem acordo").
       const label = anyIt.applied_rule_label ?? null;
       const method = rawMethod
         ? rawMethod
@@ -105,10 +104,12 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
           : label && /Exclus[ãa]o/i.test(label)
             ? "exclusao"
             : "sem_regra";
-      const key = `${ruleId ?? "—"}|${method}`;
+      const camada = detectCamada(label, method, ruleId);
+      const key = `${ruleId ?? "—"}|${method}|${camada}`;
       const entry = m.get(key) ?? {
         rule: ruleId ? rulesIndex[ruleId] : undefined,
         method,
+        camada,
         count: 0,
         total: 0,
         label: label ?? undefined,
@@ -119,6 +120,13 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
     }
     return Array.from(m.values()).sort((a, b) => b.total - a.total);
   }, [items, rulesIndex]);
+
+  const camadasPresentes = useMemo(() => {
+    const set = new Set<Camada>();
+    for (const g of grouped) set.add(g.camada);
+    return Array.from(set);
+  }, [grouped]);
+
 
 
   return (
