@@ -252,6 +252,12 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                   >
                     {e.type === "total" ? "Falha total" : "Falha parcial"}
                   </Badge>
+                  {e.matchSource === "fuzzy" && (
+                    <Badge variant="outline" className="text-[10px]">match aproximado</Badge>
+                  )}
+                  {e.matchSource === "id" && (
+                    <Badge variant="outline" className="text-[10px]">match por ID</Badge>
+                  )}
                   {e.at && (
                     <span className="text-[11px] text-muted-foreground">
                       {new Date(e.at).toLocaleString("pt-BR")}
@@ -260,7 +266,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                 </div>
                 <div className="text-xs text-muted-foreground mt-1 break-words">{e.reason}</div>
               </div>
-              <div className="shrink-0">
+              <div className="shrink-0 flex flex-col items-end gap-1">
                 {e.groupId ? (
                   <Button
                     size="sm"
@@ -272,9 +278,23 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                     Abrir evidência
                   </Button>
                 ) : (
-                  <span className="text-[11px] text-muted-foreground italic">
-                    Empresa sem grupo no pagamento
-                  </span>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const q = encodeURIComponent(e.companyName);
+                        window.open(`/empresas?busca=${q}`, "_blank");
+                      }}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <Search className="h-3 w-3 mr-1" />
+                      Buscar empresa
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground italic max-w-[160px] text-right">
+                      Não vinculada a nenhum grupo deste pagamento
+                    </span>
+                  </>
                 )}
               </div>
             </li>
