@@ -1223,7 +1223,8 @@ export function ItemsDataGrid({
 
                 const totalCols =
                   7 + 1 +
-                  (showGrossColumn ? 1 : 0) - 1 +
+                  (showGrossColumn ? 1 : 0) +
+                  (showProcedureColumn ? 1 : 0) - 1 +
                   (colVis.atendimento ? 1 : 0) +
                   (colVis.convenio ? 1 : 0) +
                   (colVis.via ? 1 : 0) +
