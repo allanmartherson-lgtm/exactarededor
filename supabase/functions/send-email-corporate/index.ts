@@ -25,14 +25,28 @@ Deno.serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+  const bearer = authHeader.replace("Bearer ", "").trim();
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: claims, error: claimsErr } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
-  if (claimsErr || !claims?.claims) return json({ error: "Unauthorized" }, 401);
+  // Aceita chamadas internas (service-role) sem checar usuário —
+  // usado por funções como notify-campaign-decision.
+  const serviceKeyEnv = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  let isInternal = bearer === serviceKeyEnv;
+  if (!isInternal) {
+    try {
+      const payload = JSON.parse(atob(bearer.split(".")[1] ?? ""));
+      if (payload?.role === "service_role") isInternal = true;
+    } catch { /* ignore */ }
+  }
+
+  if (!isInternal) {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: claims, error: claimsErr } = await supabase.auth.getClaims(bearer);
+    if (claimsErr || !claims?.claims) return json({ error: "Unauthorized" }, 401);
+  }
 
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
