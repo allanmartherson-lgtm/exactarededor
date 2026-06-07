@@ -1700,7 +1700,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         patient_name: parent.patient_name ?? null,
         sector: parent.sector ?? null,
         procedure_date: parent.procedure_date ?? null,
-        gross_amount: bonusAmt,
+        // Em CONFECÇÃO não há "valor pago" — gross_amount fica null e
+        // só o expected_amount (repasse calculado) carrega o bônus.
+        gross_amount: isConfeccao ? null : bonusAmt,
         expected_amount: bonusAmt,
         procedure_name: u.applied_rule_label,
         tipo_linha: "complemento_bonus",
@@ -1712,6 +1714,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_rule_id: u.applied_rule_id,
         ai_status: "aprovado",
         applied_at: new Date().toISOString(),
+        // A UI (ItemsDataGrid) lê o valor da coluna "Esperado/Repasse
+        // calculado" de ai_findings.expected_amount. Sem este campo as
+        // linhas de bônus aparecem com "—" no grid.
+        ai_findings: {
+          expected_amount: bonusAmt,
+          calculation_type: "bonus",
+          applied_rule_label: u.applied_rule_label,
+          applied_rule_id: u.applied_rule_id,
+          alerts: [],
+        },
         validation_findings: [],
         convenio_value_totalized: false,
         authorized_exception: false,
