@@ -13,6 +13,11 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
 
   const select = (modo: "analise" | "confeccao") => {
     onOpenChange(false);
+    // Persiste a escolha em sessionStorage como fallback — se o query param
+    // se perder (refresh, navegação intermediária), NewPayment recupera daqui.
+    try {
+      sessionStorage.setItem("newPaymentMode", modo === "confeccao" ? "confeccao" : "padrao");
+    } catch { /* storage indisponível */ }
     navigate(`/pagamentos/novo?modo=${modo}`);
   };
 
