@@ -384,8 +384,27 @@ const NewPayment = () => {
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [searchParams] = useSearchParams();
-  const modoConfeccao = searchParams.get("modo") === "confeccao";
-  const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(modoConfeccao ? "confeccao" : "padrao");
+  // Resolve o modo na seguinte ordem: query param → sessionStorage (escolhido
+  // no modal antes de navegar) → padrão. Garante que se o param se perder no
+  // caminho (refresh, redirect, navegação interna), a escolha do analista
+  // ainda prevalece. Limpa sessionStorage após consumir.
+  const initialMode: PaymentAnalysisMode = (() => {
+    const fromUrl = searchParams.get("modo");
+    if (fromUrl === "confeccao") return "confeccao";
+    if (fromUrl === "analise") return "padrao";
+    try {
+      const fromStorage = sessionStorage.getItem("newPaymentMode");
+      if (fromStorage === "confeccao") return "confeccao";
+    } catch { /* ignore */ }
+    return "padrao";
+  })();
+  const modoConfeccao = initialMode === "confeccao";
+  const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(initialMode);
+  useEffect(() => {
+    // Consome a marca após montar, evitando que uma navegação posterior
+    // para /pagamentos/novo sem param herde indevidamente o modo anterior.
+    try { sessionStorage.removeItem("newPaymentMode"); } catch { /* ignore */ }
+  }, []);
   // Tipos de pagamento são gerenciados em /cadastros/tipos-pagamento e carregados via hook.
   const { list: paymentTypeOptions, loading: loadingPaymentTypes } = usePaymentTypes({ onlyActive: true });
   const [autoSectors, setAutoSectors] = useState(true);
