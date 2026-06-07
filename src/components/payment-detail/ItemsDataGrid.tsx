@@ -458,9 +458,11 @@ export function ItemsDataGrid({
   const totals = useMemo(() => {
     let valor = 0;
     let esperado = 0;
+    let procedure = 0;
     let temEsperado = false;
     for (const it of filtered) {
       valor += Number(it.gross_amount ?? 0);
+      procedure += Number((it as any).procedure_amount ?? 0);
       const exp = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
       if (exp != null) {
         esperado += Number(exp);
@@ -470,6 +472,7 @@ export function ItemsDataGrid({
     return {
       count: filtered.length,
       valor,
+      procedure,
       esperado: temEsperado ? esperado : null,
       diferenca: temEsperado ? esperado - valor : null,
     };
