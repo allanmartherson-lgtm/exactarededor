@@ -97,6 +97,17 @@ export default function PendenciaDetail() {
         .maybeSingle();
       setCompanyName((c?.name as string) ?? "");
     }
+    if (p?.created_by_user_id) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", p.created_by_user_id)
+        .maybeSingle();
+      const name = (prof?.full_name as string | null) || "";
+      setCreatorName(name || p.created_by_name);
+    } else {
+      setCreatorName(p?.created_by_name ?? "");
+    }
     setLoading(false);
   };
 
