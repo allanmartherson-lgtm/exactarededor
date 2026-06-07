@@ -1276,6 +1276,8 @@ export function ItemsDataGrid({
                       onDeleteItem={onDeleteItem}
                       onAcceptItem={onAcceptItem}
                       onUndoAcceptItem={onUndoAcceptItem}
+                      showGrossColumn={showGrossColumn}
+                      showDiferencaCol={showDiferencaCol}
                     />
                   </Fragment>
 
