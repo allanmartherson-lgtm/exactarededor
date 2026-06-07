@@ -547,6 +547,7 @@ export function ItemsDataGrid({
     (colVis.funcao ? 120 : 0) +
     (colVis.regra ? 180 : 0) +
     (showGrossColumn ? 110 : 0) +
+    (showProcedureColumn ? 130 : 0) +
     expectedColWidth +
     (showDiferencaCol ? 110 : 0) +
     110 +
