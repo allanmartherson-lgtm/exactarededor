@@ -287,6 +287,33 @@ const Payments = () => {
   const [globalCompetences, setGlobalCompetences] = useState<string[]>([]);
   const [globalAnalysts, setGlobalAnalysts] = useState<Record<string, string>>({});
 
+  // Persiste filtros/busca/paginação em sessionStorage para preservar contexto
+  // ao voltar do detalhe (ex.: depois de excluir um lote, navegar back, etc.).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const snapshot: PersistedPaymentsState = {
+      page, pageSize, q,
+      companyFilter, doctorFilter,
+      analystFilter, typeFilter, statusFilter, competenceFilter,
+      view, sortBy,
+      divergenceFilter, questionedFilter,
+      archivedView,
+    };
+    try {
+      window.sessionStorage.setItem(PAYMENTS_LIST_STATE_KEY, JSON.stringify(snapshot));
+    } catch {
+      // ignore quota errors
+    }
+  }, [
+    page, pageSize, q,
+    companyFilter, doctorFilter,
+    analystFilter, typeFilter, statusFilter, competenceFilter,
+    view, sortBy,
+    divergenceFilter, questionedFilter,
+    archivedView,
+  ]);
+
+
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
