@@ -365,9 +365,9 @@ export function ItemsDataGrid({
             case "qtd": return Number(it.quantity ?? 1);
             case "medico": return (it.doctor_name ?? "").toLowerCase();
             case "gross": return Number(it.gross_amount ?? 0);
-            case "esperado": return Number(it.ai_findings?.expected_amount ?? 0);
+            case "esperado": return Number(it.ai_findings?.expected_amount ?? (it as any).expected_amount ?? 0);
             case "diferenca": {
-              const exp = it.ai_findings?.expected_amount;
+              const exp = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
               return exp != null ? Number(exp) - Number(it.gross_amount ?? 0) : 0;
             }
             case "status": {
@@ -459,7 +459,7 @@ export function ItemsDataGrid({
     let temEsperado = false;
     for (const it of filtered) {
       valor += Number(it.gross_amount ?? 0);
-      const exp = it.ai_findings?.expected_amount;
+      const exp = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
       if (exp != null) {
         esperado += Number(exp);
         temEsperado = true;
@@ -825,7 +825,7 @@ export function ItemsDataGrid({
             )}
             {filtered.map((it, idx) => {
               const paciente = getPatient(it);
-              const expected = it.ai_findings?.expected_amount;
+              const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
               const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
               const tone: keyof typeof TONE_CLASSES =
                 eff === "reprovado" ? "destructive"
@@ -1191,7 +1191,7 @@ export function ItemsDataGrid({
               )}
               {filtered.map((it, idx) => {
                 const paciente = getPatient(it);
-                const expected = it.ai_findings?.expected_amount;
+                const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
                 const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
                 const tone: keyof typeof TONE_CLASSES =
                   eff === "reprovado"
@@ -1808,7 +1808,7 @@ function ItemDetailsRow({
     if (r && !seen.has(r.id)) { seen.add(r.id); matchedRules.push(r); }
   });
   const isCritical = it.ai_status === "reprovado";
-  const expected = it.ai_findings?.expected_amount;
+  const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
   const explanation = it.ai_findings?.calculation_explanation;
   const engine = it.ai_findings?.engine ?? null;
   const aiNote = engine?.ai_note;
