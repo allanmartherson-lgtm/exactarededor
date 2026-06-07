@@ -68,6 +68,7 @@ export default function PendenciaDetail() {
   const { user } = useAuth();
   const [pend, setPend] = useState<Pendencia | null>(null);
   const [companyName, setCompanyName] = useState<string>("");
+  const [creatorName, setCreatorName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creatingThread, setCreatingThread] = useState(false);
