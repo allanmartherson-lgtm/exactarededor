@@ -770,14 +770,17 @@ const PaymentDetail = () => {
     XLSX.writeFile(wb, `confeccao-${payment?.reference ?? "lote"}.xlsx`);
   };
 
-  // Modo confecção: envia todos os grupos (em revisao_analista) direto para validação.
-  const sendConfeccaoForValidation = async () => {
-    if (!id) return;
-    const targets = groups.filter((g) => ["revisao_analista", "devolvido_analista"].includes(g.status));
-    if (targets.length === 0) {
-      toast({ title: "Nenhum grupo disponível para envio", variant: "destructive" });
-      return;
-    }
+  // Modo confecção: encerra a confecção e encaminha o lote para o fluxo de ANÁLISE.
+  // O motor passa a confrontar com a base hospitalar (modo padrão) e a IA é reacionada.
+  const sendConfeccaoForAnalysis = async () => {
+    if (!id || !user) return;
+    const ok = window.confirm(
+      "Encerrar a confecção e encaminhar para análise?\n\n" +
+      "• O lote sai de CONFECÇÃO e entra em ANÁLISE (modo padrão).\n" +
+      "• O motor irá confrontar com a base hospitalar e a IA reavalia cada item.\n" +
+      "• Só depois da análise é que o lote pode ir para validação/aprovação."
+    );
+    if (!ok) return;
     // Gate: mesmo bloqueio do envio normal — médico provisório precisa aprovação admin.
     {
       const { data: itemRows } = await supabase
@@ -799,21 +802,34 @@ const PaymentDetail = () => {
       }
     }
     setBusy(true);
-    await autoClaim();
-    for (const g of targets) {
+    try {
+      // Troca modo + status do lote: confecção → análise padrão.
+      const { error: upErr } = await supabase
+        .from("payments")
+        .update({ analysis_mode: "padrao", status: "em_analise_ia" })
+        .eq("id", id);
+      if (upErr) throw upErr;
+      // Reseta status dos grupos para em_analise_ia (motor irá repopular).
       await supabase.from("payment_company_groups")
-        .update({ status: "aguardando_validacao" })
-        .eq("id", g.id);
+        .update({ status: "em_analise_ia" })
+        .eq("payment_id", id);
       await recordObservation({
-        payment_id: id, author_type: "analista", author_id: user!.id,
-        message: `[${g.company_name}] Confecção revisada e enviada para validação.`,
-        status_from: g.status, status_to: "aguardando_validacao",
+        payment_id: id, author_type: "analista", author_id: user.id,
+        message: `Confecção encerrada. Lote encaminhado para análise (modo padrão).`,
+        status_from: payment?.status ?? null, status_to: "em_analise_ia",
       });
+      const { error: dispErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
+        body: { payment_id: id },
+      });
+      if (dispErr) throw dispErr;
+      toast({ title: "Encaminhado para análise", description: "O motor está reanalisando o lote em modo padrão." });
+      await load();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast({ title: "Falha ao encaminhar", description: msg, variant: "destructive" });
+    } finally {
+      setBusy(false);
     }
-    await load();
-    setBusy(false);
-    toast({ title: "Enviado para validação", description: `${targets.length} empresa(s) encaminhada(s).` });
-    navigate("/pagamentos");
   };
 
 
