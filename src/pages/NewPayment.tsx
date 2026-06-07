@@ -27,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { normalizeNumericValue } from "@/lib/utils";
 import { loadSectorAliases } from "@/hooks/useSectorAliases";
+import { learnCompanyAlias } from "@/lib/learnCompanyAlias";
 import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -824,35 +825,26 @@ const NewPayment = () => {
           : x,
       ),
     );
-    // Aprendizado: adiciona o nome bruto do arquivo como alias da empresa correta.
-    // Só faz isso quando o usuário trocou de fato a sugestão automática.
-    // Usa RPC SECURITY DEFINER (learn_company_alias) porque UPDATE direto em
-    // companies é restrito a admin/diretor pela RLS — analistas falhariam em
-    // silêncio (PostgREST devolve {error}, não joga exceção, então o catch
-    // nunca disparava e o toast mentia "salvo como apelido").
+    // Aprendizado: usa o helper learnCompanyAlias, que chama a RPC SECURITY DEFINER
+    // learn_company_alias. RLS de UPDATE em companies é restrita a admin/diretor,
+    // então analistas precisam do bypass seguro da RPC. O helper retorna {ok, aliases?}
+    // sem jogar exceção — caller decide o toast e atualiza o cache local.
     if (previousId !== picked.id) {
-      const rawAlias = b.rawCompanyName?.trim();
+      const rawAlias = b.rawCompanyName?.trim() ?? "";
       if (rawAlias) {
-        const { error: aliasErr } = await supabase.rpc("learn_company_alias", {
-          _company_id: picked.id,
-          _raw_name: rawAlias,
+        const res = await learnCompanyAlias(supabase, {
+          companyId: picked.id,
+          rawName: rawAlias,
         });
-        if (aliasErr) {
+        if (!res.ok) {
           toast({
             title: "Empresa atualizada (sem aprender apelido)",
-            description: `Troca aplicada, mas não foi possível salvar o apelido: ${aliasErr.message}`,
+            description: `Troca aplicada, mas não foi possível salvar o apelido: ${res.error}`,
             variant: "destructive",
           });
         } else {
-          // Refaz o fetch para refletir o alias real persistido no banco.
-          const { data: refreshed } = await supabase
-            .from("companies")
-            .select("aliases")
-            .eq("id", picked.id)
-            .maybeSingle();
-          const newAliases = ((refreshed as any)?.aliases ?? []) as string[];
           setCompanies((prev) =>
-            prev.map((c) => (c.id === picked.id ? { ...c, aliases: newAliases } : c)),
+            prev.map((c) => (c.id === picked.id ? { ...c, aliases: res.aliases } : c)),
           );
           toast({
             title: "Empresa atualizada",
