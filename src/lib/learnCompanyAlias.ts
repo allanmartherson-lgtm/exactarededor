@@ -13,33 +13,34 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type LearnCompanyAliasResult =
-  | { ok: true; aliases: string[] }
-  | { ok: false; error: string };
+export type LearnCompanyAliasResult = {
+  ok: boolean;
+  aliases: string[];
+  error: string | null;
+};
 
 export async function learnCompanyAlias(
   client: Pick<SupabaseClient, "rpc" | "from">,
   params: { companyId: string; rawName: string },
 ): Promise<LearnCompanyAliasResult> {
   const trimmed = params.rawName.trim();
-  if (!trimmed) return { ok: false, error: "raw_name vazio" };
+  if (!trimmed) return { ok: false, aliases: [], error: "raw_name vazio" };
 
   const { error: rpcErr } = await client.rpc("learn_company_alias" as never, {
     _company_id: params.companyId,
     _raw_name: trimmed,
   } as never);
 
-  if (rpcErr) return { ok: false, error: rpcErr.message ?? String(rpcErr) };
+  if (rpcErr) return { ok: false, aliases: [], error: rpcErr.message ?? String(rpcErr) };
 
-  // Recarrega o array atualizado para refletir o estado real persistido.
   const { data, error: selErr } = await client
     .from("companies")
     .select("aliases")
     .eq("id", params.companyId)
     .maybeSingle();
 
-  if (selErr) return { ok: false, error: selErr.message ?? String(selErr) };
+  if (selErr) return { ok: false, aliases: [], error: selErr.message ?? String(selErr) };
 
   const aliases = (((data as { aliases?: string[] } | null)?.aliases) ?? []) as string[];
-  return { ok: true, aliases };
+  return { ok: true, aliases, error: null };
 }
