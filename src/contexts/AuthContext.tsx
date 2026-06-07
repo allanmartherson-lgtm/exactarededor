@@ -51,20 +51,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    if (isRecoveryRouteRef.current) {
-      console.info("[auth recovery] AuthProvider pulou init global na rota de recovery", {
-        path: location.pathname,
-      });
-      setSession(null);
-      setUser(null);
-      setRoles([]);
-      setRolesLoading(false);
-      setLoading(false);
-      lastLoadedUserIdRef.current = null;
-      return;
-    }
-
+    // IMPORTANTE: sempre registramos o onAuthStateChange, mesmo quando a
+    // primeira rota é /auth/reset-password. Caso contrário, ao navegar para
+    // /auth e fazer signIn, o evento SIGNED_IN nunca chega ao contexto,
+    // user permanece null e o login "não acontece" (ProtectedRoute joga de
+    // volta para /auth).
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      // Em rotas de recovery, ignoramos qualquer sessão remanescente do
+      // recoveryClient para não autenticar o usuário antes de definir a senha.
+      if (isRecoveryRouteRef.current) {
+        setSession(null);
+        setUser(null);
+        setRoles([]);
+        setRolesLoading(false);
+        lastLoadedUserIdRef.current = null;
+        return;
+      }
       setSession(newSession);
       setUser(newSession?.user ?? null);
       const newUserId = newSession?.user?.id ?? null;
@@ -82,6 +84,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
+    if (isRecoveryRouteRef.current) {
+      console.info("[auth recovery] AuthProvider pulou getSession inicial na rota de recovery", {
+        path: location.pathname,
+      });
+      setSession(null);
+      setUser(null);
+      setRoles([]);
+      setRolesLoading(false);
+      setLoading(false);
+      lastLoadedUserIdRef.current = null;
+      return () => sub.subscription.unsubscribe();
+    }
+
     supabase.auth.getSession().then(async ({ data: { session: existing } }) => {
       setSession(existing);
       setUser(existing?.user ?? null);
@@ -96,6 +111,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       setLoading(false);
     });
+
+    return () => sub.subscription.unsubscribe();
 
     return () => sub.subscription.unsubscribe();
     // Roda apenas uma vez por sessão. Trocar de rota não deve reinicializar
