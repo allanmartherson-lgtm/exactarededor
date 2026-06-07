@@ -884,12 +884,9 @@ const NewPayment = () => {
 
     const rawAlias = b.rawCompanyName?.trim() ?? "";
     const candidate = companies.find((c) => c.id === picked.id);
-    const alreadyKnown =
-      !rawAlias ||
-      candidate?.name?.trim().toLowerCase() === rawAlias.toLowerCase() ||
-      (candidate?.aliases ?? []).some((a) => a.trim().toLowerCase() === rawAlias.toLowerCase());
+    const mustLearn = shouldLearnAlias(rawAlias, candidate ?? null);
 
-    if (!alreadyKnown) {
+    if (mustLearn) {
       const res = await learnCompanyAlias(supabase, { companyId: picked.id, rawName: rawAlias });
       if (res.ok) {
         setCompanies((prev) =>
