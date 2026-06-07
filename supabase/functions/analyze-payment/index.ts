@@ -451,7 +451,8 @@ serve(async (req) => {
     // IMPORTANTE: Se estamos analisando uma empresa específica, processamos TODOS os itens dela
     // para garantir que a visão do usuário reflita a planilha original.
     // O filtro ai_statuses só deve ser aplicado na reanálise global filtrada.
-    if (!company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0) {
+    const filterApplied = !company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0;
+    if (filterApplied) {
       itemsQuery.in("ai_status", ai_statuses);
     }
 
@@ -476,7 +477,6 @@ serve(async (req) => {
     // Quando há filtro por ai_statuses, o subset acima não inclui todos os itens
     // do atendimento. Carregamos uma visão slim de TODOS os itens do payment
     // exclusivamente para construir o índice de siblings (condições de contexto).
-    const filterApplied = !company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0;
     let siblingsRaw: Array<{ id: string; attendance_number: string | null; procedure_code: string | null }> | null = null;
     if (filterApplied) {
       const { data: allForSiblings } = await supabase
