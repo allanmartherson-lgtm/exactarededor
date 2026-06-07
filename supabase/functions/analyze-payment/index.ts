@@ -1763,7 +1763,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     console.time(`${__t} writes_payment_items`);
     const __writesStart = Date.now();
     await runChunked(itemUpdates, 50, async (u) => {
-      await supabase.from("payment_items").update({
+      const patch: Record<string, unknown> = {
         ai_status: u.ai_status,
         ai_findings: u.ai_findings,
         attendance_group_key: u.attendance_group_key,
@@ -1776,10 +1776,17 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_calc_method: u.applied_calc_method,
         expected_amount: u.expected_amount,
         applied_at: u.applied_at,
-        convenio_basis_detected: u.convenio_basis_detected,
-        basis_confidence: u.basis_confidence,
-      }).eq("id", u.id);
-
+        convenio_basis_detected: (u as any).convenio_basis_detected,
+        basis_confidence: (u as any).basis_confidence,
+      };
+      // CONFECÇÃO: motor PRODUZ o gross_amount (valor a pagar) a partir do
+      // expected_amount calculado pela regra. Sem regra (sem_regra ou bloqueio
+      // por duplicidade de cálculo) → grava null e mantém alerta — coerente
+      // com "motor nunca aplica default hardcoded de repasse".
+      if (isConfeccao) {
+        patch.gross_amount = u.expected_amount ?? null;
+      }
+      await supabase.from("payment_items").update(patch).eq("id", u.id);
     });
     console.timeEnd(`${__t} writes_payment_items`);
 
