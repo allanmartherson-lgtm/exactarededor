@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { learnCompanyAlias } from "../learnCompanyAlias";
+import { learnCompanyAlias, shouldLearnAlias } from "../learnCompanyAlias";
 
 /**
  * Mock mínimo do cliente Supabase para testar o helper sem rede.
