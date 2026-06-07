@@ -1852,11 +1852,13 @@ export default function CompanyAnalysis() {
 
               {canActAnalista && (
                 <>
-                  {(gStatus === "revisao_analista" || gStatus === "devolvido_analista") && (
+                  {(gStatus === "revisao_analista" || gStatus === "devolvido_analista" || (isConfeccao && gStatus === "em_confeccao")) && (
                     <>
                       <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
                         <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
-                        {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
+                        {isConfeccao
+                          ? (reanalyzing ? "Recalculando..." : "Recalcular repasse")
+                          : (reanalyzing ? "Reaplicando..." : "Reaplicar regras")}
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -1887,10 +1889,13 @@ export default function CompanyAnalysis() {
                       {(() => {
                         const temItemAcatado = items.some((i) => i.ai_status === "acatado");
                         const observacaoOk = groupDraft.trim().length >= 20;
-                        const podeEnviar = !temItemAcatado || observacaoOk;
+                        // Em confecção a observação obrigatória não se aplica — não há "acatado" indo para validador.
+                        const podeEnviar = isConfeccao ? true : (!temItemAcatado || observacaoOk);
                         const tooltip = !podeEnviar
                           ? "Preencha a observação da empresa (mín. 20 caracteres) para enviar itens acatados"
-                          : undefined;
+                          : (isConfeccao
+                              ? "Marca esta empresa como pronta. O envio para análise é feito no lote (Encaminhar para análise)."
+                              : undefined);
                         const handleClick = () => {
                           if (!podeEnviar) {
                             toast.error("Observação obrigatória", {
@@ -1899,7 +1904,11 @@ export default function CompanyAnalysis() {
                             });
                             return;
                           }
-                          sendForValidation();
+                          if (isConfeccao) {
+                            finalizeConfeccaoGroup();
+                          } else {
+                            sendForValidation();
+                          }
                         };
                         return (
                           <Button
@@ -1907,11 +1916,11 @@ export default function CompanyAnalysis() {
                             onClick={handleClick}
                             disabled={busy}
                             title={tooltip}
-                            className={podeEnviar ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+                            className={podeEnviar ? (isConfeccao ? "bg-amber-600 hover:bg-amber-700 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white") : ""}
                             variant={podeEnviar ? "default" : "secondary"}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
-                            Concluir análise
+                            {isConfeccao ? "Finalizar confecção" : "Concluir análise"}
                           </Button>
                         );
                       })()}
