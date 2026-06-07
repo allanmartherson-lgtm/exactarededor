@@ -341,9 +341,6 @@ export default function Pendencias() {
                       </span>
                     </div>
                   </TableCell>
-                      </span>
-                    </div>
-                  </TableCell>
                   <TableCell>{p.patient_name}</TableCell>
                   <TableCell>{p.doctor_name}</TableCell>
                   <TableCell>
