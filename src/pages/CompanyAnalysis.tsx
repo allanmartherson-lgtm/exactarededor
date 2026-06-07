@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { AddManualItemDialog } from "@/components/payment-detail/AddManualItemDialog";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
+import { ConfeccaoAuditPanel } from "@/components/payment-detail/ConfeccaoAuditPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { CompanyQuestionsThread } from "@/components/payment-detail/CompanyQuestionsThread";
@@ -1605,7 +1606,14 @@ export default function CompanyAnalysis() {
       {/* ABAS */}
       <Tabs defaultValue="analise" className="space-y-3">
         <TabsList>
-          <TabsTrigger value="analise">Análise</TabsTrigger>
+          <TabsTrigger value="analise">
+            {(payment as any)?.analysis_mode === "confeccao" ? "Confecção" : "Análise"}
+          </TabsTrigger>
+          {(payment as any)?.analysis_mode === "confeccao" && (
+            <TabsTrigger value="confeccao-audit" data-testid="tab-confeccao-audit">
+              Auditoria de cálculo
+            </TabsTrigger>
+          )}
           <TabsTrigger value="divergencias">
             Divergências
             {divergentes.length > 0 && (
@@ -1802,6 +1810,13 @@ export default function CompanyAnalysis() {
         <TabsContent value="ia" className="space-y-3">
           <AiDetail items={items} versions={aiVersions} />
         </TabsContent>
+
+        {/* ABA Confecção — auditoria de cálculo (só no modo confecção) */}
+        {(payment as any)?.analysis_mode === "confeccao" && (
+          <TabsContent value="confeccao-audit" className="space-y-3">
+            <ConfeccaoAuditPanel items={items} rulesIndex={rulesIndex} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Footer sticky com ações de fluxo */}
