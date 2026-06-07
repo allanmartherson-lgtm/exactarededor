@@ -86,33 +86,14 @@ Deno.serve(async (req) => {
     return json({ error: "forbidden" }, 403);
   }
 
-  // 3. Delete em ordem: filhos pesados primeiro, depois o payment
-  //    (cascades cobrem o resto). Usamos service_role → sem RLS, sem timeout
-  //    curto do PostgREST.
-  const childTables = [
-    "payment_items",
-    "payment_observations",
-    "payment_company_groups",
-    "payment_pivot_cache",
-    "payment_processing_jobs",
-    "payment_status_history",
-    "payment_company_financials",
-    "ai_analysis_versions",
-    "payment_assignments",
-  ];
-
-  for (const t of childTables) {
-    const { error } = await admin.from(t).delete().eq("payment_id", paymentId);
-    if (error) {
-      console.error(`[delete-payment] falha em ${t}:`, error.message);
-      return json({ error: "child_delete_failed", table: t, detail: error.message }, 500);
-    }
-  }
-
-  const { error: delErr } = await admin.from("payments").delete().eq("id", paymentId);
-  if (delErr) {
-    console.error("[delete-payment] falha em payments:", delErr.message);
-    return json({ error: "delete_failed", detail: delErr.message }, 500);
+  // 3. Delete via RPC SECURITY DEFINER — zera statement_timeout localmente
+  //    para suportar lotes grandes (centenas de itens + cascades).
+  const { error: rpcErr } = await admin.rpc("admin_delete_payment", {
+    _payment_id: paymentId,
+  });
+  if (rpcErr) {
+    console.error("[delete-payment] rpc falhou:", rpcErr.message);
+    return json({ error: "delete_failed", detail: rpcErr.message }, 500);
   }
 
   return json({ ok: true });
