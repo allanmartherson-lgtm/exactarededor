@@ -1812,8 +1812,32 @@ const PaymentDetail = () => {
 
   return (
     <>
+      {isConfeccao && (
+        <div
+          className="sticky top-0 z-40 -mx-4 md:-mx-6 mb-2 border-b-2 border-amber-500/70 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/15 backdrop-blur-sm"
+          role="status"
+          aria-label="Modo confecção ativo"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(135deg, hsl(38 92% 50% / 0.10) 0px, hsl(38 92% 50% / 0.10) 12px, transparent 12px, transparent 24px)",
+          }}
+        >
+          <div className="px-4 md:px-6 py-2 flex items-center gap-3 text-amber-700 dark:text-amber-300">
+            <div className="flex items-center gap-2 rounded-md bg-amber-500/20 px-2.5 py-1 ring-1 ring-amber-500/40">
+              <Calculator className="h-3.5 w-3.5" />
+              <span className="text-[11px] font-bold tracking-[0.18em] uppercase">Modo confecção</span>
+            </div>
+            <p className="text-xs hidden sm:block">
+              O sistema está calculando o repasse pelas regras cadastradas — ainda não há confronto com a base hospitalar.
+            </p>
+            <span className="ml-auto text-[10px] font-medium uppercase tracking-wider opacity-80 hidden md:inline">
+              Lote {payment.reference}
+            </span>
+          </div>
+        </div>
+      )}
       <PageHeader
-        title={payment.reference}
+        title={isConfeccao ? `🛠  ${payment.reference}` : payment.reference}
         description={payment.description ?? (() => {
           const liq = Number((payment as any).liquido_total ?? payment.total_amount ?? 0);
           return `${items.length} itens · ${formatCurrency(liq)}`;
