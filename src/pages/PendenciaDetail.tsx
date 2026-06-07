@@ -240,7 +240,7 @@ export default function PendenciaDetail() {
         title={pend.subject}
         icon={ListChecksIcon as never}
         backFallback="/pendencias"
-        description={`${companyName || "Empresa"} · aberta em ${format(new Date(pend.created_at), "dd/MM/yy HH:mm", { locale: ptBR })} por ${pend.created_by_name}`}
+        description={`${companyName || "Empresa"} · aberta em ${format(new Date(pend.created_at), "dd/MM/yy HH:mm", { locale: ptBR })} por ${creatorName || pend.created_by_name}`}
         actions={headerActions}
       />
 
