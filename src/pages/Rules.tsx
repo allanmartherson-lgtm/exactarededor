@@ -56,6 +56,33 @@ import { RuleConflictModal, type Problem as ConflictProblem, type Correction as 
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
+function OndeSummaryBanner({ ondeShort, ondeFull, calc, canCollapse }: { ondeShort: string; ondeFull: string; calc: string; canCollapse: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const showFull = !canCollapse || expanded;
+  return (
+    <div className="rounded-md border border-primary/30 bg-primary/5 p-2.5 text-xs space-y-1">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 items-start">
+        <span className="flex-1 min-w-0">
+          <span className="font-semibold">Onde:</span>{" "}
+          {showFull ? ondeFull : ondeShort}
+          {canCollapse && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="ml-2 inline-flex items-center gap-0.5 text-primary hover:underline font-medium align-middle"
+            >
+              {expanded ? (<><ChevronDown className="h-3 w-3" /> recolher</>) : (<><ChevronRight className="h-3 w-3" /> ver detalhes</>)}
+            </button>
+          )}
+        </span>
+        <span className="shrink-0"><span className="font-semibold">Cálculo:</span> {calc}</span>
+      </div>
+    </div>
+  );
+}
+
+
+
 
 
 type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
