@@ -1605,7 +1605,14 @@ export default function CompanyAnalysis() {
       {/* ABAS */}
       <Tabs defaultValue="analise" className="space-y-3">
         <TabsList>
-          <TabsTrigger value="analise">Análise</TabsTrigger>
+          <TabsTrigger value="analise">
+            {(payment as any)?.analysis_mode === "confeccao" ? "Confecção" : "Análise"}
+          </TabsTrigger>
+          {(payment as any)?.analysis_mode === "confeccao" && (
+            <TabsTrigger value="confeccao-audit" data-testid="tab-confeccao-audit">
+              Auditoria de cálculo
+            </TabsTrigger>
+          )}
           <TabsTrigger value="divergencias">
             Divergências
             {divergentes.length > 0 && (
