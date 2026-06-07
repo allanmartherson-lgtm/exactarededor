@@ -107,12 +107,11 @@ Deno.serve(async (req) => {
     // — reanálise sobrescreveria dados validados sem rastro. Para reanalisar
     // uma empresa fechada, o analista deve REABRIR a empresa via UI.
     //
-    // O conjunto de status editáveis varia por modo de análise do lote:
-    //   - análise (padrão/isolado/empresa_prioritaria): {revisao_analista, devolvido_analista}
-    //   - confecção: inclui também {em_confeccao} — nesse modo os grupos
-    //     permanecem em em_confeccao até o analista clicar "Finalizar confecção",
-    //     então recalcular o repasse de empresas em_confeccao é a operação
-    //     esperada (e não um override de análise validada).
+    // Os "editáveis" variam pelo modo do lote:
+    //   - análise (padrão/isolado/empresa_prioritaria): status ∈ {revisao_analista, devolvido_analista}
+    //   - confecção: grupos têm status='rascunho' (placeholder) e confeccao_status='em_confeccao'
+    //     enquanto o analista não clica em "Finalizar confecção". Aceitamos o grupo
+    //     se confeccao_status='em_confeccao'.
     const { data: paymentRow, error: payErr } = await supabase
       .from("payments")
       .select("analysis_mode")
@@ -120,29 +119,36 @@ Deno.serve(async (req) => {
       .single();
     if (payErr) throw payErr;
     const isConfeccao = (paymentRow as any)?.analysis_mode === "confeccao";
-    const EDITABLE_STATUSES = isConfeccao
-      ? ["revisao_analista", "devolvido_analista", "em_confeccao"]
-      : ["revisao_analista", "devolvido_analista"];
+    const EDITABLE_STATUSES = ["revisao_analista", "devolvido_analista"];
     const { data: companyGroupsForGate, error: gateErr } = await supabase
       .from("payment_company_groups")
-      .select("company_name, status")
+      .select("company_name, status, confeccao_status")
       .eq("payment_id", payment_id);
     if (gateErr) throw gateErr;
 
     const targetCompanySet = new Set(companyNames.map((name) => name.toLowerCase()));
-    const groupStatusByName = new Map<string, string>();
+    const groupStateByName = new Map<string, { status: string; confeccao: string | null }>();
     for (const g of companyGroupsForGate ?? []) {
       const name = (g.company_name ?? "").trim() || "Sem empresa";
-      groupStatusByName.set(name.toLowerCase(), g.status as string);
+      groupStateByName.set(name.toLowerCase(), {
+        status: g.status as string,
+        confeccao: ((g as any).confeccao_status as string | null) ?? null,
+      });
     }
 
     const skippedCompanies: Array<{ company_name: string; status: string }> = [];
     companyNames = companyNames.filter((name) => {
-      const status = groupStatusByName.get(name.toLowerCase());
+      const state = groupStateByName.get(name.toLowerCase());
       // Primeira análise (ou grupo ainda não consolidado): não há status de
       // workflow para proteger, então a empresa precisa ser processada.
-      if (!status) return true;
-      if (EDITABLE_STATUSES.includes(status)) return true;
+      if (!state) return true;
+      // Em confecção, o gate é o confeccao_status — não o status (que é placeholder).
+      if (isConfeccao) {
+        if (state.confeccao === "em_confeccao") return true;
+        skippedCompanies.push({ company_name: name, status: state.confeccao ?? state.status });
+        return false;
+      }
+      if (EDITABLE_STATUSES.includes(state.status)) return true;
       if (targetCompanySet.has(name.toLowerCase())) skippedCompanies.push({ company_name: name, status });
       return false;
     });
