@@ -16,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { Stethoscope, Plus, Power, Pencil, Upload, Download, Building2, X, IdCard, Phone, Mail, Briefcase, Tag } from "lucide-react";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 import { formatCPF, isValidCPF, onlyDigits as cpfOnlyDigits } from "@/lib/cpf";
+import { formatCNPJ } from "@/lib/cnpj";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DoctorRegistrationPendingPanel } from "@/components/doctors/DoctorRegistrationPendingPanel";
 import { DoctorPendingReviewPanel } from "@/components/doctors/DoctorPendingReviewPanel";
