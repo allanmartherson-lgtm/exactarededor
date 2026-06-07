@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     // 1. Lê estado atual do job
     const { data: job, error: jobErr } = await supabase
       .from("payment_processing_jobs")
-      .select("company_list, total_companies, status")
+      .select("company_list, total_companies, status, hospital_id")
       .eq("id", job_id)
       .single();
 
@@ -184,6 +184,21 @@ Deno.serve(async (req) => {
         }
       } catch (e) {
         console.error("[orchestrate] falha ao registrar dead-letter", e);
+      }
+
+      // [Fila de retry automático] Enfileira para reprocessamento por worker.
+      // RPC é idempotente (upsert por payment+company) e usa backoff exponencial.
+      try {
+        await supabase.rpc("enqueue_ai_retry", {
+          p_payment_id: payment_id,
+          p_company_name: companyName,
+          p_hospital_id: (job as { hospital_id?: string }).hospital_id ?? null,
+          p_error: errorMsg.slice(0, 1000),
+          p_job_id: job_id,
+          p_max_attempts: null,
+        });
+      } catch (e) {
+        console.error("[orchestrate] falha ao enfileirar retry", e);
       }
     };
 
