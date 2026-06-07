@@ -1336,6 +1336,11 @@ export function ItemsDataGrid({
                         {formatCurrency(totals.valor)}
                       </td>
                     )}
+                    {showProcedureColumn && (
+                      <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
+                        {totals.procedure > 0 ? formatCurrency(totals.procedure) : "—"}
+                      </td>
+                    )}
                     <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
                       {totals.esperado != null ? formatCurrency(totals.esperado) : "—"}
                     </td>
