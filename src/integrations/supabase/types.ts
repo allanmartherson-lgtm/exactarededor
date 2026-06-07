@@ -3391,6 +3391,11 @@ export type Database = {
           bruto_total: number
           company_id: string | null
           company_name: string
+          confeccao_finalized_at: string | null
+          confeccao_finalized_by: string | null
+          confeccao_status:
+            | Database["public"]["Enums"]["confeccao_status"]
+            | null
           created_at: string
           hospital_id: string | null
           id: string
@@ -3412,6 +3417,11 @@ export type Database = {
           bruto_total?: number
           company_id?: string | null
           company_name: string
+          confeccao_finalized_at?: string | null
+          confeccao_finalized_by?: string | null
+          confeccao_status?:
+            | Database["public"]["Enums"]["confeccao_status"]
+            | null
           created_at?: string
           hospital_id?: string | null
           id?: string
@@ -3433,6 +3443,11 @@ export type Database = {
           bruto_total?: number
           company_id?: string | null
           company_name?: string
+          confeccao_finalized_at?: string | null
+          confeccao_finalized_by?: string | null
+          confeccao_status?:
+            | Database["public"]["Enums"]["confeccao_status"]
+            | null
           created_at?: string
           hospital_id?: string | null
           id?: string
@@ -4447,6 +4462,11 @@ export type Database = {
           bruto_total: number
           competence_month: string | null
           competence_months: string[]
+          confeccao_finalized_at: string | null
+          confeccao_finalized_by: string | null
+          confeccao_status:
+            | Database["public"]["Enums"]["confeccao_status"]
+            | null
           cost_center_code: string | null
           created_at: string
           created_by: string
@@ -4480,6 +4500,11 @@ export type Database = {
           bruto_total?: number
           competence_month?: string | null
           competence_months?: string[]
+          confeccao_finalized_at?: string | null
+          confeccao_finalized_by?: string | null
+          confeccao_status?:
+            | Database["public"]["Enums"]["confeccao_status"]
+            | null
           cost_center_code?: string | null
           created_at?: string
           created_by: string
@@ -4513,6 +4538,11 @@ export type Database = {
           bruto_total?: number
           competence_month?: string | null
           competence_months?: string[]
+          confeccao_finalized_at?: string | null
+          confeccao_finalized_by?: string | null
+          confeccao_status?:
+            | Database["public"]["Enums"]["confeccao_status"]
+            | null
           cost_center_code?: string | null
           created_at?: string
           created_by?: string
@@ -7223,6 +7253,7 @@ export type Database = {
         Args: { p_error?: string; p_id: string; p_success: boolean }
         Returns: undefined
       }
+      finalize_confeccao: { Args: { _payment_id: string }; Returns: undefined }
       find_doctor_for_login: {
         Args: { identifier: string }
         Returns: {
@@ -7910,6 +7941,7 @@ export type Database = {
         | "analista"
         | "empresa"
         | "medico"
+      confeccao_status: "em_confeccao" | "confeccao_concluida" | "cancelada"
       invoice_status:
         | "aguardando"
         | "recebida"
@@ -8166,6 +8198,7 @@ export const Constants = {
         "empresa",
         "medico",
       ],
+      confeccao_status: ["em_confeccao", "confeccao_concluida", "cancelada"],
       invoice_status: [
         "aguardando",
         "recebida",
