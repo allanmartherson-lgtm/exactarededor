@@ -1812,8 +1812,32 @@ const PaymentDetail = () => {
 
   return (
     <>
+      {isConfeccao && (
+        <div
+          className="sticky top-0 z-40 -mx-4 md:-mx-6 mb-2 border-b-2 border-amber-500/70 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/15 backdrop-blur-sm"
+          role="status"
+          aria-label="Modo confecção ativo"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(135deg, hsl(38 92% 50% / 0.10) 0px, hsl(38 92% 50% / 0.10) 12px, transparent 12px, transparent 24px)",
+          }}
+        >
+          <div className="px-4 md:px-6 py-2 flex items-center gap-3 text-amber-700 dark:text-amber-300">
+            <div className="flex items-center gap-2 rounded-md bg-amber-500/20 px-2.5 py-1 ring-1 ring-amber-500/40">
+              <Calculator className="h-3.5 w-3.5" />
+              <span className="text-[11px] font-bold tracking-[0.18em] uppercase">Modo confecção</span>
+            </div>
+            <p className="text-xs hidden sm:block">
+              O sistema está calculando o repasse pelas regras cadastradas — ainda não há confronto com a base hospitalar.
+            </p>
+            <span className="ml-auto text-[10px] font-medium uppercase tracking-wider opacity-80 hidden md:inline">
+              Lote {payment.reference}
+            </span>
+          </div>
+        </div>
+      )}
       <PageHeader
-        title={payment.reference}
+        title={isConfeccao ? `🛠  ${payment.reference}` : payment.reference}
         description={payment.description ?? (() => {
           const liq = Number((payment as any).liquido_total ?? payment.total_amount ?? 0);
           return `${items.length} itens · ${formatCurrency(liq)}`;
@@ -2804,13 +2828,21 @@ const PaymentDetail = () => {
           </Card>
         )}
         {payment.analysis_mode === "confeccao" && (
-          <Card className="shadow-card border-primary/30 bg-primary/5">
-            <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex items-start gap-2 flex-1">
-                <Calculator className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+          <Card className="shadow-card border-0 ring-1 ring-amber-500/40 bg-gradient-to-r from-amber-500/10 via-background to-background relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500" aria-hidden />
+            <CardContent className="p-4 pl-5 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="rounded-lg bg-amber-500/20 ring-1 ring-amber-500/40 p-2 flex-shrink-0">
+                  <Calculator className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium text-primary">Modo confecção</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-amber-700 dark:text-amber-300 tracking-wide uppercase">Modo confecção</p>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/40">
+                      Sem confronto hospitalar
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
                     O sistema calculou o repasse pelas regras cadastradas. Revise os valores e,
                     quando estiver pronto, encaminhe para análise — só então o motor confronta com a base hospitalar.
                   </p>
@@ -2818,11 +2850,16 @@ const PaymentDetail = () => {
               </div>
               {isAnalista && (
                 <div className="flex gap-2 flex-shrink-0">
-                  <Button size="sm" variant="outline" onClick={exportConfeccaoXlsx} className="gap-1.5">
+                  <Button size="sm" variant="outline" onClick={exportConfeccaoXlsx} className="gap-1.5 border-amber-500/40 hover:bg-amber-500/10">
                     <Download className="h-4 w-4" />
                     Exportar xlsx
                   </Button>
-                  <Button size="sm" onClick={sendConfeccaoForAnalysis} disabled={busy} className="gap-1.5">
+                  <Button
+                    size="sm"
+                    onClick={sendConfeccaoForAnalysis}
+                    disabled={busy}
+                    className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+                  >
                     Encaminhar para análise
                   </Button>
                 </div>
