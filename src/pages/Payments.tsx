@@ -258,18 +258,20 @@ const Payments = () => {
     setOnlyMine(searchParams.get("owner") === "me");
   }, [searchParams]);
 
-  const [view, setView] = useState<"lista" | "kanban">("lista");
-  const [sortBy, setSortBy] = useState<"relevance" | "created" | "elapsed" | "status" | "priority">("relevance");
+  const [view, setView] = useState<"lista" | "kanban">(persisted.view ?? "lista");
+  const [sortBy, setSortBy] = useState<"relevance" | "created" | "elapsed" | "status" | "priority">(persisted.sortBy ?? "relevance");
   // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
   // Default = "ativos" — esconde finalizados das filas de trabalho diárias.
   // Pode ser ligado via querystring (?archived=1) ou pelo toggle na UI.
-  const [archivedView, setArchivedView] = useState<boolean>(searchParams.get("archived") === "1");
+  const [archivedView, setArchivedView] = useState<boolean>(
+    searchParams.get("archived") === "1" || persisted.archivedView === true,
+  );
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
   // Filtros avançados (não dependem de "criado por")
-  const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">("all");
-  const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
+  const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">(persisted.divergenceFilter ?? "all");
+  const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">(persisted.questionedFilter ?? "all");
   // Contagem de perguntas internas abertas por lote (badge nas listagens).
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [openQuestionOnly, setOpenQuestionOnly] = useState(() => searchParams.get("open_questions") === "1");
