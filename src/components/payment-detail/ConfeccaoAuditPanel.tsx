@@ -1,10 +1,46 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertTriangle, ShieldAlert, Calculator } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CheckCircle2, AlertTriangle, ShieldAlert, Calculator, Info } from "lucide-react";
 import { formatCurrency } from "@/lib/status";
 import type { PaymentItemRow, RuleLite } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
+
+type Camada = "1" | "2" | "3" | "—";
+
+function detectCamada(label: string | null | undefined, method: string, ruleId: string | null): Camada {
+  const l = (label ?? "").toLowerCase();
+  if (l.includes("camada 1")) return "1";
+  if (l.includes("camada 2") || l.includes("sem acordo") || l.includes("exclus")) return "2";
+  if (l.includes("camada 3") || l.includes("fallback")) return "3";
+  if (ruleId && method && method !== "sem_regra") return "1";
+  return "—";
+}
+
+const CAMADA_INFO: Record<Camada, { label: string; desc: string; tone: "ok" | "warn" | "muted" }> = {
+  "1": {
+    label: "Camada 1 — Cálculo da regra",
+    desc: "Regra casou e um dos métodos de cálculo (tabela diferenciada, percentual, valor fixo, pacote, bônus) foi aplicado normalmente.",
+    tone: "ok",
+  },
+  "2": {
+    label: "Camada 2 — Sem Acordo / Exclusão",
+    desc: "Regra casou, mas o código TUSS está em uma tabela vinculada (sem_acordo/exclusao). O motor encerra com esperado = valor base do convênio (procedure_amount), sem aplicar nenhum método de cálculo — por isso o método aparece vazio.",
+    tone: "warn",
+  },
+  "3": {
+    label: "Camada 3 — Fallback Master",
+    desc: "Nenhuma regra específica casou e o motor caiu em uma regra master/global. Revisar se a cobertura de regras está adequada.",
+    tone: "warn",
+  },
+  "—": {
+    label: "Sem regra",
+    desc: "Não há regra cadastrada cobrindo este item. O sistema não calcula valor — necessário cadastrar regra ou excluir o item.",
+    tone: "warn",
+  },
+};
+
 
 /**
  * Aba dedicada do modo CONFECÇÃO.
