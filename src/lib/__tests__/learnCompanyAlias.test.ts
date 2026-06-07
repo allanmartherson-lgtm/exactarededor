@@ -39,14 +39,14 @@ describe("learnCompanyAlias", () => {
     expect(c.from).toHaveBeenCalledWith("companies");
     expect(c.select).toHaveBeenCalledWith("aliases");
     expect(c.eq).toHaveBeenCalledWith("id", "11111111-1111-1111-1111-111111111111");
-    expect(res).toEqual({ ok: true, aliases: ["MARIA D'AJUDA", "MD STAR"] });
+    expect(res).toEqual({ ok: true, aliases: ["MARIA D'AJUDA", "MD STAR"], error: null });
   });
 
   it("ignora chamadas com rawName vazio (não invoca RPC)", async () => {
     const c = makeClient({ selectAliases: [] });
     const res = await learnCompanyAlias(c as never, { companyId: "x", rawName: "   " });
     expect(c.rpc).not.toHaveBeenCalled();
-    expect(res).toEqual({ ok: false, error: "raw_name vazio" });
+    expect(res).toEqual({ ok: false, aliases: [], error: "raw_name vazio" });
   });
 
   it("propaga erro da RPC sem fazer SELECT subsequente", async () => {
@@ -54,18 +54,18 @@ describe("learnCompanyAlias", () => {
     const res = await learnCompanyAlias(c as never, { companyId: "x", rawName: "Acme" });
     expect(c.rpc).toHaveBeenCalledOnce();
     expect(c.from).not.toHaveBeenCalled();
-    expect(res).toEqual({ ok: false, error: "permission denied" });
+    expect(res).toEqual({ ok: false, aliases: [], error: "permission denied" });
   });
 
   it("propaga erro do SELECT de recarga", async () => {
     const c = makeClient({ selectError: { message: "boom" } });
     const res = await learnCompanyAlias(c as never, { companyId: "x", rawName: "Acme" });
-    expect(res).toEqual({ ok: false, error: "boom" });
+    expect(res).toEqual({ ok: false, aliases: [], error: "boom" });
   });
 
   it("retorna array vazio quando a empresa não tem aliases ainda", async () => {
     const c = makeClient({ selectAliases: undefined });
     const res = await learnCompanyAlias(c as never, { companyId: "x", rawName: "Acme" });
-    expect(res).toEqual({ ok: true, aliases: [] });
+    expect(res).toEqual({ ok: true, aliases: [], error: null });
   });
 });
