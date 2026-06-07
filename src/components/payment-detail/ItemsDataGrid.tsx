@@ -1207,6 +1207,7 @@ export function ItemsDataGrid({
 
                 const totalCols =
                   7 + 1 +
+                  (showGrossColumn ? 1 : 0) - 1 +
                   (colVis.atendimento ? 1 : 0) +
                   (colVis.convenio ? 1 : 0) +
                   (colVis.via ? 1 : 0) +
@@ -1215,7 +1216,7 @@ export function ItemsDataGrid({
                   (colVis.tipo_entrada ? 1 : 0) +
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
-                  (colVis.diferenca ? 1 : 0) +
+                  (showDiferencaCol ? 1 : 0) +
                   (colVis.observacao ? 1 : 0) +
                   (canEdit ? 1 : 0);
                 const isExpanded = expandedId === it.id;
