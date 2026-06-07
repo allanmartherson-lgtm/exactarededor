@@ -1413,21 +1413,22 @@ const PaymentDetail = () => {
     if (!id) return;
     setBusy(true);
     try {
-      // Defensivo: limpa filhos antes do payment (caso alguma FK não tenha CASCADE).
-      await supabase.from("payment_items").delete().eq("payment_id", id);
-      await supabase.from("payment_observations").delete().eq("payment_id", id);
-      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
-      const { error } = await supabase.from("payments").delete().eq("id", id);
-
+      // Lotes grandes (centenas de itens + cascades) estouram o statement_timeout
+      // do PostgREST (~8s) quando deletados pelo client. A edge function roda
+      // com service_role e timeout maior.
+      const { data, error } = await supabase.functions.invoke("delete-payment", {
+        body: { payment_id: id },
+      });
       if (error) throw error;
+      if (data && (data as any).error) {
+        throw new Error((data as any).detail || (data as any).error);
+      }
 
-      // Fecha o diálogo e navega ANTES de qualquer await pendente para
-      // garantir retorno imediato à lista de pagamentos.
       setDeleteOpen(false);
       toast({ title: "Lote excluído" });
       navigate("/pagamentos", { replace: true });
     } catch (e: any) {
-      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao excluir", description: e.message ?? String(e), variant: "destructive" });
     } finally {
       setBusy(false);
     }
