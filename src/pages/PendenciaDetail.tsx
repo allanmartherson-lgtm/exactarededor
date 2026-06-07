@@ -25,6 +25,7 @@ import {
 import { CompanyThreadChat } from "@/components/portal/CompanyThreadChat";
 import { DoctorPendenciaChat } from "@/components/portal/DoctorPendenciaChat";
 import { NotificationHistoryPanel } from "@/components/pendencias/NotificationHistoryPanel";
+import { PendenciaAttachmentsPanel } from "@/components/pendencias/PendenciaAttachmentsPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UserCheck, CheckCircle2 } from "lucide-react";
@@ -34,6 +35,7 @@ type PendStatus = "aberta" | "em_analise" | "respondida" | "resolvida" | "cancel
 type Pendencia = {
   id: string;
   company_id: string;
+  created_by_user_id: string | null;
   created_by_name: string;
   patient_name: string;
   event_date: string;
@@ -67,6 +69,7 @@ export default function PendenciaDetail() {
   const { user } = useAuth();
   const [pend, setPend] = useState<Pendencia | null>(null);
   const [companyName, setCompanyName] = useState<string>("");
+  const [creatorName, setCreatorName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creatingThread, setCreatingThread] = useState(false);
@@ -94,6 +97,17 @@ export default function PendenciaDetail() {
         .eq("id", p.company_id)
         .maybeSingle();
       setCompanyName((c?.name as string) ?? "");
+    }
+    if (p?.created_by_user_id) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", p.created_by_user_id)
+        .maybeSingle();
+      const name = (prof?.full_name as string | null) || "";
+      setCreatorName(name || p.created_by_name);
+    } else {
+      setCreatorName(p?.created_by_name ?? "");
     }
     setLoading(false);
   };
@@ -227,7 +241,7 @@ export default function PendenciaDetail() {
         title={pend.subject}
         icon={ListChecksIcon as never}
         backFallback="/pendencias"
-        description={`${companyName || "Empresa"} · aberta em ${format(new Date(pend.created_at), "dd/MM/yy HH:mm", { locale: ptBR })} por ${pend.created_by_name}`}
+        description={`${companyName || "Empresa"} · aberta em ${format(new Date(pend.created_at), "dd/MM/yy HH:mm", { locale: ptBR })} por ${creatorName || pend.created_by_name}`}
         actions={headerActions}
       />
 
@@ -276,6 +290,8 @@ export default function PendenciaDetail() {
               {pend.description}
             </p>
           </div>
+
+          <PendenciaAttachmentsPanel pendenciaId={pend.id} />
 
           <NotificationHistoryPanel pendenciaId={pend.id} />
         </div>

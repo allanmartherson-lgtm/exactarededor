@@ -29,6 +29,7 @@ import { ptBR } from "date-fns/locale";
 type Pendencia = {
   id: string;
   company_id: string;
+  created_by_user_id: string | null;
   created_by_name: string;
   patient_name: string;
   event_date: string;
@@ -83,6 +84,7 @@ export default function Pendencias() {
   const { user } = useAuth();
   const [items, setItems] = useState<Pendencia[]>([]);
   const [companies, setCompanies] = useState<Record<string, string>>({});
+  const [profileNames, setProfileNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("abertas");
@@ -116,6 +118,21 @@ export default function Pendencias() {
           map[c.id] = c.name;
         });
         setCompanies(map);
+      }
+      // Resolve nomes reais a partir de profiles (analista/empresa) quando created_by_user_id existe.
+      const userIds = Array.from(
+        new Set(list.map((p) => p.created_by_user_id).filter((x): x is string => !!x)),
+      );
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
+        const pmap: Record<string, string> = {};
+        (profs ?? []).forEach((r: { id: string; full_name: string | null }) => {
+          if (r.full_name) pmap[r.id] = r.full_name;
+        });
+        setProfileNames(pmap);
       }
     }
     setLoading(false);
@@ -319,7 +336,7 @@ export default function Pendencias() {
                     <div className="flex flex-col">
                       <span>{p.subject}</span>
                       <span className="text-[11px] text-muted-foreground">
-                        por {p.created_by_name}
+                        por {(p.created_by_user_id && profileNames[p.created_by_user_id]) || p.created_by_name}
                         {p.assigned_to === user?.id && " · você"}
                       </span>
                     </div>
