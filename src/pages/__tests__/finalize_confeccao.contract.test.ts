@@ -105,9 +105,12 @@ describe("PaymentDetail · usa RPC finalize_confeccao para sair da confecção",
     expect(pd).toMatch(/supabase\.rpc\(\s*["']finalize_confeccao["']\s*,\s*\{\s*_payment_id\s*:/);
   });
 
-  it("não tenta UPDATE direto em payments.status='em_analise_ia' / 'revisao_analista' fora da RPC", () => {
-    // Procura update raw em payments.status diretamente do front (não permitido enquanto em confecção).
-    const directUpdate = /\.from\(\s*["']payments["']\s*\)\s*\.update\(\s*\{[^}]*status\s*:\s*["'](?:em_analise_ia|revisao_analista)["']/;
-    expect(pd).not.toMatch(directUpdate);
+  it("o handler de encaminhamento (sendConfeccaoForAnalysis) usa a RPC e não faz UPDATE direto", () => {
+    const fnMatch = pd.match(/sendConfeccaoForAnalysis\s*=\s*async\s*\([^)]*\)\s*=>\s*\{([\s\S]*?)\n\s{0,4}\};/);
+    expect(fnMatch, "função sendConfeccaoForAnalysis não encontrada").not.toBeNull();
+    const body = fnMatch![1];
+    expect(body).toMatch(/supabase\.rpc\(\s*["']finalize_confeccao["']/);
+    expect(body).not.toMatch(/\.from\(\s*["']payments["']\s*\)\s*\.update\(/);
+    expect(body).not.toMatch(/\.from\(\s*["']payment_company_groups["']\s*\)\s*\.update\([^)]*status\s*:/);
   });
 });
