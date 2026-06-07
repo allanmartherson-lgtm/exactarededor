@@ -19,16 +19,23 @@ import { resolve } from "node:path";
  *     UPDATE direto em payments.status.
  */
 
-function findMigration(): string {
+function loadConfeccaoMigrations(): string {
   const dir = resolve(__dirname, "../../../supabase/migrations");
-  const file = readdirSync(dir).find((f) =>
-    /20260607135751.*confeccao/i.test(f) || /confeccao/i.test(f),
-  );
-  if (!file) throw new Error("migration de confecção não encontrada");
-  return readFileSync(resolve(dir, file), "utf8");
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  const blobs: string[] = [];
+  for (const f of files) {
+    const body = readFileSync(resolve(dir, f), "utf8");
+    if (/finalize_confeccao|enforce_confeccao_status_coherence|confeccao_status/i.test(body)) {
+      blobs.push(body);
+    }
+  }
+  if (blobs.length === 0) throw new Error("migrações de confecção não encontradas");
+  return blobs.join("\n\n-- ===NEXT MIGRATION===\n\n");
 }
 
-const sql = findMigration();
+const sql = loadConfeccaoMigrations();
 
 describe("finalize_confeccao · contrato E2E", () => {
   it("define enum confeccao_status com em_confeccao/confeccao_concluida", () => {
