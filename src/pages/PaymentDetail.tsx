@@ -1251,15 +1251,23 @@ const PaymentDetail = () => {
         ? ` (filtrado por: ${statuses.join(", ")}; tolerância: ${toleranceValue * 100}%)` 
         : ` em todo o lote (tolerância: ${toleranceValue * 100}%)`;
 
+      const isConfeccaoMode = payment?.analysis_mode === "confeccao";
       await recordObservation({
         payment_id: id,
         author_type: "analista",
         author_id: user.id,
-        message: `Regras de repasse reaplicadas${filterDesc} manualmente pelo analista.`,
+        message: isConfeccaoMode
+          ? `Repasse recalculado em todo o lote (modo confecção) manualmente pelo analista.`
+          : `Regras de repasse reaplicadas${filterDesc} manualmente pelo analista.`,
         status_from: payment?.status ?? null,
         status_to: payment?.status ?? null,
       });
-      toast({ title: "Análise reprocessada", description: "A IA reprocessou os itens deste lote." });
+      toast({
+        title: isConfeccaoMode ? "Repasse recalculado" : "Análise reprocessada",
+        description: isConfeccaoMode
+          ? "O motor recalculou o repasse de todas as empresas do lote."
+          : "A IA reprocessou os itens deste lote.",
+      });
       await load();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

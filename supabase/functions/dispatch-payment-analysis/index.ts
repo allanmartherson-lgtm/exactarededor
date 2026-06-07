@@ -102,11 +102,27 @@ Deno.serve(async (req) => {
         .reduce((acc, g) => acc + (g.items_count || 0), 0);
     }
 
-    // Governança: empresas com status diferente de revisao_analista/devolvido_analista
-    // NÃO devem ser reanalisadas. O analista já concluiu (ou enviou para validação/
-    // aprovação) — reanálise sobrescreveria dados validados sem rastro. Para
-    // reanalisar uma empresa fechada, o analista deve REABRIR a empresa via UI.
-    const EDITABLE_STATUSES = ["revisao_analista", "devolvido_analista"];
+    // Governança: empresas com status diferente dos "editáveis" NÃO devem ser
+    // reanalisadas. O analista já concluiu (ou enviou para validação/aprovação)
+    // — reanálise sobrescreveria dados validados sem rastro. Para reanalisar
+    // uma empresa fechada, o analista deve REABRIR a empresa via UI.
+    //
+    // O conjunto de status editáveis varia por modo de análise do lote:
+    //   - análise (padrão/isolado/empresa_prioritaria): {revisao_analista, devolvido_analista}
+    //   - confecção: inclui também {em_confeccao} — nesse modo os grupos
+    //     permanecem em em_confeccao até o analista clicar "Finalizar confecção",
+    //     então recalcular o repasse de empresas em_confeccao é a operação
+    //     esperada (e não um override de análise validada).
+    const { data: paymentRow, error: payErr } = await supabase
+      .from("payments")
+      .select("analysis_mode")
+      .eq("id", payment_id)
+      .single();
+    if (payErr) throw payErr;
+    const isConfeccao = (paymentRow as any)?.analysis_mode === "confeccao";
+    const EDITABLE_STATUSES = isConfeccao
+      ? ["revisao_analista", "devolvido_analista", "em_confeccao"]
+      : ["revisao_analista", "devolvido_analista"];
     const { data: companyGroupsForGate, error: gateErr } = await supabase
       .from("payment_company_groups")
       .select("company_name, status")
