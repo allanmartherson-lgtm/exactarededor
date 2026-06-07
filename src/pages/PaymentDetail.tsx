@@ -1792,6 +1792,8 @@ const PaymentDetail = () => {
     </Card>
   );
 
+  const isConfeccao = payment?.analysis_mode === "confeccao";
+
   return (
     <>
       <PageHeader
@@ -1803,25 +1805,29 @@ const PaymentDetail = () => {
         sticky
         actions={
           <div className="flex items-center gap-2">
-            <div className="md:hidden">
-              <Select value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)}>
-                <SelectTrigger className="h-8 w-[130px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="detalhe">Detalhe</SelectItem>
-                  <SelectItem value="compacto">Compacto</SelectItem>
-                  <SelectItem value="executivo">Executivo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)} className="hidden md:block">
-              <TabsList>
-                <TabsTrigger value="detalhe">Detalhe</TabsTrigger>
-                <TabsTrigger value="compacto">Compacto</TabsTrigger>
-                <TabsTrigger value="executivo">Executivo</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {!isConfeccao && (
+              <div className="md:hidden">
+                <Select value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)}>
+                  <SelectTrigger className="h-8 w-[130px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="detalhe">Detalhe</SelectItem>
+                    <SelectItem value="compacto">Compacto</SelectItem>
+                    <SelectItem value="executivo">Executivo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {!isConfeccao && (
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)} className="hidden md:block">
+                <TabsList>
+                  <TabsTrigger value="detalhe">Detalhe</TabsTrigger>
+                  <TabsTrigger value="compacto">Compacto</TabsTrigger>
+                  <TabsTrigger value="executivo">Executivo</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
 
 
             {obs.some((o: any) => o.is_question) && (
@@ -2099,7 +2105,7 @@ const PaymentDetail = () => {
           </button>
           {aiCardsOpen && (
             <div className="space-y-3 mt-2">
-              {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+              {id && !isConfeccao && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
               {id && <PoolCalculationCard paymentId={id} />}
               {id && <DirectorBriefingCard
                 paymentId={id}
@@ -2326,7 +2332,7 @@ const PaymentDetail = () => {
               {/* Coluna principal (2/3): cards de IA + Anomalias. No mobile, IA já aparece no collapsible. */}
               <div className="md:col-span-2 min-w-0 space-y-4">
                 <div className="hidden md:block space-y-4">
-                  {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+                  {id && !isConfeccao && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
                   {id && <DirectorBriefingCard
                     paymentId={id}
                     payment={payment}
@@ -2852,6 +2858,7 @@ const PaymentDetail = () => {
               </div>
             </div>
 
+            {!isConfeccao && (
             <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-full md:w-fit overflow-x-auto flex-nowrap">
               <Button
                 variant={criticalFilter === "all" ? "default" : "ghost"}
@@ -2973,6 +2980,7 @@ const PaymentDetail = () => {
                 </SelectContent>
               </Select>
             </div>
+            )}
           </div>
           
           {(criticalFilter !== "all" || payment.analysis_mode === "empresa_prioritaria") && (

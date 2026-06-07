@@ -1902,12 +1902,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // como reanálise informativa, sem mexer nos status_from/status_to (para
     // não poluir o histórico nem fazer parecer que o lote voltou ao analista).
     const obsTransition = ANALYST_OWNED_FOR_REWRITE.has(curStatus);
+    const obsStatusTo = isConfeccao ? "em_confeccao" : "revisao_analista";
     await supabase.from("payment_observations").insert({
       payment_id,
       author_type: "ia",
       message: `${summary} (${alerts} alertas, ${blocks} reprovações)${consolidatedDiff}`,
       status_from: obsTransition ? "em_analise_ia" : null,
-      status_to: obsTransition ? "revisao_analista" : null,
+      status_to: obsTransition ? obsStatusTo : null,
     });
 
     // Auditoria por lote: confirma explicitamente que `specialty` foi ignorada
@@ -1969,7 +1970,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           company_name: g.company_name,
         };
         if (ANALYST_OWNED_FOR_REWRITE.has((existing as any).status as string)) {
-          groupUpd.status = "revisao_analista";
+          groupUpd.status = isConfeccao ? "em_confeccao" : "revisao_analista";
         }
         await supabase.from("payment_company_groups").update(groupUpd).eq("id", existing.id);
       } else {
@@ -1977,7 +1978,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           payment_id,
           company_id: g.company_id,
           company_name: g.company_name,
-          status: "revisao_analista",
+          status: isConfeccao ? "em_confeccao" : "revisao_analista",
           items_count: g.items.length,
           total_amount: total,
         }).select("id").single();

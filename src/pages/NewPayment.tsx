@@ -1253,7 +1253,7 @@ const NewPayment = () => {
       .insert({
         reference: reference.trim(),
         description: description.trim() || null,
-        status: "em_analise_ia",
+        status: (analysisMode === "confeccao" ? "em_confeccao" : "em_analise_ia") as any,
         total_amount: total,
         items_count: allRows.length,
         source_file_path: uploadedPaths[0] ?? null,

@@ -7944,6 +7944,7 @@ export type Database = {
       payment_kind: "atual" | "pendencia" | "misto"
       payment_status:
         | "rascunho"
+        | "em_confeccao"
         | "em_analise_ia"
         | "revisao_analista"
         | "concluida_analista"
@@ -8200,6 +8201,7 @@ export const Constants = {
       payment_kind: ["atual", "pendencia", "misto"],
       payment_status: [
         "rascunho",
+        "em_confeccao",
         "em_analise_ia",
         "revisao_analista",
         "concluida_analista",
