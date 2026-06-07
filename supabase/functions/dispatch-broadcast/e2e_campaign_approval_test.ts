@@ -55,7 +55,11 @@ async function poll<T>(
   }
 }
 
-Deno.test("E2E: aprovação de campanha notifica analista, empresa e médico", async () => {
+Deno.test({
+  name: "E2E: aprovação de campanha notifica analista, empresa e médico",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
   const supa = admin();
 
   // ---------- pré-requisitos: hospital + analista existentes ----------
