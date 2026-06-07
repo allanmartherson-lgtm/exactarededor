@@ -13,6 +13,7 @@ import { FormDialog } from "@/components/FormDialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
@@ -733,21 +734,13 @@ const Rules = () => {
       ids.forEach((id) => next.add(id));
       return next;
     });
-    Promise.all([
-      supabase
-        .from("payment_items")
-        .select("company_id, doctor_name, doctor_document")
-        .in("company_id", ids)
-        .not("doctor_name", "is", null)
-        .limit(5000),
-      supabase
-        .from("doctor_companies")
-        .select("company_id, doctors(full_name, crm, crm_uf, active)")
-        .in("company_id", ids),
-    ]).then(([itemsRes, masterRes]) => {
+    supabase
+      .from("doctor_companies")
+      .select("company_id, doctors(full_name, crm, crm_uf, active)")
+      .in("company_id", ids)
+      .then((masterRes) => {
         const byCo: Record<string, Map<string, { name: string; crm?: string }>> = {};
         ids.forEach((id) => { byCo[id] = new Map(); });
-        // Master table (preferencial)
         for (const r of (masterRes.data ?? []) as any[]) {
           const cid = String(r.company_id ?? "");
           const d = r.doctors;
@@ -755,14 +748,6 @@ const Rules = () => {
           if (d.active === false) continue;
           const key = d.full_name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
           byCo[cid].set(key, { name: d.full_name, crm: d.crm ? `${d.crm}/${d.crm_uf}` : undefined });
-        }
-        // Payment items (fallback / complemento)
-        for (const r of (itemsRes.data ?? []) as any[]) {
-          const cid = String(r.company_id ?? "");
-          const name = String(r.doctor_name ?? "").trim();
-          if (!cid || !name || !byCo[cid]) continue;
-          const key = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-          if (!byCo[cid].has(key)) byCo[cid].set(key, { name, crm: r.doctor_document ?? undefined });
         }
         setCompanyDoctorsMap((prev) => {
           const next = { ...prev };
@@ -2076,7 +2061,7 @@ const Rules = () => {
                                         )}
                                         <Button
                                           type="button" size="sm" variant="outline"
-                                          onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [], _isNew: true } as any, ...prev])}
+                                          onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [], excluded_doctors: [], auto_include_new_doctors: true, _isNew: true } as any, ...prev])}
                                         >
                                           <Plus className="h-4 w-4 mr-1" /> Adicionar empresa
                                         </Button>
@@ -2146,7 +2131,21 @@ const Rules = () => {
                                         };
                                         const displayName = co?.name || (link as any).company_name || "Empresa não selecionada";
                                         const displayDoc = co?.document || (link as any).company_document || "";
-                                        const doctorsSummary = link.doctors.length === 0 ? "Todos os médicos" : `${link.doctors.length} ${link.doctors.length === 1 ? "médico" : "médicos"}`;
+                                        const autoInc = (link as any).auto_include_new_doctors !== false;
+                                        const excludedList = ((link as any).excluded_doctors ?? []) as { name: string; crm?: string }[];
+                                        const enabledNames = new Set(link.doctors.map((d) => norm(d.name)));
+                                        const excludedNames = new Set(excludedList.map((d) => norm(d.name)));
+                                        const isDoctorEnabled = (d: { name: string }) => {
+                                          const k = norm(d.name);
+                                          if (enabledNames.has(k)) return true;
+                                          if (excludedNames.has(k)) return false;
+                                          return autoInc;
+                                        };
+                                        const enabledCount = allowedDocs.filter(isDoctorEnabled).length;
+                                        const disabledCount = allowedDocs.length - enabledCount;
+                                        const doctorsSummary = allowedDocs.length === 0
+                                          ? (autoInc ? "Todos os médicos" : "Nenhum médico")
+                                          : `${enabledCount}/${allowedDocs.length} habilitados${disabledCount > 0 ? ` · ${disabledCount} fora` : ""}${autoInc ? " · auto-incluir novos" : ""}`;
                                         return (
                                           <div key={idx} className={cn(
                                             "rounded-md bg-card animate-fade-in transition-all duration-300",
@@ -2208,7 +2207,7 @@ const Rules = () => {
                                                            return;
                                                          }
                                                          setCompanies((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, { id: c.id, name: c.name, document: c.document ?? null }]);
-                                                         updateLink({ company_id: c.id, doctors: [], company_name: c.name, company_document: c.document ?? null, _isNew: false } as any);
+                                                         updateLink({ company_id: c.id, doctors: [], excluded_doctors: [], auto_include_new_doctors: true, company_name: c.name, company_document: c.document ?? null, _isNew: false } as any);
                                                        }}
                                                       placeholder="Selecionar empresa…"
                                                       className="w-full"
@@ -2229,71 +2228,123 @@ const Rules = () => {
                                                 </div>
 
                                                 {link.company_id && (
-                                                  <div className="space-y-1.5 animate-fade-in">
-                                                    <div className="flex items-center justify-between">
-                                                      <Label className="text-xs">Médicos desta empresa — opcional</Label>
-                                                      <div className="flex gap-1">
-                                                        <Button
-                                                          type="button" size="sm" variant={link.doctors.length === 0 ? "default" : "outline"}
-                                                          onClick={() => updateLink({ doctors: [] })}
-                                                        >
-                                                          Todos os médicos
-                                                        </Button>
+                                                  <div className="space-y-2 animate-fade-in">
+                                                    <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-background/60 px-3 py-2">
+                                                      <div className="min-w-0">
+                                                        <Label className="text-xs font-medium">Auto-incluir novos médicos da PJ</Label>
+                                                        <p className="text-[11px] text-muted-foreground">
+                                                          {autoInc
+                                                            ? "Qualquer médico vinculado a esta PJ entra na regra automaticamente — exceto os desabilitados abaixo."
+                                                            : "Modo allowlist: somente os médicos marcados abaixo entram. Novos vínculos ficam de fora até habilitação manual."}
+                                                        </p>
                                                       </div>
+                                                      <Switch
+                                                        checked={autoInc}
+                                                        onCheckedChange={(checked) => {
+                                                          if (checked) {
+                                                            // OFF → ON: limpa whitelist e excluded (todos habilitados, exceto se já tinha excluídos explícitos)
+                                                            // Mantém excluídos para preservar intenção do usuário.
+                                                            updateLink({ auto_include_new_doctors: true, doctors: [] } as any);
+                                                          } else {
+                                                            // ON → OFF: promove habilitados atuais para whitelist explícita.
+                                                            const explicit = allowedDocs.filter(isDoctorEnabled);
+                                                            updateLink({ auto_include_new_doctors: false, doctors: explicit, excluded_doctors: [] } as any);
+                                                          }
+                                                        }}
+                                                      />
                                                     </div>
-                                                    <p className="text-xs text-muted-foreground">
-                                                      {loadingDocs
-                                                        ? "Carregando médicos…"
-                                                        : allowedDocs.length === 0
-                                                          ? "Nenhum médico encontrado nos atendimentos — adicione manualmente abaixo, ou deixe vazio para aplicar a todos."
-                                                          : "Clique nas sugestões ou adicione manualmente. Vazio = aplica a todos da empresa."}
-                                                    </p>
-                                                    {allowedDocs.length > 0 && (
-                                                      <div className="flex flex-wrap gap-1">
+
+                                                    <div className="flex items-center justify-between">
+                                                      <Label className="text-xs">Médicos vinculados à PJ</Label>
+                                                      {allowedDocs.length > 0 && (
+                                                        <div className="flex items-center gap-1">
+                                                          <Button
+                                                            type="button" size="sm" variant="ghost"
+                                                            className="h-7 text-[11px]"
+                                                            onClick={() => {
+                                                              if (autoInc) {
+                                                                updateLink({ doctors: [], excluded_doctors: [] } as any);
+                                                              } else {
+                                                                updateLink({ doctors: allowedDocs, excluded_doctors: [] } as any);
+                                                              }
+                                                            }}
+                                                          >
+                                                            Habilitar todos
+                                                          </Button>
+                                                          <Button
+                                                            type="button" size="sm" variant="ghost"
+                                                            className="h-7 text-[11px]"
+                                                            onClick={() => {
+                                                              if (autoInc) {
+                                                                updateLink({ doctors: [], excluded_doctors: allowedDocs } as any);
+                                                              } else {
+                                                                updateLink({ doctors: [], excluded_doctors: [] } as any);
+                                                              }
+                                                            }}
+                                                          >
+                                                            Desabilitar todos
+                                                          </Button>
+                                                        </div>
+                                                      )}
+                                                    </div>
+
+                                                    {loadingDocs ? (
+                                                      <p className="text-xs text-muted-foreground italic">Carregando médicos…</p>
+                                                    ) : allowedDocs.length === 0 ? (
+                                                      <p className="text-xs text-muted-foreground italic">
+                                                        Nenhum médico vinculado a esta PJ no cadastro. {autoInc ? "Qualquer médico que vier a ser vinculado entrará automaticamente." : "Cadastre vínculos médico↔PJ ou ligue o auto-incluir."}
+                                                      </p>
+                                                    ) : (
+                                                      <div className="rounded-md border border-border bg-background/40 divide-y divide-border max-h-72 overflow-y-auto">
                                                         {allowedDocs.map((d, di) => {
-                                                          const checked = link.doctors.some((x) => norm(x.name) === norm(d.name));
+                                                          const enabled = isDoctorEnabled(d);
                                                           return (
-                                                            <Button
-                                                              key={`${d.name}-${di}`} type="button" size="sm"
-                                                              variant={checked ? "default" : "outline"}
-                                                              onClick={() => updateLink({
-                                                                doctors: checked
-                                                                  ? link.doctors.filter((x) => norm(x.name) !== norm(d.name))
-                                                                  : [...link.doctors, d],
-                                                              })}
+                                                            <label
+                                                              key={`${d.name}-${di}`}
+                                                              className="flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-muted/40 cursor-pointer"
                                                             >
-                                                              {d.name}{d.crm ? ` · ${d.crm}` : ""}
-                                                            </Button>
+                                                              <div className="min-w-0 flex-1">
+                                                                <span className={cn("truncate", !enabled && "text-muted-foreground line-through")}>{d.name}</span>
+                                                                {d.crm && (
+                                                                  <span className="ml-1 text-[10px] text-muted-foreground cell-mono">· {d.crm}</span>
+                                                                )}
+                                                              </div>
+                                                              <Switch
+                                                                checked={enabled}
+                                                                onCheckedChange={(checked) => {
+                                                                  const k = norm(d.name);
+                                                                  const nextEnabled = link.doctors.filter((x) => norm(x.name) !== k);
+                                                                  const nextExcluded = excludedList.filter((x) => norm(x.name) !== k);
+                                                                  if (checked) {
+                                                                    if (autoInc) {
+                                                                      updateLink({ excluded_doctors: nextExcluded } as any);
+                                                                    } else {
+                                                                      updateLink({ doctors: [...nextEnabled, d], excluded_doctors: nextExcluded } as any);
+                                                                    }
+                                                                  } else {
+                                                                    if (autoInc) {
+                                                                      updateLink({ doctors: nextEnabled, excluded_doctors: [...nextExcluded, d] } as any);
+                                                                    } else {
+                                                                      updateLink({ doctors: nextEnabled, excluded_doctors: nextExcluded } as any);
+                                                                    }
+                                                                  }
+                                                                }}
+                                                              />
+                                                            </label>
                                                           );
                                                         })}
                                                       </div>
                                                     )}
-                                                    <DoctorsEditor
-                                                      value={link.doctors}
-                                                      onChange={(next) => updateLink({ doctors: next })}
-                                                    />
-                                                    {link.doctors.length > 0 && (
-                                                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                                        <span>{link.doctors.length} médico(s) específico(s) selecionado(s).</span>
-                                                        <Button type="button" size="sm" variant="ghost" onClick={() => updateLink({ doctors: [] })}>
-                                                          Limpar
-                                                        </Button>
-                                                      </div>
-                                                    )}
-                                                    {invalidPicked.length > 0 && (
-                                                      <div className="text-xs text-destructive">
-                                                        {invalidPicked.length} médico(s) não pertence(m) a esta empresa.
-                                                      </div>
-                                                    )}
+                                                    <p className="text-[11px] text-muted-foreground">
+                                                      Desabilitar aqui só afeta esta regra. Se o médico não estiver habilitado em nenhuma outra regra, ele cai no fallback (regra master/geral).
+                                                    </p>
                                                   </div>
                                                 )}
 
-                                                <div className="text-xs text-muted-foreground border-t border-border pt-1.5 truncate" title={`${co?.name ?? "—"} | ${link.doctors.length === 0 ? "Todos os médicos" : link.doctors.map((d) => d.name).join(", ")}`}>
+                                                <div className="text-xs text-muted-foreground border-t border-border pt-1.5 truncate" title={`${co?.name ?? "—"} | ${doctorsSummary}`}>
                                                   <span className="font-medium">{co?.name ?? "—"}</span>
                                                   {" | "}
-                                                  {link.doctors.length === 0
-                                                    ? "Todos os médicos"
-                                                    : link.doctors.map((d) => d.name).join(", ")}
+                                                  {doctorsSummary}
                                                 </div>
                                               </div>
                                             )}
