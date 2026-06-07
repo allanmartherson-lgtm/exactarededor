@@ -3,9 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download } from "lucide-react";
+import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download, Search } from "lucide-react";
 
-type FailedCompany = { company_name: string; error: string; at?: string };
+type FailedCompany = { company_name: string; company_id?: string | null; error: string; at?: string };
 
 type Job = {
   id: string;
@@ -20,6 +20,7 @@ type TelemetryRow = {
   id: string;
   job_id: string | null;
   company_name: string | null;
+  company_id?: string | null;
   error: string | null;
   ai_items_count: number | null;
   items_count: number | null;
@@ -37,6 +38,8 @@ type ReportEntry = {
   type: "total" | "parcial";
   reason: string;
   groupId: string | null;
+  companyId: string | null;
+  matchSource: "name" | "id" | "fuzzy" | "none";
   at?: string;
 };
 
@@ -49,6 +52,33 @@ function parsePartial(err: string | null): { failed: number; total: number; retr
 
 function norm(s: string | null | undefined): string {
   return (s ?? "").trim().toLowerCase();
+}
+
+// Fuzzy normalization: strip accents, legal suffixes, punctuation, collapse spaces
+function fuzzy(s: string | null | undefined): string {
+  return (s ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(ltda|me|epp|eireli|s\.?a\.?|s\/a|cnpj|cpf)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveMatch(
+  name: string | null | undefined,
+  cid: string | null | undefined,
+  byName: Map<string, GroupRow>,
+  byId: Map<string, GroupRow>,
+  byFuzzy: Map<string, GroupRow>,
+): { group: GroupRow | null; source: "name" | "id" | "fuzzy" | "none" } {
+  const n = norm(name);
+  if (n && byName.has(n)) return { group: byName.get(n)!, source: "name" };
+  if (cid && byId.has(cid)) return { group: byId.get(cid)!, source: "id" };
+  const f = fuzzy(name);
+  if (f && byFuzzy.has(f)) return { group: byFuzzy.get(f)!, source: "fuzzy" };
+  return { group: null, source: "none" };
 }
 
 export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
@@ -96,18 +126,27 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
   if (!job) return null;
 
   const groupByName = new Map<string, GroupRow>();
-  for (const g of groups) groupByName.set(norm(g.company_name), g);
+  const groupById = new Map<string, GroupRow>();
+  const groupByFuzzy = new Map<string, GroupRow>();
+  for (const g of groups) {
+    groupByName.set(norm(g.company_name), g);
+    if (g.company_id) groupById.set(g.company_id, g);
+    const f = fuzzy(g.company_name);
+    if (f) groupByFuzzy.set(f, g);
+  }
 
   const entries: ReportEntry[] = [];
 
   // Total failures: companies the job marked as failed (didn't finish)
   for (const f of job.failed_companies ?? []) {
-    const g = groupByName.get(norm(f.company_name));
+    const { group, source } = resolveMatch(f.company_name, f.company_id, groupByName, groupById, groupByFuzzy);
     entries.push({
       companyName: f.company_name,
       type: "total",
       reason: f.error || "Falha não especificada",
-      groupId: g?.id ?? null,
+      groupId: group?.id ?? null,
+      companyId: f.company_id ?? group?.company_id ?? null,
+      matchSource: source,
       at: f.at,
     });
   }
@@ -120,16 +159,19 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
     const key = norm(t.company_name) + "|" + t.id;
     if (seenPartial.has(key)) continue;
     seenPartial.add(key);
-    const g = groupByName.get(norm(t.company_name));
+    const { group, source } = resolveMatch(t.company_name, t.company_id, groupByName, groupById, groupByFuzzy);
     const retries = partial.retries != null ? `, ${partial.retries} retries` : "";
     entries.push({
       companyName: t.company_name ?? "(sem empresa)",
       type: "parcial",
       reason: `IA: ${partial.failed} de ${partial.total} chunks falharam após retry${retries}. Justificativas podem estar incompletas.`,
-      groupId: g?.id ?? null,
+      groupId: group?.id ?? null,
+      companyId: t.company_id ?? group?.company_id ?? null,
+      matchSource: source,
       at: t.created_at,
     });
   }
+
 
   if (entries.length === 0) return null;
 
@@ -210,6 +252,12 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                   >
                     {e.type === "total" ? "Falha total" : "Falha parcial"}
                   </Badge>
+                  {e.matchSource === "fuzzy" && (
+                    <Badge variant="outline" className="text-[10px]">match aproximado</Badge>
+                  )}
+                  {e.matchSource === "id" && (
+                    <Badge variant="outline" className="text-[10px]">match por ID</Badge>
+                  )}
                   {e.at && (
                     <span className="text-[11px] text-muted-foreground">
                       {new Date(e.at).toLocaleString("pt-BR")}
@@ -218,7 +266,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                 </div>
                 <div className="text-xs text-muted-foreground mt-1 break-words">{e.reason}</div>
               </div>
-              <div className="shrink-0">
+              <div className="shrink-0 flex flex-col items-end gap-1">
                 {e.groupId ? (
                   <Button
                     size="sm"
@@ -230,9 +278,23 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                     Abrir evidência
                   </Button>
                 ) : (
-                  <span className="text-[11px] text-muted-foreground italic">
-                    Empresa sem grupo no pagamento
-                  </span>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const q = encodeURIComponent(e.companyName);
+                        window.open(`/empresas?busca=${q}`, "_blank");
+                      }}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <Search className="h-3 w-3 mr-1" />
+                      Buscar empresa
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground italic max-w-[160px] text-right">
+                      Não vinculada a nenhum grupo deste pagamento
+                    </span>
+                  </>
                 )}
               </div>
             </li>
