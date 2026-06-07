@@ -16,7 +16,7 @@ import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryP
 import { ConfeccaoAuditPanel } from "@/components/payment-detail/ConfeccaoAuditPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
-import { CompanyQuestionsThread } from "@/components/payment-detail/CompanyQuestionsThread";
+
 import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ConversationsSheet } from "@/components/payment-detail/conversations/ConversationsSheet";
 import { DeductionsBanner } from "@/components/payment-detail/DeductionsBanner";
