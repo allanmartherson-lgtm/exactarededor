@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import TelemetryPanel from "@/components/health/TelemetryPanel";
 import DeadLetterPanel from "@/components/health/DeadLetterPanel";
+import AIRetryQueuePanel from "@/components/health/AIRetryQueuePanel";
 
 // ── Primitivos inline (padrão Dashboard.tsx) ──────────────────────
 
@@ -806,6 +807,12 @@ export default function HealthMonitoring() {
       <section>
         <SectionLabel>Empresas em dead-letter</SectionLabel>
         <DeadLetterPanel />
+      </section>
+
+      {/* ── Seção: Fila de retry automático da IA ── */}
+      <section>
+        <SectionLabel>Fila de reprocessamento da IA</SectionLabel>
+        <AIRetryQueuePanel />
       </section>
     </div>
   );
