@@ -161,33 +161,63 @@ const PaymentPriorityBadgeInline = ({
 };
 
 
+// Persistência de filtros/busca/paginação da lista de pagamentos.
+// Mantém estado entre navegações (ex: voltar do detalhe após excluir um lote).
+const PAYMENTS_LIST_STATE_KEY = "payments:list:state:v1";
+type PersistedPaymentsState = Partial<{
+  page: number;
+  pageSize: number;
+  q: string;
+  companyFilter: CompanyOption | null;
+  doctorFilter: { id: string; full_name: string; crm: string | null; crm_uf: string | null } | null;
+  analystFilter: string;
+  typeFilter: string;
+  statusFilter: string;
+  competenceFilter: string;
+  view: "lista" | "kanban";
+  sortBy: "relevance" | "created" | "elapsed" | "status" | "priority";
+  divergenceFilter: "all" | "with" | "without";
+  questionedFilter: "all" | "with" | "without";
+  archivedView: boolean;
+}>;
+const loadPersistedPaymentsState = (): PersistedPaymentsState => {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.sessionStorage.getItem(PAYMENTS_LIST_STATE_KEY);
+    return raw ? (JSON.parse(raw) as PersistedPaymentsState) : {};
+  } catch {
+    return {};
+  }
+};
+
 const Payments = () => {
   const { roles, user } = useAuth();
   const isAnalista = roles.includes("analista") || roles.includes("admin");
   const isDiretor = roles.includes("diretor") || roles.includes("admin");
   const isAdmin = roles.includes("admin");
   const [searchParams, setSearchParams] = useSearchParams();
+  const persisted = useMemo<PersistedPaymentsState>(() => loadPersistedPaymentsState(), []);
   const [rows, setRows] = useState<Row[]>([]);
   // Paginação server-side via RPC list_payments. `totalRows` é o total filtrado
   // no banco (não só desta página); `rows` contém apenas a página atual.
   const [totalRows, setTotalRows] = useState<number>(0);
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(100);
-  const [q, setQ] = useState("");
+  const [page, setPage] = useState(persisted.page ?? 0);
+  const [pageSize, setPageSize] = useState(persisted.pageSize ?? 100);
+  const [q, setQ] = useState(persisted.q ?? "");
   // Termo de busca com debounce — evita refetch a cada tecla.
-  const [debouncedQ, setDebouncedQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState(persisted.q ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
-  const [doctorFilter, setDoctorFilter] = useState<{ id: string; full_name: string; crm: string | null; crm_uf: string | null } | null>(null);
+  const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(persisted.companyFilter ?? null);
+  const [doctorFilter, setDoctorFilter] = useState<{ id: string; full_name: string; crm: string | null; crm_uf: string | null } | null>(persisted.doctorFilter ?? null);
   const [searching, setSearching] = useState(false);
   const [analysts, setAnalysts] = useState<Record<string, string>>({});
   const [companiesPerPayment, setCompaniesPerPayment] = useState<Record<string, number>>({});
   const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
-  const [analystFilter, setAnalystFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [competenceFilter, setCompetenceFilter] = useState<string>("all");
+  const [analystFilter, setAnalystFilter] = useState<string>(persisted.analystFilter ?? "all");
+  const [typeFilter, setTypeFilter] = useState<string>(persisted.typeFilter ?? "all");
+  const [statusFilter, setStatusFilter] = useState<string>(persisted.statusFilter ?? "all");
+  const [competenceFilter, setCompetenceFilter] = useState<string>(persisted.competenceFilter ?? "all");
   const [delayedOnly, setDelayedOnly] = useState(searchParams.get("delayed") === "1");
   // Filtros vindos do Dashboard ("seus pagamentos por papel"). Quando ativos
   // restringem por grupo de status + (opcional) só os meus.
@@ -228,18 +258,20 @@ const Payments = () => {
     setOnlyMine(searchParams.get("owner") === "me");
   }, [searchParams]);
 
-  const [view, setView] = useState<"lista" | "kanban">("lista");
-  const [sortBy, setSortBy] = useState<"relevance" | "created" | "elapsed" | "status" | "priority">("relevance");
+  const [view, setView] = useState<"lista" | "kanban">(persisted.view ?? "lista");
+  const [sortBy, setSortBy] = useState<"relevance" | "created" | "elapsed" | "status" | "priority">(persisted.sortBy ?? "relevance");
   // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
   // Default = "ativos" — esconde finalizados das filas de trabalho diárias.
   // Pode ser ligado via querystring (?archived=1) ou pelo toggle na UI.
-  const [archivedView, setArchivedView] = useState<boolean>(searchParams.get("archived") === "1");
+  const [archivedView, setArchivedView] = useState<boolean>(
+    searchParams.get("archived") === "1" || persisted.archivedView === true,
+  );
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
   // Filtros avançados (não dependem de "criado por")
-  const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">("all");
-  const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
+  const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">(persisted.divergenceFilter ?? "all");
+  const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">(persisted.questionedFilter ?? "all");
   // Contagem de perguntas internas abertas por lote (badge nas listagens).
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [openQuestionOnly, setOpenQuestionOnly] = useState(() => searchParams.get("open_questions") === "1");
@@ -254,6 +286,33 @@ const Payments = () => {
   const [globalArchivedCount, setGlobalArchivedCount] = useState<number>(0);
   const [globalCompetences, setGlobalCompetences] = useState<string[]>([]);
   const [globalAnalysts, setGlobalAnalysts] = useState<Record<string, string>>({});
+
+  // Persiste filtros/busca/paginação em sessionStorage para preservar contexto
+  // ao voltar do detalhe (ex.: depois de excluir um lote, navegar back, etc.).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const snapshot: PersistedPaymentsState = {
+      page, pageSize, q,
+      companyFilter, doctorFilter,
+      analystFilter, typeFilter, statusFilter, competenceFilter,
+      view, sortBy,
+      divergenceFilter, questionedFilter,
+      archivedView,
+    };
+    try {
+      window.sessionStorage.setItem(PAYMENTS_LIST_STATE_KEY, JSON.stringify(snapshot));
+    } catch {
+      // ignore quota errors
+    }
+  }, [
+    page, pageSize, q,
+    companyFilter, doctorFilter,
+    analystFilter, typeFilter, statusFilter, competenceFilter,
+    view, sortBy,
+    divergenceFilter, questionedFilter,
+    archivedView,
+  ]);
+
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
