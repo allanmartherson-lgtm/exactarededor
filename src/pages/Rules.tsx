@@ -1792,32 +1792,47 @@ const Rules = () => {
                       form?.requestSubmit();
                     }}
                     summaryBanner={(() => {
-                      const onde =
-                        scope === "master" ? "Todos os itens (master)"
-                        : scope === "especifica" ? `Específica · ${RULE_TARGET_TYPE_LABELS[targetType]}${fTargetName ? ` "${fTargetName}"` : ""}`
-                        : scope === "grupo"
-                          ? (() => {
-                              const parts: string[] = [];
-                              for (const link of fGroupLinks) {
-                                if (!link.company_id) continue;
-                                const co = companies.find((c) => c.id === link.company_id);
-                                const nm = co?.name ?? link.company_id.slice(0, 8);
-                                parts.push(`${nm} — ${link.doctors.length === 0 ? "todos os médicos" : `${link.doctors.length} médico(s)`}`);
-                              }
-                              if (fGroupDoctors.length > 0) parts.push(`Médicos específicos: ${fGroupDoctors.map((d) => d.name).join(", ")}`);
-                              return parts.length ? `Aplica para ${parts.join("; ")}` : "Grupo · adicione empresa(s) ou médico(s) específico(s)";
-                            })()
-                          : RULE_SCOPE_LABELS[scope];
+                      let ondeShort = "";
+                      let ondeFull = "";
+                      let groupParts: string[] = [];
+                      if (scope === "master") {
+                        ondeShort = "Todos os itens (master)";
+                        ondeFull = ondeShort;
+                      } else if (scope === "especifica") {
+                        ondeShort = `Específica · ${RULE_TARGET_TYPE_LABELS[targetType]}${fTargetName ? ` "${fTargetName}"` : ""}`;
+                        ondeFull = ondeShort;
+                      } else if (scope === "grupo") {
+                        const parts: string[] = [];
+                        for (const link of fGroupLinks) {
+                          if (!link.company_id) continue;
+                          const co = companies.find((c) => c.id === link.company_id);
+                          const nm = co?.name ?? link.company_id.slice(0, 8);
+                          parts.push(`${nm} — ${link.doctors.length === 0 ? "todos os médicos" : `${link.doctors.length} médico(s)`}`);
+                        }
+                        if (fGroupDoctors.length > 0) parts.push(`Médicos específicos: ${fGroupDoctors.map((d) => d.name).join(", ")}`);
+                        groupParts = parts;
+                        const companyCount = fGroupLinks.filter((l) => l.company_id).length;
+                        ondeShort = parts.length
+                          ? `Aplica para ${companyCount} empresa${companyCount === 1 ? "" : "s"}${fGroupDoctors.length > 0 ? ` + ${fGroupDoctors.length} médico(s) específico(s)` : ""}`
+                          : "Grupo · adicione empresa(s) ou médico(s) específico(s)";
+                        ondeFull = parts.length ? `Aplica para ${parts.join("; ")}` : ondeShort;
+                      } else {
+                        ondeShort = RULE_SCOPE_LABELS[scope];
+                        ondeFull = ondeShort;
+                      }
                       const calc = fNature === "informativo"
                         ? "Informativa / bloqueio (não calcula)"
                         : fCalculations.length > 1
                           ? `${fCalculations.length} cálculos`
                           : `${RULE_CALCULATION_TYPE_LABELS[fCalculations[0]?.calculation_type ?? "informativo"]}`;
+                      const canCollapse = scope === "grupo" && groupParts.length > 2;
                       return (
-                        <div className="rounded-md border border-primary/30 bg-primary/5 p-2.5 text-xs flex flex-wrap gap-x-4 gap-y-1">
-                          <span><span className="font-semibold">Onde:</span> {onde}</span>
-                          <span><span className="font-semibold">Cálculo:</span> {calc}</span>
-                        </div>
+                        <OndeSummaryBanner
+                          ondeShort={ondeShort}
+                          ondeFull={ondeFull}
+                          calc={calc}
+                          canCollapse={canCollapse}
+                        />
                       );
                     })()}
                     syncErrorBanner={calcSyncErrors.length > 0 ? (
