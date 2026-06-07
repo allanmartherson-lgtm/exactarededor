@@ -78,16 +78,16 @@ export function ExceptionPatternSuggest({ paymentId }: Props) {
       </Card>
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-[min(95vw,560px)]">
           <DialogHeader>
-            <DialogTitle>Criar sugestão de regra</DialogTitle>
+            <DialogTitle className="break-words">Criar sugestão de regra</DialogTitle>
           </DialogHeader>
           {selected && (
             <div className="space-y-3 text-sm">
-              <div className="rounded-md border bg-muted/30 p-3 space-y-1">
-                <div>
+              <div className="rounded-md border bg-muted/30 p-3 space-y-1 min-w-0">
+                <div className="break-words">
                   <span className="text-muted-foreground">Nome sugerido:</span>{" "}
-                  <span className="font-medium">
+                  <span className="font-medium break-words">
                     Exceção autorizada — {selected.procedure_code} {selected.company_name}
                   </span>
                 </div>
@@ -99,9 +99,9 @@ export function ExceptionPatternSuggest({ paymentId }: Props) {
                   <span className="text-muted-foreground">Valor:</span>{" "}
                   <span className="font-medium">{formatBRL(selected.avg_gross)}</span>
                 </div>
-                <div>
+                <div className="break-words">
                   <span className="text-muted-foreground">Escopo:</span>{" "}
-                  <span className="font-medium">específica ({selected.company_name})</span>
+                  <span className="font-medium break-words">específica ({selected.company_name})</span>
                 </div>
               </div>
               <div>

@@ -235,13 +235,13 @@ export function AddManualItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && !saving) { reset(); } onOpenChange(v); }}>
-      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[min(95vw,768px)] sm:max-w-3xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-4 w-4" /> Adicionar item manual
+          <DialogTitle className="flex items-center gap-2 break-words">
+            <Plus className="h-4 w-4 shrink-0" /> <span className="break-words">Adicionar item manual</span>
           </DialogTitle>
-          <DialogDescription>
-            Inclua um lançamento avulso para <strong>{companyName}</strong>. Use quando o item não veio na base hospitalar (pendência, bônus do principal, complemento etc.).
+          <DialogDescription className="break-words">
+            Inclua um lançamento avulso para <strong className="break-words">{companyName}</strong>. Use quando o item não veio na base hospitalar (pendência, bônus do principal, complemento etc.).
           </DialogDescription>
         </DialogHeader>
 

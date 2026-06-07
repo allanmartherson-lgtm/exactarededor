@@ -1488,26 +1488,26 @@ export default function CompanyAnalysis() {
               <Building2 className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-semibold leading-tight truncate">{group.company_name}</h1>
+              <div className="flex items-start gap-2 flex-wrap">
+                <h1 className="text-xl font-semibold leading-tight break-words min-w-0 flex-1 sm:flex-none sm:max-w-full">{group.company_name}</h1>
                 {canEdit && (
                   <Dialog open={changeCompanyOpen} onOpenChange={setChangeCompanyOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-7">
+                      <Button variant="outline" size="sm" className="h-7 shrink-0">
                         <Pencil className="h-3.5 w-3.5 mr-1" /> Trocar empresa
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="w-auto max-w-[min(92vw,720px)] sm:max-w-[min(92vw,720px)]">
+                    <DialogContent className="w-[calc(100vw-2rem)] max-w-[min(95vw,720px)] sm:max-w-[min(92vw,720px)]">
                       <DialogHeader>
-                        <DialogTitle>Trocar empresa do grupo</DialogTitle>
-                        <DialogDescription>
+                        <DialogTitle className="break-words">Trocar empresa do grupo</DialogTitle>
+                        <DialogDescription className="break-words">
                           Reatribui todos os {items.length} itens deste grupo à empresa selecionada.
-                          O nome atual <strong>{group.company_name}</strong> será aprendido como apelido
+                          O nome atual <strong className="break-words">{group.company_name}</strong> será aprendido como apelido
                           para futuras correspondências automáticas. As regras serão reaplicadas em seguida.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="py-2 min-w-0">
-                        <CompanyCombobox value={newCompany} onChange={setNewCompany} className="w-full min-w-[320px] max-w-full" />
+                        <CompanyCombobox value={newCompany} onChange={setNewCompany} className="w-full min-w-0 max-w-full" />
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setChangeCompanyOpen(false)} disabled={changingCompany}>
