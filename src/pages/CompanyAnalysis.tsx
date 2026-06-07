@@ -1293,10 +1293,15 @@ export default function CompanyAnalysis() {
   });
 
   const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
+  // Em CONFECÇÃO, o estado vivo do grupo está em confeccao_status (gStatus fica
+  // em 'rascunho' como placeholder). Em ANÁLISE, o estado vivo é gStatus.
+  const gConfeccaoStatus = (group as any)?.confeccao_status as string | null | undefined;
+  const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+  const isConfeccaoEditable = isConfeccao && gConfeccaoStatus === "em_confeccao";
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
   const canActAnalista =
-    (gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao" || gStatus === "em_confeccao") &&
+    (gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao" || isConfeccaoEditable) &&
     isAnalistaRole && (isOwner || isAdmin);
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
   const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
