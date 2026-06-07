@@ -1253,6 +1253,44 @@ const PaymentDetail = () => {
     }
   };
 
+  // Converte um lote criado em modo padrão para confecção e dispara reanálise.
+  // Útil quando o analista quis confecção mas subiu pela porta normal.
+  const [convertingMode, setConvertingMode] = useState(false);
+  const convertToConfeccao = async () => {
+    if (!id || !user) return;
+    const ok = window.confirm(
+      "Converter este lote para Modo Confecção?\n\n" +
+      "• Todos os status de IA serão recalculados (itens passam para 'aprovado' conforme regras do sistema).\n" +
+      "• A IA não acionará justificativas — o motor apenas calcula.\n" +
+      "• Você poderá revisar e enviar para validação manualmente."
+    );
+    if (!ok) return;
+    setConvertingMode(true);
+    try {
+      const { error: upErr } = await supabase
+        .from("payments")
+        .update({ analysis_mode: "confeccao" })
+        .eq("id", id);
+      if (upErr) throw upErr;
+      await recordObservation({
+        payment_id: id, author_type: "analista", author_id: user.id,
+        message: `Modo de análise alterado para CONFECÇÃO pelo analista. Reanálise iniciada.`,
+        status_from: payment?.status ?? null, status_to: payment?.status ?? null,
+      });
+      const { error } = await supabase.functions.invoke("dispatch-payment-analysis", {
+        body: { payment_id: id },
+      });
+      if (error) throw error;
+      toast({ title: "Convertido para Confecção", description: "Reanálise em andamento. Acompanhe a barra de progresso." });
+      await load();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast({ title: "Falha ao converter", description: msg, variant: "destructive" });
+    } finally {
+      setConvertingMode(false);
+    }
+  };
+
   // Recarrega dados quando um job de análise termina (reanálise por empresa ou lote inteiro)
   const prevJobStatusRef = useRef<string | null>(null);
   useEffect(() => {
