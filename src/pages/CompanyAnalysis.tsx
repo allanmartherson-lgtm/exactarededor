@@ -296,39 +296,80 @@ export default function CompanyAnalysis() {
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
 
-  // FAB de Conversas — escopo desta empresa. Conta perguntas e rola até o thread.
-  const questionsThreadRef = useRef<HTMLDivElement | null>(null);
-  const [openQuestionsCount, setOpenQuestionsCount] = useState(0);
+  // FAB de Conversas — escopo desta empresa. Conta apenas mensagens NÃO LIDAS
+  // (não autoradas pelo usuário atual e ausentes em payment_question_reads).
+  // Permissão: somente analista/validador/diretor/admin podem ver/conversar.
+  const canConverse =
+    hasRole("analista") || hasRole("validador") || hasRole("diretor") || hasRole("admin");
+  const [unreadQuestionsCount, setUnreadQuestionsCount] = useState(0);
+  const [conversationsOpen, setConversationsOpen] = useState(false);
+
   useEffect(() => {
-    if (!groupId) return;
+    if (!groupId || !user || !canConverse) {
+      setUnreadQuestionsCount(0);
+      return;
+    }
     let alive = true;
-    const fetchCount = async () => {
-      const { count } = await supabase
+    const fetchUnread = async () => {
+      const { data: msgs } = await supabase
         .from("payment_questions")
-        .select("id", { count: "exact", head: true })
-        .eq("company_group_id", groupId);
-      if (alive) setOpenQuestionsCount(count ?? 0);
+        .select("id, author_id")
+        .eq("company_group_id", groupId)
+        .neq("author_id", user.id);
+      const ids = (msgs ?? []).map((m: { id: string }) => m.id);
+      if (!ids.length) {
+        if (alive) setUnreadQuestionsCount(0);
+        return;
+      }
+      const { data: reads } = await supabase
+        .from("payment_question_reads")
+        .select("message_id")
+        .eq("user_id", user.id)
+        .in("message_id", ids);
+      const readSet = new Set((reads ?? []).map((r: { message_id: string }) => r.message_id));
+      if (alive) setUnreadQuestionsCount(ids.filter((i) => !readSet.has(i)).length);
     };
-    fetchCount();
+    fetchUnread();
     const ch = supabase
       .channel(`cqt-fab-${groupId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_questions", filter: `company_group_id=eq.${groupId}` },
-        () => fetchCount(),
+        () => fetchUnread(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_question_reads", filter: `user_id=eq.${user.id}` },
+        () => fetchUnread(),
       )
       .subscribe();
     return () => {
       alive = false;
       supabase.removeChannel(ch);
     };
-  }, [groupId]);
-  const scrollToQuestions = () => {
-    questionsThreadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-  // Modal de Conversas escopado a esta empresa — substitui a rolagem até o bloco de
-  // questionamentos, mantendo a página de análise mais enxuta.
-  const [conversationsOpen, setConversationsOpen] = useState(false);
+  }, [groupId, user, canConverse]);
+
+  // Ao abrir o modal, marca tudo como lido para zerar o contador.
+  useEffect(() => {
+    if (!conversationsOpen || !groupId || !user || !canConverse) return;
+    (async () => {
+      const { data: msgs } = await supabase
+        .from("payment_questions")
+        .select("id")
+        .eq("company_group_id", groupId)
+        .neq("author_id", user.id);
+      const ids = (msgs ?? []).map((m: { id: string }) => m.id);
+      if (!ids.length) return;
+      await supabase
+        .from("payment_question_reads")
+        .upsert(
+          ids.map((message_id) => ({ message_id, user_id: user.id })),
+          { onConflict: "message_id,user_id", ignoreDuplicates: true },
+        );
+      setUnreadQuestionsCount(0);
+    })();
+  }, [conversationsOpen, groupId, user, canConverse]);
+
 
   const [postConcluirOpen, setPostConcluirOpen] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
