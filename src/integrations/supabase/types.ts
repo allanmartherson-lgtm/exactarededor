@@ -7088,6 +7088,18 @@ export type Database = {
         Args: { _payment_id: string }
         Returns: number
       }
+      call_supervisor: {
+        Args: {
+          p_company_group_id: string
+          p_note?: string
+          p_payment_id: string
+          p_stage: string
+        }
+        Returns: {
+          notified_count: number
+          question_id: string
+        }[]
+      }
       can_access_hospital: {
         Args: { _hid: string; _uid: string }
         Returns: boolean
