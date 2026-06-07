@@ -1378,6 +1378,8 @@ function RowMain({
   onDeleteItem,
   onAcceptItem,
   onUndoAcceptItem,
+  showGrossColumn = true,
+  showDiferencaCol = true,
 }: {
   it: PaymentItemRowData;
   allItems: PaymentItemRowData[];
