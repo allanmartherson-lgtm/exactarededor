@@ -144,6 +144,14 @@ export type ItemsDataGridProps = {
   /** Desfazer acate (volta ao status original). */
   onUndoAcceptItem?: (item: PaymentItemRowData) => void;
   className?: string;
+  /**
+   * Modo de operação do lote.
+   * - "analise" (default): hospital envia "Valor Repasse" (gross_amount) e o sistema calcula "Esperado" para comparar.
+   * - "confeccao": base só tem valor da tabela; o sistema CALCULA o repasse. Não há valor pago para comparar,
+   *   portanto a coluna "Valor Repasse" (vinda da base) é escondida e "Esperado" é renomeada para
+   *   "Valor Repasse (calculado)". A coluna "Diferença" é forçadamente escondida.
+   */
+  mode?: "analise" | "confeccao";
 };
 
 export function ItemsDataGrid({
