@@ -261,9 +261,10 @@ const App = () => (
                   <Route path="/pendencias" element={<Pendencias />} />
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
                   <Route path="/conversas" element={<Conversas />} />
-                  <Route path="/comunicacao/massa" element={<ProtectedRoute roles={["admin", "diretor", "analista"]}><MassCommunication /></ProtectedRoute>} />
-                  <Route path="/comunicacao/aprovacoes" element={<ProtectedRoute roles={["admin", "diretor"]}><CampaignApprovalQueue /></ProtectedRoute>} />
-                  <Route path="/comunicacao/supervisao" element={<ProtectedRoute roles={["admin", "diretor"]}><CommunicationSupervision /></ProtectedRoute>} />
+                  <Route path="/comunicacao/massa" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador"]}><MassCommunication /></ProtectedRoute>} />
+                  <Route path="/comunicacao/aprovacoes" element={<ProtectedRoute roles={["admin", "diretor", "validador"]}><CampaignApprovalQueue /></ProtectedRoute>} />
+                  <Route path="/comunicacao/supervisao" element={<ProtectedRoute roles={["admin", "diretor", "validador"]}><CommunicationSupervision /></ProtectedRoute>} />
+
                   <Route path="/notificacoes" element={<ProtectedRoute><NotificationsInbox /></ProtectedRoute>} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><HealthMonitoring /></ProtectedRoute>} />
                   <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />

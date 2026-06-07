@@ -91,7 +91,7 @@ const APPROVAL_LABEL: Record<Campaign["approval_status"], string> = {
 
 export default function MassCommunication() {
   const { hasRole, user } = useAuth();
-  const isSupervisor = hasRole("admin") || hasRole("diretor");
+  const isSupervisor = hasRole("admin") || hasRole("diretor") || hasRole("validador");
   const [items, setItems] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);

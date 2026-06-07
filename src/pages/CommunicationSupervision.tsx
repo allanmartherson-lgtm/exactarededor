@@ -56,7 +56,7 @@ export default function CommunicationSupervision() {
   const [analysts, setAnalysts] = useState<{ id: string; full_name: string | null; email: string }[]>([]);
   const [onBehalfOf, setOnBehalfOf] = useState<string>("");
 
-  const canSupervise = roles.includes("admin") || roles.includes("diretor");
+  const canSupervise = roles.includes("admin") || roles.includes("diretor") || roles.includes("validador");
 
   useEffect(() => { document.title = "Supervisão de Atendimento | MedPay"; }, []);
 
@@ -157,7 +157,7 @@ export default function CommunicationSupervision() {
       <>
         <PageHeader title="Supervisão de Atendimento" />
         <div className="p-8 flex items-center gap-2 text-muted-foreground">
-          <Lock className="h-4 w-4" /> Acesso restrito a administradores e diretores.
+          <Lock className="h-4 w-4" /> Acesso restrito a supervisores (validador, diretor ou admin).
         </div>
       </>
     );
