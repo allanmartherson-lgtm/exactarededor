@@ -144,6 +144,14 @@ export type ItemsDataGridProps = {
   /** Desfazer acate (volta ao status original). */
   onUndoAcceptItem?: (item: PaymentItemRowData) => void;
   className?: string;
+  /**
+   * Modo de operação do lote.
+   * - "analise" (default): hospital envia "Valor Repasse" (gross_amount) e o sistema calcula "Esperado" para comparar.
+   * - "confeccao": base só tem valor da tabela; o sistema CALCULA o repasse. Não há valor pago para comparar,
+   *   portanto a coluna "Valor Repasse" (vinda da base) é escondida e "Esperado" é renomeada para
+   *   "Valor Repasse (calculado)". A coluna "Diferença" é forçadamente escondida.
+   */
+  mode?: "analise" | "confeccao";
 };
 
 export function ItemsDataGrid({
@@ -162,7 +170,12 @@ export function ItemsDataGrid({
   onAcceptItem,
   onUndoAcceptItem,
   className,
+  mode = "analise",
 }: ItemsDataGridProps) {
+  const isConfeccao = mode === "confeccao";
+  // Em confecção a base não traz "Valor Repasse" — o sistema gera. Esperado vira o repasse calculado.
+  const showGrossColumn = !isConfeccao;
+  const expectedLabel = isConfeccao ? "Valor Repasse (calculado)" : "Esperado";
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
   const DENSITY_PREFS_KEY = `${storageKey}.density.v1`;
 
@@ -227,6 +240,9 @@ export function ItemsDataGrid({
     }
   }, [colVis, COLUMN_PREFS_KEY]);
   const toggleCol = (k: OptionalColKey) => setColVis((v) => ({ ...v, [k]: !v[k] }));
+  // Em confecção, "Diferença" não faz sentido (gross e expected coincidem por
+  // construção). Forçamos invisível independentemente da preferência salva.
+  const showDiferencaCol = colVis.diferenca && !isConfeccao;
 
   const [density, setDensity] = useState<Density>(() => {
     if (typeof window === "undefined") return "comfortable";
@@ -524,9 +540,9 @@ export function ItemsDataGrid({
     180 +
     (colVis.funcao ? 120 : 0) +
     (colVis.regra ? 180 : 0) +
+    (showGrossColumn ? 110 : 0) +
     110 +
-    110 +
-    (colVis.diferenca ? 110 : 0) +
+    (showDiferencaCol ? 110 : 0) +
     110 +
     (colVis.observacao ? 70 : 0) +
     (canEdit ? 120 : 0);
@@ -966,9 +982,9 @@ export function ItemsDataGrid({
               <col style={{ width: 180 }} />
               {colVis.funcao && <col style={{ width: 120 }} />}
               {colVis.regra && <col style={{ width: 180 }} />}
+              {showGrossColumn && <col style={{ width: 110 }} />}
               <col style={{ width: 110 }} />
-              <col style={{ width: 110 }} />
-              {colVis.diferenca && <col style={{ width: 110 }} />}
+              {showDiferencaCol && <col style={{ width: 110 }} />}
               <col style={{ width: 110 }} />
               {colVis.observacao && <col style={{ width: 70 }} />}
               {canEdit && <col style={{ width: 120 }} />}
@@ -1080,25 +1096,27 @@ export function ItemsDataGrid({
                 </th>
                 {colVis.funcao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função</th>}
                 {colVis.regra && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra</th>}
-                <th
-                  scope="col"
-                  aria-sort={sortKey === "gross" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                  className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("gross")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
-                    aria-label={`Ordenar por Valor Repasse${sortKey === "gross" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                {showGrossColumn && (
+                  <th
+                    scope="col"
+                    aria-sort={sortKey === "gross" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                    className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
                   >
-                    Valor Repasse
-                    {sortKey === "gross"
-                      ? (sortDir === "asc"
-                          ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
-                          : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
-                      : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
-                  </button>
-                </th>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("gross")}
+                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
+                      aria-label={`Ordenar por Valor Repasse${sortKey === "gross" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                    >
+                      Valor Repasse
+                      {sortKey === "gross"
+                        ? (sortDir === "asc"
+                            ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                            : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
+                        : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
+                    </button>
+                  </th>
+                )}
                 <th
                   scope="col"
                   aria-sort={sortKey === "esperado" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -1108,9 +1126,9 @@ export function ItemsDataGrid({
                     type="button"
                     onClick={() => toggleSort("esperado")}
                     className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
-                    aria-label={`Ordenar por Esperado${sortKey === "esperado" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
+                    aria-label={`Ordenar por ${expectedLabel}${sortKey === "esperado" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
-                    Esperado
+                    {expectedLabel}
                     {sortKey === "esperado"
                       ? (sortDir === "asc"
                           ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
@@ -1118,7 +1136,7 @@ export function ItemsDataGrid({
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
                 </th>
-                {colVis.diferenca && (
+                {showDiferencaCol && (
                   <th
                     scope="col"
                     aria-sort={sortKey === "diferenca" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -1189,6 +1207,7 @@ export function ItemsDataGrid({
 
                 const totalCols =
                   7 + 1 +
+                  (showGrossColumn ? 1 : 0) - 1 +
                   (colVis.atendimento ? 1 : 0) +
                   (colVis.convenio ? 1 : 0) +
                   (colVis.via ? 1 : 0) +
@@ -1197,7 +1216,7 @@ export function ItemsDataGrid({
                   (colVis.tipo_entrada ? 1 : 0) +
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
-                  (colVis.diferenca ? 1 : 0) +
+                  (showDiferencaCol ? 1 : 0) +
                   (colVis.observacao ? 1 : 0) +
                   (canEdit ? 1 : 0);
                 const isExpanded = expandedId === it.id;
@@ -1257,6 +1276,8 @@ export function ItemsDataGrid({
                       onDeleteItem={onDeleteItem}
                       onAcceptItem={onAcceptItem}
                       onUndoAcceptItem={onUndoAcceptItem}
+                      showGrossColumn={showGrossColumn}
+                      showDiferencaCol={showDiferencaCol}
                     />
                   </Fragment>
 
@@ -1292,13 +1313,15 @@ export function ItemsDataGrid({
                         Total ({totals.count} {totals.count === 1 ? "item" : "itens"})
                       </span>
                     </td>
-                    <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
-                      {formatCurrency(totals.valor)}
-                    </td>
+                    {showGrossColumn && (
+                      <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
+                        {formatCurrency(totals.valor)}
+                      </td>
+                    )}
                     <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
                       {totals.esperado != null ? formatCurrency(totals.esperado) : "—"}
                     </td>
-                    {colVis.diferenca && (
+                    {showDiferencaCol && (
                       <td
                         className={cn(
                           footPad,
@@ -1357,6 +1380,8 @@ function RowMain({
   onDeleteItem,
   onAcceptItem,
   onUndoAcceptItem,
+  showGrossColumn = true,
+  showDiferencaCol = true,
 }: {
   it: PaymentItemRowData;
   allItems: PaymentItemRowData[];
@@ -1383,6 +1408,8 @@ function RowMain({
   onDeleteItem?: (item: PaymentItemRowData) => void;
   onAcceptItem?: (item: PaymentItemRowData) => void;
   onUndoAcceptItem?: (item: PaymentItemRowData) => void;
+  showGrossColumn?: boolean;
+  showDiferencaCol?: boolean;
 }) {
   const convenio = getAgreement(it);
   const grossN = Number(it.gross_amount ?? 0);
@@ -1530,21 +1557,23 @@ function RowMain({
         {colVis.regra && (
           <td className={cn(cell, TEXT_META)} title={ruleName}>{ruleName}</td>
         )}
-        <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
-          <span className="inline-flex items-center justify-end">
-            {formatCurrency(grossN)}
-            {!isBonus && (it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
-              <span style={{
-                fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 9999,
-                background: (it as any).item_origem === 'conciliacao_credito' ? 'hsl(var(--success-soft))' : 'hsl(var(--destructive-soft))',
-                color: (it as any).item_origem === 'conciliacao_credito' ? 'hsl(var(--success))' : 'hsl(var(--destructive))',
-                marginLeft: 4, whiteSpace: 'nowrap',
-              }}>
-                {(it as any).item_origem === 'conciliacao_credito' ? 'Conc. +' : 'Conc. −'}
-              </span>
-            )}
-          </span>
-        </td>
+        {showGrossColumn && (
+          <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
+            <span className="inline-flex items-center justify-end">
+              {formatCurrency(grossN)}
+              {!isBonus && (it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 9999,
+                  background: (it as any).item_origem === 'conciliacao_credito' ? 'hsl(var(--success-soft))' : 'hsl(var(--destructive-soft))',
+                  color: (it as any).item_origem === 'conciliacao_credito' ? 'hsl(var(--success))' : 'hsl(var(--destructive))',
+                  marginLeft: 4, whiteSpace: 'nowrap',
+                }}>
+                  {(it as any).item_origem === 'conciliacao_credito' ? 'Conc. +' : 'Conc. −'}
+                </span>
+              )}
+            </span>
+          </td>
+        )}
 
         <td
           className={cn(
@@ -1557,7 +1586,7 @@ function RowMain({
         >
           {isBonus ? "—" : (expN != null ? formatCurrency(expN) : "—")}
         </td>
-        {colVis.diferenca && (
+        {showDiferencaCol && (
           <td
             className={cn(
               cellPad,

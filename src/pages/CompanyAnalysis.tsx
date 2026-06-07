@@ -1673,6 +1673,7 @@ export default function CompanyAnalysis() {
                 onDeleteItem={(it) => setDeleteItem(it)}
                 onAcceptItem={acceptItem}
                 onUndoAcceptItem={undoAcceptItem}
+                mode={(payment as any).analysis_mode === "confeccao" ? "confeccao" : "analise"}
               />
             </CardContent>
           </Card>
