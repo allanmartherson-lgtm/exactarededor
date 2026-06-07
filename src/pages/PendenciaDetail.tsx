@@ -34,6 +34,7 @@ type PendStatus = "aberta" | "em_analise" | "respondida" | "resolvida" | "cancel
 type Pendencia = {
   id: string;
   company_id: string;
+  created_by_user_id: string | null;
   created_by_name: string;
   patient_name: string;
   event_date: string;
