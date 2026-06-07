@@ -1253,6 +1253,44 @@ const PaymentDetail = () => {
     }
   };
 
+  // Converte um lote criado em modo padrão para confecção e dispara reanálise.
+  // Útil quando o analista quis confecção mas subiu pela porta normal.
+  const [convertingMode, setConvertingMode] = useState(false);
+  const convertToConfeccao = async () => {
+    if (!id || !user) return;
+    const ok = window.confirm(
+      "Converter este lote para Modo Confecção?\n\n" +
+      "• Todos os status de IA serão recalculados (itens passam para 'aprovado' conforme regras do sistema).\n" +
+      "• A IA não acionará justificativas — o motor apenas calcula.\n" +
+      "• Você poderá revisar e enviar para validação manualmente."
+    );
+    if (!ok) return;
+    setConvertingMode(true);
+    try {
+      const { error: upErr } = await supabase
+        .from("payments")
+        .update({ analysis_mode: "confeccao" })
+        .eq("id", id);
+      if (upErr) throw upErr;
+      await recordObservation({
+        payment_id: id, author_type: "analista", author_id: user.id,
+        message: `Modo de análise alterado para CONFECÇÃO pelo analista. Reanálise iniciada.`,
+        status_from: payment?.status ?? null, status_to: payment?.status ?? null,
+      });
+      const { error } = await supabase.functions.invoke("dispatch-payment-analysis", {
+        body: { payment_id: id },
+      });
+      if (error) throw error;
+      toast({ title: "Convertido para Confecção", description: "Reanálise em andamento. Acompanhe a barra de progresso." });
+      await load();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast({ title: "Falha ao converter", description: msg, variant: "destructive" });
+    } finally {
+      setConvertingMode(false);
+    }
+  };
+
   // Recarrega dados quando um job de análise termina (reanálise por empresa ou lote inteiro)
   const prevJobStatusRef = useRef<string | null>(null);
   useEffect(() => {
@@ -2699,6 +2737,38 @@ const PaymentDetail = () => {
             apenas o pivot histórico e ações de aprovação. */}
         {viewMode !== "executivo" && (
         <>
+        {/* Badge sempre visível do modo de análise — evita confusão entre
+            "Modo Padrão" e "Modo Confecção" (que mudam radicalmente o motor). */}
+        {payment.analysis_mode && payment.analysis_mode !== "confeccao" && payment.analysis_mode !== "empresa_prioritaria" && (
+          <Card className="shadow-card border-border bg-muted/30">
+            <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
+              <div className="flex items-center gap-2 flex-1">
+                <span className="font-semibold uppercase tracking-wide text-muted-foreground shrink-0">
+                  Modo de análise
+                </span>
+                <span className="px-2 py-0.5 rounded bg-background border border-border font-medium">
+                  {payment.analysis_mode === "padrao" ? "Padrão (verificação)" : payment.analysis_mode === "isolado" ? "Isolado" : payment.analysis_mode}
+                </span>
+                <span className="text-muted-foreground hidden sm:inline">
+                  · O sistema verifica os valores que você já calculou.
+                </span>
+              </div>
+              {isAnalista && payment.analysis_mode === "padrao" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={convertToConfeccao}
+                  disabled={convertingMode}
+                  className="gap-1.5 shrink-0"
+                  title="Trocar para Confecção: o sistema calcula o repasse pelas regras em vez de verificar divergências."
+                >
+                  <Calculator className="h-3.5 w-3.5" />
+                  {convertingMode ? "Convertendo…" : "Converter para Confecção"}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
         {payment.analysis_mode === "empresa_prioritaria" && (
           <Card className="shadow-card border-warning/30 bg-warning-soft/30">
             <CardContent className="p-3 text-xs flex items-start gap-2">

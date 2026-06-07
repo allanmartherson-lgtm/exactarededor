@@ -1156,6 +1156,18 @@ const NewPayment = () => {
     if (!reference.trim()) {
       toast({ title: "Informe a referência do lote", variant: "destructive" }); return;
     }
+    // Detecta intenção: se o nome do lote sugere confecção mas o modo está em
+    // padrão, confirma antes de submeter. Evita criar lote que vai gerar
+    // dezenas de reprovados quando o analista queria que o sistema calculasse.
+    if (analysisMode === "padrao" && /confec[çc]/i.test(reference)) {
+      const ok = window.confirm(
+        `A referência menciona "confecção" mas o Modo de análise está em PADRÃO.\n\n` +
+        `• Padrão: o sistema VERIFICA o repasse que você já calculou (gera alertas/reprovados quando há divergência).\n` +
+        `• Confecção: o sistema CALCULA o repasse pelas regras cadastradas (não há divergência a apontar).\n\n` +
+        `Deseja continuar mesmo assim em modo Padrão?`
+      );
+      if (!ok) return;
+    }
     if (competenceMonths.length === 0) {
       toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
     }

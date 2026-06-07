@@ -1440,11 +1440,15 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
             uncovered_matches: dup.uncovered,
             override: dup.override, // mantém override prévio para auditoria
           };
-          finalStatus = "erro_duplicidade_pagamento";
-          findings.alerts = [
-            ...findings.alerts,
-            `Duplicidade de pagamento bloqueada: item já registrado em lote ${head.other_payment_reference} (status ${head.other_payment_status})${dup.override ? " — override prévio não cobre esta colisão" : ""}.`,
-          ];
+          // Em confecção o sistema CALCULOU o repasse — não pode bloquear por
+          // duplicidade de outro lote, apenas registra para auditoria.
+          if (!isConfeccao) {
+            finalStatus = "erro_duplicidade_pagamento";
+            findings.alerts = [
+              ...findings.alerts,
+              `Duplicidade de pagamento bloqueada: item já registrado em lote ${head.other_payment_reference} (status ${head.other_payment_status})${dup.override ? " — override prévio não cobre esta colisão" : ""}.`,
+            ];
+          }
         } else {
           const head = dup.uncovered[0];
           findings.duplicate_detection = {
@@ -1453,11 +1457,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
             uncovered_matches: dup.uncovered,
             override: dup.override,
           };
-          findings.alerts = [
-            ...findings.alerts,
-            `Possível duplicidade: item também consta no lote ${head.other_payment_reference} (status ${head.other_payment_status}).`,
-          ];
-          if (finalStatus === "aprovado") finalStatus = "alerta";
+          if (!isConfeccao) {
+            findings.alerts = [
+              ...findings.alerts,
+              `Possível duplicidade: item também consta no lote ${head.other_payment_reference} (status ${head.other_payment_status}).`,
+            ];
+            if (finalStatus === "aprovado") finalStatus = "alerta";
+          }
         }
       }
 
@@ -1467,7 +1473,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const isCalcDuplicityBlock = !!(r.calc_duplicity && r.expected_amount === null);
       const isResolutionStaleSingle = !!(r.calc_duplicity?.resolution_stale && r.expected_amount !== null);
 
-      if (isCalcDuplicityBlock) {
+      if (isCalcDuplicityBlock && !isConfeccao) {
         finalStatus = "erro_duplicidade_calculo" as any;
         findings.calc_duplicity = {
           rule_id: r.calc_duplicity!.rule_id,
@@ -1498,6 +1504,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         };
       }
       // ===== fim 2C =====
+
+      // CONFECÇÃO: defesa em profundidade. O sistema CALCULOU o repasse pelas
+      // regras — não pode aparecer reprovado/alerta por causa de overrides
+      // posteriores (duplicidade, calc_duplicity, etc.). Tudo sai aprovado.
+      if (isConfeccao) {
+        finalStatus = "aprovado" as any;
+        findings.alerts = [];
+      }
 
       const appliedCalcId = isCalcDuplicityBlock
         ? null
