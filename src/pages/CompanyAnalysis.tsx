@@ -632,10 +632,11 @@ export default function CompanyAnalysis() {
   /**
    * Finaliza a CONFECÇÃO desta empresa. Diferente de "Concluir análise":
    * - não envia ao validador (em confecção não existe validador por empresa);
-   * - não altera o status do grupo (trigger DB só permite em_confeccao→em_analise_ia/revisao_analista/cancelado/arquivado);
+   * - não muda confeccao_status do grupo (a finalização do lote é atômica e
+   *   ocorre via RPC finalize_confeccao no PaymentDetail);
    * - apenas registra observação marcando a empresa como pronta na confecção.
    * O envio efetivo para análise é feito no lote inteiro via "Encaminhar para análise"
-   * no PaymentDetail (sendConfeccaoForAnalysis), conforme o trigger block_confeccao_skip_to_validation.
+   * no PaymentDetail (sendConfeccaoForAnalysis → rpc finalize_confeccao).
    */
   const finalizeConfeccaoGroup = async () => {
     if (!id || !group) return;
