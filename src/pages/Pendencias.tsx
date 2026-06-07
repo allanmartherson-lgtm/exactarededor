@@ -119,6 +119,21 @@ export default function Pendencias() {
         });
         setCompanies(map);
       }
+      // Resolve nomes reais a partir de profiles (analista/empresa) quando created_by_user_id existe.
+      const userIds = Array.from(
+        new Set(list.map((p) => p.created_by_user_id).filter((x): x is string => !!x)),
+      );
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
+        const pmap: Record<string, string> = {};
+        (profs ?? []).forEach((r: { id: string; full_name: string | null }) => {
+          if (r.full_name) pmap[r.id] = r.full_name;
+        });
+        setProfileNames(pmap);
+      }
     }
     setLoading(false);
   };
