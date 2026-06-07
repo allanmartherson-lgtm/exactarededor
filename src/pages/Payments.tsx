@@ -202,22 +202,22 @@ const Payments = () => {
   // no banco (não só desta página); `rows` contém apenas a página atual.
   const [totalRows, setTotalRows] = useState<number>(0);
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(100);
-  const [q, setQ] = useState("");
+  const [page, setPage] = useState(persisted.page ?? 0);
+  const [pageSize, setPageSize] = useState(persisted.pageSize ?? 100);
+  const [q, setQ] = useState(persisted.q ?? "");
   // Termo de busca com debounce — evita refetch a cada tecla.
-  const [debouncedQ, setDebouncedQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState(persisted.q ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
-  const [doctorFilter, setDoctorFilter] = useState<{ id: string; full_name: string; crm: string | null; crm_uf: string | null } | null>(null);
+  const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(persisted.companyFilter ?? null);
+  const [doctorFilter, setDoctorFilter] = useState<{ id: string; full_name: string; crm: string | null; crm_uf: string | null } | null>(persisted.doctorFilter ?? null);
   const [searching, setSearching] = useState(false);
   const [analysts, setAnalysts] = useState<Record<string, string>>({});
   const [companiesPerPayment, setCompaniesPerPayment] = useState<Record<string, number>>({});
   const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
-  const [analystFilter, setAnalystFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [competenceFilter, setCompetenceFilter] = useState<string>("all");
+  const [analystFilter, setAnalystFilter] = useState<string>(persisted.analystFilter ?? "all");
+  const [typeFilter, setTypeFilter] = useState<string>(persisted.typeFilter ?? "all");
+  const [statusFilter, setStatusFilter] = useState<string>(persisted.statusFilter ?? "all");
+  const [competenceFilter, setCompetenceFilter] = useState<string>(persisted.competenceFilter ?? "all");
   const [delayedOnly, setDelayedOnly] = useState(searchParams.get("delayed") === "1");
   // Filtros vindos do Dashboard ("seus pagamentos por papel"). Quando ativos
   // restringem por grupo de status + (opcional) só os meus.
