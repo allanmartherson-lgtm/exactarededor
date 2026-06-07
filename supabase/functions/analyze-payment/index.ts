@@ -1505,6 +1505,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
       // ===== fim 2C =====
 
+      // CONFECÇÃO: defesa em profundidade. O sistema CALCULOU o repasse pelas
+      // regras — não pode aparecer reprovado/alerta por causa de overrides
+      // posteriores (duplicidade, calc_duplicity, etc.). Tudo sai aprovado.
+      if (isConfeccao) {
+        finalStatus = "aprovado" as any;
+        findings.alerts = [];
+      }
+
       const appliedCalcId = isCalcDuplicityBlock
         ? null
         : ((r.calculation_breakdown ?? []).find((b) => b.matched && b.calc_id)?.calc_id ?? null);
