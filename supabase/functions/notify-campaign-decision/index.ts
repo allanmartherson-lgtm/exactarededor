@@ -94,27 +94,38 @@ Deno.serve(async (req) => {
     results.inbox = inboxErr ? { error: inboxErr.message } : { ok: true };
 
     if (analyst?.email) {
-      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-      const resendKey = Deno.env.get("RESEND_API_KEY");
-      if (lovableKey && resendKey) {
-        const r = await fetch(`${RESEND_GATEWAY}/emails`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableKey}`,
-            "X-Connection-Api-Key": resendKey,
-            "Content-Type": "application/json",
+      // Usa o pipeline corporativo (Outlook/Gmail via connector gateway),
+      // que registra entrega em notification_deliveries.
+      try {
+        const r = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email-corporate`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              to: analyst.email,
+              subject,
+              html,
+              user_id: camp.created_by,
+              event_key: `campaign.decision.${decision}`,
+              template_key: `campaign_${decision}`,
+            }),
           },
-          body: JSON.stringify({
-            from: EMAIL_FROM,
-            to: analyst.email,
-            subject,
-            html,
-          }),
-        });
-        results.email = { status: r.status };
-      } else {
-        results.email = { skipped: "missing keys" };
+        );
+        const body = await r.json().catch(() => ({}));
+        results.email = {
+          status: r.status,
+          delivery_id: (body as { delivery_id?: string }).delivery_id ?? null,
+          error: (body as { error?: string }).error ?? null,
+        };
+      } catch (e) {
+        results.email = { status: 0, error: String(e) };
       }
+    } else {
+      results.email = { skipped: "analyst sem email cadastrado" };
     }
 
     return new Response(JSON.stringify({ ok: true, decision, results }), {
