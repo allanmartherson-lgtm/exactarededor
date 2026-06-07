@@ -2117,13 +2117,14 @@ export default function CompanyAnalysis() {
 
       {/* FAB Conversas — abre o modal de bate-papo já escopado a esta empresa,
           em vez de rolar até o bloco interno de questionamentos. */}
-      {id && groupId && group && (
+      {id && groupId && group && canConverse && (
         <QuestionsFab
-          openCount={openQuestionsCount}
+          openCount={unreadQuestionsCount}
           onClick={() => setConversationsOpen(true)}
           className="bottom-24"
         />
       )}
+
       {id && user && group && (
         <ConversationsSheet
           open={conversationsOpen}
