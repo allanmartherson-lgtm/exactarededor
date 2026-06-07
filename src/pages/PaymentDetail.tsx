@@ -30,6 +30,7 @@ import { ReleaseInvoiceRequestDialog } from "@/components/payment-detail/Release
 import { BulkReleaseInvoiceRequestDialog } from "@/components/payment-detail/BulkReleaseInvoiceRequestDialog";
 import { CompanyListLegend } from "@/components/payment-detail/CompanyListLegend";
 import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
+import { BatchAIFailureReport } from "@/components/payment-detail/BatchAIFailureReport";
 import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
 import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
 import { PaymentPivotSection, type PivotVariant } from "@/components/payment-detail/PaymentPivotSection";
