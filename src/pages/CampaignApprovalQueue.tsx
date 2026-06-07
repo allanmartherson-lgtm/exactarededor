@@ -77,7 +77,7 @@ async function rpcWithRetry<T = unknown>(
 export default function CampaignApprovalQueue() {
   const { hasRole } = useAuth();
   const navigate = useNavigate();
-  const isSupervisor = hasRole("admin") || hasRole("diretor");
+  const isSupervisor = hasRole("admin") || hasRole("diretor") || hasRole("validador");
 
   // dados
   const [items, setItems] = useState<Campaign[]>([]);
