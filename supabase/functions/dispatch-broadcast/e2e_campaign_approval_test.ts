@@ -223,4 +223,5 @@ Deno.test({
     await supa.from("doctors").delete().eq("id", doctor_id);
     await supa.from("companies").delete().eq("id", company_id);
   }
+  },
 });
