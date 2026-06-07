@@ -1413,14 +1413,17 @@ const PaymentDetail = () => {
     if (!id) return;
     setBusy(true);
     try {
-      // Deletar itens primeiro (Cascade should handle this if defined in DB, but explicit is safer)
+      // Defensivo: limpa filhos antes do payment (caso alguma FK não tenha CASCADE).
       await supabase.from("payment_items").delete().eq("payment_id", id);
       await supabase.from("payment_observations").delete().eq("payment_id", id);
       await supabase.from("payment_company_groups").delete().eq("payment_id", id);
       const { error } = await supabase.from("payments").delete().eq("id", id);
-      
+
       if (error) throw error;
-      
+
+      // Fecha o diálogo e navega ANTES de qualquer await pendente para
+      // garantir retorno imediato à lista de pagamentos.
+      setDeleteOpen(false);
       toast({ title: "Lote excluído" });
       navigate("/pagamentos", { replace: true });
     } catch (e: any) {
