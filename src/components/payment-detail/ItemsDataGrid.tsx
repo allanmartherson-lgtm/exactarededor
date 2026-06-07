@@ -1313,13 +1313,15 @@ export function ItemsDataGrid({
                         Total ({totals.count} {totals.count === 1 ? "item" : "itens"})
                       </span>
                     </td>
-                    <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
-                      {formatCurrency(totals.valor)}
-                    </td>
+                    {showGrossColumn && (
+                      <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
+                        {formatCurrency(totals.valor)}
+                      </td>
+                    )}
                     <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
                       {totals.esperado != null ? formatCurrency(totals.esperado) : "—"}
                     </td>
-                    {colVis.diferenca && (
+                    {showDiferencaCol && (
                       <td
                         className={cn(
                           footPad,
