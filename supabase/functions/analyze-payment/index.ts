@@ -451,15 +451,32 @@ serve(async (req) => {
     // IMPORTANTE: Se estamos analisando uma empresa específica, processamos TODOS os itens dela
     // para garantir que a visão do usuário reflita a planilha original.
     // O filtro ai_statuses só deve ser aplicado na reanálise global filtrada.
-    if (!company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0) {
+    const filterApplied = !company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0;
+    if (filterApplied) {
       itemsQuery.in("ai_status", ai_statuses);
+    }
+
+    // Idempotência do split de bônus: linhas sintéticas de execuções anteriores
+    // não podem entrar no motor nem no cálculo de grupos da reanálise atual.
+    // Por isso limpamos o escopo antes de carregar os itens-base.
+    if (!is_dry_run && (company_name || !filterApplied)) {
+      let oldBonusDelete = supabase
+        .from("payment_items")
+        .delete()
+        .eq("payment_id", payment_id)
+        .eq("tipo_linha", "complemento_bonus")
+        .eq("tipo_item", "bonus");
+      if (company_name && typeof company_name === "string") {
+        oldBonusDelete = oldBonusDelete.eq("company_name", company_name);
+      }
+      const { error: oldBonusErr } = await oldBonusDelete;
+      if (oldBonusErr) console.error(`${__t} bonus_preclean_error`, oldBonusErr);
     }
     const { data: itemsRaw } = await itemsQuery.limit(20000);
 
     // Quando há filtro por ai_statuses, o subset acima não inclui todos os itens
     // do atendimento. Carregamos uma visão slim de TODOS os itens do payment
     // exclusivamente para construir o índice de siblings (condições de contexto).
-    const filterApplied = !company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0;
     let siblingsRaw: Array<{ id: string; attendance_number: string | null; procedure_code: string | null }> | null = null;
     if (filterApplied) {
       const { data: allForSiblings } = await supabase
@@ -1700,9 +1717,11 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         patient_name: parent.patient_name ?? null,
         sector: parent.sector ?? null,
         procedure_date: parent.procedure_date ?? null,
-        // Em CONFECÇÃO não há "valor pago" — gross_amount fica null e
-        // só o expected_amount (repasse calculado) carrega o bônus.
-        gross_amount: isConfeccao ? null : bonusAmt,
+        // payment_items.gross_amount é NOT NULL e também alimenta totais de
+        // grupos. Em CONFECÇÃO a coluna de "valor pago" fica escondida na UI,
+        // mas a linha sintética precisa carregar o mesmo valor do repasse para
+        // persistir e consolidar corretamente.
+        gross_amount: bonusAmt,
         expected_amount: bonusAmt,
         procedure_name: u.applied_rule_label,
         tipo_linha: "complemento_bonus",
@@ -2018,12 +2037,12 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           .select("company_name,total_amount")
           .eq("payment_id", payment_id);
         const groupTotalByCompany: Record<string, number> = {};
-        let groupsTotalSum = 0;
+        let scopedGroupsTotalSum = 0;
         for (const g of (groupsAfter ?? [])) {
           const key = (g as any).company_name?.toString().trim() || "Sem empresa";
           const t = Number((g as any).total_amount ?? 0);
           groupTotalByCompany[key] = (groupTotalByCompany[key] ?? 0) + t;
-          groupsTotalSum += t;
+          if (compsToCheck.includes(key)) scopedGroupsTotalSum += t;
         }
 
         const divergences: string[] = [];
@@ -2050,11 +2069,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           }
         }
 
-        // (3) lote: Σ total_amount dos grupos == Σ gross de todos os itens
-        const allGross = Object.values(itemsByCompany).reduce((s, v) => s + v.gross, 0);
-        if (Math.abs(allGross - groupsTotalSum) > EPS) {
+        // (3) escopo processado: em worker por empresa, outras empresas podem
+        // estar stale de reanálises anteriores; não devem gerar falso alerta na
+        // empresa atual. Em análise global, compsToCheck cobre o lote inteiro.
+        const scopedGross = compsToCheck.reduce((s, comp) => s + (itemsByCompany[comp]?.gross ?? 0), 0);
+        if (Math.abs(scopedGross - scopedGroupsTotalSum) > EPS) {
           divergences.push(
-            `[lote] Σ grupos R$ ${groupsTotalSum.toFixed(2)} ≠ Σ gross itens R$ ${allGross.toFixed(2)}`,
+            `[escopo bônus] Σ grupos R$ ${scopedGroupsTotalSum.toFixed(2)} ≠ Σ gross itens R$ ${scopedGross.toFixed(2)}`,
           );
         }
 
