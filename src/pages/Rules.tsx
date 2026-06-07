@@ -2193,7 +2193,7 @@ const Rules = () => {
                                                            return;
                                                          }
                                                          setCompanies((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, { id: c.id, name: c.name, document: c.document ?? null }]);
-                                                         updateLink({ company_id: c.id, doctors: [], company_name: c.name, company_document: c.document ?? null, _isNew: false } as any);
+                                                         updateLink({ company_id: c.id, doctors: [], excluded_doctors: [], auto_include_new_doctors: true, company_name: c.name, company_document: c.document ?? null, _isNew: false } as any);
                                                        }}
                                                       placeholder="Selecionar empresa…"
                                                       className="w-full"
