@@ -1428,6 +1428,7 @@ function RowMain({
   onAcceptItem?: (item: PaymentItemRowData) => void;
   onUndoAcceptItem?: (item: PaymentItemRowData) => void;
   showGrossColumn?: boolean;
+  showProcedureColumn?: boolean;
   showDiferencaCol?: boolean;
 }) {
   const convenio = getAgreement(it);
