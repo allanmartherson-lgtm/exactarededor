@@ -252,6 +252,7 @@ const Rules = () => {
   // UI local: empresas colapsadas (por company_id) e filtro de busca.
   const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set());
   const [companyLinksFilter, setCompanyLinksFilter] = useState("");
+  const [companyLinksStatusFilter, setCompanyLinksStatusFilter] = useState<"todos" | "com_excluidos" | "allowlist" | "sem_medicos" | "incompleto">("todos");
   // Sugestões de médicos por empresa (mapa company_id → médicos encontrados em payment_items).
   const [companyDoctorsMap, setCompanyDoctorsMap] = useState<Record<string, { name: string; crm?: string }[]>>({});
   const [loadingCompanyDoctorsIds, setLoadingCompanyDoctorsIds] = useState<Set<string>>(new Set());
@@ -2114,40 +2115,116 @@ const Rules = () => {
                                       <p className="text-xs text-muted-foreground italic">Nenhuma empresa vinculada. Clique em "Adicionar empresa" ou use médicos específicos abaixo.</p>
                                     )}
 
-                                    {fGroupLinks.length > 0 && (
-                                      <div className="flex items-center gap-2 pt-1">
-                                        <span className="text-xs font-normal text-muted-foreground shrink-0">
-                                          {fGroupLinks.length} {fGroupLinks.length === 1 ? "empresa adicionada" : "empresas adicionadas"}
-                                        </span>
-                                        <div className="relative flex-1 max-w-xs ml-auto">
-                                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                          <Input
-                                            value={companyLinksFilter}
-                                            onChange={(e) => setCompanyLinksFilter(e.target.value)}
-                                            placeholder="Filtrar empresas adicionadas..."
-                                            className="h-8 pl-7 text-xs font-normal"
-                                            style={{ borderWidth: "0.5px" }}
-                                          />
+                                    {fGroupLinks.length > 0 && (() => {
+                                      const qFilter = norm(companyLinksFilter);
+                                      const matchesStatus = (link: typeof fGroupLinks[number]) => {
+                                        const autoIncL = (link as any).auto_include_new_doctors !== false;
+                                        const excluded = ((link as any).excluded_doctors ?? []) as { name: string }[];
+                                        const allowed = link.company_id ? (companyDoctorsMap[link.company_id] ?? []) : [];
+                                        if (companyLinksStatusFilter === "todos") return true;
+                                        if (companyLinksStatusFilter === "com_excluidos") return excluded.length > 0;
+                                        if (companyLinksStatusFilter === "allowlist") return !autoIncL;
+                                        if (companyLinksStatusFilter === "sem_medicos") return allowed.length === 0;
+                                        if (companyLinksStatusFilter === "incompleto") return !link.company_id;
+                                        return true;
+                                      };
+                                      const visibleCount = fGroupLinks.filter((l) => {
+                                        if (!matchesStatus(l)) return false;
+                                        if (!qFilter) return true;
+                                        const co = l.company_id ? companies.find((c) => c.id === l.company_id) : null;
+                                        const name = co?.name || (l as any).company_name || "";
+                                        return norm(name).includes(qFilter);
+                                      }).length;
+                                      const allCollapsed = fGroupLinks.every((l) => !l.company_id || collapsedCompanies.has(l.company_id));
+                                      return (
+                                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                                          <span className="text-xs font-normal text-muted-foreground shrink-0">
+                                            {visibleCount === fGroupLinks.length
+                                              ? `${fGroupLinks.length} ${fGroupLinks.length === 1 ? "empresa" : "empresas"}`
+                                              : `${visibleCount} de ${fGroupLinks.length} ${fGroupLinks.length === 1 ? "empresa" : "empresas"}`}
+                                          </span>
+                                          <div className="relative flex-1 min-w-[180px] max-w-xs">
+                                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                            <Input
+                                              value={companyLinksFilter}
+                                              list="rules-company-links-suggestions"
+                                              onChange={(e) => setCompanyLinksFilter(e.target.value)}
+                                              placeholder="Buscar empresa ou médico…"
+                                              className="h-8 pl-7 pr-7 text-xs font-normal"
+                                              style={{ borderWidth: "0.5px" }}
+                                            />
+                                            {companyLinksFilter && (
+                                              <button
+                                                type="button"
+                                                onClick={() => setCompanyLinksFilter("")}
+                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+                                                aria-label="Limpar busca"
+                                              >×</button>
+                                            )}
+                                            <datalist id="rules-company-links-suggestions">
+                                              {fGroupLinks.map((l, i) => {
+                                                const co = l.company_id ? companies.find((c) => c.id === l.company_id) : null;
+                                                const name = co?.name || (l as any).company_name || "";
+                                                return name ? <option key={`${i}-${name}`} value={name} /> : null;
+                                              })}
+                                            </datalist>
+                                          </div>
+                                          <Select value={companyLinksStatusFilter} onValueChange={(v) => setCompanyLinksStatusFilter(v as any)}>
+                                            <SelectTrigger className="h-8 w-auto min-w-[140px] text-xs" style={{ borderWidth: "0.5px" }}>
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="todos">Todos os status</SelectItem>
+                                              <SelectItem value="com_excluidos">Com médicos excluídos</SelectItem>
+                                              <SelectItem value="allowlist">Auto-incluir desligado</SelectItem>
+                                              <SelectItem value="sem_medicos">Sem médicos vinculados</SelectItem>
+                                              <SelectItem value="incompleto">Linha incompleta</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                          <Button
+                                            type="button" size="sm" variant="ghost" className="h-8 text-xs ml-auto"
+                                            onClick={() => {
+                                              if (allCollapsed) {
+                                                setCollapsedCompanies(new Set());
+                                              } else {
+                                                setCollapsedCompanies(new Set(fGroupLinks.map((l) => l.company_id).filter(Boolean) as string[]));
+                                              }
+                                            }}
+                                          >
+                                            {allCollapsed ? "Expandir todas" : "Colapsar todas"}
+                                          </Button>
                                         </div>
-                                      </div>
-                                    )}
+                                      );
+                                    })()}
 
                                     <div className="space-y-2">
                                       {(() => {
                                         const qFilter = norm(companyLinksFilter);
+                                        const matchesStatus = (link: typeof fGroupLinks[number]) => {
+                                          const autoIncL = (link as any).auto_include_new_doctors !== false;
+                                          const excluded = ((link as any).excluded_doctors ?? []) as { name: string }[];
+                                          const allowed = link.company_id ? (companyDoctorsMap[link.company_id] ?? []) : [];
+                                          if (companyLinksStatusFilter === "todos") return true;
+                                          if (companyLinksStatusFilter === "com_excluidos") return excluded.length > 0;
+                                          if (companyLinksStatusFilter === "allowlist") return !autoIncL;
+                                          if (companyLinksStatusFilter === "sem_medicos") return allowed.length === 0;
+                                          if (companyLinksStatusFilter === "incompleto") return !link.company_id;
+                                          return true;
+                                        };
                                         const visible = fGroupLinks
                                           .map((l, i) => ({ link: l, idx: i }))
                                           .filter(({ link }) => {
-                                            if (!qFilter) return true;
                                             if ((link as any)._isNew) return true;
+                                            if (!matchesStatus(link)) return false;
+                                            if (!qFilter) return true;
                                             const co = link.company_id ? companies.find((c) => c.id === link.company_id) : null;
                                             const name = co?.name || (link as any).company_name || "";
                                             return norm(name).includes(qFilter);
                                           });
-                                        if (qFilter && visible.length === 0) {
+                                        if ((qFilter || companyLinksStatusFilter !== "todos") && visible.length === 0) {
                                           return (
                                             <p className="text-xs text-muted-foreground italic px-1">
-                                              Nenhuma empresa encontrada para "{companyLinksFilter}".
+                                              Nenhuma empresa corresponde aos filtros aplicados.
                                             </p>
                                           );
                                         }
