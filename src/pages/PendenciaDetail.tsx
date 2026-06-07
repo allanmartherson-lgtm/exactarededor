@@ -291,6 +291,8 @@ export default function PendenciaDetail() {
             </p>
           </div>
 
+          <PendenciaAttachmentsPanel pendenciaId={pend.id} />
+
           <NotificationHistoryPanel pendenciaId={pend.id} />
         </div>
 
