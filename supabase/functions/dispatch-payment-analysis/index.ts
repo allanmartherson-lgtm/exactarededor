@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
         return false;
       }
       if (EDITABLE_STATUSES.includes(state.status)) return true;
-      if (targetCompanySet.has(name.toLowerCase())) skippedCompanies.push({ company_name: name, status });
+      if (targetCompanySet.has(name.toLowerCase())) skippedCompanies.push({ company_name: name, status: state.status });
       return false;
     });
     const allowedLower = new Set(companyNames.map((s) => s.toLowerCase()));
