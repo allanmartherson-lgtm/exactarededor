@@ -687,18 +687,67 @@ export default function CompanyAnalysis() {
     if (!id || !group) return;
     setBusy(true);
     const text = groupDraft.trim();
+    // Marca o grupo como confeccao_concluida — o dispatcher de reanálise
+    // (dispatch-payment-analysis) passa a pular esta empresa automaticamente
+    // até que ela seja reaberta.
+    const { error: upErr } = await supabase
+      .from("payment_company_groups")
+      .update({
+        confeccao_status: "confeccao_concluida",
+        confeccao_finalized_at: new Date().toISOString(),
+        confeccao_finalized_by: user!.id,
+      })
+      .eq("id", group.id);
+    if (upErr) {
+      setBusy(false);
+      return toast.error("Erro ao finalizar confecção", { description: upErr.message });
+    }
     await recordObservation({
       payment_id: id,
       author_type: myAuthorType,
       author_id: user!.id,
-      message: `[${group.company_name}] Confecção finalizada pelo analista${text ? `: ${text}` : "."}`,
+      message: `[${group.company_name}] Confecção finalizada pelo analista${text ? `: ${text}` : "."} Reanálise desta empresa fica bloqueada até reabertura.`,
       status_from: group.status,
       status_to: group.status,
     });
     setGroupDraft("");
     setBusy(false);
     toast.success("Confecção desta empresa finalizada", {
-      description: "Use \"Encaminhar para análise\" no lote para enviar tudo ao motor de análise.",
+      description: "Reanálise bloqueada até reabrir. Use \"Encaminhar para análise\" no lote para enviar tudo ao motor de análise.",
+    });
+    load();
+  };
+
+  /**
+   * Reabre a confecção desta empresa — desfaz `finalizeConfeccaoGroup`.
+   * Permite voltar a recalcular o repasse e ajustar antes de encaminhar o lote.
+   */
+  const reopenConfeccaoGroup = async () => {
+    if (!id || !group) return;
+    setBusy(true);
+    const { error: upErr } = await supabase
+      .from("payment_company_groups")
+      .update({
+        confeccao_status: "em_confeccao",
+        confeccao_finalized_at: null,
+        confeccao_finalized_by: null,
+      })
+      .eq("id", group.id);
+    if (upErr) {
+      setBusy(false);
+      return toast.error("Erro ao reabrir confecção", { description: upErr.message });
+    }
+    await recordObservation({
+      payment_id: id,
+      author_type: myAuthorType,
+      author_id: user!.id,
+      message: `[${group.company_name}] Confecção reaberta pelo analista. Reanálise desta empresa liberada novamente.`,
+      status_from: group.status,
+      status_to: group.status,
+    });
+    setBusy(false);
+    toast.success("Confecção reaberta", {
+      description: "Esta empresa volta a aceitar recálculo de repasse.",
     });
     load();
   };
