@@ -1401,6 +1401,8 @@ export default function CompanyAnalysis() {
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
   const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
   const canAct = canActAnalista || canActValidador || canActDiretor;
+  const canReopenConfeccao =
+    isConfeccao && gConfeccaoStatus === "confeccao_concluida" && isAnalistaRole && (isOwner || isAdmin);
   // (removido) returner: o fluxo unificado de "Concluir análise" não distingue mais reencaminhamento aqui — o envio ao validador é feito no lote inteiro.
 
 
