@@ -1655,19 +1655,27 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       if (u.applied_calc_method !== "bonus") continue;
       const parent = itemsById[u.id];
       if (!parent) continue;
-      const parentGross = Number(parent.gross_amount ?? 0);
+      // Base do honorário: em ANÁLISE usamos gross_amount (valor que o hospital
+      // pagou pelo procedimento); em CONFECÇÃO não há gross_amount (a base do
+      // analista só tem o valor de tabela), então usamos procedure_amount como
+      // base do split. Sem isso, parentGross=0 fazia o bônus virar o valor total
+      // (procedure+bonus) na linha sintética — e o procedimento pai zerava.
+      const parentGrossRaw = Number(parent.gross_amount ?? 0);
+      const parentBase = isConfeccao
+        ? Number(parent.procedure_amount ?? parentGrossRaw ?? 0)
+        : parentGrossRaw;
       const exp = u.expected_amount;
-      if (exp == null || exp <= parentGross + 0.01) continue;
-      const bonusAmt = Number((exp - parentGross).toFixed(2));
+      if (exp == null || exp <= parentBase + 0.01) continue;
+      const bonusAmt = Number((exp - parentBase).toFixed(2));
       const compKey = (parent.company_name ?? "Sem empresa").trim() || "Sem empresa";
       preSplitExpectedByCompany[compKey] = (preSplitExpectedByCompany[compKey] ?? 0) + exp;
       bonusTotalByCompany[compKey] = (bonusTotalByCompany[compKey] ?? 0) + bonusAmt;
       // Procedimento volta a refletir só o honorário base.
-      u.expected_amount = parentGross;
+      u.expected_amount = parentBase;
       // Espelhar a reversão dentro de ai_findings (JSONB lido pela UI).
       if (u.ai_findings && typeof u.ai_findings === "object") {
         const af = u.ai_findings as Record<string, unknown>;
-        af.expected_amount = parentGross;
+        af.expected_amount = parentBase;
         // Remover alerts originados da divergência do bônus.
         if (Array.isArray(af.alerts)) {
           const bonusRe = /b[oô]nus|R\$\s?1[\.\s]?500/i;
@@ -1678,7 +1686,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           af.alerts = filtered;
         }
       }
-      // Após reverter, expected == gross para o pai → aprovar.
+      // Após reverter, expected == base para o pai → aprovar.
       if (u.ai_status === "reprovado" || u.ai_status === "alerta") {
         u.ai_status = "aprovado";
       }
