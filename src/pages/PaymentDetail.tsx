@@ -2922,9 +2922,7 @@ const PaymentDetail = () => {
                   <SelectItem value="approved_strict" className="text-xs">Aprovados (sem pendências)</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            )}
-              {hasRole("analista") || hasRole("admin") || hasRole("diretor") ? (
+              
                 <>
                   <Button
                     variant="outline"
