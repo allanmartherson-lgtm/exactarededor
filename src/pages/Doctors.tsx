@@ -728,12 +728,30 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
                   </section>
 
 
-                  {/* Seção 6 — Observações */}
+                  {/* Seção 6 — Notas operacionais (texto livre; vínculos vão na seção 5) */}
                   <section className="space-y-3">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                      <Briefcase className="h-3.5 w-3.5" /> Observações internas
+                      <Briefcase className="h-3.5 w-3.5" /> Notas operacionais
                     </h3>
-                    <Textarea value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} placeholder="Notas, contatos adicionais..." />
+                    <Textarea
+                      value={editing.notes ?? ""}
+                      onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
+                      placeholder="Lembretes, contatos adicionais. NÃO use para registrar vínculo com PJ — use a seção acima."
+                    />
+                    {(() => {
+                      const matches = (editing.notes ?? "").match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g);
+                      if (!matches || matches.length === 0) return null;
+                      return (
+                        <div className="text-xs rounded-md border border-destructive/40 bg-destructive/5 text-destructive px-3 py-2 space-y-1">
+                          <p className="font-semibold">⚠ CNPJ detectado nas notas — isso não cria vínculo.</p>
+                          <p className="text-destructive/80">
+                            Vínculo médico↔PJ só vale quando marcado na seção "Empresas / PJs vinculadas" acima.
+                            Detectado: {matches.map(formatCNPJ).join(", ")}.
+                            Após salvar, o admin verá a sugestão em <strong>Vínculos sugeridos</strong>.
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </section>
                 </form>
               </FormDialog>
