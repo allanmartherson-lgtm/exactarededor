@@ -1273,8 +1273,34 @@ export default function CompanyAnalysis() {
   const canAct = canActAnalista || canActValidador || canActDiretor;
   // (removido) returner: o fluxo unificado de "Concluir análise" não distingue mais reencaminhamento aqui — o envio ao validador é feito no lote inteiro.
 
+  const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+
   return (
     <div className="space-y-4 pb-32">
+      {isConfeccao && (
+        <div
+          className="sticky top-0 z-40 -mx-3 md:-mx-6 mb-2 border-b-2 border-amber-500/70 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/15 backdrop-blur-sm"
+          role="status"
+          aria-label="Modo confecção ativo"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(135deg, hsl(38 92% 50% / 0.10) 0px, hsl(38 92% 50% / 0.10) 12px, transparent 12px, transparent 24px)",
+          }}
+        >
+          <div className="px-4 md:px-6 py-2 flex items-center gap-3 text-amber-700 dark:text-amber-300">
+            <div className="flex items-center gap-2 rounded-md bg-amber-500/20 px-2.5 py-1 ring-1 ring-amber-500/40">
+              <Calculator className="h-3.5 w-3.5" />
+              <span className="text-[11px] font-bold tracking-[0.18em] uppercase">Modo confecção</span>
+            </div>
+            <p className="text-xs hidden sm:block">
+              O sistema está calculando o repasse pelas regras cadastradas — ainda não há confronto com a base hospitalar.
+            </p>
+            <span className="ml-auto text-[10px] font-medium uppercase tracking-wider opacity-80 hidden md:inline">
+              Lote {payment.reference}
+            </span>
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
