@@ -2131,7 +2131,21 @@ const Rules = () => {
                                         };
                                         const displayName = co?.name || (link as any).company_name || "Empresa não selecionada";
                                         const displayDoc = co?.document || (link as any).company_document || "";
-                                        const doctorsSummary = link.doctors.length === 0 ? "Todos os médicos" : `${link.doctors.length} ${link.doctors.length === 1 ? "médico" : "médicos"}`;
+                                        const autoInc = (link as any).auto_include_new_doctors !== false;
+                                        const excludedList = ((link as any).excluded_doctors ?? []) as { name: string; crm?: string }[];
+                                        const enabledNames = new Set(link.doctors.map((d) => norm(d.name)));
+                                        const excludedNames = new Set(excludedList.map((d) => norm(d.name)));
+                                        const isDoctorEnabled = (d: { name: string }) => {
+                                          const k = norm(d.name);
+                                          if (enabledNames.has(k)) return true;
+                                          if (excludedNames.has(k)) return false;
+                                          return autoInc;
+                                        };
+                                        const enabledCount = allowedDocs.filter(isDoctorEnabled).length;
+                                        const disabledCount = allowedDocs.length - enabledCount;
+                                        const doctorsSummary = allowedDocs.length === 0
+                                          ? (autoInc ? "Todos os médicos" : "Nenhum médico")
+                                          : `${enabledCount}/${allowedDocs.length} habilitados${disabledCount > 0 ? ` · ${disabledCount} fora` : ""}${autoInc ? " · auto-incluir novos" : ""}`;
                                         return (
                                           <div key={idx} className={cn(
                                             "rounded-md bg-card animate-fade-in transition-all duration-300",
