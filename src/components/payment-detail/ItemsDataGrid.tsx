@@ -175,6 +175,8 @@ export function ItemsDataGrid({
   const isConfeccao = mode === "confeccao";
   // Em confecção a base não traz "Valor Repasse" — o sistema gera. Esperado vira o repasse calculado.
   const showGrossColumn = !isConfeccao;
+  // Em confecção exibimos o valor cru de faturamento (procedure_amount) que o analista subiu.
+  const showProcedureColumn = isConfeccao;
   const expectedLabel = isConfeccao ? "Repasse calculado" : "Esperado";
   const expectedColWidth = isConfeccao ? 160 : 110;
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
@@ -456,9 +458,11 @@ export function ItemsDataGrid({
   const totals = useMemo(() => {
     let valor = 0;
     let esperado = 0;
+    let procedure = 0;
     let temEsperado = false;
     for (const it of filtered) {
       valor += Number(it.gross_amount ?? 0);
+      procedure += Number((it as any).procedure_amount ?? 0);
       const exp = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
       if (exp != null) {
         esperado += Number(exp);
@@ -468,6 +472,7 @@ export function ItemsDataGrid({
     return {
       count: filtered.length,
       valor,
+      procedure,
       esperado: temEsperado ? esperado : null,
       diferenca: temEsperado ? esperado - valor : null,
     };
@@ -542,6 +547,7 @@ export function ItemsDataGrid({
     (colVis.funcao ? 120 : 0) +
     (colVis.regra ? 180 : 0) +
     (showGrossColumn ? 110 : 0) +
+    (showProcedureColumn ? 130 : 0) +
     expectedColWidth +
     (showDiferencaCol ? 110 : 0) +
     110 +
@@ -984,6 +990,7 @@ export function ItemsDataGrid({
               {colVis.funcao && <col style={{ width: 120 }} />}
               {colVis.regra && <col style={{ width: 180 }} />}
               {showGrossColumn && <col style={{ width: 110 }} />}
+              {showProcedureColumn && <col style={{ width: 130 }} />}
               <col style={{ width: expectedColWidth }} />
               {showDiferencaCol && <col style={{ width: 110 }} />}
               <col style={{ width: 110 }} />
@@ -1118,6 +1125,14 @@ export function ItemsDataGrid({
                     </button>
                   </th>
                 )}
+                {showProcedureColumn && (
+                  <th
+                    scope="col"
+                    className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                  >
+                    Valor Faturamento
+                  </th>
+                )}
                 <th
                   scope="col"
                   aria-sort={sortKey === "esperado" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -1208,7 +1223,8 @@ export function ItemsDataGrid({
 
                 const totalCols =
                   7 + 1 +
-                  (showGrossColumn ? 1 : 0) - 1 +
+                  (showGrossColumn ? 1 : 0) +
+                  (showProcedureColumn ? 1 : 0) - 1 +
                   (colVis.atendimento ? 1 : 0) +
                   (colVis.convenio ? 1 : 0) +
                   (colVis.via ? 1 : 0) +
@@ -1278,6 +1294,7 @@ export function ItemsDataGrid({
                       onAcceptItem={onAcceptItem}
                       onUndoAcceptItem={onUndoAcceptItem}
                       showGrossColumn={showGrossColumn}
+                      showProcedureColumn={showProcedureColumn}
                       showDiferencaCol={showDiferencaCol}
                     />
                   </Fragment>
@@ -1317,6 +1334,11 @@ export function ItemsDataGrid({
                     {showGrossColumn && (
                       <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
                         {formatCurrency(totals.valor)}
+                      </td>
+                    )}
+                    {showProcedureColumn && (
+                      <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
+                        {totals.procedure > 0 ? formatCurrency(totals.procedure) : "—"}
                       </td>
                     )}
                     <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
@@ -1382,6 +1404,7 @@ function RowMain({
   onAcceptItem,
   onUndoAcceptItem,
   showGrossColumn = true,
+  showProcedureColumn = false,
   showDiferencaCol = true,
 }: {
   it: PaymentItemRowData;
@@ -1410,6 +1433,7 @@ function RowMain({
   onAcceptItem?: (item: PaymentItemRowData) => void;
   onUndoAcceptItem?: (item: PaymentItemRowData) => void;
   showGrossColumn?: boolean;
+  showProcedureColumn?: boolean;
   showDiferencaCol?: boolean;
 }) {
   const convenio = getAgreement(it);
@@ -1575,6 +1599,16 @@ function RowMain({
             </span>
           </td>
         )}
+        {showProcedureColumn && (() => {
+          const procN = Number((it as any).procedure_amount ?? 0);
+          return (
+            <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-muted-foreground")}>
+              {isBonus ? "—" : (procN > 0 ? formatCurrency(procN) : "—")}
+            </td>
+          );
+        })()}
+
+
 
         <td
           className={cn(
