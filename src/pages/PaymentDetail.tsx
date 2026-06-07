@@ -2042,6 +2042,7 @@ const PaymentDetail = () => {
         })()}
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
+        {id && <BatchAIFailureReport paymentId={id} />}
         {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
         {!isNfPhase && (
         <div className="md:hidden">
