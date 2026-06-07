@@ -69,7 +69,14 @@ serve(async (req) => {
     items_count: 0,
     ai_items_count: 0,
     cache_hit: false,
+    // Sub-métricas da IA: quantos chunks rodaram, quantos falharam (após retries)
+    // e quantas vezes foi necessário tentar de novo. Servem para correlacionar
+    // "empresa X sumiu da IA" com timeouts reais em vez de bug de pipeline.
+    ai_chunks_total: 0,
+    ai_chunks_failed: 0,
+    ai_chunks_retried: 0,
   };
+
 
   try {
     const parsedBody = await req.json();
