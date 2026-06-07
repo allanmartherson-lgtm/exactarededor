@@ -655,6 +655,9 @@ export default function CompanyAnalysis() {
       description: "Use \"Encaminhar para análise\" no lote para enviar tudo ao motor de análise.",
     });
     load();
+  };
+
+
 
   const cancelBatch = async () => {
     if (!id || !group) return;
