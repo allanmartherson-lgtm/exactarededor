@@ -1642,6 +1642,85 @@ export type Database = {
           },
         ]
       }
+      doctor_link_suggestions: {
+        Row: {
+          auto_resolution: string | null
+          created_at: string
+          detected_kind: string
+          detected_value: string
+          detected_value_normalized: string
+          doctor_id: string
+          id: string
+          matched_company_id: string | null
+          matched_doctor_id: string | null
+          raw_snippet: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          source_field: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auto_resolution?: string | null
+          created_at?: string
+          detected_kind: string
+          detected_value: string
+          detected_value_normalized: string
+          doctor_id: string
+          id?: string
+          matched_company_id?: string | null
+          matched_doctor_id?: string | null
+          raw_snippet?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_field?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_resolution?: string | null
+          created_at?: string
+          detected_kind?: string
+          detected_value?: string
+          detected_value_normalized?: string
+          doctor_id?: string
+          id?: string
+          matched_company_id?: string | null
+          matched_doctor_id?: string | null
+          raw_snippet?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_field?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_link_suggestions_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_link_suggestions_matched_company_id_fkey"
+            columns: ["matched_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_link_suggestions_matched_doctor_id_fkey"
+            columns: ["matched_doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_messages: {
         Row: {
           assigned_to: string | null
@@ -7883,6 +7962,14 @@ export type Database = {
           doctor_name: string
           linked_since: string
           rule_id: string
+        }[]
+      }
+      scan_all_doctor_notes: {
+        Args: never
+        Returns: {
+          matched: number
+          scanned: number
+          suggestions_created: number
         }[]
       }
       set_primary_hospital_for_user: {
