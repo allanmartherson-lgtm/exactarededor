@@ -1,0 +1,119 @@
+// Edge function: delete-payment
+// Exclui um lote de pagamento usando service_role para evitar o statement_timeout
+// do PostgREST (lotes grandes — centenas de itens + cascades — não cabem
+// na janela padrão de ~8s do role authenticated).
+//
+// Autoriza a chamada validando o JWT do usuário e checando se ele tem
+// permissão para excluir (admin/diretor OU criador em status editável).
+// A exclusão real roda como service_role, ignorando RLS e timeouts curtos.
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const DELETABLE_STATUSES = new Set([
+  "rascunho",
+  "em_analise_ia",
+  "aguardando_validacao",
+  "devolvido_analista",
+  "cancelado",
+]);
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+  const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (!authHeader) return json({ error: "missing_auth" }, 401);
+
+  // Cliente "como usuário" só para identificar quem chama.
+  const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: userData, error: userErr } = await userClient.auth.getUser();
+  if (userErr || !userData?.user) return json({ error: "unauthorized" }, 401);
+  const userId = userData.user.id;
+
+  let body: { payment_id?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "invalid_body" }, 400);
+  }
+  const paymentId = body.payment_id;
+  if (!paymentId) return json({ error: "missing_payment_id" }, 400);
+
+  // Cliente admin (service_role) — usado para checagem de papéis e delete.
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  // 1. Carrega o payment para checar created_by/status.
+  const { data: payment, error: payErr } = await admin
+    .from("payments")
+    .select("id, status, created_by")
+    .eq("id", paymentId)
+    .maybeSingle();
+  if (payErr) return json({ error: "load_failed", detail: payErr.message }, 500);
+  if (!payment) return json({ error: "not_found" }, 404);
+
+  // 2. Checa papéis do usuário.
+  const { data: roleRows } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  const roles = new Set((roleRows ?? []).map((r) => r.role));
+  const isAdmin = roles.has("admin");
+  const isDiretor = roles.has("diretor");
+  const isCreator = payment.created_by === userId;
+  const statusOk = DELETABLE_STATUSES.has(payment.status as string);
+
+  if (!(isAdmin || isDiretor || (isCreator && statusOk))) {
+    return json({ error: "forbidden" }, 403);
+  }
+
+  // 3. Delete em ordem: filhos pesados primeiro, depois o payment
+  //    (cascades cobrem o resto). Usamos service_role → sem RLS, sem timeout
+  //    curto do PostgREST.
+  const childTables = [
+    "payment_items",
+    "payment_observations",
+    "payment_company_groups",
+    "payment_pivot_cache",
+    "payment_processing_jobs",
+    "payment_status_history",
+    "payment_company_financials",
+    "ai_analysis_versions",
+    "payment_assignments",
+  ];
+
+  for (const t of childTables) {
+    const { error } = await admin.from(t).delete().eq("payment_id", paymentId);
+    if (error) {
+      console.error(`[delete-payment] falha em ${t}:`, error.message);
+      return json({ error: "child_delete_failed", table: t, detail: error.message }, 500);
+    }
+  }
+
+  const { error: delErr } = await admin.from("payments").delete().eq("id", paymentId);
+  if (delErr) {
+    console.error("[delete-payment] falha em payments:", delErr.message);
+    return json({ error: "delete_failed", detail: delErr.message }, 500);
+  }
+
+  return json({ ok: true });
+});
