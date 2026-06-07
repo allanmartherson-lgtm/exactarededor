@@ -1700,9 +1700,11 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         patient_name: parent.patient_name ?? null,
         sector: parent.sector ?? null,
         procedure_date: parent.procedure_date ?? null,
-        // Em CONFECÇÃO não há "valor pago" — gross_amount fica null e
-        // só o expected_amount (repasse calculado) carrega o bônus.
-        gross_amount: isConfeccao ? null : bonusAmt,
+        // payment_items.gross_amount é NOT NULL e também alimenta totais de
+        // grupos. Em CONFECÇÃO a coluna de "valor pago" fica escondida na UI,
+        // mas a linha sintética precisa carregar o mesmo valor do repasse para
+        // persistir e consolidar corretamente.
+        gross_amount: bonusAmt,
         expected_amount: bonusAmt,
         procedure_name: u.applied_rule_label,
         tipo_linha: "complemento_bonus",
