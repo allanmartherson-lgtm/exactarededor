@@ -175,7 +175,8 @@ export function ItemsDataGrid({
   const isConfeccao = mode === "confeccao";
   // Em confecção a base não traz "Valor Repasse" — o sistema gera. Esperado vira o repasse calculado.
   const showGrossColumn = !isConfeccao;
-  const expectedLabel = isConfeccao ? "Valor Repasse (calculado)" : "Esperado";
+  const expectedLabel = isConfeccao ? "Repasse calculado" : "Esperado";
+  const expectedColWidth = isConfeccao ? 160 : 110;
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
   const DENSITY_PREFS_KEY = `${storageKey}.density.v1`;
 
