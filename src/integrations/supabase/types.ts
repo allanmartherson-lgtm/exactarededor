@@ -3573,7 +3573,7 @@ export type Database = {
           exception_note: string | null
           exception_reason: string | null
           expected_amount: number | null
-          gross_amount: number
+          gross_amount: number | null
           hospital_id: string | null
           id: string
           item_hash: string | null
@@ -3644,7 +3644,7 @@ export type Database = {
           exception_note?: string | null
           exception_reason?: string | null
           expected_amount?: number | null
-          gross_amount?: number
+          gross_amount?: number | null
           hospital_id?: string | null
           id?: string
           item_hash?: string | null
@@ -3715,7 +3715,7 @@ export type Database = {
           exception_note?: string | null
           exception_reason?: string | null
           expected_amount?: number | null
-          gross_amount?: number
+          gross_amount?: number | null
           hospital_id?: string | null
           id?: string
           item_hash?: string | null
