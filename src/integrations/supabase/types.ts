@@ -3511,6 +3511,9 @@ export type Database = {
           approved_by: string | null
           bruto_total: number
           cancellation_note: string | null
+          cancellation_previous_status:
+            | Database["public"]["Enums"]["payment_status"]
+            | null
           cancellation_reactivated_at: string | null
           cancellation_reactivated_by: string | null
           cancellation_reason:
@@ -3547,6 +3550,9 @@ export type Database = {
           approved_by?: string | null
           bruto_total?: number
           cancellation_note?: string | null
+          cancellation_previous_status?:
+            | Database["public"]["Enums"]["payment_status"]
+            | null
           cancellation_reactivated_at?: string | null
           cancellation_reactivated_by?: string | null
           cancellation_reason?:
@@ -3583,6 +3589,9 @@ export type Database = {
           approved_by?: string | null
           bruto_total?: number
           cancellation_note?: string | null
+          cancellation_previous_status?:
+            | Database["public"]["Enums"]["payment_status"]
+            | null
           cancellation_reactivated_at?: string | null
           cancellation_reactivated_by?: string | null
           cancellation_reason?:
