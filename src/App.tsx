@@ -60,6 +60,7 @@ const loadWcagAudit = () => import("./pages/WcagAudit.tsx");
 const loadKpis = () => import("./pages/Kpis.tsx");
 const loadInterventionAdjustments = () => import("./pages/InterventionAdjustments.tsx");
 const loadAnalystCorrections = () => import("./pages/AnalystCorrections.tsx");
+const loadInterventionAudit = () => import("./pages/InterventionAudit.tsx");
 const loadCancelledPayments = () => import("./pages/CancelledPayments.tsx");
 const loadSidebarDiagnostic = () => import("./pages/SidebarDiagnostic.tsx");
 const loadOverflowAudit = () => import("./pages/OverflowAudit.tsx");
