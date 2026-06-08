@@ -1193,7 +1193,7 @@ export function ItemsDataGrid({
                   </button>
                 </th>
                 {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.</th>}
-                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap")}>Ações</th>}
+                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap pr-4 sticky right-0 z-30 shadow-[-1px_0_0_0_hsl(var(--border))]")}>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -1741,7 +1741,7 @@ function RowMain({
         )}
         {canEdit && (
           <td
-            className={cn(cellPad, "text-center border-b whitespace-nowrap", baseCellBg)}
+            className={cn(cellPad, "text-center border-b whitespace-nowrap pr-4 sticky right-0 z-10 shadow-[-1px_0_0_0_hsl(var(--border))]", baseCellBg)}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-end items-center gap-1">
