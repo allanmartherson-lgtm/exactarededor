@@ -2098,7 +2098,14 @@ export default function CompanyAnalysis() {
           targetLabel={`${deleteItem.doctor_name ?? "—"} · ${formatCurrency(Number(deleteItem.gross_amount ?? 0))}`}
           open={!!deleteItem}
           onOpenChange={(v) => { if (!v) setDeleteItem(null); }}
-          onCancelled={() => { setDeleteItem(null); load(); }}
+          onCancelled={() => {
+            const cancelledId = deleteItem.id;
+            // Update otimista: remove imediatamente da grid
+            setItems(prev => prev.filter(it => it.id !== cancelledId));
+            setDeleteItem(null);
+            // Refetch para sincronizar totais/contadores
+            load();
+          }}
         />
       )}
 
