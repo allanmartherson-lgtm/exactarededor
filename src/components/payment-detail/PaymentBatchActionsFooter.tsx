@@ -153,6 +153,9 @@ export function PaymentBatchActionsFooter({
     });
     setApproveOpen(false);
     await onDone();
+    // Handoff: depois de aprovar/encaminhar o lote, este perfil não tem mais
+    // ação a tomar aqui — volta para a lista de pagamentos.
+    navigate("/pagamentos");
   };
 
   const doQuestion = async () => {
