@@ -190,3 +190,65 @@ export const itemsToCsv = (items: InterventionItem[]): string => {
   );
   return [header, ...rows].join("\n");
 };
+
+/**
+ * Agrupamento para auditoria: lista, por pagamento, todos os eventos
+ * (ajuste de valor, devolução, cancelamento empresa, cancelamento item)
+ * que contribuíram para o KPI, com seus deltas/valores brutos individuais.
+ *
+ * Não deduplica — o RPC já se encarrega de evitar dupla contagem
+ * (ex.: item_cancels exclui itens cujo grupo foi cancelado no período).
+ */
+export interface InterventionAuditGroup {
+  payment_id: string;
+  company_name: string | null;
+  qtd_eventos: number;
+  economia: number;
+  perda: number;
+  saldo: number;
+  eventos: InterventionItem[];
+}
+
+export const groupItemsForAudit = (
+  items: InterventionItem[],
+): InterventionAuditGroup[] => {
+  const map = new Map<string, InterventionAuditGroup>();
+  for (const it of items) {
+    const g = map.get(it.payment_id) ?? {
+      payment_id: it.payment_id,
+      company_name: it.company_name,
+      qtd_eventos: 0,
+      economia: 0,
+      perda: 0,
+      saldo: 0,
+      eventos: [],
+    };
+    g.eventos.push(it);
+    g.qtd_eventos += 1;
+    if (it.delta > 0) g.economia += it.delta;
+    else if (it.delta < 0) g.perda += -it.delta;
+    g.saldo = g.economia - g.perda;
+    if (!g.company_name && it.company_name) g.company_name = it.company_name;
+    map.set(it.payment_id, g);
+  }
+  return Array.from(map.values()).sort((a, b) => b.saldo - a.saldo);
+};
+
+/**
+ * Detecta possíveis duplicatas (mesmo item_id contabilizado por mais de uma fonte).
+ * Útil para alertas de auditoria — se algum item aparecer mais de uma vez é sinal
+ * de que cancelamento de empresa + cancelamento de item bateram no mesmo registro.
+ */
+export const findDuplicateItemEvents = (
+  items: InterventionItem[],
+): { item_id: string; roles: IntervenorRole[] }[] => {
+  const map = new Map<string, IntervenorRole[]>();
+  for (const it of items) {
+    const arr = map.get(it.item_id) ?? [];
+    arr.push(it.role);
+    map.set(it.item_id, arr);
+  }
+  return Array.from(map.entries())
+    .filter(([, roles]) => roles.length > 1)
+    .map(([item_id, roles]) => ({ item_id, roles }));
+};
