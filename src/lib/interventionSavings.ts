@@ -10,7 +10,7 @@
  * e funções puras (resumo + format) para serem testadas isoladamente.
  */
 
-export type IntervenorRole = "diretor" | "validador";
+export type IntervenorRole = "diretor" | "validador" | "analista";
 
 export interface InterventionSummary {
   economia: number;
