@@ -95,7 +95,7 @@ export default function CancelPaymentDialog({
 
   return (
     <>
-      {trigger ? (
+      {!isControlled && (trigger ? (
         <span onClick={(e) => { e.stopPropagation(); setOpen(true); }}>{trigger}</span>
       ) : (
         <Button
@@ -107,7 +107,7 @@ export default function CancelPaymentDialog({
           <XCircle className="h-4 w-4 mr-1" />
           Cancelar pagamento
         </Button>
-      )}
+      ))}
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
