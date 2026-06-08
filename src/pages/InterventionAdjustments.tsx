@@ -217,7 +217,7 @@ export default function InterventionAdjustments() {
                   <TableRow key={u.user_id}>
                     <TableCell className="font-medium">{u.nome}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{u.role === "diretor" ? "Diretor" : u.role === "analista" ? "Analista" : "Supervisor"}</Badge>
+                      <Badge variant="outline">{roleLabel(u.role)}</Badge>
                     </TableCell>
                     <TableCell className="text-right">{u.qtd_itens}</TableCell>
                     <TableCell className="text-right text-success">{formatCurrency(u.economia)}</TableCell>
