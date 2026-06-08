@@ -59,6 +59,7 @@ const loadPreviewDesignSystems = () => import("./pages/PreviewDesignSystems.tsx"
 const loadWcagAudit = () => import("./pages/WcagAudit.tsx");
 const loadKpis = () => import("./pages/Kpis.tsx");
 const loadInterventionAdjustments = () => import("./pages/InterventionAdjustments.tsx");
+const loadAnalystCorrections = () => import("./pages/AnalystCorrections.tsx");
 const loadCancelledPayments = () => import("./pages/CancelledPayments.tsx");
 const loadSidebarDiagnostic = () => import("./pages/SidebarDiagnostic.tsx");
 const loadOverflowAudit = () => import("./pages/OverflowAudit.tsx");
@@ -127,6 +128,7 @@ const PreviewDesignSystems = lazy(loadPreviewDesignSystems);
 const WcagAudit = lazy(loadWcagAudit);
 const Kpis = lazy(loadKpis);
 const InterventionAdjustments = lazy(loadInterventionAdjustments);
+const AnalystCorrections = lazy(loadAnalystCorrections);
 const CancelledPayments = lazy(loadCancelledPayments);
 const SidebarDiagnostic = lazy(loadSidebarDiagnostic);
 const OverflowAudit = lazy(loadOverflowAudit);
@@ -258,6 +260,7 @@ const App = () => (
                   <Route path="/notas-fiscais" element={<NotasFiscaisHub />} />
                   <Route path="/kpis" element={<Kpis />} />
                   <Route path="/relatorios/ajustes-intervencao" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><InterventionAdjustments /></ProtectedRoute>} />
+                  <Route path="/relatorios/correcoes-analista" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><AnalystCorrections /></ProtectedRoute>} />
                   <Route path="/relatorios/pagamentos-cancelados" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><CancelledPayments /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><AgingRecebiveis /></ProtectedRoute>} />

@@ -20,6 +20,7 @@ import {
   Layers,
   TrendingDown,
   Scale,
+  Pencil,
   TrendingUp,
   ShieldX,
   FileWarning,
@@ -108,6 +109,7 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { to: "/kpis", label: "KPIs", icon: BarChart2, iconName: "BarChart2", roles: ALL_ROLES },
       { to: "/relatorios/ajustes-intervencao", label: "Ajustes por intervenção", icon: Scale, iconName: "Scale", roles: ["diretor", "admin", "validador"] as const },
+      { to: "/relatorios/correcoes-analista", label: "Correções em análise", icon: Pencil, iconName: "Pencil", roles: ["diretor", "admin", "validador", "analista"] as const },
       { to: "/relatorios/pagamentos-cancelados", label: "Pagamentos cancelados", icon: ShieldX, iconName: "ShieldX", roles: ["diretor", "admin", "validador", "analista"] as const },
       { to: "/saude-processo", label: "Saúde do Processo", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/recebiveis", label: "Contas a Pagar", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
@@ -171,6 +173,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Supervisão de Atendimento", iconName: "ShieldCheck" },
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Ajustes por intervenção", iconName: "Scale" },
+  { label: "Correções em análise", iconName: "Pencil" },
   { label: "Pagamentos cancelados", iconName: "ShieldX" },
   { label: "Saúde do Processo", iconName: "Activity" },
   { label: "Contas a Pagar", iconName: "TrendingDown" },

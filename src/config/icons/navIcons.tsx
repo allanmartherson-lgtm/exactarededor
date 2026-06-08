@@ -51,6 +51,7 @@ import {
   ListChecks,
   Chats,
   Scales,
+  PencilSimple,
   type IconProps,
 } from "@phosphor-icons/react";
 
@@ -109,6 +110,7 @@ export const HeadsetIcon = makeIcon(Headset, "HeadsetIcon");
 export const ListChecksIcon = makeIcon(ListChecks, "ListChecksIcon");
 export const ChatsIcon = makeIcon(Chats, "ChatsIcon");
 export const Scale = makeIcon(Scales, "Scale");
+export const Pencil = makeIcon(PencilSimple, "Pencil");
 
 export type NavIconComponent = ReturnType<typeof makeIcon>;
 
