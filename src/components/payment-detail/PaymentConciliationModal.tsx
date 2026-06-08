@@ -3249,6 +3249,35 @@ export function PaymentConciliationModal({
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
   const pendingCount = hospitalCompanies.filter((t) => !companyMapping[t] || matchLevels[t] === 'medium').length;
 
+  // Estado do diálogo de cancelamento via conciliação
+  const [cancelScope, setCancelScope] = useState<CancelScope | null>(null);
+
+  const openCancelForItem = useCallback((item: ReconciliationItem) => {
+    if (!item.payment_item_id) {
+      toast({ title: "Item sem vínculo de pagamento", description: "Não é possível cancelar — este item não está mais ligado ao pagamento atual.", variant: "destructive" });
+      return;
+    }
+    setCancelScope({
+      type: "items",
+      item_ids: [item.payment_item_id],
+      label: `${item.doctor_name ?? "—"} · ${item.procedure_code ?? "—"} (atend. ${item.attendance_number ?? "—"})`,
+    });
+  }, []);
+
+  const openCancelForAttendance = useCallback((item: ReconciliationItem) => {
+    if (!item.attendance_number || !item.company_name) {
+      toast({ title: "Atendimento incompleto", description: "Item sem atendimento ou empresa.", variant: "destructive" });
+      return;
+    }
+    setCancelScope({
+      type: "attendance",
+      attendance_number: item.attendance_number,
+      company_name: item.company_name,
+      label: `Todos os itens do atendimento ${item.attendance_number} — ${item.company_name}`,
+    });
+  }, []);
+
+
   const handleAction = async (
     item: ReconciliationItem,
     action: 'incorporar_credito' | 'incorporar_debito' | 'marcar_glosa' | 'revisar_manual' | 'ignorar',
