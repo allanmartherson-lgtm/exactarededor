@@ -110,6 +110,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/kpis", label: "KPIs", icon: BarChart2, iconName: "BarChart2", roles: ALL_ROLES },
       { to: "/relatorios/ajustes-intervencao", label: "Ajustes por intervenção", icon: Scale, iconName: "Scale", roles: ["diretor", "admin", "validador"] as const },
       { to: "/relatorios/correcoes-analista", label: "Correções em análise", icon: Pencil, iconName: "Pencil", roles: ["diretor", "admin", "validador", "analista"] as const },
+      { to: "/relatorios/auditoria-intervencao", label: "Auditoria de intervenções", icon: ClipboardList, iconName: "ClipboardList", roles: ["diretor", "admin", "validador"] as const },
       { to: "/relatorios/pagamentos-cancelados", label: "Pagamentos cancelados", icon: ShieldX, iconName: "ShieldX", roles: ["diretor", "admin", "validador", "analista"] as const },
       { to: "/saude-processo", label: "Saúde do Processo", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/recebiveis", label: "Contas a Pagar", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
