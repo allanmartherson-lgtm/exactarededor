@@ -58,6 +58,7 @@ const loadPreviewPalettes = () => import("./pages/PreviewPalettes.tsx");
 const loadPreviewDesignSystems = () => import("./pages/PreviewDesignSystems.tsx");
 const loadWcagAudit = () => import("./pages/WcagAudit.tsx");
 const loadKpis = () => import("./pages/Kpis.tsx");
+const loadInterventionAdjustments = () => import("./pages/InterventionAdjustments.tsx");
 const loadSidebarDiagnostic = () => import("./pages/SidebarDiagnostic.tsx");
 const loadOverflowAudit = () => import("./pages/OverflowAudit.tsx");
 const loadFinancialIntelligence = () => import("./pages/FinancialIntelligence.tsx");
@@ -124,6 +125,7 @@ const PreviewPalettes = lazy(loadPreviewPalettes);
 const PreviewDesignSystems = lazy(loadPreviewDesignSystems);
 const WcagAudit = lazy(loadWcagAudit);
 const Kpis = lazy(loadKpis);
+const InterventionAdjustments = lazy(loadInterventionAdjustments);
 const SidebarDiagnostic = lazy(loadSidebarDiagnostic);
 const OverflowAudit = lazy(loadOverflowAudit);
 const FinancialIntelligence = lazy(loadFinancialIntelligence);
@@ -253,6 +255,7 @@ const App = () => (
                   <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
                   <Route path="/notas-fiscais" element={<NotasFiscaisHub />} />
                   <Route path="/kpis" element={<Kpis />} />
+                  <Route path="/relatorios/ajustes-intervencao" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><InterventionAdjustments /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><AgingRecebiveis /></ProtectedRoute>} />
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
