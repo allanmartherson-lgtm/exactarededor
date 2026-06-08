@@ -2734,23 +2734,28 @@ const PaymentDetail = () => {
                       ))}
                     </ul>
                     <p>
-                      Você quer concluir essas empresas e enviar tudo junto, ou enviar apenas as {pendingSendState?.prontos.length} já prontas?
+                      {(pendingSendState?.prontos.length ?? 0) > 0
+                        ? `Você quer concluir essas empresas e enviar tudo junto, ou enviar apenas as ${pendingSendState?.prontos.length} já prontas?`
+                        : "Nenhuma empresa foi marcada como concluída ainda. Deseja concluir e enviar todas de uma vez?"}
                     </p>
                   </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="flex-col sm:flex-row gap-2">
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-muted text-foreground hover:bg-muted/80"
-                  onClick={async () => {
-                    const prontos = pendingSendState?.prontos ?? [];
-                    setPendingSendState(null);
-                    await doSendForValidation(prontos);
-                  }}
-                >
-                  Enviar apenas {pendingSendState?.prontos.length} pronta(s)
-                </AlertDialogAction>
+                {(pendingSendState?.prontos.length ?? 0) > 0 && (
+                  <AlertDialogAction
+                    className="bg-muted text-foreground hover:bg-muted/80"
+                    onClick={async () => {
+                      const prontos = pendingSendState?.prontos ?? [];
+                      setPendingSendState(null);
+                      await doSendForValidation(prontos);
+                    }}
+                  >
+                    Enviar apenas {pendingSendState?.prontos.length} pronta(s)
+                  </AlertDialogAction>
+                )}
+
                 <AlertDialogAction
                   onClick={async () => {
                     const prontos = pendingSendState?.prontos ?? [];
