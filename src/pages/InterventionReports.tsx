@@ -50,12 +50,6 @@ const GROUPS: { label: string; items: TabDef[] }[] = [
         roles: ["diretor", "admin", "validador"] as const,
         render: () => <InterventionAudit />,
       },
-      {
-        value: "cancelados",
-        label: "Pagamentos cancelados",
-        roles: ["diretor", "admin", "validador", "analista"] as const,
-        render: () => <CancelledPayments />,
-      },
     ],
   },
 ];
