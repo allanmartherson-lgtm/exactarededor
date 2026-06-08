@@ -69,6 +69,7 @@ export interface InterventionItem {
   procedure_code: string | null;
   procedure_name: string | null;
   company_name: string | null;
+  company_group_id: string | null;
 }
 
 export interface InterventionSavingsResult {
