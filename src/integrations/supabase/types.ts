@@ -7455,6 +7455,10 @@ export type Database = {
           total_analyzed: number
         }[]
       }
+      get_cancellation_report_detailed: {
+        Args: { p_end?: string; p_hospital_id?: string; p_start?: string }
+        Returns: Json
+      }
       get_cancelled_payments_summary: {
         Args: { p_end?: string; p_hospital_id?: string; p_start?: string }
         Returns: Json

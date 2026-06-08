@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Activity, AlertTriangle, Building2, TrendingUp } from "lucide-react";
+import { Activity, AlertTriangle, Building2, TrendingUp, XCircle } from "lucide-react";
+import { CancellationsTab } from "@/components/money-health/CancellationsTab";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 
@@ -92,7 +93,14 @@ export default function MoneyHealth() {
             <TabsTrigger value="anomalies">
               <AlertTriangle className="h-4 w-4 mr-2" /> Anomalias
             </TabsTrigger>
+            <TabsTrigger value="cancellations">
+              <XCircle className="h-4 w-4 mr-2" /> Cancelamentos
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="cancellations">
+            <CancellationsTab />
+          </TabsContent>
 
           <TabsContent value="funnel">
             <Card>
