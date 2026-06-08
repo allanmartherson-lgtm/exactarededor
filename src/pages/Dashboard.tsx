@@ -1710,6 +1710,15 @@ const Dashboard = () => {
           </SurfaceCard>
         </section>
 
+        {(isValidador || isDiretor) && (
+          <section aria-labelledby="kpi-intervencao">
+            <SectionLabel>Impacto das intervenções</SectionLabel>
+            <InterventionSavingsCard rangeDays={30} />
+          </section>
+        )}
+
+
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <SurfaceCard>
             <SurfaceCardHeader title="Produtividade da Equipe" icon={BarChart2} iconColor="blue" />
