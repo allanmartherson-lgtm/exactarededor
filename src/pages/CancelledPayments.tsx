@@ -174,7 +174,17 @@ export default function CancelledPayments() {
             </div>
             <Button
               variant="outline"
-              onClick={() => downloadCsv(`pagamentos-cancelados-${range}d.csv`, cancelledToCsv(filtered))}
+              onClick={() => {
+                downloadCsv(`pagamentos-cancelados-${range}d.csv`, cancelledToCsv(filtered));
+                void logExport({
+                  reportKey: "cancelled_payments",
+                  reportLabel: "Pagamentos cancelados",
+                  format: "csv",
+                  filters: { range, ...filters },
+                  hospitalId: hospitalId ?? null,
+                  rowCount: filtered.length,
+                });
+              }}
               disabled={filtered.length === 0}
             >
               <Download className="h-4 w-4 mr-2" /> Exportar CSV
