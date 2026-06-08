@@ -20,6 +20,7 @@ import {
   Layers,
   TrendingDown,
   Scale,
+  Pencil,
   TrendingUp,
   ShieldX,
   FileWarning,
