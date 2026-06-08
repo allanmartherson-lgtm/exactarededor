@@ -2167,6 +2167,48 @@ export type Database = {
         }
         Relationships: []
       }
+      export_log: {
+        Row: {
+          created_at: string
+          filters: Json
+          format: string
+          hospital_id: string | null
+          id: string
+          report_key: string
+          report_label: string
+          row_count: number | null
+          user_email: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          format: string
+          hospital_id?: string | null
+          id?: string
+          report_key: string
+          report_label: string
+          row_count?: number | null
+          user_email?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          format?: string
+          hospital_id?: string | null
+          id?: string
+          report_key?: string
+          report_label?: string
+          row_count?: number | null
+          user_email?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       feature_flags: {
         Row: {
           allowed_roles: string[]

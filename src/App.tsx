@@ -91,6 +91,8 @@ const loadIntegrationsAdmin = () => import("./pages/IntegrationsAdmin.tsx");
 const loadCommunicationSupervision = () => import("./pages/CommunicationSupervision.tsx");
 const loadProcessHealth = () => import("./pages/ProcessHealth.tsx");
 const loadMedicosHub = () => import("./pages/MedicosHub.tsx");
+const loadReportsCentral = () => import("./pages/ReportsCentral.tsx");
+const loadExportAudit = () => import("./pages/ExportAudit.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -163,6 +165,8 @@ const NotificationPreferences = lazy(loadNotificationPreferences);
 const IntegrationsAdmin = lazy(loadIntegrationsAdmin);
 const CommunicationSupervision = lazy(loadCommunicationSupervision);
 const ProcessHealth = lazy(loadProcessHealth);
+const ReportsCentral = lazy(loadReportsCentral);
+const ExportAudit = lazy(loadExportAudit);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -265,6 +269,8 @@ const App = () => (
                   <Route path="/relatorios/correcoes-analista" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><AnalystCorrections /></ProtectedRoute>} />
                   <Route path="/relatorios/auditoria-intervencao" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><InterventionAudit /></ProtectedRoute>} />
                   <Route path="/relatorios/pagamentos-cancelados" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><CancelledPayments /></ProtectedRoute>} />
+                  <Route path="/relatorios/central" element={<ReportsCentral />} />
+                  <Route path="/relatorios/auditoria-exportacoes" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><ExportAudit /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><AgingRecebiveis /></ProtectedRoute>} />
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
