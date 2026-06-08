@@ -272,7 +272,7 @@ const App = () => (
                   <Route path="/relatorios/ajustes-intervencao" element={<Navigate to="/relatorios/intervencoes?view=ajustes" replace />} />
                   <Route path="/relatorios/correcoes-analista" element={<Navigate to="/relatorios/intervencoes?view=correcoes" replace />} />
                   <Route path="/relatorios/auditoria-intervencao" element={<Navigate to="/relatorios/intervencoes?view=auditoria" replace />} />
-                  <Route path="/relatorios/pagamentos-cancelados" element={<Navigate to="/relatorios/intervencoes?view=cancelados" replace />} />
+                  <Route path="/relatorios/pagamentos-cancelados" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><CancelledPayments /></ProtectedRoute>} />
                   <Route path="/relatorios/central" element={<ReportsCentral />} />
                   <Route path="/relatorios/auditoria-exportacoes" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><ExportAudit /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
