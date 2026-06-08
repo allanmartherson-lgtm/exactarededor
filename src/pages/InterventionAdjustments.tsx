@@ -80,6 +80,23 @@ export default function InterventionAdjustments() {
   const filteredSummary = useMemo(() => summarizeItems(filteredItems), [filteredItems]);
   const saldoTone = impactTone(filteredSummary.saldo);
 
+  /** Contadores por classificação semântica — sempre sobre o período (ignora filtro de papel). */
+  const roleCounts = useMemo(() => {
+    const base = filterItems(data.items, { ...filters, role: "all" });
+    const acc: Record<IntervenorRole, { qtd: number; saldo: number }> = {
+      diretor: { qtd: 0, saldo: 0 },
+      validador: { qtd: 0, saldo: 0 },
+      analista: { qtd: 0, saldo: 0 },
+      cancelamento_empresa: { qtd: 0, saldo: 0 },
+      cancelamento_item: { qtd: 0, saldo: 0 },
+    };
+    for (const it of base) {
+      acc[it.role].qtd += 1;
+      acc[it.role].saldo += it.delta;
+    }
+    return acc;
+  }, [data.items, filters]);
+
   const users = useMemo(() => {
     const seen = new Map<string, { id: string; name: string; role: IntervenorRole }>();
     for (const u of data.by_user) seen.set(u.user_id, { id: u.user_id, name: u.nome, role: u.role });
