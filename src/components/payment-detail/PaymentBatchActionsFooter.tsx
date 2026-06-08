@@ -200,13 +200,17 @@ export function PaymentBatchActionsFooter({
       return;
     }
     setBusy(true);
+    // Devolução completa → registra UMA observação no nível do lote (evita
+    // poluir a caixa de Conversas com a mesma mensagem em 100+ threads).
+    // Parcial → uma observação por empresa, pois cada caso é independente.
     const { error } = await supabase.rpc("return_groups_to_analyst", {
       p_payment_id: paymentId,
       p_group_ids: ids,
       p_author_id: currentUserId,
       p_author_name: currentUserName,
       p_message: retMessage.trim(),
-    });
+      p_lot_level: retMode === "completo",
+    } as never);
     setBusy(false);
     if (error) {
       toast({ title: "Falha ao devolver", description: error.message, variant: "destructive" });
