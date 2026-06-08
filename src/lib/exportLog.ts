@@ -21,7 +21,7 @@ export async function logExport(input: LogExportInput): Promise<void> {
     const user = auth?.user;
     if (!user) return;
 
-    await supabase.from("export_log").insert({
+    await (supabase.from("export_log" as any) as any).insert({
       user_id: user.id,
       user_email: user.email ?? null,
       user_name: (user.user_metadata as any)?.full_name ?? null,
