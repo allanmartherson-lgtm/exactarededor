@@ -48,6 +48,7 @@ export function PaymentBatchActionsFooter({
   items,
   onDone,
 }: Props) {
+  const navigate = useNavigate();
   const [questionOpen, setQuestionOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
