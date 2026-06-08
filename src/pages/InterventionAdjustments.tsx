@@ -257,17 +257,18 @@ export default function InterventionAdjustments() {
                 </TableHeader>
                 <TableBody>
                   {loading && (
-                    <TableRow><TableCell colSpan={8}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                   )}
                   {!loading && filteredItems.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-muted-foreground text-center py-6">
+                      <TableCell colSpan={9} className="text-muted-foreground text-center py-6">
                         Sem itens para os filtros atuais.
                       </TableCell>
                     </TableRow>
                   )}
                   {!loading && filteredItems.map((it) => {
                     const positivo = it.delta > 0;
+                    const neutro = Math.abs(it.delta) < 0.005;
                     return (
                       <TableRow key={it.item_id}>
                         <TableCell className="text-sm">{fmtDate(it.acatado_at)}</TableCell>
@@ -287,11 +288,25 @@ export default function InterventionAdjustments() {
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(it.valor_regra)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(it.valor_pago_final)}</TableCell>
-                        <TableCell className={`text-right font-semibold ${positivo ? "text-success" : "text-destructive"}`}>
+                        <TableCell className={`text-right font-semibold ${neutro ? "" : positivo ? "text-success" : "text-destructive"}`}>
                           <span className="inline-flex items-center gap-1">
-                            {positivo ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                            {neutro ? null : positivo ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                             {formatCurrency(Math.abs(it.delta))}
                           </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              neutro
+                                ? "border-border text-muted-foreground"
+                                : positivo
+                                ? "border-success/40 text-success bg-success/5"
+                                : "border-destructive/40 text-destructive bg-destructive/5"
+                            }
+                          >
+                            {neutro ? "Neutro" : positivo ? "Economia" : "Aumento"}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Button asChild size="sm" variant="ghost">
