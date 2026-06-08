@@ -769,7 +769,20 @@ function ChatView(props: {
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-chat-text truncate">{titleName}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-chat-text truncate">{titleName}</h3>
+            {/* Link direto para o detalhe correspondente — empresa quando
+                a thread é escopada a uma PJ; lote quando observação geral. */}
+            <a
+              href={thread.root.company_group_id
+                ? `/pagamentos/${paymentId}/empresa/${thread.root.company_group_id}`
+                : `/pagamentos/${paymentId}`}
+              className="text-[11px] underline text-chat-accent hover:text-chat-accent/80 shrink-0"
+              title={thread.root.company_group_id ? "Abrir empresa" : "Abrir lote"}
+            >
+              {thread.root.company_group_id ? "Abrir empresa →" : "Abrir lote →"}
+            </a>
+          </div>
           <p className="text-[11.5px] text-chat-muted truncate">
             Aberto {openedSince} por {thread.root.author_name}
             {assigneeName && <> · atribuído a <span className="text-chat-text">{assigneeName}</span></>}
