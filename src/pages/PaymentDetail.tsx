@@ -870,31 +870,39 @@ const PaymentDetail = () => {
     }
     setBulkConcluding(true);
     await autoClaim();
-    let ok = 0;
-    for (const g of targets) {
-      const { error: upErr } = await supabase.from("payment_company_groups")
-        .update({ status: "concluida_analista" })
-        .eq("id", g.id);
-      if (upErr) {
-        toast({ title: `Falha em ${g.company_name}`, description: upErr.message, variant: "destructive" });
-        continue;
-      }
-      const obsRes = await recordObservation({
-        payment_id: id, author_type: "analista", author_id: user!.id,
-        message: `[${g.company_name}] Análise concluída pelo analista (em massa).`,
-        status_from: g.status, status_to: "concluida_analista",
-      });
-      if (!obsRes.ok) {
-        toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
-      }
-      ok++;
-    }
-    await load();
+    // RPC atômica (SECURITY DEFINER) — antes era um loop com .update() que,
+    // quando 0 linhas eram afetadas (RLS/gatilho recusando silenciosamente),
+    // retornava upErr=null e o toast mentia dizendo "X concluídas".
+    const { data, error } = await supabase.rpc("bulk_conclude_analyst_groups", {
+      _payment_id: id,
+      _group_ids: targets.map((g) => g.id),
+    });
     setBulkConcluding(false);
     setBulkConcludeOpen(false);
     setBulkConcludeSelected(new Set());
-    toast({ title: "Análise concluída em massa", description: `${ok} empresa(s) marcadas como concluídas. Use "Enviar lote para validação" para encaminhar.` });
+
+    if (error) {
+      toast({ title: "Falha ao concluir em massa", description: error.message, variant: "destructive" });
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    const updated = Number(row?.updated_count ?? 0);
+    const skipped = Number(row?.skipped_count ?? 0);
+    await load();
+    if (updated === 0) {
+      toast({
+        title: "Nada foi concluído",
+        description: row?.message ?? "A operação não atualizou nenhuma empresa. Verifique status atuais.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({
+      title: "Análise concluída em massa",
+      description: `${updated} empresa(s) marcadas como concluídas${skipped > 0 ? ` · ${skipped} ignorada(s)` : ""}. Use "Enviar lote para validação" para encaminhar.`,
+    });
   };
+
 
   const toggleItemExpanded = (itemId: string) => {
     setExpandedItems((prev) => {
