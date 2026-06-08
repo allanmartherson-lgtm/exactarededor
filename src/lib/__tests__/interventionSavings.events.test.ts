@@ -41,6 +41,7 @@ const ev = (
   procedure_code: over.procedure_code ?? null,
   procedure_name: over.procedure_name ?? null,
   company_name: over.company_name ?? null,
+  company_group_id: over.company_group_id ?? null,
 });
 
 describe("KPI — todas as fontes alimentam o saldo sem perder sinal", () => {
