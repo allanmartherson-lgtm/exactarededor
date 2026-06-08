@@ -260,6 +260,7 @@ const App = () => (
                   <Route path="/notas-fiscais" element={<NotasFiscaisHub />} />
                   <Route path="/kpis" element={<Kpis />} />
                   <Route path="/relatorios/ajustes-intervencao" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><InterventionAdjustments /></ProtectedRoute>} />
+                  <Route path="/relatorios/correcoes-analista" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><AnalystCorrections /></ProtectedRoute>} />
                   <Route path="/relatorios/pagamentos-cancelados" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><CancelledPayments /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><AgingRecebiveis /></ProtectedRoute>} />
