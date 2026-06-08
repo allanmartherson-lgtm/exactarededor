@@ -453,7 +453,7 @@ export default function InterventionAdjustments() {
                         </TableCell>
                         <TableCell>
                           <Button asChild size="sm" variant="ghost">
-                            <Link to={`/pagamentos/${it.payment_id}#item-${it.item_id}`}>Abrir</Link>
+                            <Link to={it.company_group_id ? `/pagamentos/${it.payment_id}/empresa/${it.company_group_id}#item-${it.item_id}` : `/pagamentos/${it.payment_id}#item-${it.item_id}`}>Abrir</Link>
                           </Button>
                         </TableCell>
                       </TableRow>
