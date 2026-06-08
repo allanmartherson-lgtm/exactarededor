@@ -183,8 +183,8 @@ const CATEGORIES = ["KPIs", "Intervenções", "Financeiro", "Operação"] as con
 
 const ReportsCentral = () => {
   const navigate = useNavigate();
-  const { userRoles } = useAuth();
-  const { currentHospital } = useHospital();
+  const { roles: userRoles } = useAuth();
+  const { hospital: currentHospital } = useHospital();
   const [query, setQuery] = useState("");
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
