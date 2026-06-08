@@ -343,8 +343,15 @@ export function ConversationsSheet(props: Props) {
                   {search ? "Nada encontrado." : "Nenhuma conversa."}
                 </p>
               ) : (
-                <ul>
-                  {filteredThreads.map((t) => {
+                (() => {
+                  // Separação visual: observações do LOTE (company_group_id=null)
+                  // ficam agrupadas em um bloco no topo, e por EMPRESA logo abaixo.
+                  // Evita que questionamentos gerais (ex: devolução completa)
+                  // se misturem com perguntas específicas de cada PJ.
+                  const loteThreads = filteredThreads.filter((t) => !t.root.company_group_id);
+                  const empresaThreads = filteredThreads.filter((t) => !!t.root.company_group_id);
+
+                  const renderThreadRow = (t: typeof filteredThreads[number]) => {
                     const isSelected = t.root.id === selectedId && !composeMode;
                     const unread = t.unreadForMe > 0;
                     const lastMsg = [t.root, ...t.replies].sort((a, b) =>
@@ -357,6 +364,7 @@ export function ConversationsSheet(props: Props) {
                         <button
                           type="button"
                           onClick={() => handleSelectThread(t.root.id)}
+                          aria-label={`Abrir conversa — ${groupName(t.root.company_group_id)}`}
                           className={cn(
                             "w-full text-left px-3 py-2.5 border-b border-chat-border/60 transition-colors flex flex-col gap-1",
                             "border-l-2",
@@ -412,8 +420,51 @@ export function ConversationsSheet(props: Props) {
                         </button>
                       </li>
                     );
-                  })}
-                </ul>
+                  };
+
+                  const SectionHeader = ({
+                    label,
+                    count,
+                    tone,
+                  }: { label: string; count: number; tone: "lote" | "empresa" }) => (
+                    <li
+                      data-section={tone}
+                      className={cn(
+                        "sticky top-0 z-[1] px-3 py-1.5 text-[10.5px] uppercase tracking-wide font-semibold flex items-center justify-between gap-2 border-b border-chat-border/60 backdrop-blur-sm",
+                        tone === "lote"
+                          ? "bg-chat-surface/95 text-chat-text"
+                          : "bg-chat-surface/95 text-chat-muted",
+                      )}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {tone === "lote" ? (
+                          <FileText className="h-3 w-3" />
+                        ) : (
+                          <Building2 className="h-3 w-3" />
+                        )}
+                        {label}
+                      </span>
+                      <span className="text-[10px] font-normal text-chat-muted">{count}</span>
+                    </li>
+                  );
+
+                  return (
+                    <ul>
+                      {loteThreads.length > 0 && (
+                        <>
+                          <SectionHeader label="Observações do lote" count={loteThreads.length} tone="lote" />
+                          {loteThreads.map(renderThreadRow)}
+                        </>
+                      )}
+                      {empresaThreads.length > 0 && (
+                        <>
+                          <SectionHeader label="Por empresa" count={empresaThreads.length} tone="empresa" />
+                          {empresaThreads.map(renderThreadRow)}
+                        </>
+                      )}
+                    </ul>
+                  );
+                })()
               )}
             </div>
 
