@@ -251,6 +251,7 @@ export default function InterventionAdjustments() {
                     <TableHead className="text-right">Valor regra</TableHead>
                     <TableHead className="text-right">Pago final</TableHead>
                     <TableHead className="text-right">Δ</TableHead>
+                    <TableHead>Classificação</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
