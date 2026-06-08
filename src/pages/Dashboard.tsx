@@ -48,6 +48,7 @@ import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 import { SafeCard } from "@/components/ui/SafeCard";
 import RecentQuestionsPanel from "@/components/dashboard/RecentQuestionsPanel";
 import { RegistrationPendingCard } from "@/components/dashboard/RegistrationPendingCard";
+import InterventionSavingsCard from "@/components/kpis/InterventionSavingsCard";
 import { ScoreCard, ScoreSection, type ScoreItemData } from "@/components/dashboard/ScoreCards";
 
 const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
@@ -1708,6 +1709,15 @@ const Dashboard = () => {
             </div>
           </SurfaceCard>
         </section>
+
+        {(isValidador || isDiretor) && (
+          <section aria-labelledby="kpi-intervencao">
+            <SectionLabel>Impacto das intervenções</SectionLabel>
+            <InterventionSavingsCard rangeDays={30} />
+          </section>
+        )}
+
+
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <SurfaceCard>
