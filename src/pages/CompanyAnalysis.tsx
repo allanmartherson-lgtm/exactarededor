@@ -2114,24 +2114,17 @@ export default function CompanyAnalysis() {
       </Dialog>
 
       {/* Excluir item */}
-      <AlertDialog open={!!deleteItem} onOpenChange={(v) => !v && setDeleteItem(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir este item?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteItem && (
-                <>Remove a linha de <strong>{deleteItem.doctor_name}</strong> ({formatCurrency(Number(deleteItem.gross_amount ?? 0))}). Os totais do grupo serão recalculados.</>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingItem}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteItem} disabled={deletingItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingItem ? "Excluindo…" : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Cancelar item (não-devido) */}
+      {deleteItem && (
+        <CancelPaymentDialog
+          level="item"
+          targetId={deleteItem.id}
+          targetLabel={`${deleteItem.doctor_name ?? "—"} · ${formatCurrency(Number(deleteItem.gross_amount ?? 0))}`}
+          open={!!deleteItem}
+          onOpenChange={(v) => { if (!v) setDeleteItem(null); }}
+          onCancelled={() => { setDeleteItem(null); load(); }}
+        />
+      )}
 
       {payment && (
         <PaymentReportModal
