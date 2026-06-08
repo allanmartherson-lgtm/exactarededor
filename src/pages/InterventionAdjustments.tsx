@@ -21,6 +21,7 @@ import {
   impactTone,
   itemsToCsv,
   summarizeItems,
+  roleLabel,
   type InterventionFilters,
   type InterventionSavingsResult,
   type IntervenorRole,
