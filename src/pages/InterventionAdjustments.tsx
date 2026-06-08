@@ -13,8 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
-import { ArrowDownRight, ArrowUpRight, Download, Scale, TrendingDown, TrendingUp } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ArrowDownRight, ArrowUpRight, Download, Info, Scale, TrendingDown, TrendingUp } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   emptyResult,
   filterItems,
