@@ -42,6 +42,8 @@ import { scoreAttendance, classifyRisk, scoreItem, calculateFinancialRisk } from
 import { RiskBadge } from "./RiskBadge";
 import { SafeCard } from "@/components/ui/SafeCard";
 import { cn } from "@/lib/utils";
+import CancelPaymentDialog from "@/components/payment-detail/CancelPaymentDialog";
+import CancelledBadge from "@/components/payment-detail/CancelledBadge";
 
 export type PaymentGroupCardProps = {
   g: GroupRow;
@@ -232,6 +234,13 @@ export const PaymentGroupCard = ({
           )}
           <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="text-base font-semibold truncate">{g.company_name}</span>
+          {(g as unknown as { cancelled_at?: string | null }).cancelled_at && (
+            <CancelledBadge
+              reason={(g as unknown as { cancellation_reason?: string | null }).cancellation_reason ?? null}
+              note={(g as unknown as { cancellation_note?: string | null }).cancellation_note ?? null}
+              cancelledAt={(g as unknown as { cancelled_at?: string | null }).cancelled_at ?? null}
+            />
+          )}
           {["aguardando_validacao", "aguardando_aprovacao", "aprovado_em_revisao"].includes(g.status) && (
             <CompanyRiskBadge companyName={g.company_name} />
           )}
