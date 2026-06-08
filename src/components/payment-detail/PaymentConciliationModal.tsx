@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import CancelByReconciliationDialog, { type CancelScope } from "@/components/payment-detail/CancelByReconciliationDialog";
 import { confirmDialog } from "@/lib/confirm";
 import {
   Table,
