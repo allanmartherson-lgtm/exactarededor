@@ -80,6 +80,23 @@ export default function InterventionAdjustments() {
   const filteredSummary = useMemo(() => summarizeItems(filteredItems), [filteredItems]);
   const saldoTone = impactTone(filteredSummary.saldo);
 
+  /** Contadores por classificação semântica — sempre sobre o período (ignora filtro de papel). */
+  const roleCounts = useMemo(() => {
+    const base = filterItems(data.items, { ...filters, role: "all" });
+    const acc: Record<IntervenorRole, { qtd: number; saldo: number }> = {
+      diretor: { qtd: 0, saldo: 0 },
+      validador: { qtd: 0, saldo: 0 },
+      analista: { qtd: 0, saldo: 0 },
+      cancelamento_empresa: { qtd: 0, saldo: 0 },
+      cancelamento_item: { qtd: 0, saldo: 0 },
+    };
+    for (const it of base) {
+      acc[it.role].qtd += 1;
+      acc[it.role].saldo += it.delta;
+    }
+    return acc;
+  }, [data.items, filters]);
+
   const users = useMemo(() => {
     const seen = new Map<string, { id: string; name: string; role: IntervenorRole }>();
     for (const u of data.by_user) seen.set(u.user_id, { id: u.user_id, name: u.nome, role: u.role });
@@ -187,6 +204,55 @@ export default function InterventionAdjustments() {
             loading={loading}
           />
         </div>
+
+        {/* Classificação dos itens — chips clicáveis para filtrar por papel */}
+        <Card className="shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Classificação dos itens</CardTitle>
+            <div className="text-xs text-muted-foreground">
+              Clique em uma categoria para filtrar a tabela abaixo. Cancelamentos (empresa/item) contam como economia integral do valor que deixaria de ser pago.
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="flex flex-wrap gap-2">
+              {(["diretor", "validador", "analista", "cancelamento_empresa", "cancelamento_item"] as const).map((r) => {
+                const c = roleCounts[r];
+                const active = filters.role === r;
+                const tone =
+                  c.saldo > 0.005 ? "text-success" :
+                  c.saldo < -0.005 ? "text-destructive" : "text-muted-foreground";
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setFilters((f) => ({ ...f, role: active ? "all" : r }))}
+                    className={
+                      "rounded-lg border px-3 py-2 text-left transition-colors hover:bg-muted/60 " +
+                      (active ? "border-primary bg-primary/5" : "border-border")
+                    }
+                  >
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">{roleLabel(r)}</div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-lg font-semibold">{c.qtd}</span>
+                      <span className={`text-xs ${tone}`}>{formatCurrency(c.saldo)}</span>
+                    </div>
+                  </button>
+                );
+              })}
+              {filters.role !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setFilters((f) => ({ ...f, role: "all" }))}
+                  className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 self-stretch"
+                >
+                  Limpar filtro
+                </button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+
 
         {/* Por usuário */}
         <Card className="shadow-card">
