@@ -122,6 +122,8 @@ export default function InterventionAdjustments() {
                   <SelectItem value="diretor">Diretor</SelectItem>
                   <SelectItem value="validador">Supervisor</SelectItem>
                   <SelectItem value="analista">Analista</SelectItem>
+                  <SelectItem value="cancelamento_empresa">Cancelamento empresa</SelectItem>
+                  <SelectItem value="cancelamento_item">Cancelamento item</SelectItem>
                 </SelectContent>
               </Select>
             </div>
