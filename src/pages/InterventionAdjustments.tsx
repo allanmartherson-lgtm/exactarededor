@@ -169,7 +169,17 @@ export default function InterventionAdjustments() {
             </div>
             <Button
               variant="outline"
-              onClick={() => downloadCsv(`ajustes-intervencao-${range}d.csv`, itemsToCsv(filteredItems))}
+              onClick={() => {
+                downloadCsv(`ajustes-intervencao-${range}d.csv`, itemsToCsv(filteredItems));
+                void logExport({
+                  reportKey: "intervention_adjustments",
+                  reportLabel: "Ajustes por intervenção",
+                  format: "csv",
+                  filters: { range, ...filters },
+                  hospitalId: currentHospitalId ?? null,
+                  rowCount: filteredItems.length,
+                });
+              }}
               disabled={filteredItems.length === 0}
             >
               <Download className="h-4 w-4 mr-2" /> Exportar CSV
