@@ -513,6 +513,7 @@ export function ConversationsSheet(props: Props) {
             ) : selectedThread ? (
               <ChatView
                 thread={selectedThread}
+                paymentId={paymentId}
                 profiles={profiles}
                 teamMembers={teamMembers}
                 groupName={groupName}
