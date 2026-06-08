@@ -4829,7 +4829,33 @@ export function PaymentConciliationModal({
                                                         Marcar como glosa
                                                       </Button>
                                                     )}
+                                                    {(it.status === 'so_exacta' || it.status === 'empresa_ausente' || it.status === 'possivel_pacote') && it.payment_item_id && (
+                                                      <>
+                                                        <Button
+                                                          size="sm"
+                                                          variant="outline"
+                                                          disabled={actionLoading === it.id}
+                                                          onClick={(e) => { e.stopPropagation(); openCancelForItem(it); }}
+                                                          className="border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                                                        >
+                                                          Cancelar deste pagamento
+                                                        </Button>
+                                                        {it.attendance_number && it.company_name && (
+                                                          <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            disabled={actionLoading === it.id}
+                                                            onClick={(e) => { e.stopPropagation(); openCancelForAttendance(it); }}
+                                                            className="text-destructive hover:bg-destructive/10"
+                                                            title="Cancela todos os itens deste atendimento + empresa"
+                                                          >
+                                                            Cancelar atendimento inteiro
+                                                          </Button>
+                                                        )}
+                                                      </>
+                                                    )}
                                                   </div>
+
                                                 ) : (
                                                   <div className={cn(
                                                     "inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-md text-[11px] font-semibold border",
