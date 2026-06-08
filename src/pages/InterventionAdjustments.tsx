@@ -174,6 +174,7 @@ export default function InterventionAdjustments() {
                   <SelectItem value="analista">Analista</SelectItem>
                   <SelectItem value="cancelamento_empresa">Cancelamento empresa</SelectItem>
                   <SelectItem value="cancelamento_item">Cancelamento item</SelectItem>
+                  <SelectItem value="cancelamento_conciliacao">Cancelamento via conciliação</SelectItem>
                 </SelectContent>
               </Select>
             </div>
