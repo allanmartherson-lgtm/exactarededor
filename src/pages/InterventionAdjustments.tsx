@@ -121,6 +121,7 @@ export default function InterventionAdjustments() {
       analista: { qtd: 0, saldo: 0 },
       cancelamento_empresa: { qtd: 0, saldo: 0 },
       cancelamento_item: { qtd: 0, saldo: 0 },
+      cancelamento_conciliacao: { qtd: 0, saldo: 0 },
     };
     for (const it of base) {
       acc[it.role].qtd += 1;
