@@ -275,7 +275,7 @@ export default function InterventionAdjustments() {
                         <TableCell>
                           <div className="text-sm">{it.autor}</div>
                           <Badge variant="outline" className="text-[10px] mt-0.5">
-                            {it.role === "diretor" ? "Diretor" : it.role === "analista" ? "Analista" : "Supervisor"}
+                            {roleLabel(it.role)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">
