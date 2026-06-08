@@ -33,12 +33,22 @@ interface Props {
   /** Optional: refetch parent after success */
   onCancelled?: () => void;
   trigger?: React.ReactNode;
+  /** Controlled open (omit to use internal trigger state). */
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
 }
 
 export default function CancelPaymentDialog({
   level, targetId, targetLabel, onCancelled, trigger,
+  open: controlledOpen, onOpenChange: controlledOnOpenChange,
 }: Props) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (isControlled) controlledOnOpenChange?.(v);
+    else setInternalOpen(v);
+  };
   const [reason, setReason] = useState<CancellationReason | "">("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -85,7 +95,7 @@ export default function CancelPaymentDialog({
 
   return (
     <>
-      {trigger ? (
+      {!isControlled && (trigger ? (
         <span onClick={(e) => { e.stopPropagation(); setOpen(true); }}>{trigger}</span>
       ) : (
         <Button
@@ -97,7 +107,7 @@ export default function CancelPaymentDialog({
           <XCircle className="h-4 w-4 mr-1" />
           Cancelar pagamento
         </Button>
-      )}
+      ))}
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

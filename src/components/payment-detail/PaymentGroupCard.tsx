@@ -42,7 +42,7 @@ import { scoreAttendance, classifyRisk, scoreItem, calculateFinancialRisk } from
 import { RiskBadge } from "./RiskBadge";
 import { SafeCard } from "@/components/ui/SafeCard";
 import { cn } from "@/lib/utils";
-import CancelPaymentDialog from "@/components/payment-detail/CancelPaymentDialog";
+
 import CancelledBadge from "@/components/payment-detail/CancelledBadge";
 
 export type PaymentGroupCardProps = {
@@ -310,24 +310,7 @@ export const PaymentGroupCard = ({
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            {!(g as unknown as { cancelled_at?: string | null }).cancelled_at &&
-              !["pago", "lancado", "arquivado"].includes(g.status) && (
-                <CancelPaymentDialog
-                  level="group"
-                  targetId={g.id}
-                  targetLabel={`${g.company_name} — ${formatCurrency(Number((g as unknown as { liquido_total?: number }).liquido_total ?? g.total_amount))}`}
-                  trigger={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-[11px] text-muted-foreground hover:text-destructive"
-                      title="Cancelar pagamento desta empresa (não-devido)"
-                    >
-                      Cancelar
-                    </Button>
-                  }
-                />
-              )}
+            {/* Cancelamento de pagamento agora é exclusivo da tela de análise da empresa (CompanyAnalysis). */}
             {groupMaxScore > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>

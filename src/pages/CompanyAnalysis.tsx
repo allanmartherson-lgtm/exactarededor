@@ -24,6 +24,7 @@ import { FinancialCompositionStrip } from "@/components/payment-detail/Financial
 import { useFinancialComposition } from "@/hooks/useFinancialComposition";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import CancelPaymentDialog from "@/components/payment-detail/CancelPaymentDialog";
 import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2, CheckCircle2, GitCompareArrows, Calculator } from "lucide-react";
 import {
   AlertDialog,
@@ -1534,32 +1535,21 @@ export default function CompanyAnalysis() {
             </>
           )}
 
-          {canDelete && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+          {canDelete && group && !(group as unknown as { cancelled_at?: string | null }).cancelled_at && (
+            <CancelPaymentDialog
+              level="group"
+              targetId={group.id}
+              targetLabel={`${group.company_name} — ${formatCurrency(Number((group as unknown as { liquido_total?: number }).liquido_total ?? group.total_amount ?? 0))}`}
+              onCancelled={() => {
+                toast.success("Pagamento da empresa cancelado. Vai para o relatório de Pagamentos Cancelados.");
+                navigate(`/pagamentos/${id}`, { replace: true });
+              }}
+              trigger={
                 <Button variant="outline" size="sm" className="text-destructive border-destructive/20 hover:bg-destructive/10" disabled={busy}>
-                  <Trash2 className="h-4 w-4 mr-1" /> Excluir pagamento da empresa
+                  <XCircle className="h-4 w-4 mr-1" /> Cancelar pagamento da empresa
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Excluir o pagamento desta empresa?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta ação remove a empresa <strong>{group?.company_name}</strong> do lote <strong>{payment.reference}</strong>, junto com todos os seus itens e histórico. Não pode ser desfeita. Se esta for a única empresa do lote, o lote inteiro será excluído.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Voltar</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleDeletePayment} 
-                    disabled={busy}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {busy ? "Excluindo..." : "Excluir definitivamente"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+            />
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -2124,24 +2114,17 @@ export default function CompanyAnalysis() {
       </Dialog>
 
       {/* Excluir item */}
-      <AlertDialog open={!!deleteItem} onOpenChange={(v) => !v && setDeleteItem(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir este item?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteItem && (
-                <>Remove a linha de <strong>{deleteItem.doctor_name}</strong> ({formatCurrency(Number(deleteItem.gross_amount ?? 0))}). Os totais do grupo serão recalculados.</>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingItem}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteItem} disabled={deletingItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingItem ? "Excluindo…" : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Cancelar item (não-devido) */}
+      {deleteItem && (
+        <CancelPaymentDialog
+          level="item"
+          targetId={deleteItem.id}
+          targetLabel={`${deleteItem.doctor_name ?? "—"} · ${formatCurrency(Number(deleteItem.gross_amount ?? 0))}`}
+          open={!!deleteItem}
+          onOpenChange={(v) => { if (!v) setDeleteItem(null); }}
+          onCancelled={() => { setDeleteItem(null); load(); }}
+        />
+      )}
 
       {payment && (
         <PaymentReportModal
