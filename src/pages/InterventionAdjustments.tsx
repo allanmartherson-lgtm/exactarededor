@@ -225,47 +225,77 @@ export default function InterventionAdjustments() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Classificação dos itens</CardTitle>
             <div className="text-xs text-muted-foreground">
-              Clique em uma categoria para filtrar a tabela abaixo. Cancelamentos (empresa/item) contam como economia integral do valor que deixaria de ser pago.
+              Clique em uma categoria para filtrar a tabela abaixo. Passe o mouse no <Info className="inline h-3 w-3 align-text-bottom" /> de cada chip para entender o que entra em cada classe e como afeta o saldo.
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-2">
-            <div className="flex flex-wrap gap-2">
-              {(["diretor", "validador", "analista", "cancelamento_empresa", "cancelamento_item"] as const).map((r) => {
-                const c = roleCounts[r];
-                const active = filters.role === r;
-                const tone =
-                  c.saldo > 0.005 ? "text-success" :
-                  c.saldo < -0.005 ? "text-destructive" : "text-muted-foreground";
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setFilters((f) => ({ ...f, role: active ? "all" : r }))}
-                    className={
-                      "rounded-lg border px-3 py-2 text-left transition-colors hover:bg-muted/60 " +
-                      (active ? "border-primary bg-primary/5" : "border-border")
-                    }
-                  >
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">{roleLabel(r)}</div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-lg font-semibold">{c.qtd}</span>
-                      <span className={`text-xs ${tone}`}>{formatCurrency(c.saldo)}</span>
+            <TooltipProvider delayDuration={150}>
+              <div className="flex flex-wrap gap-2">
+                {ROLE_CHIPS.map(({ role: r, hint }) => {
+                  const c = roleCounts[r];
+                  const active = filters.role === r;
+                  const tone =
+                    c.saldo > 0.005 ? "text-success" :
+                    c.saldo < -0.005 ? "text-destructive" : "text-muted-foreground";
+                  return (
+                    <div
+                      key={r}
+                      className={
+                        "rounded-lg border px-3 py-2 transition-colors hover:bg-muted/60 " +
+                        (active ? "border-primary bg-primary/5" : "border-border")
+                      }
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setFilters((f) => ({ ...f, role: active ? "all" : r }))}
+                        className="text-left w-full"
+                      >
+                        <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground">
+                          <span>{roleLabel(r)}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center cursor-help"
+                                aria-label={`O que é ${roleLabel(r)}`}
+                              >
+                                <Info className="h-3 w-3 opacity-60 hover:opacity-100" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                              {hint}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-lg font-semibold">{c.qtd}</span>
+                          <span className={`text-xs ${tone}`}>{formatCurrency(c.saldo)}</span>
+                        </div>
+                      </button>
                     </div>
+                  );
+                })}
+                {filters.role !== "all" && (
+                  <button
+                    type="button"
+                    onClick={() => setFilters((f) => ({ ...f, role: "all" }))}
+                    className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 self-stretch"
+                  >
+                    Limpar filtro
                   </button>
-                );
-              })}
-              {filters.role !== "all" && (
-                <button
-                  type="button"
-                  onClick={() => setFilters((f) => ({ ...f, role: "all" }))}
-                  className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 self-stretch"
-                >
-                  Limpar filtro
-                </button>
-              )}
+                )}
+              </div>
+            </TooltipProvider>
+            <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
+              <span className="font-semibold">Como o saldo é calculado:</span> Saldo = Economia − Perda.
+              Itens com Δ &gt; 0 (pagou menos que a regra) entram em <span className="text-success">Economia</span>;
+              Δ &lt; 0 (pagou a mais) entram em <span className="text-destructive">Perda</span>.
+              Cancelamentos entram como economia integral (o valor que deixaria de ser pago).
             </div>
           </CardContent>
         </Card>
+
+
 
 
 
