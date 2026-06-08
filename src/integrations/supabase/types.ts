@@ -7480,6 +7480,10 @@ export type Database = {
           status: string
         }[]
       }
+      get_intervention_savings: {
+        Args: { p_end?: string; p_hospital_id?: string; p_start?: string }
+        Returns: Json
+      }
       get_journal_balance: {
         Args: {
           p_company_id?: string
