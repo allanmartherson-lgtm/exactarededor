@@ -173,6 +173,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Supervisão de Atendimento", iconName: "ShieldCheck" },
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Ajustes por intervenção", iconName: "Scale" },
+  { label: "Correções em análise", iconName: "Pencil" },
   { label: "Pagamentos cancelados", iconName: "ShieldX" },
   { label: "Saúde do Processo", iconName: "Activity" },
   { label: "Contas a Pagar", iconName: "TrendingDown" },
