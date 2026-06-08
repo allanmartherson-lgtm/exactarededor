@@ -90,7 +90,7 @@ export default function InterventionAdjustments() {
     <div>
       <PageHeader
         title="Ajustes por intervenção"
-        description="Impacto financeiro em R$ das devoluções e reprovações feitas por diretor e supervisor"
+        description="Impacto financeiro em R$ de devoluções, correções, cancelamentos de item e cancelamentos de empresa"
         icon={Scale}
         showBack
       />
