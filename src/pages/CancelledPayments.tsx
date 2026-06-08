@@ -31,6 +31,7 @@ import {
   reasonLabel,
   summarizeRows,
 } from "@/lib/cancelledPayments";
+import { logExport } from "@/lib/exportLog";
 
 type Range = 7 | 30 | 90 | 180;
 
