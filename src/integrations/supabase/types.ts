@@ -3468,6 +3468,14 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           bruto_total: number
+          cancellation_note: string | null
+          cancellation_reactivated_at: string | null
+          cancellation_reactivated_by: string | null
+          cancellation_reason:
+            | Database["public"]["Enums"]["payment_cancellation_reason"]
+            | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           company_id: string | null
           company_name: string
           confeccao_finalized_at: string | null
@@ -3494,6 +3502,14 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           bruto_total?: number
+          cancellation_note?: string | null
+          cancellation_reactivated_at?: string | null
+          cancellation_reactivated_by?: string | null
+          cancellation_reason?:
+            | Database["public"]["Enums"]["payment_cancellation_reason"]
+            | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           company_id?: string | null
           company_name: string
           confeccao_finalized_at?: string | null
@@ -3520,6 +3536,14 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           bruto_total?: number
+          cancellation_note?: string | null
+          cancellation_reactivated_at?: string | null
+          cancellation_reactivated_by?: string | null
+          cancellation_reason?:
+            | Database["public"]["Enums"]["payment_cancellation_reason"]
+            | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           company_id?: string | null
           company_name?: string
           confeccao_finalized_at?: string | null
@@ -3641,6 +3665,14 @@ export type Database = {
           attendance_number: string | null
           authorized_exception: boolean
           basis_confidence: number | null
+          cancellation_note: string | null
+          cancellation_reactivated_at: string | null
+          cancellation_reactivated_by: string | null
+          cancellation_reason:
+            | Database["public"]["Enums"]["payment_cancellation_reason"]
+            | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           company_id: string | null
           company_name: string | null
           complement_reason: string | null
@@ -3670,6 +3702,7 @@ export type Database = {
           gross_amount: number | null
           hospital_id: string | null
           id: string
+          is_cancelled: boolean
           item_hash: string | null
           item_origem: string | null
           manual_note: string | null
@@ -3712,6 +3745,14 @@ export type Database = {
           attendance_number?: string | null
           authorized_exception?: boolean
           basis_confidence?: number | null
+          cancellation_note?: string | null
+          cancellation_reactivated_at?: string | null
+          cancellation_reactivated_by?: string | null
+          cancellation_reason?:
+            | Database["public"]["Enums"]["payment_cancellation_reason"]
+            | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           company_id?: string | null
           company_name?: string | null
           complement_reason?: string | null
@@ -3741,6 +3782,7 @@ export type Database = {
           gross_amount?: number | null
           hospital_id?: string | null
           id?: string
+          is_cancelled?: boolean
           item_hash?: string | null
           item_origem?: string | null
           manual_note?: string | null
@@ -3783,6 +3825,14 @@ export type Database = {
           attendance_number?: string | null
           authorized_exception?: boolean
           basis_confidence?: number | null
+          cancellation_note?: string | null
+          cancellation_reactivated_at?: string | null
+          cancellation_reactivated_by?: string | null
+          cancellation_reason?:
+            | Database["public"]["Enums"]["payment_cancellation_reason"]
+            | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           company_id?: string | null
           company_name?: string | null
           complement_reason?: string | null
@@ -3812,6 +3862,7 @@ export type Database = {
           gross_amount?: number | null
           hospital_id?: string | null
           id?: string
+          is_cancelled?: boolean
           item_hash?: string | null
           item_origem?: string | null
           manual_note?: string | null
@@ -7157,6 +7208,11 @@ export type Database = {
       }
     }
     Functions: {
+      _assert_can_cancel_group: {
+        Args: { _group_id: string }
+        Returns: undefined
+      }
+      _can_cancel_payment: { Args: { _uid: string }; Returns: boolean }
       accept_payment_item: {
         Args: { _item_id: string; _justification: string }
         Returns: Json
@@ -7224,6 +7280,22 @@ export type Database = {
       can_access_hospital: {
         Args: { _hid: string; _uid: string }
         Returns: boolean
+      }
+      cancel_company_group_payment: {
+        Args: {
+          p_group_id: string
+          p_note?: string
+          p_reason: Database["public"]["Enums"]["payment_cancellation_reason"]
+        }
+        Returns: Json
+      }
+      cancel_item_payment: {
+        Args: {
+          p_item_id: string
+          p_note?: string
+          p_reason: Database["public"]["Enums"]["payment_cancellation_reason"]
+        }
+        Returns: Json
       }
       claim_ai_retry_batch: {
         Args: { p_limit?: number }
@@ -7378,6 +7450,10 @@ export type Database = {
           overridden_count: number
           total_analyzed: number
         }[]
+      }
+      get_cancelled_payments_summary: {
+        Args: { p_end?: string; p_hospital_id?: string; p_start?: string }
+        Returns: Json
       }
       get_doctor_activity_log: {
         Args: { p_doctor_id: string; p_limit?: number }
@@ -7890,6 +7966,14 @@ export type Database = {
         }
         Returns: string
       }
+      reactivate_cancelled_group: {
+        Args: { p_group_id: string; p_note?: string }
+        Returns: Json
+      }
+      reactivate_cancelled_item: {
+        Args: { p_item_id: string; p_note?: string }
+        Returns: Json
+      }
       recalc_payment_priority: {
         Args: { _payment_id: string }
         Returns: undefined
@@ -8100,6 +8184,13 @@ export type Database = {
         | "empresa_prioritaria"
         | "isolado"
         | "confeccao"
+      payment_cancellation_reason:
+        | "medico_fatura_externamente"
+        | "contrato_encerrado"
+        | "glosa_total_quitada"
+        | "decisao_juridica"
+        | "duplicidade_externa"
+        | "outro"
       payment_kind: "atual" | "pendencia" | "misto"
       payment_status:
         | "rascunho"
@@ -8357,6 +8448,14 @@ export const Constants = {
         "empresa_prioritaria",
         "isolado",
         "confeccao",
+      ],
+      payment_cancellation_reason: [
+        "medico_fatura_externamente",
+        "contrato_encerrado",
+        "glosa_total_quitada",
+        "decisao_juridica",
+        "duplicidade_externa",
+        "outro",
       ],
       payment_kind: ["atual", "pendencia", "misto"],
       payment_status: [
