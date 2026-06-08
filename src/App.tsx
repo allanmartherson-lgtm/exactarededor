@@ -130,6 +130,7 @@ const WcagAudit = lazy(loadWcagAudit);
 const Kpis = lazy(loadKpis);
 const InterventionAdjustments = lazy(loadInterventionAdjustments);
 const AnalystCorrections = lazy(loadAnalystCorrections);
+const InterventionAudit = lazy(loadInterventionAudit);
 const CancelledPayments = lazy(loadCancelledPayments);
 const SidebarDiagnostic = lazy(loadSidebarDiagnostic);
 const OverflowAudit = lazy(loadOverflowAudit);
