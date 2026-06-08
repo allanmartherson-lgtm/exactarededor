@@ -1411,7 +1411,7 @@ function RowMain({
   allItems: PaymentItemRowData[];
   paciente: string;
   expected: number | null;
-  eff: ItemAiStatus | "seguido";
+  eff: ItemAiStatus | "seguido" | "cancelado";
   tone: keyof typeof TONE_CLASSES;
   isActive: boolean;
   isExpanded: boolean;
