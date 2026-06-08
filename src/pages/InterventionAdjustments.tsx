@@ -46,10 +46,13 @@ const fmtDate = (s: string) =>
 
 export default function InterventionAdjustments() {
   const currentHospitalId = useActiveHospitalId();
+  const [params] = useSearchParams();
+  const initialRole = (params.get("role") as IntervenorRole | null) ?? "all";
   const [range, setRange] = useState<Range>(30);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
-  const [filters, setFilters] = useState<InterventionFilters>({ role: "all", userId: "all", search: "" });
+  const [filters, setFilters] = useState<InterventionFilters>({ role: initialRole, userId: "all", search: "" });
+
 
   useEffect(() => {
     let cancelled = false;
