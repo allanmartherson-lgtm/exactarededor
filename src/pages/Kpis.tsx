@@ -17,6 +17,7 @@ import {
   type HistoryLite, type InvoiceLite, type ObsLite, type PaymentLite,
 } from "@/lib/kpiMetrics";
 import InterventionSavingsCard from "@/components/kpis/InterventionSavingsCard";
+import CancelledPaymentsCard from "@/components/kpis/CancelledPaymentsCard";
 
 type Range = 7 | 30 | 90;
 
