@@ -50,6 +50,7 @@ import {
   Headset,
   ListChecks,
   Chats,
+  Scales,
   type IconProps,
 } from "@phosphor-icons/react";
 
@@ -107,6 +108,7 @@ export const SlidersHorizontal = makeIcon(PhSliders, "SlidersHorizontal");
 export const HeadsetIcon = makeIcon(Headset, "HeadsetIcon");
 export const ListChecksIcon = makeIcon(ListChecks, "ListChecksIcon");
 export const ChatsIcon = makeIcon(Chats, "ChatsIcon");
+export const Scale = makeIcon(Scales, "Scale");
 
 export type NavIconComponent = ReturnType<typeof makeIcon>;
 
