@@ -701,7 +701,7 @@ function ChatView(props: {
   getSignedUrl: (path: string) => Promise<string | null>;
 }) {
   const {
-    thread, profiles, teamMembers, groupName, readsByMessage,
+    thread, paymentId, profiles, teamMembers, groupName, readsByMessage,
     currentUserId, currentUserName, onAssign, onClose, onReopen, onSendReply, onBackMobile, getSignedUrl,
   } = props;
 
