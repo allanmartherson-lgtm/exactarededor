@@ -132,6 +132,12 @@ export const impactTone = (
   return saldo > 0 ? "positive" : "negative";
 };
 
+/** Classifica o delta para exibição: positivo = economia, negativo = aumento. */
+export const classifyDelta = (delta: number): "economia" | "aumento" | "neutro" => {
+  if (Math.abs(delta) < 0.005) return "neutro";
+  return delta > 0 ? "economia" : "aumento";
+};
+
 /** Converte linhas do drill-down para CSV (separador `;`, padrão BR). */
 export const itemsToCsv = (items: InterventionItem[]): string => {
   const header = [
@@ -145,6 +151,7 @@ export const itemsToCsv = (items: InterventionItem[]): string => {
     "valor_regra",
     "valor_pago_final",
     "delta",
+    "classificacao",
     "payment_id",
     "item_id",
   ].join(";");
@@ -160,6 +167,7 @@ export const itemsToCsv = (items: InterventionItem[]): string => {
       it.valor_regra.toFixed(2).replace(".", ","),
       it.valor_pago_final.toFixed(2).replace(".", ","),
       it.delta.toFixed(2).replace(".", ","),
+      classifyDelta(it.delta),
       it.payment_id,
       it.item_id,
     ].join(";"),
