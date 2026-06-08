@@ -1434,6 +1434,58 @@ export default function CompanyAnalysis() {
           </div>
         </div>
       )}
+      {(() => {
+        const g = group as unknown as {
+          cancelled_at?: string | null;
+          cancellation_reason?: string | null;
+          cancellation_note?: string | null;
+          cancellation_source?: string | null;
+        } | null;
+        if (!g?.cancelled_at) return null;
+        const canReactivate = hasRole("admin") || hasRole("diretor") || hasRole("validador");
+        const reasonTxt = g.cancellation_reason
+          ? g.cancellation_reason.replace(/_/g, " ")
+          : "—";
+        const sourceTxt = g.cancellation_source === "reconciliacao"
+          ? "via conciliação"
+          : "manual";
+        return (
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2.5 flex flex-wrap items-center gap-3">
+            <XCircle className="h-4 w-4 text-destructive shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-destructive">
+                Pagamento cancelado ({sourceTxt}) em {new Date(g.cancelled_at).toLocaleString("pt-BR")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Motivo: <strong>{reasonTxt}</strong>
+                {g.cancellation_note ? <> — <span className="italic">{g.cancellation_note}</span></> : null}
+                {" "}· Todos os itens foram marcados como cancelados em cascata e não entram em KPI/relatório de aprovação.
+              </p>
+            </div>
+            {canReactivate && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={async () => {
+                  if (!group) return;
+                  setBusy(true);
+                  const { error } = await supabase.rpc("reactivate_cancelled_group", { p_group_id: group.id });
+                  setBusy(false);
+                  if (error) {
+                    toast.error("Falha ao reativar", { description: error.message });
+                    return;
+                  }
+                  toast.success("Pagamento reativado. Itens voltaram ao status anterior.");
+                  load();
+                }}
+              >
+                <Undo2 className="h-4 w-4 mr-1.5" /> Reativar pagamento
+              </Button>
+            )}
+          </div>
+        );
+      })()}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>

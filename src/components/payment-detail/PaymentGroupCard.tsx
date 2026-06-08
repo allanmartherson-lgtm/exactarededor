@@ -118,6 +118,7 @@ export const PaymentGroupCard = ({
   const gCounts = groupItems.reduce(
     (acc, it) => {
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
+      if (eff === "cancelado") return acc; // grupo cancelado não conta nos buckets
       const bucket: ItemAiStatus = eff === "seguido" ? "aprovado" : eff;
       acc[bucket] = (acc[bucket] ?? 0) + 1;
       return acc;

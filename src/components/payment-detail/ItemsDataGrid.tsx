@@ -832,9 +832,10 @@ export function ItemsDataGrid({
             {filtered.map((it, idx) => {
               const paciente = getPatient(it);
               const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
-              const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
+              const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus, (it as any).is_cancelled);
               const tone: keyof typeof TONE_CLASSES =
-                eff === "reprovado" ? "destructive"
+                eff === "cancelado" ? "muted"
+                : eff === "reprovado" ? "destructive"
                 : eff === "alerta" ? "warning"
                 : eff === "aprovado" || eff === "seguido" ? "success"
                 : "muted";
@@ -1207,9 +1208,11 @@ export function ItemsDataGrid({
               {filtered.map((it, idx) => {
                 const paciente = getPatient(it);
                 const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
-                const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
+                const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus, (it as any).is_cancelled);
                 const tone: keyof typeof TONE_CLASSES =
-                  eff === "reprovado"
+                  eff === "cancelado"
+                    ? "muted"
+                    : eff === "reprovado"
                     ? "destructive"
                     : eff === "alerta"
                     ? "warning"
@@ -1411,7 +1414,7 @@ function RowMain({
   allItems: PaymentItemRowData[];
   paciente: string;
   expected: number | null;
-  eff: ItemAiStatus | "seguido";
+  eff: ItemAiStatus | "seguido" | "cancelado";
   tone: keyof typeof TONE_CLASSES;
   isActive: boolean;
   isExpanded: boolean;

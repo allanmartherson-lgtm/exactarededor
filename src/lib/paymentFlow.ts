@@ -173,19 +173,25 @@ export const allowedTransitions = (
 /**
  * Status efetivo de IA para exibição. Quando o analista já encaminhou o grupo,
  * "reprovado"/"alerta" da IA viram "seguido" — o ator humano confirmou.
+ * Quando o item (ou todo o grupo) está cancelado, ofuscamos o status original
+ * com "cancelado" — espelha a regra de negócio: pagamento cancelado não conta
+ * mais como aprovado em nenhum relatório/UI.
  */
-export type EffectiveAiStatus = ItemAiStatus | "seguido";
+export type EffectiveAiStatus = ItemAiStatus | "seguido" | "cancelado";
 
 export const effectiveItemAiStatus = (
   rawAi: ItemAiStatus | null | undefined,
   groupStatus: PaymentStatus,
+  isCancelled?: boolean | null,
 ): EffectiveAiStatus => {
+  if (isCancelled || groupStatus === "cancelado") return "cancelado";
   const raw = (rawAi ?? "pendente") as ItemAiStatus;
   if (ANALYST_DONE_STATUSES.has(groupStatus) && (raw === "reprovado" || raw === "alerta")) {
     return "seguido";
   }
   return raw;
 };
+
 
 /**
  * Dada a lista de observações do pagamento, descobre quem foi o último a
