@@ -590,6 +590,12 @@ export function PaymentConciliationModal({
     const norm = (s: string | null | undefined) =>
       String(s ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const groups = new Map<string, { ids: string[]; sumQty: number; hasQty: boolean }>();
+    // Fallback direto por id: garante que a QTD EXACTA reflete a quantidade da
+    // própria linha-Exacta (payment_items.quantity) mesmo quando o agrupamento
+    // não produz soma — evita o caso em que a coluna ficava espelhando a qty
+    // hospitalar (porque o group lookup retornava null e algum render anterior
+    // caía no valor de fallback errado).
+    const directById = new Map<string, number>();
     for (const it of paymentItems) {
       const att = String((it as any).attendance_number ?? "").trim();
       const code = String((it as any).procedure_code ?? "").trim();
@@ -604,15 +610,23 @@ export function PaymentConciliationModal({
       let g = groups.get(key);
       if (!g) { g = { ids: [], sumQty: 0, hasQty: false }; groups.set(key, g); }
       g.ids.push(it.id);
-      if (qn != null && Number.isFinite(qn)) { g.sumQty += qn; g.hasQty = true; }
+      if (qn != null && Number.isFinite(qn)) {
+        g.sumQty += qn;
+        g.hasQty = true;
+        directById.set(it.id, qn);
+      }
     }
     const m = new Map<string, number | null>();
     for (const g of groups.values()) {
       const val = g.hasQty ? g.sumQty : null;
       for (const id of g.ids) m.set(id, val);
     }
+    // Sobrepõe com o valor direto da própria linha-Exacta quando disponível —
+    // assim a coluna nunca confunde "soma do grupo" com "qty da linha mapeada".
+    for (const [id, qn] of directById) m.set(id, qn);
     return m;
   }, [paymentItems]);
+
 
 
   // Aliases persistidos das empresas do lote — usados para auto-mapear o "terceiro"
