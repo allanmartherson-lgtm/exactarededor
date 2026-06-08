@@ -2682,14 +2682,17 @@ const PaymentDetail = () => {
               return Math.abs(Number((total - Number(g.total_amount)).toFixed(2))) > 0;
             });
             const blocked = divergentGroups.length > 0;
-            if (groupsReadyToSend.length === 0) return null;
+            const onlyPendentes = groupsReadyToSend.length === 0 && groupsPendingAnalyst.length > 0;
             return (
-              <div className="flex items-center gap-3 px-4 py-2 bg-success-soft border border-success/30 rounded-lg text-sm flex-wrap">
-                <span className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
-                <span className="font-medium text-success">Empresas concluídas pelo analista</span>
+              <div className={`flex items-center gap-3 px-4 py-2 ${onlyPendentes ? "bg-warning-soft border-warning/30" : "bg-success-soft border-success/30"} border rounded-lg text-sm flex-wrap`}>
+                <span className={`w-2 h-2 rounded-full ${onlyPendentes ? "bg-warning" : "bg-success"} flex-shrink-0`} />
+                <span className={`font-medium ${onlyPendentes ? "text-warning-foreground" : "text-success"}`}>
+                  {onlyPendentes ? "Lote pronto para envio em massa" : "Empresas concluídas pelo analista"}
+                </span>
                 <span className="text-muted-foreground text-xs">
-                  — {groupsReadyToSend.length} pronta(s) para envio
-                  {groupsPendingAnalyst.length > 0 && ` · ${groupsPendingAnalyst.length} ainda pendente(s)`}
+                  {onlyPendentes
+                    ? `— ${groupsPendingAnalyst.length} empresa(s) ainda em revisão`
+                    : `— ${groupsReadyToSend.length} pronta(s) para envio${groupsPendingAnalyst.length > 0 ? ` · ${groupsPendingAnalyst.length} ainda pendente(s)` : ""}`}
                 </span>
                 {blocked && (
                   <span className="text-destructive text-xs flex items-center gap-1">
@@ -2701,15 +2704,20 @@ const PaymentDetail = () => {
                   size="sm"
                   disabled={busy || blocked}
                   onClick={() => sendForValidation()}
-                  title={`${groupsReadyToSend.length} empresa(s) serão enviadas para validação.`}
+                  title={
+                    onlyPendentes
+                      ? `Abrir diálogo para concluir e enviar as ${groupsPendingAnalyst.length} empresa(s) do lote.`
+                      : `${groupsReadyToSend.length} empresa(s) serão enviadas para validação.`
+                  }
                   className="ml-auto h-7 px-3 text-xs"
                 >
                   <Send className="h-3.5 w-3.5 mr-1.5" />
-                  Enviar lote para validação
+                  {onlyPendentes ? "Concluir e enviar lote" : "Enviar lote para validação"}
                 </Button>
               </div>
             );
           })()}
+
 
           <AlertDialog open={!!pendingSendState} onOpenChange={(o) => { if (!o) setPendingSendState(null); }}>
             <AlertDialogContent className="max-w-lg">
