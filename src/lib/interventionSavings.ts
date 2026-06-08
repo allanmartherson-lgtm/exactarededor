@@ -15,7 +15,8 @@ export type IntervenorRole =
   | "validador"
   | "analista"
   | "cancelamento_empresa"
-  | "cancelamento_item";
+  | "cancelamento_item"
+  | "cancelamento_conciliacao";
 
 export const ROLE_LABELS: Record<IntervenorRole, string> = {
   diretor: "Diretor",
@@ -23,6 +24,7 @@ export const ROLE_LABELS: Record<IntervenorRole, string> = {
   analista: "Analista",
   cancelamento_empresa: "Cancelamento empresa",
   cancelamento_item: "Cancelamento item",
+  cancelamento_conciliacao: "Cancelamento via conciliação",
 };
 
 export const roleLabel = (r: string): string =>
