@@ -31,6 +31,29 @@ import { logExport } from "@/lib/exportLog";
 
 type Range = 7 | 30 | 90 | 180;
 
+const ROLE_CHIPS: { role: IntervenorRole; hint: string }[] = [
+  {
+    role: "diretor",
+    hint: "Devolução do diretor: ele aprovou pagar um valor diferente do que a regra calculou. Δ = valor da regra − valor pago final. Se ele cortou (pagou menos), entra como economia; se aumentou, entra como perda.",
+  },
+  {
+    role: "validador",
+    hint: "Revisão do supervisor/validador: ajuste feito antes de subir para o diretor. Mesma fórmula de Δ — corte vira economia, aumento vira perda no saldo.",
+  },
+  {
+    role: "analista",
+    hint: "Correção do analista: alteração de valor durante a análise inicial. Δ = valor antigo − valor novo. Reduzir o pagamento gera economia; aumentar gera perda.",
+  },
+  {
+    role: "cancelamento_empresa",
+    hint: "Empresa cancelada no pagamento: todos os itens da PJ deixaram de ser pagos. Entra 100% como economia (o valor que sairia do caixa e não saiu). Itens já reativados são excluídos.",
+  },
+  {
+    role: "cancelamento_item",
+    hint: "Item individual cancelado: linha específica anulada (duplicidade, contestação procedente, etc). Conta 100% do valor bruto como economia. Itens reativados não entram.",
+  },
+];
+
 const downloadCsv = (filename: string, csv: string) => {
   const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
