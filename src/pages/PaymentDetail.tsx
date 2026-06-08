@@ -837,20 +837,24 @@ const PaymentDetail = () => {
     const scope = onlyGroupId ? groups.filter((g) => g.id === onlyGroupId) : groups;
     const prontos = scope.filter((g) => g.status === "concluida_analista" || g.status === "devolvido_analista");
     const pendentes = scope.filter((g) => g.status === "revisao_analista");
-    if (prontos.length === 0) {
+    if (prontos.length === 0 && pendentes.length === 0) {
       toast({
-        title: "Nenhuma empresa concluída",
-        description: "Conclua a análise de ao menos uma empresa antes de enviar o lote.",
+        title: "Nenhuma empresa elegível",
+        description: "Não há empresas em revisão ou concluídas neste lote.",
         variant: "destructive",
       });
       return;
     }
     if (pendentes.length > 0) {
+      // Abre o diálogo mesmo quando não há prontas — única forma de oferecer
+      // "Concluir e enviar todas" quando o analista quer despachar o lote
+      // inteiro sem ter clicado em "Concluir" empresa por empresa.
       setPendingSendState({ prontos, pendentes });
       return;
     }
     await doSendForValidation(prontos);
   };
+
 
   // Analista conclui a análise de várias empresas de uma vez (em massa).
   // Apenas grupos em `revisao_analista` são elegíveis; passam para `concluida_analista`.
