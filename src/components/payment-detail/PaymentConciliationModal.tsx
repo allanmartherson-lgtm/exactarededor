@@ -5163,6 +5163,20 @@ export function PaymentConciliationModal({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {cancelScope && run?.id && paymentId && (
+        <CancelByReconciliationDialog
+          open={!!cancelScope}
+          onOpenChange={(v) => { if (!v) setCancelScope(null); }}
+          runId={run.id}
+          paymentId={paymentId}
+          scope={cancelScope}
+          onCancelled={() => {
+            setCancelScope(null);
+            // Recarrega lista de itens da conciliação para refletir action_taken
+            void reloadItems?.();
+          }}
+        />
+      )}
     </Sheet>
   );
 }
