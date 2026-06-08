@@ -2562,10 +2562,10 @@ const PaymentDetail = () => {
 
 
           {showAnalystActions && groupsPendingAnalyst.length > 0 && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-info-soft border border-info/30 rounded-lg text-sm flex-wrap">
+            <div className="flex items-center gap-3 px-4 py-2 bg-info-soft/90 border border-info/40 rounded-lg text-sm flex-wrap dark:bg-info-soft dark:border-info/50">
               <span className="w-2 h-2 rounded-full bg-info flex-shrink-0" />
-              <span className="font-medium text-muted-foreground">Concluir análise em massa</span>
-              <span className="text-muted-foreground text-xs">
+              <span className="font-semibold text-info-text">Concluir análise em massa</span>
+              <span className="text-info-text/80 text-xs">
                 — {groupsPendingAnalyst.length} empresa(s) ainda em revisão. Selecione várias e finalize de uma vez.
               </span>
               <Button
@@ -2692,12 +2692,12 @@ const PaymentDetail = () => {
             const blocked = divergentGroups.length > 0;
             const onlyPendentes = groupsReadyToSend.length === 0 && groupsPendingAnalyst.length > 0;
             return (
-              <div className={`flex items-center gap-3 px-4 py-2 ${onlyPendentes ? "bg-warning-soft border-warning/30" : "bg-success-soft border-success/30"} border rounded-lg text-sm flex-wrap`}>
+              <div className={`flex items-center gap-3 px-4 py-2 ${onlyPendentes ? "bg-warning-soft/90 border-warning/50 dark:bg-warning-soft dark:border-warning/60" : "bg-success-soft/90 border-success/40 dark:bg-success-soft dark:border-success/50"} border rounded-lg text-sm flex-wrap`}>
                 <span className={`w-2 h-2 rounded-full ${onlyPendentes ? "bg-warning" : "bg-success"} flex-shrink-0`} />
-                <span className={`font-medium ${onlyPendentes ? "text-warning-foreground" : "text-success"}`}>
+                <span className={`font-semibold ${onlyPendentes ? "text-warning-text" : "text-success-text"}`}>
                   {onlyPendentes ? "Lote pronto para envio em massa" : "Empresas concluídas pelo analista"}
                 </span>
-                <span className="text-muted-foreground text-xs">
+                <span className={`text-xs ${onlyPendentes ? "text-warning-text/80" : "text-success-text/80"}`}>
                   {onlyPendentes
                     ? `— ${groupsPendingAnalyst.length} empresa(s) ainda em revisão`
                     : `— ${groupsReadyToSend.length} pronta(s) para envio${groupsPendingAnalyst.length > 0 ? ` · ${groupsPendingAnalyst.length} ainda pendente(s)` : ""}`}
