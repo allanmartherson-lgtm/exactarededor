@@ -837,20 +837,24 @@ const PaymentDetail = () => {
     const scope = onlyGroupId ? groups.filter((g) => g.id === onlyGroupId) : groups;
     const prontos = scope.filter((g) => g.status === "concluida_analista" || g.status === "devolvido_analista");
     const pendentes = scope.filter((g) => g.status === "revisao_analista");
-    if (prontos.length === 0) {
+    if (prontos.length === 0 && pendentes.length === 0) {
       toast({
-        title: "Nenhuma empresa concluída",
-        description: "Conclua a análise de ao menos uma empresa antes de enviar o lote.",
+        title: "Nenhuma empresa elegível",
+        description: "Não há empresas em revisão ou concluídas neste lote.",
         variant: "destructive",
       });
       return;
     }
     if (pendentes.length > 0) {
+      // Abre o diálogo mesmo quando não há prontas — única forma de oferecer
+      // "Concluir e enviar todas" quando o analista quer despachar o lote
+      // inteiro sem ter clicado em "Concluir" empresa por empresa.
       setPendingSendState({ prontos, pendentes });
       return;
     }
     await doSendForValidation(prontos);
   };
+
 
   // Analista conclui a análise de várias empresas de uma vez (em massa).
   // Apenas grupos em `revisao_analista` são elegíveis; passam para `concluida_analista`.
@@ -1345,7 +1349,7 @@ const PaymentDetail = () => {
   const isAdmin = hasRole("admin");
   const showAnalystActions =
     isAdmin || (hasRole("analista") && !hasRole("validador") && !hasRole("diretor"));
-  const canSendForValidation = showAnalystActions && groupsReadyToSend.length > 0;
+  const canSendForValidation = showAnalystActions && (groupsReadyToSend.length > 0 || groupsPendingAnalyst.length > 0);
   const isOwner = payment.created_by === user?.id;
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista", "cancelado"];
   const canCancel = (isOwner || isDiretor || isAnalista) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
@@ -2678,14 +2682,17 @@ const PaymentDetail = () => {
               return Math.abs(Number((total - Number(g.total_amount)).toFixed(2))) > 0;
             });
             const blocked = divergentGroups.length > 0;
-            if (groupsReadyToSend.length === 0) return null;
+            const onlyPendentes = groupsReadyToSend.length === 0 && groupsPendingAnalyst.length > 0;
             return (
-              <div className="flex items-center gap-3 px-4 py-2 bg-success-soft border border-success/30 rounded-lg text-sm flex-wrap">
-                <span className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
-                <span className="font-medium text-success">Empresas concluídas pelo analista</span>
+              <div className={`flex items-center gap-3 px-4 py-2 ${onlyPendentes ? "bg-warning-soft border-warning/30" : "bg-success-soft border-success/30"} border rounded-lg text-sm flex-wrap`}>
+                <span className={`w-2 h-2 rounded-full ${onlyPendentes ? "bg-warning" : "bg-success"} flex-shrink-0`} />
+                <span className={`font-medium ${onlyPendentes ? "text-warning-foreground" : "text-success"}`}>
+                  {onlyPendentes ? "Lote pronto para envio em massa" : "Empresas concluídas pelo analista"}
+                </span>
                 <span className="text-muted-foreground text-xs">
-                  — {groupsReadyToSend.length} pronta(s) para envio
-                  {groupsPendingAnalyst.length > 0 && ` · ${groupsPendingAnalyst.length} ainda pendente(s)`}
+                  {onlyPendentes
+                    ? `— ${groupsPendingAnalyst.length} empresa(s) ainda em revisão`
+                    : `— ${groupsReadyToSend.length} pronta(s) para envio${groupsPendingAnalyst.length > 0 ? ` · ${groupsPendingAnalyst.length} ainda pendente(s)` : ""}`}
                 </span>
                 {blocked && (
                   <span className="text-destructive text-xs flex items-center gap-1">
@@ -2697,15 +2704,20 @@ const PaymentDetail = () => {
                   size="sm"
                   disabled={busy || blocked}
                   onClick={() => sendForValidation()}
-                  title={`${groupsReadyToSend.length} empresa(s) serão enviadas para validação.`}
+                  title={
+                    onlyPendentes
+                      ? `Abrir diálogo para concluir e enviar as ${groupsPendingAnalyst.length} empresa(s) do lote.`
+                      : `${groupsReadyToSend.length} empresa(s) serão enviadas para validação.`
+                  }
                   className="ml-auto h-7 px-3 text-xs"
                 >
                   <Send className="h-3.5 w-3.5 mr-1.5" />
-                  Enviar lote para validação
+                  {onlyPendentes ? "Concluir e enviar lote" : "Enviar lote para validação"}
                 </Button>
               </div>
             );
           })()}
+
 
           <AlertDialog open={!!pendingSendState} onOpenChange={(o) => { if (!o) setPendingSendState(null); }}>
             <AlertDialogContent className="max-w-lg">
@@ -2722,23 +2734,28 @@ const PaymentDetail = () => {
                       ))}
                     </ul>
                     <p>
-                      Você quer concluir essas empresas e enviar tudo junto, ou enviar apenas as {pendingSendState?.prontos.length} já prontas?
+                      {(pendingSendState?.prontos.length ?? 0) > 0
+                        ? `Você quer concluir essas empresas e enviar tudo junto, ou enviar apenas as ${pendingSendState?.prontos.length} já prontas?`
+                        : "Nenhuma empresa foi marcada como concluída ainda. Deseja concluir e enviar todas de uma vez?"}
                     </p>
                   </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="flex-col sm:flex-row gap-2">
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-muted text-foreground hover:bg-muted/80"
-                  onClick={async () => {
-                    const prontos = pendingSendState?.prontos ?? [];
-                    setPendingSendState(null);
-                    await doSendForValidation(prontos);
-                  }}
-                >
-                  Enviar apenas {pendingSendState?.prontos.length} pronta(s)
-                </AlertDialogAction>
+                {(pendingSendState?.prontos.length ?? 0) > 0 && (
+                  <AlertDialogAction
+                    className="bg-muted text-foreground hover:bg-muted/80"
+                    onClick={async () => {
+                      const prontos = pendingSendState?.prontos ?? [];
+                      setPendingSendState(null);
+                      await doSendForValidation(prontos);
+                    }}
+                  >
+                    Enviar apenas {pendingSendState?.prontos.length} pronta(s)
+                  </AlertDialogAction>
+                )}
+
                 <AlertDialogAction
                   onClick={async () => {
                     const prontos = pendingSendState?.prontos ?? [];
