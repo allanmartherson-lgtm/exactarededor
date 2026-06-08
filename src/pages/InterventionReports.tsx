@@ -30,7 +30,7 @@ const GROUPS: { label: string; items: TabDef[] }[] = [
       {
         value: "ajustes",
         label: "Ajustes por intervenção",
-        roles: ["diretor", "admin", "validador"] as const,
+        roles: ["diretor", "admin", "validador", "analista"] as const,
         render: () => <InterventionAdjustments />,
       },
       {
