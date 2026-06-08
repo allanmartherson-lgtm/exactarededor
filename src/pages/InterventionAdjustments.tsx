@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { useHospital } from "@/contexts/HospitalContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -42,7 +42,7 @@ const fmtDate = (s: string) =>
   s ? new Date(s).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
 
 export default function InterventionAdjustments() {
-  const { currentHospitalId } = useHospital();
+  const currentHospitalId = useActiveHospitalId();
   const [range, setRange] = useState<Range>(30);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
