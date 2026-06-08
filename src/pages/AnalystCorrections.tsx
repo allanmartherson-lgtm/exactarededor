@@ -30,6 +30,7 @@ import {
   type InterventionItem,
   type InterventionSavingsResult,
 } from "@/lib/interventionSavings";
+import { logExport } from "@/lib/exportLog";
 
 type Range = 7 | 30 | 90 | 180;
 
