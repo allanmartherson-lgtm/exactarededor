@@ -1449,11 +1449,23 @@ export default function CompanyAnalysis() {
         const sourceTxt = g.cancellation_source === "reconciliacao"
           ? "via conciliação"
           : "manual";
+        const onReactivate = async () => {
+          if (!group) return;
+          setBusy(true);
+          const { error } = await supabase.rpc("reactivate_cancelled_group", { p_group_id: group.id });
+          setBusy(false);
+          if (error) {
+            toast.error("Falha ao reativar", { description: error.message });
+            return;
+          }
+          toast.success("Pagamento reativado. Itens voltaram ao status anterior.");
+          load();
+        };
         return (
-          <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2.5 flex flex-wrap items-center gap-3">
-            <XCircle className="h-4 w-4 text-destructive shrink-0" />
+          <div className="rounded-md border-2 border-destructive/40 bg-destructive/10 px-4 py-3 flex flex-col md:flex-row md:items-center gap-3">
+            <XCircle className="h-5 w-5 text-destructive shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-destructive">
+              <p className="text-sm font-semibold text-destructive">
                 Pagamento cancelado ({sourceTxt}) em {new Date(g.cancelled_at).toLocaleString("pt-BR")}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -1462,29 +1474,25 @@ export default function CompanyAnalysis() {
                 {" "}· Todos os itens foram marcados como cancelados em cascata e não entram em KPI/relatório de aprovação.
               </p>
             </div>
-            {canReactivate && (
+            {canReactivate ? (
               <Button
-                variant="outline"
+                variant="destructive"
                 size="sm"
                 disabled={busy}
-                onClick={async () => {
-                  if (!group) return;
-                  setBusy(true);
-                  const { error } = await supabase.rpc("reactivate_cancelled_group", { p_group_id: group.id });
-                  setBusy(false);
-                  if (error) {
-                    toast.error("Falha ao reativar", { description: error.message });
-                    return;
-                  }
-                  toast.success("Pagamento reativado. Itens voltaram ao status anterior.");
-                  load();
-                }}
+                onClick={onReactivate}
+                className="shrink-0 self-start md:self-auto"
+                data-testid="reactivate-cancelled-group"
               >
                 <Undo2 className="h-4 w-4 mr-1.5" /> Reativar pagamento
               </Button>
+            ) : (
+              <span className="text-[11px] text-muted-foreground shrink-0">
+                Reativação restrita a Supervisor / Diretor / Admin.
+              </span>
             )}
           </div>
         );
+
       })()}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
