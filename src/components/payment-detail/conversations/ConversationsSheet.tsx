@@ -685,6 +685,7 @@ function NewThreadComposer(props: {
 // ──────────────────────────────────────────────────────────────
 function ChatView(props: {
   thread: Thread;
+  paymentId: string;
   profiles: Record<string, string>;
   teamMembers: Array<{ id: string; name: string }>;
   groupName: (gid: string | null) => string;
