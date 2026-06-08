@@ -5173,7 +5173,7 @@ export function PaymentConciliationModal({
           onCancelled={() => {
             setCancelScope(null);
             // Recarrega lista de itens da conciliação para refletir action_taken
-            void reloadItems?.();
+            void loadLatestRun();
           }}
         />
       )}
