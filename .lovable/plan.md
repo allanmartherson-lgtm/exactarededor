@@ -1,52 +1,89 @@
-# KPI Valor Ajustado por Intervenção
+# Cancelamento de pagamento "não-devido"
 
-## Objetivo
-Mensurar o **impacto financeiro líquido em R$** das devoluções/reprovações feitas por diretor e supervisor: quanto o hospital economizou (ou perdeu) porque a intervenção forçou o analista a corrigir o valor pago.
+## Conceito
+Distinguir **3 ações** que hoje viram tudo "exclusão":
 
-## Definições acordadas
-- **Evento gatilho**: devolução ao analista (`payment_observations.status_to = 'devolvido_analista'`) **ou** reprovação item-a-item (observação com `item_id` preenchido) feita por usuário com papel `diretor` ou `supervisor`.
-- **Fórmula**: `ajuste = valor_regra (motor) − valor_pago_final`
-  - `valor_regra` = `payment_items.expected_amount` (vindo do motor)
-  - `valor_pago_final` = `payment_items.gross_amount` após o analista aceitar (`acatado_at` posterior à observação)
-- **Sinal (positivo = bom p/ hospital)**: `+R$` quando o pagamento final ficou ≤ o que o motor recomendava (economia). `−R$` quando o ajuste favoreceu o médico.
-- **Atribuição**: detalhe granular por usuário (autor da observação) + agregado por papel nos KPIs.
-
-## Critério de elegibilidade do item
-Item entra na conta quando **todas** as condições valem:
-1. Existe `payment_observations` com `item_id = item.id` **ou** `company_group_id` cobrindo o item, criada por user com role diretor/supervisor, `status_to='devolvido_analista'` ou observação de reprovação.
-2. Item tem `acatado_at IS NOT NULL` e `acatado_at > observação.created_at` (analista mexeu depois da intervenção).
-3. `expected_amount` e `gross_amount` ambos > 0.
-4. Pagamento já está em status terminal (`pago`, `arquivado`, `aprovado`) — senão é ajuste em aberto.
+| Ação | Significado | Entra no KPI de intervenção? | Status no DB |
+|---|---|---|---|
+| **Excluir** (existente) | Erro/duplicidade — remove o registro | ❌ não | hard delete |
+| **Devolver/Reprovar valor** (existente) | Diretor/supervisor pede correção de valor | ✅ sim | observação |
+| **Cancelar pagamento** (NOVO) | Médico fatura externamente, contrato encerrado, glosa total, decisão jurídica | ❌ não, mas vai pro relatório de **leakage** | `status='cancelado'` + motivo |
 
 ## Backend (1 migration)
-RPC `get_intervention_savings(p_start date, p_end date, p_hospital_id uuid)` retornando:
-- Linha agregada: `total_economia`, `total_perda`, `saldo_liquido`, `itens_ajustados`, `por_papel jsonb`
-- Linha por usuário: `user_id`, `nome`, `papel`, `qtd_itens`, `economia`, `perda`, `saldo`
-- Linha por item (para drill-down): `payment_id`, `item_id`, `obs_id`, `valor_regra`, `valor_pago_final`, `delta`, `autor`, `papel`, `data_intervencao`, `data_acatamento`
 
-Sem nova tabela — tudo deriva de `payment_observations` + `payment_items` + `user_roles`. Sem trigger, sem snapshot novo (já há `ai_analysis_versions` se precisarmos histórico mais profundo no futuro).
+### Novo enum
+```sql
+CREATE TYPE payment_cancellation_reason AS ENUM (
+  'medico_fatura_externamente',
+  'contrato_encerrado',
+  'glosa_total_quitada',
+  'decisao_juridica',
+  'duplicidade_externa',
+  'outro'
+);
+```
+
+### Colunas (idempotentes) em `payment_company_groups` E `payment_items`
+- `cancelled_at timestamptz`
+- `cancelled_by uuid` → `auth.users`
+- `cancellation_reason payment_cancellation_reason`
+- `cancellation_note text`
+- `cancellation_reactivated_at timestamptz`
+- `cancellation_reactivated_by uuid`
+
+`payment_items` ganha também `is_cancelled boolean DEFAULT false` (já que não tem coluna de status).
+
+### RPCs
+- `cancel_company_group_payment(group_id, reason, note)` → seta status=`cancelado` + metadata, cancela em cascata todos os itens do grupo, registra `audit_log`.
+- `cancel_item_payment(item_id, reason, note)` → seta `is_cancelled=true` + metadata. **Trigger** verifica: se todos os itens do grupo viraram cancelados, marca grupo como `cancelado` automaticamente.
+- `reactivate_cancelled_group(group_id)` / `reactivate_cancelled_item(item_id)` → limpa cancelamento, registra reativação.
+- Todas restritas a `analista | validador | diretor | admin` via `has_role`.
+
+### Guard-rails (trigger BEFORE UPDATE)
+- Bloqueia cancelar se já houver `gross_amount > 0` confirmado E `payment.status IN ('pago','lancado','arquivado')`.
+- Bloqueia cancelar se houver NF emitida vinculada (`invoices` com `payment_id`+`company_group_id` em status `nf_recebida/nf_conciliada/lancado`).
+- Reativação só permitida enquanto o lote ainda não foi `pago`.
+
+### Impacto no KPI já existente
+`get_intervention_savings` ganha filtros extras:
+- `payment_items.is_cancelled = false`
+- `payment_company_groups.status <> 'cancelado'`
+
+Assim **garante que cancelamento não polui** o "Ajuste por intervenção".
+
+### Nova RPC para o painel de leakage
+`get_cancelled_payments_summary(start, end, hospital_id)` → retorna agregado por motivo + lista detalhada (grupo, empresa, médico, valor cancelado, autor, data, reativado?). Usado no novo card.
 
 ## Frontend
-1. **Novo card KPI** em:
-   - `src/pages/Kpis.tsx` (painel geral)
-   - `src/pages/ExecutiveDashboard.tsx` (diretor)
-   - `src/pages/AnalystProductivity.tsx` (supervisor já olha aqui)
-   
-   Card mostra: **Saldo líquido (R$)** com setinha verde/vermelha, sublegenda "X itens ajustados após intervenção", delta % vs janela anterior (reusa `deltaPct` de `kpiMetrics.ts`).
 
-2. **Nova página `/relatorios/ajustes-intervencao`** (`src/pages/InterventionAdjustments.tsx`):
-   - Filtros: período, hospital, papel (diretor/supervisor/ambos), usuário.
-   - 3 KPIs no topo: Economia | Perda | Saldo líquido.
-   - Tabela 1 — por usuário (ordenável por saldo).
-   - Tabela 2 — drill-down item-a-item com link para `/pagamentos/:id` e destaque do item.
-   - Export CSV.
-   - Rota registrada em `src/config/navItems.ts` sob "Relatórios", visível só para roles diretor/supervisor/admin.
+### Ações nas telas
+- **`/pagamentos/:id`** (lote): botão "Cancelar pagamento desta empresa" em cada grupo, ao lado de "Excluir" — modal exigindo motivo (Select obrigatório) + nota livre. Tela mostra badge `Cancelado — motivo` em grupos/itens já cancelados, com botão "Reativar" (permissão checada por role).
+- **`/pagamentos/:id/empresa/:groupId`** (CompanyAnalysis): botão "Cancelar item" por linha + bulk "Cancelar selecionados".
 
-3. **Lib pura** `src/lib/interventionSavings.ts` com tipos e helper de formatação — testável isoladamente (`__tests__/interventionSavings.test.ts`).
+### Componentes novos
+- `src/components/payment-detail/CancelPaymentDialog.tsx` — modal único (level=group|item).
+- `src/components/payment-detail/CancelledBadge.tsx` — pill com motivo e tooltip do autor/data.
 
-## Pontos abertos a confirmar antes de codar
-1. **Devolução de lote inteiro** (sem `item_id` nem `company_group_id` — observação a nível de lote): atribuímos o ajuste a **todos** os itens que foram acatados depois? Sugiro **sim, mas só os que tinham `validation_findings` não-vazio** no momento, para não contar ajustes alheios à intervenção.
-2. **Múltiplas intervenções no mesmo item**: contamos o delta uma vez (último estado), atribuído ao **autor da observação mais recente antes do acatamento**. OK?
-3. **Janela temporal padrão** do KPI: 30 dias (alinhado com `/kpis`). OK?
+### Novo card de painel
+`src/components/kpis/CancelledPaymentsCard.tsx` — irmão do `InterventionSavingsCard`, mostra:
+- Valor total cancelado no período.
+- Top 3 motivos com %.
+- Link "Ver relatório" → nova página.
 
-Respondidas essas 3, implemento migration + página + KPIs + testes em uma leva.
+### Nova página
+`src/pages/CancelledPayments.tsx` (rota `/relatorios/pagamentos-cancelados`, mesmas roles que ajustes):
+- 3 KPIs (total cancelado, qtd grupos, qtd itens).
+- Quebra por motivo (gráfico de barras simples).
+- Tabela: data, lote, empresa, médico, valor, motivo, autor, status (cancelado/reativado).
+- Export CSV.
+- Item de menu em Relatórios.
+
+### Lib pura
+`src/lib/cancelledPayments.ts` — tipos + helpers (`summarize`, `groupByReason`, `toCsv`) + suite de testes.
+
+## Pontos a confirmar antes de codar
+1. **Motivos**: a lista acima cobre? Algum motivo extra (ex.: "médico desligado", "pagamento via folha CLT")?
+2. **NF já lançada**: além de bloquear cancelamento, queremos botão "estornar NF antes de cancelar" ou o usuário lida fora do sistema? Sugiro **só bloquear com mensagem clara** nessa fase.
+3. **Reativação parcial**: se eu cancelei o grupo inteiro e quero reativar só 1 item depois, faz sentido? Sugiro **não** — reativação sempre no mesmo nível do cancelamento (mantém auditoria limpa).
+
+Com essas 3 respostas, executo migration + 3 RPCs + 4 componentes + página + testes em uma única leva.

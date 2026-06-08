@@ -17,6 +17,7 @@ import {
   type HistoryLite, type InvoiceLite, type ObsLite, type PaymentLite,
 } from "@/lib/kpiMetrics";
 import InterventionSavingsCard from "@/components/kpis/InterventionSavingsCard";
+import CancelledPaymentsCard from "@/components/kpis/CancelledPaymentsCard";
 
 type Range = 7 | 30 | 90;
 
@@ -195,13 +196,14 @@ const Kpis = () => {
         )}
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <Card className="shadow-card xl:col-span-2">
+          <Card className="shadow-card xl:col-span-2 xl:row-span-2">
             <CardHeader><CardTitle className="text-base">Distribuição por etapa atual</CardTitle></CardHeader>
             <CardContent>
               {loading ? <Skeleton className="h-32" /> : <StageBreakdown payments={myPayments} />}
             </CardContent>
           </Card>
           <InterventionSavingsCard rangeDays={range} />
+          <CancelledPaymentsCard rangeDays={range} />
         </div>
       </div>
     </>
