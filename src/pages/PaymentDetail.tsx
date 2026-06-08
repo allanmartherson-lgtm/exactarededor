@@ -2207,6 +2207,7 @@ const PaymentDetail = () => {
                   if (error) { toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" }); return; }
                   toast({ title: `${approvable.length} empresa(s) aprovada(s)` });
                   await load();
+                  navigate("/pagamentos");
                 } : undefined}
                 onReturn={isDiretor ? async () => {
                   const approvable = groups.filter(g => String(g.status) === "aguardando_aprovacao");
@@ -2218,11 +2219,13 @@ const PaymentDetail = () => {
                     p_author_id: user!.id,
                     p_author_name: profiles[user!.id] ?? user!.email ?? "Diretor",
                     p_message: "Devolvido pelo diretor via briefing de aprovação.",
-                  });
+                    p_lot_level: true,
+                  } as never);
                   setApprovalBusy(false);
                   if (error) { toast({ title: "Falha ao devolver", description: error.message, variant: "destructive" }); return; }
                   toast({ title: `${approvable.length} empresa(s) devolvida(s) ao analista` });
                   await load();
+                  navigate("/pagamentos");
                 } : undefined}
               />}
               <PreAnalysisScoreCard payment={payment} />
@@ -2433,6 +2436,7 @@ const PaymentDetail = () => {
                       if (error) { toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" }); return; }
                       toast({ title: `${approvable.length} empresa(s) aprovada(s)` });
                       await load();
+                      navigate("/pagamentos");
                     } : undefined}
                     onReturn={isDiretor ? async () => {
                       const approvable = groups.filter(g => String(g.status) === "aguardando_aprovacao");
@@ -2444,11 +2448,13 @@ const PaymentDetail = () => {
                         p_author_id: user!.id,
                         p_author_name: profiles[user!.id] ?? user!.email ?? "Diretor",
                         p_message: "Devolvido pelo diretor via briefing de aprovação.",
-                      });
+                        p_lot_level: true,
+                      } as never);
                       setApprovalBusy(false);
                       if (error) { toast({ title: "Falha ao devolver", description: error.message, variant: "destructive" }); return; }
                       toast({ title: `${approvable.length} empresa(s) devolvida(s) ao analista` });
                       await load();
+                      navigate("/pagamentos");
                     } : undefined}
                   />}
                   <PreAnalysisScoreCard payment={payment} />

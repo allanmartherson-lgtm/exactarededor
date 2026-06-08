@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { MessageCircle, Undo2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +48,7 @@ export function PaymentBatchActionsFooter({
   items,
   onDone,
 }: Props) {
+  const navigate = useNavigate();
   const [questionOpen, setQuestionOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -151,6 +153,9 @@ export function PaymentBatchActionsFooter({
     });
     setApproveOpen(false);
     await onDone();
+    // Handoff: depois de aprovar/encaminhar o lote, este perfil não tem mais
+    // ação a tomar aqui — volta para a lista de pagamentos.
+    navigate("/pagamentos");
   };
 
   const doQuestion = async () => {
@@ -219,6 +224,9 @@ export function PaymentBatchActionsFooter({
     toast({ title: `${ids.length} empresa(s) devolvida(s) ao analista` });
     setReturnOpen(false);
     await onDone();
+    // Handoff: devolução é uma ação terminal para validador/diretor — o lote
+    // volta para o analista, então este perfil sai da tela.
+    navigate("/pagamentos");
   };
 
   const toggle = (set: Set<string>, id: string, setter: (s: Set<string>) => void) => {
