@@ -10,7 +10,23 @@
  * e funções puras (resumo + format) para serem testadas isoladamente.
  */
 
-export type IntervenorRole = "diretor" | "validador" | "analista";
+export type IntervenorRole =
+  | "diretor"
+  | "validador"
+  | "analista"
+  | "cancelamento_empresa"
+  | "cancelamento_item";
+
+export const ROLE_LABELS: Record<IntervenorRole, string> = {
+  diretor: "Diretor",
+  validador: "Supervisor",
+  analista: "Analista",
+  cancelamento_empresa: "Cancelamento empresa",
+  cancelamento_item: "Cancelamento item",
+};
+
+export const roleLabel = (r: string): string =>
+  (ROLE_LABELS as Record<string, string>)[r] ?? r;
 
 export interface InterventionSummary {
   economia: number;

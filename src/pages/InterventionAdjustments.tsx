@@ -21,6 +21,7 @@ import {
   impactTone,
   itemsToCsv,
   summarizeItems,
+  roleLabel,
   type InterventionFilters,
   type InterventionSavingsResult,
   type IntervenorRole,
@@ -89,7 +90,7 @@ export default function InterventionAdjustments() {
     <div>
       <PageHeader
         title="Ajustes por intervenção"
-        description="Impacto financeiro em R$ das devoluções e reprovações feitas por diretor e supervisor"
+        description="Impacto financeiro em R$ de devoluções, correções, cancelamentos de item e cancelamentos de empresa"
         icon={Scale}
         showBack
       />
@@ -121,6 +122,8 @@ export default function InterventionAdjustments() {
                   <SelectItem value="diretor">Diretor</SelectItem>
                   <SelectItem value="validador">Supervisor</SelectItem>
                   <SelectItem value="analista">Analista</SelectItem>
+                  <SelectItem value="cancelamento_empresa">Cancelamento empresa</SelectItem>
+                  <SelectItem value="cancelamento_item">Cancelamento item</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -217,7 +220,7 @@ export default function InterventionAdjustments() {
                   <TableRow key={u.user_id}>
                     <TableCell className="font-medium">{u.nome}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{u.role === "diretor" ? "Diretor" : u.role === "analista" ? "Analista" : "Supervisor"}</Badge>
+                      <Badge variant="outline">{roleLabel(u.role)}</Badge>
                     </TableCell>
                     <TableCell className="text-right">{u.qtd_itens}</TableCell>
                     <TableCell className="text-right text-success">{formatCurrency(u.economia)}</TableCell>
@@ -275,7 +278,7 @@ export default function InterventionAdjustments() {
                         <TableCell>
                           <div className="text-sm">{it.autor}</div>
                           <Badge variant="outline" className="text-[10px] mt-0.5">
-                            {it.role === "diretor" ? "Diretor" : it.role === "analista" ? "Analista" : "Supervisor"}
+                            {roleLabel(it.role)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">
