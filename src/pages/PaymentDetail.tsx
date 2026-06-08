@@ -2722,21 +2722,59 @@ const PaymentDetail = () => {
                       ))}
                     </ul>
                     <p>
-                      Deseja enviar apenas as {pendingSendState?.prontos.length} empresa(s) prontas para o validador?
+                      Você quer concluir essas empresas e enviar tudo junto, ou enviar apenas as {pendingSendState?.prontos.length} já prontas?
                     </p>
                   </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
+              <AlertDialogFooter className="flex-col sm:flex-row gap-2">
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
+                  className="bg-muted text-foreground hover:bg-muted/80"
                   onClick={async () => {
                     const prontos = pendingSendState?.prontos ?? [];
                     setPendingSendState(null);
                     await doSendForValidation(prontos);
                   }}
                 >
-                  Enviar {pendingSendState?.prontos.length} empresa(s) prontas
+                  Enviar apenas {pendingSendState?.prontos.length} pronta(s)
+                </AlertDialogAction>
+                <AlertDialogAction
+                  onClick={async () => {
+                    const prontos = pendingSendState?.prontos ?? [];
+                    const pendentes = pendingSendState?.pendentes ?? [];
+                    setPendingSendState(null);
+                    if (pendentes.length > 0) {
+                      setBusy(true);
+                      await autoClaim();
+                      for (const g of pendentes) {
+                        const { error: upErr } = await supabase
+                          .from("payment_company_groups")
+                          .update({ status: "concluida_analista" })
+                          .eq("id", g.id);
+                        if (upErr) {
+                          toast({ title: `Falha ao concluir ${g.company_name}`, description: upErr.message, variant: "destructive" });
+                          continue;
+                        }
+                        await recordObservation({
+                          payment_id: id!,
+                          author_type: "analista",
+                          author_id: user!.id,
+                          message: `[${g.company_name}] Análise concluída em lote junto ao envio para validação.`,
+                          status_from: g.status,
+                          status_to: "concluida_analista",
+                        });
+                      }
+                      setBusy(false);
+                    }
+                    const all = [
+                      ...prontos,
+                      ...pendentes.map((g) => ({ ...g, status: "concluida_analista" as PaymentStatus })),
+                    ];
+                    await doSendForValidation(all);
+                  }}
+                >
+                  Concluir e enviar todas ({(pendingSendState?.prontos.length ?? 0) + (pendingSendState?.pendentes.length ?? 0)})
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
