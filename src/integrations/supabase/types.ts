@@ -7213,6 +7213,10 @@ export type Database = {
         Returns: undefined
       }
       _can_cancel_payment: { Args: { _uid: string }; Returns: boolean }
+      _validate_cancel_target: {
+        Args: { _group_id: string }
+        Returns: undefined
+      }
       accept_payment_item: {
         Args: { _item_id: string; _justification: string }
         Returns: Json
