@@ -46,11 +46,15 @@ const ROLE_CHIPS: { role: IntervenorRole; hint: string }[] = [
   },
   {
     role: "cancelamento_empresa",
-    hint: "Empresa cancelada no pagamento: todos os itens da PJ deixaram de ser pagos. Entra 100% como economia (o valor que sairia do caixa e não saiu). Itens já reativados são excluídos.",
+    hint: "Empresa cancelada manualmente: todos os itens da PJ deixaram de ser pagos por decisão do analista (médico fatura externamente, contrato encerrado, etc). Entra 100% como economia.",
   },
   {
     role: "cancelamento_item",
-    hint: "Item individual cancelado: linha específica anulada (duplicidade, contestação procedente, etc). Conta 100% do valor bruto como economia. Itens reativados não entram.",
+    hint: "Item individual cancelado manualmente: linha específica anulada (duplicidade, contestação procedente, etc). Conta 100% do valor bruto como economia.",
+  },
+  {
+    role: "cancelamento_conciliacao",
+    hint: "Cancelamento disparado pelo motor de conciliação: itens removidos do pagamento porque o atendimento ou a empresa não estava mais na base do hospital. Mantém vínculo com a rodada de conciliação que originou.",
   },
 ];
 
