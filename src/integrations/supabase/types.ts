@@ -7948,16 +7948,28 @@ export type Database = {
         Args: { _debt_id: string }
         Returns: undefined
       }
-      return_groups_to_analyst: {
-        Args: {
-          p_author_id: string
-          p_author_name: string
-          p_group_ids: string[]
-          p_message: string
-          p_payment_id: string
-        }
-        Returns: undefined
-      }
+      return_groups_to_analyst:
+        | {
+            Args: {
+              p_author_id: string
+              p_author_name: string
+              p_group_ids: string[]
+              p_message: string
+              p_payment_id: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_author_id: string
+              p_author_name: string
+              p_group_ids: string[]
+              p_lot_level?: boolean
+              p_message: string
+              p_payment_id: string
+            }
+            Returns: undefined
+          }
       reverse_journal_entry: {
         Args: { p_created_by?: string; p_entry_id: string; p_reason: string }
         Returns: string
