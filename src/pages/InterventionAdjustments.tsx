@@ -120,6 +120,7 @@ export default function InterventionAdjustments() {
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="diretor">Diretor</SelectItem>
                   <SelectItem value="validador">Supervisor</SelectItem>
+                  <SelectItem value="analista">Analista</SelectItem>
                 </SelectContent>
               </Select>
             </div>
