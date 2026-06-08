@@ -1,53 +1,52 @@
+# KPI Valor Ajustado por Intervenção
+
 ## Objetivo
-Acabar com vínculos médico↔PJ em texto livre. Toda menção vira linha em `doctor_companies` (quando o CNPJ existe no cadastro) ou fila de revisão (quando não existe). Cadastros de médico e empresa passam a refletir um ao outro.
+Mensurar o **impacto financeiro líquido em R$** das devoluções/reprovações feitas por diretor e supervisor: quanto o hospital economizou (ou perdeu) porque a intervenção forçou o analista a corrigir o valor pago.
 
-## 1. Edge function `sync-doctor-company-from-notes` (one-shot + on-save)
-- Lê `doctors.notes` (todos), extrai CNPJs com regex (`\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}`) e CRMs.
-- Para cada CNPJ encontrado:
-  - Se existe em `companies.document` → cria linha em `doctor_companies` (idempotente, `ON CONFLICT DO NOTHING`).
-  - Se não existe → grava em nova tabela `doctor_link_suggestions` (status `pending`) para o admin tratar em `/medicos`.
-- Roda uma vez agora (botão "Migrar agora" no painel admin) e em todo `UPDATE doctors.notes` via trigger leve (queue na mesma tabela de sugestões).
+## Definições acordadas
+- **Evento gatilho**: devolução ao analista (`payment_observations.status_to = 'devolvido_analista'`) **ou** reprovação item-a-item (observação com `item_id` preenchido) feita por usuário com papel `diretor` ou `supervisor`.
+- **Fórmula**: `ajuste = valor_regra (motor) − valor_pago_final`
+  - `valor_regra` = `payment_items.expected_amount` (vindo do motor)
+  - `valor_pago_final` = `payment_items.gross_amount` após o analista aceitar (`acatado_at` posterior à observação)
+- **Sinal (positivo = bom p/ hospital)**: `+R$` quando o pagamento final ficou ≤ o que o motor recomendava (economia). `−R$` quando o ajuste favoreceu o médico.
+- **Atribuição**: detalhe granular por usuário (autor da observação) + agregado por papel nos KPIs.
 
-## 2. Tabela `doctor_link_suggestions`
-Colunas: `doctor_id`, `raw_text`, `detected_kind` (cnpj/crm), `detected_value`, `matched_company_id`/`matched_doctor_id` (nullable), `status` (pending/approved/rejected), `resolved_by`, `resolved_at`.
-RLS: admin + diretor.
-Painel em `/medicos` → aba "Pendências de cadastro" recebe novo grupo "Vínculos sugeridos por texto".
+## Critério de elegibilidade do item
+Item entra na conta quando **todas** as condições valem:
+1. Existe `payment_observations` com `item_id = item.id` **ou** `company_group_id` cobrindo o item, criada por user com role diretor/supervisor, `status_to='devolvido_analista'` ou observação de reprovação.
+2. Item tem `acatado_at IS NOT NULL` e `acatado_at > observação.created_at` (analista mexeu depois da intervenção).
+3. `expected_amount` e `gross_amount` ambos > 0.
+4. Pagamento já está em status terminal (`pago`, `arquivado`, `aprovado`) — senão é ajuste em aberto.
 
-## 3. Espelho no modal de empresa (`src/pages/Companies.tsx`)
-Adicionar seção "MÉDICOS VINCULADOS" idêntica em comportamento à do médico:
-- Busca + checkbox lendo/escrevendo `doctor_companies`.
-- Mesmo aviso: "Alterações refletem em tempo real no cadastro do médico."
-- Histórico de vínculos encerrados (mesma fonte usada hoje em `Doctors.tsx`).
+## Backend (1 migration)
+RPC `get_intervention_savings(p_start date, p_end date, p_hospital_id uuid)` retornando:
+- Linha agregada: `total_economia`, `total_perda`, `saldo_liquido`, `itens_ajustados`, `por_papel jsonb`
+- Linha por usuário: `user_id`, `nome`, `papel`, `qtd_itens`, `economia`, `perda`, `saldo`
+- Linha por item (para drill-down): `payment_id`, `item_id`, `obs_id`, `valor_regra`, `valor_pago_final`, `delta`, `autor`, `papel`, `data_intervencao`, `data_acatamento`
 
-## 4. Aba "Vínculos" em ambos os cadastros
-Tab nova no modal de médico **e** no de empresa:
-- Médico → lista de PJs com período (start/end), motivo de encerramento, origem (manual/observação/import).
-- PJ → mesma tabela espelhada com médicos.
-- Reaproveita componente `DoctorCompanyLinksTable` (criar).
+Sem nova tabela — tudo deriva de `payment_observations` + `payment_items` + `user_roles`. Sem trigger, sem snapshot novo (já há `ai_analysis_versions` se precisarmos histórico mais profundo no futuro).
 
-## 5. Renomear "Observações internas" → "Notas operacionais"
-- Label e placeholder alterados.
-- Validador no submit: se detectar CNPJ ou CRM no texto, **abre dialog** "Detectamos uma PJ/CRM. Crie o vínculo formal antes de salvar." com botão "Criar vínculo agora" (abre modal de seleção) ou "É só um lembrete, ignorar" (registra `notes_validated_at` para não avisar de novo no mesmo texto).
-- Renderiza CNPJs/CRMs detectados como chips clicáveis que abrem o modal de vínculo.
+## Frontend
+1. **Novo card KPI** em:
+   - `src/pages/Kpis.tsx` (painel geral)
+   - `src/pages/ExecutiveDashboard.tsx` (diretor)
+   - `src/pages/AnalystProductivity.tsx` (supervisor já olha aqui)
+   
+   Card mostra: **Saldo líquido (R$)** com setinha verde/vermelha, sublegenda "X itens ajustados após intervenção", delta % vs janela anterior (reusa `deltaPct` de `kpiMetrics.ts`).
 
-## 6. Documentação
-- Atualizar `mem://constraints/vinculos-estruturados.md` com os novos pontos de entrada.
-- README curto da edge function.
+2. **Nova página `/relatorios/ajustes-intervencao`** (`src/pages/InterventionAdjustments.tsx`):
+   - Filtros: período, hospital, papel (diretor/supervisor/ambos), usuário.
+   - 3 KPIs no topo: Economia | Perda | Saldo líquido.
+   - Tabela 1 — por usuário (ordenável por saldo).
+   - Tabela 2 — drill-down item-a-item com link para `/pagamentos/:id` e destaque do item.
+   - Export CSV.
+   - Rota registrada em `src/config/navItems.ts` sob "Relatórios", visível só para roles diretor/supervisor/admin.
 
-## Ordem de execução
-1. Migration: tabela `doctor_link_suggestions` + grants + RLS.
-2. Edge function de varredura/sync + botão "Migrar agora" no painel admin.
-3. Painel de revisão das sugestões.
-4. Espelho na tela de empresa.
-5. Aba "Vínculos" reutilizável.
-6. Renomeação + validador de notas.
+3. **Lib pura** `src/lib/interventionSavings.ts` com tipos e helper de formatação — testável isoladamente (`__tests__/interventionSavings.test.ts`).
 
-## Notas técnicas
-- Trigger de inserção automática roda **somente quando CNPJ bate exatamente** no `companies.document` (sem fuzzy) — respeita a regra "Lookup estrito".
-- O texto original em `doctors.notes` **não é apagado**; só recebe um marcador `[vinculado em YYYY-MM-DD]` ao lado do CNPJ promovido, para o analista entender a origem.
-- Edge function reaproveita `src/lib/cnpj.ts` (`onlyDigits`, `formatCNPJ`).
-- Sem default hardcoded: se houver CNPJ ambíguo (ex: empresa inativa, múltiplas matches), vai para sugestão, nunca cria silenciosamente.
+## Pontos abertos a confirmar antes de codar
+1. **Devolução de lote inteiro** (sem `item_id` nem `company_group_id` — observação a nível de lote): atribuímos o ajuste a **todos** os itens que foram acatados depois? Sugiro **sim, mas só os que tinham `validation_findings` não-vazio** no momento, para não contar ajustes alheios à intervenção.
+2. **Múltiplas intervenções no mesmo item**: contamos o delta uma vez (último estado), atribuído ao **autor da observação mais recente antes do acatamento**. OK?
+3. **Janela temporal padrão** do KPI: 30 dias (alinhado com `/kpis`). OK?
 
-## Fora de escopo (próxima onda)
-- Mesma varredura em `companies.notes` e em `payment_observations` (fica para depois).
-- Inferência de CRM em notas (priorizamos CNPJ; CRM em texto livre é raro).
+Respondidas essas 3, implemento migration + página + KPIs + testes em uma leva.
