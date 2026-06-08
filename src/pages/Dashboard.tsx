@@ -1507,6 +1507,10 @@ const Dashboard = () => {
           </p>
         </div>
 
+        <InterventionSavingsCard rangeDays={30} />
+
+
+
         {anomaliesOpen > 0 && (
           <Link to="/anomalias-status" className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive-soft px-4 py-3 hover:bg-destructive/10 transition-colors">
             <div className="flex items-center gap-2 text-sm text-destructive">
@@ -1710,12 +1714,6 @@ const Dashboard = () => {
           </SurfaceCard>
         </section>
 
-        {(isValidador || isDiretor) && (
-          <section aria-labelledby="kpi-intervencao">
-            <SectionLabel>Impacto das intervenções</SectionLabel>
-            <InterventionSavingsCard rangeDays={30} />
-          </section>
-        )}
 
 
 
@@ -1910,6 +1908,10 @@ const Dashboard = () => {
             </p>
           </div>
         </div>
+
+        <InterventionSavingsCard rangeDays={30} />
+
+
 
         {anomaliesOpen > 0 && (
           <Link to="/anomalias-status" className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive-soft px-4 py-3 hover:bg-destructive/10 transition-colors">

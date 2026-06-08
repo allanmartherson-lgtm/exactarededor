@@ -74,16 +74,23 @@ export default function InterventionSavingsCard({ rangeDays = 30, className }: P
     tone === "negative" ? "text-destructive" : "text-muted-foreground";
   const Icon = tone === "negative" ? TrendingDown : tone === "positive" ? TrendingUp : Scale;
 
+  const saldoLabel =
+    tone === "positive"
+      ? "Economia líquida para o hospital"
+      : tone === "negative"
+      ? "Pagamento adicional após revisão"
+      : "Sem impacto líquido no período";
+
   return (
     <Card className={`shadow-card border ${ring} ${className ?? ""}`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-              Valor ajustado por intervenção
+              Impacto das intervenções no pagamento
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Saldo líquido — últimos {rangeDays} dias
+              Quanto a análise da equipe poupou (ou acrescentou) ao hospital — últimos {rangeDays} dias
             </p>
           </div>
           <Icon className={`h-4 w-4 ${accent}`} />
@@ -92,25 +99,38 @@ export default function InterventionSavingsCard({ rangeDays = 30, className }: P
         {loading ? (
           <Skeleton className="h-8 w-40 mt-3" />
         ) : (
-          <div className={`text-2xl font-semibold mt-2 ${accent}`}>
-            {formatCurrency(s.saldo)}
-          </div>
+          <>
+            <div className={`text-2xl font-semibold mt-2 ${accent}`}>
+              {tone === "positive" ? "−" : tone === "negative" ? "+" : ""}
+              {formatCurrency(Math.abs(s.saldo))}
+            </div>
+            <p className={`text-[11px] mt-0.5 font-medium ${accent}`}>{saldoLabel}</p>
+          </>
         )}
 
         {!loading && (
-          <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
-            <div>
-              <span className="text-success">+{formatCurrency(s.economia)}</span> economia
-              {" · "}
-              <span className="text-destructive">−{formatCurrency(s.perda)}</span> perda
+          <div className="mt-3 text-xs text-muted-foreground space-y-1">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 rounded-full bg-success" />
+              <span>
+                <span className="text-success font-medium">{formatCurrency(s.economia)}</span> deixou de ser pago indevidamente
+              </span>
             </div>
-            <div>{s.qtd_itens} item(ns) ajustado(s) após devolução/reprovação</div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 rounded-full bg-destructive" />
+              <span>
+                <span className="text-destructive font-medium">{formatCurrency(s.perda)}</span> acrescido após revisão (ajustes para mais)
+              </span>
+            </div>
+            <div className="text-muted-foreground/80 pt-0.5">
+              {s.qtd_itens} item(ns) impactado(s) por devolução, ajuste ou cancelamento
+            </div>
           </div>
         )}
 
         <div className="mt-3">
           <Button asChild size="sm" variant="outline" className="h-7 text-xs">
-            <Link to="/relatorios/ajustes-intervencao">
+            <Link to="/relatorios/intervencoes?view=ajustes">
               Ver relatório <ArrowRight className="h-3 w-3 ml-1" />
             </Link>
           </Button>
