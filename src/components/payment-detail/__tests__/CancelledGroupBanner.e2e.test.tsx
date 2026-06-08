@@ -88,12 +88,11 @@ describe("CancelledGroupBanner — E2E reativação sem refresh", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    const banner = screen.getByTestId("cancelled-group-banner");
+    expect(screen.getByTestId("cancelled-group-banner")).toBeInTheDocument();
     await user.click(screen.getByTestId("reactivate-cancelled-group"));
 
     // O banner precisa sumir como consequência do re-render reativo,
     // sem nenhuma navegação ou refresh adicional.
-    await waitForElementToBeRemoved(banner);
     expect(screen.queryByTestId("cancelled-group-banner")).not.toBeInTheDocument();
     expect(screen.queryByTestId("reactivate-cancelled-group")).not.toBeInTheDocument();
   });
