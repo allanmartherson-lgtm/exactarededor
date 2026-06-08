@@ -13,9 +13,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import InterventionAdjustments from "./InterventionAdjustments";
 import AnalystCorrections from "./AnalystCorrections";
 import InterventionAudit from "./InterventionAudit";
-import CancelledPayments from "./CancelledPayments";
 
-type TabValue = "ajustes" | "correcoes" | "auditoria" | "cancelados";
+type TabValue = "ajustes" | "correcoes" | "auditoria";
 
 interface TabDef {
   value: TabValue;
@@ -50,12 +49,6 @@ const GROUPS: { label: string; items: TabDef[] }[] = [
         label: "Auditoria de intervenções",
         roles: ["diretor", "admin", "validador"] as const,
         render: () => <InterventionAudit />,
-      },
-      {
-        value: "cancelados",
-        label: "Pagamentos cancelados",
-        roles: ["diretor", "admin", "validador", "analista"] as const,
-        render: () => <CancelledPayments />,
       },
     ],
   },
