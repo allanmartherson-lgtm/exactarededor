@@ -13,9 +13,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import InterventionAdjustments from "./InterventionAdjustments";
 import AnalystCorrections from "./AnalystCorrections";
 import InterventionAudit from "./InterventionAudit";
-import CancelledPayments from "./CancelledPayments";
 
-type TabValue = "ajustes" | "correcoes" | "auditoria" | "cancelados";
+type TabValue = "ajustes" | "correcoes" | "auditoria";
 
 interface TabDef {
   value: TabValue;
