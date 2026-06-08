@@ -7196,6 +7196,14 @@ export type Database = {
         Args: { _dry_run?: boolean }
         Returns: Json
       }
+      bulk_conclude_analyst_groups: {
+        Args: { _group_ids: string[]; _payment_id: string }
+        Returns: {
+          message: string
+          skipped_count: number
+          updated_count: number
+        }[]
+      }
       calculate_payment_audit: { Args: { p_payment_id: string }; Returns: Json }
       calculate_payment_priority: {
         Args: { _payment_id: string }
