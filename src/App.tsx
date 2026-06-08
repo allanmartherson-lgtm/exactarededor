@@ -267,10 +267,12 @@ const App = () => (
                   <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
                   <Route path="/notas-fiscais" element={<NotasFiscaisHub />} />
                   <Route path="/kpis" element={<Kpis />} />
-                  <Route path="/relatorios/ajustes-intervencao" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><InterventionAdjustments /></ProtectedRoute>} />
-                  <Route path="/relatorios/correcoes-analista" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><AnalystCorrections /></ProtectedRoute>} />
-                  <Route path="/relatorios/auditoria-intervencao" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><InterventionAudit /></ProtectedRoute>} />
-                  <Route path="/relatorios/pagamentos-cancelados" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><CancelledPayments /></ProtectedRoute>} />
+                  <Route path="/relatorios/intervencoes" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><InterventionReports /></ProtectedRoute>} />
+                  {/* Compat: rotas antigas redirecionam para a página unificada com a view correta */}
+                  <Route path="/relatorios/ajustes-intervencao" element={<Navigate to="/relatorios/intervencoes?view=ajustes" replace />} />
+                  <Route path="/relatorios/correcoes-analista" element={<Navigate to="/relatorios/intervencoes?view=correcoes" replace />} />
+                  <Route path="/relatorios/auditoria-intervencao" element={<Navigate to="/relatorios/intervencoes?view=auditoria" replace />} />
+                  <Route path="/relatorios/pagamentos-cancelados" element={<Navigate to="/relatorios/intervencoes?view=cancelados" replace />} />
                   <Route path="/relatorios/central" element={<ReportsCentral />} />
                   <Route path="/relatorios/auditoria-exportacoes" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><ExportAudit /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
