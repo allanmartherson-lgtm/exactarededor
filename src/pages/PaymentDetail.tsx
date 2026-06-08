@@ -2772,25 +2772,24 @@ const PaymentDetail = () => {
                     if (pendentes.length > 0) {
                       setBusy(true);
                       await autoClaim();
-                      for (const g of pendentes) {
-                        const { error: upErr } = await supabase
-                          .from("payment_company_groups")
-                          .update({ status: "concluida_analista" })
-                          .eq("id", g.id);
-                        if (upErr) {
-                          toast({ title: `Falha ao concluir ${g.company_name}`, description: upErr.message, variant: "destructive" });
-                          continue;
-                        }
-                        await recordObservation({
-                          payment_id: id!,
-                          author_type: "analista",
-                          author_id: user!.id,
-                          message: `[${g.company_name}] Análise concluída em lote junto ao envio para validação.`,
-                          status_from: g.status,
-                          status_to: "concluida_analista",
-                        });
-                      }
+                      const { data, error } = await supabase.rpc("bulk_conclude_analyst_groups", {
+                        _payment_id: id!,
+                        _group_ids: pendentes.map((g) => g.id),
+                      });
                       setBusy(false);
+                      if (error) {
+                        toast({ title: "Falha ao concluir empresas pendentes", description: error.message, variant: "destructive" });
+                        return;
+                      }
+                      const row = Array.isArray(data) ? data[0] : data;
+                      if (Number(row?.updated_count ?? 0) === 0) {
+                        toast({
+                          title: "Nenhuma empresa foi concluída",
+                          description: row?.message ?? "Verifique permissões e status das empresas.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
                     }
                     const all = [
                       ...prontos,
@@ -2798,6 +2797,7 @@ const PaymentDetail = () => {
                     ];
                     await doSendForValidation(all);
                   }}
+
                 >
                   Concluir e enviar todas ({(pendingSendState?.prontos.length ?? 0) + (pendingSendState?.pendentes.length ?? 0)})
                 </AlertDialogAction>
