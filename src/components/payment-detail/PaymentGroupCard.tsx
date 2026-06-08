@@ -42,7 +42,7 @@ import { scoreAttendance, classifyRisk, scoreItem, calculateFinancialRisk } from
 import { RiskBadge } from "./RiskBadge";
 import { SafeCard } from "@/components/ui/SafeCard";
 import { cn } from "@/lib/utils";
-import CancelPaymentDialog from "@/components/payment-detail/CancelPaymentDialog";
+
 import CancelledBadge from "@/components/payment-detail/CancelledBadge";
 
 export type PaymentGroupCardProps = {
