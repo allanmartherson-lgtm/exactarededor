@@ -30,6 +30,7 @@ import {
   type InterventionItem,
   type InterventionSavingsResult,
 } from "@/lib/interventionSavings";
+import { logExport } from "@/lib/exportLog";
 
 type Range = 7 | 30 | 90 | 180;
 
@@ -143,7 +144,17 @@ export default function AnalystCorrections() {
             </div>
             <Button
               variant="outline"
-              onClick={() => downloadCsv(`correcoes-analista-${range}d.csv`, itemsToCsv(filtered))}
+              onClick={() => {
+                downloadCsv(`correcoes-analista-${range}d.csv`, itemsToCsv(filtered));
+                void logExport({
+                  reportKey: "analyst_corrections",
+                  reportLabel: "Correções em análise",
+                  format: "csv",
+                  filters: { range, search },
+                  hospitalId: currentHospitalId ?? null,
+                  rowCount: filtered.length,
+                });
+              }}
               disabled={filtered.length === 0}
             >
               <Download className="h-4 w-4 mr-2" /> Exportar CSV
