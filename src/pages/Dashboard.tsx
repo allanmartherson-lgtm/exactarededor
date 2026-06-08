@@ -1710,12 +1710,6 @@ const Dashboard = () => {
           </SurfaceCard>
         </section>
 
-        {(isValidador || isDiretor) && (
-          <section aria-labelledby="kpi-intervencao">
-            <SectionLabel>Impacto das intervenções</SectionLabel>
-            <InterventionSavingsCard rangeDays={30} />
-          </section>
-        )}
 
 
 
