@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import CancelByReconciliationDialog, { type CancelScope } from "@/components/payment-detail/CancelByReconciliationDialog";
 import { confirmDialog } from "@/lib/confirm";
 import {
   Table,
@@ -3248,6 +3249,35 @@ export function PaymentConciliationModal({
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
   const pendingCount = hospitalCompanies.filter((t) => !companyMapping[t] || matchLevels[t] === 'medium').length;
 
+  // Estado do diálogo de cancelamento via conciliação
+  const [cancelScope, setCancelScope] = useState<CancelScope | null>(null);
+
+  const openCancelForItem = useCallback((item: ReconciliationItem) => {
+    if (!item.payment_item_id) {
+      toast({ title: "Item sem vínculo de pagamento", description: "Não é possível cancelar — este item não está mais ligado ao pagamento atual.", variant: "destructive" });
+      return;
+    }
+    setCancelScope({
+      type: "items",
+      item_ids: [item.payment_item_id],
+      label: `${item.doctor_name ?? "—"} · ${item.procedure_code ?? "—"} (atend. ${item.attendance_number ?? "—"})`,
+    });
+  }, []);
+
+  const openCancelForAttendance = useCallback((item: ReconciliationItem) => {
+    if (!item.attendance_number || !item.company_name) {
+      toast({ title: "Atendimento incompleto", description: "Item sem atendimento ou empresa.", variant: "destructive" });
+      return;
+    }
+    setCancelScope({
+      type: "attendance",
+      attendance_number: item.attendance_number,
+      company_name: item.company_name,
+      label: `Todos os itens do atendimento ${item.attendance_number} — ${item.company_name}`,
+    });
+  }, []);
+
+
   const handleAction = async (
     item: ReconciliationItem,
     action: 'incorporar_credito' | 'incorporar_debito' | 'marcar_glosa' | 'revisar_manual' | 'ignorar',
@@ -4799,7 +4829,33 @@ export function PaymentConciliationModal({
                                                         Marcar como glosa
                                                       </Button>
                                                     )}
+                                                    {(it.status === 'so_exacta' || it.status === 'empresa_ausente' || it.status === 'possivel_pacote') && it.payment_item_id && (
+                                                      <>
+                                                        <Button
+                                                          size="sm"
+                                                          variant="outline"
+                                                          disabled={actionLoading === it.id}
+                                                          onClick={(e) => { e.stopPropagation(); openCancelForItem(it); }}
+                                                          className="border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                                                        >
+                                                          Cancelar deste pagamento
+                                                        </Button>
+                                                        {it.attendance_number && it.company_name && (
+                                                          <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            disabled={actionLoading === it.id}
+                                                            onClick={(e) => { e.stopPropagation(); openCancelForAttendance(it); }}
+                                                            className="text-destructive hover:bg-destructive/10"
+                                                            title="Cancela todos os itens deste atendimento + empresa"
+                                                          >
+                                                            Cancelar atendimento inteiro
+                                                          </Button>
+                                                        )}
+                                                      </>
+                                                    )}
                                                   </div>
+
                                                 ) : (
                                                   <div className={cn(
                                                     "inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-md text-[11px] font-semibold border",
@@ -5107,6 +5163,20 @@ export function PaymentConciliationModal({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {cancelScope && run?.id && paymentId && (
+        <CancelByReconciliationDialog
+          open={!!cancelScope}
+          onOpenChange={(v) => { if (!v) setCancelScope(null); }}
+          runId={run.id}
+          paymentId={paymentId}
+          scope={cancelScope}
+          onCancelled={() => {
+            setCancelScope(null);
+            // Recarrega lista de itens da conciliação para refletir action_taken
+            void loadLatestRun();
+          }}
+        />
+      )}
     </Sheet>
   );
 }

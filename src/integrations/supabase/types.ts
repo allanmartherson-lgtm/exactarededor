@@ -3516,6 +3516,7 @@ export type Database = {
           cancellation_reason:
             | Database["public"]["Enums"]["payment_cancellation_reason"]
             | null
+          cancellation_source: string | null
           cancelled_at: string | null
           cancelled_by: string | null
           company_id: string | null
@@ -3531,6 +3532,7 @@ export type Database = {
           items_count: number
           liquido_total: number
           payment_id: string
+          reconciliation_run_id: string | null
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
@@ -3550,6 +3552,7 @@ export type Database = {
           cancellation_reason?:
             | Database["public"]["Enums"]["payment_cancellation_reason"]
             | null
+          cancellation_source?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           company_id?: string | null
@@ -3565,6 +3568,7 @@ export type Database = {
           items_count?: number
           liquido_total?: number
           payment_id: string
+          reconciliation_run_id?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
@@ -3584,6 +3588,7 @@ export type Database = {
           cancellation_reason?:
             | Database["public"]["Enums"]["payment_cancellation_reason"]
             | null
+          cancellation_source?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           company_id?: string | null
@@ -3599,6 +3604,7 @@ export type Database = {
           items_count?: number
           liquido_total?: number
           payment_id?: string
+          reconciliation_run_id?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
@@ -3635,6 +3641,13 @@ export type Database = {
             columns: ["payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_company_groups_reconciliation_run_id_fkey"
+            columns: ["reconciliation_run_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -3713,6 +3726,7 @@ export type Database = {
           cancellation_reason:
             | Database["public"]["Enums"]["payment_cancellation_reason"]
             | null
+          cancellation_source: string | null
           cancelled_at: string | null
           cancelled_by: string | null
           company_id: string | null
@@ -3759,6 +3773,7 @@ export type Database = {
           quantity: number | null
           rateio: Json | null
           raw_data: Json | null
+          reconciliation_run_id: string | null
           sector: string | null
           sector_matched_by: string | null
           sector_original: string | null
@@ -3793,6 +3808,7 @@ export type Database = {
           cancellation_reason?:
             | Database["public"]["Enums"]["payment_cancellation_reason"]
             | null
+          cancellation_source?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           company_id?: string | null
@@ -3839,6 +3855,7 @@ export type Database = {
           quantity?: number | null
           rateio?: Json | null
           raw_data?: Json | null
+          reconciliation_run_id?: string | null
           sector?: string | null
           sector_matched_by?: string | null
           sector_original?: string | null
@@ -3873,6 +3890,7 @@ export type Database = {
           cancellation_reason?:
             | Database["public"]["Enums"]["payment_cancellation_reason"]
             | null
+          cancellation_source?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           company_id?: string | null
@@ -3919,6 +3937,7 @@ export type Database = {
           quantity?: number | null
           rateio?: Json | null
           raw_data?: Json | null
+          reconciliation_run_id?: string | null
           sector?: string | null
           sector_matched_by?: string | null
           sector_original?: string | null
@@ -3998,6 +4017,13 @@ export type Database = {
             columns: ["payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_reconciliation_run_id_fkey"
+            columns: ["reconciliation_run_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_runs"
             referencedColumns: ["id"]
           },
           {
@@ -7326,6 +7352,16 @@ export type Database = {
       can_access_hospital: {
         Args: { _hid: string; _uid: string }
         Returns: boolean
+      }
+      cancel_by_reconciliation: {
+        Args: {
+          p_note?: string
+          p_payment_id: string
+          p_reason: Database["public"]["Enums"]["payment_cancellation_reason"]
+          p_run_id: string
+          p_scope: Json
+        }
+        Returns: Json
       }
       cancel_company_group_payment: {
         Args: {
