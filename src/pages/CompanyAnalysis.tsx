@@ -1444,7 +1444,7 @@ export default function CompanyAnalysis() {
         if (!g?.cancelled_at) return null;
         const canReactivate = hasRole("admin") || hasRole("diretor") || hasRole("validador");
         const reasonTxt = g.cancellation_reason
-          ? g.cancellation_reason.replaceAll("_", " ")
+          ? g.cancellation_reason.replace(/_/g, " ")
           : "—";
         const sourceTxt = g.cancellation_source === "reconciliacao"
           ? "via conciliação"
