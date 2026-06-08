@@ -23,6 +23,7 @@ const item = (over: Partial<InterventionItem>): InterventionItem => ({
   procedure_code: "12345678",
   procedure_name: "Endoscopia",
   company_name: "Clínica X",
+  company_group_id: null,
   ...over,
 });
 
