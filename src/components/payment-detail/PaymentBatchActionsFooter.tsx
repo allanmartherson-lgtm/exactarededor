@@ -224,6 +224,9 @@ export function PaymentBatchActionsFooter({
     toast({ title: `${ids.length} empresa(s) devolvida(s) ao analista` });
     setReturnOpen(false);
     await onDone();
+    // Handoff: devolução é uma ação terminal para validador/diretor — o lote
+    // volta para o analista, então este perfil sai da tela.
+    navigate("/pagamentos");
   };
 
   const toggle = (set: Set<string>, id: string, setter: (s: Set<string>) => void) => {
