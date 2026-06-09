@@ -1708,6 +1708,7 @@ const NewPayment = () => {
                 <p className="text-[11px] text-muted-foreground">
                   Apenas comercial — define só o prazo de pagamento. Não afeta cálculos ou status. Usado para segmentar relatórios.
                 </p>
+              </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Centro de custos (padrão do lote)</Label>
                 <CostCenterCombobox value={costCenterCode} onChange={setCostCenterCode} placeholder="Buscar por código P12 ou nome…" />
