@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ShieldAlert, ArrowRight, AlertTriangle, DollarSign, Layers, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
+import type { TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 
 type RuleAgg = {
   rule_name: string;
@@ -22,17 +23,24 @@ type Totals = {
 
 const EMPTY: Totals = { alertas: 0, valor: 0, acatados: 0, lotes: 0, byRule: new Map() };
 
-export function ValidationRiskSection() {
+export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterValue } = {}) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Totals>(EMPTY);
 
   useEffect(() => {
+    setLoading(true);
     (async () => {
-      const { data: items } = await supabase
+      let q = supabase
         .from("payment_items")
-        .select("gross_amount, payment_id, validation_findings, ai_status")
+        .select("gross_amount, payment_id, validation_findings, ai_status, payments!inner(payment_track)")
         .not("validation_findings", "is", null)
         .neq("validation_findings", "[]");
+      if (track === "habitual" || track === "prioritario") {
+        q = q.eq("payments.payment_track", track);
+      } else if (track === "nao_classificado") {
+        q = q.is("payments.payment_track", null);
+      }
+      const { data: items } = await q;
 
       const byRule = new Map<string, RuleAgg>();
       const allLotes = new Set<string>();
@@ -41,10 +49,10 @@ export function ValidationRiskSection() {
       let totalAcatados = 0;
 
       for (const it of items ?? []) {
-        const findings = it.validation_findings as any[];
+        const findings = (it as { validation_findings: unknown }).validation_findings as unknown[];
         if (!Array.isArray(findings)) continue;
-        const isAcatado = (it as any).ai_status === "acatado";
-        for (const f of findings) {
+        const isAcatado = (it as { ai_status?: string }).ai_status === "acatado";
+        for (const f of findings as Array<{ rule_id?: string; rule_name?: string }>) {
           const key = f.rule_id || f.rule_name;
           if (!key) continue;
           const cur = byRule.get(key) ?? {
@@ -55,14 +63,15 @@ export function ValidationRiskSection() {
             lotes: new Set<string>(),
           };
           cur.alertas += 1;
-          cur.valor += Number(it.gross_amount ?? 0);
+          cur.valor += Number((it as { gross_amount: number | null }).gross_amount ?? 0);
           if (isAcatado) cur.acatados += 1;
-          if (it.payment_id) cur.lotes.add(it.payment_id);
+          const pid = (it as { payment_id?: string }).payment_id;
+          if (pid) cur.lotes.add(pid);
           byRule.set(key, cur);
           totalAlertas += 1;
-          totalValor += Number(it.gross_amount ?? 0);
+          totalValor += Number((it as { gross_amount: number | null }).gross_amount ?? 0);
           if (isAcatado) totalAcatados += 1;
-          if (it.payment_id) allLotes.add(it.payment_id);
+          if (pid) allLotes.add(pid);
         }
       }
 
@@ -75,7 +84,7 @@ export function ValidationRiskSection() {
       });
       setLoading(false);
     })();
-  }, []);
+  }, [track]);
 
   if (loading) {
     return (
