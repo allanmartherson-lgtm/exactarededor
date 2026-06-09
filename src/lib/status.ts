@@ -255,6 +255,26 @@ export const PAYMENT_KIND_LABELS: Record<PaymentKind, string> = {
   misto: "Misto (atual + pendência)",
 };
 
+// Trilha comercial de pagamento — define APENAS o fluxo (prazo) de pagamento.
+// Não impacta cálculos, regras ou status de análise. É usado para segmentar
+// relatórios e comparar lotes da mesma trilha (habitual vs habitual).
+export type PaymentTrack = Database["public"]["Enums"]["payment_track"];
+
+export const PAYMENT_TRACK_LABELS: Record<PaymentTrack, string> = {
+  prioritario: "Pagamento Prioritário",
+  habitual: "Pagamento Habitual",
+};
+
+export const PAYMENT_TRACK_SHORT_LABELS: Record<PaymentTrack, string> = {
+  prioritario: "Prioritário",
+  habitual: "Habitual",
+};
+
+export const PAYMENT_TRACK_DESCRIPTIONS: Record<PaymentTrack, string> = {
+  prioritario: "Empresa estratégica — pagamento antecipado em relação ao prazo padrão.",
+  habitual: "Pagamento dentro do prazo comercial padrão.",
+};
+
 const MONTH_FMT = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
 const MONTH_SHORT_FMT = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit", timeZone: "UTC" });
 
