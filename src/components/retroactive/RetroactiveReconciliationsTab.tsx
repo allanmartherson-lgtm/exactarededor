@@ -970,11 +970,12 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
         {(
           [
             ["ok_pago", "OK pago"],
             ["pago_a_menos", "Pago a menos"],
+            ["pago_a_mais", "Pago a mais"],
             ["tuss_divergente", "TUSS divergente"],
             ["nao_pago", "Não pago"],
             ["pago_outro_mes", "Outro mês"],
