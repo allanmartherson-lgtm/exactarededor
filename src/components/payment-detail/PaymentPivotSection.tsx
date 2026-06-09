@@ -131,6 +131,18 @@ export function PaymentPivotSection({
   // Secundário (drilldown): controlado pelo usuário via "Customizar".
   // Default no compacto = derivação histórica (empresa↔especialidade). No executivo = null.
   const [secondary, setSecondary] = useState<GroupingField | null>(null);
+  // Ordenação da tabela. key = "label" | "delta" | "<month-iso>".
+  // Default: maior valor do mês atual (mesmo comportamento anterior).
+  const [sortKey, setSortKey] = useState<string>("__current__");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "label" ? "asc" : "desc");
+    }
+  };
 
   useEffect(() => {
     if (variant === "detalhe") return;
