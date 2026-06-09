@@ -105,10 +105,16 @@ Deno.serve(async (req) => {
     if (paidErr) throw paidErr;
 
     const paidByKey = new Map<string, typeof paid>();
+    const paidByAttendance = new Map<string, typeof paid>();
     for (const p of paid ?? []) {
-      const k = `${normAtt(p.attendance_number)}|${normCode(p.procedure_code)}`;
+      const att = normAtt(p.attendance_number);
+      const k = `${att}|${normCode(p.procedure_code)}`;
       if (!paidByKey.has(k)) paidByKey.set(k, []);
       paidByKey.get(k)!.push(p);
+      if (att) {
+        if (!paidByAttendance.has(att)) paidByAttendance.set(att, []);
+        paidByAttendance.get(att)!.push(p);
+      }
     }
 
     await supabase
@@ -118,6 +124,18 @@ Deno.serve(async (req) => {
 
     const rowsToInsert: Array<Record<string, unknown>> = [];
     const summary = {
+      total: items.length,
+      ok_pago: 0,
+      pago_a_menos: 0,
+      nao_pago: 0,
+      pago_outro_mes: 0,
+      sem_lastro: 0,
+      tuss_divergente: 0,
+      total_claimed: 0,
+      total_paid: 0,
+      total_gap: 0,
+    };
+
       total: items.length,
       ok_pago: 0,
       pago_a_menos: 0,
