@@ -104,6 +104,49 @@ function kpiCardBg(deltaPct: number) {
   return "bg-muted";
 }
 
+function SortableTh({
+  children,
+  align,
+  active,
+  dir,
+  onClick,
+}: {
+  children: React.ReactNode;
+  align: "left" | "right";
+  active: boolean;
+  dir: "asc" | "desc";
+  onClick: () => void;
+}) {
+  const Icon = !active ? ArrowUpDown : dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th
+      data-pivot-th=""
+      className={cn(
+        "px-3 py-2 text-[11px] font-medium uppercase tracking-wide select-none cursor-pointer hover:bg-primary/10 transition-colors",
+        align === "left" ? "text-left" : "text-right tabular-nums",
+      )}
+      onClick={onClick}
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <span
+        className={cn(
+          "inline-flex items-center gap-1",
+          align === "right" ? "justify-end" : "",
+        )}
+      >
+        {children}
+        <Icon
+          className={cn(
+            "h-3 w-3 shrink-0",
+            active ? "text-foreground" : "text-muted-foreground/40",
+          )}
+        />
+      </span>
+    </th>
+  );
+}
+
+
 export function PaymentPivotSection({
   paymentId,
   paymentReference: _ref,
