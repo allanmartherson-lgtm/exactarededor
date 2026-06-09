@@ -523,11 +523,40 @@ function NewView({
         <ArrowLeftIcon className="h-4 w-4 mr-1" /> Voltar
       </Button>
       <h3 className="text-lg font-semibold">Nova apuração retroativa</h3>
-      <p className="text-xs text-muted-foreground -mt-2">
-        Informe o médico, a PJ, ou ambos. Médico sempre está vinculado a uma PJ — selecionar a PJ
-        restringe o cruzamento aos pagamentos daquela empresa.
+
+      <div className="rounded-lg border border-border bg-card p-3">
+        <Label className="text-xs">Modo de apuração</Label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1.5">
+          {([
+            ["alegacao_medico", "Alegação do médico", "Médico/PJ informa o que faltou — cruza com o que já foi pago no sistema."],
+            ["tasy_vs_repasse", "TASY vs Repasse", "Compara base TASY (realizado) com arquivo(s) de repasse do convênio. Análise ad-hoc, sem cruzamento com Supabase."],
+          ] as const).map(([k, lbl, desc]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setMode(k)}
+              className={cn(
+                "text-left rounded-md border px-3 py-2 transition-colors",
+                mode === k ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40",
+              )}
+            >
+              <div className="text-sm font-medium flex items-center gap-2">
+                {mode === k && <CheckIcon className="h-3.5 w-3.5 text-primary" />}
+                {lbl}
+              </div>
+              <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground -mt-1">
+        {mode === "alegacao_medico"
+          ? "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa."
+          : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração."}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
         <div className="md:col-span-2">
           <Label>Médico</Label>
           <Popover open={docOpen} onOpenChange={setDocOpen}>
