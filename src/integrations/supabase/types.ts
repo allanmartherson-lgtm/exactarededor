@@ -6199,10 +6199,11 @@ export type Database = {
       retroactive_reconciliations: {
         Row: {
           adjustment_ids: string[]
+          company_id: string | null
           concluded_at: string | null
           created_at: string
           created_by: string | null
-          doctor_id: string
+          doctor_id: string | null
           hospital_id: string
           id: string
           notes: string | null
@@ -6215,10 +6216,11 @@ export type Database = {
         }
         Insert: {
           adjustment_ids?: string[]
+          company_id?: string | null
           concluded_at?: string | null
           created_at?: string
           created_by?: string | null
-          doctor_id: string
+          doctor_id?: string | null
           hospital_id: string
           id?: string
           notes?: string | null
@@ -6231,10 +6233,11 @@ export type Database = {
         }
         Update: {
           adjustment_ids?: string[]
+          company_id?: string | null
           concluded_at?: string | null
           created_at?: string
           created_by?: string | null
-          doctor_id?: string
+          doctor_id?: string | null
           hospital_id?: string
           id?: string
           notes?: string | null
@@ -6246,6 +6249,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "retroactive_reconciliations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "retroactive_reconciliations_doctor_id_fkey"
             columns: ["doctor_id"]

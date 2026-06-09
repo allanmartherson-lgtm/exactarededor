@@ -39,14 +39,38 @@ import {
   PlayIcon,
   FileCheckIcon,
   UploadCloudIcon,
+  CheckIcon,
+  ChevronsUpDownIcon,
 } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 
 type Doctor = { id: string; full_name: string; crm: string; crm_uf: string };
+type Company = { id: string; name: string; document: string | null };
 
 type ReconRow = {
   id: string;
-  doctor_id: string;
+  doctor_id: string | null;
+  company_id: string | null;
   period_start: string;
   period_end: string;
   status: "em_analise" | "concluida" | "cancelada";
@@ -265,46 +289,73 @@ export default function RetroactiveReconciliationsTab() {
 function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () => void }) {
   const [items, setItems] = useState<ReconRow[]>([]);
   const [doctors, setDoctors] = useState<Record<string, string>>({});
+  const [companies, setCompanies] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [toDelete, setToDelete] = useState<ReconRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    void (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("retroactive_reconciliations" as never)
-        .select(
-          "id, doctor_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at",
-        )
-        .order("created_at", { ascending: false })
-        .limit(200);
-      const list = (data ?? []) as unknown as ReconRow[];
-      setItems(list);
-      const docIds = Array.from(new Set(list.map((r) => r.doctor_id)));
-      if (docIds.length > 0) {
-        const { data: docs } = await supabase
-          .from("doctors")
-          .select("id, full_name")
-          .in("id", docIds);
-        const m: Record<string, string> = {};
-        (docs ?? []).forEach((d: { id: string; full_name: string }) => {
-          m[d.id] = d.full_name;
-        });
-        setDoctors(m);
-      }
-      setLoading(false);
-    })();
-  }, []);
+  const reload = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("retroactive_reconciliations" as never)
+      .select(
+        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    const list = (data ?? []) as unknown as ReconRow[];
+    setItems(list);
+    const docIds = Array.from(new Set(list.map((r) => r.doctor_id).filter(Boolean))) as string[];
+    const compIds = Array.from(new Set(list.map((r) => r.company_id).filter(Boolean))) as string[];
+    if (docIds.length > 0) {
+      const { data: docs } = await supabase.from("doctors").select("id, full_name").in("id", docIds);
+      const m: Record<string, string> = {};
+      (docs ?? []).forEach((d: { id: string; full_name: string }) => { m[d.id] = d.full_name; });
+      setDoctors(m);
+    }
+    if (compIds.length > 0) {
+      const { data: cs } = await supabase.from("companies").select("id, name").in("id", compIds);
+      const m: Record<string, string> = {};
+      (cs ?? []).forEach((c: { id: string; name: string }) => { m[c.id] = c.name; });
+      setCompanies(m);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { void reload(); }, []);
+
+  const canDelete = (r: ReconRow) =>
+    r.status !== "concluida" && (!r.adjustment_ids || r.adjustment_ids.length === 0);
+
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    setDeleting(true);
+    // Delete items first (FK), then the recon
+    await supabase
+      .from("retroactive_reconciliation_items" as never)
+      .delete()
+      .eq("reconciliation_id", toDelete.id);
+    const { error } = await supabase
+      .from("retroactive_reconciliations" as never)
+      .delete()
+      .eq("id", toDelete.id);
+    setDeleting(false);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Apuração excluída" });
+    setToDelete(null);
+    await reload();
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-foreground">
-            Conciliação retroativa
-          </h3>
+          <h3 className="text-lg font-semibold text-foreground">Conciliação retroativa</h3>
           <p className="text-sm text-muted-foreground">
-            Apure faltas alegadas pelo médico em competências anteriores cruzando
-            com o que já foi pago.
+            Apure faltas alegadas pelo médico ou PJ em competências anteriores cruzando com o que já foi pago.
           </p>
         </div>
         <Button onClick={onNew} size="sm">
@@ -317,61 +368,84 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
           <TableHeader>
             <TableRow>
               <TableHead>Aberta em</TableHead>
-              <TableHead>Médico</TableHead>
+              <TableHead>Escopo</TableHead>
               <TableHead>Período</TableHead>
               <TableHead>Itens</TableHead>
               <TableHead>A complementar</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={6}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
+                <TableCell colSpan={7}><Skeleton className="h-5 w-full" /></TableCell>
               </TableRow>
             )}
             {!loading && items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                   Nenhuma apuração retroativa ainda.
                 </TableCell>
               </TableRow>
             )}
-            {!loading &&
-              items.map((r) => (
-                <TableRow
-                  key={r.id}
-                  className="cursor-pointer hover:bg-muted/40"
-                  onClick={() => onOpen(r.id)}
-                >
+            {!loading && items.map((r) => {
+              const scope = [
+                r.doctor_id ? doctors[r.doctor_id] ?? "Médico" : null,
+                r.company_id ? companies[r.company_id] ?? "PJ" : null,
+              ].filter(Boolean).join(" · ");
+              const deletable = canDelete(r);
+              return (
+                <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => onOpen(r.id)}>
                   <TableCell className="text-[12.5px] whitespace-nowrap">
                     {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                   </TableCell>
-                  <TableCell className="font-medium">{doctors[r.doctor_id] ?? "—"}</TableCell>
+                  <TableCell className="font-medium">{scope || "—"}</TableCell>
                   <TableCell className="text-[12.5px]">
-                    {format(new Date(r.period_start), "dd/MM/yy")} →{" "}
-                    {format(new Date(r.period_end), "dd/MM/yy")}
+                    {format(new Date(r.period_start), "dd/MM/yy")} → {format(new Date(r.period_end), "dd/MM/yy")}
                   </TableCell>
                   <TableCell>{r.summary?.total ?? 0}</TableCell>
-                  <TableCell className="font-semibold">
-                    {brl(r.summary?.total_gap)}
-                  </TableCell>
+                  <TableCell className="font-semibold">{brl(r.summary?.total_gap)}</TableCell>
                   <TableCell>
                     <Badge variant={r.status === "concluida" ? "outline" : "default"}>
-                      {r.status === "concluida"
-                        ? "Concluída"
-                        : r.status === "cancelada"
-                          ? "Cancelada"
-                          : "Em análise"}
+                      {r.status === "concluida" ? "Concluída" : r.status === "cancelada" ? "Cancelada" : "Em análise"}
                     </Badge>
                   </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={!deletable}
+                      title={deletable ? "Excluir apuração" : "Apuração com ajuste gerado não pode ser excluída"}
+                      onClick={() => setToDelete(r)}
+                    >
+                      <Trash2Icon className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir apuração retroativa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove a apuração e todos os itens cruzados. Não afeta pagamentos já existentes.
+              Apurações com ajuste de complemento já gerado não podem ser excluídas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleting}>
+              {deleting ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -389,7 +463,11 @@ function NewView({
   onCancel: () => void;
 }) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [doctorId, setDoctorId] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [docOpen, setDocOpen] = useState(false);
+  const [compOpen, setCompOpen] = useState(false);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [title, setTitle] = useState("");
@@ -397,23 +475,41 @@ function NewView({
 
   useEffect(() => {
     void (async () => {
-      const { data } = await supabase
-        .from("doctors")
-        .select("id, full_name, crm, crm_uf")
+      // Pagina para garantir todos os médicos ativos (4k+).
+      const PAGE = 1000;
+      const all: Doctor[] = [];
+      for (let from = 0; from < 10000; from += PAGE) {
+        const { data } = await supabase
+          .from("doctors")
+          .select("id, full_name, crm, crm_uf")
+          .eq("active", true)
+          .order("full_name")
+          .range(from, from + PAGE - 1);
+        const rows = (data ?? []) as Doctor[];
+        all.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      setDoctors(all);
+      const { data: cs } = await supabase
+        .from("companies")
+        .select("id, name, document")
         .eq("active", true)
-        .order("full_name")
-        .limit(2000);
-      setDoctors((data ?? []) as Doctor[]);
+        .order("name")
+        .limit(5000);
+      setCompanies((cs ?? []) as Company[]);
     })();
   }, []);
+
+  const selectedDoctor = doctors.find((d) => d.id === doctorId);
+  const selectedCompany = companies.find((c) => c.id === companyId);
 
   const submit = async () => {
     if (!hospitalId) {
       toast({ title: "Selecione um hospital ativo", variant: "destructive" });
       return;
     }
-    if (!doctorId || !start || !end) {
-      toast({ title: "Preencha médico e período", variant: "destructive" });
+    if ((!doctorId && !companyId) || !start || !end) {
+      toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -427,7 +523,8 @@ function NewView({
       .from("retroactive_reconciliations")
       .insert({
         hospital_id: hospitalId,
-        doctor_id: doctorId,
+        doctor_id: doctorId || null,
+        company_id: companyId || null,
         period_start: start,
         period_end: end,
         title: title || null,
@@ -449,21 +546,116 @@ function NewView({
         <ArrowLeftIcon className="h-4 w-4 mr-1" /> Voltar
       </Button>
       <h3 className="text-lg font-semibold">Nova apuração retroativa</h3>
+      <p className="text-xs text-muted-foreground -mt-2">
+        Informe o médico, a PJ, ou ambos. Médico sempre está vinculado a uma PJ — selecionar a PJ
+        restringe o cruzamento aos pagamentos daquela empresa.
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="md:col-span-2">
           <Label>Médico</Label>
-          <Select value={doctorId} onValueChange={setDoctorId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione…" />
-            </SelectTrigger>
-            <SelectContent>
-              {doctors.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.full_name} ({d.crm}/{d.crm_uf})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover open={docOpen} onOpenChange={setDocOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between font-normal"
+              >
+                <span className={cn("truncate", !selectedDoctor && "text-muted-foreground")}>
+                  {selectedDoctor
+                    ? `${selectedDoctor.full_name} (${selectedDoctor.crm}/${selectedDoctor.crm_uf})`
+                    : "Buscar médico por nome ou CRM…"}
+                </span>
+                <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command
+                filter={(value, search) => {
+                  const s = search.toLowerCase();
+                  return value.toLowerCase().includes(s) ? 1 : 0;
+                }}
+              >
+                <CommandInput placeholder="Digite nome ou CRM…" />
+                <CommandList>
+                  <CommandEmpty>Nenhum médico.</CommandEmpty>
+                  <CommandGroup>
+                    {doctorId && (
+                      <CommandItem
+                        value="__clear__"
+                        onSelect={() => { setDoctorId(""); setDocOpen(false); }}
+                      >
+                        <span className="text-muted-foreground">Limpar seleção</span>
+                      </CommandItem>
+                    )}
+                    {doctors.map((d) => {
+                      const v = `${d.full_name} ${d.crm} ${d.crm_uf}`;
+                      return (
+                        <CommandItem
+                          key={d.id}
+                          value={v}
+                          onSelect={() => { setDoctorId(d.id); setDocOpen(false); }}
+                        >
+                          <CheckIcon className={cn("h-4 w-4 mr-2", doctorId === d.id ? "opacity-100" : "opacity-0")} />
+                          {d.full_name} <span className="ml-1 text-muted-foreground">({d.crm}/{d.crm_uf})</span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="md:col-span-2">
+          <Label>PJ / Empresa</Label>
+          <Popover open={compOpen} onOpenChange={setCompOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between font-normal"
+              >
+                <span className={cn("truncate", !selectedCompany && "text-muted-foreground")}>
+                  {selectedCompany
+                    ? `${selectedCompany.name}${selectedCompany.document ? ` · ${selectedCompany.document}` : ""}`
+                    : "Buscar PJ por nome ou CNPJ…"}
+                </span>
+                <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Digite nome ou CNPJ…" />
+                <CommandList>
+                  <CommandEmpty>Nenhuma PJ.</CommandEmpty>
+                  <CommandGroup>
+                    {companyId && (
+                      <CommandItem
+                        value="__clear__"
+                        onSelect={() => { setCompanyId(""); setCompOpen(false); }}
+                      >
+                        <span className="text-muted-foreground">Limpar seleção</span>
+                      </CommandItem>
+                    )}
+                    {companies.map((c) => {
+                      const v = `${c.name} ${c.document ?? ""}`;
+                      return (
+                        <CommandItem
+                          key={c.id}
+                          value={v}
+                          onSelect={() => { setCompanyId(c.id); setCompOpen(false); }}
+                        >
+                          <CheckIcon className={cn("h-4 w-4 mr-2", companyId === c.id ? "opacity-100" : "opacity-0")} />
+                          {c.name}
+                          {c.document && <span className="ml-1 text-muted-foreground">· {c.document}</span>}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
         <div>
           <Label>De</Label>
@@ -498,6 +690,7 @@ function NewView({
 function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [doctorName, setDoctorName] = useState<string>("");
+  const [companyName, setCompanyName] = useState<string>("");
   const [items, setItems] = useState<ItemRow[]>([]);
   const [drafts, setDrafts] = useState<DraftItem[]>([emptyDraft()]);
   const [pasted, setPasted] = useState("");
@@ -508,7 +701,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     const { data: r } = await supabase
       .from("retroactive_reconciliations" as never)
       .select(
-        "id, doctor_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at",
+        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at",
       )
       .eq("id", id)
       .single();
@@ -521,6 +714,18 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         .eq("id", row.doctor_id)
         .single();
       setDoctorName((d as { full_name?: string } | null)?.full_name ?? "");
+    } else {
+      setDoctorName("");
+    }
+    if (row?.company_id) {
+      const { data: c } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", row.company_id)
+        .single();
+      setCompanyName((c as { name?: string } | null)?.name ?? "");
+    } else {
+      setCompanyName("");
     }
     const { data: its } = await supabase
       .from("retroactive_reconciliation_items" as never)
@@ -649,7 +854,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               {recon.title ?? "Apuração retroativa"}
             </h3>
             <p className="text-xs text-muted-foreground">
-              {doctorName} · {format(new Date(recon.period_start), "dd/MM/yy")} →{" "}
+              {[doctorName, companyName].filter(Boolean).join(" · ") || "—"} · {format(new Date(recon.period_start), "dd/MM/yy")} →{" "}
               {format(new Date(recon.period_end), "dd/MM/yy")}
             </p>
           </div>
