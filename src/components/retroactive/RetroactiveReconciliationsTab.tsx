@@ -776,6 +776,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
           procedure_date: d.procedure_date || null,
           patient_name: d.patient_name || null,
           function_label: d.function_label || null,
+          procedure_name: d.procedure_name || null,
           claimed_amount: d.claimed_amount ? Number(d.claimed_amount) : null,
           claimed_quantity: d.claimed_quantity ? Number(d.claimed_quantity) : 1,
         })),
