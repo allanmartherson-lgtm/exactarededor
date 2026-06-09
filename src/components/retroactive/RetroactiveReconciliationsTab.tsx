@@ -857,7 +857,9 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     const rows = items.map((it) => {
       const div = parseDivergence(it.classification_reason);
       return {
+        Médico: doctorName ?? "",
         Atendimento: it.attendance ?? "",
+
         "TUSS alegado": it.tuss_code ?? "",
         "TUSS pago no atendimento": div.tuss,
         "Valor pago no atendimento (divergência)": div.valor,
