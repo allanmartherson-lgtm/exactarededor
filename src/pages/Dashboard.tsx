@@ -1930,7 +1930,7 @@ const Dashboard = () => {
             <div className={showAcao ? "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch" : ""}>
               <InterventionSavingsCard rangeDays={30} className="h-full" />
               {showAcao && (
-                <div className="h-full">
+                <div className="h-full flex flex-col rounded-lg border bg-card p-4 shadow-card">
                   <ScoreSection title="Ações — Sua Vez" items={acaoItemsD} tone="action" />
                 </div>
               )}
