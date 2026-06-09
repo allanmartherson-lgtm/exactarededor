@@ -688,7 +688,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     const { data: its } = await supabase
       .from("retroactive_reconciliation_items" as never)
       .select(
-        "id, attendance, tuss_code, procedure_date, patient_name, function_label, claimed_amount, claimed_quantity, paid_amount, paid_quantity, expected_amount, gap_amount, matched_payment_date, classification, classification_reason, payment_id",
+        "id, attendance, tuss_code, procedure_date, patient_name, function_label, procedure_name, claimed_amount, claimed_quantity, paid_amount, paid_quantity, expected_amount, gap_amount, matched_payment_date, classification, classification_reason, payment_id",
       )
       .eq("reconciliation_id", id)
       .order("created_at", { ascending: true });
