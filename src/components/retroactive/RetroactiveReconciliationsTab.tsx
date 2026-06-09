@@ -700,6 +700,10 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const [pasted, setPasted] = useState("");
   const [running, setRunning] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [wizard, setWizard] = useState<
+    | { open: false }
+    | { open: true; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
+  >({ open: false });
 
   const load = async () => {
     const { data: r } = await supabase
