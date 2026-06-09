@@ -21,6 +21,7 @@ type InputItem = {
   procedure_date?: string | null;
   patient_name?: string | null;
   function_label?: string | null;
+  procedure_name?: string | null;
   claimed_amount?: number | null;
   claimed_quantity?: number | null;
   raw?: Record<string, unknown>;
