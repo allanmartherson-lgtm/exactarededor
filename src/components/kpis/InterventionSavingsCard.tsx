@@ -84,7 +84,7 @@ export default function InterventionSavingsCard({ rangeDays = 30, className, hid
 
   return (
     <Card className={`shadow-card border ${ring} ${className ?? ""}`}>
-      <CardContent className="p-4">
+      <CardContent style={{ padding: "18px 18px 20px" }}>
         <div className="flex items-start justify-between gap-2">
           <div>
             {!hideHeader && (
@@ -98,11 +98,12 @@ export default function InterventionSavingsCard({ rangeDays = 30, className, hid
               </>
             )}
             {hideHeader && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground leading-tight">
                 Quanto a análise da equipe poupou (ou acrescentou) ao hospital — últimos {rangeDays} dias
               </p>
             )}
           </div>
+
           <Icon className={`h-4 w-4 ${accent}`} />
         </div>
 
