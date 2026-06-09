@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
       .from("retroactive_reconciliation_items")
       .select("id, gap_amount, classification, company_id")
       .eq("reconciliation_id", reconciliation_id)
-      .in("classification", ["nao_pago", "pago_a_menos"]);
+      .in("classification", ["nao_pago", "pago_a_menos", "tuss_divergente"]);
+
     if (itErr) throw itErr;
 
     if (!items || items.length === 0) {
