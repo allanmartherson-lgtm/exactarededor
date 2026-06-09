@@ -749,17 +749,17 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     }
   };
 
-  const applyMapping = (mapped: MappedDraft[]) => {
+  const applyMapping = (mapped: Record<string, string>[]) => {
     const newDrafts: DraftItem[] = mapped.map((m) => ({
       _localId: crypto.randomUUID(),
       source: "upload",
-      attendance: m.attendance,
-      tuss_code: m.tuss_code,
-      procedure_date: m.procedure_date,
-      patient_name: m.patient_name,
-      function_label: m.function_label,
+      attendance: m.attendance ?? "",
+      tuss_code: m.tuss_code ?? "",
+      procedure_date: m.procedure_date ?? "",
+      patient_name: m.patient_name ?? "",
+      function_label: m.function_label ?? "",
       procedure_name: m.procedure_name ?? "",
-      claimed_amount: m.claimed_amount,
+      claimed_amount: m.claimed_amount ?? "",
       claimed_quantity: m.claimed_quantity ?? "",
     }));
     setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...newDrafts]);
