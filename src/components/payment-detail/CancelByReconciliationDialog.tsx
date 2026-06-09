@@ -77,7 +77,7 @@ export default function CancelByReconciliationDialog({
       if (error) {
         const code = error.message || "";
         // Conciliação é ETAPA DE ANÁLISE. Os erros aqui são SOMENTE de análise —
-        // nunca tratamos status de NF neste fluxo (os dois fluxos são separados).
+        // o fluxo de solicitação/conciliação de nota fiscal é separado e não é tratado neste dialog.
         if (code.includes("payment_not_in_analysis_stage"))
           toast.error("Este pagamento já saiu da etapa de análise. Cancelamento via conciliação só é permitido enquanto o lote está em análise.");
         else if (code.includes("cannot_cancel_paid_payment"))
