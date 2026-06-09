@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrendingUp, RefreshCw, AlertCircle, ChevronRight, ExternalLink } from "lucide-react";
+import { PaymentTrackFilter, toRpcTrack, type TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 
 type DreRow = {
   competencia: string;
@@ -51,6 +52,7 @@ const bucketColor: Record<string, string> = {
 export default function DreReport() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [track, setTrack] = useState<TrackFilterValue>("all");
   const [dre, setDre] = useState<DreRow[]>([]);
   const [open, setOpen] = useState<OpenRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -75,6 +77,7 @@ export default function DreReport() {
       p_competencia: row.competencia,
       p_company_id: row.company_id,
       p_doctor_id: row.doctor_id,
+      p_track: toRpcTrack(track),
     });
     if (!error && data) setDrillRows(data as typeof drillRows);
     else setDrillRows([]);
@@ -84,17 +87,19 @@ export default function DreReport() {
 
   const load = async () => {
     setLoading(true);
-    const [dreRes, openRes] = await Promise.all([
-      supabase.rpc("get_dre_consolidated" as any, {
+    const rpcTrack = toRpcTrack(track);
+    const [dreRes, openRes] = (await Promise.all([
+      supabase.rpc("get_dre_consolidated" as never, {
         p_competencia_from: from || null,
         p_competencia_to: to || null,
         p_company_id: null,
         p_doctor_id: null,
-      }),
-      supabase.rpc("get_open_position" as any, { p_company_id: null }),
-    ]);
-    if (dreRes.data) setDre(dreRes.data as unknown as DreRow[]);
-    if (openRes.data) setOpen(openRes.data as unknown as OpenRow[]);
+        p_track: rpcTrack,
+      } as never),
+      supabase.rpc("get_open_position" as never, { p_company_id: null, p_track: rpcTrack } as never),
+    ])) as unknown as [{ data: DreRow[] | null }, { data: OpenRow[] | null }];
+    if (dreRes.data) setDre(dreRes.data);
+    if (openRes.data) setOpen(openRes.data);
     setLoading(false);
   };
 
@@ -138,6 +143,7 @@ export default function DreReport() {
             <Label>Competência até</Label>
             <Input type="month" value={to.slice(0, 7)} onChange={(e) => setTo(e.target.value ? `${e.target.value}-01` : "")} />
           </div>
+          <PaymentTrackFilter value={track} onChange={setTrack} label="Trilha de pagamento" />
           <div className="flex items-end">
             <Button onClick={load} disabled={loading} className="w-full">
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />

@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RefreshCw, AlertCircle, ChevronRight, ExternalLink } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
+import { PaymentTrackFilter, toRpcTrack, type TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 import type { PaymentStatus } from "@/lib/status";
 
 export type DreRow = {
@@ -52,20 +53,26 @@ const bucketColor: Record<string, string> = {
 export function useDreData() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [track, setTrack] = useState<TrackFilterValue>("all");
   const [dre, setDre] = useState<DreRow[]>([]);
   const [open, setOpen] = useState<OpenRow[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
+    const rpcTrack = toRpcTrack(track);
     const [dreRes, openRes] = (await Promise.all([
       supabase.rpc("get_dre_consolidated" as never, {
         p_competencia_from: from || null,
         p_competencia_to: to || null,
         p_company_id: null,
         p_doctor_id: null,
+        p_track: rpcTrack,
       } as never),
-      supabase.rpc("get_open_position" as never, { p_company_id: null } as never),
+      supabase.rpc("get_open_position" as never, {
+        p_company_id: null,
+        p_track: rpcTrack,
+      } as never),
     ])) as unknown as [{ data: DreRow[] | null; error: unknown }, { data: OpenRow[] | null; error: unknown }];
     if (dreRes.error) console.error("get_dre_consolidated error", dreRes.error);
     if (openRes.error) console.error("get_open_position error", openRes.error);
@@ -79,7 +86,7 @@ export function useDreData() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { from, setFrom, to, setTo, dre, open, loading, load };
+  return { from, setFrom, to, setTo, track, setTrack, dre, open, loading, load };
 }
 
 export function DreFilters({
@@ -87,6 +94,8 @@ export function DreFilters({
   setFrom,
   to,
   setTo,
+  track,
+  setTrack,
   loading,
   onReload,
 }: {
@@ -94,6 +103,8 @@ export function DreFilters({
   setFrom: (v: string) => void;
   to: string;
   setTo: (v: string) => void;
+  track: TrackFilterValue;
+  setTrack: (v: TrackFilterValue) => void;
   loading: boolean;
   onReload: () => void;
 }) {
@@ -119,6 +130,7 @@ export function DreFilters({
             onChange={(e) => setTo(e.target.value ? `${e.target.value}-01` : "")}
           />
         </div>
+        <PaymentTrackFilter value={track} onChange={setTrack} label="Trilha de pagamento" />
         <div className="flex items-end">
           <Button onClick={onReload} disabled={loading} className="w-full">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
@@ -157,7 +169,7 @@ export function DreKpis({ dre, open }: { dre: DreRow[]; open: OpenRow[] }) {
   );
 }
 
-export function DreConsolidadoSection({ dre }: { dre: DreRow[] }) {
+export function DreConsolidadoSection({ dre, track = "all" }: { dre: DreRow[]; track?: TrackFilterValue }) {
   const [drillOpen, setDrillOpen] = useState(false);
   const [drillLoading, setDrillLoading] = useState(false);
   const [drillTitle, setDrillTitle] = useState("");
@@ -179,6 +191,7 @@ export function DreConsolidadoSection({ dre }: { dre: DreRow[] }) {
       p_competencia: row.competencia,
       p_company_id: row.company_id,
       p_doctor_id: row.doctor_id,
+      p_track: toRpcTrack(track),
     } as never);
     if (error) console.error("get_dre_drilldown error", error);
     if (!error && data) setDrillRows(data as unknown as typeof drillRows);

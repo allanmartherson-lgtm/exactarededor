@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SurfaceCard, SurfaceCardHeader } from "@/components/shared/SurfacePrimitives";
 import { Users } from "lucide-react";
 import { formatBRL } from "@/lib/financialStats";
+import type { TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 
 interface ItemRow {
   payment_id: string;
@@ -24,23 +25,30 @@ interface Concentration {
   pct: number;
 }
 
-export const DoctorConcentrationTab = () => {
+export const DoctorConcentrationTab = ({ track = "all" }: { track?: TrackFilterValue } = {}) => {
   const [rows, setRows] = useState<ItemRow[] | null>(null);
 
   useEffect(() => {
+    setRows(null);
     (async () => {
       const cutoff = new Date();
       cutoff.setMonth(cutoff.getMonth() - 6);
-      const { data } = await supabase
+      let q = supabase
         .from("payment_items")
-        .select("payment_id,doctor_name,gross_amount,payments!inner(reference,title,status)")
+        .select("payment_id,doctor_name,gross_amount,payments!inner(reference,title,status,payment_track)")
         .gt("gross_amount", 0)
         .gte("created_at", cutoff.toISOString())
         .not("payments.status", "in", '("rascunho","cancelado","rejeitado")')
         .limit(50000);
+      if (track === "habitual" || track === "prioritario") {
+        q = q.eq("payments.payment_track", track);
+      } else if (track === "nao_classificado") {
+        q = q.is("payments.payment_track", null);
+      }
+      const { data } = await q;
       setRows((data as unknown as ItemRow[]) ?? []);
     })();
-  }, []);
+  }, [track]);
 
   const concentrations = useMemo<Concentration[]>(() => {
     if (!rows) return [];
