@@ -1999,21 +1999,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           onConfirm={confirmTasy}
         />
       )}
-
-      {wizard.kind === "pag" && (
-        <RetroactiveMappingWizard
-          open
-          fileName={wizard.fileName}
-          headers={wizard.headers}
-          rows={wizard.rows}
-          targets={REPASSE_TARGETS}
-          initialMapping={pagMapping}
-          showExcludeConsultas={false}
-          dialogTitle="Mapear colunas — Arquivo de Repasse"
-          onCancel={() => setWizard({ kind: "none" })}
-          onConfirm={confirmPag}
-        />
-      )}
     </div>
   );
 }
