@@ -74,12 +74,38 @@ const fmtDate = (s: string) =>
 
 export default function InterventionAdjustments() {
   const currentHospitalId = useActiveHospitalId();
+  const { hasRole } = useAuth();
+  const canReactivate = hasRole("admin") || hasRole("diretor") || hasRole("validador");
   const [params] = useSearchParams();
   const initialRole = (params.get("role") as IntervenorRole | null) ?? "all";
   const [range, setRange] = useState<Range>(30);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
   const [filters, setFilters] = useState<InterventionFilters>({ role: initialRole, userId: "all", search: "" });
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
+
+  const reloadData = async () => {
+    const end = new Date();
+    const start = new Date(end.getTime() - range * 24 * 3600 * 1000);
+    const { data: res, error } = await supabase.rpc("get_intervention_savings", {
+      p_start: start.toISOString(),
+      p_end: end.toISOString(),
+      p_hospital_id: currentHospitalId ?? null,
+    });
+    if (!error) setData((res as unknown as InterventionSavingsResult) ?? emptyResult());
+  };
+
+  const handleReactivate = async (itemId: string) => {
+    setReactivatingId(itemId);
+    const { error } = await supabase.rpc("reactivate_cancelled_item", { p_item_id: itemId });
+    setReactivatingId(null);
+    if (error) {
+      toast.error("Falha ao reativar", { description: error.message });
+      return;
+    }
+    toast.success("Item reativado. O cancelamento foi desfeito.");
+    await reloadData();
+  };
 
 
   useEffect(() => {
