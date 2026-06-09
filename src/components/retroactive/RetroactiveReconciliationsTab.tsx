@@ -810,13 +810,40 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     await load();
   };
 
+  const [statusFilter, setStatusFilter] = useState<ItemRow["classification"] | "all">("all");
+  const filteredItems = useMemo(
+    () => (statusFilter === "all" ? items : items.filter((i) => i.classification === statusFilter)),
+    [items, statusFilter],
+  );
+
+  const exportXlsx = async () => {
+    const XLSX = await import("xlsx");
+    const rows = items.map((it) => ({
+      Atendimento: it.attendance ?? "",
+      TUSS: it.tuss_code ?? "",
+      "Data procedimento": it.procedure_date ?? "",
+      Paciente: it.patient_name ?? "",
+      Função: it.function_label ?? "",
+      "Qtd alegada": it.claimed_quantity ?? "",
+      "Qtd paga": it.paid_quantity ?? "",
+      "Valor alegado": Number(it.claimed_amount ?? 0),
+      "Valor pago": Number(it.paid_amount ?? 0),
+      "Valor esperado": Number(it.expected_amount ?? 0),
+      Gap: Number(it.gap_amount ?? 0),
+      "Data pagamento encontrado": it.matched_payment_date ?? "",
+      Status: CLASS_LABEL[it.classification],
+      Motivo: it.classification_reason ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Apuração");
+    const stamp = format(new Date(), "yyyyMMdd_HHmm");
+    XLSX.writeFile(wb, `apuracao-retroativa_${stamp}.xlsx`);
+  };
+
   const totalComplemento = useMemo(
     () =>
       items
-        .filter((i) => i.classification === "nao_pago" || i.classification === "pago_a_menos")
-        .reduce((s, i) => s + Number(i.gap_amount ?? 0), 0),
-    [items],
-  );
 
   if (!recon)
     return (
