@@ -169,7 +169,7 @@ export function DreKpis({ dre, open }: { dre: DreRow[]; open: OpenRow[] }) {
   );
 }
 
-export function DreConsolidadoSection({ dre }: { dre: DreRow[] }) {
+export function DreConsolidadoSection({ dre, track = "all" }: { dre: DreRow[]; track?: TrackFilterValue }) {
   const [drillOpen, setDrillOpen] = useState(false);
   const [drillLoading, setDrillLoading] = useState(false);
   const [drillTitle, setDrillTitle] = useState("");
@@ -191,6 +191,7 @@ export function DreConsolidadoSection({ dre }: { dre: DreRow[] }) {
       p_competencia: row.competencia,
       p_company_id: row.company_id,
       p_doctor_id: row.doctor_id,
+      p_track: toRpcTrack(track),
     } as never);
     if (error) console.error("get_dre_drilldown error", error);
     if (!error && data) setDrillRows(data as unknown as typeof drillRows);
