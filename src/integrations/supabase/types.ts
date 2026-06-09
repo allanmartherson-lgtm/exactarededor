@@ -4684,6 +4684,7 @@ export type Database = {
           liquido_total: number
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
+          payment_track: Database["public"]["Enums"]["payment_track"] | null
           payment_type: string | null
           priority_score: number
           processing_diagnostics: Json | null
@@ -4722,6 +4723,7 @@ export type Database = {
           liquido_total?: number
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
+          payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
           priority_score?: number
           processing_diagnostics?: Json | null
@@ -4760,6 +4762,7 @@ export type Database = {
           liquido_total?: number
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
+          payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
           priority_score?: number
           processing_diagnostics?: Json | null
@@ -7916,6 +7919,22 @@ export type Database = {
               total: number
             }[]
           }
+        | {
+            Args: {
+              p_current_month: string
+              p_grouping: string
+              p_months_back: number
+              p_payment_id?: string
+              p_secondary?: string
+              p_track?: string
+            }
+            Returns: {
+              group_key: string
+              month_bucket: string
+              parent_key: string
+              total: number
+            }[]
+          }
       get_portal_company_breakdown: {
         Args: { p_doctor_id: string; p_months?: number }
         Returns: {
@@ -8496,6 +8515,7 @@ export type Database = {
         | "em_questionamento"
         | "aprovado_parcial"
         | "revisao_pos_aprovacao"
+      payment_track: "prioritario" | "habitual"
       portal_link_health: "ok" | "orphan_user" | "orphan_target" | "inactive"
       reference_table_kind:
         | "simples"
@@ -8771,6 +8791,7 @@ export const Constants = {
         "aprovado_parcial",
         "revisao_pos_aprovacao",
       ],
+      payment_track: ["prioritario", "habitual"],
       portal_link_health: ["ok", "orphan_user", "orphan_target", "inactive"],
       reference_table_kind: [
         "simples",

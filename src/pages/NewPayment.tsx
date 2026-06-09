@@ -16,7 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
-import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentType, type PaymentKind } from "@/lib/status";
+import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_LABELS, PAYMENT_TRACK_DESCRIPTIONS, type PaymentType, type PaymentKind, type PaymentTrack } from "@/lib/status";
 import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type PaymentAnalysisMode } from "@/lib/status";
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, Pencil, RefreshCw, Calculator } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
@@ -376,6 +376,7 @@ const NewPayment = () => {
   const [paymentDueDate, setPaymentDueDate] = useState(""); // YYYY-MM-DD
   const [paymentType, setPaymentType] = useState<PaymentType | "">("");
   const [paymentKind, setPaymentKind] = useState<PaymentKind | "">("");
+  const [paymentTrack, setPaymentTrack] = useState<PaymentTrack | "">("");
   const [costCenterCode, setCostCenterCode] = useState<string | null>(null);
   const [pSectors, setPSectors] = useState<string[]>([]);
   const [pSpecialties, setPSpecialties] = useState<string[]>([]);
@@ -1268,6 +1269,7 @@ const NewPayment = () => {
         payment_due_date: paymentDueDate || null,
         payment_type: paymentType as PaymentType,
         payment_kind: (paymentKind || null) as PaymentKind | null,
+        payment_track: (paymentTrack || null) as PaymentTrack | null,
         cost_center_code: costCenterCode,
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
@@ -1567,6 +1569,7 @@ const NewPayment = () => {
         items_count: allRows.length,
         payment_type: paymentType,
         payment_kind: paymentKind,
+        payment_track: paymentTrack || null,
         competence_month: `${[...competenceMonths].sort()[0]}-01`,
         competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         sectors: pSectors,
@@ -1686,6 +1689,25 @@ const NewPayment = () => {
                     </SelectContent>
                   </Select>
                 )}
+              </div>
+              <div className="space-y-2">
+                <Label>Trilha de pagamento</Label>
+                <Select value={paymentTrack} onValueChange={(v) => setPaymentTrack(v as PaymentTrack)}>
+                  <SelectTrigger><SelectValue placeholder="Habitual / Prioritário (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PAYMENT_TRACK_LABELS) as PaymentTrack[]).map((k) => (
+                      <SelectItem key={k} value={k}>
+                        <div className="flex flex-col">
+                          <span>{PAYMENT_TRACK_LABELS[k]}</span>
+                          <span className="text-[10px] text-muted-foreground">{PAYMENT_TRACK_DESCRIPTIONS[k]}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Apenas comercial — define só o prazo de pagamento. Não afeta cálculos ou status. Usado para segmentar relatórios.
+                </p>
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Centro de custos (padrão do lote)</Label>

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { PAYMENT_TRACK_SHORT_LABELS, type PaymentTrack } from "@/lib/status";
 
 /**
  * Pivot histórico exibido nas visões "Compacto" (validador) e "Executivo"
@@ -124,6 +125,9 @@ export function PaymentPivotSection({
   const [customOpen, setCustomOpen] = useState(false);
   const [customFields, setCustomFields] = useState<GroupingField[]>([]);
   const [alertsCount, setAlertsCount] = useState<number>(0);
+  // Trilha do lote atual (carregada do DB). Vira o default do filtro.
+  const [lotTrack, setLotTrack] = useState<PaymentTrack | null>(null);
+  const [trackFilter, setTrackFilter] = useState<"auto" | PaymentTrack | "todos">("auto");
   // Secundário (drilldown): controlado pelo usuário via "Customizar".
   // Default no compacto = derivação histórica (empresa↔especialidade). No executivo = null.
   const [secondary, setSecondary] = useState<GroupingField | null>(null);
@@ -140,6 +144,18 @@ export function PaymentPivotSection({
     setLoading(true);
     (async () => {
       const sec: GroupingField | null = secondary && secondary !== grouping ? secondary : null;
+      // Resolve trilha efetiva:
+      //  - "auto" → trilha do lote atual (filtra mesmos lotes); se lote não tem trilha, manda nada (= todos)
+      //  - "todos" → explicitamente desliga o filtro
+      //  - prioritario | habitual → força a trilha escolhida
+      let effectiveTrack: string | null = null;
+      if (trackFilter === "auto") {
+        effectiveTrack = lotTrack ?? null;
+      } else if (trackFilter === "todos") {
+        effectiveTrack = "todos";
+      } else {
+        effectiveTrack = trackFilter;
+      }
       const args: Record<string, unknown> = {
         p_current_month: competenceDate.slice(0, 10),
         p_months_back: monthsBack,
@@ -147,6 +163,7 @@ export function PaymentPivotSection({
       };
       if (sec) args.p_secondary = sec;
       if (paymentId) args.p_payment_id = paymentId;
+      if (effectiveTrack) args.p_track = effectiveTrack;
       const callId = Math.random().toString(36).slice(2, 8);
       console.log(`[PaymentPivot ${callId}] rpc args:`, args);
       const { data, error } = await supabase.rpc("get_payment_pivot", args as {
@@ -155,6 +172,7 @@ export function PaymentPivotSection({
         p_grouping: string;
         p_secondary?: string;
         p_payment_id?: string;
+        p_track?: string;
       });
       if (!alive) return;
       if (error) {
@@ -171,7 +189,25 @@ export function PaymentPivotSection({
     return () => {
       alive = false;
     };
-  }, [variant, grouping, secondary, monthsBack, competenceDate, paymentId]);
+  }, [variant, grouping, secondary, monthsBack, competenceDate, paymentId, trackFilter, lotTrack]);
+
+  // Carrega a trilha do lote atual (uma vez por paymentId).
+  useEffect(() => {
+    if (!paymentId) {
+      setLotTrack(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from("payments")
+        .select("payment_track")
+        .eq("id", paymentId)
+        .maybeSingle();
+      if (alive) setLotTrack((data?.payment_track ?? null) as PaymentTrack | null);
+    })();
+    return () => { alive = false; };
+  }, [paymentId]);
 
 
   // Conta alertas críticos do pagamento atual (somente compacto exibe).
@@ -345,6 +381,22 @@ export function PaymentPivotSection({
           </Button>
 
           <div className="ml-auto flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Trilha</span>
+            <Select value={trackFilter} onValueChange={(v) => setTrackFilter(v as typeof trackFilter)}>
+              <SelectTrigger className="h-7 w-[140px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto" className="text-xs">
+                  {lotTrack
+                    ? `Igual ao lote (${PAYMENT_TRACK_SHORT_LABELS[lotTrack]})`
+                    : "Igual ao lote"}
+                </SelectItem>
+                <SelectItem value="habitual" className="text-xs">Só Habitual</SelectItem>
+                <SelectItem value="prioritario" className="text-xs">Só Prioritário</SelectItem>
+                <SelectItem value="todos" className="text-xs">Todos</SelectItem>
+              </SelectContent>
+            </Select>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Período</span>
             <Select value={String(monthsBack)} onValueChange={(v) => setMonthsBack(Number(v))}>
               <SelectTrigger className="h-7 w-[110px] text-xs">

@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
+import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_SHORT_LABELS, type PaymentStatus, type PaymentType, type PaymentKind, type PaymentTrack } from "@/lib/status";
 import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope, Trash2, SlidersHorizontal, Receipt } from "lucide-react";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
@@ -44,6 +44,7 @@ interface Row {
   payment_due_date: string | null;
   payment_type: PaymentType | null;
   payment_kind: PaymentKind | null;
+  payment_track?: PaymentTrack | null;
   processing_diagnostics?: any;
   processing_timeout_occurred?: boolean;
   priority_score?: number | null;
@@ -172,6 +173,7 @@ type PersistedPaymentsState = Partial<{
   doctorFilter: { id: string; full_name: string; crm: string | null; crm_uf: string | null } | null;
   analystFilter: string;
   typeFilter: string;
+  trackFilter: string;
   statusFilter: string;
   competenceFilter: string;
   view: "lista" | "kanban";
@@ -216,6 +218,7 @@ const Payments = () => {
   const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
   const [analystFilter, setAnalystFilter] = useState<string>(persisted.analystFilter ?? "all");
   const [typeFilter, setTypeFilter] = useState<string>(persisted.typeFilter ?? "all");
+  const [trackFilter, setTrackFilter] = useState<string>(persisted.trackFilter ?? "all");
   const [statusFilter, setStatusFilter] = useState<string>(persisted.statusFilter ?? "all");
   const [competenceFilter, setCompetenceFilter] = useState<string>(persisted.competenceFilter ?? "all");
   const [delayedOnly, setDelayedOnly] = useState(searchParams.get("delayed") === "1");
@@ -294,7 +297,7 @@ const Payments = () => {
     const snapshot: PersistedPaymentsState = {
       page, pageSize, q,
       companyFilter, doctorFilter,
-      analystFilter, typeFilter, statusFilter, competenceFilter,
+      analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
       view, sortBy,
       divergenceFilter, questionedFilter,
       archivedView,
@@ -307,7 +310,7 @@ const Payments = () => {
   }, [
     page, pageSize, q,
     companyFilter, doctorFilter,
-    analystFilter, typeFilter, statusFilter, competenceFilter,
+    analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
     view, sortBy,
     divergenceFilter, questionedFilter,
     archivedView,
@@ -398,7 +401,7 @@ const Payments = () => {
   useEffect(() => {
     setPage(0);
   }, [
-    debouncedQ, companyFilter?.id, doctorFilter?.id, analystFilter, typeFilter,
+    debouncedQ, companyFilter?.id, doctorFilter?.id, analystFilter, typeFilter, trackFilter,
     statusFilter, competenceFilter, delayedOnly, ownerGroup, onlyMine,
     divergenceFilter, questionedFilter, openQuestionOnly, archivedView, pageSize, sortBy,
   ]);
@@ -442,6 +445,7 @@ const Payments = () => {
     const f: Record<string, any> = {};
     if (serverStatuses) f.statuses = serverStatuses;
     if (typeFilter !== "all") f.payment_types = [typeFilter];
+    if (trackFilter !== "all") f.payment_tracks = [trackFilter];
     if (analystFilter !== "all") f.created_by_ids = [analystFilter];
     if (companyFilter?.id) f.company_ids = [companyFilter.id];
     if (doctorFilter?.id) f.doctor_ids = [doctorFilter.id];
@@ -459,7 +463,7 @@ const Payments = () => {
     if (divergenceFilter === "with") f.only_divergence = true;
     if (questionedFilter !== "all") f.with_questions = questionedFilter;
     return f;
-  }, [serverStatuses, typeFilter, analystFilter, companyFilter, doctorFilter,
+  }, [serverStatuses, typeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
       competenceFilter, debouncedQ, delayedOnly, openQuestionOnly,
       divergenceFilter, questionedFilter]);
 
@@ -934,6 +938,20 @@ const Payments = () => {
                   <Building2 className="h-3 w-3" /> {companies} empresa{companies > 1 ? "s" : ""}
                 </Badge>
               )}
+              {p.payment_track && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "gap-1 font-normal",
+                    p.payment_track === "prioritario"
+                      ? "bg-warning-soft text-warning-text border-warning/30"
+                      : "text-muted-foreground",
+                  )}
+                  title={p.payment_track === "prioritario" ? "Trilha prioritária (pagamento antecipado)" : "Trilha habitual"}
+                >
+                  {PAYMENT_TRACK_SHORT_LABELS[p.payment_track]}
+                </Badge>
+              )}
               <Badge
                 variant="outline"
                 className={cn(
@@ -1110,6 +1128,7 @@ const Payments = () => {
           const advancedCount = [
             analystFilter !== "all",
             typeFilter !== "all",
+            trackFilter !== "all",
             competenceFilter !== "all",
             ownerGroup !== "all",
             divergenceFilter !== "all",
@@ -1135,6 +1154,17 @@ const Payments = () => {
                   <SelectContent>
                     <SelectItem value="all">Todos tipos</SelectItem>
                     {Object.entries(PAYMENT_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Trilha</label>
+                <Select value={trackFilter} onValueChange={setTrackFilter}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Trilha" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as trilhas</SelectItem>
+                    <SelectItem value="habitual">{PAYMENT_TRACK_SHORT_LABELS.habitual}</SelectItem>
+                    <SelectItem value="prioritario">{PAYMENT_TRACK_SHORT_LABELS.prioritario}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1252,6 +1282,7 @@ const Payments = () => {
                         onClick={() => {
                           setAnalystFilter("all");
                           setTypeFilter("all");
+                          setTrackFilter("all");
                           setCompetenceFilter("all");
                           setOwnerGroup("all");
                           setDivergenceFilter("all");
@@ -1304,10 +1335,10 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all") && (
+              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || trackFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all") && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
-                  setAnalystFilter("all"); setTypeFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
+                  setAnalystFilter("all"); setTypeFilter("all"); setTrackFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
                   setOwnerGroup("all"); setOnlyMine(false);
                   setDivergenceFilter("all"); setQuestionedFilter("all");
                   setSearchParams(new URLSearchParams(), { replace: true });
