@@ -1335,10 +1335,10 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all") && (
+              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || trackFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all") && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
-                  setAnalystFilter("all"); setTypeFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
+                  setAnalystFilter("all"); setTypeFilter("all"); setTrackFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
                   setOwnerGroup("all"); setOnlyMine(false);
                   setDivergenceFilter("all"); setQuestionedFilter("all");
                   setSearchParams(new URLSearchParams(), { replace: true });
