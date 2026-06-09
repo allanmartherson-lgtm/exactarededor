@@ -138,7 +138,7 @@ export default function RetroactiveMappingWizard({
 
   const { valid, dropped, excluded } = useMemo(() => {
     if (Object.keys(mapping).length === 0) return { valid: [] as MappedDraft[], dropped: 0, excluded: 0 };
-    const descCol = mapping["procedure_description"];
+    const descCol = mapping["procedure_name"];
     let excludedCount = 0;
     const built: MappedDraft[] = [];
     let droppedCount = 0;
@@ -163,6 +163,7 @@ export default function RetroactiveMappingWizard({
         procedure_date: parseCellDate(get("procedure_date")),
         patient_name: String(get("patient_name") ?? "").trim(),
         function_label: String(get("function_label") ?? "").trim(),
+        procedure_name: String(get("procedure_name") ?? "").trim(),
         doctor_hint: String(get("doctor_hint") ?? "").trim(),
         company_hint: String(get("company_hint") ?? "").trim(),
       };
