@@ -144,6 +144,18 @@ export function PaymentPivotSection({
     setLoading(true);
     (async () => {
       const sec: GroupingField | null = secondary && secondary !== grouping ? secondary : null;
+      // Resolve trilha efetiva:
+      //  - "auto" → trilha do lote atual (filtra mesmos lotes); se lote não tem trilha, manda nada (= todos)
+      //  - "todos" → explicitamente desliga o filtro
+      //  - prioritario | habitual → força a trilha escolhida
+      let effectiveTrack: string | null = null;
+      if (trackFilter === "auto") {
+        effectiveTrack = lotTrack ?? null;
+      } else if (trackFilter === "todos") {
+        effectiveTrack = "todos";
+      } else {
+        effectiveTrack = trackFilter;
+      }
       const args: Record<string, unknown> = {
         p_current_month: competenceDate.slice(0, 10),
         p_months_back: monthsBack,
@@ -151,6 +163,7 @@ export function PaymentPivotSection({
       };
       if (sec) args.p_secondary = sec;
       if (paymentId) args.p_payment_id = paymentId;
+      if (effectiveTrack) args.p_track = effectiveTrack;
       const callId = Math.random().toString(36).slice(2, 8);
       console.log(`[PaymentPivot ${callId}] rpc args:`, args);
       const { data, error } = await supabase.rpc("get_payment_pivot", args as {
@@ -159,6 +172,7 @@ export function PaymentPivotSection({
         p_grouping: string;
         p_secondary?: string;
         p_payment_id?: string;
+        p_track?: string;
       });
       if (!alive) return;
       if (error) {
