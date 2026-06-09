@@ -38,7 +38,10 @@ export type CancelledItemsBannerProps = {
 export function CancelledItemsBanner({ items, canReactivate, onReactivated }: CancelledItemsBannerProps) {
   const [expanded, setExpanded] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState(false);
+  // Rastreia individualmente itens em reativação para permitir feedback por linha
+  // e evitar que um clique acidental dispare duas chamadas simultâneas no mesmo id.
+  const [inFlight, setInFlight] = useState<Set<string>>(new Set());
+  const [batchBusy, setBatchBusy] = useState(false);
 
   const cancelled = useMemo(
     () =>
@@ -55,6 +58,7 @@ export function CancelledItemsBanner({ items, canReactivate, onReactivated }: Ca
     .map((it) => it.cancelled_at)
     .filter(Boolean)
     .sort()[0];
+  const anyBusy = batchBusy || inFlight.size > 0;
 
   const toggleAll = () => {
     if (selected.size === cancelled.length) setSelected(new Set());
@@ -68,26 +72,54 @@ export function CancelledItemsBanner({ items, canReactivate, onReactivated }: Ca
   };
 
   const reactivate = async (ids: string[]) => {
-    if (ids.length === 0) return;
-    setBusy(true);
+    // Filtra ids que já estão em vôo para idempotência contra cliques duplos.
+    const targets = ids.filter((id) => !inFlight.has(id));
+    if (targets.length === 0) return;
+
+    const isBatch = targets.length > 1;
+    if (isBatch) setBatchBusy(true);
+    setInFlight((prev) => {
+      const next = new Set(prev);
+      for (const id of targets) next.add(id);
+      return next;
+    });
+
+    const toastId = isBatch ? toast.loading(`Reativando ${targets.length} itens...`) : undefined;
     let ok = 0;
     const errors: string[] = [];
-    for (const itemId of ids) {
+
+    // Sequencial: a RPC toca o mesmo PCG (totais, status); paralelo pode causar
+    // condições de corrida no recálculo. Sequencial é simples e suficiente.
+    for (const itemId of targets) {
       const { error } = await supabase.rpc("reactivate_cancelled_item", { p_item_id: itemId });
-      if (error) errors.push(error.message);
+      if (error) errors.push(`${itemId.slice(0, 8)}: ${error.message}`);
       else ok++;
     }
-    setBusy(false);
-    if (ok > 0) {
-      toast.success(
-        ok === 1 ? "Item reativado" : `${ok} itens reativados`,
-        errors.length ? { description: `${errors.length} falharam` } : undefined,
-      );
+
+    setInFlight((prev) => {
+      const next = new Set(prev);
+      for (const id of targets) next.delete(id);
+      return next;
+    });
+    if (isBatch) setBatchBusy(false);
+
+    if (toastId !== undefined) toast.dismiss(toastId);
+    if (ok > 0 && errors.length === 0) {
+      toast.success(ok === 1 ? "Item reativado" : `${ok} itens reativados`);
+    } else if (ok > 0 && errors.length > 0) {
+      toast.warning(`${ok} reativados, ${errors.length} falharam`, {
+        description: errors[0],
+      });
+    } else {
+      toast.error("Falha ao reativar", { description: errors[0] ?? "Erro desconhecido" });
     }
-    if (errors.length && ok === 0) {
-      toast.error("Falha ao reativar", { description: errors[0] });
-    }
-    setSelected(new Set());
+
+    // Limpa só os ids que foram efetivamente processados (preserva seleção restante).
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of targets) next.delete(id);
+      return next;
+    });
     await onReactivated();
   };
 
