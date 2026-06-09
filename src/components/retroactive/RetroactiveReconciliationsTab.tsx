@@ -831,6 +831,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     const rows = items.map((it) => ({
       Atendimento: it.attendance ?? "",
       TUSS: it.tuss_code ?? "",
+      Procedimento: it.procedure_name ?? "",
       "Data procedimento": it.procedure_date ?? "",
       Paciente: it.patient_name ?? "",
       Função: it.function_label ?? "",
