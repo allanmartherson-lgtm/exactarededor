@@ -480,7 +480,10 @@ function NewView({
       toast({ title: "Selecione um hospital ativo", variant: "destructive" });
       return;
     }
-    if ((!doctorId && !companyId) || !start || !end) {
+    const today = new Date().toISOString().slice(0, 10);
+    const effStart = mode === "tasy_vs_repasse" ? (start || today) : start;
+    const effEnd = mode === "tasy_vs_repasse" ? (end || today) : end;
+    if (mode === "alegacao_medico" && ((!doctorId && !companyId) || !start || !end)) {
       toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
       return;
     }
@@ -497,8 +500,8 @@ function NewView({
         hospital_id: hospitalId,
         doctor_id: doctorId || null,
         company_id: companyId || null,
-        period_start: start,
-        period_end: end,
+        period_start: effStart,
+        period_end: effEnd,
         title: title || null,
         created_by: userId,
       })
@@ -509,7 +512,9 @@ function NewView({
       toast({ title: "Erro ao criar apuração", description: error?.message, variant: "destructive" });
       return;
     }
-    onCreated((data as { id: string }).id);
+    const newId = (data as { id: string }).id;
+    setStoredMode(newId, mode);
+    onCreated(newId);
   };
 
   return (
