@@ -1514,28 +1514,48 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
   };
 
-  const onPickPag = async (files: FileList) => {
-    if (files.length === 0) return;
-    // Process files sequentially via the wizard. Queue them.
-    const queue: File[] = Array.from(files);
-    const processNext = async () => {
-      const f = queue.shift();
-      if (!f) return;
-      try {
-        const { headers, rows } = await readRawSheet(f);
-        if (rows.length === 0) {
-          toast({ title: `Planilha vazia: ${f.name}`, variant: "destructive" });
-          await processNext();
-          return;
-        }
-        // Stash remaining queue on window so confirm handler can resume.
-        (window as unknown as { __tvrQueue?: File[] }).__tvrQueue = queue;
-        setWizard({ kind: "pag", fileName: f.name, headers, rows });
-      } catch (e) {
-        toast({ title: "Erro ao ler planilha", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+  const loadPaymentItems = async (currentRecon: ReconRow | null) => {
+    const r = currentRecon ?? recon;
+    if (!r) return;
+    setLoadingPayments(true);
+    setPaymentsLoaded(false);
+    try {
+      const start = new Date(r.period_start);
+      const end = new Date(r.period_end);
+      start.setDate(start.getDate() - 90);
+      end.setDate(end.getDate() + 90);
+
+      let query = supabase
+        .from("payment_items" as never)
+        .select("attendance_number, procedure_code, quantity, procedure_amount, doctor_role, procedure_date, patient_name, procedure_name")
+        .gte("procedure_date", start.toISOString().slice(0, 10))
+        .lte("procedure_date", end.toISOString().slice(0, 10));
+
+      if (r.doctor_id) query = query.eq("doctor_id", r.doctor_id);
+      if (r.company_id) query = query.eq("company_id", r.company_id);
+
+      const { data, error } = await query.limit(5000);
+      if (error) {
+        toast({ title: "Erro ao buscar pagamentos", description: error.message, variant: "destructive" });
+        return;
       }
-    };
-    await processNext();
+      const rows: PagRow[] = (data ?? []).map((row: Record<string, unknown>) => ({
+        pag_atendimento: normAtt(String(row.attendance_number ?? "")),
+        pag_tuss: normTuss(String(row.procedure_code ?? "")),
+        pag_qtd: String(row.quantity ?? "1"),
+        pag_valor_base: String(row.procedure_amount ?? "0"),
+        pag_valor_com_acordo: "",
+        pag_funcao: (row.doctor_role as string) ?? "",
+        pag_data: (row.procedure_date as string) ?? "",
+        pag_paciente: (row.patient_name as string) ?? "",
+        pag_convenio: "",
+      })).filter((x) => x.pag_atendimento && x.pag_tuss);
+      setPagRows(rows);
+      setPaymentsLoaded(true);
+      toast({ title: `${rows.length} item(ns) carregados do sistema` });
+    } finally {
+      setLoadingPayments(false);
+    }
   };
 
   const confirmTasy = (drafts: Record<string, string>[]) => {
@@ -1566,56 +1586,15 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setResults(null);
     setWizard({ kind: "none" });
     toast({ title: `TASY: ${filtered.length} linha(s) carregadas` });
-  };
-
-  const confirmPag = async (drafts: Record<string, string>[], meta: { mapping: Record<string, string> }) => {
-    const newRows = drafts
-      .map<PagRow>((d) => ({
-        pag_atendimento: normAtt(d.pag_atendimento),
-        pag_tuss: normTuss(d.pag_tuss),
-        pag_qtd: d.pag_qtd || "1",
-        pag_valor_base: d.pag_valor_base || "0",
-        pag_valor_com_acordo: d.pag_valor_com_acordo,
-        pag_funcao: d.pag_funcao,
-        pag_medico: d.pag_medico,
-        pag_data: d.pag_data,
-        pag_paciente: d.pag_paciente,
-        pag_convenio: d.pag_convenio,
-      }))
-      .filter((r) => r.pag_atendimento && r.pag_tuss);
-    const fileName = wizard.kind === "pag" ? wizard.fileName : "";
-    setPagRows((prev) => [...prev, ...newRows]);
-    if (fileName) setPagFiles((p) => [...p, fileName]);
-    setPagMapping(meta.mapping);
-    setResults(null);
-    setWizard({ kind: "none" });
-    toast({ title: `Repasse (${fileName}): ${newRows.length} linha(s)` });
-
-    // Resume queue if any
-    const w = window as unknown as { __tvrQueue?: File[] };
-    const queue = w.__tvrQueue ?? [];
-    if (queue.length > 0) {
-      const next = queue.shift();
-      w.__tvrQueue = queue;
-      if (next) {
-        try {
-          const { headers, rows } = await readRawSheet(next);
-          if (rows.length > 0) {
-            setWizard({ kind: "pag", fileName: next.name, headers, rows });
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-    }
+    // Dispara busca automática dos payment_items
+    void loadPaymentItems(recon);
   };
 
   const clearAll = () => {
     setTasyRows([]);
     setTasyFile("");
     setPagRows([]);
-    setPagFiles([]);
-    setPagMapping(undefined);
+    setPaymentsLoaded(false);
     setResults(null);
   };
 
