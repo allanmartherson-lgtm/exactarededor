@@ -7796,48 +7796,94 @@ export type Database = {
           total_gross: number
         }[]
       }
-      get_dre_consolidated: {
-        Args: {
-          p_company_id?: string
-          p_competencia_from?: string
-          p_competencia_to?: string
-          p_doctor_id?: string
-        }
-        Returns: {
-          bruto: number
-          company_id: string
-          company_name: string
-          competencia: string
-          creditos: number
-          debitos: number
-          doctor_id: string
-          doctor_name: string
-          glosas: number
-          liquido: number
-          payments_count: number
-          pool: number
-        }[]
-      }
-      get_dre_drilldown: {
-        Args: {
-          p_company_id: string
-          p_competencia: string
-          p_doctor_id?: string
-        }
-        Returns: {
-          bruto: number
-          created_at: string
-          creditos: number
-          debitos: number
-          glosas: number
-          items_count: number
-          liquido: number
-          payment_id: string
-          pool: number
-          reference: string
-          status: string
-        }[]
-      }
+      get_dre_consolidated:
+        | {
+            Args: {
+              p_company_id?: string
+              p_competencia_from?: string
+              p_competencia_to?: string
+              p_doctor_id?: string
+            }
+            Returns: {
+              bruto: number
+              company_id: string
+              company_name: string
+              competencia: string
+              creditos: number
+              debitos: number
+              doctor_id: string
+              doctor_name: string
+              glosas: number
+              liquido: number
+              payments_count: number
+              pool: number
+            }[]
+          }
+        | {
+            Args: {
+              p_company_id?: string
+              p_competencia_from?: string
+              p_competencia_to?: string
+              p_doctor_id?: string
+              p_track?: string
+            }
+            Returns: {
+              bruto: number
+              company_id: string
+              company_name: string
+              competencia: string
+              creditos: number
+              debitos: number
+              doctor_id: string
+              doctor_name: string
+              glosas: number
+              liquido: number
+              payments_count: number
+              pool: number
+            }[]
+          }
+      get_dre_drilldown:
+        | {
+            Args: {
+              p_company_id: string
+              p_competencia: string
+              p_doctor_id?: string
+            }
+            Returns: {
+              bruto: number
+              created_at: string
+              creditos: number
+              debitos: number
+              glosas: number
+              items_count: number
+              liquido: number
+              payment_id: string
+              pool: number
+              reference: string
+              status: string
+            }[]
+          }
+        | {
+            Args: {
+              p_company_id: string
+              p_competencia: string
+              p_doctor_id?: string
+              p_track?: string
+            }
+            Returns: {
+              bruto: number
+              created_at: string
+              creditos: number
+              debitos: number
+              glosas: number
+              items_count: number
+              liquido: number
+              payment_id: string
+              pool: number
+              reference: string
+              status: string
+            }[]
+          }
       get_intervention_savings: {
         Args: { p_end?: string; p_hospital_id?: string; p_start?: string }
         Returns: Json
@@ -7864,31 +7910,62 @@ export type Database = {
           severity: string
         }[]
       }
-      get_money_funnel: {
-        Args: { p_end_date?: string; p_start_date?: string }
-        Returns: {
-          avg_age_days: number
-          payment_count: number
-          stage: string
-          stage_order: number
-          total_value: number
-        }[]
-      }
-      get_open_position: {
-        Args: { p_company_id?: string }
-        Returns: {
-          age_days: number
-          aging_bucket: string
-          bruto: number
-          company_id: string
-          company_name: string
-          competencia: string
-          liquido: number
-          payment_id: string
-          reference: string
-          status: string
-        }[]
-      }
+      get_money_funnel:
+        | {
+            Args: { p_end_date?: string; p_start_date?: string }
+            Returns: {
+              avg_age_days: number
+              payment_count: number
+              stage: string
+              stage_order: number
+              total_value: number
+            }[]
+          }
+        | {
+            Args: {
+              p_end_date?: string
+              p_start_date?: string
+              p_track?: string
+            }
+            Returns: {
+              avg_age_days: number
+              payment_count: number
+              stage: string
+              stage_order: number
+              total_value: number
+            }[]
+          }
+      get_open_position:
+        | {
+            Args: { p_company_id?: string }
+            Returns: {
+              age_days: number
+              aging_bucket: string
+              bruto: number
+              company_id: string
+              company_name: string
+              competencia: string
+              liquido: number
+              payment_id: string
+              reference: string
+              status: string
+            }[]
+          }
+        | {
+            Args: { p_company_id?: string; p_track?: string }
+            Returns: {
+              age_days: number
+              aging_bucket: string
+              bruto: number
+              company_id: string
+              company_name: string
+              competencia: string
+              liquido: number
+              payment_id: string
+              reference: string
+              status: string
+            }[]
+          }
       get_payment_pivot:
         | {
             Args: {
@@ -8066,18 +8143,32 @@ export type Database = {
           total_in_stage: number
         }[]
       }
-      get_spend_trend: {
-        Args: {
-          p_current_month: string
-          p_grouping: string
-          p_months_back: number
-        }
-        Returns: {
-          group_key: string
-          month_bucket: string
-          total: number
-        }[]
-      }
+      get_spend_trend:
+        | {
+            Args: {
+              p_current_month: string
+              p_grouping: string
+              p_months_back: number
+            }
+            Returns: {
+              group_key: string
+              month_bucket: string
+              total: number
+            }[]
+          }
+        | {
+            Args: {
+              p_current_month: string
+              p_grouping: string
+              p_months_back: number
+              p_track?: string
+            }
+            Returns: {
+              group_key: string
+              month_bucket: string
+              total: number
+            }[]
+          }
       get_stage_dwell_time: {
         Args: { p_days?: number }
         Returns: {
