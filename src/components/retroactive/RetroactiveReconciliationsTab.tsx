@@ -417,8 +417,14 @@ function NewView({
       return;
     }
     setSaving(true);
-    const { data, error } = await supabase
-      .from("retroactive_reconciliations" as never)
+    const { data, error } = await (supabase as unknown as {
+      from: (t: string) => {
+        insert: (v: Record<string, unknown>) => {
+          select: (c: string) => { single: () => Promise<{ data: { id: string } | null; error: { message: string } | null }> };
+        };
+      };
+    })
+      .from("retroactive_reconciliations")
       .insert({
         hospital_id: hospitalId,
         doctor_id: doctorId,
