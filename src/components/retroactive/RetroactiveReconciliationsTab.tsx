@@ -732,6 +732,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
       patient_name: m.patient_name,
       function_label: m.function_label,
       claimed_amount: m.claimed_amount,
+      claimed_quantity: m.claimed_quantity ?? "",
     }));
     setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...newDrafts]);
     setWizard({ open: false });
