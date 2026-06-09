@@ -1151,7 +1151,13 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               {filteredItems.length} de {items.length} item(ns)
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input
+              value={procSearch}
+              onChange={(e) => setProcSearch(e.target.value)}
+              placeholder="Buscar procedimento…"
+              className="h-8 w-[200px] text-xs"
+            />
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
               <SelectTrigger className="h-8 w-[180px] text-xs">
                 <SelectValue placeholder="Filtrar status" />
@@ -1168,6 +1174,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               Exportar Excel
             </Button>
           </div>
+
         </div>
         <div className="overflow-x-auto">
           <Table>
