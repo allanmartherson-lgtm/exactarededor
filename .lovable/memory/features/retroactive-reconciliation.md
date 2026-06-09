@@ -24,5 +24,5 @@ Em /pendencias → aba "Conciliação retroativa", o analista escolhe o modo ao 
 - Modo armazenado em sessionStorage (`retro_mode__<recon_id>`) — não há coluna `mode` na tabela.
 
 **Componentes:**
-- `src/components/retroactive/RetroactiveReconciliationsTab.tsx` — list + new + DetailView que faz branch entre `AlegacaoDetailView` e `TasyVsRepasseView` (ambos inline).
-- `src/components/retroactive/RetroactiveMappingWizard.tsx` — wizard genérico que aceita `targets: TargetField[]` custom; exporta `TASY_TARGETS` e `REPASSE_TARGETS`. Output passou a ser `Record<string,string>[]` + meta `{ mapping }` para reuso entre arquivos.
+- `src/components/retroactive/RetroactiveReconciliationsTab.tsx` — list + new + DetailView que faz branch entre `AlegacaoDetailView` e `TasyVsRepasseView` (ambos inline). `TasyVsRepasseView` faz `loadPaymentItems()` automaticamente após confirmar o mapeamento do TASY.
+- `src/components/retroactive/RetroactiveMappingWizard.tsx` — wizard genérico que aceita `targets: TargetField[]` custom; exporta `TASY_TARGETS` (e `REPASSE_TARGETS` mantido para uso futuro, não usado pelo modo 2 atual).
