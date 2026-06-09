@@ -2144,7 +2144,14 @@ export default function CompanyAnalysis() {
       {payment && group && (
         <PaymentConciliationModal
           open={isConciliationOpen}
-          onOpenChange={setIsConciliationOpen}
+          onOpenChange={(open) => {
+            setIsConciliationOpen(open);
+            if (!open) {
+              // Recarrega snapshot financeiro: cancelamentos via conciliação
+              // alteram is_cancelled e precisam refletir no Valor Líquido / Bruto.
+              composition.refresh();
+            }
+          }}
           paymentId={payment.id}
           paymentReference={payment.reference}
           paymentItems={items}
