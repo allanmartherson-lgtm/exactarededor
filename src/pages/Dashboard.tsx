@@ -1508,23 +1508,41 @@ const Dashboard = () => {
         </div>
 
         {(() => {
-          const showAcaoV = counts.mineValidador > 0;
           const acaoItemsV: ScoreItemData[] = [];
-          if (showAcaoV) acaoItemsV.push({
+          if (counts.mineValidador > 0) acaoItemsV.push({
             label: "Para validar", value: counts.mineValidador,
             to: "/pagamentos?status=aguardando_validacao",
             hint: "lotes aguardando",
           });
+          const alertaItemsV: ScoreItemData[] = [];
+          if (slaTotals.vencido > 0) alertaItemsV.push({
+            label: "SLA vencido", value: slaTotals.vencido,
+            to: "/pagamentos?filter=sla_vencido", accent: "rose",
+            hint: "fora do prazo",
+          });
+          if (slaTotals.preventivo > 0) alertaItemsV.push({
+            label: "SLA em risco", value: slaTotals.preventivo,
+            accent: "amber",
+            hint: "próximos do prazo",
+          });
+          const hasAcao = acaoItemsV.length > 0;
+          const hasAlerta = alertaItemsV.length > 0;
+          const useGrid = hasAcao || hasAlerta;
           return (
-            <div className={showAcaoV ? "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch" : ""}>
+            <div className={useGrid ? "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch" : ""}>
               <div className="h-full flex flex-col" style={{ minWidth: 0 }}>
                 <KpiSectionHeader title="Impacto das Intervenções" tone="transit" />
                 <InterventionSavingsCard rangeDays={30} className="h-full flex-1" hideHeader />
               </div>
 
-              {showAcaoV && (
-                <div className="h-full flex flex-col">
-                  <ScoreSection title="Ações — Sua Vez" items={acaoItemsV} tone="action" />
+              {useGrid && (
+                <div className="h-full flex flex-col gap-4 md:gap-6">
+                  {hasAcao && (
+                    <ScoreSection title="Ações — Sua Vez" items={acaoItemsV} tone="action" />
+                  )}
+                  {hasAlerta && (
+                    <ScoreSection title="Alertas" items={alertaItemsV} tone="alert" />
+                  )}
                 </div>
               )}
             </div>
@@ -1541,22 +1559,6 @@ const Dashboard = () => {
           </Link>
         )}
 
-        {(slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (() => {
-          const alertaItemsV: ScoreItemData[] = [];
-          if (slaTotals.vencido > 0) alertaItemsV.push({
-            label: "SLA vencido", value: slaTotals.vencido,
-            to: "/pagamentos?filter=sla_vencido", accent: "rose",
-            hint: "fora do prazo",
-          });
-          if (slaTotals.preventivo > 0) alertaItemsV.push({
-            label: "SLA em risco", value: slaTotals.preventivo,
-            accent: "amber",
-            hint: "próximos do prazo",
-          });
-          return (
-            <ScoreSection title="Alertas" items={alertaItemsV} tone="alert" />
-          );
-        })()}
 
 
         <section aria-labelledby="pipeline-equipe-validador">
