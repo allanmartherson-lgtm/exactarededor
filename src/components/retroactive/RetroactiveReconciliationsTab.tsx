@@ -821,36 +821,68 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
   };
 
   const [statusFilter, setStatusFilter] = useState<ItemRow["classification"] | "all">("all");
-  const filteredItems = useMemo(
-    () => (statusFilter === "all" ? items : items.filter((i) => i.classification === statusFilter)),
-    [items, statusFilter],
-  );
+  const [procSearch, setProcSearch] = useState("");
+  const filteredItems = useMemo(() => {
+    const q = procSearch.trim().toLowerCase();
+    return items.filter((i) => {
+      if (statusFilter !== "all" && i.classification !== statusFilter) return false;
+      if (q && !(i.procedure_name ?? "").toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [items, statusFilter, procSearch]);
+
+  // Extrai dos motivos da divergência ("...com TUSS X, Y, Z — alegado ...")
+  function parseDivergence(reason: string | null): { tuss: string; valor: string } {
+    if (!reason) return { tuss: "", valor: "" };
+    const tussMatch = reason.match(/com TUSS\s+([0-9,\s]+?)\s+—/i);
+    const valMatch = reason.match(/pago\s*\(R\$\s*([\d.,]+)\)/i);
+    return {
+      tuss: tussMatch ? tussMatch[1].trim() : "",
+      valor: valMatch ? valMatch[1].trim() : "",
+    };
+  }
+
+  // Formato seguro de data (evita shift de timezone com "YYYY-MM-DD")
+  function fmtDate(d: string | null, pattern = "dd/MM/yyyy"): string {
+    if (!d) return "—";
+    const iso = d.slice(0, 10);
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return d;
+    const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return format(dt, pattern);
+  }
 
   const exportXlsx = async () => {
     const XLSX = await import("xlsx");
-    const rows = items.map((it) => ({
-      Atendimento: it.attendance ?? "",
-      TUSS: it.tuss_code ?? "",
-      Procedimento: it.procedure_name ?? "",
-      "Data procedimento": it.procedure_date ?? "",
-      Paciente: it.patient_name ?? "",
-      Função: it.function_label ?? "",
-      "Qtd alegada": it.claimed_quantity ?? "",
-      "Qtd paga": it.paid_quantity ?? "",
-      "Valor alegado": Number(it.claimed_amount ?? 0),
-      "Valor pago": Number(it.paid_amount ?? 0),
-      "Valor esperado": Number(it.expected_amount ?? 0),
-      Gap: Number(it.gap_amount ?? 0),
-      "Data pagamento encontrado": it.matched_payment_date ?? "",
-      Status: CLASS_LABEL[it.classification],
-      Motivo: it.classification_reason ?? "",
-    }));
+    const rows = items.map((it) => {
+      const div = parseDivergence(it.classification_reason);
+      return {
+        Atendimento: it.attendance ?? "",
+        "TUSS alegado": it.tuss_code ?? "",
+        "TUSS pago no atendimento": div.tuss,
+        "Valor pago no atendimento (divergência)": div.valor,
+        Procedimento: it.procedure_name ?? "",
+        "Data procedimento": fmtDate(it.procedure_date),
+        Paciente: it.patient_name ?? "",
+        Função: it.function_label ?? "",
+        "Qtd alegada": it.claimed_quantity ?? "",
+        "Qtd paga": it.paid_quantity ?? "",
+        "Valor alegado": Number(it.claimed_amount ?? 0),
+        "Valor pago": Number(it.paid_amount ?? 0),
+        "Valor esperado": Number(it.expected_amount ?? 0),
+        Gap: Number(it.gap_amount ?? 0),
+        "Data pagamento encontrado": fmtDate(it.matched_payment_date),
+        Status: CLASS_LABEL[it.classification],
+        Motivo: it.classification_reason ?? "",
+      };
+    });
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Apuração");
     const stamp = format(new Date(), "yyyyMMdd_HHmm");
     XLSX.writeFile(wb, `apuracao-retroativa_${stamp}.xlsx`);
   };
+
 
   const totalComplemento = useMemo(
     () =>
@@ -1119,7 +1151,13 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               {filteredItems.length} de {items.length} item(ns)
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input
+              value={procSearch}
+              onChange={(e) => setProcSearch(e.target.value)}
+              placeholder="Buscar procedimento…"
+              className="h-8 w-[200px] text-xs"
+            />
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
               <SelectTrigger className="h-8 w-[180px] text-xs">
                 <SelectValue placeholder="Filtrar status" />
@@ -1136,6 +1174,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               Exportar Excel
             </Button>
           </div>
+
         </div>
         <div className="overflow-x-auto">
           <Table>
@@ -1180,7 +1219,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                       {it.procedure_name ?? "—"}
                     </TableCell>
                     <TableCell>
-                      {it.procedure_date ? format(new Date(it.procedure_date), "dd/MM/yy") : "—"}
+                      {fmtDate(it.procedure_date, "dd/MM/yyyy")}
                     </TableCell>
                     <TableCell className="max-w-[180px] truncate">{it.patient_name ?? "—"}</TableCell>
                     <TableCell className="text-center">{it.claimed_quantity ?? "—"}</TableCell>
@@ -1200,9 +1239,8 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                       {brl(it.gap_amount)}
                     </TableCell>
                     <TableCell className={outOfWindow ? "text-blue-700 font-medium" : "text-muted-foreground"}>
-                      {it.matched_payment_date
-                        ? format(new Date(it.matched_payment_date), "dd/MM/yy")
-                        : "—"}
+                      {fmtDate(it.matched_payment_date, "dd/MM/yyyy")}
+
                     </TableCell>
                     <TableCell>
                       <span
