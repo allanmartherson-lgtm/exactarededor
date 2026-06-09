@@ -37,7 +37,7 @@ export type MappedDraft = {
 type RawRow = Record<string, unknown>;
 
 type TargetField = {
-  key: keyof MappedDraft | "procedure_description";
+  key: keyof MappedDraft;
   label: string;
   required: boolean;
   aliases: string[];
@@ -53,7 +53,7 @@ const TARGETS: TargetField[] = [
   { key: "function_label", label: "Função médico", required: false, aliases: ["funcao", "funcaomedico", "papel", "role", "tipoatuacao"] },
   { key: "doctor_hint", label: "Médico (nome/CRM)", required: false, aliases: ["medico", "nomemedico", "executante", "executor", "crm", "crmexecutor", "medicoexec"] },
   { key: "company_hint", label: "PJ / Empresa", required: false, aliases: ["empresa", "terceiro", "razaosocial", "cnpj", "fornecedor"] },
-  { key: "procedure_description", label: "Descrição / Grupo", required: false, aliases: ["procedimentomatmed", "descricao", "descrprocedi", "procedimento", "grupo", "matmed"] },
+  { key: "procedure_name", label: "Nome do procedimento", required: false, aliases: ["procedimentomatmed", "descricao", "descrprocedi", "procedimento", "nomeprocedimento", "descproc", "grupo", "matmed"] },
 ];
 
 const NONE = "__none__";
