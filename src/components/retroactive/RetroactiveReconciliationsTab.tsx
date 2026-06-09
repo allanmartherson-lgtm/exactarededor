@@ -933,36 +933,36 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         </Badge>
       </div>
 
-      <details className="rounded-lg border border-border bg-muted/30 px-4 py-2 text-xs">
-        <summary className="cursor-pointer font-medium text-foreground">
-          Legenda dos status · o que cada um significa e a ação recomendada
-        </summary>
-        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+      <div className="sticky top-0 z-30 -mx-1 rounded-lg border border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-2 text-xs shadow-sm">
+        <div className="font-medium text-foreground mb-2">
+          Legenda dos status · significado, gap e ação recomendada
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-3 gap-y-1.5">
           {(
             [
-              ["ok_pago", "Pago conforme regra. Nada a fazer.", "Nenhuma."],
-              ["pago_a_menos", "Foi pago menos que o esperado (valor ou quantidade).", "Complementar a diferença."],
-              ["tuss_divergente", "O atendimento foi pago, mas o TUSS alegado não está entre os códigos pagos.", "Complementar — TUSS faltou no lote."],
-              ["nao_pago", "Atendimento inteiro não localizado nos pagamentos do médico.", "Investigar antes de pagar; pode ser atendimento inexistente ou médico sem vínculo no lote."],
-              ["pago_outro_mes", "Existe pagamento, mas fora da janela do período apurado.", "Verificar se já foi contemplado em outra apuração."],
-              ["sem_lastro", "Sem match em pagamentos e sem valor alegado.", "Pedir mais informação ao médico."],
+              ["ok_pago", "Pago conforme regra.", "Gap: 0.", "Nenhuma."],
+              ["pago_a_menos", "Pago menos que o esperado (valor/quantidade).", "Gap: esperado − pago.", "Complementar a diferença."],
+              ["tuss_divergente", "Atendimento pago, mas TUSS alegado não está no lote.", "Gap: valor alegado integral.", "Complementar — TUSS faltou."],
+              ["nao_pago", "Atendimento inteiro não localizado nos pagamentos.", "Gap: valor alegado integral.", "Investigar antes de pagar."],
+              ["pago_outro_mes", "Pago fora da janela apurada.", "Gap: 0 nesta apuração.", "Verificar outra apuração."],
+              ["sem_lastro", "Sem match e sem valor alegado.", "Gap: indeterminado.", "Pedir mais informação ao médico."],
             ] as const
-          ).map(([k, sig, acao]) => (
+          ).map(([k, sig, gap, acao]) => (
             <div key={k} className="flex items-start gap-2">
               <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${CLASS_TONE[k]}`}>
                 {CLASS_LABEL[k]}
               </span>
               <div className="leading-tight">
                 <div>{sig}</div>
-                <div className="text-muted-foreground"><strong>Ação:</strong> {acao}</div>
+                <div className="text-muted-foreground"><strong>{gap}</strong> · {acao}</div>
               </div>
             </div>
           ))}
         </div>
-        <div className="mt-2 text-[11px] text-muted-foreground border-t border-border pt-2">
-          <strong>Total a complementar</strong> soma <em>Pago a menos</em> + <em>Não pago</em> + <em>Pendência (TUSS faltante)</em>.
+        <div className="mt-2 text-[11px] text-muted-foreground border-t border-border pt-1.5">
+          <strong>Total a complementar</strong> = <em>Pago a menos</em> + <em>Não pago</em> + <em>Pendência (TUSS faltante)</em>.
         </div>
-      </details>
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
         {(
