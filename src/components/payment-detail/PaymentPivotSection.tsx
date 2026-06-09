@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,6 +104,49 @@ function kpiCardBg(deltaPct: number) {
   return "bg-muted";
 }
 
+function SortableTh({
+  children,
+  align,
+  active,
+  dir,
+  onClick,
+}: {
+  children: React.ReactNode;
+  align: "left" | "right";
+  active: boolean;
+  dir: "asc" | "desc";
+  onClick: () => void;
+}) {
+  const Icon = !active ? ArrowUpDown : dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th
+      data-pivot-th=""
+      className={cn(
+        "px-3 py-2 text-[11px] font-medium uppercase tracking-wide select-none cursor-pointer hover:bg-primary/10 transition-colors",
+        align === "left" ? "text-left" : "text-right tabular-nums",
+      )}
+      onClick={onClick}
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <span
+        className={cn(
+          "inline-flex items-center gap-1",
+          align === "right" ? "justify-end" : "",
+        )}
+      >
+        {children}
+        <Icon
+          className={cn(
+            "h-3 w-3 shrink-0",
+            active ? "text-foreground" : "text-muted-foreground/40",
+          )}
+        />
+      </span>
+    </th>
+  );
+}
+
+
 export function PaymentPivotSection({
   paymentId,
   paymentReference: _ref,
@@ -131,6 +174,18 @@ export function PaymentPivotSection({
   // Secundário (drilldown): controlado pelo usuário via "Customizar".
   // Default no compacto = derivação histórica (empresa↔especialidade). No executivo = null.
   const [secondary, setSecondary] = useState<GroupingField | null>(null);
+  // Ordenação da tabela. key = "label" | "delta" | "<month-iso>".
+  // Default: maior valor do mês atual (mesmo comportamento anterior).
+  const [sortKey, setSortKey] = useState<string>("__current__");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "label" ? "asc" : "desc");
+    }
+  };
 
   useEffect(() => {
     if (variant === "detalhe") return;
@@ -305,6 +360,24 @@ export function PaymentPivotSection({
   }, [effectivePrevMonths, totalsByMonth]);
   const totalDelta = totalPrevAvg > 0 ? ((totalCurrent - totalPrevAvg) / totalPrevAvg) * 100 : 0;
 
+  // Aplica ordenação escolhida pelo usuário ao primaryRows. "__current__"
+  // mantém o default (mês atual desc). Children não são reordenadas.
+  const sortedRows = useMemo(() => {
+    const arr = [...primaryRows];
+    const dir = sortDir === "asc" ? 1 : -1;
+    if (sortKey === "label") {
+      arr.sort((a, b) => a.key.localeCompare(b.key, "pt-BR") * dir);
+    } else if (sortKey === "delta") {
+      arr.sort((a, b) => (a.deltaPct - b.deltaPct) * dir);
+    } else if (sortKey === "__current__") {
+      arr.sort((a, b) => (a.current - b.current) * -1); // sempre desc
+    } else {
+      // chave = ISO de um mês específico
+      arr.sort((a, b) => ((a.byMonth.get(sortKey) ?? 0) - (b.byMonth.get(sortKey) ?? 0)) * dir);
+    }
+    return arr;
+  }, [primaryRows, sortKey, sortDir]);
+
   if (variant === "detalhe") return null;
 
   const showAlerts = variant === "compacto";
@@ -418,27 +491,33 @@ export function PaymentPivotSection({
           <table className="w-full text-sm">
             <thead className="bg-primary/5">
               <tr>
-                <th
-                  data-pivot-th=""
-                  className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
+                <SortableTh
+                  align="left"
+                  active={sortKey === "label"}
+                  dir={sortDir}
+                  onClick={() => toggleSort("label")}
                 >
                   {FIELD_LABELS[grouping]}
-                </th>
+                </SortableTh>
                 {months.map((m) => (
-                  <th
+                  <SortableTh
                     key={m}
-                    data-pivot-th=""
-                    className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide tabular-nums"
+                    align="right"
+                    active={sortKey === m}
+                    dir={sortDir}
+                    onClick={() => toggleSort(m)}
                   >
                     {monthLabel(m)}
-                  </th>
+                  </SortableTh>
                 ))}
-                <th
-                  data-pivot-th=""
-                  className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
+                <SortableTh
+                  align="right"
+                  active={sortKey === "delta"}
+                  dir={sortDir}
+                  onClick={() => toggleSort("delta")}
                 >
                   Δ vs média
-                </th>
+                </SortableTh>
               </tr>
             </thead>
             <tbody>
@@ -449,7 +528,7 @@ export function PaymentPivotSection({
                   </td>
                 </tr>
               )}
-              {!loading && primaryRows.length === 0 && (
+              {!loading && sortedRows.length === 0 && (
                 <tr>
                   <td colSpan={months.length + 2} className="px-3 py-6 text-center text-muted-foreground text-xs">
                     Sem dados no período selecionado.
@@ -457,7 +536,7 @@ export function PaymentPivotSection({
                 </tr>
               )}
               {!loading &&
-                primaryRows.map((r) => {
+                sortedRows.map((r) => {
                   const isOpen = expanded.has(r.key);
                   const canDrill = r.children.length > 0;
                   return (
