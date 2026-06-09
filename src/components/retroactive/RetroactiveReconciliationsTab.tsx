@@ -857,7 +857,9 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     const rows = items.map((it) => {
       const div = parseDivergence(it.classification_reason);
       return {
+        Médico: doctorName ?? "",
         Atendimento: it.attendance ?? "",
+
         "TUSS alegado": it.tuss_code ?? "",
         "TUSS pago no atendimento": div.tuss,
         "Valor pago no atendimento (divergência)": div.valor,
@@ -887,10 +889,16 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const totalComplemento = useMemo(
     () =>
       items
-        .filter((i) => i.classification === "nao_pago" || i.classification === "pago_a_menos")
+        .filter(
+          (i) =>
+            i.classification === "nao_pago" ||
+            i.classification === "pago_a_menos" ||
+            i.classification === "tuss_divergente",
+        )
         .reduce((s, i) => s + Number(i.gap_amount ?? 0), 0),
     [items],
   );
+
 
 
 
@@ -925,6 +933,37 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         </Badge>
       </div>
 
+      <details className="rounded-lg border border-border bg-muted/30 px-4 py-2 text-xs">
+        <summary className="cursor-pointer font-medium text-foreground">
+          Legenda dos status · o que cada um significa e a ação recomendada
+        </summary>
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+          {(
+            [
+              ["ok_pago", "Pago conforme regra. Nada a fazer.", "Nenhuma."],
+              ["pago_a_menos", "Foi pago menos que o esperado (valor ou quantidade).", "Complementar a diferença."],
+              ["tuss_divergente", "O atendimento foi pago, mas o TUSS alegado não está entre os códigos pagos.", "Complementar — TUSS faltou no lote."],
+              ["nao_pago", "Atendimento inteiro não localizado nos pagamentos do médico.", "Investigar antes de pagar; pode ser atendimento inexistente ou médico sem vínculo no lote."],
+              ["pago_outro_mes", "Existe pagamento, mas fora da janela do período apurado.", "Verificar se já foi contemplado em outra apuração."],
+              ["sem_lastro", "Sem match em pagamentos e sem valor alegado.", "Pedir mais informação ao médico."],
+            ] as const
+          ).map(([k, sig, acao]) => (
+            <div key={k} className="flex items-start gap-2">
+              <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${CLASS_TONE[k]}`}>
+                {CLASS_LABEL[k]}
+              </span>
+              <div className="leading-tight">
+                <div>{sig}</div>
+                <div className="text-muted-foreground"><strong>Ação:</strong> {acao}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 text-[11px] text-muted-foreground border-t border-border pt-2">
+          <strong>Total a complementar</strong> soma <em>Pago a menos</em> + <em>Não pago</em> + <em>Pendência (TUSS faltante)</em>.
+        </div>
+      </details>
+
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
         {(
           [
@@ -945,6 +984,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
         ))}
       </div>
+
 
       <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between">
         <div>
@@ -1180,7 +1220,9 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Médico</TableHead>
                 <TableHead>Atendimento</TableHead>
+
                 <TableHead>TUSS</TableHead>
                 <TableHead>Procedimento</TableHead>
                 <TableHead>Data</TableHead>
@@ -1198,7 +1240,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
             <TableBody>
               {filteredItems.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={13} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={14} className="text-center text-muted-foreground py-8">
                     {items.length === 0
                       ? "Nenhum item processado ainda."
                       : "Nenhum item neste filtro."}
@@ -1213,7 +1255,11 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                 const outOfWindow = it.classification === "pago_outro_mes";
                 return (
                   <TableRow key={it.id}>
+                    <TableCell className="max-w-[160px] truncate" title={doctorName ?? undefined}>
+                      {doctorName ?? "—"}
+                    </TableCell>
                     <TableCell>{it.attendance ?? "—"}</TableCell>
+
                     <TableCell>{it.tuss_code ?? "—"}</TableCell>
                     <TableCell className="max-w-[220px] truncate" title={it.procedure_name ?? undefined}>
                       {it.procedure_name ?? "—"}

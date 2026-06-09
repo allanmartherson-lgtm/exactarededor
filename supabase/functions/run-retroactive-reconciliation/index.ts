@@ -236,11 +236,14 @@ Deno.serve(async (req) => {
       summary.total_claimed += claimedAmt;
       summary.total_paid += paid_amount ?? 0;
       if (
-        (classification === "nao_pago" || classification === "pago_a_menos") &&
+        (classification === "nao_pago" ||
+          classification === "pago_a_menos" ||
+          classification === "tuss_divergente") &&
         gap_amount
       ) {
         summary.total_gap += gap_amount;
       }
+
 
       rowsToInsert.push({
         reconciliation_id,
