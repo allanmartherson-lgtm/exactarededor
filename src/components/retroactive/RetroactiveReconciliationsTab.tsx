@@ -1143,6 +1143,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               <TableRow>
                 <TableHead>Atendimento</TableHead>
                 <TableHead>TUSS</TableHead>
+                <TableHead>Procedimento</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>Paciente</TableHead>
                 <TableHead className="text-center">Qtd aleg.</TableHead>
@@ -1158,7 +1159,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
             <TableBody>
               {filteredItems.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={13} className="text-center text-muted-foreground py-8">
                     {items.length === 0
                       ? "Nenhum item processado ainda."
                       : "Nenhum item neste filtro."}
@@ -1175,6 +1176,9 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                   <TableRow key={it.id}>
                     <TableCell>{it.attendance ?? "—"}</TableCell>
                     <TableCell>{it.tuss_code ?? "—"}</TableCell>
+                    <TableCell className="max-w-[220px] truncate" title={it.procedure_name ?? undefined}>
+                      {it.procedure_name ?? "—"}
+                    </TableCell>
                     <TableCell>
                       {it.procedure_date ? format(new Date(it.procedure_date), "dd/MM/yy") : "—"}
                     </TableCell>
