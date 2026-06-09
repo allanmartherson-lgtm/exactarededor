@@ -82,11 +82,13 @@ type ReconRow = {
     total?: number;
     ok_pago?: number;
     pago_a_menos?: number;
+    pago_a_mais?: number;
     nao_pago?: number;
     pago_outro_mes?: number;
     sem_lastro?: number;
     tuss_divergente?: number;
     total_gap?: number;
+    total_excess?: number;
   } | null;
   adjustment_ids: string[];
   created_at: string;
@@ -111,6 +113,7 @@ type ItemRow = {
   classification:
     | "ok_pago"
     | "pago_a_menos"
+    | "pago_a_mais"
     | "nao_pago"
     | "pago_outro_mes"
     | "sem_lastro"
@@ -136,6 +139,7 @@ type DraftItem = {
 const CLASS_LABEL: Record<ItemRow["classification"], string> = {
   ok_pago: "OK pago",
   pago_a_menos: "Pago a menos",
+  pago_a_mais: "Pago a mais",
   nao_pago: "Não pago",
   pago_outro_mes: "Pago em outro mês",
   sem_lastro: "Sem lastro",
@@ -145,6 +149,7 @@ const CLASS_LABEL: Record<ItemRow["classification"], string> = {
 const CLASS_TONE: Record<ItemRow["classification"], string> = {
   ok_pago: "bg-emerald-100 text-emerald-800",
   pago_a_menos: "bg-amber-100 text-amber-800",
+  pago_a_mais: "bg-rose-100 text-rose-800",
   nao_pago: "bg-red-100 text-red-800",
   pago_outro_mes: "bg-blue-100 text-blue-800",
   sem_lastro: "bg-zinc-100 text-zinc-800",
@@ -942,6 +947,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
             [
               ["ok_pago", "Pago conforme regra.", "Gap: 0.", "Nenhuma."],
               ["pago_a_menos", "Pago menos que o esperado (valor/quantidade).", "Gap: esperado − pago.", "Complementar a diferença."],
+              ["pago_a_mais", "Pago mais que o alegado (quantidade excedente).", "Excedente: unitário × qtd a mais.", "Revisar duplicidade / cobrar de volta."],
               ["tuss_divergente", "Atendimento pago, mas TUSS alegado não está no lote.", "Gap: valor alegado integral.", "Complementar — TUSS faltou."],
               ["nao_pago", "Atendimento inteiro não localizado nos pagamentos.", "Gap: valor alegado integral.", "Investigar antes de pagar."],
               ["pago_outro_mes", "Pago fora da janela apurada.", "Gap: 0 nesta apuração.", "Verificar outra apuração."],
@@ -964,11 +970,12 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
         {(
           [
             ["ok_pago", "OK pago"],
             ["pago_a_menos", "Pago a menos"],
+            ["pago_a_mais", "Pago a mais"],
             ["tuss_divergente", "TUSS divergente"],
             ["nao_pago", "Não pago"],
             ["pago_outro_mes", "Outro mês"],
@@ -1204,7 +1211,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
-                {(["ok_pago", "pago_a_menos", "tuss_divergente", "nao_pago", "pago_outro_mes", "sem_lastro"] as const).map((k) => (
+                {(["ok_pago", "pago_a_menos", "pago_a_mais", "tuss_divergente", "nao_pago", "pago_outro_mes", "sem_lastro"] as const).map((k) => (
                   <SelectItem key={k} value={k}>{CLASS_LABEL[k]}</SelectItem>
                 ))}
 

@@ -30,6 +30,7 @@ type InputItem = {
 type Classification =
   | "ok_pago"
   | "pago_a_menos"
+  | "pago_a_mais"
   | "nao_pago"
   | "pago_outro_mes"
   | "tuss_divergente"
@@ -130,6 +131,7 @@ Deno.serve(async (req) => {
       total: items.length,
       ok_pago: 0,
       pago_a_menos: 0,
+      pago_a_mais: 0,
       nao_pago: 0,
       pago_outro_mes: 0,
       sem_lastro: 0,
@@ -137,6 +139,7 @@ Deno.serve(async (req) => {
       total_claimed: 0,
       total_paid: 0,
       total_gap: 0,
+      total_excess: 0,
     };
 
 
@@ -193,6 +196,16 @@ Deno.serve(async (req) => {
           const unitClaimed = claimedAmt / Math.max(claimedQty, 1);
           gap_amount = unitClaimed * qtyDiff;
           reason = `Qtd alegada ${claimedQty} / paga ${aggQty}. Faltam ${qtyDiff.toFixed(0)} unidade(s) × R$ ${unitClaimed.toFixed(2)}.`;
+        } else if (qtyDiff < -0.001) {
+          // Pago a mais — quantidade paga supera a alegada pelo médico.
+          // Mesma ideia da conciliação do lote: sinaliza excedente para
+          // o analista revisar (possível duplicidade ou cobrança incorreta).
+          classification = "pago_a_mais";
+          const excessQty = -qtyDiff;
+          const unitClaimed = claimedAmt > 0 ? claimedAmt / Math.max(claimedQty, 1) : 0;
+          // gap negativo = excedente pago ao médico (a recuperar/revisar)
+          gap_amount = -(unitClaimed * excessQty);
+          reason = `Qtd alegada ${claimedQty} / paga ${aggQty}. Pago ${excessQty.toFixed(0)} unidade(s) a mais — revisar duplicidade.`;
         } else {
           // Presente e quantidade ok — fase de pendência considera conciliado.
           // Eventual divergência de valor de repasse será tratada quando a
@@ -237,6 +250,10 @@ Deno.serve(async (req) => {
         gap_amount
       ) {
         summary.total_gap += gap_amount;
+      }
+      if (classification === "pago_a_mais" && gap_amount) {
+        // gap_amount é negativo; total_excess armazena o módulo do excedente.
+        summary.total_excess += Math.abs(gap_amount);
       }
 
 
