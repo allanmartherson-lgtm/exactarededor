@@ -64,6 +64,7 @@ export type RuleLite = {
   // Severity vem da config da regra — usado pela UI para colorir o
   // badge de Validação por nível dominante.
   severity?: string | null;
+  action?: string | null;
 };
 
 /**
