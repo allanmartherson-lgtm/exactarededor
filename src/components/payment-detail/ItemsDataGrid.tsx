@@ -480,7 +480,12 @@ export function ItemsDataGrid({
     let esperado = 0;
     let procedure = 0;
     let temEsperado = false;
+    let count = 0;
     for (const it of filtered) {
+      // Itens cancelados (via conciliação ou grupo cancelado) saem do total
+      // financeiro — não somam mais ao "Valor Repasse" nem ao "Esperado".
+      if ((it as any).is_cancelled) continue;
+      count++;
       valor += Number(it.gross_amount ?? 0);
       procedure += Number((it as any).procedure_amount ?? 0);
       const exp = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
@@ -490,7 +495,7 @@ export function ItemsDataGrid({
       }
     }
     return {
-      count: filtered.length,
+      count,
       valor,
       procedure,
       esperado: temEsperado ? esperado : null,
