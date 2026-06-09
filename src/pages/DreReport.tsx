@@ -143,6 +143,7 @@ export default function DreReport() {
             <Label>Competência até</Label>
             <Input type="month" value={to.slice(0, 7)} onChange={(e) => setTo(e.target.value ? `${e.target.value}-01` : "")} />
           </div>
+          <PaymentTrackFilter value={track} onChange={setTrack} label="Trilha de pagamento" />
           <div className="flex items-end">
             <Button onClick={load} disabled={loading} className="w-full">
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
