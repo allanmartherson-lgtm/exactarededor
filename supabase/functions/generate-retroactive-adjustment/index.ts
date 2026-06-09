@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
 
     const { data: recon, error: rErr } = await supabase
       .from("retroactive_reconciliations")
-      .select("id, doctor_id, hospital_id, period_start, period_end, title, status")
+      .select("id, doctor_id, company_id, hospital_id, period_start, period_end, title, status")
       .eq("id", reconciliation_id)
       .single();
     if (rErr || !recon) {
@@ -59,10 +59,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Resolve a PJ alvo: forçada, ou pega a única ativa do médico,
-    // ou erro se houver ambiguidade.
-    let targetCompanyId: string | null = forceCompanyId ?? null;
+    // Resolve a PJ alvo: forçada > escopo da apuração > única PJ ativa do médico.
+    let targetCompanyId: string | null = forceCompanyId ?? recon.company_id ?? null;
     if (!targetCompanyId) {
+      if (!recon.doctor_id) {
+        return new Response(
+          JSON.stringify({ error: "Informe company_id ou vincule a apuração a um médico." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
       const { data: links } = await supabase
         .from("doctor_companies")
         .select("company_id, end_date")
