@@ -463,7 +463,7 @@ const Payments = () => {
     if (divergenceFilter === "with") f.only_divergence = true;
     if (questionedFilter !== "all") f.with_questions = questionedFilter;
     return f;
-  }, [serverStatuses, typeFilter, analystFilter, companyFilter, doctorFilter,
+  }, [serverStatuses, typeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
       competenceFilter, debouncedQ, delayedOnly, openQuestionOnly,
       divergenceFilter, questionedFilter]);
 
