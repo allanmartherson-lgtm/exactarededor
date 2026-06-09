@@ -64,8 +64,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import RetroactiveMappingWizard, {
   readRawSheet,
-  type MappedDraft,
+  TASY_TARGETS,
+  REPASSE_TARGETS,
+  type TargetField,
 } from "./RetroactiveMappingWizard";
+import TasyVsRepasseView from "./TasyVsRepasseView";
+
+type ReconMode = "alegacao_medico" | "tasy_vs_repasse";
+const MODE_STORAGE_PREFIX = "retro_mode__";
+function getStoredMode(id: string): ReconMode {
+  if (typeof window === "undefined") return "alegacao_medico";
+  const v = window.sessionStorage.getItem(MODE_STORAGE_PREFIX + id);
+  return v === "tasy_vs_repasse" ? "tasy_vs_repasse" : "alegacao_medico";
+}
+function setStoredMode(id: string, m: ReconMode) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(MODE_STORAGE_PREFIX + id, m);
+}
 
 type Doctor = { id: string; full_name: string; crm: string; crm_uf: string };
 type Company = { id: string; name: string; document: string | null };
