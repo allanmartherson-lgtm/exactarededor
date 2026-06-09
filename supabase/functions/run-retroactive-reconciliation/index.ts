@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
 
     const { data: recon, error: reconErr } = await supabase
       .from("retroactive_reconciliations")
-      .select("id, hospital_id, doctor_id, period_start, period_end")
+      .select("id, hospital_id, doctor_id, company_id, period_start, period_end")
       .eq("id", reconciliation_id)
       .single();
     if (reconErr || !recon) {
@@ -70,6 +70,12 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    if (!recon.doctor_id && !recon.company_id) {
+      return new Response(
+        JSON.stringify({ error: "apuração precisa de médico ou PJ" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // Janela ampliada para detectar "pago em outro mês" (±90 dias)
@@ -80,16 +86,18 @@ Deno.serve(async (req) => {
     const wideEnd = new Date(endDate);
     wideEnd.setDate(wideEnd.getDate() + 90);
 
-    // Carrega payment_items do médico na janela ampliada
-    const { data: paid, error: paidErr } = await supabase
+    // Carrega payment_items do escopo (médico e/ou PJ) na janela ampliada
+    let paidQ = supabase
       .from("payment_items")
       .select(
-        "id, payment_id, attendance_number, procedure_code, procedure_date, doctor_id, gross_amount, expected_amount, procedure_amount",
+        "id, payment_id, attendance_number, procedure_code, procedure_date, doctor_id, company_id, gross_amount, expected_amount, procedure_amount",
       )
-      .eq("doctor_id", recon.doctor_id)
       .gte("procedure_date", wideStart.toISOString().slice(0, 10))
       .lte("procedure_date", wideEnd.toISOString().slice(0, 10))
       .limit(20000);
+    if (recon.doctor_id) paidQ = paidQ.eq("doctor_id", recon.doctor_id);
+    if (recon.company_id) paidQ = paidQ.eq("company_id", recon.company_id);
+    const { data: paid, error: paidErr } = await paidQ;
     if (paidErr) throw paidErr;
 
     // Index por chave (atendimento + tuss)
