@@ -6,6 +6,7 @@ import { Calculator, ArrowDown, ArrowUp, Minus, Info } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatBRL, mean, median } from "@/lib/financialStats";
+import type { TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 
 interface PaymentRow {
   competence_month: string | null;
@@ -41,7 +42,7 @@ function currentYm(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export const ProjectionTab = () => {
+export const ProjectionTab = ({ track = "all" }: { track?: TrackFilterValue } = {}) => {
   const [rows, setRows] = useState<PaymentRow[] | null>(null);
   const [items, setItems] = useState<ItemRow[] | null>(null);
   const [sectorMap, setSectorMap] = useState<Map<string, string> | null>(null);
@@ -50,28 +51,37 @@ export const ProjectionTab = () => {
     (async () => {
       const cutoff = new Date();
       cutoff.setMonth(cutoff.getMonth() - 6);
+      let pq = supabase
+        .from("payments")
+        .select("competence_month,total_amount,status,payment_track")
+        .gte("competence_month", cutoff.toISOString().slice(0, 10));
+      let iq = supabase
+        .from("payment_items")
+        .select("sector, gross_amount, created_at, payments!inner(payment_track)")
+        .gte("created_at", cutoff.toISOString())
+        .not("gross_amount", "is", null)
+        .limit(20000);
+      if (track === "habitual" || track === "prioritario") {
+        pq = pq.eq("payment_track", track);
+        iq = iq.eq("payments.payment_track", track);
+      } else if (track === "nao_classificado") {
+        pq = pq.is("payment_track", null);
+        iq = iq.is("payments.payment_track", null);
+      }
       const [{ data: pData }, { data: iData }, { data: sData }] = await Promise.all([
-        supabase
-          .from("payments")
-          .select("competence_month,total_amount,status")
-          .gte("competence_month", cutoff.toISOString().slice(0, 10)),
-        supabase
-          .from("payment_items")
-          .select("sector, gross_amount, created_at")
-          .gte("created_at", cutoff.toISOString())
-          .not("gross_amount", "is", null)
-          .limit(20000),
+        pq,
+        iq,
         supabase.from("sectors").select("slug, classification"),
       ]);
-      setRows((pData as PaymentRow[]) ?? []);
-      setItems((iData as ItemRow[]) ?? []);
+      setRows((pData as unknown as PaymentRow[]) ?? []);
+      setItems((iData as unknown as ItemRow[]) ?? []);
       const map = new Map<string, string>();
       for (const s of (sData as SectorRow[]) ?? []) {
         if (s.slug && s.classification) map.set(s.slug.trim(), s.classification);
       }
       setSectorMap(map);
     })();
-  }, []);
+  }, [track]);
 
   const result = useMemo(() => {
     if (!rows) return null;
