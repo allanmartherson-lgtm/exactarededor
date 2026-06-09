@@ -161,7 +161,7 @@ export function CancelledItemsBanner({ items, canReactivate, onReactivated }: Ca
                 checked={selected.size === cancelled.length && cancelled.length > 0}
                 onCheckedChange={toggleAll}
                 aria-label="Selecionar todos"
-                disabled={!canReactivate || busy}
+                disabled={!canReactivate || anyBusy}
               />
               <span className="text-muted-foreground">
                 {selected.size > 0 ? `${selected.size} selecionado(s)` : "Selecionar"}
