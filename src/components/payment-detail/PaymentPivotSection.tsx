@@ -125,6 +125,9 @@ export function PaymentPivotSection({
   const [customOpen, setCustomOpen] = useState(false);
   const [customFields, setCustomFields] = useState<GroupingField[]>([]);
   const [alertsCount, setAlertsCount] = useState<number>(0);
+  // Trilha do lote atual (carregada do DB). Vira o default do filtro.
+  const [lotTrack, setLotTrack] = useState<PaymentTrack | null>(null);
+  const [trackFilter, setTrackFilter] = useState<"auto" | PaymentTrack | "todos">("auto");
   // Secundário (drilldown): controlado pelo usuário via "Customizar".
   // Default no compacto = derivação histórica (empresa↔especialidade). No executivo = null.
   const [secondary, setSecondary] = useState<GroupingField | null>(null);
