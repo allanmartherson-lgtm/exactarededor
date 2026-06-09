@@ -44,6 +44,7 @@ interface Row {
   payment_due_date: string | null;
   payment_type: PaymentType | null;
   payment_kind: PaymentKind | null;
+  payment_track?: PaymentTrack | null;
   processing_diagnostics?: any;
   processing_timeout_occurred?: boolean;
   priority_score?: number | null;
