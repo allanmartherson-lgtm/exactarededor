@@ -136,16 +136,7 @@ Deno.serve(async (req) => {
       total_gap: 0,
     };
 
-      total: items.length,
-      ok_pago: 0,
-      pago_a_menos: 0,
-      nao_pago: 0,
-      pago_outro_mes: 0,
-      sem_lastro: 0,
-      total_claimed: 0,
-      total_paid: 0,
-      total_gap: 0,
-    };
+
 
     for (const it of items) {
       const key = `${normAtt(it.attendance)}|${normCode(it.tuss_code)}`;
