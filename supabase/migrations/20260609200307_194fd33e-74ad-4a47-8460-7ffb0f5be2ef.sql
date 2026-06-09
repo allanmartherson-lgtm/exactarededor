@@ -1,0 +1,1 @@
+ALTER TYPE public.retro_recon_classification ADD VALUE IF NOT EXISTS 'tuss_divergente';

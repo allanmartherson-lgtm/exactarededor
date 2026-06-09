@@ -85,6 +85,7 @@ type ReconRow = {
     nao_pago?: number;
     pago_outro_mes?: number;
     sem_lastro?: number;
+    tuss_divergente?: number;
     total_gap?: number;
   } | null;
   adjustment_ids: string[];
@@ -112,6 +113,7 @@ type ItemRow = {
     | "nao_pago"
     | "pago_outro_mes"
     | "sem_lastro"
+    | "tuss_divergente"
     | "pendente";
   classification_reason: string | null;
   payment_id: string | null;
@@ -135,6 +137,7 @@ const CLASS_LABEL: Record<ItemRow["classification"], string> = {
   nao_pago: "Não pago",
   pago_outro_mes: "Pago em outro mês",
   sem_lastro: "Sem lastro",
+  tuss_divergente: "TUSS divergente",
   pendente: "Pendente",
 };
 const CLASS_TONE: Record<ItemRow["classification"], string> = {
@@ -143,8 +146,10 @@ const CLASS_TONE: Record<ItemRow["classification"], string> = {
   nao_pago: "bg-red-100 text-red-800",
   pago_outro_mes: "bg-blue-100 text-blue-800",
   sem_lastro: "bg-zinc-100 text-zinc-800",
+  tuss_divergente: "bg-purple-100 text-purple-800",
   pendente: "bg-zinc-100 text-zinc-800",
 };
+
 
 function emptyDraft(): DraftItem {
   return {
@@ -882,15 +887,17 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
         {(
           [
             ["ok_pago", "OK pago"],
             ["pago_a_menos", "Pago a menos"],
+            ["tuss_divergente", "TUSS divergente"],
             ["nao_pago", "Não pago"],
             ["pago_outro_mes", "Outro mês"],
             ["sem_lastro", "Sem lastro"],
           ] as const
+
         ).map(([k, lbl]) => (
           <div key={k} className="rounded-lg border border-border bg-card px-3 py-2">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -1113,9 +1120,10 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
-                {(["ok_pago", "pago_a_menos", "nao_pago", "pago_outro_mes", "sem_lastro"] as const).map((k) => (
+                {(["ok_pago", "pago_a_menos", "tuss_divergente", "nao_pago", "pago_outro_mes", "sem_lastro"] as const).map((k) => (
                   <SelectItem key={k} value={k}>{CLASS_LABEL[k]}</SelectItem>
                 ))}
+
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={exportXlsx} disabled={items.length === 0}>

@@ -31,7 +31,9 @@ type Classification =
   | "pago_a_menos"
   | "nao_pago"
   | "pago_outro_mes"
+  | "tuss_divergente"
   | "sem_lastro";
+
 
 const TOL = 0.05;
 
@@ -105,10 +107,16 @@ Deno.serve(async (req) => {
     if (paidErr) throw paidErr;
 
     const paidByKey = new Map<string, typeof paid>();
+    const paidByAttendance = new Map<string, typeof paid>();
     for (const p of paid ?? []) {
-      const k = `${normAtt(p.attendance_number)}|${normCode(p.procedure_code)}`;
+      const att = normAtt(p.attendance_number);
+      const k = `${att}|${normCode(p.procedure_code)}`;
       if (!paidByKey.has(k)) paidByKey.set(k, []);
       paidByKey.get(k)!.push(p);
+      if (att) {
+        if (!paidByAttendance.has(att)) paidByAttendance.set(att, []);
+        paidByAttendance.get(att)!.push(p);
+      }
     }
 
     await supabase
@@ -124,10 +132,13 @@ Deno.serve(async (req) => {
       nao_pago: 0,
       pago_outro_mes: 0,
       sem_lastro: 0,
+      tuss_divergente: 0,
       total_claimed: 0,
       total_paid: 0,
       total_gap: 0,
     };
+
+
 
     for (const it of items) {
       const key = `${normAtt(it.attendance)}|${normCode(it.tuss_code)}`;
@@ -195,15 +206,30 @@ Deno.serve(async (req) => {
           gap_amount = 0;
         }
       } else {
-        if (claimedAmt > 0) {
+        // Sem match exato (atend+TUSS). Verifica se o atendimento existe nos
+        // pagamentos — quando existe, é TUSS divergente (lançado com código
+        // diferente do alegado), não "não pago".
+        const attKey = normAtt(it.attendance);
+        const attMatches = attKey ? paidByAttendance.get(attKey) ?? [] : [];
+        if (attMatches.length > 0) {
+          const tussList = Array.from(
+            new Set(attMatches.map((m) => normCode(m.procedure_code)).filter(Boolean)),
+          );
+          const totalPagoAtend = attMatches.reduce((s, m) => s + Number(m.gross_amount ?? 0), 0);
+          classification = "tuss_divergente";
+          reason = `Atendimento ${it.attendance} foi pago (R$ ${totalPagoAtend.toFixed(2)}) com TUSS ${tussList.join(", ")} — alegado ${it.tuss_code} não localizado.`;
+          paid_amount = 0;
+          gap_amount = claimedAmt || 0;
+        } else if (claimedAmt > 0) {
           classification = "nao_pago";
-          reason = `Não localizado em pagamentos. Alegado ${claimedAmt.toFixed(2)} (qtd ${claimedQty}).`;
+          reason = `Atendimento ${it.attendance ?? "—"} não localizado em pagamentos. Alegado ${claimedAmt.toFixed(2)} (qtd ${claimedQty}).`;
           gap_amount = claimedAmt;
         } else {
           classification = "sem_lastro";
           reason = "Sem match em pagamentos e sem valor alegado.";
         }
       }
+
 
       summary[classification] += 1;
       summary.total_claimed += claimedAmt;
@@ -254,9 +280,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : JSON.stringify(e);
+    console.error("run-retroactive-reconciliation error:", msg, e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : String(e) }),
+      JSON.stringify({ error: msg, detail: e instanceof Error ? e.stack : null }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
+
 });
