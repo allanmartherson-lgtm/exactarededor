@@ -194,6 +194,25 @@ export function ItemsDataGrid({
   const [onlyManualBonus, setOnlyManualBonus] = useState(false);
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
+  const [onlyAdjusted, setOnlyAdjusted] = useState(false);
+
+  // IDs dos itens que tiveram valor corrigido pelo analista (mesma fonte do
+  // relatório "Correções em análise"): observações com author_type='analista'
+  // e mensagem iniciando por "Item editado pelo analista".
+  const adjustedItemIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const o of observations) {
+      if (
+        o.author_type === "analista" &&
+        o.item_id &&
+        typeof o.message === "string" &&
+        o.message.startsWith("Item editado pelo analista")
+      ) {
+        ids.add(o.item_id);
+      }
+    }
+    return ids;
+  }, [observations]);
 
   // Ordenação clicável das colunas. Bônus sempre permanece ancorado ao item
   // pai (lógica de re-anexar logo após o sort principal). Quando nenhum
