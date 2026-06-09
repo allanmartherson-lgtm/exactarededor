@@ -854,7 +854,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               {recon.title ?? "Apuração retroativa"}
             </h3>
             <p className="text-xs text-muted-foreground">
-              {doctorName} · {format(new Date(recon.period_start), "dd/MM/yy")} →{" "}
+              {[doctorName, companyName].filter(Boolean).join(" · ") || "—"} · {format(new Date(recon.period_start), "dd/MM/yy")} →{" "}
               {format(new Date(recon.period_end), "dd/MM/yy")}
             </p>
           </div>
