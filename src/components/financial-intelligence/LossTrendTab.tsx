@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SurfaceCard, SurfaceCardHeader } from "@/components/shared/SurfacePrimitives";
 import { TrendingUp, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { formatBRL, mean, median } from "@/lib/financialStats";
+import { toRpcTrack, type TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 
 function formatShortBRL(v: number): string {
   const abs = Math.abs(v);
@@ -33,7 +34,7 @@ interface TrendRow {
   total: number;
 }
 
-export const LossTrendTab = () => {
+export const LossTrendTab = ({ track = "all" }: { track?: TrackFilterValue } = {}) => {
   const [grouping, setGrouping] = useState<Grouping>("especialidade");
   const [rows, setRows] = useState<TrendRow[] | null>(null);
 
@@ -46,10 +47,11 @@ export const LossTrendTab = () => {
         p_current_month: current,
         p_months_back: 6,
         p_grouping: grouping,
-      });
+        p_track: toRpcTrack(track),
+      } as never);
       setRows((data as TrendRow[]) ?? []);
     })();
-  }, [grouping]);
+  }, [grouping, track]);
 
   const { chartData, series, alerts, hiddenCount, completeCount, monthlyTotals } = useMemo(() => {
     const empty = {
