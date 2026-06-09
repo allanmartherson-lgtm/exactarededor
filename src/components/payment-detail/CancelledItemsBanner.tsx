@@ -233,10 +233,11 @@ export function CancelledItemsBanner({ items, canReactivate, onReactivated }: Ca
                           <Button
                             size="sm"
                             variant="ghost"
-                            disabled={busy}
+                            disabled={anyBusy}
                             onClick={() => reactivate([it.id])}
                           >
-                            <Undo2 className="h-3.5 w-3.5 mr-1" /> Reativar
+                            <Undo2 className="h-3.5 w-3.5 mr-1" />
+                            {inFlight.has(it.id) ? "..." : "Reativar"}
                           </Button>
                         )}
                       </td>
