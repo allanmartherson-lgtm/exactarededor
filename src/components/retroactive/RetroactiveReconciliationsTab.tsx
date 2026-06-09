@@ -463,7 +463,11 @@ function NewView({
   onCancel: () => void;
 }) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [doctorId, setDoctorId] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [docOpen, setDocOpen] = useState(false);
+  const [compOpen, setCompOpen] = useState(false);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [title, setTitle] = useState("");
@@ -471,23 +475,41 @@ function NewView({
 
   useEffect(() => {
     void (async () => {
-      const { data } = await supabase
-        .from("doctors")
-        .select("id, full_name, crm, crm_uf")
+      // Pagina para garantir todos os médicos ativos (4k+).
+      const PAGE = 1000;
+      const all: Doctor[] = [];
+      for (let from = 0; from < 10000; from += PAGE) {
+        const { data } = await supabase
+          .from("doctors")
+          .select("id, full_name, crm, crm_uf")
+          .eq("active", true)
+          .order("full_name")
+          .range(from, from + PAGE - 1);
+        const rows = (data ?? []) as Doctor[];
+        all.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      setDoctors(all);
+      const { data: cs } = await supabase
+        .from("companies")
+        .select("id, name, document")
         .eq("active", true)
-        .order("full_name")
-        .limit(2000);
-      setDoctors((data ?? []) as Doctor[]);
+        .order("name")
+        .limit(5000);
+      setCompanies((cs ?? []) as Company[]);
     })();
   }, []);
+
+  const selectedDoctor = doctors.find((d) => d.id === doctorId);
+  const selectedCompany = companies.find((c) => c.id === companyId);
 
   const submit = async () => {
     if (!hospitalId) {
       toast({ title: "Selecione um hospital ativo", variant: "destructive" });
       return;
     }
-    if (!doctorId || !start || !end) {
-      toast({ title: "Preencha médico e período", variant: "destructive" });
+    if ((!doctorId && !companyId) || !start || !end) {
+      toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -501,7 +523,8 @@ function NewView({
       .from("retroactive_reconciliations")
       .insert({
         hospital_id: hospitalId,
-        doctor_id: doctorId,
+        doctor_id: doctorId || null,
+        company_id: companyId || null,
         period_start: start,
         period_end: end,
         title: title || null,
@@ -523,21 +546,116 @@ function NewView({
         <ArrowLeftIcon className="h-4 w-4 mr-1" /> Voltar
       </Button>
       <h3 className="text-lg font-semibold">Nova apuração retroativa</h3>
+      <p className="text-xs text-muted-foreground -mt-2">
+        Informe o médico, a PJ, ou ambos. Médico sempre está vinculado a uma PJ — selecionar a PJ
+        restringe o cruzamento aos pagamentos daquela empresa.
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="md:col-span-2">
           <Label>Médico</Label>
-          <Select value={doctorId} onValueChange={setDoctorId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione…" />
-            </SelectTrigger>
-            <SelectContent>
-              {doctors.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.full_name} ({d.crm}/{d.crm_uf})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover open={docOpen} onOpenChange={setDocOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between font-normal"
+              >
+                <span className={cn("truncate", !selectedDoctor && "text-muted-foreground")}>
+                  {selectedDoctor
+                    ? `${selectedDoctor.full_name} (${selectedDoctor.crm}/${selectedDoctor.crm_uf})`
+                    : "Buscar médico por nome ou CRM…"}
+                </span>
+                <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command
+                filter={(value, search) => {
+                  const s = search.toLowerCase();
+                  return value.toLowerCase().includes(s) ? 1 : 0;
+                }}
+              >
+                <CommandInput placeholder="Digite nome ou CRM…" />
+                <CommandList>
+                  <CommandEmpty>Nenhum médico.</CommandEmpty>
+                  <CommandGroup>
+                    {doctorId && (
+                      <CommandItem
+                        value="__clear__"
+                        onSelect={() => { setDoctorId(""); setDocOpen(false); }}
+                      >
+                        <span className="text-muted-foreground">Limpar seleção</span>
+                      </CommandItem>
+                    )}
+                    {doctors.map((d) => {
+                      const v = `${d.full_name} ${d.crm} ${d.crm_uf}`;
+                      return (
+                        <CommandItem
+                          key={d.id}
+                          value={v}
+                          onSelect={() => { setDoctorId(d.id); setDocOpen(false); }}
+                        >
+                          <CheckIcon className={cn("h-4 w-4 mr-2", doctorId === d.id ? "opacity-100" : "opacity-0")} />
+                          {d.full_name} <span className="ml-1 text-muted-foreground">({d.crm}/{d.crm_uf})</span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="md:col-span-2">
+          <Label>PJ / Empresa</Label>
+          <Popover open={compOpen} onOpenChange={setCompOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between font-normal"
+              >
+                <span className={cn("truncate", !selectedCompany && "text-muted-foreground")}>
+                  {selectedCompany
+                    ? `${selectedCompany.name}${selectedCompany.document ? ` · ${selectedCompany.document}` : ""}`
+                    : "Buscar PJ por nome ou CNPJ…"}
+                </span>
+                <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Digite nome ou CNPJ…" />
+                <CommandList>
+                  <CommandEmpty>Nenhuma PJ.</CommandEmpty>
+                  <CommandGroup>
+                    {companyId && (
+                      <CommandItem
+                        value="__clear__"
+                        onSelect={() => { setCompanyId(""); setCompOpen(false); }}
+                      >
+                        <span className="text-muted-foreground">Limpar seleção</span>
+                      </CommandItem>
+                    )}
+                    {companies.map((c) => {
+                      const v = `${c.name} ${c.document ?? ""}`;
+                      return (
+                        <CommandItem
+                          key={c.id}
+                          value={v}
+                          onSelect={() => { setCompanyId(c.id); setCompOpen(false); }}
+                        >
+                          <CheckIcon className={cn("h-4 w-4 mr-2", companyId === c.id ? "opacity-100" : "opacity-0")} />
+                          {c.name}
+                          {c.document && <span className="ml-1 text-muted-foreground">· {c.document}</span>}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
         <div>
           <Label>De</Label>
