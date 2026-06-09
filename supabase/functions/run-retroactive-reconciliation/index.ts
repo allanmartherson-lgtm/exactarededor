@@ -131,6 +131,7 @@ Deno.serve(async (req) => {
       total: items.length,
       ok_pago: 0,
       pago_a_menos: 0,
+      pago_a_mais: 0,
       nao_pago: 0,
       pago_outro_mes: 0,
       sem_lastro: 0,
@@ -138,6 +139,7 @@ Deno.serve(async (req) => {
       total_claimed: 0,
       total_paid: 0,
       total_gap: 0,
+      total_excess: 0,
     };
 
 
