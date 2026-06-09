@@ -52,6 +52,7 @@ const bucketColor: Record<string, string> = {
 export default function DreReport() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [track, setTrack] = useState<TrackFilterValue>("all");
   const [dre, setDre] = useState<DreRow[]>([]);
   const [open, setOpen] = useState<OpenRow[]>([]);
   const [loading, setLoading] = useState(false);
