@@ -76,10 +76,12 @@ export default function CancelByReconciliationDialog({
       });
       if (error) {
         const code = error.message || "";
-        if (code.includes("cannot_cancel_paid_payment"))
-          toast.error("Não é possível cancelar: pagamento já está pago/lançado.");
-        else if (code.includes("cannot_cancel_with_active_invoice"))
-          toast.error("Há nota fiscal ativa. Estorne a NF antes de cancelar.");
+        // Conciliação é ETAPA DE ANÁLISE. Os erros aqui são SOMENTE de análise —
+        // nunca tratamos status de NF neste fluxo (os dois fluxos são separados).
+        if (code.includes("payment_not_in_analysis_stage"))
+          toast.error("Este pagamento já saiu da etapa de análise. Cancelamento via conciliação só é permitido enquanto o lote está em análise.");
+        else if (code.includes("cannot_cancel_paid_payment"))
+          toast.error("Não é possível cancelar: pagamento já está pago/lançado/arquivado.");
         else if (code.includes("forbidden"))
           toast.error("Você não tem permissão para cancelar.");
         else if (code.includes("invalid_scope"))
