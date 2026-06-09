@@ -381,6 +381,22 @@ export function PaymentPivotSection({
           </Button>
 
           <div className="ml-auto flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Trilha</span>
+            <Select value={trackFilter} onValueChange={(v) => setTrackFilter(v as typeof trackFilter)}>
+              <SelectTrigger className="h-7 w-[140px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto" className="text-xs">
+                  {lotTrack
+                    ? `Igual ao lote (${PAYMENT_TRACK_SHORT_LABELS[lotTrack]})`
+                    : "Igual ao lote"}
+                </SelectItem>
+                <SelectItem value="habitual" className="text-xs">Só Habitual</SelectItem>
+                <SelectItem value="prioritario" className="text-xs">Só Prioritário</SelectItem>
+                <SelectItem value="todos" className="text-xs">Todos</SelectItem>
+              </SelectContent>
+            </Select>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Período</span>
             <Select value={String(monthsBack)} onValueChange={(v) => setMonthsBack(Number(v))}>
               <SelectTrigger className="h-7 w-[110px] text-xs">
