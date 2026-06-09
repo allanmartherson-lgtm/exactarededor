@@ -29,6 +29,7 @@ export type MappedDraft = {
   function_label: string;
   claimed_amount: string;
   claimed_quantity: string;
+  procedure_name: string;
   doctor_hint: string;
   company_hint: string;
 };
