@@ -88,7 +88,7 @@ export default function DreReport() {
   const load = async () => {
     setLoading(true);
     const rpcTrack = toRpcTrack(track);
-    const [dreRes, openRes] = await Promise.all([
+    const [dreRes, openRes] = (await Promise.all([
       supabase.rpc("get_dre_consolidated" as never, {
         p_competencia_from: from || null,
         p_competencia_to: to || null,
@@ -97,9 +97,9 @@ export default function DreReport() {
         p_track: rpcTrack,
       } as never),
       supabase.rpc("get_open_position" as never, { p_company_id: null, p_track: rpcTrack } as never),
-    ]);
-    if (dreRes.data) setDre(dreRes.data as unknown as DreRow[]);
-    if (openRes.data) setOpen(openRes.data as unknown as OpenRow[]);
+    ])) as unknown as [{ data: DreRow[] | null }, { data: OpenRow[] | null }];
+    if (dreRes.data) setDre(dreRes.data);
+    if (openRes.data) setOpen(openRes.data);
     setLoading(false);
   };
 
