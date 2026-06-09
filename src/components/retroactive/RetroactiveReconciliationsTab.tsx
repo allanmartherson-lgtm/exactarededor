@@ -1600,7 +1600,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const process = () => {
     if (tasyRows.length === 0 || pagRows.length === 0) {
-      toast({ title: "Carregue TASY e ao menos um arquivo de repasse", variant: "destructive" });
+      toast({ title: "Carregue o TASY e aguarde a busca dos pagamentos do sistema", variant: "destructive" });
       return;
     }
     setProcessing(true);
