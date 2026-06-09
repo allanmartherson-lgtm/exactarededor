@@ -376,6 +376,7 @@ const NewPayment = () => {
   const [paymentDueDate, setPaymentDueDate] = useState(""); // YYYY-MM-DD
   const [paymentType, setPaymentType] = useState<PaymentType | "">("");
   const [paymentKind, setPaymentKind] = useState<PaymentKind | "">("");
+  const [paymentTrack, setPaymentTrack] = useState<PaymentTrack | "">("");
   const [costCenterCode, setCostCenterCode] = useState<string | null>(null);
   const [pSectors, setPSectors] = useState<string[]>([]);
   const [pSpecialties, setPSpecialties] = useState<string[]>([]);
