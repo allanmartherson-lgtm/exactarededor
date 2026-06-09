@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RefreshCw, AlertCircle, ChevronRight, ExternalLink } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
+import { PaymentTrackFilter, toRpcTrack, type TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 import type { PaymentStatus } from "@/lib/status";
 
 export type DreRow = {
