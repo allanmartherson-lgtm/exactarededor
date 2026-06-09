@@ -206,15 +206,30 @@ Deno.serve(async (req) => {
           gap_amount = 0;
         }
       } else {
-        if (claimedAmt > 0) {
+        // Sem match exato (atend+TUSS). Verifica se o atendimento existe nos
+        // pagamentos — quando existe, é TUSS divergente (lançado com código
+        // diferente do alegado), não "não pago".
+        const attKey = normAtt(it.attendance);
+        const attMatches = attKey ? paidByAttendance.get(attKey) ?? [] : [];
+        if (attMatches.length > 0) {
+          const tussList = Array.from(
+            new Set(attMatches.map((m) => normCode(m.procedure_code)).filter(Boolean)),
+          );
+          const totalPagoAtend = attMatches.reduce((s, m) => s + Number(m.gross_amount ?? 0), 0);
+          classification = "tuss_divergente";
+          reason = `Atendimento ${it.attendance} foi pago (R$ ${totalPagoAtend.toFixed(2)}) com TUSS ${tussList.join(", ")} — alegado ${it.tuss_code} não localizado.`;
+          paid_amount = 0;
+          gap_amount = claimedAmt || 0;
+        } else if (claimedAmt > 0) {
           classification = "nao_pago";
-          reason = `Não localizado em pagamentos. Alegado ${claimedAmt.toFixed(2)} (qtd ${claimedQty}).`;
+          reason = `Atendimento ${it.attendance ?? "—"} não localizado em pagamentos. Alegado ${claimedAmt.toFixed(2)} (qtd ${claimedQty}).`;
           gap_amount = claimedAmt;
         } else {
           classification = "sem_lastro";
           reason = "Sem match em pagamentos e sem valor alegado.";
         }
       }
+
 
       summary[classification] += 1;
       summary.total_claimed += claimedAmt;
