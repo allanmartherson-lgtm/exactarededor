@@ -1253,7 +1253,11 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                 const outOfWindow = it.classification === "pago_outro_mes";
                 return (
                   <TableRow key={it.id}>
+                    <TableCell className="max-w-[160px] truncate" title={doctorName ?? undefined}>
+                      {doctorName ?? "—"}
+                    </TableCell>
                     <TableCell>{it.attendance ?? "—"}</TableCell>
+
                     <TableCell>{it.tuss_code ?? "—"}</TableCell>
                     <TableCell className="max-w-[220px] truncate" title={it.procedure_name ?? undefined}>
                       {it.procedure_name ?? "—"}
