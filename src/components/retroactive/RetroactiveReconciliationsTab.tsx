@@ -62,7 +62,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import * as XLSX from "xlsx";
+import RetroactiveMappingWizard, {
+  readRawSheet,
+  type MappedDraft,
+} from "./RetroactiveMappingWizard";
 
 type Doctor = { id: string; full_name: string; crm: string; crm_uf: string };
 type Company = { id: string; name: string; document: string | null };
@@ -198,71 +201,7 @@ function parsePastedText(raw: string): DraftItem[] {
   return out;
 }
 
-async function parseSpreadsheet(file: File): Promise<DraftItem[]> {
-  const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: "array" });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    defval: "",
-  });
-  const norm = (k: string) =>
-    k
-      .toString()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "");
-  const findCol = (row: Record<string, unknown>, candidates: string[]) => {
-    for (const key of Object.keys(row)) {
-      const nk = norm(key);
-      if (candidates.some((c) => nk.includes(c))) return key;
-    }
-    return null;
-  };
-  if (rows.length === 0) return [];
-  const sample = rows[0];
-  const colAtt = findCol(sample, ["atendiment", "atend", "guia"]);
-  const colTuss = findCol(sample, ["tuss", "procedimentocodig", "codproc", "codigo"]);
-  const colDate = findCol(sample, ["datacir", "dataprocedi", "data"]);
-  const colPat = findCol(sample, ["paciente", "nomepaciente"]);
-  const colFunc = findCol(sample, ["funcao", "papel", "role"]);
-  const colVal = findCol(sample, ["valor", "valorpago", "valoralegado"]);
-
-  return rows.map((r) => {
-    const d = emptyDraft();
-    d.source = "upload";
-    d.attendance = String((colAtt && r[colAtt]) ?? "").trim();
-    d.tuss_code = String((colTuss && r[colTuss]) ?? "")
-      .replace(/\D/g, "")
-      .slice(0, 8);
-    const rawDate = (colDate && r[colDate]) ?? "";
-    if (typeof rawDate === "number") {
-      // Excel serial date
-      const epoch = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
-      d.procedure_date = epoch.toISOString().slice(0, 10);
-    } else if (rawDate) {
-      const s = String(rawDate).trim();
-      const m = s.match(/^(\d{2})[/-](\d{2})[/-](\d{2,4})$/);
-      if (m) {
-        const yr = m[3].length === 2 ? `20${m[3]}` : m[3];
-        d.procedure_date = `${yr}-${m[2]}-${m[1]}`;
-      } else if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-        d.procedure_date = s.slice(0, 10);
-      }
-    }
-    d.patient_name = String((colPat && r[colPat]) ?? "").trim();
-    d.function_label = String((colFunc && r[colFunc]) ?? "").trim();
-    const rawVal = (colVal && r[colVal]) ?? "";
-    if (typeof rawVal === "number") d.claimed_amount = String(rawVal);
-    else if (rawVal) {
-      d.claimed_amount = String(rawVal)
-        .replace(/[^\d,.-]/g, "")
-        .replace(/\.(?=\d{3}(\D|$))/g, "")
-        .replace(",", ".");
-    }
-    return d;
-  });
-}
+// Parsing de planilha agora vive em RetroactiveMappingWizard (readRawSheet + UI de mapeamento)
 
 export default function RetroactiveReconciliationsTab() {
   const hospitalId = useActiveHospitalId();
@@ -696,6 +635,10 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const [pasted, setPasted] = useState("");
   const [running, setRunning] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [wizard, setWizard] = useState<
+    | { open: false }
+    | { open: true; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
+  >({ open: false });
 
   const load = async () => {
     const { data: r } = await supabase
@@ -748,13 +691,16 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const onUpload = async (file: File) => {
     try {
-      const parsed = await parseSpreadsheet(file);
-      if (parsed.length === 0) {
-        toast({ title: "Planilha vazia ou sem colunas reconhecidas", variant: "destructive" });
+      const { headers, rows } = await readRawSheet(file);
+      if (rows.length === 0) {
+        toast({
+          title: "Planilha vazia",
+          description: "A primeira aba não tem linhas de dados.",
+          variant: "destructive",
+        });
         return;
       }
-      setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...parsed]);
-      toast({ title: `${parsed.length} linha(s) carregadas` });
+      setWizard({ open: true, fileName: file.name, headers, rows });
     } catch (e) {
       toast({
         title: "Erro ao ler planilha",
@@ -762,6 +708,22 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         variant: "destructive",
       });
     }
+  };
+
+  const applyMapping = (mapped: MappedDraft[]) => {
+    const newDrafts: DraftItem[] = mapped.map((m) => ({
+      _localId: crypto.randomUUID(),
+      source: "upload",
+      attendance: m.attendance,
+      tuss_code: m.tuss_code,
+      procedure_date: m.procedure_date,
+      patient_name: m.patient_name,
+      function_label: m.function_label,
+      claimed_amount: m.claimed_amount,
+    }));
+    setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...newDrafts]);
+    setWizard({ open: false });
+    toast({ title: `${newDrafts.length} linha(s) carregadas da planilha` });
   };
 
   const onPasteApply = () => {
@@ -1083,6 +1045,17 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
           </TableBody>
         </Table>
       </div>
+
+      {wizard.open && (
+        <RetroactiveMappingWizard
+          open={wizard.open}
+          fileName={wizard.fileName}
+          headers={wizard.headers}
+          rows={wizard.rows}
+          onCancel={() => setWizard({ open: false })}
+          onConfirm={applyMapping}
+        />
+      )}
     </div>
   );
 }
