@@ -280,9 +280,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : JSON.stringify(e);
+    console.error("run-retroactive-reconciliation error:", msg, e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : String(e) }),
+      JSON.stringify({ error: msg, detail: e instanceof Error ? e.stack : null }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
+
 });
