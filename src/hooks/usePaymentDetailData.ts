@@ -181,7 +181,22 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     ]);
     if (myToken !== loadTokenRef.current || ac.signal.aborted) return;
     setPayment(p);
-    setItems((it ?? []) as unknown as PaymentItemRow[]);
+    // Itens cancelados: suprime todos os ai_findings, alerts e validation_findings
+    // antes de qualquer consumidor (badges, contagens, alertas, tooltips).
+    // Item cancelado não deve mais "gritar" como alerta/validação em nenhuma tela
+    // de análise — espelha a decisão do analista de descontinuá-lo.
+    const rawItems = (it ?? []) as unknown as PaymentItemRow[];
+    const sanitizedItems = rawItems.map((row) => {
+      if (!(row as any).is_cancelled) return row;
+      return {
+        ...row,
+        ai_findings: row.ai_findings
+          ? { ...(row.ai_findings as any), alerts: [], needs_human_review: false }
+          : row.ai_findings,
+        validation_findings: [],
+      } as PaymentItemRow;
+    });
+    setItems(sanitizedItems);
     setObs(o ?? []);
     setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
     setGroups(gs ?? []);
