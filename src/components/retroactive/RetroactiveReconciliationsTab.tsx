@@ -887,15 +887,17 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
         {(
           [
             ["ok_pago", "OK pago"],
             ["pago_a_menos", "Pago a menos"],
+            ["tuss_divergente", "TUSS divergente"],
             ["nao_pago", "Não pago"],
             ["pago_outro_mes", "Outro mês"],
             ["sem_lastro", "Sem lastro"],
           ] as const
+
         ).map(([k, lbl]) => (
           <div key={k} className="rounded-lg border border-border bg-card px-3 py-2">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
