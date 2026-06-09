@@ -1269,6 +1269,7 @@ const NewPayment = () => {
         payment_due_date: paymentDueDate || null,
         payment_type: paymentType as PaymentType,
         payment_kind: (paymentKind || null) as PaymentKind | null,
+        payment_track: (paymentTrack || null) as PaymentTrack | null,
         cost_center_code: costCenterCode,
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
