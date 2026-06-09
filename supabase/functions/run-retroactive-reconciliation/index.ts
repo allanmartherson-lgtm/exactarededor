@@ -251,6 +251,10 @@ Deno.serve(async (req) => {
       ) {
         summary.total_gap += gap_amount;
       }
+      if (classification === "pago_a_mais" && gap_amount) {
+        // gap_amount é negativo; total_excess armazena o módulo do excedente.
+        summary.total_excess += Math.abs(gap_amount);
+      }
 
 
       rowsToInsert.push({
