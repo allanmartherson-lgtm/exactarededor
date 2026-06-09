@@ -344,6 +344,7 @@ export function ItemsDataGrid({
           if (!Array.isArray(vf) || vf.length === 0) return false;
         }
       }
+      if (onlyAdjusted && !adjustedItemIds.has(it.id)) return false;
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
