@@ -1487,7 +1487,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [wizard, setWizard] = useState<
     | { kind: "none" }
     | { kind: "tasy"; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
-    | { kind: "pag"; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
   >({ kind: "none" });
 
   useEffect(() => {
