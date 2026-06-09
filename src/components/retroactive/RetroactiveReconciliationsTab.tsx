@@ -63,6 +63,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
+import RetroactiveMappingWizard, {
+  readRawSheet,
+  type MappedDraft,
+} from "./RetroactiveMappingWizard";
 
 type Doctor = { id: string; full_name: string; crm: string; crm_uf: string };
 type Company = { id: string; name: string; document: string | null };
