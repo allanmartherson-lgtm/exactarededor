@@ -479,9 +479,22 @@ export default function InterventionAdjustments() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Button asChild size="sm" variant="ghost">
-                            <Link to={it.company_group_id ? `/pagamentos/${it.payment_id}/empresa/${it.company_group_id}#item-${it.item_id}` : `/pagamentos/${it.payment_id}#item-${it.item_id}`}>Abrir</Link>
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button asChild size="sm" variant="ghost">
+                              <Link to={it.company_group_id ? `/pagamentos/${it.payment_id}/empresa/${it.company_group_id}#item-${it.item_id}` : `/pagamentos/${it.payment_id}#item-${it.item_id}`}>Abrir</Link>
+                            </Button>
+                            {(it.role === "cancelamento_conciliacao" || it.role === "cancelamento_item") && canReactivate && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={reactivatingId === it.item_id}
+                                onClick={() => handleReactivate(it.item_id)}
+                                title="Reverter cancelamento e devolver item ao pagamento"
+                              >
+                                <Undo2 className="h-3.5 w-3.5 mr-1" /> Reativar
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
