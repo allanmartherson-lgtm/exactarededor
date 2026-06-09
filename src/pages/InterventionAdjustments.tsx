@@ -14,7 +14,8 @@ import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowDownRight, ArrowUpRight, Download, Info, Scale, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Download, Info, Scale, TrendingDown, TrendingUp, Undo2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   emptyResult,
@@ -73,12 +74,38 @@ const fmtDate = (s: string) =>
 
 export default function InterventionAdjustments() {
   const currentHospitalId = useActiveHospitalId();
+  const { hasRole } = useAuth();
+  const canReactivate = hasRole("admin") || hasRole("diretor") || hasRole("validador");
   const [params] = useSearchParams();
   const initialRole = (params.get("role") as IntervenorRole | null) ?? "all";
   const [range, setRange] = useState<Range>(30);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
   const [filters, setFilters] = useState<InterventionFilters>({ role: initialRole, userId: "all", search: "" });
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
+
+  const reloadData = async () => {
+    const end = new Date();
+    const start = new Date(end.getTime() - range * 24 * 3600 * 1000);
+    const { data: res, error } = await supabase.rpc("get_intervention_savings", {
+      p_start: start.toISOString(),
+      p_end: end.toISOString(),
+      p_hospital_id: currentHospitalId ?? null,
+    });
+    if (!error) setData((res as unknown as InterventionSavingsResult) ?? emptyResult());
+  };
+
+  const handleReactivate = async (itemId: string) => {
+    setReactivatingId(itemId);
+    const { error } = await supabase.rpc("reactivate_cancelled_item", { p_item_id: itemId });
+    setReactivatingId(null);
+    if (error) {
+      toast.error("Falha ao reativar", { description: error.message });
+      return;
+    }
+    toast.success("Item reativado. O cancelamento foi desfeito.");
+    await reloadData();
+  };
 
 
   useEffect(() => {
@@ -452,9 +479,22 @@ export default function InterventionAdjustments() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Button asChild size="sm" variant="ghost">
-                            <Link to={it.company_group_id ? `/pagamentos/${it.payment_id}/empresa/${it.company_group_id}#item-${it.item_id}` : `/pagamentos/${it.payment_id}#item-${it.item_id}`}>Abrir</Link>
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button asChild size="sm" variant="ghost">
+                              <Link to={it.company_group_id ? `/pagamentos/${it.payment_id}/empresa/${it.company_group_id}#item-${it.item_id}` : `/pagamentos/${it.payment_id}#item-${it.item_id}`}>Abrir</Link>
+                            </Button>
+                            {(it.role === "cancelamento_conciliacao" || it.role === "cancelamento_item") && canReactivate && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={reactivatingId === it.item_id}
+                                onClick={() => handleReactivate(it.item_id)}
+                                title="Reverter cancelamento e devolver item ao pagamento"
+                              >
+                                <Undo2 className="h-3.5 w-3.5 mr-1" /> Reativar
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

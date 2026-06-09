@@ -26,6 +26,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import CancelPaymentDialog from "@/components/payment-detail/CancelPaymentDialog";
 import { CancelledGroupBanner } from "@/components/payment-detail/CancelledGroupBanner";
+import { CancelledItemsBanner } from "@/components/payment-detail/CancelledItemsBanner";
 import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2, CheckCircle2, GitCompareArrows, Calculator } from "lucide-react";
 import {
   AlertDialog,
@@ -1437,6 +1438,11 @@ export default function CompanyAnalysis() {
       )}
       <CancelledGroupBanner
         group={group as unknown as React.ComponentProps<typeof CancelledGroupBanner>["group"]}
+        canReactivate={hasRole("admin") || hasRole("diretor") || hasRole("validador")}
+        onReactivated={load}
+      />
+      <CancelledItemsBanner
+        items={items as unknown as React.ComponentProps<typeof CancelledItemsBanner>["items"]}
         canReactivate={hasRole("admin") || hasRole("diretor") || hasRole("validador")}
         onReactivated={load}
       />
