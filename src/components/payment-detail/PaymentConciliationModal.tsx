@@ -5209,6 +5209,9 @@ export function PaymentConciliationModal({
             setCancelScope(null);
             // Recarrega lista de itens da conciliação para refletir action_taken
             void loadLatestRun();
+            // Notifica a tela pai para recomputar Bruto/Líquido em tempo real,
+            // sem exigir fechar o modal ou usar "Reaplicar regras".
+            onItemsChanged?.();
           }}
         />
       )}
