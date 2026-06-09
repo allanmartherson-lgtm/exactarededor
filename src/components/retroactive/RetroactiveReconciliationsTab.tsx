@@ -100,9 +100,12 @@ type ItemRow = {
   patient_name: string | null;
   function_label: string | null;
   claimed_amount: number | null;
+  claimed_quantity: number | null;
   paid_amount: number | null;
+  paid_quantity: number | null;
   expected_amount: number | null;
   gap_amount: number | null;
+  matched_payment_date: string | null;
   classification:
     | "ok_pago"
     | "pago_a_menos"
@@ -123,6 +126,7 @@ type DraftItem = {
   patient_name: string;
   function_label: string;
   claimed_amount: string;
+  claimed_quantity: string;
 };
 
 const CLASS_LABEL: Record<ItemRow["classification"], string> = {
@@ -152,6 +156,7 @@ function emptyDraft(): DraftItem {
     patient_name: "",
     function_label: "",
     claimed_amount: "",
+    claimed_quantity: "",
   };
 }
 
