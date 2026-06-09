@@ -1830,42 +1830,31 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         </label>
       </div>
 
-      {/* Step 2 — Repasse */}
-      <div className={cn("rounded-lg border border-border bg-card p-4 space-y-3", tasyRows.length === 0 && "opacity-60 pointer-events-none")}>
-        <div className="flex items-center justify-between">
+      {/* Step 2 — Repasse (auto, do sistema) */}
+      <div className={cn("rounded-lg border border-border bg-card p-4 space-y-2", tasyRows.length === 0 && "opacity-60 pointer-events-none")}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h4 className="text-sm font-semibold">2. Arquivo(s) de Repasse</h4>
+            <h4 className="text-sm font-semibold">2. Repasse do sistema</h4>
             <p className="text-[11px] text-muted-foreground">
-              Pode ser mais de um. Todos são concatenados antes do cruzamento.
-              {pagMapping && " O mapeamento do primeiro arquivo é reutilizado nos próximos."}
+              Buscado automaticamente em <code>payment_items</code> com base no escopo da apuração (médico/PJ + período ±90 dias). Usa <code>procedure_amount</code> (valor base 100%, sem acordo).
             </p>
           </div>
-          {pagRows.length > 0 && (
-            <Badge variant="default" className="text-[10px]">
-              {pagRows.length} linha(s) · {pagFiles.length} arquivo(s)
-            </Badge>
-          )}
-        </div>
-        <label className="flex items-center gap-3 border-2 border-dashed border-border rounded-lg py-4 px-4 cursor-pointer hover:bg-muted/40">
-          <UploadCloudIcon className="h-6 w-6 text-muted-foreground" />
-          <span className="text-sm">Adicionar arquivo(s) de repasse</span>
-          <input
-            type="file"
-            multiple
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={(e) => {
-              const fs = e.target.files;
-              if (fs && fs.length > 0) void onPickPag(fs);
-              e.target.value = "";
-            }}
-          />
-        </label>
-        {pagFiles.length > 0 && (
-          <div className="text-[11px] text-muted-foreground">
-            Arquivos: {pagFiles.map((f, i) => <span key={i} className="font-mono mr-2">{f}</span>)}
+          <div className="flex items-center gap-2">
+            {loadingPayments && (
+              <Badge variant="outline" className="text-[10px]">Buscando pagamentos do sistema…</Badge>
+            )}
+            {!loadingPayments && paymentsLoaded && (
+              <Badge variant="default" className="text-[10px]">
+                {pagRows.length} item(ns) carregados do sistema (payment_items)
+              </Badge>
+            )}
+            {tasyRows.length > 0 && !loadingPayments && (
+              <Button variant="outline" size="sm" onClick={() => void loadPaymentItems(recon)}>
+                {paymentsLoaded ? "Recarregar" : "Buscar agora"}
+              </Button>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Step 3 — Process */}
