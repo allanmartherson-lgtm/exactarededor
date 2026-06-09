@@ -30,6 +30,7 @@ type InputItem = {
 type Classification =
   | "ok_pago"
   | "pago_a_menos"
+  | "pago_a_mais"
   | "nao_pago"
   | "pago_outro_mes"
   | "tuss_divergente"
