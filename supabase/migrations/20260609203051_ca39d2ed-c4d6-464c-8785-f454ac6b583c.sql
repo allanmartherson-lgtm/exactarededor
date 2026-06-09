@@ -1,0 +1,1 @@
+ALTER TABLE public.retroactive_reconciliation_items ADD COLUMN IF NOT EXISTS procedure_name text;

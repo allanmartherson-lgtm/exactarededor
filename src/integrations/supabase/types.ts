@@ -6100,6 +6100,7 @@ export type Database = {
           payment_id: string | null
           payment_item_id: string | null
           procedure_date: string | null
+          procedure_name: string | null
           raw: Json
           reconciliation_id: string
           source: string
@@ -6127,6 +6128,7 @@ export type Database = {
           payment_id?: string | null
           payment_item_id?: string | null
           procedure_date?: string | null
+          procedure_name?: string | null
           raw?: Json
           reconciliation_id: string
           source?: string
@@ -6154,6 +6156,7 @@ export type Database = {
           payment_id?: string | null
           payment_item_id?: string | null
           procedure_date?: string | null
+          procedure_name?: string | null
           raw?: Json
           reconciliation_id?: string
           source?: string
