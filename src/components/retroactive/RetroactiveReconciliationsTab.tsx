@@ -690,6 +690,7 @@ function NewView({
 function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [doctorName, setDoctorName] = useState<string>("");
+  const [companyName, setCompanyName] = useState<string>("");
   const [items, setItems] = useState<ItemRow[]>([]);
   const [drafts, setDrafts] = useState<DraftItem[]>([emptyDraft()]);
   const [pasted, setPasted] = useState("");
@@ -700,7 +701,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     const { data: r } = await supabase
       .from("retroactive_reconciliations" as never)
       .select(
-        "id, doctor_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at",
+        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at",
       )
       .eq("id", id)
       .single();
@@ -713,6 +714,18 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         .eq("id", row.doctor_id)
         .single();
       setDoctorName((d as { full_name?: string } | null)?.full_name ?? "");
+    } else {
+      setDoctorName("");
+    }
+    if (row?.company_id) {
+      const { data: c } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", row.company_id)
+        .single();
+      setCompanyName((c as { name?: string } | null)?.name ?? "");
+    } else {
+      setCompanyName("");
     }
     const { data: its } = await supabase
       .from("retroactive_reconciliation_items" as never)
