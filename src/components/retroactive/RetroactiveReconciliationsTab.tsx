@@ -1219,7 +1219,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                       {it.procedure_name ?? "—"}
                     </TableCell>
                     <TableCell>
-                      {it.procedure_date ? format(new Date(it.procedure_date), "dd/MM/yy") : "—"}
+                      {fmtDate(it.procedure_date, "dd/MM/yyyy")}
                     </TableCell>
                     <TableCell className="max-w-[180px] truncate">{it.patient_name ?? "—"}</TableCell>
                     <TableCell className="text-center">{it.claimed_quantity ?? "—"}</TableCell>
