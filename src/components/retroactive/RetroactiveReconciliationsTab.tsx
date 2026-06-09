@@ -844,6 +844,12 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const totalComplemento = useMemo(
     () =>
       items
+        .filter((i) => i.classification === "nao_pago" || i.classification === "pago_a_menos")
+        .reduce((s, i) => s + Number(i.gap_amount ?? 0), 0),
+    [items],
+  );
+
+
 
   if (!recon)
     return (
