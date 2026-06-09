@@ -34,6 +34,41 @@ const latestRpc = (): string => {
 
 const sql = latestRpc();
 
+const AUDIT_LOG_ALLOWED_ACTIONS = [
+  "create",
+  "update",
+  "create_via_rpc",
+  "update_via_rpc",
+  "auto_set_valid_until",
+  "delete",
+  "profile_updated",
+  "created",
+  "updated",
+  "deleted",
+  "approved",
+  "rejected",
+  "reactivated",
+  "deactivated",
+  "role_added",
+  "role_removed",
+  "password_reset",
+  "invite_resent",
+] as const;
+
+const AUDIT_LOG_ALLOWED_ENTITY_TYPES = [
+  "rule",
+  "rule_calculation",
+  "payment",
+  "payment_item",
+  "user",
+  "profile",
+  "access_request",
+  "company",
+  "doctor",
+  "invoice",
+  "notification",
+] as const;
+
 // Allowlist canônico da etapa de análise. Mantenha em sincronia com a função SQL
 // e com src/lib/paymentFlow.ts.
 const ANALYSIS_STAGE = [
@@ -93,6 +128,18 @@ describe("RPC cancel_by_reconciliation — máquina de estados (etapa de anális
   it("registra trilha de auditoria com o status do pagamento no momento", () => {
     expect(sql).toMatch(/INSERT INTO public\.audit_log/);
     expect(sql).toMatch(/payment_status_at_action/);
+  });
+
+  it("usa action/entity_type aceitos pelas constraints reais do audit_log", () => {
+    const insertMatch = sql.match(
+      /INSERT INTO public\.audit_log\(actor_id, action, entity_type, entity_id, diff, hospital_id\)[\s\S]*?VALUES\s*\([\s\S]*?v_uid,\s*'([^']+)',\s*'([^']+)'/,
+    );
+    expect(insertMatch, "INSERT em audit_log não encontrado").not.toBeNull();
+    const [, action, entityType] = insertMatch!;
+    expect(AUDIT_LOG_ALLOWED_ACTIONS).toContain(action as never);
+    expect(AUDIT_LOG_ALLOWED_ENTITY_TYPES).toContain(entityType as never);
+    expect(action).not.toBe("cancel_by_reconciliation");
+    expect(entityType).not.toBe("reconciliation_runs");
   });
 });
 
