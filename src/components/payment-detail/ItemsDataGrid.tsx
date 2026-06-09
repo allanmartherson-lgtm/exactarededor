@@ -1674,6 +1674,57 @@ function RowMain({
             </span>
           )}
           {(() => {
+            const adjObs = observations
+              .filter(
+                (o) =>
+                  o.item_id === it.id &&
+                  o.author_type === "analista" &&
+                  typeof o.message === "string" &&
+                  o.message.startsWith("Item editado pelo analista"),
+              )
+              .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+            if (adjObs.length === 0) return null;
+            const latest = adjObs[0];
+            const m = /valor:\s*([\d.,-]+)\s*→\s*([\d.,-]+)/i.exec(latest.message ?? "");
+            const parseNum = (s: string) => {
+              const n = Number(s.replace(/\./g, "").replace(",", "."));
+              return Number.isFinite(n) ? n : Number(s);
+            };
+            const oldV = m ? parseNum(m[1]) : null;
+            const newV = m ? parseNum(m[2]) : null;
+            const autor = (latest.author_id && profiles[latest.author_id]) || "Analista";
+            const data = latest.created_at
+              ? new Date(latest.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+              : "";
+            const tip = [
+              oldV != null && newV != null && Number.isFinite(oldV) && Number.isFinite(newV)
+                ? `${formatCurrency(oldV)} → ${formatCurrency(newV)}`
+                : "Valor ajustado pelo analista",
+              `${autor}${data ? " • " + data : ""}`,
+              adjObs.length > 1 ? `${adjObs.length} ajustes` : null,
+            ]
+              .filter(Boolean)
+              .join("\n");
+            return (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold",
+                  TEXT_META,
+                )}
+                style={{
+                  backgroundColor: "hsl(var(--warning) / 0.15)",
+                  color: "hsl(var(--warning))",
+                  borderColor: "hsl(var(--warning))",
+                }}
+                title={tip}
+                data-testid="analyst-adjusted-badge"
+              >
+                <Pencil className="h-2.5 w-2.5" />
+                AJUSTADO
+              </span>
+            );
+          })()}
+          {(() => {
             const rawFindings: any[] = Array.isArray((it as any).validation_findings)
               ? (it as any).validation_findings
               : [];
