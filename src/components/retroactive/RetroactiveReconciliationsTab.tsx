@@ -782,9 +782,18 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
       body: { reconciliation_id: id },
     });
     setGenerating(false);
-    if (error) {
-      const msg = (error.context as { body?: string } | undefined)?.body ?? error.message;
-      toast({ title: "Erro ao gerar ajuste", description: msg, variant: "destructive" });
+    if (error || (data as { error?: string })?.error) {
+      let msg = error?.message ?? (data as { error?: string })?.error ?? "Falha desconhecida";
+      try {
+        const ctxBody = (error?.context as { body?: unknown } | undefined)?.body;
+        if (typeof ctxBody === "string") {
+          const parsed = JSON.parse(ctxBody);
+          if (parsed?.error) msg = String(parsed.error);
+        }
+      } catch {
+        // keep msg
+      }
+      toast({ title: "Erro ao gerar ajuste", description: String(msg), variant: "destructive" });
       return;
     }
     toast({

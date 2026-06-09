@@ -1,0 +1,2 @@
+alter table public.company_financial_adjustments drop constraint if exists company_financial_adjustments_tipo_check;
+alter table public.company_financial_adjustments add constraint company_financial_adjustments_tipo_check check (tipo = any (array['credito'::text,'debito'::text,'glosa_parcelada'::text,'acordo'::text,'complemento_retroativo'::text]));
