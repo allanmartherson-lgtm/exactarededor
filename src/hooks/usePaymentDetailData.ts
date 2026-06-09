@@ -349,6 +349,38 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     };
   }, [id, load]);
 
+  /**
+   * Polling de segurança (backup do Realtime): a cada 20s busca apenas a
+   * linha `payments` e mescla no estado. Garante que o badge de status e o
+   * resumo da IA reflitam o banco mesmo quando o canal Realtime perde
+   * eventos (reconexão silenciosa, throttle, UPDATE via SQL direto, etc.).
+   * Roda só com a aba visível e dispara imediatamente ao voltar ao foco.
+   */
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const tick = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      const { data } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setPayment((prev) => (prev ? { ...prev, ...(data as PaymentRow) } : (data as PaymentRow)));
+    };
+    const interval = setInterval(tick, 20000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [id]);
+
   return {
     // state
     payment,
