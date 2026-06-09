@@ -22,9 +22,10 @@ import {
 interface Props {
   rangeDays?: number;
   className?: string;
+  hideHeader?: boolean;
 }
 
-export default function InterventionSavingsCard({ rangeDays = 30, className }: Props) {
+export default function InterventionSavingsCard({ rangeDays = 30, className, hideHeader = false }: Props) {
   const { hasRole } = useAuth();
   const hospitalId = useActiveHospitalId();
   const [loading, setLoading] = useState(true);
