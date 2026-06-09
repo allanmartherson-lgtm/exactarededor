@@ -85,6 +85,7 @@ type ReconRow = {
     nao_pago?: number;
     pago_outro_mes?: number;
     sem_lastro?: number;
+    tuss_divergente?: number;
     total_gap?: number;
   } | null;
   adjustment_ids: string[];
@@ -112,6 +113,7 @@ type ItemRow = {
     | "nao_pago"
     | "pago_outro_mes"
     | "sem_lastro"
+    | "tuss_divergente"
     | "pendente";
   classification_reason: string | null;
   payment_id: string | null;
@@ -135,6 +137,7 @@ const CLASS_LABEL: Record<ItemRow["classification"], string> = {
   nao_pago: "Não pago",
   pago_outro_mes: "Pago em outro mês",
   sem_lastro: "Sem lastro",
+  tuss_divergente: "TUSS divergente",
   pendente: "Pendente",
 };
 const CLASS_TONE: Record<ItemRow["classification"], string> = {
@@ -143,8 +146,10 @@ const CLASS_TONE: Record<ItemRow["classification"], string> = {
   nao_pago: "bg-red-100 text-red-800",
   pago_outro_mes: "bg-blue-100 text-blue-800",
   sem_lastro: "bg-zinc-100 text-zinc-800",
+  tuss_divergente: "bg-purple-100 text-purple-800",
   pendente: "bg-zinc-100 text-zinc-800",
 };
+
 
 function emptyDraft(): DraftItem {
   return {
