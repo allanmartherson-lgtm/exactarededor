@@ -1930,7 +1930,9 @@ const Dashboard = () => {
             <div className={showAcao ? "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch" : ""}>
               <InterventionSavingsCard rangeDays={30} className="h-full" />
               {showAcao && (
-                <ScoreSection title="Ações — Sua Vez" items={acaoItemsD} tone="action" className="h-full" />
+                <div className="h-full">
+                  <ScoreSection title="Ações — Sua Vez" items={acaoItemsD} tone="action" />
+                </div>
               )}
             </div>
           );
