@@ -1441,6 +1441,11 @@ export default function CompanyAnalysis() {
         canReactivate={hasRole("admin") || hasRole("diretor") || hasRole("validador")}
         onReactivated={load}
       />
+      <CancelledItemsBanner
+        items={items as unknown as React.ComponentProps<typeof CancelledItemsBanner>["items"]}
+        canReactivate={hasRole("admin") || hasRole("diretor") || hasRole("validador")}
+        onReactivated={load}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
