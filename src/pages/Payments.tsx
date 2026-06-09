@@ -445,6 +445,7 @@ const Payments = () => {
     const f: Record<string, any> = {};
     if (serverStatuses) f.statuses = serverStatuses;
     if (typeFilter !== "all") f.payment_types = [typeFilter];
+    if (trackFilter !== "all") f.payment_tracks = [trackFilter];
     if (analystFilter !== "all") f.created_by_ids = [analystFilter];
     if (companyFilter?.id) f.company_ids = [companyFilter.id];
     if (doctorFilter?.id) f.doctor_ids = [doctorFilter.id];
