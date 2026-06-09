@@ -756,13 +756,16 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const onUpload = async (file: File) => {
     try {
-      const parsed = await parseSpreadsheet(file);
-      if (parsed.length === 0) {
-        toast({ title: "Planilha vazia ou sem colunas reconhecidas", variant: "destructive" });
+      const { headers, rows } = await readRawSheet(file);
+      if (rows.length === 0) {
+        toast({
+          title: "Planilha vazia",
+          description: "A primeira aba não tem linhas de dados.",
+          variant: "destructive",
+        });
         return;
       }
-      setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...parsed]);
-      toast({ title: `${parsed.length} linha(s) carregadas` });
+      setWizard({ open: true, fileName: file.name, headers, rows });
     } catch (e) {
       toast({
         title: "Erro ao ler planilha",
@@ -770,6 +773,22 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         variant: "destructive",
       });
     }
+  };
+
+  const applyMapping = (mapped: MappedDraft[]) => {
+    const newDrafts: DraftItem[] = mapped.map((m) => ({
+      _localId: crypto.randomUUID(),
+      source: "upload",
+      attendance: m.attendance,
+      tuss_code: m.tuss_code,
+      procedure_date: m.procedure_date,
+      patient_name: m.patient_name,
+      function_label: m.function_label,
+      claimed_amount: m.claimed_amount,
+    }));
+    setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...newDrafts]);
+    setWizard({ open: false });
+    toast({ title: `${newDrafts.length} linha(s) carregadas da planilha` });
   };
 
   const onPasteApply = () => {
