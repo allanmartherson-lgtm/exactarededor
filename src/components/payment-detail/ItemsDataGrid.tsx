@@ -646,38 +646,48 @@ export function ItemsDataGrid({
             <DropdownMenuTrigger asChild>
               <Button
                 size="sm"
-                variant={(onlyAlerts || onlyManualBonus) ? "default" : "outline"}
+                variant={(onlyAlerts || onlyManualBonus || onlyAdjusted) ? "default" : "outline"}
                 className="h-8 text-xs"
               >
                 <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-                {onlyManualBonus
+                {onlyAdjusted
+                  ? "Só ajustados pelo analista"
+                  : onlyManualBonus
                   ? "Manuais / Bônus / Compl."
                   : onlyAlerts
                   ? "Só com alertas"
                   : "Filtrar itens"}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-60">
+            <DropdownMenuContent align="start" className="w-64">
               <DropdownMenuLabel>Filtros rápidos</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => { setOnlyAlerts(true); setOnlyManualBonus(false); }}
+                onClick={() => { setOnlyAlerts(true); setOnlyManualBonus(false); setOnlyAdjusted(false); }}
                 className={cn(onlyAlerts && "bg-accent")}
               >
                 <AlertTriangle className="h-3.5 w-3.5 mr-2 text-warning" />
                 Só com alertas
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => { setOnlyManualBonus(true); setOnlyAlerts(false); }}
+                onClick={() => { setOnlyManualBonus(true); setOnlyAlerts(false); setOnlyAdjusted(false); }}
                 className={cn(onlyManualBonus && "bg-accent")}
               >
                 <Sparkles className="h-3.5 w-3.5 mr-2 text-indigo-600" />
                 Manuais, bônus e complemento
               </DropdownMenuItem>
-              {(onlyAlerts || onlyManualBonus) && (
+              <DropdownMenuItem
+                onClick={() => { setOnlyAdjusted(true); setOnlyAlerts(false); setOnlyManualBonus(false); }}
+                className={cn(onlyAdjusted && "bg-accent")}
+                disabled={adjustedItemIds.size === 0}
+              >
+                <Pencil className="h-3.5 w-3.5 mr-2" style={{ color: "hsl(var(--warning))" }} />
+                Só ajustados pelo analista ({adjustedItemIds.size})
+              </DropdownMenuItem>
+              {(onlyAlerts || onlyManualBonus || onlyAdjusted) && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => { setOnlyAlerts(false); setOnlyManualBonus(false); }}>
+                  <DropdownMenuItem onClick={() => { setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyAdjusted(false); }}>
                     Limpar este filtro
                   </DropdownMenuItem>
                 </>
@@ -703,7 +713,7 @@ export function ItemsDataGrid({
             <ShieldAlert className="h-3.5 w-3.5 mr-1" />
             Alertas assistenciais
           </Button>
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts) && (
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted) && (
             <Button
               size="sm"
               variant="ghost"
@@ -712,7 +722,7 @@ export function ItemsDataGrid({
                 setFilter(""); setPatientFilter("");
                 setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
                 setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyNeedsReview(false);
-                setOnlyValidationAlerts(false);
+                setOnlyValidationAlerts(false); setOnlyAdjusted(false);
               }}
             >
               Limpar
