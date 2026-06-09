@@ -250,6 +250,7 @@ Deno.serve(async (req) => {
         procedure_date: it.procedure_date ?? null,
         patient_name: it.patient_name ?? null,
         function_label: it.function_label ?? null,
+        procedure_name: it.procedure_name ?? null,
         claimed_amount: claimedAmt || null,
         claimed_quantity: claimedQty,
         paid_amount,
