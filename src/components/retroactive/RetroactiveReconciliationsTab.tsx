@@ -139,7 +139,7 @@ const CLASS_LABEL: Record<ItemRow["classification"], string> = {
   nao_pago: "Não pago",
   pago_outro_mes: "Pago em outro mês",
   sem_lastro: "Sem lastro",
-  tuss_divergente: "TUSS divergente",
+  tuss_divergente: "Pendência (TUSS faltante)",
   pendente: "Pendente",
 };
 const CLASS_TONE: Record<ItemRow["classification"], string> = {
