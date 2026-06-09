@@ -317,6 +317,24 @@ export function PaymentPivotSection({
   }, [effectivePrevMonths, totalsByMonth]);
   const totalDelta = totalPrevAvg > 0 ? ((totalCurrent - totalPrevAvg) / totalPrevAvg) * 100 : 0;
 
+  // Aplica ordenação escolhida pelo usuário ao primaryRows. "__current__"
+  // mantém o default (mês atual desc). Children não são reordenadas.
+  const sortedRows = useMemo(() => {
+    const arr = [...primaryRows];
+    const dir = sortDir === "asc" ? 1 : -1;
+    if (sortKey === "label") {
+      arr.sort((a, b) => a.key.localeCompare(b.key, "pt-BR") * dir);
+    } else if (sortKey === "delta") {
+      arr.sort((a, b) => (a.deltaPct - b.deltaPct) * dir);
+    } else if (sortKey === "__current__") {
+      arr.sort((a, b) => (a.current - b.current) * -1); // sempre desc
+    } else {
+      // chave = ISO de um mês específico
+      arr.sort((a, b) => ((a.byMonth.get(sortKey) ?? 0) - (b.byMonth.get(sortKey) ?? 0)) * dir);
+    }
+    return arr;
+  }, [primaryRows, sortKey, sortDir]);
+
   if (variant === "detalhe") return null;
 
   const showAlerts = variant === "compacto";
