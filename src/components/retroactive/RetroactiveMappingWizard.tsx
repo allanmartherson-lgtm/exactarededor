@@ -29,6 +29,7 @@ export type MappedDraft = {
   function_label: string;
   claimed_amount: string;
   claimed_quantity: string;
+  procedure_name: string;
   doctor_hint: string;
   company_hint: string;
 };
@@ -36,7 +37,7 @@ export type MappedDraft = {
 type RawRow = Record<string, unknown>;
 
 type TargetField = {
-  key: keyof MappedDraft | "procedure_description";
+  key: keyof MappedDraft;
   label: string;
   required: boolean;
   aliases: string[];
@@ -52,7 +53,7 @@ const TARGETS: TargetField[] = [
   { key: "function_label", label: "Função médico", required: false, aliases: ["funcao", "funcaomedico", "papel", "role", "tipoatuacao"] },
   { key: "doctor_hint", label: "Médico (nome/CRM)", required: false, aliases: ["medico", "nomemedico", "executante", "executor", "crm", "crmexecutor", "medicoexec"] },
   { key: "company_hint", label: "PJ / Empresa", required: false, aliases: ["empresa", "terceiro", "razaosocial", "cnpj", "fornecedor"] },
-  { key: "procedure_description", label: "Descrição / Grupo", required: false, aliases: ["procedimentomatmed", "descricao", "descrprocedi", "procedimento", "grupo", "matmed"] },
+  { key: "procedure_name", label: "Nome do procedimento", required: false, aliases: ["procedimentomatmed", "descricao", "descrprocedi", "procedimento", "nomeprocedimento", "descproc", "grupo", "matmed"] },
 ];
 
 const NONE = "__none__";
@@ -137,7 +138,7 @@ export default function RetroactiveMappingWizard({
 
   const { valid, dropped, excluded } = useMemo(() => {
     if (Object.keys(mapping).length === 0) return { valid: [] as MappedDraft[], dropped: 0, excluded: 0 };
-    const descCol = mapping["procedure_description"];
+    const descCol = mapping["procedure_name"];
     let excludedCount = 0;
     const built: MappedDraft[] = [];
     let droppedCount = 0;
@@ -162,6 +163,7 @@ export default function RetroactiveMappingWizard({
         procedure_date: parseCellDate(get("procedure_date")),
         patient_name: String(get("patient_name") ?? "").trim(),
         function_label: String(get("function_label") ?? "").trim(),
+        procedure_name: String(get("procedure_name") ?? "").trim(),
         doctor_hint: String(get("doctor_hint") ?? "").trim(),
         company_hint: String(get("company_hint") ?? "").trim(),
       };

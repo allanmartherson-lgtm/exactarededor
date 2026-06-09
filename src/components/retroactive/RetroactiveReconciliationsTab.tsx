@@ -100,6 +100,7 @@ type ItemRow = {
   procedure_date: string | null;
   patient_name: string | null;
   function_label: string | null;
+  procedure_name: string | null;
   claimed_amount: number | null;
   claimed_quantity: number | null;
   paid_amount: number | null;
@@ -127,6 +128,7 @@ type DraftItem = {
   procedure_date: string;
   patient_name: string;
   function_label: string;
+  procedure_name: string;
   claimed_amount: string;
   claimed_quantity: string;
 };
@@ -137,7 +139,7 @@ const CLASS_LABEL: Record<ItemRow["classification"], string> = {
   nao_pago: "Não pago",
   pago_outro_mes: "Pago em outro mês",
   sem_lastro: "Sem lastro",
-  tuss_divergente: "TUSS divergente",
+  tuss_divergente: "Pendência (TUSS faltante)",
   pendente: "Pendente",
 };
 const CLASS_TONE: Record<ItemRow["classification"], string> = {
@@ -160,6 +162,7 @@ function emptyDraft(): DraftItem {
     procedure_date: "",
     patient_name: "",
     function_label: "",
+    procedure_name: "",
     claimed_amount: "",
     claimed_quantity: "",
   };
@@ -685,7 +688,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     const { data: its } = await supabase
       .from("retroactive_reconciliation_items" as never)
       .select(
-        "id, attendance, tuss_code, procedure_date, patient_name, function_label, claimed_amount, claimed_quantity, paid_amount, paid_quantity, expected_amount, gap_amount, matched_payment_date, classification, classification_reason, payment_id",
+        "id, attendance, tuss_code, procedure_date, patient_name, function_label, procedure_name, claimed_amount, claimed_quantity, paid_amount, paid_quantity, expected_amount, gap_amount, matched_payment_date, classification, classification_reason, payment_id",
       )
       .eq("reconciliation_id", id)
       .order("created_at", { ascending: true });
@@ -736,6 +739,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
       procedure_date: m.procedure_date,
       patient_name: m.patient_name,
       function_label: m.function_label,
+      procedure_name: m.procedure_name ?? "",
       claimed_amount: m.claimed_amount,
       claimed_quantity: m.claimed_quantity ?? "",
     }));
@@ -772,6 +776,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
           procedure_date: d.procedure_date || null,
           patient_name: d.patient_name || null,
           function_label: d.function_label || null,
+          procedure_name: d.procedure_name || null,
           claimed_amount: d.claimed_amount ? Number(d.claimed_amount) : null,
           claimed_quantity: d.claimed_quantity ? Number(d.claimed_quantity) : 1,
         })),
@@ -826,6 +831,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     const rows = items.map((it) => ({
       Atendimento: it.attendance ?? "",
       TUSS: it.tuss_code ?? "",
+      Procedimento: it.procedure_name ?? "",
       "Data procedimento": it.procedure_date ?? "",
       Paciente: it.patient_name ?? "",
       Função: it.function_label ?? "",
@@ -1137,6 +1143,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               <TableRow>
                 <TableHead>Atendimento</TableHead>
                 <TableHead>TUSS</TableHead>
+                <TableHead>Procedimento</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>Paciente</TableHead>
                 <TableHead className="text-center">Qtd aleg.</TableHead>
@@ -1152,7 +1159,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
             <TableBody>
               {filteredItems.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={13} className="text-center text-muted-foreground py-8">
                     {items.length === 0
                       ? "Nenhum item processado ainda."
                       : "Nenhum item neste filtro."}
@@ -1169,6 +1176,9 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                   <TableRow key={it.id}>
                     <TableCell>{it.attendance ?? "—"}</TableCell>
                     <TableCell>{it.tuss_code ?? "—"}</TableCell>
+                    <TableCell className="max-w-[220px] truncate" title={it.procedure_name ?? undefined}>
+                      {it.procedure_name ?? "—"}
+                    </TableCell>
                     <TableCell>
                       {it.procedure_date ? format(new Date(it.procedure_date), "dd/MM/yy") : "—"}
                     </TableCell>
