@@ -64,8 +64,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import RetroactiveMappingWizard, {
   readRawSheet,
-  type MappedDraft,
+  TASY_TARGETS,
+  REPASSE_TARGETS,
+  type TargetField,
 } from "./RetroactiveMappingWizard";
+
+type ReconMode = "alegacao_medico" | "tasy_vs_repasse";
+const MODE_STORAGE_PREFIX = "retro_mode__";
+function getStoredMode(id: string): ReconMode {
+  if (typeof window === "undefined") return "alegacao_medico";
+  const v = window.sessionStorage.getItem(MODE_STORAGE_PREFIX + id);
+  return v === "tasy_vs_repasse" ? "tasy_vs_repasse" : "alegacao_medico";
+}
+function setStoredMode(id: string, m: ReconMode) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(MODE_STORAGE_PREFIX + id, m);
+}
 
 type Doctor = { id: string; full_name: string; crm: string; crm_uf: string };
 type Company = { id: string; name: string; document: string | null };
@@ -429,6 +443,7 @@ function NewView({
   const [end, setEnd] = useState("");
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
+  const [mode, setMode] = useState<ReconMode>("alegacao_medico");
 
   useEffect(() => {
     void (async () => {
@@ -465,7 +480,10 @@ function NewView({
       toast({ title: "Selecione um hospital ativo", variant: "destructive" });
       return;
     }
-    if ((!doctorId && !companyId) || !start || !end) {
+    const today = new Date().toISOString().slice(0, 10);
+    const effStart = mode === "tasy_vs_repasse" ? (start || today) : start;
+    const effEnd = mode === "tasy_vs_repasse" ? (end || today) : end;
+    if (mode === "alegacao_medico" && ((!doctorId && !companyId) || !start || !end)) {
       toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
       return;
     }
@@ -482,8 +500,8 @@ function NewView({
         hospital_id: hospitalId,
         doctor_id: doctorId || null,
         company_id: companyId || null,
-        period_start: start,
-        period_end: end,
+        period_start: effStart,
+        period_end: effEnd,
         title: title || null,
         created_by: userId,
       })
@@ -494,7 +512,9 @@ function NewView({
       toast({ title: "Erro ao criar apuração", description: error?.message, variant: "destructive" });
       return;
     }
-    onCreated((data as { id: string }).id);
+    const newId = (data as { id: string }).id;
+    setStoredMode(newId, mode);
+    onCreated(newId);
   };
 
   return (
@@ -503,11 +523,40 @@ function NewView({
         <ArrowLeftIcon className="h-4 w-4 mr-1" /> Voltar
       </Button>
       <h3 className="text-lg font-semibold">Nova apuração retroativa</h3>
-      <p className="text-xs text-muted-foreground -mt-2">
-        Informe o médico, a PJ, ou ambos. Médico sempre está vinculado a uma PJ — selecionar a PJ
-        restringe o cruzamento aos pagamentos daquela empresa.
+
+      <div className="rounded-lg border border-border bg-card p-3">
+        <Label className="text-xs">Modo de apuração</Label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1.5">
+          {([
+            ["alegacao_medico", "Alegação do médico", "Médico/PJ informa o que faltou — cruza com o que já foi pago no sistema."],
+            ["tasy_vs_repasse", "TASY vs Repasse", "Compara base TASY (realizado) com arquivo(s) de repasse do convênio. Análise ad-hoc, sem cruzamento com Supabase."],
+          ] as const).map(([k, lbl, desc]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setMode(k)}
+              className={cn(
+                "text-left rounded-md border px-3 py-2 transition-colors",
+                mode === k ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40",
+              )}
+            >
+              <div className="text-sm font-medium flex items-center gap-2">
+                {mode === k && <CheckIcon className="h-3.5 w-3.5 text-primary" />}
+                {lbl}
+              </div>
+              <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground -mt-1">
+        {mode === "alegacao_medico"
+          ? "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa."
+          : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração."}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
         <div className="md:col-span-2">
           <Label>Médico</Label>
           <Popover open={docOpen} onOpenChange={setDocOpen}>
@@ -645,6 +694,14 @@ function NewView({
 
 /* -------------------------- DETAIL -------------------------- */
 function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
+  const mode = getStoredMode(id);
+  if (mode === "tasy_vs_repasse") {
+    return <TasyVsRepasseView id={id} onBack={onBack} />;
+  }
+  return <AlegacaoDetailView id={id} onBack={onBack} />;
+}
+
+function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [doctorName, setDoctorName] = useState<string>("");
   const [companyName, setCompanyName] = useState<string>("");
@@ -735,17 +792,17 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     }
   };
 
-  const applyMapping = (mapped: MappedDraft[]) => {
+  const applyMapping = (mapped: Record<string, string>[]) => {
     const newDrafts: DraftItem[] = mapped.map((m) => ({
       _localId: crypto.randomUUID(),
       source: "upload",
-      attendance: m.attendance,
-      tuss_code: m.tuss_code,
-      procedure_date: m.procedure_date,
-      patient_name: m.patient_name,
-      function_label: m.function_label,
+      attendance: m.attendance ?? "",
+      tuss_code: m.tuss_code ?? "",
+      procedure_date: m.procedure_date ?? "",
+      patient_name: m.patient_name ?? "",
+      function_label: m.function_label ?? "",
       procedure_name: m.procedure_name ?? "",
-      claimed_amount: m.claimed_amount,
+      claimed_amount: m.claimed_amount ?? "",
       claimed_quantity: m.claimed_quantity ?? "",
     }));
     setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...newDrafts]);
@@ -1324,3 +1381,677 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     </div>
   );
 }
+
+/* ===================================================================
+ * TASY vs Repasse — modo independente, 100% em memória, sem edge function
+ * =================================================================== */
+
+type TasyRow = {
+  tasy_atendimento: string;
+  tasy_tuss: string;
+  tasy_qtd: string;
+  tasy_valor_unit: string;
+  tasy_procedimento?: string;
+  tasy_paciente?: string;
+  tasy_data?: string;
+  tasy_convenio?: string;
+  tasy_medico?: string;
+  tasy_funcao?: string;
+};
+
+type PagRow = {
+  pag_atendimento: string;
+  pag_tuss: string;
+  pag_qtd: string;
+  pag_valor_base: string;
+  pag_valor_com_acordo?: string;
+  pag_funcao?: string;
+  pag_medico?: string;
+  pag_data?: string;
+  pag_paciente?: string;
+  pag_convenio?: string;
+};
+
+type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_qtd" | "div_valor" | "pago_sem_tasy" | "ok";
+
+type TvrResult = {
+  key: string;
+  atendimento: string;
+  tuss: string;
+  procedimento: string;
+  paciente: string;
+  data: string;
+  convenio: string;
+  medico: string;
+  funcao: string;
+  qtd_tasy: number;
+  valor_unit_tasy: number;
+  valor_total_tasy: number;
+  qtd_por_func: number;
+  n_funcs: number;
+  funcoes_pagas: string;
+  valor_pago_base: number;
+  valor_com_acordo: number;
+  dif_qtd: number;
+  dif_valor: number;
+  status: TvrStatus;
+};
+
+const TVR_STATUS_LABEL: Record<TvrStatus, string> = {
+  nao_pago: "Não Pago",
+  div_qtd_valor: "Div. Qtd / Valor",
+  div_qtd: "Div. Qtd",
+  div_valor: "Div. Valor",
+  pago_sem_tasy: "Pago sem TASY",
+  ok: "OK",
+};
+
+const TVR_STATUS_TONE: Record<TvrStatus, string> = {
+  nao_pago: "bg-red-100 text-red-800",
+  div_qtd_valor: "bg-rose-100 text-rose-800",
+  div_qtd: "bg-amber-100 text-amber-800",
+  div_valor: "bg-amber-100 text-amber-800",
+  pago_sem_tasy: "bg-purple-100 text-purple-800",
+  ok: "bg-emerald-100 text-emerald-800",
+};
+
+const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_qtd", "div_valor", "pago_sem_tasy", "ok"];
+
+function num(v: string | undefined): number {
+  if (!v) return 0;
+  const n = Number(String(v).replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function normTuss(v: string | undefined): string {
+  return String(v ?? "").replace(/\D/g, "").slice(0, 8);
+}
+
+function normAtt(v: string | undefined): string {
+  return String(v ?? "").trim();
+}
+
+function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
+  const [recon, setRecon] = useState<ReconRow | null>(null);
+  const [tasyRows, setTasyRows] = useState<TasyRow[]>([]);
+  const [tasyFile, setTasyFile] = useState<string>("");
+  const [pagRows, setPagRows] = useState<PagRow[]>([]);
+  const [pagFiles, setPagFiles] = useState<string[]>([]);
+  const [pagMapping, setPagMapping] = useState<Record<string, string> | undefined>();
+  const [excludeTuss, setExcludeTuss] = useState<string>("");
+  const [pendingTussExclude, setPendingTussExclude] = useState<string>("");
+  const [processing, setProcessing] = useState(false);
+  const [results, setResults] = useState<TvrResult[] | null>(null);
+  const [statusFilter, setStatusFilter] = useState<TvrStatus | "all">("all");
+  const [search, setSearch] = useState("");
+
+  const [wizard, setWizard] = useState<
+    | { kind: "none" }
+    | { kind: "tasy"; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
+    | { kind: "pag"; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
+  >({ kind: "none" });
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from("retroactive_reconciliations" as never)
+        .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at")
+        .eq("id", id)
+        .single();
+      setRecon(data as unknown as ReconRow);
+    })();
+  }, [id]);
+
+  const onPickTasy = async (file: File) => {
+    try {
+      const { headers, rows } = await readRawSheet(file);
+      if (rows.length === 0) {
+        toast({ title: "Planilha vazia", variant: "destructive" });
+        return;
+      }
+      setPendingTussExclude(excludeTuss);
+      setWizard({ kind: "tasy", fileName: file.name, headers, rows });
+    } catch (e) {
+      toast({ title: "Erro ao ler planilha", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    }
+  };
+
+  const onPickPag = async (files: FileList) => {
+    if (files.length === 0) return;
+    // Process files sequentially via the wizard. Queue them.
+    const queue: File[] = Array.from(files);
+    const processNext = async () => {
+      const f = queue.shift();
+      if (!f) return;
+      try {
+        const { headers, rows } = await readRawSheet(f);
+        if (rows.length === 0) {
+          toast({ title: `Planilha vazia: ${f.name}`, variant: "destructive" });
+          await processNext();
+          return;
+        }
+        // Stash remaining queue on window so confirm handler can resume.
+        (window as unknown as { __tvrQueue?: File[] }).__tvrQueue = queue;
+        setWizard({ kind: "pag", fileName: f.name, headers, rows });
+      } catch (e) {
+        toast({ title: "Erro ao ler planilha", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      }
+    };
+    await processNext();
+  };
+
+  const confirmTasy = (drafts: Record<string, string>[]) => {
+    const excluded = new Set(
+      pendingTussExclude
+        .split(",")
+        .map((s) => normTuss(s.trim()))
+        .filter(Boolean),
+    );
+    setExcludeTuss(pendingTussExclude);
+    const filtered = drafts
+      .filter((d) => !excluded.has(normTuss(d.tuss_code)))
+      .map<TasyRow>((d) => ({
+        tasy_atendimento: normAtt(d.tasy_atendimento || d.attendance),
+        tasy_tuss: normTuss(d.tasy_tuss || d.tuss_code),
+        tasy_qtd: d.tasy_qtd || "1",
+        tasy_valor_unit: d.tasy_valor_unit || "0",
+        tasy_procedimento: d.tasy_procedimento,
+        tasy_paciente: d.tasy_paciente,
+        tasy_data: d.tasy_data,
+        tasy_convenio: d.tasy_convenio,
+        tasy_medico: d.tasy_medico,
+        tasy_funcao: d.tasy_funcao,
+      }))
+      .filter((r) => r.tasy_atendimento && r.tasy_tuss);
+    setTasyRows(filtered);
+    setTasyFile((wizard.kind === "tasy" && wizard.fileName) || "");
+    setResults(null);
+    setWizard({ kind: "none" });
+    toast({ title: `TASY: ${filtered.length} linha(s) carregadas` });
+  };
+
+  const confirmPag = async (drafts: Record<string, string>[], meta: { mapping: Record<string, string> }) => {
+    const newRows = drafts
+      .map<PagRow>((d) => ({
+        pag_atendimento: normAtt(d.pag_atendimento),
+        pag_tuss: normTuss(d.pag_tuss),
+        pag_qtd: d.pag_qtd || "1",
+        pag_valor_base: d.pag_valor_base || "0",
+        pag_valor_com_acordo: d.pag_valor_com_acordo,
+        pag_funcao: d.pag_funcao,
+        pag_medico: d.pag_medico,
+        pag_data: d.pag_data,
+        pag_paciente: d.pag_paciente,
+        pag_convenio: d.pag_convenio,
+      }))
+      .filter((r) => r.pag_atendimento && r.pag_tuss);
+    const fileName = wizard.kind === "pag" ? wizard.fileName : "";
+    setPagRows((prev) => [...prev, ...newRows]);
+    if (fileName) setPagFiles((p) => [...p, fileName]);
+    setPagMapping(meta.mapping);
+    setResults(null);
+    setWizard({ kind: "none" });
+    toast({ title: `Repasse (${fileName}): ${newRows.length} linha(s)` });
+
+    // Resume queue if any
+    const w = window as unknown as { __tvrQueue?: File[] };
+    const queue = w.__tvrQueue ?? [];
+    if (queue.length > 0) {
+      const next = queue.shift();
+      w.__tvrQueue = queue;
+      if (next) {
+        try {
+          const { headers, rows } = await readRawSheet(next);
+          if (rows.length > 0) {
+            setWizard({ kind: "pag", fileName: next.name, headers, rows });
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  };
+
+  const clearAll = () => {
+    setTasyRows([]);
+    setTasyFile("");
+    setPagRows([]);
+    setPagFiles([]);
+    setPagMapping(undefined);
+    setResults(null);
+  };
+
+  const process = () => {
+    if (tasyRows.length === 0 || pagRows.length === 0) {
+      toast({ title: "Carregue TASY e ao menos um arquivo de repasse", variant: "destructive" });
+      return;
+    }
+    setProcessing(true);
+    setTimeout(() => {
+      const excluded = new Set(
+        excludeTuss.split(",").map((s) => normTuss(s.trim())).filter(Boolean),
+      );
+
+      // Aggregate TASY by (atendimento, tuss)
+      type TAgg = {
+        atendimento: string;
+        tuss: string;
+        qtd: number;
+        valor_total: number;
+        valor_unit_first: number;
+        sample: TasyRow;
+      };
+      const tMap = new Map<string, TAgg>();
+      for (const r of tasyRows) {
+        if (excluded.has(r.tasy_tuss)) continue;
+        const key = `${r.tasy_atendimento}|${r.tasy_tuss}`;
+        const q = num(r.tasy_qtd) || 1;
+        const u = num(r.tasy_valor_unit);
+        const cur = tMap.get(key);
+        if (cur) {
+          cur.qtd += q;
+          cur.valor_total += u * q;
+        } else {
+          tMap.set(key, { atendimento: r.tasy_atendimento, tuss: r.tasy_tuss, qtd: q, valor_total: u * q, valor_unit_first: u, sample: r });
+        }
+      }
+
+      // Aggregate Repasse by (atendimento, tuss)
+      type PAgg = {
+        atendimento: string;
+        tuss: string;
+        qtd_total: number;
+        funcs: Set<string>;
+        valor_base: number;
+        valor_com_acordo: number;
+        sample: PagRow;
+      };
+      const pMap = new Map<string, PAgg>();
+      for (const r of pagRows) {
+        if (excluded.has(r.pag_tuss)) continue;
+        const key = `${r.pag_atendimento}|${r.pag_tuss}`;
+        const q = num(r.pag_qtd) || 1;
+        const vb = num(r.pag_valor_base);
+        const va = num(r.pag_valor_com_acordo);
+        const fn = (r.pag_funcao ?? "").trim();
+        const cur = pMap.get(key);
+        if (cur) {
+          cur.qtd_total += q;
+          cur.valor_base += vb;
+          cur.valor_com_acordo += va;
+          if (fn) cur.funcs.add(fn);
+        } else {
+          const funcs = new Set<string>();
+          if (fn) funcs.add(fn);
+          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, valor_base: vb, valor_com_acordo: va, sample: r });
+        }
+      }
+
+      const allKeys = new Set<string>([...tMap.keys(), ...pMap.keys()]);
+      const out: TvrResult[] = [];
+
+      for (const key of allKeys) {
+        const t = tMap.get(key);
+        const p = pMap.get(key);
+
+        const atendimento = t?.atendimento ?? p?.atendimento ?? "";
+        const tuss = t?.tuss ?? p?.tuss ?? "";
+
+        const qtd_tasy = t?.qtd ?? 0;
+        const valor_total_tasy = t?.valor_total ?? 0;
+        const valor_unit_tasy = t ? (t.qtd > 0 ? t.valor_total / t.qtd : t.valor_unit_first) : 0;
+
+        const n_funcs = p ? Math.max(p.funcs.size, p.qtd_total > 0 ? 1 : 0) : 0;
+        const qtd_por_func = p && n_funcs > 0 ? p.qtd_total / n_funcs : (p ? p.qtd_total : 0);
+        const valor_pago_base = p?.valor_base ?? 0;
+        const valor_com_acordo = p?.valor_com_acordo ?? 0;
+        const funcoes_pagas = p ? Array.from(p.funcs).join(", ") : "";
+
+        const dif_qtd = qtd_tasy - qtd_por_func;
+        const dif_valor = valor_total_tasy - valor_pago_base;
+
+        let status: TvrStatus;
+        if (!p && t) status = "nao_pago";
+        else if (!t && p) status = "pago_sem_tasy";
+        else if (Math.abs(dif_qtd) >= 0.5 && Math.abs(dif_valor) > 0.5) status = "div_qtd_valor";
+        else if (Math.abs(dif_qtd) >= 0.5) status = "div_qtd";
+        else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
+        else status = "ok";
+
+        out.push({
+          key,
+          atendimento,
+          tuss,
+          procedimento: t?.sample.tasy_procedimento ?? "",
+          paciente: t?.sample.tasy_paciente ?? p?.sample.pag_paciente ?? "",
+          data: t?.sample.tasy_data ?? "",
+          convenio: t?.sample.tasy_convenio ?? "",
+          medico: t?.sample.tasy_medico ?? "",
+          funcao: t?.sample.tasy_funcao ?? "",
+          qtd_tasy,
+          valor_unit_tasy,
+          valor_total_tasy,
+          qtd_por_func,
+          n_funcs,
+          funcoes_pagas,
+          valor_pago_base,
+          valor_com_acordo,
+          dif_qtd,
+          dif_valor,
+          status,
+        });
+      }
+
+      out.sort((a, b) => {
+        const oa = TVR_STATUS_ORDER.indexOf(a.status);
+        const ob = TVR_STATUS_ORDER.indexOf(b.status);
+        if (oa !== ob) return oa - ob;
+        if (a.atendimento !== b.atendimento) return a.atendimento.localeCompare(b.atendimento);
+        return a.tuss.localeCompare(b.tuss);
+      });
+
+      setResults(out);
+      setProcessing(false);
+      toast({ title: `Processamento concluído · ${out.length} linha(s)` });
+    }, 50);
+  };
+
+  const visible = useMemo(() => {
+    const list = (results ?? []).filter((r) => r.status !== "ok" || statusFilter === "ok");
+    const q = search.trim().toLowerCase();
+    return list.filter((r) => {
+      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (q && !`${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [results, statusFilter, search]);
+
+  const counts = useMemo(() => {
+    const c: Record<TvrStatus, number> = {
+      nao_pago: 0, div_qtd_valor: 0, div_qtd: 0, div_valor: 0, pago_sem_tasy: 0, ok: 0,
+    };
+    for (const r of results ?? []) c[r.status]++;
+    return c;
+  }, [results]);
+
+  const exportXlsx = async () => {
+    if (!results) return;
+    const XLSX = await import("xlsx");
+    const rows = results.map((r) => ({
+      Status: TVR_STATUS_LABEL[r.status],
+      Atendimento: r.atendimento,
+      "Cód. TUSS": r.tuss,
+      Procedimento: r.procedimento,
+      Paciente: r.paciente,
+      Data: r.data,
+      Convênio: r.convenio,
+      Médico: r.medico,
+      Função: r.funcao,
+      "Qtd TASY": r.qtd_tasy,
+      "Valor Unit. TASY": r.valor_unit_tasy,
+      "Valor Total TASY": r.valor_total_tasy,
+      "Qtd Paga/Func": Number(r.qtd_por_func.toFixed(4)),
+      "Nº Funcs": r.n_funcs,
+      "Funções Pagas": r.funcoes_pagas,
+      "Valor Pago Base": r.valor_pago_base,
+      "Valor c/ Acordo": r.valor_com_acordo,
+      "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
+      "Dif. Valor": Number(r.dif_valor.toFixed(2)),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
+    const stamp = format(new Date(), "yyyyMMdd_HHmm");
+    XLSX.writeFile(wb, `tasy-vs-repasse_${stamp}.xlsx`);
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeftIcon className="h-4 w-4 mr-1" /> Voltar
+          </Button>
+          <div>
+            <h3 className="text-lg font-semibold">{recon?.title ?? "TASY vs Repasse"}</h3>
+            <p className="text-xs text-muted-foreground">
+              Análise ad-hoc · arquivos externos · sem persistência no banco
+            </p>
+          </div>
+        </div>
+        <Badge variant="outline">TASY vs Repasse</Badge>
+      </div>
+
+      {/* Step 1 — TASY file */}
+      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-semibold">1. Base TASY (realizado no hospital)</h4>
+            <p className="text-[11px] text-muted-foreground">
+              Um único arquivo .xlsx/.csv com o que foi realizado.
+            </p>
+          </div>
+          {tasyRows.length > 0 && (
+            <Badge variant="default" className="text-[10px]">
+              {tasyRows.length} linha(s) · {tasyFile}
+            </Badge>
+          )}
+        </div>
+        <label className="flex items-center gap-3 border-2 border-dashed border-border rounded-lg py-4 px-4 cursor-pointer hover:bg-muted/40">
+          <UploadCloudIcon className="h-6 w-6 text-muted-foreground" />
+          <span className="text-sm">{tasyRows.length > 0 ? "Substituir arquivo TASY" : "Selecionar arquivo TASY"}</span>
+          <input
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void onPickTasy(f);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+
+      {/* Step 2 — Repasse */}
+      <div className={cn("rounded-lg border border-border bg-card p-4 space-y-3", tasyRows.length === 0 && "opacity-60 pointer-events-none")}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-semibold">2. Arquivo(s) de Repasse</h4>
+            <p className="text-[11px] text-muted-foreground">
+              Pode ser mais de um. Todos são concatenados antes do cruzamento.
+              {pagMapping && " O mapeamento do primeiro arquivo é reutilizado nos próximos."}
+            </p>
+          </div>
+          {pagRows.length > 0 && (
+            <Badge variant="default" className="text-[10px]">
+              {pagRows.length} linha(s) · {pagFiles.length} arquivo(s)
+            </Badge>
+          )}
+        </div>
+        <label className="flex items-center gap-3 border-2 border-dashed border-border rounded-lg py-4 px-4 cursor-pointer hover:bg-muted/40">
+          <UploadCloudIcon className="h-6 w-6 text-muted-foreground" />
+          <span className="text-sm">Adicionar arquivo(s) de repasse</span>
+          <input
+            type="file"
+            multiple
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => {
+              const fs = e.target.files;
+              if (fs && fs.length > 0) void onPickPag(fs);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {pagFiles.length > 0 && (
+          <div className="text-[11px] text-muted-foreground">
+            Arquivos: {pagFiles.map((f, i) => <span key={i} className="font-mono mr-2">{f}</span>)}
+          </div>
+        )}
+      </div>
+
+      {/* Step 3 — Process */}
+      <div className="flex items-center gap-2">
+        <Button onClick={process} disabled={processing || tasyRows.length === 0 || pagRows.length === 0}>
+          <PlayIcon className="h-4 w-4 mr-1" />
+          {processing ? "Processando…" : "Processar"}
+        </Button>
+        {(tasyRows.length > 0 || pagRows.length > 0) && (
+          <Button variant="outline" size="sm" onClick={clearAll}>Limpar tudo</Button>
+        )}
+        {results && (
+          <Button variant="outline" size="sm" onClick={exportXlsx}>Exportar Excel</Button>
+        )}
+      </div>
+
+      {/* Results */}
+      {results && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            {TVR_STATUS_ORDER.map((s) => (
+              <div key={s} className="rounded-lg border border-border bg-card px-3 py-2">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{TVR_STATUS_LABEL[s]}</div>
+                <div className="text-xl font-semibold">{counts[s] ?? 0}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-sm font-semibold">Resultado · {visible.length} de {results.length}</div>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar…"
+                  className="h-8 w-[200px] text-xs"
+                />
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos (exceto OK)</SelectItem>
+                    {TVR_STATUS_ORDER.map((s) => (
+                      <SelectItem key={s} value={s}>{TVR_STATUS_LABEL[s]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Atend.</TableHead>
+                    <TableHead>TUSS</TableHead>
+                    <TableHead>Procedimento</TableHead>
+                    <TableHead>Paciente</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Convênio</TableHead>
+                    <TableHead>Médico</TableHead>
+                    <TableHead>Função</TableHead>
+                    <TableHead className="text-center">Qtd TASY</TableHead>
+                    <TableHead>Vlr Unit.</TableHead>
+                    <TableHead>Vlr Total TASY</TableHead>
+                    <TableHead className="text-center">Qtd/Func</TableHead>
+                    <TableHead className="text-center">Nº Func</TableHead>
+                    <TableHead>Funções pagas</TableHead>
+                    <TableHead>Vlr Pago Base</TableHead>
+                    <TableHead>Vlr c/ Acordo</TableHead>
+                    <TableHead className="text-center">Dif. Qtd</TableHead>
+                    <TableHead>Dif. Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visible.length === 0 && (
+                    <TableRow><TableCell colSpan={19} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
+                  )}
+                  {visible.map((r) => (
+                    <TableRow key={r.key}>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${TVR_STATUS_TONE[r.status]}`}>
+                          {TVR_STATUS_LABEL[r.status]}
+                        </span>
+                      </TableCell>
+                      <TableCell>{r.atendimento || "—"}</TableCell>
+                      <TableCell>{r.tuss || "—"}</TableCell>
+                      <TableCell className="max-w-[220px] truncate" title={r.procedimento}>{r.procedimento || "—"}</TableCell>
+                      <TableCell className="max-w-[180px] truncate" title={r.paciente}>{r.paciente || "—"}</TableCell>
+                      <TableCell>{r.data || "—"}</TableCell>
+                      <TableCell className="max-w-[140px] truncate" title={r.convenio}>{r.convenio || "—"}</TableCell>
+                      <TableCell className="max-w-[160px] truncate" title={r.medico}>{r.medico || "—"}</TableCell>
+                      <TableCell>{r.funcao || "—"}</TableCell>
+                      <TableCell className="text-center">{r.qtd_tasy || "—"}</TableCell>
+                      <TableCell>{brl(r.valor_unit_tasy)}</TableCell>
+                      <TableCell>{brl(r.valor_total_tasy)}</TableCell>
+                      <TableCell className="text-center">{r.qtd_por_func ? r.qtd_por_func.toFixed(2) : "—"}</TableCell>
+                      <TableCell className="text-center">{r.n_funcs || "—"}</TableCell>
+                      <TableCell className="max-w-[160px] truncate" title={r.funcoes_pagas}>{r.funcoes_pagas || "—"}</TableCell>
+                      <TableCell>{brl(r.valor_pago_base)}</TableCell>
+                      <TableCell className="text-muted-foreground">{brl(r.valor_com_acordo)}</TableCell>
+                      <TableCell className={cn("text-center", Math.abs(r.dif_qtd) >= 0.5 && "font-semibold text-amber-700")}>
+                        {r.dif_qtd ? r.dif_qtd.toFixed(2) : "—"}
+                      </TableCell>
+                      <TableCell className={cn(Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700")}>
+                        {brl(r.dif_valor)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {wizard.kind === "tasy" && (
+        <RetroactiveMappingWizard
+          open
+          fileName={wizard.fileName}
+          headers={wizard.headers}
+          rows={wizard.rows}
+          targets={TASY_TARGETS}
+          dialogTitle="Mapear colunas — Base TASY"
+          extraConfig={
+            <div className="rounded-md border border-border bg-muted/20 px-3 py-2">
+              <Label className="text-[11px] text-muted-foreground">Códigos TUSS a excluir (separados por vírgula)</Label>
+              <Input
+                value={pendingTussExclude}
+                onChange={(e) => setPendingTussExclude(e.target.value)}
+                placeholder="Ex.: 10102019, 10102027"
+                className="h-8 text-xs mt-1"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Itens com esses códigos são removidos de TASY <strong>e</strong> Repasse antes do cruzamento.
+              </p>
+            </div>
+          }
+          onCancel={() => setWizard({ kind: "none" })}
+          onConfirm={confirmTasy}
+        />
+      )}
+
+      {wizard.kind === "pag" && (
+        <RetroactiveMappingWizard
+          open
+          fileName={wizard.fileName}
+          headers={wizard.headers}
+          rows={wizard.rows}
+          targets={REPASSE_TARGETS}
+          initialMapping={pagMapping}
+          showExcludeConsultas={false}
+          dialogTitle="Mapear colunas — Arquivo de Repasse"
+          onCancel={() => setWizard({ kind: "none" })}
+          onConfirm={confirmPag}
+        />
+      )}
+    </div>
+  );
+}
+
+// Suppress unused-import warnings for fields that may be imported but only used conditionally.
+void ([] as TargetField[]);
+

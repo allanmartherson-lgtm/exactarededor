@@ -1,13 +1,27 @@
 ---
 name: Conciliação retroativa em Pendências
-description: Módulo de apuração de faltas alegadas pelo médico em competências anteriores, com cruzamento contra payment_items e geração de ajuste de complemento
+description: Dois modos — "alegação do médico" (cruza com payment_items) e "TASY vs Repasse" (análise ad-hoc de arquivos externos)
 type: feature
 ---
-Em /pendencias há a aba "Conciliação retroativa" para apurar alegações do médico sobre meses passados:
-- Analista cria apuração (médico + intervalo). Tabelas: retroactive_reconciliations + retroactive_reconciliation_items.
-- Lista de itens alegados aceita 3 entradas: formulário linha a linha, upload .xlsx/.csv, colar texto. Tudo alimenta um único draft antes de rodar.
-- Cruzamento via edge function run-retroactive-reconciliation: chave canônica `atendimento+TUSS(8d)` em payment_items do doctor_id na janela ±90d.
-- Classificações: ok_pago, pago_a_menos (gap=expected-paid), nao_pago (sem match + valor alegado), pago_outro_mes (match fora do período), sem_lastro.
-- Geração de complemento via generate-retroactive-adjustment: cria company_financial_adjustments(tipo=complemento_retroativo) na PJ ativa do médico via doctor_companies. Se houver múltiplas PJs ativas, exige company_id explícito. Marca apuração como concluida e grava adjustment_ids.
-- Nunca recalcula regras retroativamente — usa expected_amount já gravado nos payment_items.
-- Componente principal: src/components/retroactive/RetroactiveReconciliationsTab.tsx (lista + new + detail em estado interno).
+Em /pendencias → aba "Conciliação retroativa", o analista escolhe o modo ao criar a apuração:
+
+**Modo 1 — alegacao_medico** (fluxo original, inalterado):
+- Lista de itens alegados aceita 3 entradas: formulário linha a linha, upload .xlsx/.csv, colar texto.
+- Cruzamento via edge function `run-retroactive-reconciliation`: chave canônica `atendimento+TUSS(8d)` em payment_items do doctor_id na janela ±90d.
+- Classificações: ok_pago, pago_a_menos, pago_a_mais, nao_pago, pago_outro_mes, sem_lastro, tuss_divergente.
+- Geração de complemento via `generate-retroactive-adjustment` em company_financial_adjustments(tipo=complemento_retroativo).
+- Nunca recalcula regras retroativamente — usa expected_amount já gravado.
+
+**Modo 2 — tasy_vs_repasse** (análise ad-hoc, sem Supabase):
+- Compara base TASY (realizado) com 1..N arquivos de repasse do convênio. 100% em memória, não persiste.
+- Chave: `atendimento + TUSS(8d)`.
+- TASY agregado: Qtd_TASY = SUM(qtd); Valor_TASY = SUM(valor_unit × qtd).
+- Repasse agregado: Qtd_Pag_Total, N_Funcs = COUNT DISTINCT(funcao), Qtd_por_Func = Qtd_Pag_Total / N_Funcs, Valor_Pag = SUM(valor_base).
+- Status: Não Pago | Div. Qtd / Valor | Div. Qtd | Div. Valor | Pago sem TASY | OK (oculto da tabela por padrão).
+- Tolerâncias: |Dif_Qtd| ≥ 0.5 e |Dif_Valor| > 0.50.
+- Filtro de exclusão de TUSS: campo livre na etapa de mapeamento do TASY (separado por vírgula); aplica nos dois lados.
+- Modo armazenado em sessionStorage (`retro_mode__<recon_id>`) — não há coluna `mode` na tabela.
+
+**Componentes:**
+- `src/components/retroactive/RetroactiveReconciliationsTab.tsx` — list + new + DetailView que faz branch entre `AlegacaoDetailView` e `TasyVsRepasseView` (ambos inline).
+- `src/components/retroactive/RetroactiveMappingWizard.tsx` — wizard genérico que aceita `targets: TargetField[]` custom; exporta `TASY_TARGETS` e `REPASSE_TARGETS`. Output passou a ser `Record<string,string>[]` + meta `{ mapping }` para reuso entre arquivos.

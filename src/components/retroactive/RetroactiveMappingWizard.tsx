@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import {
   Dialog,
@@ -21,6 +21,13 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircleIcon, FileSpreadsheetIcon } from "lucide-react";
 
+export type TargetField = {
+  key: string;
+  label: string;
+  required: boolean;
+  aliases: string[];
+};
+
 export type MappedDraft = {
   attendance: string;
   tuss_code: string;
@@ -36,14 +43,7 @@ export type MappedDraft = {
 
 type RawRow = Record<string, unknown>;
 
-type TargetField = {
-  key: keyof MappedDraft;
-  label: string;
-  required: boolean;
-  aliases: string[];
-};
-
-const TARGETS: TargetField[] = [
+const DEFAULT_TARGETS: TargetField[] = [
   { key: "attendance", label: "Atendimento", required: true, aliases: ["atendiment", "atend", "guia", "natendimento", "nratendimento"] },
   { key: "tuss_code", label: "TUSS / Cód. procedimento", required: true, aliases: ["tuss", "codtuss", "codprocedi", "procedimentocodig", "codigoprocedimento", "codigo"] },
   { key: "claimed_amount", label: "Valor alegado", required: true, aliases: ["valoralegado", "valorpago", "valorprocedi", "vlrpago", "vlrprocedi", "valor", "vlr"] },
@@ -68,10 +68,10 @@ function normKey(k: string): string {
     .replace(/[^a-z0-9]+/g, "");
 }
 
-function autoSuggest(headers: string[]): Record<string, string> {
+function autoSuggest(headers: string[], targets: TargetField[]): Record<string, string> {
   const norm = headers.map((h) => ({ h, n: normKey(h) }));
   const out: Record<string, string> = {};
-  for (const t of TARGETS) {
+  for (const t of targets) {
     const hit = norm.find(({ n }) => t.aliases.some((a) => n.includes(a)));
     if (hit) out[t.key] = hit.h;
   }
@@ -112,68 +112,108 @@ export async function readRawSheet(file: File): Promise<{ headers: string[]; row
   return { headers, rows };
 }
 
+/** Build a raw mapped row coercing date/money fields where applicable. */
+function buildRow(
+  raw: RawRow,
+  mapping: Record<string, string>,
+  targets: TargetField[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const t of targets) {
+    const col = mapping[t.key];
+    const v = !col || col === NONE ? "" : raw[col];
+    if (/data/i.test(t.label) || t.key.endsWith("_data") || t.key === "procedure_date") {
+      out[t.key] = parseCellDate(v);
+    } else if (/valor|amount|qtd|quantidade|unit/i.test(t.label) || /valor|qtd|amount/.test(t.key)) {
+      out[t.key] = parseCellMoney(v);
+    } else if (t.key === "tuss_code" || t.key === "tasy_tuss" || t.key === "pag_tuss") {
+      out[t.key] = String(v ?? "").replace(/\D/g, "").slice(0, 8);
+    } else {
+      out[t.key] = String(v ?? "").trim();
+    }
+  }
+  return out;
+}
+
+export type MappingWizardProps = {
+  open: boolean;
+  fileName: string;
+  headers: string[];
+  rows: RawRow[];
+  /** Custom field schema. Defaults to the original "alegação" schema (MappedDraft keys). */
+  targets?: TargetField[];
+  /** Initial column mapping suggestion (e.g. reusing a previous file's mapping). */
+  initialMapping?: Record<string, string>;
+  /** Toggle to show the "exclude visita/parecer/consulta" filter (default true). */
+  showExcludeConsultas?: boolean;
+  /** Extra controls rendered below the mapping grid (e.g. TUSS exclude list). */
+  extraConfig?: ReactNode;
+  /** Title shown in the dialog header (default "Mapear colunas da planilha"). */
+  dialogTitle?: string;
+  onCancel: () => void;
+  onConfirm: (
+    drafts: Record<string, string>[],
+    meta: { mapping: Record<string, string> },
+  ) => void;
+};
+
 export default function RetroactiveMappingWizard({
   open,
   fileName,
   headers,
   rows,
+  targets = DEFAULT_TARGETS,
+  initialMapping,
+  showExcludeConsultas = true,
+  extraConfig,
+  dialogTitle = "Mapear colunas da planilha",
   onCancel,
   onConfirm,
-}: {
-  open: boolean;
-  fileName: string;
-  headers: string[];
-  rows: RawRow[];
-  onCancel: () => void;
-  onConfirm: (drafts: MappedDraft[]) => void;
-}) {
+}: MappingWizardProps) {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [excludeConsultas, setExcludeConsultas] = useState(true);
 
   useEffect(() => {
-    if (open) setMapping(autoSuggest(headers));
+    if (open) {
+      const auto = autoSuggest(headers, targets);
+      const seed: Record<string, string> = { ...auto };
+      if (initialMapping) {
+        for (const [k, v] of Object.entries(initialMapping)) {
+          if (v && headers.includes(v)) seed[k] = v;
+        }
+      }
+      setMapping(seed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, headers]);
 
   const preview = useMemo(() => rows.slice(0, 3), [rows]);
 
   const { valid, dropped, excluded } = useMemo(() => {
-    if (Object.keys(mapping).length === 0) return { valid: [] as MappedDraft[], dropped: 0, excluded: 0 };
-    const descCol = mapping["procedure_name"];
+    if (Object.keys(mapping).length === 0) return { valid: [] as Record<string, string>[], dropped: 0, excluded: 0 };
+    const descKey = targets.find((t) => /procedure_name|procedimento|descricao/i.test(t.key))?.key;
+    const descCol = descKey ? mapping[descKey] : undefined;
     let excludedCount = 0;
-    const built: MappedDraft[] = [];
+    const built: Record<string, string>[] = [];
     let droppedCount = 0;
+    const requiredKeys = targets.filter((t) => t.required).map((t) => t.key);
     for (const r of rows) {
-      if (excludeConsultas && descCol && descCol !== NONE) {
+      if (showExcludeConsultas && excludeConsultas && descCol && descCol !== NONE) {
         const desc = String(r[descCol] ?? "");
         if (EXCLUDE_REGEX.test(desc)) {
           excludedCount++;
           continue;
         }
       }
-      const get = (k: keyof MappedDraft): unknown => {
-        const col = mapping[k];
-        if (!col || col === NONE) return "";
-        return r[col];
-      };
-      const d: MappedDraft = {
-        attendance: String(get("attendance") ?? "").trim(),
-        tuss_code: String(get("tuss_code") ?? "").replace(/\D/g, "").slice(0, 8),
-        claimed_amount: parseCellMoney(get("claimed_amount")),
-        claimed_quantity: parseCellMoney(get("claimed_quantity")),
-        procedure_date: parseCellDate(get("procedure_date")),
-        patient_name: String(get("patient_name") ?? "").trim(),
-        function_label: String(get("function_label") ?? "").trim(),
-        procedure_name: String(get("procedure_name") ?? "").trim(),
-        doctor_hint: String(get("doctor_hint") ?? "").trim(),
-        company_hint: String(get("company_hint") ?? "").trim(),
-      };
-      if (d.attendance && d.tuss_code && d.claimed_amount) built.push(d);
+      const d = buildRow(r, mapping, targets);
+      const hasRequired = requiredKeys.every((k) => d[k]);
+      if (hasRequired) built.push(d);
       else droppedCount++;
     }
     return { valid: built, dropped: droppedCount, excluded: excludedCount };
-  }, [rows, mapping, excludeConsultas]);
+  }, [rows, mapping, excludeConsultas, targets, showExcludeConsultas]);
 
-  const missingRequired = TARGETS.filter(
+  const missingRequired = targets.filter(
     (t) => t.required && (!mapping[t.key] || mapping[t.key] === NONE),
   );
 
@@ -183,7 +223,7 @@ export default function RetroactiveMappingWizard({
         <DialogHeader className="p-5 pb-3 border-b">
           <DialogTitle className="flex items-center gap-2 text-base">
             <FileSpreadsheetIcon className="h-4 w-4" />
-            Mapear colunas da planilha
+            {dialogTitle}
           </DialogTitle>
           <DialogDescription className="text-xs">
             <span className="font-medium text-foreground">{fileName}</span> · {rows.length} linhas · {headers.length} colunas
@@ -205,7 +245,7 @@ export default function RetroactiveMappingWizard({
                   Mapeamento de colunas
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2.5">
-                  {TARGETS.map((t) => (
+                  {targets.map((t) => (
                     <div key={t.key} className="min-w-0">
                       <Label className="text-[11px] text-muted-foreground flex items-center gap-1 mb-1">
                         <span className="truncate">{t.label}</span>
@@ -230,17 +270,21 @@ export default function RetroactiveMappingWizard({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2">
-                <Checkbox
-                  id="rt-exclude-consultas"
-                  checked={excludeConsultas}
-                  onCheckedChange={(c) => setExcludeConsultas(c === true)}
-                />
-                <label htmlFor="rt-exclude-consultas" className="text-xs cursor-pointer leading-tight">
-                  Excluir <strong>visitas, pareceres e consultas</strong> da apuração
-                  <span className="text-muted-foreground"> — filtra pela coluna "Descrição / Grupo" quando mapeada</span>
-                </label>
-              </div>
+              {showExcludeConsultas && (
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2">
+                  <Checkbox
+                    id="rt-exclude-consultas"
+                    checked={excludeConsultas}
+                    onCheckedChange={(c) => setExcludeConsultas(c === true)}
+                  />
+                  <label htmlFor="rt-exclude-consultas" className="text-xs cursor-pointer leading-tight">
+                    Excluir <strong>visitas, pareceres e consultas</strong> da apuração
+                    <span className="text-muted-foreground"> — filtra pela coluna de descrição quando mapeada</span>
+                  </label>
+                </div>
+              )}
+
+              {extraConfig}
 
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
@@ -298,7 +342,7 @@ export default function RetroactiveMappingWizard({
           <Button variant="outline" size="sm" onClick={onCancel}>Cancelar</Button>
           <Button
             size="sm"
-            onClick={() => onConfirm(valid)}
+            onClick={() => onConfirm(valid, { mapping })}
             disabled={valid.length === 0 || missingRequired.length > 0}
           >
             Confirmar e adicionar {valid.length} linha(s)
@@ -308,3 +352,30 @@ export default function RetroactiveMappingWizard({
     </Dialog>
   );
 }
+
+/** Field schemas for the "TASY vs Repasse" mode. */
+export const TASY_TARGETS: TargetField[] = [
+  { key: "tasy_atendimento", label: "Número do atendimento", required: true, aliases: ["atendiment", "atend", "guia", "natendimento", "nratendimento"] },
+  { key: "tasy_tuss", label: "Código TUSS (8 dígitos)", required: true, aliases: ["tuss", "codtuss", "codprocedi", "codigoprocedimento", "codigo"] },
+  { key: "tasy_qtd", label: "Quantidade", required: true, aliases: ["quantidade", "qtd", "qtde", "qtditem"] },
+  { key: "tasy_valor_unit", label: "Valor unitário (base 100%)", required: true, aliases: ["valorunit", "valorunitario", "vlrunit", "vlrunitario", "unitario", "valor"] },
+  { key: "tasy_procedimento", label: "Descrição do procedimento", required: false, aliases: ["procedimento", "descricao", "descrprocedi", "nomeprocedimento", "matmed"] },
+  { key: "tasy_paciente", label: "Nome do paciente", required: false, aliases: ["paciente", "nomepaciente", "nmpaciente"] },
+  { key: "tasy_data", label: "Data do procedimento", required: false, aliases: ["datacir", "dataprocedi", "datacirurgia", "data"] },
+  { key: "tasy_convenio", label: "Convênio", required: false, aliases: ["convenio", "plano", "operadora"] },
+  { key: "tasy_medico", label: "Médico executante", required: false, aliases: ["medico", "executante", "executor", "nomemedico"] },
+  { key: "tasy_funcao", label: "Função", required: false, aliases: ["funcao", "papel"] },
+];
+
+export const REPASSE_TARGETS: TargetField[] = [
+  { key: "pag_atendimento", label: "Número do atendimento", required: true, aliases: ["atendiment", "atend", "guia", "natendimento"] },
+  { key: "pag_tuss", label: "Código do procedimento", required: true, aliases: ["tuss", "codtuss", "codprocedi", "codigo"] },
+  { key: "pag_qtd", label: "Quantidade", required: true, aliases: ["quantidade", "qtd", "qtde"] },
+  { key: "pag_valor_base", label: "Valor base (sem acordo)", required: true, aliases: ["valorbase", "valorconvenio", "valortabela", "base", "valor"] },
+  { key: "pag_valor_com_acordo", label: "Valor com acordo (só exibição)", required: false, aliases: ["valoracordo", "valorcomacordo", "valorrepasse", "valorpago", "liquido"] },
+  { key: "pag_funcao", label: "Função do médico", required: false, aliases: ["funcao", "papel"] },
+  { key: "pag_medico", label: "Nome do médico", required: false, aliases: ["medico", "executante", "executor"] },
+  { key: "pag_data", label: "Data", required: false, aliases: ["data", "datapagamento", "datacir"] },
+  { key: "pag_paciente", label: "Paciente", required: false, aliases: ["paciente", "nomepaciente"] },
+  { key: "pag_convenio", label: "Convênio", required: false, aliases: ["convenio", "plano", "operadora"] },
+];
