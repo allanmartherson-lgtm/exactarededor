@@ -208,7 +208,7 @@ export function CancelledItemsBanner({ items, canReactivate, onReactivated }: Ca
                           checked={selected.has(it.id)}
                           onCheckedChange={() => toggleOne(it.id)}
                           aria-label={`Selecionar ${it.doctor_name ?? it.id}`}
-                          disabled={!canReactivate || busy}
+                          disabled={!canReactivate || anyBusy}
                         />
                       </td>
                       <td className="px-3 py-2 font-medium">{it.doctor_name ?? "—"}</td>
