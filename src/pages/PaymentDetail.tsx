@@ -67,7 +67,7 @@ import type { Database } from "@/integrations/supabase/types";
 
 type PaymentUpdate = Database["public"]["Tables"]["payments"]["Update"];
 type GroupUpdate = Database["public"]["Tables"]["payment_company_groups"]["Update"];
-import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
+import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_LABELS, PAYMENT_TRACK_SHORT_LABELS, type PaymentStatus, type ItemAiStatus, type PaymentTrack, TONE_CLASSES } from "@/lib/status";
 import {
   ANALYST_DONE_STATUSES,
   canTransition,
