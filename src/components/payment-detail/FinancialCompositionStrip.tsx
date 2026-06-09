@@ -1,4 +1,4 @@
-import { Wallet, Minus, Plus, Equal, Users, GitCompareArrows, MinusCircle } from "lucide-react";
+import { Wallet, Minus, Plus, Equal, Users, MinusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FinancialComposition } from "@/hooks/useFinancialComposition";
 
@@ -7,9 +7,10 @@ const brl = (n: number) =>
 
 /**
  * Faixa visual de composição financeira da empresa no lote.
- * Mostra a equação: Bruto − Débitos (+ Créditos) − Glosas − Pool ± Conciliação = Líquido.
- * Itens não aplicados aparecem como "—" com tag discreta, mantendo a estrutura visível
- * para que o validador entenda o que foi/não foi considerado.
+ * Mostra a equação: Bruto − Débitos (+ Créditos) − Glosas − Pool = Líquido.
+ * A conciliação NÃO aparece como parcela: ela age dentro do bruto, cancelando itens
+ * cujo valor sai automaticamente da soma. Esse detalhamento é interno (analista) e
+ * não é exibido para empresa/médico — auditoria fica no banner "itens cancelados".
  */
 export function FinancialCompositionStrip({ comp }: { comp: FinancialComposition }) {
   if (comp.loading) return null;
@@ -63,17 +64,6 @@ export function FinancialCompositionStrip({ comp }: { comp: FinancialComposition
                 return `${dedPrefix}${comp.poolDetalhes.map(d => `${d.pool_nome}: quota ${brl(d.quota_empresa)}`).join(" · ")}`;
               })()} />
 
-        <Op icon={
-          <span className="inline-flex flex-col items-center leading-none text-[10px] font-semibold">
-            <Plus className="h-3 w-3" />
-            <Minus className="h-3 w-3 -mt-0.5" />
-          </span>
-        } />
-        <Cell label="Conciliação"
-              value={comp.conciliacaoAplicada && comp.conciliacao !== 0 ? brl(comp.conciliacao) : "—"}
-              icon={<GitCompareArrows className="h-3.5 w-3.5" />}
-              tone={comp.conciliacaoAplicada ? "info" : "muted"}
-              hint={!comp.conciliacaoAplicada ? "Sem conciliação aplicada" : comp.conciliacao === 0 ? "Sem ajuste" : undefined} />
         <Op icon={<Equal className="h-3.5 w-3.5" />} />
         <Cell label="Líquido a pagar" value={brl(comp.liquido)} tone="success" highlight />
       </div>
