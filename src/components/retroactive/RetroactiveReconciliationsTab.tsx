@@ -941,6 +941,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                       <th className="px-2 py-1">Data</th>
                       <th className="px-2 py-1">Paciente</th>
                       <th className="px-2 py-1">Função</th>
+                      <th className="px-2 py-1">Qtd</th>
                       <th className="px-2 py-1">Valor alegado</th>
                       <th></th>
                     </tr>
@@ -977,6 +978,13 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                           <Input
                             value={d.function_label}
                             onChange={(e) => updateDraft(idx, { function_label: e.target.value })}
+                          />
+                        </td>
+                        <td className="p-1 w-20">
+                          <Input
+                            value={d.claimed_quantity}
+                            onChange={(e) => updateDraft(idx, { claimed_quantity: e.target.value })}
+                            placeholder="1"
                           />
                         </td>
                         <td className="p-1 w-32">
