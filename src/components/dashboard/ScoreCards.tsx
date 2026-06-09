@@ -182,11 +182,12 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
     textDecoration: "none",
     color: "inherit",
     overflow: "hidden" as const,
+    width: "100%",
     height: "100%",
+    boxSizing: "border-box" as const,
     transition:
       "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s, border-color 0.3s",
   };
-
 
   if (item.to) {
     return (
@@ -219,7 +220,7 @@ export function ScoreSection({
       ? "hsl(var(--info))"
       : "hsl(var(--muted-foreground))";
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", width: "100%" }}>
       <header style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
         <h3
           style={{
@@ -249,13 +250,13 @@ export function ScoreSection({
           gridTemplateColumns: `repeat(${Math.max(items.length, 2)}, minmax(0, 1fr))`,
           gap: 16,
           flex: 1,
+          alignItems: "stretch",
         }}
       >
         {items.map((item) => (
           <ScoreCard key={item.label} item={item} tone={tone} />
         ))}
       </div>
-
     </div>
   );
 }

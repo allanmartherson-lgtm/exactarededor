@@ -1508,41 +1508,19 @@ const Dashboard = () => {
         </div>
 
         {(() => {
+          const showAcaoV = counts.mineValidador > 0;
           const acaoItemsV: ScoreItemData[] = [];
-          if (counts.mineValidador > 0) acaoItemsV.push({
+          if (showAcaoV) acaoItemsV.push({
             label: "Para validar", value: counts.mineValidador,
             to: "/pagamentos?status=aguardando_validacao",
             hint: "lotes aguardando",
           });
-
-          const alertaItemsV: ScoreItemData[] = [];
-          if (slaTotals.vencido > 0) alertaItemsV.push({
-            label: "SLA vencido", value: slaTotals.vencido,
-            to: "/pagamentos?filter=sla_vencido", accent: "rose",
-            hint: "fora do prazo",
-          });
-          if (slaTotals.preventivo > 0) alertaItemsV.push({
-            label: "SLA em risco", value: slaTotals.preventivo,
-            accent: "amber",
-            hint: "próximos do prazo",
-          });
-
-          const hasSide = acaoItemsV.length > 0 || alertaItemsV.length > 0;
           return (
-            <div className={hasSide ? "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch" : ""}>
+            <div className={showAcaoV ? "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch" : ""}>
               <InterventionSavingsCard rangeDays={30} className="h-full" />
-              {hasSide && (
-                <div className="h-full flex flex-col gap-4">
-                  {acaoItemsV.length > 0 && (
-                    <div className="flex-1 flex flex-col">
-                      <ScoreSection title="Ações — Sua Vez" items={acaoItemsV} tone="action" />
-                    </div>
-                  )}
-                  {alertaItemsV.length > 0 && (
-                    <div className="flex-1 flex flex-col">
-                      <ScoreSection title="Alertas" items={alertaItemsV} tone="alert" />
-                    </div>
-                  )}
+              {showAcaoV && (
+                <div className="h-full flex flex-col">
+                  <ScoreSection title="Ações — Sua Vez" items={acaoItemsV} tone="action" />
                 </div>
               )}
             </div>
@@ -1559,6 +1537,22 @@ const Dashboard = () => {
           </Link>
         )}
 
+        {(slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (() => {
+          const alertaItemsV: ScoreItemData[] = [];
+          if (slaTotals.vencido > 0) alertaItemsV.push({
+            label: "SLA vencido", value: slaTotals.vencido,
+            to: "/pagamentos?filter=sla_vencido", accent: "rose",
+            hint: "fora do prazo",
+          });
+          if (slaTotals.preventivo > 0) alertaItemsV.push({
+            label: "SLA em risco", value: slaTotals.preventivo,
+            accent: "amber",
+            hint: "próximos do prazo",
+          });
+          return (
+            <ScoreSection title="Alertas" items={alertaItemsV} tone="alert" />
+          );
+        })()}
 
 
         <section aria-labelledby="pipeline-equipe-validador">
