@@ -2708,7 +2708,16 @@ export function PaymentConciliationModal({
     let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0, empresa_ausente = 0, possivel_pacote = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
     let diferenca_total = 0;
+    let cancelado_conc = 0;
     for (const it of scopedItems) {
+      // Item cancelado via conciliação: analista pactou que a cobrança do Exacta
+      // não procede. Conta como "conciliado" (Exacta efetivo = 0), zera risco
+      // e não entra em nenhuma aba de divergência.
+      if ((it as any).action_taken === "cancelado_conciliacao") {
+        conciliado++;
+        cancelado_conc++;
+        continue;
+      }
       if (it.status === "conciliado") conciliado++;
       else if (it.status === "valor_divergente") valor_divergente++;
       else if (it.status === "qtd_divergente") qtd_divergente++;
@@ -2751,6 +2760,7 @@ export function PaymentConciliationModal({
     return {
       total: scopedItems.length,
       conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta, empresa_ausente, possivel_pacote,
+      cancelado_conc,
       risco_mais, risco_menos, divergencia_valor, diferenca_total,
     };
   }, [scopedItems]);
@@ -2758,7 +2768,16 @@ export function PaymentConciliationModal({
 
   const filteredItems = useMemo(() => {
     if (activeFilter === "todos") return scopedItems;
-    return scopedItems.filter((it) => it.status === activeFilter);
+    if (activeFilter === "conciliado") {
+      // Inclui cancelados via conciliação no bucket de conciliados (decisão do analista).
+      return scopedItems.filter(
+        (it) => it.status === "conciliado" || (it as any).action_taken === "cancelado_conciliacao",
+      );
+    }
+    // Demais abas (divergências): cancelados via conciliação não aparecem.
+    return scopedItems.filter(
+      (it) => it.status === activeFilter && (it as any).action_taken !== "cancelado_conciliacao",
+    );
   }, [scopedItems, activeFilter]);
 
   // Sempre que mudam filtros/escopo/pageSize, zera o "mostrar mais" por
