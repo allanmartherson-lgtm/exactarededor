@@ -1238,7 +1238,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
             <TableBody>
               {filteredItems.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={13} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={14} className="text-center text-muted-foreground py-8">
                     {items.length === 0
                       ? "Nenhum item processado ainda."
                       : "Nenhum item neste filtro."}
