@@ -443,6 +443,7 @@ function NewView({
   const [end, setEnd] = useState("");
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
+  const [mode, setMode] = useState<ReconMode>("alegacao_medico");
 
   useEffect(() => {
     void (async () => {
