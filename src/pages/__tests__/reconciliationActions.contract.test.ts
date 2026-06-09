@@ -25,6 +25,7 @@ const modalPath = resolve(
   __dirname,
   "../../components/payment-detail/PaymentConciliationModal.tsx",
 );
+const paymentDetailHookPath = resolve(__dirname, "../../hooks/usePaymentDetailData.ts");
 
 const ANALYSIS_STAGE = [
   "rascunho",
@@ -114,6 +115,7 @@ describe("Trigger enforce_recon_action_analysis_stage", () => {
 // ─── 2. handleAction no modal — análise pura ────────────────────────────────
 describe("PaymentConciliationModal.handleAction — não mistura com fluxo de NF", () => {
   const modal = readFileSync(modalPath, "utf8");
+  const paymentDetailHook = readFileSync(paymentDetailHookPath, "utf8");
 
   // Extrai o corpo da função handleAction (do "const handleAction" até o "};" do escopo).
   const extractHandler = (): string => {
@@ -183,5 +185,9 @@ describe("PaymentConciliationModal.handleAction — não mistura com fluxo de NF
     // O botão "Cancelar item deste pagamento" usa o dialog que chama rpc().
     // O handler NÃO pode gravar essa ação por update direto (bypassaria a auditoria).
     expect(handler).not.toMatch(/action_taken:\s*['"]cancelado_conciliacao['"]/);
+  });
+
+  it("não seleciona coluna inexistente rules.action ao carregar regras da análise", () => {
+    expect(paymentDetailHook).not.toMatch(/from\(["']rules["']\)[\s\S]*?select\(["'][^"']*\baction\b/);
   });
 });
