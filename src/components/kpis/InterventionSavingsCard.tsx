@@ -22,9 +22,10 @@ import {
 interface Props {
   rangeDays?: number;
   className?: string;
+  hideHeader?: boolean;
 }
 
-export default function InterventionSavingsCard({ rangeDays = 30, className }: Props) {
+export default function InterventionSavingsCard({ rangeDays = 30, className, hideHeader = false }: Props) {
   const { hasRole } = useAuth();
   const hospitalId = useActiveHospitalId();
   const [loading, setLoading] = useState(true);
@@ -86,12 +87,21 @@ export default function InterventionSavingsCard({ rangeDays = 30, className }: P
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-              Impacto das intervenções no pagamento
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Quanto a análise da equipe poupou (ou acrescentou) ao hospital — últimos {rangeDays} dias
-            </p>
+            {!hideHeader && (
+              <>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  Impacto das intervenções no pagamento
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Quanto a análise da equipe poupou (ou acrescentou) ao hospital — últimos {rangeDays} dias
+                </p>
+              </>
+            )}
+            {hideHeader && (
+              <p className="text-[11px] text-muted-foreground">
+                Quanto a análise da equipe poupou (ou acrescentou) ao hospital — últimos {rangeDays} dias
+              </p>
+            )}
           </div>
           <Icon className={`h-4 w-4 ${accent}`} />
         </div>
