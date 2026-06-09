@@ -218,6 +218,7 @@ const Payments = () => {
   const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
   const [analystFilter, setAnalystFilter] = useState<string>(persisted.analystFilter ?? "all");
   const [typeFilter, setTypeFilter] = useState<string>(persisted.typeFilter ?? "all");
+  const [trackFilter, setTrackFilter] = useState<string>(persisted.trackFilter ?? "all");
   const [statusFilter, setStatusFilter] = useState<string>(persisted.statusFilter ?? "all");
   const [competenceFilter, setCompetenceFilter] = useState<string>(persisted.competenceFilter ?? "all");
   const [delayedOnly, setDelayedOnly] = useState(searchParams.get("delayed") === "1");
