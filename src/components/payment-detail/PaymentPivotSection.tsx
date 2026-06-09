@@ -189,7 +189,25 @@ export function PaymentPivotSection({
     return () => {
       alive = false;
     };
-  }, [variant, grouping, secondary, monthsBack, competenceDate, paymentId]);
+  }, [variant, grouping, secondary, monthsBack, competenceDate, paymentId, trackFilter, lotTrack]);
+
+  // Carrega a trilha do lote atual (uma vez por paymentId).
+  useEffect(() => {
+    if (!paymentId) {
+      setLotTrack(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from("payments")
+        .select("payment_track")
+        .eq("id", paymentId)
+        .maybeSingle();
+      if (alive) setLotTrack((data?.payment_track ?? null) as PaymentTrack | null);
+    })();
+    return () => { alive = false; };
+  }, [paymentId]);
 
 
   // Conta alertas críticos do pagamento atual (somente compacto exibe).
