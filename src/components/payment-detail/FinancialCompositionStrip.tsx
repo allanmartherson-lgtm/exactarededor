@@ -7,9 +7,10 @@ const brl = (n: number) =>
 
 /**
  * Faixa visual de composição financeira da empresa no lote.
- * Mostra a equação: Bruto − Débitos (+ Créditos) − Glosas − Pool ± Conciliação = Líquido.
- * Itens não aplicados aparecem como "—" com tag discreta, mantendo a estrutura visível
- * para que o validador entenda o que foi/não foi considerado.
+ * Mostra a equação: Bruto − Débitos (+ Créditos) − Glosas − Pool = Líquido.
+ * A conciliação NÃO aparece como parcela: ela age dentro do bruto, cancelando itens
+ * cujo valor sai automaticamente da soma. Esse detalhamento é interno (analista) e
+ * não é exibido para empresa/médico — auditoria fica no banner "itens cancelados".
  */
 export function FinancialCompositionStrip({ comp }: { comp: FinancialComposition }) {
   if (comp.loading) return null;
