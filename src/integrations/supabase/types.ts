@@ -8640,6 +8640,7 @@ export type Database = {
         | "pago_outro_mes"
         | "sem_lastro"
         | "pendente"
+        | "tuss_divergente"
       retro_recon_status: "em_analise" | "concluida" | "cancelada"
       rule_calculation_type:
         | "percentual_sobre_convenio"
@@ -8917,6 +8918,7 @@ export const Constants = {
         "pago_outro_mes",
         "sem_lastro",
         "pendente",
+        "tuss_divergente",
       ],
       retro_recon_status: ["em_analise", "concluida", "cancelada"],
       rule_calculation_type: [
