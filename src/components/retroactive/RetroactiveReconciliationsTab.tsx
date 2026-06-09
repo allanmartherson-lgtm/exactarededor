@@ -1239,9 +1239,8 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                       {brl(it.gap_amount)}
                     </TableCell>
                     <TableCell className={outOfWindow ? "text-blue-700 font-medium" : "text-muted-foreground"}>
-                      {it.matched_payment_date
-                        ? format(new Date(it.matched_payment_date), "dd/MM/yy")
-                        : "—"}
+                      {fmtDate(it.matched_payment_date, "dd/MM/yyyy")}
+
                     </TableCell>
                     <TableCell>
                       <span
