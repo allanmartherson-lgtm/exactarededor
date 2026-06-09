@@ -1909,9 +1909,32 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <InterventionSavingsCard rangeDays={30} />
-
-
+        {(() => {
+          const showAcao = counts.mineDiretor > 0;
+          const acaoItemsD: ScoreItemData[] = [];
+          if (showAcao) {
+            acaoItemsD.push({
+              label: "Para aprovar", value: counts.mineDiretor,
+              to: "/pagamentos?status=aguardando_aprovacao",
+              hint: "aguardando sua alçada",
+            });
+            if (counts.diretorAprovadoEmRevisao > 0) {
+              acaoItemsD.push({
+                label: "Pós-aprovação", value: counts.diretorAprovadoEmRevisao,
+                to: "/pagamentos?status=aprovado_em_revisao",
+                hint: "em revisão pelo analista",
+              });
+            }
+          }
+          return (
+            <div className={showAcao ? "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch" : ""}>
+              <InterventionSavingsCard rangeDays={30} className="h-full" />
+              {showAcao && (
+                <ScoreSection title="Ações — Sua Vez" items={acaoItemsD} tone="action" className="h-full" />
+              )}
+            </div>
+          );
+        })()}
 
         {anomaliesOpen > 0 && (
           <Link to="/anomalias-status" className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive-soft px-4 py-3 hover:bg-destructive/10 transition-colors">
@@ -1923,23 +1946,6 @@ const Dashboard = () => {
           </Link>
         )}
 
-        {counts.mineDiretor > 0 && (() => {
-          const acaoItemsD: ScoreItemData[] = [{
-            label: "Para aprovar", value: counts.mineDiretor,
-            to: "/pagamentos?status=aguardando_aprovacao",
-            hint: "aguardando sua alçada",
-          }];
-          if (counts.diretorAprovadoEmRevisao > 0) {
-            acaoItemsD.push({
-              label: "Pós-aprovação", value: counts.diretorAprovadoEmRevisao,
-              to: "/pagamentos?status=aprovado_em_revisao",
-              hint: "em revisão pelo analista",
-            });
-          }
-          return (
-            <ScoreSection title="Ações — Sua Vez" items={acaoItemsD} tone="action" />
-          );
-        })()}
 
         <ScoreSection
           title="Visão Geral do Processo"
