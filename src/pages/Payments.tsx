@@ -1143,6 +1143,17 @@ const Payments = () => {
                 </Select>
               </div>
               <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Trilha</label>
+                <Select value={trackFilter} onValueChange={setTrackFilter}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Trilha" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as trilhas</SelectItem>
+                    <SelectItem value="habitual">{PAYMENT_TRACK_SHORT_LABELS.habitual}</SelectItem>
+                    <SelectItem value="prioritario">{PAYMENT_TRACK_SHORT_LABELS.prioritario}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Competência</label>
                 <Select value={competenceFilter} onValueChange={setCompetenceFilter}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="Competência" /></SelectTrigger>
