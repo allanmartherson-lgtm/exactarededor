@@ -635,6 +635,8 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const [pasted, setPasted] = useState("");
   const [running, setRunning] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string>("");
   const [wizard, setWizard] = useState<
     | { open: false }
     | { open: true; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
