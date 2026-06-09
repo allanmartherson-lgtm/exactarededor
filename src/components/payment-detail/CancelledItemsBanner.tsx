@@ -171,11 +171,12 @@ export function CancelledItemsBanner({ items, canReactivate, onReactivated }: Ca
               <Button
                 size="sm"
                 variant="default"
-                disabled={busy || selected.size === 0}
+                disabled={anyBusy || selected.size === 0}
                 onClick={() => reactivate(Array.from(selected))}
                 data-testid="reactivate-selected-items"
               >
-                <Undo2 className="h-4 w-4 mr-1.5" /> Reativar selecionados
+                <Undo2 className="h-4 w-4 mr-1.5" />
+                {batchBusy ? "Reativando..." : "Reativar selecionados"}
               </Button>
             ) : (
               <span className="text-[11px] text-muted-foreground">
