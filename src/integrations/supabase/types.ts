@@ -6075,6 +6075,190 @@ export type Database = {
           },
         ]
       }
+      retroactive_reconciliation_items: {
+        Row: {
+          attendance: string | null
+          claimed_amount: number | null
+          classification: Database["public"]["Enums"]["retro_recon_classification"]
+          classification_reason: string | null
+          company_id: string | null
+          created_at: string
+          expected_amount: number | null
+          function_label: string | null
+          gap_amount: number | null
+          generated_adjustment_id: string | null
+          id: string
+          matched_payment_period: unknown
+          paid_amount: number | null
+          patient_name: string | null
+          payment_id: string | null
+          payment_item_id: string | null
+          procedure_date: string | null
+          raw: Json
+          reconciliation_id: string
+          source: string
+          tuss_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          attendance?: string | null
+          claimed_amount?: number | null
+          classification?: Database["public"]["Enums"]["retro_recon_classification"]
+          classification_reason?: string | null
+          company_id?: string | null
+          created_at?: string
+          expected_amount?: number | null
+          function_label?: string | null
+          gap_amount?: number | null
+          generated_adjustment_id?: string | null
+          id?: string
+          matched_payment_period?: unknown
+          paid_amount?: number | null
+          patient_name?: string | null
+          payment_id?: string | null
+          payment_item_id?: string | null
+          procedure_date?: string | null
+          raw?: Json
+          reconciliation_id: string
+          source?: string
+          tuss_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attendance?: string | null
+          claimed_amount?: number | null
+          classification?: Database["public"]["Enums"]["retro_recon_classification"]
+          classification_reason?: string | null
+          company_id?: string | null
+          created_at?: string
+          expected_amount?: number | null
+          function_label?: string | null
+          gap_amount?: number | null
+          generated_adjustment_id?: string | null
+          id?: string
+          matched_payment_period?: unknown
+          paid_amount?: number | null
+          patient_name?: string | null
+          payment_id?: string | null
+          payment_item_id?: string | null
+          procedure_date?: string | null
+          raw?: Json
+          reconciliation_id?: string
+          source?: string
+          tuss_code?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retroactive_reconciliation_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retroactive_reconciliation_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "retroactive_reconciliation_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retroactive_reconciliation_items_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retroactive_reconciliation_items_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "retroactive_reconciliation_items_reconciliation_id_fkey"
+            columns: ["reconciliation_id"]
+            isOneToOne: false
+            referencedRelation: "retroactive_reconciliations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retroactive_reconciliations: {
+        Row: {
+          adjustment_ids: string[]
+          concluded_at: string | null
+          created_at: string
+          created_by: string | null
+          doctor_id: string
+          hospital_id: string
+          id: string
+          notes: string | null
+          period_end: string
+          period_start: string
+          status: Database["public"]["Enums"]["retro_recon_status"]
+          summary: Json
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          adjustment_ids?: string[]
+          concluded_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id: string
+          hospital_id: string
+          id?: string
+          notes?: string | null
+          period_end: string
+          period_start: string
+          status?: Database["public"]["Enums"]["retro_recon_status"]
+          summary?: Json
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          adjustment_ids?: string[]
+          concluded_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string
+          hospital_id?: string
+          id?: string
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          status?: Database["public"]["Enums"]["retro_recon_status"]
+          summary?: Json
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retroactive_reconciliations_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retroactive_reconciliations_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rule_calculations: {
         Row: {
           acrescimo_pct: number | null
@@ -8319,6 +8503,14 @@ export type Database = {
         | "tabela_propria"
         | "lista_codigos"
         | "pacote_combinacao"
+      retro_recon_classification:
+        | "ok_pago"
+        | "pago_a_menos"
+        | "nao_pago"
+        | "pago_outro_mes"
+        | "sem_lastro"
+        | "pendente"
+      retro_recon_status: "em_analise" | "concluida" | "cancelada"
       rule_calculation_type:
         | "percentual_sobre_convenio"
         | "regra_vias"
@@ -8587,6 +8779,15 @@ export const Constants = {
         "lista_codigos",
         "pacote_combinacao",
       ],
+      retro_recon_classification: [
+        "ok_pago",
+        "pago_a_menos",
+        "nao_pago",
+        "pago_outro_mes",
+        "sem_lastro",
+        "pendente",
+      ],
+      retro_recon_status: ["em_analise", "concluida", "cancelada"],
       rule_calculation_type: [
         "percentual_sobre_convenio",
         "regra_vias",
