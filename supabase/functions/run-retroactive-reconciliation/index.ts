@@ -166,9 +166,10 @@ Deno.serve(async (req) => {
         });
         const scope = inWindow.length > 0 ? inWindow : matches;
 
-        // Agrega todos os matches do mesmo (atend+tuss): soma quantidade,
-        // soma gross_amount e expected_amount. Isso garante que múltiplas
-        // vias/iterações sejam contabilizadas.
+        // Agrega todos os matches do mesmo (atend+tuss). Para esta fase
+        // (pendência alegada pelo médico) só interessa PRESENÇA e
+        // QUANTIDADE — o médico não está questionando valor de repasse.
+        // Guardamos gross/expected apenas como informação.
         const aggPaid = scope.reduce((s, m) => s + Number(m.gross_amount ?? 0), 0);
         const aggExpected = scope.reduce((s, m) => s + Number(m.expected_amount ?? 0), 0);
         const aggQty = scope.reduce((s, m) => s + Number(m.quantity ?? 1), 0);
@@ -180,7 +181,6 @@ Deno.serve(async (req) => {
         paid_quantity = aggQty;
         matched_payment_date = chosen.procedure_date ?? null;
 
-        const valueDiff = aggExpected - aggPaid;
         const qtyDiff = claimedQty - aggQty;
 
         if (inWindow.length === 0) {
@@ -188,22 +188,17 @@ Deno.serve(async (req) => {
           reason = `Item encontrado em ${chosen.procedure_date ?? "data fora do período"}.`;
           gap_amount = 0;
         } else if (qtyDiff > 0.001) {
-          // Faltou quantidade — gap proporcional ao que falta
+          // Faltou quantidade — gap = valor cru alegado pela qtd faltante.
           classification = "pago_a_menos";
-          const unit = aggQty > 0 ? aggPaid / aggQty : claimedAmt / Math.max(claimedQty, 1);
-          gap_amount = unit * qtyDiff;
-          reason = `Qtd alegada ${claimedQty} / paga ${aggQty}. Faltam ${qtyDiff.toFixed(0)} unidade(s).`;
-        } else if (Math.abs(valueDiff) <= TOL) {
-          classification = "ok_pago";
-          reason = `Pago conforme esperado (qtd ${aggQty}).`;
-          gap_amount = 0;
-        } else if (valueDiff > TOL) {
-          classification = "pago_a_menos";
-          reason = `Esperado ${aggExpected.toFixed(2)} / pago ${aggPaid.toFixed(2)} (qtd ${aggQty}).`;
-          gap_amount = valueDiff;
+          const unitClaimed = claimedAmt / Math.max(claimedQty, 1);
+          gap_amount = unitClaimed * qtyDiff;
+          reason = `Qtd alegada ${claimedQty} / paga ${aggQty}. Faltam ${qtyDiff.toFixed(0)} unidade(s) × R$ ${unitClaimed.toFixed(2)}.`;
         } else {
+          // Presente e quantidade ok — fase de pendência considera conciliado.
+          // Eventual divergência de valor de repasse será tratada quando a
+          // regra recalcular, não aqui.
           classification = "ok_pago";
-          reason = "Pago acima do esperado.";
+          reason = `Pago (qtd ${aggQty}). Valor não é avaliado nesta fase.`;
           gap_amount = 0;
         }
       } else {
