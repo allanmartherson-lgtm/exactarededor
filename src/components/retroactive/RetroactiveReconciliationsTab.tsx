@@ -528,7 +528,7 @@ function NewView({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1.5">
           {([
             ["alegacao_medico", "Alegação do médico", "Médico/PJ informa o que faltou — cruza com o que já foi pago no sistema."],
-            ["tasy_vs_repasse", "TASY vs Repasse", "Compara base TASY (realizado) com arquivo(s) de repasse do convênio. Análise ad-hoc, sem cruzamento com Supabase."],
+            ["tasy_vs_repasse", "TASY vs Repasse", "Compara base TASY (realizado) com o repasse já gravado no sistema (payment_items). Análise ad-hoc, sem cruzamento via edge function."],
           ] as const).map(([k, lbl, desc]) => (
             <button
               key={k}
