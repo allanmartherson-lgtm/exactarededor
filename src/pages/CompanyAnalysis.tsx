@@ -2156,6 +2156,11 @@ export default function CompanyAnalysis() {
           paymentReference={payment.reference}
           paymentItems={items}
           initialCompany={group.company_name}
+          onItemsChanged={() => {
+            // Cancelamento ocorreu dentro do modal — recomputa Bruto/Líquido
+            // imediatamente, sem esperar o usuário fechar a conciliação.
+            composition.refresh();
+          }}
         />
       )}
       <AlertDialog open={postConcluirOpen} onOpenChange={setPostConcluirOpen}>

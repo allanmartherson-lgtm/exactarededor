@@ -219,6 +219,10 @@ interface Props {
   paymentItems: PaymentItemRow[];
   /** Quando informado, filtra a conciliação para uma única empresa e a expande automaticamente. */
   initialCompany?: string | null;
+  /** Disparado quando itens são cancelados/alterados via conciliação,
+   *  para que a tela pai recarregue composição financeira (Bruto/Líquido)
+   *  sem precisar fechar o modal nem reaplicar regras. */
+  onItemsChanged?: () => void;
 }
 
 type Step = "select_base" | "col_mapping" | "upload" | "mapping" | "result";
@@ -406,6 +410,7 @@ export function PaymentConciliationModal({
   paymentReference,
   paymentItems,
   initialCompany = null,
+  onItemsChanged,
 }: Props) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -5204,6 +5209,9 @@ export function PaymentConciliationModal({
             setCancelScope(null);
             // Recarrega lista de itens da conciliação para refletir action_taken
             void loadLatestRun();
+            // Notifica a tela pai para recomputar Bruto/Líquido em tempo real,
+            // sem exigir fechar o modal ou usar "Reaplicar regras".
+            onItemsChanged?.();
           }}
         />
       )}

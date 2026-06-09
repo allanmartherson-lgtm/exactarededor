@@ -1760,64 +1760,26 @@ function RowMain({
             );
           })()}
           {(() => {
+            // Badge "Validação" representa SOMENTE achados da validação assistencial
+            // (duplicidade, sobreposição, etc.) — gerados quando o analista dispara
+            // a análise assistencial e gravados em payment_items.validation_findings.
+            //
+            // Importante: NÃO sintetizar findings a partir de ai_findings.matched_rules.
+            // Aquele array lista TODAS as regras casadas pelo motor de cálculo (inclui
+            // regras de repasse/percentual), o que fazia o badge aparecer em todo item.
             const rawFindings: any[] = Array.isArray((it as any).validation_findings)
               ? (it as any).validation_findings
               : [];
-            const matchedIdsAll: string[] = it.ai_findings?.matched_rule_ids ?? [];
-            const matchedNamesAll: string[] = it.ai_findings?.matched_rules ?? [];
-            // Sintetiza entries para regras disparadas que não têm finding
-            // explícito (tipicamente action=informar). Dedup por rule_id quando
-            // disponível; caso contrário, pelo nome normalizado.
-            const knownRuleKeys = new Set(
-              rawFindings.map((f) => String(f.rule_id ?? f.rule_name ?? "").toLowerCase()),
-            );
-            const synthesized: any[] = [];
-            matchedIdsAll.forEach((rid, i) => {
-              const key = String(rid).toLowerCase();
-              if (knownRuleKeys.has(key)) return;
-              const rule = rulesIndex[rid];
-              if (!rule) return;
-              knownRuleKeys.add(key);
-              synthesized.push({
-                rule_id: rid,
-                rule_name: rule.name,
-                kind: "info",
-                severity: rule.severity ?? "informativo",
-                action: rule.action ?? "informar",
-                message: rule.description || "Regra disparada — sem conflito ou bloqueio.",
-                detected_at: new Date().toISOString(),
-              });
-            });
-            // Fallback: matched_rules por nome quando o id não está indexado
-            matchedNamesAll.forEach((nm) => {
-              const key = String(nm).trim().toLowerCase();
-              if (knownRuleKeys.has(key)) return;
-              const rule = rulesByName[key];
-              if (!rule || knownRuleKeys.has(String(rule.id).toLowerCase())) return;
-              knownRuleKeys.add(key);
-              knownRuleKeys.add(String(rule.id).toLowerCase());
-              synthesized.push({
-                rule_id: rule.id,
-                rule_name: rule.name,
-                kind: "info",
-                severity: rule.severity ?? "informativo",
-                action: rule.action ?? "informar",
-                message: rule.description || "Regra disparada — sem conflito ou bloqueio.",
-                detected_at: new Date().toISOString(),
-              });
-            });
-            const allFindings = [...rawFindings, ...synthesized];
-            if (allFindings.length === 0) return null;
+            if (rawFindings.length === 0) return null;
             return (
               <ValidationFindingsBadge
-                findings={allFindings}
+                findings={rawFindings}
                 currentPaymentId={it.payment_id}
                 item={it}
                 canEdit={canEdit}
                 onAcceptItem={onAcceptItem}
                 onCancelValidationItem={onDeleteItem}
               />
-
             );
           })()}
           </div>
