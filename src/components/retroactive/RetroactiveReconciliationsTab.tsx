@@ -113,6 +113,7 @@ type ItemRow = {
   classification:
     | "ok_pago"
     | "pago_a_menos"
+    | "pago_a_mais"
     | "nao_pago"
     | "pago_outro_mes"
     | "sem_lastro"
@@ -138,6 +139,7 @@ type DraftItem = {
 const CLASS_LABEL: Record<ItemRow["classification"], string> = {
   ok_pago: "OK pago",
   pago_a_menos: "Pago a menos",
+  pago_a_mais: "Pago a mais",
   nao_pago: "Não pago",
   pago_outro_mes: "Pago em outro mês",
   sem_lastro: "Sem lastro",
@@ -147,6 +149,7 @@ const CLASS_LABEL: Record<ItemRow["classification"], string> = {
 const CLASS_TONE: Record<ItemRow["classification"], string> = {
   ok_pago: "bg-emerald-100 text-emerald-800",
   pago_a_menos: "bg-amber-100 text-amber-800",
+  pago_a_mais: "bg-rose-100 text-rose-800",
   nao_pago: "bg-red-100 text-red-800",
   pago_outro_mes: "bg-blue-100 text-blue-800",
   sem_lastro: "bg-zinc-100 text-zinc-800",
