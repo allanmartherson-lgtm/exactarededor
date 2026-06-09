@@ -95,3 +95,22 @@ describe("RPC cancel_by_reconciliation — máquina de estados (etapa de anális
     expect(sql).toMatch(/payment_status_at_action/);
   });
 });
+
+describe("Dialog CancelByReconciliation — UI não mistura com fluxo de NF", () => {
+  const dialog = readFileSync(
+    resolve(__dirname, "../../components/payment-detail/CancelByReconciliationDialog.tsx"),
+    "utf8",
+  );
+
+  it("não trata erros nem termos do ciclo de NF no dialog de conciliação", () => {
+    expect(dialog).not.toMatch(/cannot_cancel_with_active_invoice/);
+    expect(dialog).not.toMatch(/nota fiscal/i);
+    expect(dialog).not.toMatch(/\bNF\b/);
+    expect(dialog).not.toMatch(/invoice/i);
+  });
+
+  it("trata explicitamente o erro de etapa de análise", () => {
+    expect(dialog).toContain("payment_not_in_analysis_stage");
+  });
+});
+
