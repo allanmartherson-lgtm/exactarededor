@@ -194,6 +194,25 @@ export function ItemsDataGrid({
   const [onlyManualBonus, setOnlyManualBonus] = useState(false);
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
+  const [onlyAdjusted, setOnlyAdjusted] = useState(false);
+
+  // IDs dos itens que tiveram valor corrigido pelo analista (mesma fonte do
+  // relatório "Correções em análise"): observações com author_type='analista'
+  // e mensagem iniciando por "Item editado pelo analista".
+  const adjustedItemIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const o of observations) {
+      if (
+        o.author_type === "analista" &&
+        o.item_id &&
+        typeof o.message === "string" &&
+        o.message.startsWith("Item editado pelo analista")
+      ) {
+        ids.add(o.item_id);
+      }
+    }
+    return ids;
+  }, [observations]);
 
   // Ordenação clicável das colunas. Bônus sempre permanece ancorado ao item
   // pai (lógica de re-anexar logo após o sort principal). Quando nenhum
@@ -325,6 +344,7 @@ export function ItemsDataGrid({
           if (!Array.isArray(vf) || vf.length === 0) return false;
         }
       }
+      if (onlyAdjusted && !adjustedItemIds.has(it.id)) return false;
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
@@ -448,7 +468,7 @@ export function ItemsDataGrid({
     }
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, groupStatus, sortKey, sortDir]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, groupStatus, sortKey, sortDir]);
 
 
   // Totais da seleção atual (após filtros).
@@ -626,38 +646,48 @@ export function ItemsDataGrid({
             <DropdownMenuTrigger asChild>
               <Button
                 size="sm"
-                variant={(onlyAlerts || onlyManualBonus) ? "default" : "outline"}
+                variant={(onlyAlerts || onlyManualBonus || onlyAdjusted) ? "default" : "outline"}
                 className="h-8 text-xs"
               >
                 <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-                {onlyManualBonus
+                {onlyAdjusted
+                  ? "Só ajustados pelo analista"
+                  : onlyManualBonus
                   ? "Manuais / Bônus / Compl."
                   : onlyAlerts
                   ? "Só com alertas"
                   : "Filtrar itens"}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-60">
+            <DropdownMenuContent align="start" className="w-64">
               <DropdownMenuLabel>Filtros rápidos</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => { setOnlyAlerts(true); setOnlyManualBonus(false); }}
+                onClick={() => { setOnlyAlerts(true); setOnlyManualBonus(false); setOnlyAdjusted(false); }}
                 className={cn(onlyAlerts && "bg-accent")}
               >
                 <AlertTriangle className="h-3.5 w-3.5 mr-2 text-warning" />
                 Só com alertas
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => { setOnlyManualBonus(true); setOnlyAlerts(false); }}
+                onClick={() => { setOnlyManualBonus(true); setOnlyAlerts(false); setOnlyAdjusted(false); }}
                 className={cn(onlyManualBonus && "bg-accent")}
               >
                 <Sparkles className="h-3.5 w-3.5 mr-2 text-indigo-600" />
                 Manuais, bônus e complemento
               </DropdownMenuItem>
-              {(onlyAlerts || onlyManualBonus) && (
+              <DropdownMenuItem
+                onClick={() => { setOnlyAdjusted(true); setOnlyAlerts(false); setOnlyManualBonus(false); }}
+                className={cn(onlyAdjusted && "bg-accent")}
+                disabled={adjustedItemIds.size === 0}
+              >
+                <Pencil className="h-3.5 w-3.5 mr-2" style={{ color: "hsl(var(--warning))" }} />
+                Só ajustados pelo analista ({adjustedItemIds.size})
+              </DropdownMenuItem>
+              {(onlyAlerts || onlyManualBonus || onlyAdjusted) && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => { setOnlyAlerts(false); setOnlyManualBonus(false); }}>
+                  <DropdownMenuItem onClick={() => { setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyAdjusted(false); }}>
                     Limpar este filtro
                   </DropdownMenuItem>
                 </>
@@ -683,7 +713,7 @@ export function ItemsDataGrid({
             <ShieldAlert className="h-3.5 w-3.5 mr-1" />
             Alertas assistenciais
           </Button>
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts) && (
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted) && (
             <Button
               size="sm"
               variant="ghost"
@@ -692,7 +722,7 @@ export function ItemsDataGrid({
                 setFilter(""); setPatientFilter("");
                 setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
                 setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyNeedsReview(false);
-                setOnlyValidationAlerts(false);
+                setOnlyValidationAlerts(false); setOnlyAdjusted(false);
               }}
             >
               Limpar
