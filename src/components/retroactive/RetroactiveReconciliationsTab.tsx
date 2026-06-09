@@ -931,6 +931,37 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         </Badge>
       </div>
 
+      <details className="rounded-lg border border-border bg-muted/30 px-4 py-2 text-xs">
+        <summary className="cursor-pointer font-medium text-foreground">
+          Legenda dos status · o que cada um significa e a ação recomendada
+        </summary>
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+          {(
+            [
+              ["ok_pago", "Pago conforme regra. Nada a fazer.", "Nenhuma."],
+              ["pago_a_menos", "Foi pago menos que o esperado (valor ou quantidade).", "Complementar a diferença."],
+              ["tuss_divergente", "O atendimento foi pago, mas o TUSS alegado não está entre os códigos pagos.", "Complementar — TUSS faltou no lote."],
+              ["nao_pago", "Atendimento inteiro não localizado nos pagamentos do médico.", "Investigar antes de pagar; pode ser atendimento inexistente ou médico sem vínculo no lote."],
+              ["pago_outro_mes", "Existe pagamento, mas fora da janela do período apurado.", "Verificar se já foi contemplado em outra apuração."],
+              ["sem_lastro", "Sem match em pagamentos e sem valor alegado.", "Pedir mais informação ao médico."],
+            ] as const
+          ).map(([k, sig, acao]) => (
+            <div key={k} className="flex items-start gap-2">
+              <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${CLASS_TONE[k]}`}>
+                {CLASS_LABEL[k]}
+              </span>
+              <div className="leading-tight">
+                <div>{sig}</div>
+                <div className="text-muted-foreground"><strong>Ação:</strong> {acao}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 text-[11px] text-muted-foreground border-t border-border pt-2">
+          <strong>Total a complementar</strong> soma <em>Pago a menos</em> + <em>Não pago</em> + <em>Pendência (TUSS faltante)</em>.
+        </div>
+      </details>
+
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
         {(
           [
@@ -951,6 +982,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
         ))}
       </div>
+
 
       <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between">
         <div>
