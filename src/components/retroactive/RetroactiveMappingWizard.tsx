@@ -160,58 +160,66 @@ export default function RetroactiveMappingWizard({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheetIcon className="h-5 w-5" />
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto p-5">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <FileSpreadsheetIcon className="h-4 w-4" />
             Mapear colunas da planilha
           </DialogTitle>
-          <DialogDescription>
-            <span className="font-medium">{fileName}</span> · {rows.length} linhas detectadas · {headers.length} colunas
+          <DialogDescription className="text-xs">
+            <span className="font-medium text-foreground">{fileName}</span> · {rows.length} linhas · {headers.length} colunas
           </DialogDescription>
         </DialogHeader>
 
         {headers.length === 0 ? (
-          <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-            <AlertCircleIcon className="h-4 w-4 mt-0.5 text-destructive" />
+          <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs">
+            <AlertCircleIcon className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
             <div>
-              Não encontramos colunas na primeira aba da planilha. Verifique se a primeira linha contém os títulos das colunas.
+              Não encontramos colunas na primeira aba da planilha. Verifique se a primeira linha contém os títulos.
             </div>
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {TARGETS.map((t) => (
-                <div key={t.key}>
-                  <Label className="text-xs">
-                    {t.label} {t.required && <span className="text-destructive">*</span>}
-                  </Label>
-                  <Select
-                    value={mapping[t.key] ?? NONE}
-                    onValueChange={(v) => setMapping((m) => ({ ...m, [t.key]: v }))}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Selecione a coluna…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>— Não mapear —</SelectItem>
-                      {headers.map((h) => (
-                        <SelectItem key={h} value={h}>{h}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
+          <div className="space-y-4">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Mapeamento de colunas
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2.5">
+                {TARGETS.map((t) => (
+                  <div key={t.key} className="min-w-0">
+                    <Label className="text-[11px] text-muted-foreground flex items-center gap-1 mb-1">
+                      <span className="truncate">{t.label}</span>
+                      {t.required && <span className="text-destructive">*</span>}
+                    </Label>
+                    <Select
+                      value={mapping[t.key] ?? NONE}
+                      onValueChange={(v) => setMapping((m) => ({ ...m, [t.key]: v }))}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Selecione…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>— Não mapear —</SelectItem>
+                        {headers.map((h) => (
+                          <SelectItem key={h} value={h} className="text-xs">{h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">
-              <div className="font-semibold mb-2">Pré-visualização (3 primeiras linhas)</div>
-              <div className="overflow-x-auto">
-                <table className="text-[11px]">
-                  <thead>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Pré-visualização (3 primeiras linhas)
+              </div>
+              <div className="rounded-md border border-border overflow-x-auto max-h-48">
+                <table className="text-[11px] w-full">
+                  <thead className="bg-muted/50 sticky top-0">
                     <tr>
                       {headers.map((h) => (
-                        <th key={h} className="px-2 py-1 text-left text-muted-foreground border-b border-border whitespace-nowrap">
+                        <th key={h} className="px-2 py-1.5 text-left font-medium text-muted-foreground border-b border-border whitespace-nowrap">
                           {h}
                         </th>
                       ))}
@@ -219,9 +227,9 @@ export default function RetroactiveMappingWizard({
                   </thead>
                   <tbody>
                     {preview.map((r, i) => (
-                      <tr key={i}>
+                      <tr key={i} className="hover:bg-muted/30">
                         {headers.map((h) => (
-                          <td key={h} className="px-2 py-1 border-b border-border/50 whitespace-nowrap">
+                          <td key={h} className="px-2 py-1 border-b border-border/40 whitespace-nowrap">
                             {String(r[h] ?? "")}
                           </td>
                         ))}
@@ -232,25 +240,26 @@ export default function RetroactiveMappingWizard({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <Badge variant="default">{valid.length} linhas válidas</Badge>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <Badge variant="default" className="text-[10px]">{valid.length} válidas</Badge>
               {dropped > 0 && (
-                <Badge variant="outline" className="border-amber-500 text-amber-700">
-                  {dropped} descartadas (sem Atendimento, TUSS ou Valor)
+                <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700">
+                  {dropped} descartadas
                 </Badge>
               )}
               {missingRequired.length > 0 && (
-                <Badge variant="destructive">
+                <Badge variant="destructive" className="text-[10px]">
                   Faltando: {missingRequired.map((t) => t.label).join(", ")}
                 </Badge>
               )}
             </div>
-          </>
+          </div>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+        <DialogFooter className="gap-2 mt-2">
+          <Button variant="outline" size="sm" onClick={onCancel}>Cancelar</Button>
           <Button
+            size="sm"
             onClick={() => onConfirm(valid)}
             disabled={valid.length === 0 || missingRequired.length > 0}
           >
@@ -261,3 +270,4 @@ export default function RetroactiveMappingWizard({
     </Dialog>
   );
 }
+
