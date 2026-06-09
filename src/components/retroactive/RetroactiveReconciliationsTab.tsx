@@ -162,6 +162,7 @@ function emptyDraft(): DraftItem {
     procedure_date: "",
     patient_name: "",
     function_label: "",
+    procedure_name: "",
     claimed_amount: "",
     claimed_quantity: "",
   };
