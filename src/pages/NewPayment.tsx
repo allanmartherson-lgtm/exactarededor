@@ -1690,6 +1690,24 @@ const NewPayment = () => {
                   </Select>
                 )}
               </div>
+              <div className="space-y-2">
+                <Label>Trilha de pagamento</Label>
+                <Select value={paymentTrack} onValueChange={(v) => setPaymentTrack(v as PaymentTrack)}>
+                  <SelectTrigger><SelectValue placeholder="Habitual / Prioritário (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PAYMENT_TRACK_LABELS) as PaymentTrack[]).map((k) => (
+                      <SelectItem key={k} value={k}>
+                        <div className="flex flex-col">
+                          <span>{PAYMENT_TRACK_LABELS[k]}</span>
+                          <span className="text-[10px] text-muted-foreground">{PAYMENT_TRACK_DESCRIPTIONS[k]}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Apenas comercial — define só o prazo de pagamento. Não afeta cálculos ou status. Usado para segmentar relatórios.
+                </p>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Centro de custos (padrão do lote)</Label>
                 <CostCenterCombobox value={costCenterCode} onChange={setCostCenterCode} placeholder="Buscar por código P12 ou nome…" />
