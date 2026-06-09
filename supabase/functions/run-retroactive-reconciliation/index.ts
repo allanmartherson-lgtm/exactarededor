@@ -196,6 +196,16 @@ Deno.serve(async (req) => {
           const unitClaimed = claimedAmt / Math.max(claimedQty, 1);
           gap_amount = unitClaimed * qtyDiff;
           reason = `Qtd alegada ${claimedQty} / paga ${aggQty}. Faltam ${qtyDiff.toFixed(0)} unidade(s) × R$ ${unitClaimed.toFixed(2)}.`;
+        } else if (qtyDiff < -0.001) {
+          // Pago a mais — quantidade paga supera a alegada pelo médico.
+          // Mesma ideia da conciliação do lote: sinaliza excedente para
+          // o analista revisar (possível duplicidade ou cobrança incorreta).
+          classification = "pago_a_mais";
+          const excessQty = -qtyDiff;
+          const unitClaimed = claimedAmt > 0 ? claimedAmt / Math.max(claimedQty, 1) : 0;
+          // gap negativo = excedente pago ao médico (a recuperar/revisar)
+          gap_amount = -(unitClaimed * excessQty);
+          reason = `Qtd alegada ${claimedQty} / paga ${aggQty}. Pago ${excessQty.toFixed(0)} unidade(s) a mais — revisar duplicidade.`;
         } else {
           // Presente e quantidade ok — fase de pendência considera conciliado.
           // Eventual divergência de valor de repasse será tratada quando a
