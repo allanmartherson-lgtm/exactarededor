@@ -1507,21 +1507,7 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <InterventionSavingsCard rangeDays={30} />
-
-
-
-        {anomaliesOpen > 0 && (
-          <Link to="/anomalias-status" className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive-soft px-4 py-3 hover:bg-destructive/10 transition-colors">
-            <div className="flex items-center gap-2 text-sm text-destructive">
-              <span className="font-semibold">{anomaliesOpen}</span>
-              anomalia{anomaliesOpen > 1 ? "s" : ""} de status pendente{anomaliesOpen > 1 ? "s" : ""} — clique para revisar.
-            </div>
-            <span className="text-xs text-destructive/80">Abrir →</span>
-          </Link>
-        )}
-
-        {(counts.mineValidador > 0 || slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (() => {
+        {(() => {
           const acaoItemsV: ScoreItemData[] = [];
           if (counts.mineValidador > 0) acaoItemsV.push({
             label: "Para validar", value: counts.mineValidador,
@@ -1541,23 +1527,38 @@ const Dashboard = () => {
             hint: "próximos do prazo",
           });
 
+          const hasSide = acaoItemsV.length > 0 || alertaItemsV.length > 0;
           return (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: acaoItemsV.length > 0 && alertaItemsV.length > 0
-                ? "minmax(0, 1fr) minmax(0, 1fr)"
-                : "minmax(0, 1fr)",
-              gap: 40,
-            }}>
-              {acaoItemsV.length > 0 && (
-                <ScoreSection title="Ações — Sua Vez" items={acaoItemsV} tone="action" />
-              )}
-              {alertaItemsV.length > 0 && (
-                <ScoreSection title="Alertas" items={alertaItemsV} tone="alert" />
+            <div className={hasSide ? "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch" : ""}>
+              <InterventionSavingsCard rangeDays={30} className="h-full" />
+              {hasSide && (
+                <div className="h-full flex flex-col gap-4">
+                  {acaoItemsV.length > 0 && (
+                    <div className="flex-1 flex flex-col">
+                      <ScoreSection title="Ações — Sua Vez" items={acaoItemsV} tone="action" />
+                    </div>
+                  )}
+                  {alertaItemsV.length > 0 && (
+                    <div className="flex-1 flex flex-col">
+                      <ScoreSection title="Alertas" items={alertaItemsV} tone="alert" />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           );
         })()}
+
+        {anomaliesOpen > 0 && (
+          <Link to="/anomalias-status" className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive-soft px-4 py-3 hover:bg-destructive/10 transition-colors">
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <span className="font-semibold">{anomaliesOpen}</span>
+              anomalia{anomaliesOpen > 1 ? "s" : ""} de status pendente{anomaliesOpen > 1 ? "s" : ""} — clique para revisar.
+            </div>
+            <span className="text-xs text-destructive/80">Abrir →</span>
+          </Link>
+        )}
+
 
 
         <section aria-labelledby="pipeline-equipe-validador">
@@ -1930,7 +1931,7 @@ const Dashboard = () => {
             <div className={showAcao ? "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch" : ""}>
               <InterventionSavingsCard rangeDays={30} className="h-full" />
               {showAcao && (
-                <div className="h-full flex flex-col rounded-lg border bg-card p-4 shadow-card">
+                <div className="h-full flex flex-col">
                   <ScoreSection title="Ações — Sua Vez" items={acaoItemsD} tone="action" />
                 </div>
               )}
