@@ -31,7 +31,9 @@ type Classification =
   | "pago_a_menos"
   | "nao_pago"
   | "pago_outro_mes"
+  | "tuss_divergente"
   | "sem_lastro";
+
 
 const TOL = 0.05;
 
