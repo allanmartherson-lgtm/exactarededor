@@ -692,6 +692,8 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const removeDraft = (idx: number) => setDrafts((d) => d.filter((_, i) => i !== idx));
 
   const onUpload = async (file: File) => {
+    setUploadLoading(true);
+    setUploadedFileName(file.name);
     try {
       const { headers, rows } = await readRawSheet(file);
       if (rows.length === 0) {
@@ -700,6 +702,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
           description: "A primeira aba não tem linhas de dados.",
           variant: "destructive",
         });
+        setUploadLoading(false);
         return;
       }
       setWizard({ open: true, fileName: file.name, headers, rows });
@@ -709,6 +712,8 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         description: e instanceof Error ? e.message : String(e),
         variant: "destructive",
       });
+    } finally {
+      setUploadLoading(false);
     }
   };
 
