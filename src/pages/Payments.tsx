@@ -173,6 +173,7 @@ type PersistedPaymentsState = Partial<{
   doctorFilter: { id: string; full_name: string; crm: string | null; crm_uf: string | null } | null;
   analystFilter: string;
   typeFilter: string;
+  trackFilter: string;
   statusFilter: string;
   competenceFilter: string;
   view: "lista" | "kanban";
