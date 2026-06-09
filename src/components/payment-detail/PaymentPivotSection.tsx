@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { PAYMENT_TRACK_SHORT_LABELS, type PaymentTrack } from "@/lib/status";
 
 /**
  * Pivot histórico exibido nas visões "Compacto" (validador) e "Executivo"
