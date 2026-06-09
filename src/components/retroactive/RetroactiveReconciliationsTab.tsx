@@ -65,10 +65,12 @@ import {
 import * as XLSX from "xlsx";
 
 type Doctor = { id: string; full_name: string; crm: string; crm_uf: string };
+type Company = { id: string; name: string; document: string | null };
 
 type ReconRow = {
   id: string;
-  doctor_id: string;
+  doctor_id: string | null;
+  company_id: string | null;
   period_start: string;
   period_end: string;
   status: "em_analise" | "concluida" | "cancelada";
