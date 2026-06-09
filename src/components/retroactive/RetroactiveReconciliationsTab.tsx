@@ -65,7 +65,6 @@ import {
 import RetroactiveMappingWizard, {
   readRawSheet,
   TASY_TARGETS,
-  REPASSE_TARGETS,
   type TargetField,
 } from "./RetroactiveMappingWizard";
 
@@ -529,7 +528,7 @@ function NewView({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1.5">
           {([
             ["alegacao_medico", "Alegação do médico", "Médico/PJ informa o que faltou — cruza com o que já foi pago no sistema."],
-            ["tasy_vs_repasse", "TASY vs Repasse", "Compara base TASY (realizado) com arquivo(s) de repasse do convênio. Análise ad-hoc, sem cruzamento com Supabase."],
+            ["tasy_vs_repasse", "TASY vs Repasse", "Compara base TASY (realizado) com o repasse já gravado no sistema (payment_items). Análise ad-hoc, sem cruzamento via edge function."],
           ] as const).map(([k, lbl, desc]) => (
             <button
               key={k}
@@ -1476,8 +1475,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [tasyRows, setTasyRows] = useState<TasyRow[]>([]);
   const [tasyFile, setTasyFile] = useState<string>("");
   const [pagRows, setPagRows] = useState<PagRow[]>([]);
-  const [pagFiles, setPagFiles] = useState<string[]>([]);
-  const [pagMapping, setPagMapping] = useState<Record<string, string> | undefined>();
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [paymentsLoaded, setPaymentsLoaded] = useState(false);
   const [excludeTuss, setExcludeTuss] = useState<string>("");
   const [pendingTussExclude, setPendingTussExclude] = useState<string>("");
   const [processing, setProcessing] = useState(false);
@@ -1488,7 +1487,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [wizard, setWizard] = useState<
     | { kind: "none" }
     | { kind: "tasy"; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
-    | { kind: "pag"; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
   >({ kind: "none" });
 
   useEffect(() => {
@@ -1516,28 +1514,48 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
   };
 
-  const onPickPag = async (files: FileList) => {
-    if (files.length === 0) return;
-    // Process files sequentially via the wizard. Queue them.
-    const queue: File[] = Array.from(files);
-    const processNext = async () => {
-      const f = queue.shift();
-      if (!f) return;
-      try {
-        const { headers, rows } = await readRawSheet(f);
-        if (rows.length === 0) {
-          toast({ title: `Planilha vazia: ${f.name}`, variant: "destructive" });
-          await processNext();
-          return;
-        }
-        // Stash remaining queue on window so confirm handler can resume.
-        (window as unknown as { __tvrQueue?: File[] }).__tvrQueue = queue;
-        setWizard({ kind: "pag", fileName: f.name, headers, rows });
-      } catch (e) {
-        toast({ title: "Erro ao ler planilha", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+  const loadPaymentItems = async (currentRecon: ReconRow | null) => {
+    const r = currentRecon ?? recon;
+    if (!r) return;
+    setLoadingPayments(true);
+    setPaymentsLoaded(false);
+    try {
+      const start = new Date(r.period_start);
+      const end = new Date(r.period_end);
+      start.setDate(start.getDate() - 90);
+      end.setDate(end.getDate() + 90);
+
+      let query = supabase
+        .from("payment_items" as never)
+        .select("attendance_number, procedure_code, quantity, procedure_amount, doctor_role, procedure_date, patient_name, procedure_name")
+        .gte("procedure_date", start.toISOString().slice(0, 10))
+        .lte("procedure_date", end.toISOString().slice(0, 10));
+
+      if (r.doctor_id) query = query.eq("doctor_id", r.doctor_id);
+      if (r.company_id) query = query.eq("company_id", r.company_id);
+
+      const { data, error } = await query.limit(5000);
+      if (error) {
+        toast({ title: "Erro ao buscar pagamentos", description: error.message, variant: "destructive" });
+        return;
       }
-    };
-    await processNext();
+      const rows: PagRow[] = (data ?? []).map((row: Record<string, unknown>) => ({
+        pag_atendimento: normAtt(String(row.attendance_number ?? "")),
+        pag_tuss: normTuss(String(row.procedure_code ?? "")),
+        pag_qtd: String(row.quantity ?? "1"),
+        pag_valor_base: String(row.procedure_amount ?? "0"),
+        pag_valor_com_acordo: "",
+        pag_funcao: (row.doctor_role as string) ?? "",
+        pag_data: (row.procedure_date as string) ?? "",
+        pag_paciente: (row.patient_name as string) ?? "",
+        pag_convenio: "",
+      })).filter((x) => x.pag_atendimento && x.pag_tuss);
+      setPagRows(rows);
+      setPaymentsLoaded(true);
+      toast({ title: `${rows.length} item(ns) carregados do sistema` });
+    } finally {
+      setLoadingPayments(false);
+    }
   };
 
   const confirmTasy = (drafts: Record<string, string>[]) => {
@@ -1568,62 +1586,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setResults(null);
     setWizard({ kind: "none" });
     toast({ title: `TASY: ${filtered.length} linha(s) carregadas` });
-  };
-
-  const confirmPag = async (drafts: Record<string, string>[], meta: { mapping: Record<string, string> }) => {
-    const newRows = drafts
-      .map<PagRow>((d) => ({
-        pag_atendimento: normAtt(d.pag_atendimento),
-        pag_tuss: normTuss(d.pag_tuss),
-        pag_qtd: d.pag_qtd || "1",
-        pag_valor_base: d.pag_valor_base || "0",
-        pag_valor_com_acordo: d.pag_valor_com_acordo,
-        pag_funcao: d.pag_funcao,
-        pag_medico: d.pag_medico,
-        pag_data: d.pag_data,
-        pag_paciente: d.pag_paciente,
-        pag_convenio: d.pag_convenio,
-      }))
-      .filter((r) => r.pag_atendimento && r.pag_tuss);
-    const fileName = wizard.kind === "pag" ? wizard.fileName : "";
-    setPagRows((prev) => [...prev, ...newRows]);
-    if (fileName) setPagFiles((p) => [...p, fileName]);
-    setPagMapping(meta.mapping);
-    setResults(null);
-    setWizard({ kind: "none" });
-    toast({ title: `Repasse (${fileName}): ${newRows.length} linha(s)` });
-
-    // Resume queue if any
-    const w = window as unknown as { __tvrQueue?: File[] };
-    const queue = w.__tvrQueue ?? [];
-    if (queue.length > 0) {
-      const next = queue.shift();
-      w.__tvrQueue = queue;
-      if (next) {
-        try {
-          const { headers, rows } = await readRawSheet(next);
-          if (rows.length > 0) {
-            setWizard({ kind: "pag", fileName: next.name, headers, rows });
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-    }
+    // Dispara busca automática dos payment_items
+    void loadPaymentItems(recon);
   };
 
   const clearAll = () => {
     setTasyRows([]);
     setTasyFile("");
     setPagRows([]);
-    setPagFiles([]);
-    setPagMapping(undefined);
+    setPaymentsLoaded(false);
     setResults(null);
   };
 
   const process = () => {
     if (tasyRows.length === 0 || pagRows.length === 0) {
-      toast({ title: "Carregue TASY e ao menos um arquivo de repasse", variant: "destructive" });
+      toast({ title: "Carregue o TASY e aguarde a busca dos pagamentos do sistema", variant: "destructive" });
       return;
     }
     setProcessing(true);
@@ -1853,42 +1830,31 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         </label>
       </div>
 
-      {/* Step 2 — Repasse */}
-      <div className={cn("rounded-lg border border-border bg-card p-4 space-y-3", tasyRows.length === 0 && "opacity-60 pointer-events-none")}>
-        <div className="flex items-center justify-between">
+      {/* Step 2 — Repasse (auto, do sistema) */}
+      <div className={cn("rounded-lg border border-border bg-card p-4 space-y-2", tasyRows.length === 0 && "opacity-60 pointer-events-none")}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h4 className="text-sm font-semibold">2. Arquivo(s) de Repasse</h4>
+            <h4 className="text-sm font-semibold">2. Repasse do sistema</h4>
             <p className="text-[11px] text-muted-foreground">
-              Pode ser mais de um. Todos são concatenados antes do cruzamento.
-              {pagMapping && " O mapeamento do primeiro arquivo é reutilizado nos próximos."}
+              Buscado automaticamente em <code>payment_items</code> com base no escopo da apuração (médico/PJ + período ±90 dias). Usa <code>procedure_amount</code> (valor base 100%, sem acordo).
             </p>
           </div>
-          {pagRows.length > 0 && (
-            <Badge variant="default" className="text-[10px]">
-              {pagRows.length} linha(s) · {pagFiles.length} arquivo(s)
-            </Badge>
-          )}
-        </div>
-        <label className="flex items-center gap-3 border-2 border-dashed border-border rounded-lg py-4 px-4 cursor-pointer hover:bg-muted/40">
-          <UploadCloudIcon className="h-6 w-6 text-muted-foreground" />
-          <span className="text-sm">Adicionar arquivo(s) de repasse</span>
-          <input
-            type="file"
-            multiple
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={(e) => {
-              const fs = e.target.files;
-              if (fs && fs.length > 0) void onPickPag(fs);
-              e.target.value = "";
-            }}
-          />
-        </label>
-        {pagFiles.length > 0 && (
-          <div className="text-[11px] text-muted-foreground">
-            Arquivos: {pagFiles.map((f, i) => <span key={i} className="font-mono mr-2">{f}</span>)}
+          <div className="flex items-center gap-2">
+            {loadingPayments && (
+              <Badge variant="outline" className="text-[10px]">Buscando pagamentos do sistema…</Badge>
+            )}
+            {!loadingPayments && paymentsLoaded && (
+              <Badge variant="default" className="text-[10px]">
+                {pagRows.length} item(ns) carregados do sistema (payment_items)
+              </Badge>
+            )}
+            {tasyRows.length > 0 && !loadingPayments && (
+              <Button variant="outline" size="sm" onClick={() => void loadPaymentItems(recon)}>
+                {paymentsLoaded ? "Recarregar" : "Buscar agora"}
+              </Button>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Step 3 — Process */}
@@ -2031,21 +1997,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           }
           onCancel={() => setWizard({ kind: "none" })}
           onConfirm={confirmTasy}
-        />
-      )}
-
-      {wizard.kind === "pag" && (
-        <RetroactiveMappingWizard
-          open
-          fileName={wizard.fileName}
-          headers={wizard.headers}
-          rows={wizard.rows}
-          targets={REPASSE_TARGETS}
-          initialMapping={pagMapping}
-          showExcludeConsultas={false}
-          dialogTitle="Mapear colunas — Arquivo de Repasse"
-          onCancel={() => setWizard({ kind: "none" })}
-          onConfirm={confirmPag}
         />
       )}
     </div>
