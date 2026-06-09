@@ -1,94 +1,46 @@
-# Conciliação Retroativa em /pendencias
 
-Módulo novo dentro de **Pendências** para apurar faltas de pagamento alegadas pelo médico em competências anteriores, cruzando a lista que ele enviou contra a base hospitalar histórica e os `payment_items` já pagos. O sistema classifica cada linha (já pago / pago a menos / não pago / não consta na base / pago em outro mês) e permite gerar um **ajuste de complemento** que entra no próximo pagamento.
+## Problema
 
-## UX
+Hoje, dentro da apuração retroativa, a aba **Planilha** chama `parseSpreadsheet()` que procura cegamente colunas chamadas `atendimento`, `tuss`, `data`, `paciente`, `funcao`, `valor`. Se a base hospitalar usar nomes diferentes (ex.: "Nr. Atendimento", "Cód. Procedimento", "Vlr Pago", "CRM Executor", "Empresa"), o parser devolve linhas vazias e **nenhuma UI aparece** — você vê só um toast genérico ou nada.
 
-A página `/pendencias` ganha **abas** no topo:
+Você quer: subir o arquivo, **ver um wizard de mapeamento** (igual aos imports do sistema), confirmar quais colunas representam o quê, e aí o cruzamento roda dentro do escopo (médico/PJ/período) que você já definiu na apuração.
 
-- **Pendências** (a tabela atual, sem mudanças)
-- **Conciliação Retroativa** (nova)
+## O que vai mudar
 
-Dentro da nova aba, dois níveis:
+### 1. Novo componente `RetroactiveMappingWizard`
+Arquivo: `src/components/retroactive/RetroactiveMappingWizard.tsx`
 
-1. **Lista de apurações** — tabela com apurações abertas/concluídas (médico, período, status, qtd de itens faltantes, R$ total a complementar). Botão "Nova apuração".
-2. **Detalhe da apuração** — wizard em 3 passos:
-   - **Passo 1 — Escopo**: médico (autocomplete em `doctors`), intervalo de competência (de/até), empresa (opcional, ou todas as PJs do médico).
-   - **Passo 2 — Lista do médico**: três sub-abas de entrada coexistindo:
-     - *Formulário linha a linha* (Atendimento, Data, Paciente, TUSS, Função, Valor alegado opcional)
-     - *Upload de planilha* (.xlsx/.csv com auto-mapeamento de colunas — reaproveita o parser de `parsePaymentFile.ts`)
-     - *Colar texto* (textarea + parser heurístico por linhas/tabs/`;`)
-     - As três alimentam a mesma lista temporária; analista revisa antes de rodar.
-   - **Passo 3 — Resultado**: tabela classificada + ação final.
+Ao selecionar um arquivo (.xlsx/.csv) na aba "Planilha":
+- Faz parse bruto da 1ª aba (sem tentar adivinhar) e mostra as **N colunas detectadas** com 3 linhas de preview.
+- Para cada campo-alvo (Atendimento, TUSS, Data, Paciente, Função, Valor alegado, Médico, Empresa), um `<Select>` lista as colunas do arquivo. Sugere automaticamente por heurística (mesma lógica de `findCol`), mas analista pode trocar.
+- Campos obrigatórios mínimos: **Atendimento + TUSS + Valor alegado**. Médico/Empresa são opcionais (só usados pra alertar quando linha vier fora do escopo da apuração).
+- Mostra contador: "X linhas vão entrar / Y descartadas por falta de Atendimento ou TUSS".
+- Botão "Confirmar mapeamento" preenche os drafts e fecha o wizard. Mantém o botão "Rodar cruzamento" inalterado.
 
-## Motor de cruzamento
+### 2. Validação contra o escopo
+Após mapear, antes de enviar pro edge function:
+- Se a apuração tem `doctor_id` definido e a planilha trouxe nomes de médico diferentes → marca essas linhas com um aviso visual (badge "fora do escopo"), mas deixa o analista decidir incluir ou não.
+- Mesma coisa pra empresa.
+- Datas fora do `period_start/period_end ±90d` também ganham aviso.
 
-Reaproveita a chave canônica do `PaymentConciliationModal`: `Atendimento + TUSS(8d) + nome do médico normalizado`.
+### 3. Feedback de upload
+Quando o parser não encontra **nenhuma linha** com dados úteis, mostra um modal explicando o motivo (ex.: "Não identificamos coluna de atendimento") em vez do toast atual que some.
 
-Para cada linha alegada pelo médico, busca:
-- nos `payment_items` no período (todos os pagamentos do médico/PJs no intervalo) → "já pago"
-- na base hospitalar do período (`conciliation_bases` + `reconciliation_items`, ou na própria origem dos `payment_items` quando não houver base separada) → "consta na base"
+### 4. Aproveitar parser canônico (opcional, segunda etapa)
+Não vou tocar agora em `parsePaymentFile.ts`. Se depois você quiser uniformizar 100% com a conciliação do lote, a gente extrai um `ConciliationGrid` compartilhado — mas isso era a "Opção 1" do refactor completo. Aqui mantenho a tela atual e só conserto o ponto cego do upload.
 
-Classificações de saída por linha:
+## Arquivos tocados
 
-| status | regra |
-|---|---|
-| `ok_pago` | match em payment_items com valor ≈ esperado |
-| `pago_a_menos` | match em payment_items com `gross_amount < expected_amount` (usa `diferenca_regra`) |
-| `nao_pago` | consta na base no período mas sem `payment_items` correspondente |
-| `pago_outro_mes` | match em payment_items fora do intervalo informado mas próximo |
-| `sem_lastro` | alegação do médico não bate com nenhuma linha da base nem com pagamento |
+- **Novo:** `src/components/retroactive/RetroactiveMappingWizard.tsx`
+- **Editado:** `src/components/retroactive/RetroactiveReconciliationsTab.tsx`
+  - Substitui o `<input type="file">` da aba "Planilha" por trigger que abre o wizard
+  - `parseSpreadsheet()` vira `parseRawSheet()` (só lê + devolve linhas brutas + cabeçalhos)
+  - Aplicação do mapeamento gera os `DraftItem[]` igual hoje
 
-Card-resumo no topo: total alegado, total já pago, **total a complementar** (soma de `nao_pago` + delta de `pago_a_menos`), itens sem lastro.
+## Fora de escopo agora
 
-## Ação final — ajuste de complemento
+- Mudar a tela pra modal único estilo `PaymentConciliationModal` (Opção 1 anterior).
+- Tocar nas edge functions `run-retroactive-reconciliation` / `generate-retroactive-adjustment`.
+- Mudar a regra de criação da apuração (continua exigindo médico e/ou PJ + período).
 
-Botão "Gerar ajuste" no Passo 3:
-- Cria um `company_financial_adjustments` (tipo `complemento_retroativo`) por PJ vinculada ao médico (via `doctor_companies`) com o somatório dos itens `nao_pago` + delta de `pago_a_menos`.
-- Salva os itens detalhados em `retroactive_reconciliation_items` (nova tabela), ligados ao adjustment, para auditoria.
-- Marca a apuração como `concluida`.
-- O ajuste entra automaticamente no próximo pagamento via fluxo existente de `apply-company-deductions` (já consome `company_financial_adjustments`).
-
-## Detalhes técnicos
-
-### Tabelas novas (migration única)
-
-- `retroactive_reconciliations`: `id`, `hospital_id`, `doctor_id`, `period_start date`, `period_end date`, `status` (`em_analise|concluida|cancelada`), `created_by`, `summary jsonb` (totais), `adjustment_ids uuid[]`, timestamps.
-- `retroactive_reconciliation_items`: `id`, `reconciliation_id`, `attendance`, `tuss_code`, `procedure_date`, `patient_name`, `function`, `claimed_amount`, `paid_amount`, `expected_amount`, `gap_amount`, `payment_item_id` (nullable), `payment_id` (nullable), `classification` (enum acima), `source` (`form|upload|paste`), `raw jsonb`.
-- GRANTs + RLS por `hospital_id` seguindo padrão dos demais.
-
-### Edge function: `run-retroactive-reconciliation`
-- Input: `{ reconciliation_id, items: [...] }`
-- Para cada item: roda lookup nos `payment_items` (filtra `doctor_id`+período) e na base (`reconciliation_items` quando existir).
-- Persiste em `retroactive_reconciliation_items` e atualiza `summary` no pai.
-- Output: contagens por classificação + totais.
-
-### Edge function: `generate-retroactive-adjustment`
-- Input: `{ reconciliation_id }`
-- Agrupa itens elegíveis por `company_id` (resolvido via `doctor_companies`).
-- Insere `company_financial_adjustments` (um por PJ), grava `adjustment_ids` na apuração e fecha o status.
-
-### Frontend
-
-- `src/pages/Pendencias.tsx`: refactor pra introduzir `<Tabs>` mantendo o conteúdo atual em "Pendências".
-- `src/pages/RetroactiveReconciliations.tsx` (lista + criação).
-- `src/pages/RetroactiveReconciliationDetail.tsx` (wizard 3 passos).
-- `src/components/retroactive/ClaimEntryForm.tsx`, `ClaimUpload.tsx`, `ClaimPaste.tsx`, `ResultTable.tsx`, `SummaryCards.tsx`.
-- Reaproveita `parsePaymentFile.ts` (auto-mapper) e helpers de normalização (`normalizeCode`, `normName`) já usados no `PaymentConciliationModal`.
-- Rotas: `/pendencias?tab=retroativa`, `/pendencias/retroativa/nova`, `/pendencias/retroativa/:id`.
-
-### Não-objetivos (fora do escopo desta entrega)
-
-- Notificação automática ao médico do resultado (pode virar pendência depois, mas não nesta versão).
-- Recalcular regras de repasse retroativamente — usa o `expected_amount` já gravado nos `payment_items`/base.
-- Edição/refinamento do parser de planilha além do que já existe em `parsePaymentFile.ts`.
-
-## Entregáveis
-
-1. Migration com as 2 tabelas + GRANTs + RLS.
-2. Refactor `Pendencias.tsx` para tabs.
-3. Páginas + componentes de listagem, wizard e resultado.
-4. 2 edge functions (`run-retroactive-reconciliation`, `generate-retroactive-adjustment`).
-5. Memória do projeto atualizada com a regra do novo módulo.
-
-Se aprovar, executo nessa ordem: migration → edge functions → frontend.
+Confirma que sigo por aí?
