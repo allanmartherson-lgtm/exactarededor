@@ -448,27 +448,33 @@ export function PaymentPivotSection({
           <table className="w-full text-sm">
             <thead className="bg-primary/5">
               <tr>
-                <th
-                  data-pivot-th=""
-                  className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
+                <SortableTh
+                  align="left"
+                  active={sortKey === "label"}
+                  dir={sortDir}
+                  onClick={() => toggleSort("label")}
                 >
                   {FIELD_LABELS[grouping]}
-                </th>
+                </SortableTh>
                 {months.map((m) => (
-                  <th
+                  <SortableTh
                     key={m}
-                    data-pivot-th=""
-                    className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide tabular-nums"
+                    align="right"
+                    active={sortKey === m}
+                    dir={sortDir}
+                    onClick={() => toggleSort(m)}
                   >
                     {monthLabel(m)}
-                  </th>
+                  </SortableTh>
                 ))}
-                <th
-                  data-pivot-th=""
-                  className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
+                <SortableTh
+                  align="right"
+                  active={sortKey === "delta"}
+                  dir={sortDir}
+                  onClick={() => toggleSort("delta")}
                 >
                   Δ vs média
-                </th>
+                </SortableTh>
               </tr>
             </thead>
             <tbody>
@@ -479,7 +485,7 @@ export function PaymentPivotSection({
                   </td>
                 </tr>
               )}
-              {!loading && primaryRows.length === 0 && (
+              {!loading && sortedRows.length === 0 && (
                 <tr>
                   <td colSpan={months.length + 2} className="px-3 py-6 text-center text-muted-foreground text-xs">
                     Sem dados no período selecionado.
@@ -487,7 +493,7 @@ export function PaymentPivotSection({
                 </tr>
               )}
               {!loading &&
-                primaryRows.map((r) => {
+                sortedRows.map((r) => {
                   const isOpen = expanded.has(r.key);
                   const canDrill = r.children.length > 0;
                   return (
