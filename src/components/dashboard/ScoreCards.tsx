@@ -203,6 +203,47 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
   );
 }
 
+export function KpiSectionHeader({
+  title,
+  tone = "transit",
+}: {
+  title: string;
+  tone?: ScoreTone;
+}) {
+  const headColor =
+    tone === "action"
+      ? "hsl(var(--primary))"
+      : tone === "alert"
+      ? "hsl(var(--info))"
+      : "hsl(var(--muted-foreground))";
+  return (
+    <header style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, height: 18 }}>
+      <h3
+        style={{
+          fontFamily: OUTFIT,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.28em",
+          textTransform: "uppercase",
+          color: headColor,
+          whiteSpace: "nowrap",
+          margin: 0,
+          lineHeight: 1,
+        }}
+      >
+        {title}
+      </h3>
+      <span
+        style={{
+          height: 1,
+          flex: 1,
+          background: "linear-gradient(to right, hsl(var(--border)), transparent)",
+        }}
+      />
+    </header>
+  );
+}
+
 export function ScoreSection({
   title,
   items,
@@ -213,37 +254,9 @@ export function ScoreSection({
   tone: ScoreTone;
 }) {
   if (items.length === 0) return null;
-  const headColor =
-    tone === "action"
-      ? "hsl(var(--primary))"
-      : tone === "alert"
-      ? "hsl(var(--info))"
-      : "hsl(var(--muted-foreground))";
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", width: "100%" }}>
-      <header style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-        <h3
-          style={{
-            fontFamily: OUTFIT,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.28em",
-            textTransform: "uppercase",
-            color: headColor,
-            whiteSpace: "nowrap",
-            margin: 0,
-          }}
-        >
-          {title}
-        </h3>
-        <span
-          style={{
-            height: 1,
-            flex: 1,
-            background: "linear-gradient(to right, hsl(var(--border)), transparent)",
-          }}
-        />
-      </header>
+      <KpiSectionHeader title={title} tone={tone} />
       <div
         style={{
           display: "grid",
@@ -253,6 +266,7 @@ export function ScoreSection({
           alignItems: "stretch",
         }}
       >
+
         {items.map((item) => (
           <ScoreCard key={item.label} item={item} tone={tone} />
         ))}
