@@ -497,11 +497,12 @@ export default function InterventionAdjustments() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={reactivatingId === it.item_id}
+                                disabled={reactivatingIds.has(it.item_id)}
                                 onClick={() => handleReactivate(it.item_id)}
                                 title="Reverter cancelamento e devolver item ao pagamento"
                               >
-                                <Undo2 className="h-3.5 w-3.5 mr-1" /> Reativar
+                                <Undo2 className="h-3.5 w-3.5 mr-1" />
+                                {reactivatingIds.has(it.item_id) ? "..." : "Reativar"}
                               </Button>
                             )}
                           </div>
