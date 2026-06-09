@@ -377,6 +377,12 @@ export default function Pendencias() {
           </TableBody>
         </Table>
       </div>
+        </TabsContent>
+        <TabsContent value="retroativa" className="mt-4">
+          <RetroactiveReconciliationsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+
