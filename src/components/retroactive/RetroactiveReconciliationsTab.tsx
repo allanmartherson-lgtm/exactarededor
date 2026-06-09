@@ -1110,6 +1110,17 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
           </TableBody>
         </Table>
       </div>
+
+      {wizard.open && (
+        <RetroactiveMappingWizard
+          open={wizard.open}
+          fileName={wizard.fileName}
+          headers={wizard.headers}
+          rows={wizard.rows}
+          onCancel={() => setWizard({ open: false })}
+          onConfirm={applyMapping}
+        />
+      )}
     </div>
   );
 }
