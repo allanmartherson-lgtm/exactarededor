@@ -2135,6 +2135,39 @@ const PaymentDetail = () => {
           ];
           if (payment.payment_type) cells.push({ label: "Tipo", value: PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS] });
           if (payment.payment_kind) cells.push({ label: "Categoria", value: PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS] });
+          {
+            const currentTrack = (payment as any).payment_track as PaymentTrack | null | undefined;
+            cells.push({
+              label: "Trilha",
+              value: (
+                <Select
+                  value={currentTrack ?? "__none__"}
+                  onValueChange={async (v) => {
+                    const newVal = v === "__none__" ? null : (v as PaymentTrack);
+                    const { error } = await supabase
+                      .from("payments")
+                      .update({ payment_track: newVal })
+                      .eq("id", payment.id);
+                    if (error) {
+                      toast({ title: "Erro ao atualizar trilha", description: error.message, variant: "destructive" });
+                    } else {
+                      toast({ title: "Trilha atualizada", description: newVal ? PAYMENT_TRACK_LABELS[newVal] : "Sem trilha" });
+                      load();
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-6 px-2 text-xs w-auto min-w-[110px] border-dashed">
+                    <SelectValue placeholder="Definir" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs">— Não classificado</SelectItem>
+                    <SelectItem value="habitual" className="text-xs">{PAYMENT_TRACK_SHORT_LABELS.habitual}</SelectItem>
+                    <SelectItem value="prioritario" className="text-xs">{PAYMENT_TRACK_SHORT_LABELS.prioritario}</SelectItem>
+                  </SelectContent>
+                </Select>
+              ),
+            });
+          }
           if (payment.cost_center_code) cells.push({ label: "Centro de custo", value: <span className="font-mono">{payment.cost_center_code}</span> });
           return (
             <Card className="shadow-card">
