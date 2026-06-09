@@ -39,7 +39,29 @@ import {
   PlayIcon,
   FileCheckIcon,
   UploadCloudIcon,
+  CheckIcon,
+  ChevronsUpDownIcon,
 } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 
 type Doctor = { id: string; full_name: string; crm: string; crm_uf: string };
