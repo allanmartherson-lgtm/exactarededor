@@ -53,20 +53,26 @@ const bucketColor: Record<string, string> = {
 export function useDreData() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [track, setTrack] = useState<TrackFilterValue>("all");
   const [dre, setDre] = useState<DreRow[]>([]);
   const [open, setOpen] = useState<OpenRow[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
+    const rpcTrack = toRpcTrack(track);
     const [dreRes, openRes] = (await Promise.all([
       supabase.rpc("get_dre_consolidated" as never, {
         p_competencia_from: from || null,
         p_competencia_to: to || null,
         p_company_id: null,
         p_doctor_id: null,
+        p_track: rpcTrack,
       } as never),
-      supabase.rpc("get_open_position" as never, { p_company_id: null } as never),
+      supabase.rpc("get_open_position" as never, {
+        p_company_id: null,
+        p_track: rpcTrack,
+      } as never),
     ])) as unknown as [{ data: DreRow[] | null; error: unknown }, { data: OpenRow[] | null; error: unknown }];
     if (dreRes.error) console.error("get_dre_consolidated error", dreRes.error);
     if (openRes.error) console.error("get_open_position error", openRes.error);
@@ -80,7 +86,7 @@ export function useDreData() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { from, setFrom, to, setTo, dre, open, loading, load };
+  return { from, setFrom, to, setTo, track, setTrack, dre, open, loading, load };
 }
 
 export function DreFilters({
