@@ -1569,6 +1569,7 @@ const NewPayment = () => {
         items_count: allRows.length,
         payment_type: paymentType,
         payment_kind: paymentKind,
+        payment_track: paymentTrack || null,
         competence_month: `${[...competenceMonths].sort()[0]}-01`,
         competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         sectors: pSectors,
