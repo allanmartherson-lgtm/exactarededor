@@ -89,6 +89,8 @@ export default function FinancialIntelligence() {
               setFrom={dreData.setFrom}
               to={dreData.to}
               setTo={dreData.setTo}
+              track={dreData.track}
+              setTrack={dreData.setTrack}
               loading={dreData.loading}
               onReload={dreData.load}
             />
@@ -96,12 +98,12 @@ export default function FinancialIntelligence() {
           </div>
         )}
 
-        {active === "dre-consolidado" && <DreConsolidadoSection dre={dreData.dre} />}
+        {active === "dre-consolidado" && <DreConsolidadoSection dre={dreData.dre} track={dreData.track} />}
         {active === "posicao-aberto" && <PosicaoAbertoSection open={dreData.open} />}
-        {active === "tendencia" && <LossTrendTab />}
-        {active === "projecao" && <ProjectionTab />}
-        {active === "concentracao" && <DoctorConcentrationTab />}
-        {active === "em-risco" && <ValidationRiskSection />}
+        {active === "tendencia" && <LossTrendTab track={dreData.track} />}
+        {active === "projecao" && <ProjectionTab track={dreData.track} />}
+        {active === "concentracao" && <DoctorConcentrationTab track={dreData.track} />}
+        {active === "em-risco" && <ValidationRiskSection track={dreData.track} />}
       </div>
     </div>
   );
