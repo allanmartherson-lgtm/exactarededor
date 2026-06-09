@@ -77,6 +77,7 @@ export default function DreReport() {
       p_competencia: row.competencia,
       p_company_id: row.company_id,
       p_doctor_id: row.doctor_id,
+      p_track: toRpcTrack(track),
     });
     if (!error && data) setDrillRows(data as typeof drillRows);
     else setDrillRows([]);
@@ -86,14 +87,16 @@ export default function DreReport() {
 
   const load = async () => {
     setLoading(true);
+    const rpcTrack = toRpcTrack(track);
     const [dreRes, openRes] = await Promise.all([
-      supabase.rpc("get_dre_consolidated" as any, {
+      supabase.rpc("get_dre_consolidated" as never, {
         p_competencia_from: from || null,
         p_competencia_to: to || null,
         p_company_id: null,
         p_doctor_id: null,
-      }),
-      supabase.rpc("get_open_position" as any, { p_company_id: null }),
+        p_track: rpcTrack,
+      } as never),
+      supabase.rpc("get_open_position" as never, { p_company_id: null, p_track: rpcTrack } as never),
     ]);
     if (dreRes.data) setDre(dreRes.data as unknown as DreRow[]);
     if (openRes.data) setOpen(openRes.data as unknown as OpenRow[]);
