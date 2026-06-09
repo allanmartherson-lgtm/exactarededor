@@ -220,7 +220,7 @@ export function ScoreSection({
       ? "hsl(var(--info))"
       : "hsl(var(--muted-foreground))";
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", width: "100%" }}>
       <header style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
         <h3
           style={{
@@ -249,6 +249,8 @@ export function ScoreSection({
           display: "grid",
           gridTemplateColumns: `repeat(${Math.max(items.length, 2)}, minmax(0, 1fr))`,
           gap: 16,
+          flex: 1,
+          alignItems: "stretch",
         }}
       >
         {items.map((item) => (
