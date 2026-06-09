@@ -82,7 +82,9 @@ export default function InterventionAdjustments() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
   const [filters, setFilters] = useState<InterventionFilters>({ role: initialRole, userId: "all", search: "" });
-  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
+  // Set para permitir múltiplas reativações em paralelo de IDs distintos sem
+  // que uma sobrescreva o estado da outra, e bloqueia retry no mesmo id.
+  const [reactivatingIds, setReactivatingIds] = useState<Set<string>>(new Set());
 
   const reloadData = async () => {
     const end = new Date();
@@ -96,9 +98,17 @@ export default function InterventionAdjustments() {
   };
 
   const handleReactivate = async (itemId: string) => {
-    setReactivatingId(itemId);
+    // Idempotência: clique duplo no mesmo botão não dispara duas chamadas.
+    if (reactivatingIds.has(itemId)) return;
+    setReactivatingIds((prev) => new Set(prev).add(itemId));
+    const toastId = toast.loading("Reativando item...");
     const { error } = await supabase.rpc("reactivate_cancelled_item", { p_item_id: itemId });
-    setReactivatingId(null);
+    setReactivatingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
+    toast.dismiss(toastId);
     if (error) {
       toast.error("Falha ao reativar", { description: error.message });
       return;
@@ -487,11 +497,12 @@ export default function InterventionAdjustments() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={reactivatingId === it.item_id}
+                                disabled={reactivatingIds.has(it.item_id)}
                                 onClick={() => handleReactivate(it.item_id)}
                                 title="Reverter cancelamento e devolver item ao pagamento"
                               >
-                                <Undo2 className="h-3.5 w-3.5 mr-1" /> Reativar
+                                <Undo2 className="h-3.5 w-3.5 mr-1" />
+                                {reactivatingIds.has(it.item_id) ? "..." : "Reativar"}
                               </Button>
                             )}
                           </div>
