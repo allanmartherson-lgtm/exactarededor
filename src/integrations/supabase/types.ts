@@ -6082,6 +6082,7 @@ export type Database = {
         Row: {
           attendance: string | null
           claimed_amount: number | null
+          claimed_quantity: number | null
           classification: Database["public"]["Enums"]["retro_recon_classification"]
           classification_reason: string | null
           company_id: string | null
@@ -6091,8 +6092,10 @@ export type Database = {
           gap_amount: number | null
           generated_adjustment_id: string | null
           id: string
+          matched_payment_date: string | null
           matched_payment_period: unknown
           paid_amount: number | null
+          paid_quantity: number | null
           patient_name: string | null
           payment_id: string | null
           payment_item_id: string | null
@@ -6106,6 +6109,7 @@ export type Database = {
         Insert: {
           attendance?: string | null
           claimed_amount?: number | null
+          claimed_quantity?: number | null
           classification?: Database["public"]["Enums"]["retro_recon_classification"]
           classification_reason?: string | null
           company_id?: string | null
@@ -6115,8 +6119,10 @@ export type Database = {
           gap_amount?: number | null
           generated_adjustment_id?: string | null
           id?: string
+          matched_payment_date?: string | null
           matched_payment_period?: unknown
           paid_amount?: number | null
+          paid_quantity?: number | null
           patient_name?: string | null
           payment_id?: string | null
           payment_item_id?: string | null
@@ -6130,6 +6136,7 @@ export type Database = {
         Update: {
           attendance?: string | null
           claimed_amount?: number | null
+          claimed_quantity?: number | null
           classification?: Database["public"]["Enums"]["retro_recon_classification"]
           classification_reason?: string | null
           company_id?: string | null
@@ -6139,8 +6146,10 @@ export type Database = {
           gap_amount?: number | null
           generated_adjustment_id?: string | null
           id?: string
+          matched_payment_date?: string | null
           matched_payment_period?: unknown
           paid_amount?: number | null
+          paid_quantity?: number | null
           patient_name?: string | null
           payment_id?: string | null
           payment_item_id?: string | null

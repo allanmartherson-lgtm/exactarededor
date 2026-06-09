@@ -28,6 +28,7 @@ export type MappedDraft = {
   patient_name: string;
   function_label: string;
   claimed_amount: string;
+  claimed_quantity: string;
   doctor_hint: string;
   company_hint: string;
 };
@@ -45,6 +46,7 @@ const TARGETS: TargetField[] = [
   { key: "attendance", label: "Atendimento", required: true, aliases: ["atendiment", "atend", "guia", "natendimento", "nratendimento"] },
   { key: "tuss_code", label: "TUSS / Cód. procedimento", required: true, aliases: ["tuss", "codtuss", "codprocedi", "procedimentocodig", "codigoprocedimento", "codigo"] },
   { key: "claimed_amount", label: "Valor alegado", required: true, aliases: ["valoralegado", "valorpago", "valorprocedi", "vlrpago", "vlrprocedi", "valor", "vlr"] },
+  { key: "claimed_quantity", label: "Quantidade", required: false, aliases: ["quantidade", "qtd", "qtde", "qtditem", "qt"] },
   { key: "procedure_date", label: "Data procedimento", required: false, aliases: ["datacir", "dataprocedi", "datacirurgia", "dataetapa", "data"] },
   { key: "patient_name", label: "Paciente", required: false, aliases: ["paciente", "nomepaciente", "nmpaciente", "nome"] },
   { key: "function_label", label: "Função médico", required: false, aliases: ["funcao", "funcaomedico", "papel", "role", "tipoatuacao"] },
@@ -156,6 +158,7 @@ export default function RetroactiveMappingWizard({
         attendance: String(get("attendance") ?? "").trim(),
         tuss_code: String(get("tuss_code") ?? "").replace(/\D/g, "").slice(0, 8),
         claimed_amount: parseCellMoney(get("claimed_amount")),
+        claimed_quantity: parseCellMoney(get("claimed_quantity")),
         procedure_date: parseCellDate(get("procedure_date")),
         patient_name: String(get("patient_name") ?? "").trim(),
         function_label: String(get("function_label") ?? "").trim(),

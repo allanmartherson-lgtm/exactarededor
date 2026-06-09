@@ -1,6 +1,10 @@
 // Edge function: cruza a lista alegada pelo médico contra payment_items
 // já pagos no período, classifica cada item e persiste em
 // retroactive_reconciliation_items. Atualiza o summary do pai.
+//
+// Cruzamento agrega TODOS os payment_items que casam (atendimento + TUSS),
+// somando quantidade e valor — assim, se o médico alegou 2 vias e só 1 foi
+// paga, a diferença de quantidade aparece como pago_a_menos.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -18,6 +22,7 @@ type InputItem = {
   patient_name?: string | null;
   function_label?: string | null;
   claimed_amount?: number | null;
+  claimed_quantity?: number | null;
   raw?: Record<string, unknown>;
 };
 
@@ -86,11 +91,10 @@ Deno.serve(async (req) => {
     const wideEnd = new Date(endDate);
     wideEnd.setDate(wideEnd.getDate() + 90);
 
-    // Carrega payment_items do escopo (médico e/ou PJ) na janela ampliada
     let paidQ = supabase
       .from("payment_items")
       .select(
-        "id, payment_id, attendance_number, procedure_code, procedure_date, doctor_id, company_id, gross_amount, expected_amount, procedure_amount",
+        "id, payment_id, attendance_number, procedure_code, procedure_date, doctor_id, company_id, quantity, gross_amount, expected_amount, procedure_amount",
       )
       .gte("procedure_date", wideStart.toISOString().slice(0, 10))
       .lte("procedure_date", wideEnd.toISOString().slice(0, 10))
@@ -100,7 +104,6 @@ Deno.serve(async (req) => {
     const { data: paid, error: paidErr } = await paidQ;
     if (paidErr) throw paidErr;
 
-    // Index por chave (atendimento + tuss)
     const paidByKey = new Map<string, typeof paid>();
     for (const p of paid ?? []) {
       const k = `${normAtt(p.attendance_number)}|${normCode(p.procedure_code)}`;
@@ -108,7 +111,6 @@ Deno.serve(async (req) => {
       paidByKey.get(k)!.push(p);
     }
 
-    // Limpa itens antigos da apuração antes de reprocessar
     await supabase
       .from("retroactive_reconciliation_items")
       .delete()
@@ -138,47 +140,65 @@ Deno.serve(async (req) => {
       let gap_amount: number | null = null;
       let payment_id: string | null = null;
       let payment_item_id: string | null = null;
+      let paid_quantity: number | null = null;
+      let matched_payment_date: string | null = null;
+
+      const claimedQty = it.claimed_quantity != null ? Number(it.claimed_quantity) : 1;
+      const claimedAmt = it.claimed_amount != null ? Number(it.claimed_amount) : 0;
 
       if (matches.length > 0) {
-        // Pega o que está dentro da janela do período primeiro
         const inWindow = matches.filter((m) => {
           if (!m.procedure_date) return false;
           const d = new Date(m.procedure_date);
           return d >= startDate && d <= endDate;
         });
-        const chosen = (inWindow[0] ?? matches[0]) as (typeof matches)[number];
+        const scope = inWindow.length > 0 ? inWindow : matches;
+
+        // Agrega todos os matches do mesmo (atend+tuss): soma quantidade,
+        // soma gross_amount e expected_amount. Isso garante que múltiplas
+        // vias/iterações sejam contabilizadas.
+        const aggPaid = scope.reduce((s, m) => s + Number(m.gross_amount ?? 0), 0);
+        const aggExpected = scope.reduce((s, m) => s + Number(m.expected_amount ?? 0), 0);
+        const aggQty = scope.reduce((s, m) => s + Number(m.quantity ?? 1), 0);
+        const chosen = scope[0];
         payment_id = chosen.payment_id;
         payment_item_id = chosen.id;
-        paid_amount = Number(chosen.gross_amount ?? 0);
-        expected_amount = Number(chosen.expected_amount ?? 0);
-        const diff = expected_amount - paid_amount;
+        paid_amount = aggPaid;
+        expected_amount = aggExpected;
+        paid_quantity = aggQty;
+        matched_payment_date = chosen.procedure_date ?? null;
+
+        const valueDiff = aggExpected - aggPaid;
+        const qtyDiff = claimedQty - aggQty;
 
         if (inWindow.length === 0) {
           classification = "pago_outro_mes";
-          reason = "Item encontrado em pagamento fora do período informado.";
+          reason = `Item encontrado em ${chosen.procedure_date ?? "data fora do período"}.`;
           gap_amount = 0;
-        } else if (Math.abs(diff) <= TOL) {
-          classification = "ok_pago";
-          reason = "Pago conforme esperado.";
-          gap_amount = 0;
-        } else if (diff > TOL) {
+        } else if (qtyDiff > 0.001) {
+          // Faltou quantidade — gap proporcional ao que falta
           classification = "pago_a_menos";
-          reason = `Esperado ${expected_amount.toFixed(2)} / pago ${paid_amount.toFixed(2)}.`;
-          gap_amount = diff;
+          const unit = aggQty > 0 ? aggPaid / aggQty : claimedAmt / Math.max(claimedQty, 1);
+          gap_amount = unit * qtyDiff;
+          reason = `Qtd alegada ${claimedQty} / paga ${aggQty}. Faltam ${qtyDiff.toFixed(0)} unidade(s).`;
+        } else if (Math.abs(valueDiff) <= TOL) {
+          classification = "ok_pago";
+          reason = `Pago conforme esperado (qtd ${aggQty}).`;
+          gap_amount = 0;
+        } else if (valueDiff > TOL) {
+          classification = "pago_a_menos";
+          reason = `Esperado ${aggExpected.toFixed(2)} / pago ${aggPaid.toFixed(2)} (qtd ${aggQty}).`;
+          gap_amount = valueDiff;
         } else {
-          // pago a mais — não gera complemento, marca como ok_pago com gap negativo
           classification = "ok_pago";
           reason = "Pago acima do esperado.";
           gap_amount = 0;
         }
       } else {
-        // Nada encontrado nos pagamentos: marcamos como nao_pago se o médico
-        // alegou valor; sem valor alegado vira sem_lastro para revisão manual.
-        const claimed = Number(it.claimed_amount ?? 0);
-        if (claimed > 0) {
+        if (claimedAmt > 0) {
           classification = "nao_pago";
-          reason = "Não localizado em pagamentos. Valor alegado pelo médico.";
-          gap_amount = claimed;
+          reason = `Não localizado em pagamentos. Alegado ${claimedAmt.toFixed(2)} (qtd ${claimedQty}).`;
+          gap_amount = claimedAmt;
         } else {
           classification = "sem_lastro";
           reason = "Sem match em pagamentos e sem valor alegado.";
@@ -186,7 +206,7 @@ Deno.serve(async (req) => {
       }
 
       summary[classification] += 1;
-      summary.total_claimed += Number(it.claimed_amount ?? 0);
+      summary.total_claimed += claimedAmt;
       summary.total_paid += paid_amount ?? 0;
       if (
         (classification === "nao_pago" || classification === "pago_a_menos") &&
@@ -203,12 +223,15 @@ Deno.serve(async (req) => {
         procedure_date: it.procedure_date ?? null,
         patient_name: it.patient_name ?? null,
         function_label: it.function_label ?? null,
-        claimed_amount: it.claimed_amount ?? null,
+        claimed_amount: claimedAmt || null,
+        claimed_quantity: claimedQty,
         paid_amount,
+        paid_quantity,
         expected_amount,
         gap_amount,
         payment_id,
         payment_item_id,
+        matched_payment_date,
         classification,
         classification_reason: reason,
         raw: it.raw ?? {},

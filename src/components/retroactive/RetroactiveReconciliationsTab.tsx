@@ -100,9 +100,12 @@ type ItemRow = {
   patient_name: string | null;
   function_label: string | null;
   claimed_amount: number | null;
+  claimed_quantity: number | null;
   paid_amount: number | null;
+  paid_quantity: number | null;
   expected_amount: number | null;
   gap_amount: number | null;
+  matched_payment_date: string | null;
   classification:
     | "ok_pago"
     | "pago_a_menos"
@@ -123,6 +126,7 @@ type DraftItem = {
   patient_name: string;
   function_label: string;
   claimed_amount: string;
+  claimed_quantity: string;
 };
 
 const CLASS_LABEL: Record<ItemRow["classification"], string> = {
@@ -152,6 +156,7 @@ function emptyDraft(): DraftItem {
     patient_name: "",
     function_label: "",
     claimed_amount: "",
+    claimed_quantity: "",
   };
 }
 
@@ -675,7 +680,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     const { data: its } = await supabase
       .from("retroactive_reconciliation_items" as never)
       .select(
-        "id, attendance, tuss_code, procedure_date, patient_name, function_label, claimed_amount, paid_amount, expected_amount, gap_amount, classification, classification_reason, payment_id",
+        "id, attendance, tuss_code, procedure_date, patient_name, function_label, claimed_amount, claimed_quantity, paid_amount, paid_quantity, expected_amount, gap_amount, matched_payment_date, classification, classification_reason, payment_id",
       )
       .eq("reconciliation_id", id)
       .order("created_at", { ascending: true });
@@ -727,6 +732,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
       patient_name: m.patient_name,
       function_label: m.function_label,
       claimed_amount: m.claimed_amount,
+      claimed_quantity: m.claimed_quantity ?? "",
     }));
     setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...newDrafts]);
     setWizard({ open: false });
@@ -762,6 +768,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
           patient_name: d.patient_name || null,
           function_label: d.function_label || null,
           claimed_amount: d.claimed_amount ? Number(d.claimed_amount) : null,
+          claimed_quantity: d.claimed_quantity ? Number(d.claimed_quantity) : 1,
         })),
       },
     });
@@ -803,6 +810,37 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
     await load();
   };
 
+  const [statusFilter, setStatusFilter] = useState<ItemRow["classification"] | "all">("all");
+  const filteredItems = useMemo(
+    () => (statusFilter === "all" ? items : items.filter((i) => i.classification === statusFilter)),
+    [items, statusFilter],
+  );
+
+  const exportXlsx = async () => {
+    const XLSX = await import("xlsx");
+    const rows = items.map((it) => ({
+      Atendimento: it.attendance ?? "",
+      TUSS: it.tuss_code ?? "",
+      "Data procedimento": it.procedure_date ?? "",
+      Paciente: it.patient_name ?? "",
+      Função: it.function_label ?? "",
+      "Qtd alegada": it.claimed_quantity ?? "",
+      "Qtd paga": it.paid_quantity ?? "",
+      "Valor alegado": Number(it.claimed_amount ?? 0),
+      "Valor pago": Number(it.paid_amount ?? 0),
+      "Valor esperado": Number(it.expected_amount ?? 0),
+      Gap: Number(it.gap_amount ?? 0),
+      "Data pagamento encontrado": it.matched_payment_date ?? "",
+      Status: CLASS_LABEL[it.classification],
+      Motivo: it.classification_reason ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Apuração");
+    const stamp = format(new Date(), "yyyyMMdd_HHmm");
+    XLSX.writeFile(wb, `apuracao-retroativa_${stamp}.xlsx`);
+  };
+
   const totalComplemento = useMemo(
     () =>
       items
@@ -810,6 +848,8 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
         .reduce((s, i) => s + Number(i.gap_amount ?? 0), 0),
     [items],
   );
+
+
 
   if (!recon)
     return (
@@ -901,6 +941,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                       <th className="px-2 py-1">Data</th>
                       <th className="px-2 py-1">Paciente</th>
                       <th className="px-2 py-1">Função</th>
+                      <th className="px-2 py-1">Qtd</th>
                       <th className="px-2 py-1">Valor alegado</th>
                       <th></th>
                     </tr>
@@ -937,6 +978,13 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
                           <Input
                             value={d.function_label}
                             onChange={(e) => updateDraft(idx, { function_label: e.target.value })}
+                          />
+                        </td>
+                        <td className="p-1 w-20">
+                          <Input
+                            value={d.claimed_quantity}
+                            onChange={(e) => updateDraft(idx, { claimed_quantity: e.target.value })}
+                            placeholder="1"
                           />
                         </td>
                         <td className="p-1 w-32">
@@ -1051,63 +1099,107 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
       )}
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b border-border">
-          <h4 className="text-sm font-semibold">Resultado</h4>
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <h4 className="text-sm font-semibold">Resultado</h4>
+            <span className="text-xs text-muted-foreground">
+              {filteredItems.length} de {items.length} item(ns)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+              <SelectTrigger className="h-8 w-[180px] text-xs">
+                <SelectValue placeholder="Filtrar status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                {(["ok_pago", "pago_a_menos", "nao_pago", "pago_outro_mes", "sem_lastro"] as const).map((k) => (
+                  <SelectItem key={k} value={k}>{CLASS_LABEL[k]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={exportXlsx} disabled={items.length === 0}>
+              Exportar Excel
+            </Button>
+          </div>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Atendimento</TableHead>
-              <TableHead>TUSS</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Paciente</TableHead>
-              <TableHead>Alegado</TableHead>
-              <TableHead>Pago</TableHead>
-              <TableHead>Esperado</TableHead>
-              <TableHead>Gap</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.length === 0 && (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                  Nenhum item processado ainda.
-                </TableCell>
+                <TableHead>Atendimento</TableHead>
+                <TableHead>TUSS</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Paciente</TableHead>
+                <TableHead className="text-center">Qtd aleg.</TableHead>
+                <TableHead className="text-center">Qtd paga</TableHead>
+                <TableHead>Alegado</TableHead>
+                <TableHead>Pago</TableHead>
+                <TableHead>Esperado</TableHead>
+                <TableHead>Gap</TableHead>
+                <TableHead>Pago em</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
-            )}
-            {items.map((it) => (
-              <TableRow key={it.id}>
-                <TableCell>{it.attendance ?? "—"}</TableCell>
-                <TableCell>{it.tuss_code ?? "—"}</TableCell>
-                <TableCell>
-                  {it.procedure_date ? format(new Date(it.procedure_date), "dd/MM/yy") : "—"}
-                </TableCell>
-                <TableCell className="max-w-[180px] truncate">{it.patient_name ?? "—"}</TableCell>
-                <TableCell>{brl(it.claimed_amount)}</TableCell>
-                <TableCell>{brl(it.paid_amount)}</TableCell>
-                <TableCell>{brl(it.expected_amount)}</TableCell>
-                <TableCell
-                  className={
-                    Number(it.gap_amount ?? 0) > 0
-                      ? "font-semibold text-red-700"
-                      : "text-muted-foreground"
-                  }
-                >
-                  {brl(it.gap_amount)}
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${CLASS_TONE[it.classification]}`}
-                    title={it.classification_reason ?? undefined}
-                  >
-                    {CLASS_LABEL[it.classification]}
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredItems.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
+                    {items.length === 0
+                      ? "Nenhum item processado ainda."
+                      : "Nenhum item neste filtro."}
+                  </TableCell>
+                </TableRow>
+              )}
+              {filteredItems.map((it) => {
+                const qtyShort =
+                  it.claimed_quantity != null &&
+                  it.paid_quantity != null &&
+                  Number(it.paid_quantity) < Number(it.claimed_quantity);
+                const outOfWindow = it.classification === "pago_outro_mes";
+                return (
+                  <TableRow key={it.id}>
+                    <TableCell>{it.attendance ?? "—"}</TableCell>
+                    <TableCell>{it.tuss_code ?? "—"}</TableCell>
+                    <TableCell>
+                      {it.procedure_date ? format(new Date(it.procedure_date), "dd/MM/yy") : "—"}
+                    </TableCell>
+                    <TableCell className="max-w-[180px] truncate">{it.patient_name ?? "—"}</TableCell>
+                    <TableCell className="text-center">{it.claimed_quantity ?? "—"}</TableCell>
+                    <TableCell className={`text-center ${qtyShort ? "font-semibold text-amber-700" : ""}`}>
+                      {it.paid_quantity ?? "—"}
+                    </TableCell>
+                    <TableCell>{brl(it.claimed_amount)}</TableCell>
+                    <TableCell>{brl(it.paid_amount)}</TableCell>
+                    <TableCell>{brl(it.expected_amount)}</TableCell>
+                    <TableCell
+                      className={
+                        Number(it.gap_amount ?? 0) > 0
+                          ? "font-semibold text-red-700"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {brl(it.gap_amount)}
+                    </TableCell>
+                    <TableCell className={outOfWindow ? "text-blue-700 font-medium" : "text-muted-foreground"}>
+                      {it.matched_payment_date
+                        ? format(new Date(it.matched_payment_date), "dd/MM/yy")
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${CLASS_TONE[it.classification]}`}
+                        title={it.classification_reason ?? undefined}
+                      >
+                        {CLASS_LABEL[it.classification]}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {wizard.open && (
