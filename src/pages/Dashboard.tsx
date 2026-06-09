@@ -1923,7 +1923,20 @@ const Dashboard = () => {
           }
           return (
             <div className={showAcao ? "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch" : ""}>
-              <InterventionSavingsCard rangeDays={30} className="h-full" />
+              <div className="h-full flex flex-col" style={{ minWidth: 0 }}>
+                <header style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                  <h3 style={{
+                    fontFamily: "'Outfit', 'Inter', system-ui, sans-serif",
+                    fontSize: 10, fontWeight: 700, letterSpacing: "0.28em",
+                    textTransform: "uppercase", color: "hsl(var(--muted-foreground))",
+                    whiteSpace: "nowrap", margin: 0,
+                  }}>
+                    Impacto das Intervenções
+                  </h3>
+                  <span style={{ height: 1, flex: 1, background: "linear-gradient(to right, hsl(var(--border)), transparent)" }} />
+                </header>
+                <InterventionSavingsCard rangeDays={30} className="h-full flex-1" hideHeader />
+              </div>
               {showAcao && (
                 <div className="h-full flex flex-col">
                   <ScoreSection title="Ações — Sua Vez" items={acaoItemsD} tone="action" />
