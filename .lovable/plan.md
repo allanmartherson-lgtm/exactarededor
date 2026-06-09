@@ -1,89 +1,94 @@
-# Cancelamento de pagamento "não-devido"
+# Conciliação Retroativa em /pendencias
 
-## Conceito
-Distinguir **3 ações** que hoje viram tudo "exclusão":
+Módulo novo dentro de **Pendências** para apurar faltas de pagamento alegadas pelo médico em competências anteriores, cruzando a lista que ele enviou contra a base hospitalar histórica e os `payment_items` já pagos. O sistema classifica cada linha (já pago / pago a menos / não pago / não consta na base / pago em outro mês) e permite gerar um **ajuste de complemento** que entra no próximo pagamento.
 
-| Ação | Significado | Entra no KPI de intervenção? | Status no DB |
-|---|---|---|---|
-| **Excluir** (existente) | Erro/duplicidade — remove o registro | ❌ não | hard delete |
-| **Devolver/Reprovar valor** (existente) | Diretor/supervisor pede correção de valor | ✅ sim | observação |
-| **Cancelar pagamento** (NOVO) | Médico fatura externamente, contrato encerrado, glosa total, decisão jurídica | ❌ não, mas vai pro relatório de **leakage** | `status='cancelado'` + motivo |
+## UX
 
-## Backend (1 migration)
+A página `/pendencias` ganha **abas** no topo:
 
-### Novo enum
-```sql
-CREATE TYPE payment_cancellation_reason AS ENUM (
-  'medico_fatura_externamente',
-  'contrato_encerrado',
-  'glosa_total_quitada',
-  'decisao_juridica',
-  'duplicidade_externa',
-  'outro'
-);
-```
+- **Pendências** (a tabela atual, sem mudanças)
+- **Conciliação Retroativa** (nova)
 
-### Colunas (idempotentes) em `payment_company_groups` E `payment_items`
-- `cancelled_at timestamptz`
-- `cancelled_by uuid` → `auth.users`
-- `cancellation_reason payment_cancellation_reason`
-- `cancellation_note text`
-- `cancellation_reactivated_at timestamptz`
-- `cancellation_reactivated_by uuid`
+Dentro da nova aba, dois níveis:
 
-`payment_items` ganha também `is_cancelled boolean DEFAULT false` (já que não tem coluna de status).
+1. **Lista de apurações** — tabela com apurações abertas/concluídas (médico, período, status, qtd de itens faltantes, R$ total a complementar). Botão "Nova apuração".
+2. **Detalhe da apuração** — wizard em 3 passos:
+   - **Passo 1 — Escopo**: médico (autocomplete em `doctors`), intervalo de competência (de/até), empresa (opcional, ou todas as PJs do médico).
+   - **Passo 2 — Lista do médico**: três sub-abas de entrada coexistindo:
+     - *Formulário linha a linha* (Atendimento, Data, Paciente, TUSS, Função, Valor alegado opcional)
+     - *Upload de planilha* (.xlsx/.csv com auto-mapeamento de colunas — reaproveita o parser de `parsePaymentFile.ts`)
+     - *Colar texto* (textarea + parser heurístico por linhas/tabs/`;`)
+     - As três alimentam a mesma lista temporária; analista revisa antes de rodar.
+   - **Passo 3 — Resultado**: tabela classificada + ação final.
 
-### RPCs
-- `cancel_company_group_payment(group_id, reason, note)` → seta status=`cancelado` + metadata, cancela em cascata todos os itens do grupo, registra `audit_log`.
-- `cancel_item_payment(item_id, reason, note)` → seta `is_cancelled=true` + metadata. **Trigger** verifica: se todos os itens do grupo viraram cancelados, marca grupo como `cancelado` automaticamente.
-- `reactivate_cancelled_group(group_id)` / `reactivate_cancelled_item(item_id)` → limpa cancelamento, registra reativação.
-- Todas restritas a `analista | validador | diretor | admin` via `has_role`.
+## Motor de cruzamento
 
-### Guard-rails (trigger BEFORE UPDATE)
-- Bloqueia cancelar se já houver `gross_amount > 0` confirmado E `payment.status IN ('pago','lancado','arquivado')`.
-- Bloqueia cancelar se houver NF emitida vinculada (`invoices` com `payment_id`+`company_group_id` em status `nf_recebida/nf_conciliada/lancado`).
-- Reativação só permitida enquanto o lote ainda não foi `pago`.
+Reaproveita a chave canônica do `PaymentConciliationModal`: `Atendimento + TUSS(8d) + nome do médico normalizado`.
 
-### Impacto no KPI já existente
-`get_intervention_savings` ganha filtros extras:
-- `payment_items.is_cancelled = false`
-- `payment_company_groups.status <> 'cancelado'`
+Para cada linha alegada pelo médico, busca:
+- nos `payment_items` no período (todos os pagamentos do médico/PJs no intervalo) → "já pago"
+- na base hospitalar do período (`conciliation_bases` + `reconciliation_items`, ou na própria origem dos `payment_items` quando não houver base separada) → "consta na base"
 
-Assim **garante que cancelamento não polui** o "Ajuste por intervenção".
+Classificações de saída por linha:
 
-### Nova RPC para o painel de leakage
-`get_cancelled_payments_summary(start, end, hospital_id)` → retorna agregado por motivo + lista detalhada (grupo, empresa, médico, valor cancelado, autor, data, reativado?). Usado no novo card.
+| status | regra |
+|---|---|
+| `ok_pago` | match em payment_items com valor ≈ esperado |
+| `pago_a_menos` | match em payment_items com `gross_amount < expected_amount` (usa `diferenca_regra`) |
+| `nao_pago` | consta na base no período mas sem `payment_items` correspondente |
+| `pago_outro_mes` | match em payment_items fora do intervalo informado mas próximo |
+| `sem_lastro` | alegação do médico não bate com nenhuma linha da base nem com pagamento |
 
-## Frontend
+Card-resumo no topo: total alegado, total já pago, **total a complementar** (soma de `nao_pago` + delta de `pago_a_menos`), itens sem lastro.
 
-### Ações nas telas
-- **`/pagamentos/:id`** (lote): botão "Cancelar pagamento desta empresa" em cada grupo, ao lado de "Excluir" — modal exigindo motivo (Select obrigatório) + nota livre. Tela mostra badge `Cancelado — motivo` em grupos/itens já cancelados, com botão "Reativar" (permissão checada por role).
-- **`/pagamentos/:id/empresa/:groupId`** (CompanyAnalysis): botão "Cancelar item" por linha + bulk "Cancelar selecionados".
+## Ação final — ajuste de complemento
 
-### Componentes novos
-- `src/components/payment-detail/CancelPaymentDialog.tsx` — modal único (level=group|item).
-- `src/components/payment-detail/CancelledBadge.tsx` — pill com motivo e tooltip do autor/data.
+Botão "Gerar ajuste" no Passo 3:
+- Cria um `company_financial_adjustments` (tipo `complemento_retroativo`) por PJ vinculada ao médico (via `doctor_companies`) com o somatório dos itens `nao_pago` + delta de `pago_a_menos`.
+- Salva os itens detalhados em `retroactive_reconciliation_items` (nova tabela), ligados ao adjustment, para auditoria.
+- Marca a apuração como `concluida`.
+- O ajuste entra automaticamente no próximo pagamento via fluxo existente de `apply-company-deductions` (já consome `company_financial_adjustments`).
 
-### Novo card de painel
-`src/components/kpis/CancelledPaymentsCard.tsx` — irmão do `InterventionSavingsCard`, mostra:
-- Valor total cancelado no período.
-- Top 3 motivos com %.
-- Link "Ver relatório" → nova página.
+## Detalhes técnicos
 
-### Nova página
-`src/pages/CancelledPayments.tsx` (rota `/relatorios/pagamentos-cancelados`, mesmas roles que ajustes):
-- 3 KPIs (total cancelado, qtd grupos, qtd itens).
-- Quebra por motivo (gráfico de barras simples).
-- Tabela: data, lote, empresa, médico, valor, motivo, autor, status (cancelado/reativado).
-- Export CSV.
-- Item de menu em Relatórios.
+### Tabelas novas (migration única)
 
-### Lib pura
-`src/lib/cancelledPayments.ts` — tipos + helpers (`summarize`, `groupByReason`, `toCsv`) + suite de testes.
+- `retroactive_reconciliations`: `id`, `hospital_id`, `doctor_id`, `period_start date`, `period_end date`, `status` (`em_analise|concluida|cancelada`), `created_by`, `summary jsonb` (totais), `adjustment_ids uuid[]`, timestamps.
+- `retroactive_reconciliation_items`: `id`, `reconciliation_id`, `attendance`, `tuss_code`, `procedure_date`, `patient_name`, `function`, `claimed_amount`, `paid_amount`, `expected_amount`, `gap_amount`, `payment_item_id` (nullable), `payment_id` (nullable), `classification` (enum acima), `source` (`form|upload|paste`), `raw jsonb`.
+- GRANTs + RLS por `hospital_id` seguindo padrão dos demais.
 
-## Pontos a confirmar antes de codar
-1. **Motivos**: a lista acima cobre? Algum motivo extra (ex.: "médico desligado", "pagamento via folha CLT")?
-2. **NF já lançada**: além de bloquear cancelamento, queremos botão "estornar NF antes de cancelar" ou o usuário lida fora do sistema? Sugiro **só bloquear com mensagem clara** nessa fase.
-3. **Reativação parcial**: se eu cancelei o grupo inteiro e quero reativar só 1 item depois, faz sentido? Sugiro **não** — reativação sempre no mesmo nível do cancelamento (mantém auditoria limpa).
+### Edge function: `run-retroactive-reconciliation`
+- Input: `{ reconciliation_id, items: [...] }`
+- Para cada item: roda lookup nos `payment_items` (filtra `doctor_id`+período) e na base (`reconciliation_items` quando existir).
+- Persiste em `retroactive_reconciliation_items` e atualiza `summary` no pai.
+- Output: contagens por classificação + totais.
 
-Com essas 3 respostas, executo migration + 3 RPCs + 4 componentes + página + testes em uma única leva.
+### Edge function: `generate-retroactive-adjustment`
+- Input: `{ reconciliation_id }`
+- Agrupa itens elegíveis por `company_id` (resolvido via `doctor_companies`).
+- Insere `company_financial_adjustments` (um por PJ), grava `adjustment_ids` na apuração e fecha o status.
+
+### Frontend
+
+- `src/pages/Pendencias.tsx`: refactor pra introduzir `<Tabs>` mantendo o conteúdo atual em "Pendências".
+- `src/pages/RetroactiveReconciliations.tsx` (lista + criação).
+- `src/pages/RetroactiveReconciliationDetail.tsx` (wizard 3 passos).
+- `src/components/retroactive/ClaimEntryForm.tsx`, `ClaimUpload.tsx`, `ClaimPaste.tsx`, `ResultTable.tsx`, `SummaryCards.tsx`.
+- Reaproveita `parsePaymentFile.ts` (auto-mapper) e helpers de normalização (`normalizeCode`, `normName`) já usados no `PaymentConciliationModal`.
+- Rotas: `/pendencias?tab=retroativa`, `/pendencias/retroativa/nova`, `/pendencias/retroativa/:id`.
+
+### Não-objetivos (fora do escopo desta entrega)
+
+- Notificação automática ao médico do resultado (pode virar pendência depois, mas não nesta versão).
+- Recalcular regras de repasse retroativamente — usa o `expected_amount` já gravado nos `payment_items`/base.
+- Edição/refinamento do parser de planilha além do que já existe em `parsePaymentFile.ts`.
+
+## Entregáveis
+
+1. Migration com as 2 tabelas + GRANTs + RLS.
+2. Refactor `Pendencias.tsx` para tabs.
+3. Páginas + componentes de listagem, wizard e resultado.
+4. 2 edge functions (`run-retroactive-reconciliation`, `generate-retroactive-adjustment`).
+5. Memória do projeto atualizada com a regra do novo módulo.
+
+Se aprovar, executo nessa ordem: migration → edge functions → frontend.

@@ -23,6 +23,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import RetroactiveReconciliationsTab from "@/components/retroactive/RetroactiveReconciliationsTab";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -198,6 +200,15 @@ export default function Pendencias() {
         showBack={false}
       />
 
+      <Tabs defaultValue="pendencias">
+        <TabsList>
+          <TabsTrigger value="pendencias">Pendências</TabsTrigger>
+          <TabsTrigger value="retroativa">Conciliação retroativa</TabsTrigger>
+        </TabsList>
+        <TabsContent value="pendencias" className="mt-4 flex flex-col gap-5">
+
+
+
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
         {(["aberta", "em_analise", "respondida", "resolvida", "cancelada"] as const).map(
           (s) => (
@@ -368,6 +379,12 @@ export default function Pendencias() {
           </TableBody>
         </Table>
       </div>
+        </TabsContent>
+        <TabsContent value="retroativa" className="mt-4">
+          <RetroactiveReconciliationsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+
