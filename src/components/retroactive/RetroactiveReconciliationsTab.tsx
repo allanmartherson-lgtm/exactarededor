@@ -82,11 +82,13 @@ type ReconRow = {
     total?: number;
     ok_pago?: number;
     pago_a_menos?: number;
+    pago_a_mais?: number;
     nao_pago?: number;
     pago_outro_mes?: number;
     sem_lastro?: number;
     tuss_divergente?: number;
     total_gap?: number;
+    total_excess?: number;
   } | null;
   adjustment_ids: string[];
   created_at: string;
