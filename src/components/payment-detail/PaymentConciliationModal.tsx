@@ -3350,7 +3350,7 @@ export function PaymentConciliationModal({
         });
       }
 
-      await supabase
+      const { error: actionErr } = await supabase
         .from('reconciliation_items')
         .update({
           action_taken: action,
@@ -3361,6 +3361,8 @@ export function PaymentConciliationModal({
           applied_payment_item_id: appliedPaymentItemId,
         } as any)
         .eq('id', item.id);
+
+      if (actionErr) throw new Error(actionErr.message);
 
       if (action === 'incorporar_credito' || action === 'incorporar_debito') {
         if (selectedBase?.id) {
@@ -4838,7 +4840,7 @@ export function PaymentConciliationModal({
                                                           onClick={(e) => { e.stopPropagation(); openCancelForItem(it); }}
                                                           className="border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10"
                                                         >
-                                                          Cancelar deste pagamento
+                                                          Cancelar item deste pagamento
                                                         </Button>
                                                         {it.attendance_number && it.company_name && (
                                                           <Button
@@ -4864,6 +4866,7 @@ export function PaymentConciliationModal({
                                                     it.action_taken === 'ignorar' && 'bg-muted text-muted-foreground border-border',
                                                     it.action_taken === 'revisar_manual' && 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300',
                                                     it.action_taken === 'marcar_glosa' && 'bg-yellow-500/10 text-yellow-800 border-yellow-500/30 dark:text-yellow-300',
+                                                    it.action_taken === 'cancelado_conciliacao' && 'bg-destructive/10 text-destructive border-destructive/30',
                                                   )}>
                                                     {({
                                                       incorporar_credito: '✓ Crédito incorporado ao próximo lote',
@@ -4871,6 +4874,7 @@ export function PaymentConciliationModal({
                                                       ignorar: '— Ignorado',
                                                       revisar_manual: '⚠ Revisão manual pendente',
                                                       marcar_glosa: '⚠ Marcado como glosa',
+                                                      cancelado_conciliacao: '✓ Cancelado via conciliação',
                                                     } as Record<string, string>)[it.action_taken!] ?? it.action_taken}
                                                   </div>
                                                 )}
