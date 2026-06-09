@@ -938,6 +938,20 @@ const Payments = () => {
                   <Building2 className="h-3 w-3" /> {companies} empresa{companies > 1 ? "s" : ""}
                 </Badge>
               )}
+              {p.payment_track && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "gap-1 font-normal",
+                    p.payment_track === "prioritario"
+                      ? "bg-warning-soft text-warning-text border-warning/30"
+                      : "text-muted-foreground",
+                  )}
+                  title={p.payment_track === "prioritario" ? "Trilha prioritária (pagamento antecipado)" : "Trilha habitual"}
+                >
+                  {PAYMENT_TRACK_SHORT_LABELS[p.payment_track]}
+                </Badge>
+              )}
               <Badge
                 variant="outline"
                 className={cn(
