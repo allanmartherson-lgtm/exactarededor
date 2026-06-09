@@ -952,23 +952,65 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               </Button>
             </InnerTabsContent>
 
-            <InnerTabsContent value="upload" className="mt-3">
-              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg py-8 cursor-pointer hover:bg-muted/40">
+            <InnerTabsContent value="upload" className="mt-3 space-y-3">
+              <label
+                className={cn(
+                  "flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg py-8 cursor-pointer hover:bg-muted/40",
+                  uploadLoading && "opacity-60 pointer-events-none",
+                )}
+              >
                 <UploadCloudIcon className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm">Selecionar arquivo (.xlsx ou .csv)</span>
+                <span className="text-sm">
+                  {uploadLoading ? "Lendo planilha…" : "Selecionar arquivo (.xlsx ou .csv)"}
+                </span>
                 <span className="text-[11px] text-muted-foreground">
-                  Colunas reconhecidas: atendimento, TUSS, data, paciente, função, valor
+                  Após selecionar, abre o mapeamento de colunas. Linhas só entram depois de você confirmar.
                 </span>
                 <input
                   type="file"
                   accept=".xlsx,.xls,.csv"
                   className="hidden"
+                  disabled={uploadLoading}
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) void onUpload(f);
+                    e.target.value = "";
                   }}
                 />
               </label>
+
+              {(() => {
+                const uploadedCount = drafts.filter(
+                  (d) => d.source === "upload" && (d.attendance || d.tuss_code),
+                ).length;
+                if (uploadedCount === 0 && !uploadedFileName) return null;
+                return (
+                  <div className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <CheckIcon className="h-4 w-4 text-emerald-600" />
+                      <span>
+                        <strong>{uploadedCount}</strong> linha(s) carregada(s)
+                        {uploadedFileName && <> de <span className="font-mono">{uploadedFileName}</span></>}
+                        . Vá para <strong>Formulário</strong> para revisar ou clique em <strong>Rodar cruzamento</strong>.
+                      </span>
+                    </div>
+                    {uploadedCount > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          setDrafts((d) => d.filter((x) => x.source !== "upload"));
+                          setUploadedFileName("");
+                          toast({ title: "Linhas da planilha removidas" });
+                        }}
+                      >
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+                );
+              })()}
             </InnerTabsContent>
 
             <InnerTabsContent value="paste" className="mt-3">
@@ -984,10 +1026,16 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
             </InnerTabsContent>
           </InnerTabs>
 
-          <div className="flex justify-end mt-4">
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-border pt-3">
+            <p className="text-[11px] text-muted-foreground max-w-xl leading-relaxed">
+              O cruzamento <strong>não recalcula regras</strong>. Ele compara cada linha alegada com o
+              <code className="mx-1 px-1 bg-muted rounded">expected_amount</code> já gravado em
+              <code className="mx-1 px-1 bg-muted rounded">payment_items</code> do médico/PJ na janela ±90d.
+              Itens sem match aparecem como <em>não pago</em> ou <em>sem lastro</em>.
+            </p>
             <Button onClick={runReconciliation} disabled={running}>
               <PlayIcon className="h-4 w-4 mr-1" />
-              {running ? "Cruzando…" : "Rodar cruzamento"}
+              {running ? "Cruzando…" : `Rodar cruzamento (${drafts.filter((d) => d.attendance || d.tuss_code || d.claimed_amount).length})`}
             </Button>
           </div>
         </div>
