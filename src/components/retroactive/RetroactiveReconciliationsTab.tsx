@@ -1218,7 +1218,9 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Médico</TableHead>
                 <TableHead>Atendimento</TableHead>
+
                 <TableHead>TUSS</TableHead>
                 <TableHead>Procedimento</TableHead>
                 <TableHead>Data</TableHead>
