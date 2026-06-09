@@ -23,6 +23,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import RetroactiveReconciliationsTab from "@/components/retroactive/RetroactiveReconciliationsTab";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
