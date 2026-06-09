@@ -947,6 +947,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
             [
               ["ok_pago", "Pago conforme regra.", "Gap: 0.", "Nenhuma."],
               ["pago_a_menos", "Pago menos que o esperado (valor/quantidade).", "Gap: esperado − pago.", "Complementar a diferença."],
+              ["pago_a_mais", "Pago mais que o alegado (quantidade excedente).", "Excedente: unitário × qtd a mais.", "Revisar duplicidade / cobrar de volta."],
               ["tuss_divergente", "Atendimento pago, mas TUSS alegado não está no lote.", "Gap: valor alegado integral.", "Complementar — TUSS faltou."],
               ["nao_pago", "Atendimento inteiro não localizado nos pagamentos.", "Gap: valor alegado integral.", "Investigar antes de pagar."],
               ["pago_outro_mes", "Pago fora da janela apurada.", "Gap: 0 nesta apuração.", "Verificar outra apuração."],
