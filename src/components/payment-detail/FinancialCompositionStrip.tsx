@@ -1,4 +1,4 @@
-import { Wallet, Minus, Plus, Equal, Users, GitCompareArrows, MinusCircle } from "lucide-react";
+import { Wallet, Minus, Plus, Equal, Users, MinusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FinancialComposition } from "@/hooks/useFinancialComposition";
 
