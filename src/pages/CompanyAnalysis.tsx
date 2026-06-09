@@ -406,7 +406,7 @@ export default function CompanyAnalysis() {
   const gStatus = (group?.status ?? "em_analise_ia") as PaymentStatus;
 
   const counts = useMemo(() => {
-    const c = { aprovado: 0, pendente: 0, alerta: 0, reprovado: 0, alertasTotal: 0, criticosTotal: 0 };
+    const c = { aprovado: 0, pendente: 0, alerta: 0, reprovado: 0, alertasTotal: 0, criticosTotal: 0, cancelado: 0 };
     for (const it of items) {
       const tl = (it as any).tipo_linha as string | null | undefined;
       const src = (it as any).source as string | null | undefined;
@@ -415,7 +415,12 @@ export default function CompanyAnalysis() {
         tl === "complemento_bonus" || tl === "complemento" || tl === "outros" ||
         src === "manual" || origem === "inclusao_manual";
 
-      const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
+      const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus, (it as any).is_cancelled);
+      // Cancelados (item ou grupo) saem dos buckets de status e não geram alerta.
+      if (eff === "cancelado") {
+        c.cancelado += 1;
+        continue;
+      }
       const bucket: ItemAiStatus = eff === "seguido" ? "aprovado" : (eff as ItemAiStatus);
       c[bucket] = (c[bucket] ?? 0) + 1;
 
