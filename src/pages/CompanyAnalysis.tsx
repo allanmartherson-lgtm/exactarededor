@@ -1464,6 +1464,32 @@ export default function CompanyAnalysis() {
             <Download className="h-4 w-4 mr-2" /> Exportar relatório
           </Button>
 
+          {(() => {
+            const pt = (payment as unknown as { payment_track?: "prioritario" | "habitual" | null })?.payment_track;
+            if (!pt) {
+              return (
+                <Badge variant="outline" className="text-[11px] gap-1">
+                  Sem trilha
+                </Badge>
+              );
+            }
+            const isPri = pt === "prioritario";
+            return (
+              <Badge
+                variant="outline"
+                title="Trilha de pagamento — segmentação comercial usada para comparar e filtrar relatórios"
+                className={cn(
+                  "text-[11px] gap-1",
+                  isPri
+                    ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                    : "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+                )}
+              >
+                Trilha: {isPri ? "Prioritário" : "Habitual"}
+              </Badge>
+            );
+          })()}
+
           <Button
             variant="outline"
             size="sm"
