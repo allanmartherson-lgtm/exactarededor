@@ -1211,7 +1211,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
-                {(["ok_pago", "pago_a_menos", "tuss_divergente", "nao_pago", "pago_outro_mes", "sem_lastro"] as const).map((k) => (
+                {(["ok_pago", "pago_a_menos", "pago_a_mais", "tuss_divergente", "nao_pago", "pago_outro_mes", "sem_lastro"] as const).map((k) => (
                   <SelectItem key={k} value={k}>{CLASS_LABEL[k]}</SelectItem>
                 ))}
 
