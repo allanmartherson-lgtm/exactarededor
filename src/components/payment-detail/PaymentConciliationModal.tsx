@@ -4800,7 +4800,11 @@ export function PaymentConciliationModal({
                                                 )}
                                                 {!it.action_taken ? (
                                                   <div className="flex gap-2 mt-2 flex-wrap">
-                                                    {(it.status === 'so_hospital' || it.status === 'valor_divergente') && (
+                                                    {/* Crédito: hospital pagou A MENOS do que o esperado pela regra
+                                                        (so_exacta = nada foi pago; valor_divergente com exacta > hospital).
+                                                        Médico/PJ tem a receber → vira crédito no próximo lote. */}
+                                                    {(it.status === 'so_exacta' ||
+                                                      (it.status === 'valor_divergente' && Number(it.valor_exacta) > Number(it.valor_hospital))) && (
                                                       <Button
                                                         size="sm"
                                                         variant="outline"
@@ -4811,7 +4815,10 @@ export function PaymentConciliationModal({
                                                         {actionLoading === it.id ? '…' : '+ Incorporar como crédito'}
                                                       </Button>
                                                     )}
-                                                    {it.status === 'valor_divergente' && Number(it.valor_exacta) > Number(it.valor_hospital) && (
+                                                    {/* Débito: hospital pagou A MAIS do que o esperado (ou pagou algo que
+                                                        nem deveria existir — so_hospital). Médico/PJ deve devolver → débito. */}
+                                                    {(it.status === 'so_hospital' ||
+                                                      (it.status === 'valor_divergente' && Number(it.valor_hospital) > Number(it.valor_exacta))) && (
                                                       <Button
                                                         size="sm"
                                                         variant="outline"
