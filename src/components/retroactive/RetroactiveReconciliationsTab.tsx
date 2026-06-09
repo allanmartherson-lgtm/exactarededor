@@ -694,6 +694,14 @@ function NewView({
 
 /* -------------------------- DETAIL -------------------------- */
 function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
+  const mode = getStoredMode(id);
+  if (mode === "tasy_vs_repasse") {
+    return <TasyVsRepasseView id={id} onBack={onBack} />;
+  }
+  return <AlegacaoDetailView id={id} onBack={onBack} />;
+}
+
+function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [doctorName, setDoctorName] = useState<string>("");
   const [companyName, setCompanyName] = useState<string>("");
