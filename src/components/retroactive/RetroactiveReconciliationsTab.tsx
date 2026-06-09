@@ -100,6 +100,7 @@ type ItemRow = {
   procedure_date: string | null;
   patient_name: string | null;
   function_label: string | null;
+  procedure_name: string | null;
   claimed_amount: number | null;
   claimed_quantity: number | null;
   paid_amount: number | null;
@@ -127,6 +128,7 @@ type DraftItem = {
   procedure_date: string;
   patient_name: string;
   function_label: string;
+  procedure_name: string;
   claimed_amount: string;
   claimed_quantity: string;
 };
