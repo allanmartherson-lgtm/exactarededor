@@ -182,9 +182,11 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
     textDecoration: "none",
     color: "inherit",
     overflow: "hidden" as const,
+    height: "100%",
     transition:
       "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s, border-color 0.3s",
   };
+
 
   if (item.to) {
     return (
