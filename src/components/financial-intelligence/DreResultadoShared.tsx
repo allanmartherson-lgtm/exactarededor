@@ -94,6 +94,8 @@ export function DreFilters({
   setFrom,
   to,
   setTo,
+  track,
+  setTrack,
   loading,
   onReload,
 }: {
@@ -101,6 +103,8 @@ export function DreFilters({
   setFrom: (v: string) => void;
   to: string;
   setTo: (v: string) => void;
+  track: TrackFilterValue;
+  setTrack: (v: TrackFilterValue) => void;
   loading: boolean;
   onReload: () => void;
 }) {
@@ -126,6 +130,7 @@ export function DreFilters({
             onChange={(e) => setTo(e.target.value ? `${e.target.value}-01` : "")}
           />
         </div>
+        <PaymentTrackFilter value={track} onChange={setTrack} label="Trilha de pagamento" />
         <div className="flex items-end">
           <Button onClick={onReload} disabled={loading} className="w-full">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
