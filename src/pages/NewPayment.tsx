@@ -1370,7 +1370,7 @@ const NewPayment = () => {
             },
           } as never)
           .eq("id", retroHandoff.reconciliation_id);
-        try { sessionStorage.removeItem("retroactiveHandoff"); } catch { /* ignore */ }
+        
       } catch { /* não bloqueia criação do payment */ }
     }
 
