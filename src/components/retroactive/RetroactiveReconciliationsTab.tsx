@@ -1720,7 +1720,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     setProcessing(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       const excluded = new Set(
         excludeTuss.split(",").map((s) => normTuss(s.trim())).filter(Boolean),
       );
