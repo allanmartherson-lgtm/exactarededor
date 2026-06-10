@@ -8788,6 +8788,10 @@ export type Database = {
         | "sem_lastro"
         | "pendente"
         | "tuss_divergente"
+        | "ausente_tasy"
+        | "pago_a_mais"
+        | "div_valor"
+        | "div_qtd_valor"
       retro_recon_status: "em_analise" | "concluida" | "cancelada"
       rule_calculation_type:
         | "percentual_sobre_convenio"
@@ -9066,6 +9070,10 @@ export const Constants = {
         "sem_lastro",
         "pendente",
         "tuss_divergente",
+        "ausente_tasy",
+        "pago_a_mais",
+        "div_valor",
+        "div_qtd_valor",
       ],
       retro_recon_status: ["em_analise", "concluida", "cancelada"],
       rule_calculation_type: [
