@@ -2067,6 +2067,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
         else status = "ok";
 
+        let valor_recuperar_acordo = 0;
+        if (status === "ausente_tasy") {
+          valor_recuperar_acordo = valor_com_acordo;
+        } else if (dif_valor < -0.5) {
+          const fator = valor_pago_base > 0 ? valor_com_acordo / valor_pago_base : 1;
+          valor_recuperar_acordo = Math.abs(dif_valor) * fator;
+        }
 
         out.push({
           key,
@@ -2090,6 +2097,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           valor_com_acordo,
           dif_qtd,
           dif_valor,
+          valor_recuperar_acordo,
           status,
         });
       }
