@@ -30,6 +30,7 @@ type Adjustment = {
 type GlosaDebt = {
   id: string;
   company_id: string;
+  doctor_id: string | null;
   doctor_name: string;
   doctor_crm: string | null;
   total_debt: number;
@@ -37,8 +38,24 @@ type GlosaDebt = {
   status: string;
   created_at: string;
   confirmed_at: string | null;
+  target_payment_id: string | null;
   _company_name?: string;
 };
+
+type LoteOption = {
+  id: string;
+  label: string;
+};
+
+const OPEN_PAYMENT_STATUSES = [
+  "rascunho",
+  "em_analise_ia",
+  "revisao_analista",
+  "aguardando_aprovacao",
+  "pedido_nf_enviado",
+  "revisao_pos_aprovacao",
+] as const;
+
 
 
 const brl = (n: number) =>
@@ -54,6 +71,10 @@ export default function CreditosDebitos() {
   const [editingGlosa, setEditingGlosa] = useState<GlosaDebt | null>(null);
   const [glosaParc, setGlosaParc] = useState<number>(1);
   const [busyGlosa, setBusyGlosa] = useState(false);
+  const [openLotes, setOpenLotes] = useState<LoteOption[]>([]);
+  const [loadingLotes, setLoadingLotes] = useState(false);
+  const [lotePick, setLotePick] = useState<string>("");
+  const [paymentLabels, setPaymentLabels] = useState<Record<string, string>>({});
 
   const loadAll = async () => {
     setLoading(true);
@@ -62,7 +83,7 @@ export default function CreditosDebitos() {
       supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
       (supabase as any)
         .from("glosa_debts")
-        .select("id, company_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at")
+        .select("id, company_id, doctor_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at, target_payment_id")
         .eq("status", "ativo")
         .order("created_at", { ascending: false }),
 
@@ -73,6 +94,17 @@ export default function CreditosDebitos() {
     setAdjustments(adjs.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
     const debts = ((g as any).data || []) as GlosaDebt[];
     setGlosaDebts(debts.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
+    // Resolve rótulos dos lotes-alvo já referenciados
+    const tgtIds = Array.from(new Set(debts.map(d => d.target_payment_id).filter(Boolean))) as string[];
+    if (tgtIds.length) {
+      const { data: pays } = await supabase
+        .from("payments").select("id, competence_month, status").in("id", tgtIds);
+      const labels: Record<string, string> = {};
+      ((pays as any[]) ?? []).forEach(p => {
+        labels[p.id] = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
+      });
+      setPaymentLabels(prev => ({ ...prev, ...labels }));
+    }
     setLoading(false);
   };
   useEffect(() => { loadAll(); }, []);
@@ -108,18 +140,60 @@ export default function CreditosDebitos() {
     loadAll();
   };
 
+  const fmtCompetence = (s: string | null) => {
+    if (!s) return "—";
+    const [y, m] = s.split("-");
+    return m && y ? `${m}/${y}` : s;
+  };
+  const statusShort = (s: string) =>
+    ({ rascunho: "rascunho", em_analise_ia: "análise IA", revisao_analista: "revisão", aguardando_aprovacao: "aprovação", pedido_nf_enviado: "NF enviada", revisao_pos_aprovacao: "revisão pós-ap." } as Record<string, string>)[s] ?? s;
+
+  const loadOpenLotes = async (g: GlosaDebt) => {
+    setLoadingLotes(true);
+    setOpenLotes([]);
+    // Lotes em aberto que contêm a PJ do débito (via payment_company_groups).
+    const { data: pcg } = await (supabase as any)
+      .from("payment_company_groups")
+      .select("payment_id")
+      .eq("company_id", g.company_id);
+    const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
+    if (!ids.length) { setLoadingLotes(false); return; }
+    const { data: pays } = await supabase
+      .from("payments")
+      .select("id, competence_month, status")
+      .in("id", ids)
+      .in("status", OPEN_PAYMENT_STATUSES)
+      .order("competence_month", { ascending: false });
+    const opts: LoteOption[] = ((pays as any[]) ?? []).map(p => ({
+      id: p.id,
+      label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`,
+    }));
+    setOpenLotes(opts);
+    setPaymentLabels(prev => {
+      const next = { ...prev };
+      opts.forEach(o => { next[o.id] = o.label; });
+      return next;
+    });
+    setLoadingLotes(false);
+  };
+
   const openGlosa = (g: GlosaDebt) => {
     setEditingGlosa(g);
     setGlosaParc(g.parcelas_default && g.parcelas_default > 0 ? g.parcelas_default : 1);
+    setLotePick(g.target_payment_id ?? "");
+    loadOpenLotes(g);
   };
   const saveGlosa = async () => {
     if (!editingGlosa) return;
     if (glosaParc < 1 || glosaParc > 24) {
       toast.error("Parcelas entre 1 e 24"); return;
     }
+    if (!lotePick) {
+      toast.error("Escolha o lote-alvo onde este débito deve ser aplicado."); return;
+    }
     setBusyGlosa(true);
     const { data: userData } = await supabase.auth.getUser();
-    const patch: any = { parcelas_default: glosaParc };
+    const patch: any = { parcelas_default: glosaParc, target_payment_id: lotePick };
     // Confirma se ainda não estava confirmado
     if (!editingGlosa.confirmed_at) {
       patch.confirmed_at = new Date().toISOString();
@@ -250,6 +324,15 @@ export default function CreditosDebitos() {
                                 </span>
                               )}
                             </div>
+                            <div className="text-[11px] mt-0.5">
+                              {g.target_payment_id ? (
+                                <span className="text-emerald-600">
+                                  → lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
+                                </span>
+                              ) : (
+                                <span className="text-amber-600">⚠ sem lote-alvo definido — não será aplicado</span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex gap-1">
                             <Button size="sm" variant="outline" onClick={() => openGlosa(g)}>
@@ -329,6 +412,26 @@ export default function CreditosDebitos() {
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Cada parcela: <span className="font-mono">{brl(editingGlosa.total_debt / glosaParc)}</span>
+                </p>
+              </div>
+              <div>
+                <Label>Lote-alvo (onde a parcela será aplicada)</Label>
+                <Select value={lotePick} onValueChange={setLotePick} disabled={loadingLotes}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingLotes ? "Carregando lotes…" : "Selecione um lote em aberto"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {openLotes.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        Nenhum lote em aberto encontrado para esta PJ.
+                      </div>
+                    ) : (
+                      openLotes.map(l => <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>)
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  O motor só desconta a parcela quando o lote em execução for este. Se a PJ tem outros lotes em paralelo, eles serão ignorados.
                 </p>
               </div>
             </div>

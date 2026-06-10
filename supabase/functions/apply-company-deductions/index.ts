@@ -96,6 +96,7 @@ Deno.serve(async (req) => {
         .select("*")
         .eq("status", "ativo")
         .not("confirmed_at", "is", null)
+        .eq("target_payment_id", payment_id)
         .in("doctor_id", doctorIds)
         .or("resolution_status.is.null,resolution_status.neq.ignorado");
 

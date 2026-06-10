@@ -2478,6 +2478,7 @@ export type Database = {
           resolution_reason: string | null
           resolution_status: string
           status: string
+          target_payment_id: string | null
           total_debt: number
           updated_at: string | null
         }
@@ -2501,6 +2502,7 @@ export type Database = {
           resolution_reason?: string | null
           resolution_status?: string
           status?: string
+          target_payment_id?: string | null
           total_debt?: number
           updated_at?: string | null
         }
@@ -2524,6 +2526,7 @@ export type Database = {
           resolution_reason?: string | null
           resolution_status?: string
           status?: string
+          target_payment_id?: string | null
           total_debt?: number
           updated_at?: string | null
         }
@@ -2552,6 +2555,20 @@ export type Database = {
           {
             foreignKeyName: "glosa_debts_last_payment_id_fkey"
             columns: ["last_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_debts_target_payment_id_fkey"
+            columns: ["target_payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "glosa_debts_target_payment_id_fkey"
+            columns: ["target_payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]

@@ -1,0 +1,3 @@
+ALTER TABLE public.glosa_debts ADD COLUMN IF NOT EXISTS target_payment_id uuid REFERENCES public.payments(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_glosa_debts_target_payment_id ON public.glosa_debts(target_payment_id) WHERE status='ativo';
+COMMENT ON COLUMN public.glosa_debts.target_payment_id IS 'Lote-alvo escolhido pelo analista no momento da confirmação. apply-company-deductions só aplica o débito quando payment_id do lote = target_payment_id.';
