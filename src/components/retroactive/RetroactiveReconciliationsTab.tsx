@@ -1439,7 +1439,7 @@ type PagRow = {
   pag_lote?: string;
 };
 
-type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_qtd" | "div_valor" | "pago_sem_tasy" | "ok";
+type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_sem_tasy" | "ok";
 
 type TvrResult = {
   key: string;
