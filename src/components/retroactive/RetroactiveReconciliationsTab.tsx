@@ -1428,6 +1428,7 @@ type PagRow = {
   pag_data?: string;
   pag_paciente?: string;
   pag_convenio?: string;
+  pag_lote?: string;
 };
 
 type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_qtd" | "div_valor" | "pago_sem_tasy" | "ok";
