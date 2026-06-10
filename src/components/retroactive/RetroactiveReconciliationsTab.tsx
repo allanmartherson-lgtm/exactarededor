@@ -2182,7 +2182,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <Button variant="outline" size="sm" onClick={() => void clearAll()}>Limpar tudo</Button>
         )}
         {results && (
-          <Button variant="outline" size="sm" onClick={exportXlsx}>Exportar Excel</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">Exportar</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Todos ({results.length})</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => void exportData("xlsx", "all")}>Excel (.xlsx)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void exportData("csv", "all")}>CSV (;)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void exportData("json", "all")}>JSON</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Filtrado ({visible.length})</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => void exportData("xlsx", "visible")}>Excel (.xlsx)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void exportData("csv", "visible")}>CSV (;)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void exportData("json", "visible")}>JSON</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
