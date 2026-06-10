@@ -11,13 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -52,7 +45,38 @@ type Group = {
 const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const PARC_OPTIONS = [1, 2, 3, 4, 6, 12, 18, 24];
+const ymdToLocalDate = (s: string): Date | null => {
+  if (!s) return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+};
+
+const addMonths = (d: Date, n: number): Date => {
+  const r = new Date(d.getFullYear(), d.getMonth() + n, 1);
+  // Mantém o "dia" original quando possível (clamp ao último dia do mês alvo)
+  const lastDayOfTarget = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
+  r.setDate(Math.min(d.getDate(), lastDayOfTarget));
+  return r;
+};
+
+const fmtBR = (d: Date) =>
+  d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+const fmtComp = (d: Date) =>
+  d.toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" });
+
+/** Divide o total em N parcelas em centavos, jogando o resíduo na última. */
+function splitInstallments(total: number, n: number): number[] {
+  const cents = Math.round(total * 100);
+  const base = Math.floor(cents / n);
+  const rem = cents - base * n;
+  return Array.from({ length: n }, (_, i) =>
+    (base + (i === n - 1 ? rem : 0)) / 100,
+  );
+}
+
+
 
 export default function PotentialDebtsPanel({
   reloadKey,
@@ -179,6 +203,11 @@ export default function PotentialDebtsPanel({
     toast.success(
       `Débito gerado em ${parcelas}× de ${brl(modalGroup.total / parcelas)}.`,
     );
+    // Remove otimisticamente o grupo (e os itens dele) para evitar segundo
+    // clique antes do reload terminar — defesa em profundidade junto com o
+    // lock transacional no RPC.
+    const removedKey = modalGroup.key;
+    setGroups((prev) => prev.filter((g) => g.key !== removedKey));
     setModalGroup(null);
     void load();
     onCreated?.();
@@ -356,43 +385,80 @@ export default function PotentialDebtsPanel({
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Parcelas
+                    Parcelas (1–24)
                   </label>
-                  <Select
-                    value={String(parcelas)}
-                    onValueChange={(v) => setParcelas(parseInt(v, 10) || 1)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PARC_OPTIONS.map((n) => (
-                        <SelectItem key={n} value={String(n)}>
-                          {n}×
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={24}
+                    step={1}
+                    value={parcelas}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      if (Number.isFinite(n)) {
+                        setParcelas(Math.min(24, Math.max(1, n)));
+                      }
+                    }}
+                  />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Início desconto (informativo)
+                    Início desconto
                   </label>
                   <Input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    placeholder="próximo pagamento"
                   />
                 </div>
               </div>
 
-              <div className="rounded-md border border-border px-3 py-2 text-sm">
-                Valor por parcela:{" "}
-                <span className="font-semibold">
-                  {brl(modalGroup.total / Math.max(parcelas, 1))}
-                </span>
-              </div>
+              {(() => {
+                const baseDate =
+                  ymdToLocalDate(startDate) ??
+                  (() => {
+                    const t = new Date();
+                    return new Date(t.getFullYear(), t.getMonth() + 1, 1);
+                  })();
+                const values = splitInstallments(modalGroup.total, parcelas);
+                return (
+                  <div className="rounded-md border border-border">
+                    <div className="px-3 py-1.5 border-b border-border bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground flex items-center justify-between">
+                      <span>Prévia das parcelas</span>
+                      <span>
+                        {parcelas}× · {brl(modalGroup.total)}
+                      </span>
+                    </div>
+                    <div className="max-h-44 overflow-auto">
+                      <table className="w-full text-[12px]">
+                        <thead className="text-muted-foreground">
+                          <tr>
+                            <th className="text-left px-3 py-1 font-medium w-10">#</th>
+                            <th className="text-left px-3 py-1 font-medium">Competência</th>
+                            <th className="text-left px-3 py-1 font-medium">Data estimada</th>
+                            <th className="text-right px-3 py-1 font-medium">Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {values.map((v, i) => {
+                            const d = addMonths(baseDate, i);
+                            return (
+                              <tr key={i} className="border-t border-border/60">
+                                <td className="px-3 py-1">{i + 1}</td>
+                                <td className="px-3 py-1">{fmtComp(d)}</td>
+                                <td className="px-3 py-1">{fmtBR(d)}</td>
+                                <td className="px-3 py-1 text-right font-mono">
+                                  {brl(v)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
           <DialogFooter>
