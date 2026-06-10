@@ -1788,6 +1788,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         tuss: string;
         qtd_total: number;
         funcs: Set<string>;
+        lotes: Set<string>;
         valor_base: number;
         valor_com_acordo: number;
         sample: PagRow;
@@ -1800,16 +1801,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const vb = num(r.pag_valor_base);
         const va = num(r.pag_valor_com_acordo);
         const fn = (r.pag_funcao ?? "").trim();
+        const lote = (r.pag_lote ?? "").trim();
         const cur = pMap.get(key);
         if (cur) {
           cur.qtd_total += q;
           cur.valor_base += vb;
           cur.valor_com_acordo += va;
           if (fn) cur.funcs.add(fn);
+          if (lote) cur.lotes.add(lote);
         } else {
           const funcs = new Set<string>();
+          const lotes = new Set<string>();
           if (fn) funcs.add(fn);
-          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, valor_base: vb, valor_com_acordo: va, sample: r });
+          if (lote) lotes.add(lote);
+          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, lotes, valor_base: vb, valor_com_acordo: va, sample: r });
         }
       }
 
