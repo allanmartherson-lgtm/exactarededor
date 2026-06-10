@@ -1976,6 +1976,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         lotes: Set<string>;
         valor_base: number;
         valor_com_acordo: number;
+        payment_item_id_first: string;
+        payment_id_first: string;
         sample: PagRow;
       };
       const pMap = new Map<string, PAgg>();
@@ -1994,6 +1996,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           cur.valor_com_acordo += va;
           if (fn) cur.funcs.add(fn);
           if (lote) cur.lotes.add(lote);
+          if (!cur.payment_item_id_first && r.pag_payment_item_id) cur.payment_item_id_first = r.pag_payment_item_id;
+          if (!cur.payment_id_first && r.pag_payment_id) cur.payment_id_first = r.pag_payment_id;
           // enrich sample with non-empty fields from later rows
           const s = cur.sample;
           if (!s.pag_medico && r.pag_medico) s.pag_medico = r.pag_medico;
@@ -2007,7 +2011,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           const lotes = new Set<string>();
           if (fn) funcs.add(fn);
           if (lote) lotes.add(lote);
-          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, lotes, valor_base: vb, valor_com_acordo: va, sample: { ...r } });
+          pMap.set(key, {
+            atendimento: r.pag_atendimento,
+            tuss: r.pag_tuss,
+            qtd_total: q,
+            funcs,
+            lotes,
+            valor_base: vb,
+            valor_com_acordo: va,
+            payment_item_id_first: r.pag_payment_item_id ?? "",
+            payment_id_first: r.pag_payment_id ?? "",
+            sample: { ...r },
+          });
         }
       }
 
