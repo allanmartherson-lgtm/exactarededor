@@ -1892,7 +1892,9 @@ const NewPayment = () => {
             </div>
             <div className="text-xs text-amber-800 dark:text-amber-300 mt-1">
               {retroHandoff.items_count ?? 0} item(ns) acionáveis encaminhados · ID {retroHandoff.reconciliation_id.slice(0, 8)}.
-              Suba a base e siga o fluxo de confecção normalmente — ao salvar, o pagamento será vinculado à apuração.
+              {retroHandoff.prefilled_count
+                ? ` Base de confecção preenchida automaticamente com ${retroHandoff.prefilled_count} item(ns) complementares; ao salvar, o pagamento será vinculado à apuração.`
+                : " Ao salvar, o pagamento será vinculado à apuração."}
             </div>
           </div>
         )}
