@@ -2293,6 +2293,55 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         <Badge variant="outline">TASY vs Repasse</Badge>
       </div>
 
+      {handoff && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 flex items-start gap-3">
+          <LockIcon className="h-5 w-5 text-amber-700 mt-0.5" />
+          <div className="flex-1 text-sm">
+            <div className="font-semibold text-amber-900 dark:text-amber-200">
+              Apuração encaminhada para confecção · travada para edição
+            </div>
+            <div className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+              {handoff.items_count} item(ns) enviados em {formatTvrDate(handoff.at.slice(0, 10))}
+              {handoff.payment_reference ? ` · Ref. sugerida: ${handoff.payment_reference}` : ""}
+              {typeof handoff.total_complementar === "number" ? ` · Complementar: ${brl(handoff.total_complementar)}` : ""}
+              {typeof handoff.total_retirar === "number" ? ` · Retirar: ${brl(handoff.total_retirar)}` : ""}
+            </div>
+          </div>
+          {handoff.payment_id && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/pagamentos/${handoff.payment_id}`)}
+            >
+              <ExternalLinkIcon className="h-3 w-3 mr-1" /> Abrir pagamento
+            </Button>
+          )}
+          {!handoff.payment_id && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                try {
+                  sessionStorage.setItem("newPaymentMode", "confeccao");
+                  sessionStorage.setItem("retroactiveHandoff", JSON.stringify({
+                    reconciliation_id: id,
+                    reference: handoff.payment_reference ?? `Retro #${id.slice(0, 8)}`,
+                    description: `Origem: apuração retroativa ${id}.`,
+                    doctor_id: recon?.doctor_id ?? null,
+                    company_id: recon?.company_id ?? null,
+                    items_count: handoff.items_count,
+                  }));
+                } catch { /* ignore */ }
+                navigate("/pagamentos/novo?modo=confeccao");
+              }}
+            >
+              <SendIcon className="h-3 w-3 mr-1" /> Retomar confecção
+            </Button>
+          )}
+        </div>
+      )}
+
+
       {/* Step 1 — TASY file */}
       <div className="rounded-lg border border-border bg-card p-4 space-y-3">
         <div className="flex items-center justify-between">
