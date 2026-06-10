@@ -327,23 +327,43 @@ export default function RetroactiveMappingWizard({
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <Badge variant="outline" className="text-[10px]">
+                  {rows.length} no arquivo
+                </Badge>
+                <span className="text-muted-foreground">=</span>
                 <Badge variant="default" className="text-[10px]">{valid.length} válidas</Badge>
-                {excluded > 0 && (
-                  <Badge variant="outline" className="text-[10px]">
-                    {excluded} excluídas (visita/parecer/consulta)
-                  </Badge>
-                )}
-                {dropped > 0 && (
-                  <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700">
-                    {dropped} descartadas (faltando dados)
-                  </Badge>
-                )}
+                <span className="text-muted-foreground">+</span>
+                <Badge variant="outline" className="text-[10px]">
+                  {excluded} excluídas{showExcludeConsultas ? " (visita/parecer/consulta)" : ""}
+                </Badge>
+                <span className="text-muted-foreground">+</span>
+                <Badge variant="outline" className={`text-[10px] ${dropped > 0 ? "border-amber-500 text-amber-700" : ""}`}>
+                  {dropped} descartadas (faltando dados)
+                </Badge>
                 {missingRequired.length > 0 && (
                   <Badge variant="destructive" className="text-[10px]">
                     Faltando: {missingRequired.map((t) => t.label).join(", ")}
                   </Badge>
                 )}
               </div>
+
+              {droppedExamples.length > 0 && (
+                <details className="rounded-md border border-amber-200 bg-amber-50/40 px-3 py-2 text-[11px]">
+                  <summary className="cursor-pointer font-medium text-amber-800">
+                    Ver exemplos de linhas descartadas ({droppedExamples.length} de {dropped})
+                  </summary>
+                  <ul className="mt-2 space-y-0.5 text-amber-900">
+                    {droppedExamples.map((ex) => (
+                      <li key={ex.row_index}>
+                        Linha {ex.row_index}: falta <strong>{ex.missing.join(", ")}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-amber-700/80">
+                    Se muitas linhas estão caindo aqui, revise o mapeamento — provavelmente uma coluna obrigatória apontou para o campo errado.
+                  </p>
+                </details>
+              )}
             </>
           )}
         </div>
@@ -352,10 +372,16 @@ export default function RetroactiveMappingWizard({
           <Button variant="outline" size="sm" onClick={onCancel}>Cancelar</Button>
           <Button
             size="sm"
-            onClick={() => onConfirm(valid, { mapping })}
+            onClick={() =>
+              onConfirm(valid, {
+                mapping,
+                totals: { file: rows.length, valid: valid.length, excluded, dropped },
+                droppedExamples,
+              })
+            }
             disabled={valid.length === 0 || missingRequired.length > 0}
           >
-            Confirmar e adicionar {valid.length} linha(s)
+            Confirmar e adicionar {valid.length} de {rows.length} linha(s)
           </Button>
         </DialogFooter>
       </DialogContent>
