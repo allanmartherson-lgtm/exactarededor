@@ -50,6 +50,7 @@ const loadPaymentTypes = () => import("./pages/PaymentTypes.tsx");
 const loadPools = () => import("./pages/Pools.tsx");
 const loadPoolsReport = () => import("./pages/PoolsReport.tsx");
 const loadPoolsHub = () => import("./pages/PoolsHub.tsx");
+const loadCreditosDebitos = () => import("./pages/CreditosDebitos.tsx");
 const loadProfile = () => import("./pages/Profile.tsx");
 const loadAuditLog = () => import("./pages/AuditLog.tsx");
 const loadStatusAnomalies = () => import("./pages/StatusAnomalies.tsx");
