@@ -628,7 +628,7 @@ const NewPayment = () => {
             sectorMapping: sectorFallback,
             sectorMissing: false,
             convenioValueTotalized: false,
-            rawMatrix: [headers, ...sourceRows.map((r) => headers.map((h) => r[h]))],
+            rawMatrix: [headers, ...sourceRows.map((r) => headers.map((h) => (r as Record<string, unknown>)[h]))],
             headerRowIndex: 0,
             sectorColumnUsed: "Setor",
           }]);
