@@ -2463,6 +2463,7 @@ export type Database = {
           company_id: string | null
           created_at: string | null
           doctor_crm: string | null
+          doctor_id: string
           doctor_name: string
           hospital_id: string | null
           id: string
@@ -2483,6 +2484,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string | null
           doctor_crm?: string | null
+          doctor_id: string
           doctor_name: string
           hospital_id?: string | null
           id?: string
@@ -2503,6 +2505,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string | null
           doctor_crm?: string | null
+          doctor_id?: string
           doctor_name?: string
           hospital_id?: string | null
           id?: string
@@ -2519,6 +2522,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "glosa_debts_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "glosa_debts_hospital_id_fkey"
             columns: ["hospital_id"]
