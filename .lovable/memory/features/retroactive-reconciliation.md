@@ -34,3 +34,9 @@ Em /pendencias → aba "Conciliação retroativa", o analista escolhe o modo ao 
 - Modal renderiza grupos com checkbox por médico (default: todos marcados), parcelas aplicadas a todos. Itens sem `matched_doctor_id` aparecem como "não atribuíveis" e são ignorados.
 - Execução: 1 `glosa_batches` para a apuração inteira; `glosa_items` inseridos por grupo com `doctor_name`/`doctor_crm` resolvidos da tabela `doctors` (não TASY); 1 RPC `create_glosa_debt_with_items` por grupo, sequencial. Falha em qualquer RPC → rollback total (apaga débitos criados via `glosa_debt_items.glosa_item_id` → `glosa_debts`, depois `glosa_items` e `batch`). Sem estado parcial.
 - `canGerarGlosa` agora exige apenas PJ + ≥1 grupo com médico resolvido — não exige `doctor_id` no recon.
+
+**Encaminhamento → Confecção (Caminho complementar):**
+- Ao navegar para `/pagamentos/novo?modo=confeccao&retro=<id>`, a base de confecção deve ser materializada automaticamente como um bucket/planilha sintética; o analista não deve reenviar manualmente arquivo.
+- Pré-carga inclui somente complementares: `nao_pago` + `div_valor`/`div_qtd_valor` com `dif_valor > 0.5`; itens a retirar seguem pela glosa, não entram na planilha complementar.
+- Valor base da linha: `valor_total_tasy` para `nao_pago`; `dif_valor` positivo para divergência. Quantidade: `qtd_tasy` para não pago; diferença positiva de quantidade quando houver, senão 1. A coluna `Valor Procedimento` fica unitária (`total/qtd`) para o motor de confecção aplicar quantidade.
+- Enriquecer médico/convênio/setor/PJ com `payment_items` quando houver `matched_payment_item_id`; se não houver, usar dados do `TvrResult` e a PJ da apuração. A tela deve preencher competência pelo período da apuração e categoria `pendencia`.
