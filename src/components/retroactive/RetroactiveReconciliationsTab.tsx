@@ -1786,7 +1786,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
   };
 
-  const confirmTasy = (drafts: Record<string, string>[]) => {
+  const confirmTasy = (
+    drafts: Record<string, string>[],
+    meta?: {
+      mapping: Record<string, string>;
+      totals: { file: number; valid: number; excluded: number; dropped: number };
+      droppedExamples: Array<{ row_index: number; missing: string[] }>;
+    },
+  ) => {
     const excluded = new Set(
       pendingTussExclude
         .split(",")
@@ -1810,13 +1817,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }))
       .filter((r) => r.tasy_atendimento && r.tasy_tuss);
     setTasyRows(filtered);
-    setTasyFile((wizard.kind === "tasy" && wizard.fileName) || "");
+    const fileName = (wizard.kind === "tasy" && wizard.fileName) || "";
+    setTasyFile(fileName);
+    if (meta?.totals) setTasyFileTotals(meta.totals);
+    if (meta?.droppedExamples) setTasyDroppedExamples(meta.droppedExamples);
     setResults(null);
     setWizard({ kind: "none" });
-    toast({ title: `TASY: ${filtered.length} linha(s) carregadas` });
+    toast({ title: `TASY: ${filtered.length} de ${meta?.totals.file ?? filtered.length} linha(s) carregadas` });
     // Dispara busca automática dos payment_items
     void loadPaymentItems(recon);
   };
+
+
 
   const clearAll = async () => {
     setTasyRows([]);
