@@ -11,13 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -52,7 +45,38 @@ type Group = {
 const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const PARC_OPTIONS = [1, 2, 3, 4, 6, 12, 18, 24];
+const ymdToLocalDate = (s: string): Date | null => {
+  if (!s) return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+};
+
+const addMonths = (d: Date, n: number): Date => {
+  const r = new Date(d.getFullYear(), d.getMonth() + n, 1);
+  // Mantém o "dia" original quando possível (clamp ao último dia do mês alvo)
+  const lastDayOfTarget = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
+  r.setDate(Math.min(d.getDate(), lastDayOfTarget));
+  return r;
+};
+
+const fmtBR = (d: Date) =>
+  d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+const fmtComp = (d: Date) =>
+  d.toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" });
+
+/** Divide o total em N parcelas em centavos, jogando o resíduo na última. */
+function splitInstallments(total: number, n: number): number[] {
+  const cents = Math.round(total * 100);
+  const base = Math.floor(cents / n);
+  const rem = cents - base * n;
+  return Array.from({ length: n }, (_, i) =>
+    (base + (i === n - 1 ? rem : 0)) / 100,
+  );
+}
+
+
 
 export default function PotentialDebtsPanel({
   reloadKey,
