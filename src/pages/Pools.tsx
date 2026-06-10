@@ -422,67 +422,6 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
         </DialogContent>
       </Dialog>
 
-      {/* ===== Dialog Ajuste ===== */}
-      <Dialog open={adjDialogOpen} onOpenChange={setAdjDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader><DialogTitle>{editingAdj?.id ? "Editar ajuste" : "Novo crédito/débito"}</DialogTitle></DialogHeader>
-          {editingAdj && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <Label>Empresa</Label>
-                <Select value={editingAdj.company_id ?? ""} onValueChange={v => setEditingAdj({ ...editingAdj, company_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                  <SelectContent>{companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Tipo</Label>
-                <Select value={editingAdj.tipo} onValueChange={(v: any) => setEditingAdj({ ...editingAdj, tipo: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="credito">Crédito</SelectItem>
-                    <SelectItem value="debito">Débito</SelectItem>
-                    <SelectItem value="glosa_parcelada">Glosa parcelada</SelectItem>
-                    <SelectItem value="acordo">Acordo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Data início</Label>
-                <Input type="date" value={editingAdj.data_inicio || ""} onChange={e => setEditingAdj({ ...editingAdj, data_inicio: e.target.value })} />
-              </div>
-              <div className="col-span-2">
-                <Label>Descrição</Label>
-                <Input value={editingAdj.descricao || ""} onChange={e => setEditingAdj({ ...editingAdj, descricao: e.target.value })} />
-              </div>
-              <div>
-                <Label>Valor total (R$)</Label>
-                <Input type="number" step="0.01" value={editingAdj.valor_total ?? ""} onChange={e => setEditingAdj({ ...editingAdj, valor_total: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <Label>Parcelas total</Label>
-                <Input type="number" min={1} value={editingAdj.parcelas_total ?? 1} onChange={e => setEditingAdj({ ...editingAdj, parcelas_total: parseInt(e.target.value) || 1 })} />
-              </div>
-              <div>
-                <Label>Parcelas pagas</Label>
-                <Input type="number" min={0} value={editingAdj.parcelas_pagas ?? 0} onChange={e => setEditingAdj({ ...editingAdj, parcelas_pagas: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <Label>Origem</Label>
-                <Input value={editingAdj.origem || ""} onChange={e => setEditingAdj({ ...editingAdj, origem: e.target.value })} placeholder="ex: manual, glosa 03/2025" />
-              </div>
-              <div className="flex items-center gap-2 col-span-2">
-                <Switch checked={editingAdj.ativo ?? true} onCheckedChange={v => setEditingAdj({ ...editingAdj, ativo: v })} />
-                <Label>Ativo (aplica em próximos pagamentos)</Label>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={saveAdj}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
