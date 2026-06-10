@@ -42,19 +42,7 @@ type Participant = {
   _label?: string;
 };
 type Company = { id: string; name: string };
-type Adjustment = {
-  id: string;
-  company_id: string;
-  tipo: "credito" | "debito" | "glosa_parcelada" | "acordo";
-  descricao: string;
-  valor_total: number;
-  parcelas_total: number;
-  parcelas_pagas: number;
-  data_inicio: string;
-  ativo: boolean;
-  origem: string | null;
-  _company_name?: string;
-};
+
 
 const BASE_LABELS: Record<string, string> = {
   soma_convenio_100: "Soma 100% convênio",
