@@ -2085,7 +2085,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           {processing ? "Processando…" : "Processar"}
         </Button>
         {(tasyRows.length > 0 || pagRows.length > 0) && (
-          <Button variant="outline" size="sm" onClick={clearAll}>Limpar tudo</Button>
+          <Button variant="outline" size="sm" onClick={() => void clearAll()}>Limpar tudo</Button>
         )}
         {results && (
           <Button variant="outline" size="sm" onClick={exportXlsx}>Exportar Excel</Button>
