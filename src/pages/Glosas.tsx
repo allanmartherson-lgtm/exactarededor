@@ -645,36 +645,27 @@ export default function Glosas() {
       return { link: links[0], reason: null };
     };
 
-    const upsertDebt = async (item: any) => {
-      if (!item.doctor_name || !(item.valor_glosa > 0)) return;
-      const crmKey = item.doctor_crm || item.doctor_name;
-      const { data: existing } = await (supabase as any)
-        .from("glosa_debts")
-        .select("id, total_debt")
-        .eq("doctor_crm", crmKey)
-        .maybeSingle();
-      if (existing) {
-        await (supabase as any).from("glosa_debts").update({
-          total_debt: (existing.total_debt ?? 0) + item.valor_glosa,
-          updated_at: new Date().toISOString(),
-          status: "ativo",
-        }).eq("id", existing.id);
-      } else {
-        await (supabase as any).from("glosa_debts").insert({
-          doctor_crm: crmKey,
-          doctor_name: item.doctor_name,
-          total_debt: item.valor_glosa,
-          status: "ativo",
-        });
-      }
+    // glosa_debts é recomputado por médico no final, a partir da fonte da
+    // verdade (glosa_items). Evita inflar saldo a cada reprocessamento.
+    const affectedDoctors = new Map<string, { crm: string; name: string }>();
+    const trackDoctor = (item: any) => {
+      const crm = String(item.doctor_crm ?? "").trim();
+      const name = String(item.doctor_name ?? "").trim();
+      const key = crm || name;
+      if (!key) return;
+      if (!affectedDoctors.has(key)) affectedDoctors.set(key, { crm, name });
     };
+
+    let matchedByPayment = 0;
+    let matchedByCadastro = 0;
+    let unmatched = 0;
 
     for (const item of items) {
       const atend = String(item.attendance_number ?? "").trim();
       const matches = atend ? (piMap.get(atend) ?? []) : [];
+      trackDoctor(item);
 
       if (matches.length > 0) {
-        // Caminho principal: match por pagamento
         let best = matches[0];
         if (item.doctor_crm) {
           const byCrm = matches.find(m => String(m.doctor_document ?? "").includes(item.doctor_crm));
@@ -693,12 +684,10 @@ export default function Glosas() {
           match_reason: null,
           matched_at: new Date().toISOString(),
         }).eq("batch_id", batchId).eq("attendance_number", atend);
-        await upsertDebt(item);
-        matched++;
+        matchedByPayment++;
         continue;
       }
 
-      // Fallback: tenta resolver pela PJ vinculada ao médico no cadastro
       const { link, reason } = resolveByDoctor(item);
       if (link) {
         await (supabase as any).from("glosa_items").update({
@@ -711,8 +700,7 @@ export default function Glosas() {
           match_reason: "vinculado via cadastro do médico (sem pagamento correspondente ainda)",
           matched_at: new Date().toISOString(),
         }).eq("batch_id", batchId).eq("attendance_number", atend);
-        await upsertDebt(item);
-        matched++;
+        matchedByCadastro++;
       } else {
         await (supabase as any).from("glosa_items").update({
           status: "sem_match",
@@ -721,12 +709,24 @@ export default function Glosas() {
           matched_company_name: null,
           match_reason: reason,
         }).eq("batch_id", batchId).eq("attendance_number", atend);
-        await upsertDebt(item);
         unmatched++;
       }
     }
 
-    return { matched, unmatched };
+    // Recompute saldo devedor por médico — idempotente, sobre todos os lotes.
+    for (const { crm, name } of affectedDoctors.values()) {
+      await (supabase as any).rpc("glosa_recompute_debt_for_doctor", {
+        p_crm: crm,
+        p_name: name,
+      });
+    }
+
+    return {
+      matched: matchedByPayment + matchedByCadastro,
+      unmatched,
+      matchedByPayment,
+      matchedByCadastro,
+    };
   };
 
   const loadBatchItems = async (batchId: string) => {
