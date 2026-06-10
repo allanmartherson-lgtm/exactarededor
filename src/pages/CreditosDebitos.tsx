@@ -36,8 +36,10 @@ type GlosaDebt = {
   parcelas_default: number | null;
   status: string;
   created_at: string;
+  confirmed_at: string | null;
   _company_name?: string;
 };
+
 
 const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
