@@ -83,7 +83,7 @@ export default function CreditosDebitos() {
       supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
       (supabase as any)
         .from("glosa_debts")
-        .select("id, company_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at")
+        .select("id, company_id, doctor_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at, target_payment_id")
         .eq("status", "ativo")
         .order("created_at", { ascending: false }),
 
