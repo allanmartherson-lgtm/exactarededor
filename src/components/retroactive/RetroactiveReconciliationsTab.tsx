@@ -1521,8 +1521,10 @@ function mapTvrStatusToStoredClassification(status: TvrStatus): string {
   if (status === "ok") return "ok_pago";
   if (status === "nao_pago") return "nao_pago";
   if (status === "pago_sem_tasy") return "sem_lastro";
+  if (status === "pago_a_mais") return "pago_a_mais";
   return "pago_a_menos";
 }
+
 
 function dbDateOrNull(value: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
