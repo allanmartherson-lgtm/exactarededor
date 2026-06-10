@@ -1456,9 +1456,28 @@ const TVR_STATUS_TONE: Record<TvrStatus, string> = {
 
 const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_qtd", "div_valor", "pago_sem_tasy", "ok"];
 
-function num(v: string | undefined): number {
-  if (!v) return 0;
-  const n = Number(String(v).replace(",", "."));
+function num(v: string | number | undefined | null): number {
+  if (v === null || v === undefined || v === "") return 0;
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  let s = String(v).trim().replace(/[^\d,.\-]/g, "");
+  if (!s) return 0;
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+  if (hasComma && hasDot) {
+    // BR "1.234,56": ponto = milhar, vírgula = decimal
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (hasComma) {
+    s = s.replace(",", ".");
+  } else if (hasDot) {
+    // "1.234" (milhar BR) vs "1234.56" (decimal US)
+    const parts = s.split(".");
+    if (parts.length > 2) {
+      s = s.replace(/\./g, "");
+    } else if (parts[1] && parts[1].length === 3 && parts[0].length <= 3) {
+      s = s.replace(".", "");
+    }
+  }
+  const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
 
