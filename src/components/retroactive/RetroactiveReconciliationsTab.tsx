@@ -3156,19 +3156,36 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         />
       )}
 
-      <EncaminharApuracaoModal
-        open={encaminharOpen}
-        onOpenChange={(v) => { if (!encaminharBusy) setEncaminharOpen(v); }}
-        results={results ?? []}
-        actionable={(results ?? []).filter(isActionableTvr)}
-        retirar={toRetirarItems(results ?? [])}
-        canGerarGlosa={!!recon?.company_id && (!!doctorInfo.name || !!doctorInfo.crm)}
-        busy={encaminharBusy}
-        onConfirm={runEncaminharFluxo}
-      />
+      {(() => {
+        const retirar = toRetirarItems(results ?? []);
+        const { groups, unassigned } = buildGlosaGroups(retirar);
+        const canGerarGlosa = !!recon?.company_id && groups.some((g) => g.items.length > 0);
+        return (
+          <EncaminharApuracaoModal
+            open={encaminharOpen}
+            onOpenChange={(v) => { if (!encaminharBusy) setEncaminharOpen(v); }}
+            results={results ?? []}
+            actionable={(results ?? []).filter(isActionableTvr)}
+            retirar={retirar}
+            groups={groups}
+            unassigned={unassigned}
+            canGerarGlosa={canGerarGlosa}
+            modoMedicoUnico={modoMedicoUnico}
+            busy={encaminharBusy}
+            onConfirm={runEncaminharFluxo}
+          />
+        );
+      })()}
     </div>
   );
 }
+
+type GlosaGroupView = {
+  doctor_id: string;
+  doctor_name: string;
+  doctor_crm: string | null;
+  items: TvrResult[];
+};
 
 type EncaminharModalProps = {
   open: boolean;
@@ -3176,19 +3193,29 @@ type EncaminharModalProps = {
   results: TvrResult[];
   actionable: TvrResult[];
   retirar: TvrResult[];
+  groups: GlosaGroupView[];
+  unassigned: TvrResult[];
   canGerarGlosa: boolean;
+  modoMedicoUnico: boolean;
   busy: boolean;
-  onConfirm: (opts: { includeComplementar: boolean; gerarGlosa: boolean; parcelas: number }) => void;
+  onConfirm: (opts: {
+    includeComplementar: boolean;
+    gerarGlosa: boolean;
+    parcelas: number;
+    selectedDoctorIds: string[];
+  }) => void;
 };
 
 function EncaminharApuracaoModal({
-  open, onOpenChange, results: _results, actionable, retirar, canGerarGlosa, busy, onConfirm,
+  open, onOpenChange, results: _results, actionable, retirar,
+  groups, unassigned, canGerarGlosa, modoMedicoUnico, busy, onConfirm,
 }: EncaminharModalProps) {
   const [includeComplementar, setIncludeComplementar] = useState(true);
   const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
   const [parcelas, setParcelas] = useState<number>(1);
   const [showCompList, setShowCompList] = useState(false);
-  const [showRetList, setShowRetList] = useState(false);
+  const [selectedDoctorIds, setSelectedDoctorIds] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (open) {
@@ -3196,21 +3223,32 @@ function EncaminharApuracaoModal({
       setGerarGlosa(retirar.length > 0 && canGerarGlosa ? "agora" : "depois");
       setParcelas(1);
       setShowCompList(false);
-      setShowRetList(false);
+      setSelectedDoctorIds(new Set(groups.map((g) => g.doctor_id)));
+      setExpandedGroups(new Set());
     }
-  }, [open, actionable.length, retirar.length, canGerarGlosa]);
+  }, [open, actionable.length, retirar.length, canGerarGlosa, groups]);
 
   const totalBaseComp = actionable.reduce((s, r) => {
     if (r.status === "nao_pago") return s + r.valor_total_tasy;
     if (r.dif_valor > 0.5) return s + r.dif_valor;
     return s;
   }, 0);
-  const totalBaseRet = retirar.reduce((s, r) => {
-    if (r.status === "ausente_tasy") return s + r.valor_pago_base;
-    if (r.dif_valor < -0.5) return s + Math.abs(r.dif_valor);
-    return s;
-  }, 0);
   const totalAcordoRet = retirar.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+
+  const toggleDoctor = (id: string) => {
+    setSelectedDoctorIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleGroupExpand = (id: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -3268,14 +3306,22 @@ function EncaminharApuracaoModal({
               <div className="mt-1 text-base">⚠️</div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold">
-                  A retirar → Glosa de auditoria
+                  A retirar → Glosa de auditoria {modoMedicoUnico ? "" : "(por médico)"}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  {retirar.length} item(ns) · Base {brl(totalBaseRet)} · <span className="font-semibold text-destructive">C/ acordo {brl(totalAcordoRet)}</span>
+                  {retirar.length} item(ns) · <span className="font-semibold text-destructive">C/ acordo {brl(totalAcordoRet)}</span>
+                  {!modoMedicoUnico && groups.length > 0 && ` · ${groups.length} médico(s)`}
                 </div>
                 {!canGerarGlosa && retirar.length > 0 && (
                   <div className="text-[11px] text-amber-700 mt-1">
-                    Apuração precisa ter PJ e médico vinculados para gerar a glosa.
+                    {modoMedicoUnico
+                      ? "Apuração precisa ter PJ e médico vinculados para gerar a glosa."
+                      : "Apuração precisa ter PJ vinculada e itens com médico identificado nos pagamentos para gerar a glosa."}
+                  </div>
+                )}
+                {unassigned.length > 0 && (
+                  <div className="text-[11px] text-amber-700 mt-1">
+                    {unassigned.length} item(ns) sem médico identificado no pagamento — não atribuíveis e serão ignorados.
                   </div>
                 )}
                 <RadioGroup
@@ -3290,19 +3336,62 @@ function EncaminharApuracaoModal({
                       Gerar glosa agora (débito parcelável)
                     </Label>
                   </div>
-                  {gerarGlosa === "agora" && (
-                    <div className="ml-6 flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground">Parcelas:</span>
-                      <Select value={String(parcelas)} onValueChange={(v) => setParcelas(Number(v))}>
-                        <SelectTrigger className="h-7 w-20 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 6, 12].map((n) => (
-                            <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  {gerarGlosa === "agora" && groups.length > 0 && (
+                    <div className="ml-6 mt-2 space-y-2">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">Parcelas (aplicado a todos):</span>
+                        <Select value={String(parcelas)} onValueChange={(v) => setParcelas(Number(v))}>
+                          <SelectTrigger className="h-7 w-20 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1, 2, 3, 4, 6, 12, 18, 24].map((n) => (
+                              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="rounded border border-border bg-background divide-y divide-border">
+                        {groups.map((g) => {
+                          const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+                          const isExpanded = expandedGroups.has(g.doctor_id);
+                          const isSel = selectedDoctorIds.has(g.doctor_id);
+                          return (
+                            <div key={g.doctor_id} className="px-2 py-1.5 text-[11px]">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  checked={isSel}
+                                  disabled={busy}
+                                  onCheckedChange={() => toggleDoctor(g.doctor_id)}
+                                />
+                                <div className="flex-1 min-w-0 truncate">
+                                  <span className="font-medium">{g.doctor_name}</span>
+                                  {g.doctor_crm && <span className="text-muted-foreground"> ({g.doctor_crm})</span>}
+                                </div>
+                                <span className="text-muted-foreground">{g.items.length} itens</span>
+                                <span className="font-mono w-24 text-right">{brl(subtotal)}</span>
+                                <button
+                                  type="button"
+                                  className="text-[10px] text-destructive underline"
+                                  onClick={() => toggleGroupExpand(g.doctor_id)}
+                                >
+                                  {isExpanded ? "ocultar" : "ver itens"}
+                                </button>
+                              </div>
+                              {isExpanded && (
+                                <div className="mt-1 ml-6 max-h-32 overflow-auto rounded bg-muted/40">
+                                  {g.items.map((r) => (
+                                    <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border/50 last:border-b-0">
+                                      <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
+                                      <span className="font-mono">{brl(r.valor_recuperar_acordo ?? 0)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
@@ -3312,25 +3401,6 @@ function EncaminharApuracaoModal({
                     </Label>
                   </div>
                 </RadioGroup>
-                {retirar.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-[11px] text-destructive mt-2 underline"
-                    onClick={() => setShowRetList((v) => !v)}
-                  >
-                    {showRetList ? "ocultar itens ▴" : "ver itens ▾"}
-                  </button>
-                )}
-                {showRetList && (
-                  <div className="mt-2 max-h-40 overflow-auto rounded border border-border bg-background text-[11px]">
-                    {retirar.map((r) => (
-                      <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border last:border-b-0">
-                        <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
-                        <span className="font-mono">{brl(r.valor_recuperar_acordo ?? 0)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -3343,10 +3413,15 @@ function EncaminharApuracaoModal({
           <Button
             onClick={() => onConfirm({
               includeComplementar,
-              gerarGlosa: gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa,
+              gerarGlosa: gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa && selectedDoctorIds.size > 0,
               parcelas,
+              selectedDoctorIds: Array.from(selectedDoctorIds),
             })}
-            disabled={busy || (!includeComplementar && (gerarGlosa !== "agora" || retirar.length === 0))}
+            disabled={
+              busy ||
+              (!includeComplementar &&
+                (gerarGlosa !== "agora" || retirar.length === 0 || selectedDoctorIds.size === 0))
+            }
           >
             {busy ? "Processando..." : "Confirmar encaminhamento"}
           </Button>
