@@ -2022,6 +2022,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       try {
         await persistResults(out);
         setResults(out);
+        setSelectedKeys(new Set());
         await loadTvrReconciliation();
         toast({ title: `Processamento concluído · ${out.length} linha(s) salvas` });
       } catch (e) {
