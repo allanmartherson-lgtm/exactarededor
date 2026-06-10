@@ -1536,11 +1536,10 @@ function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: numb
 }
 
 function mapTvrStatusToStoredClassification(status: TvrStatus): string {
+  // Grava o status TVR direto (sem CHECK constraint na coluna).
+  // Único alias: "ok" -> "ok_pago" (equivalente, mantido por compatibilidade com relatórios).
   if (status === "ok") return "ok_pago";
-  if (status === "nao_pago") return "nao_pago";
-  if (status === "ausente_tasy") return "sem_lastro";
-  if (status === "pago_a_mais") return "pago_a_mais";
-  return "pago_a_menos";
+  return status;
 }
 
 const AUSENTE_TASY_ESSENTIAL_FIELDS = [
