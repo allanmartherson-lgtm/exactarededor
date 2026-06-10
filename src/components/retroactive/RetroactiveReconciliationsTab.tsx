@@ -1830,7 +1830,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_tuss: normTuss(String(row.procedure_code ?? "")),
         pag_qtd: String(row.quantity ?? "1"),
         pag_valor_base: String(row.procedure_amount ?? "0"),
-        pag_valor_com_acordo: "",
+        pag_valor_com_acordo: String(row.expected_amount ?? "0"),
         pag_funcao: (row.doctor_role as string) ?? "",
         pag_medico: (row.doctor_name as string) ?? "",
         pag_data: (row.procedure_date as string) ?? "",
