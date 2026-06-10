@@ -1634,6 +1634,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_data: r.data,
         pag_paciente: r.paciente,
         pag_convenio: r.convenio,
+        pag_lote: r.lotes,
       })));
       setPaymentsLoaded(true);
     }
