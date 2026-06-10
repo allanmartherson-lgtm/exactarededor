@@ -1662,7 +1662,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       let query = supabase
         .from("payment_items" as never)
-        .select("attendance_number, procedure_code, quantity, procedure_amount, doctor_role, procedure_date, patient_name, procedure_name")
+        .select("attendance_number, procedure_code, quantity, procedure_amount, doctor_role, procedure_date, patient_name, procedure_name, payment_id")
         .gte("procedure_date", start.toISOString().slice(0, 10))
         .lte("procedure_date", end.toISOString().slice(0, 10));
 
@@ -1674,7 +1674,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         toast({ title: "Erro ao buscar pagamentos", description: error.message, variant: "destructive" });
         return;
       }
-      const rows: PagRow[] = (data ?? []).map((row: Record<string, unknown>) => ({
+      const rawItems = (data ?? []) as Array<Record<string, unknown>>;
+      const paymentIds = Array.from(new Set(rawItems.map((it) => String(it.payment_id ?? "")).filter(Boolean)));
+      const loteByPaymentId = new Map<string, string>();
+      if (paymentIds.length > 0) {
+        const { data: paymentsData } = await supabase
+          .from("payments" as never)
+          .select("id, reference, competence_month")
+          .in("id", paymentIds);
+        for (const p of (paymentsData ?? []) as Array<Record<string, unknown>>) {
+          const ref = String(p.reference ?? "").trim();
+          const comp = p.competence_month ? String(p.competence_month).slice(0, 7) : "";
+          const label = ref || (comp ? `Comp. ${comp}` : String(p.id).slice(0, 8));
+          loteByPaymentId.set(String(p.id), label);
+        }
+      }
+      const rows: PagRow[] = rawItems.map((row) => ({
         pag_atendimento: normAtt(String(row.attendance_number ?? "")),
         pag_tuss: normTuss(String(row.procedure_code ?? "")),
         pag_qtd: String(row.quantity ?? "1"),
@@ -1684,6 +1699,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_data: (row.procedure_date as string) ?? "",
         pag_paciente: (row.patient_name as string) ?? "",
         pag_convenio: "",
+        pag_lote: loteByPaymentId.get(String(row.payment_id ?? "")) ?? "",
       })).filter((x) => x.pag_atendimento && x.pag_tuss);
       setPagRows(rows);
       setPaymentsLoaded(true);
