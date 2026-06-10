@@ -2461,6 +2461,8 @@ export type Database = {
         Row: {
           adjustment_id: string | null
           company_id: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string | null
           doctor_crm: string | null
           doctor_id: string
@@ -2482,6 +2484,8 @@ export type Database = {
         Insert: {
           adjustment_id?: string | null
           company_id?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string | null
           doctor_crm?: string | null
           doctor_id: string
@@ -2503,6 +2507,8 @@ export type Database = {
         Update: {
           adjustment_id?: string | null
           company_id?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string | null
           doctor_crm?: string | null
           doctor_id?: string
