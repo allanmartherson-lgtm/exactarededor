@@ -1457,7 +1457,7 @@ type PagRow = {
 };
 
 
-type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_a_mais" | "pago_sem_tasy" | "ok";
+type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_a_mais" | "ausente_tasy" | "ok";
 
 
 type TvrResult = {
@@ -1489,7 +1489,7 @@ const TVR_STATUS_LABEL: Record<TvrStatus, string> = {
   div_qtd_valor: "Div. Qtd / Valor",
   div_valor: "Div. Valor",
   pago_a_mais: "Pago a mais",
-  pago_sem_tasy: "Ausente TASY",
+  ausente_tasy: "Ausente TASY",
   ok: "OK",
 };
 
@@ -1498,11 +1498,11 @@ const TVR_STATUS_TONE: Record<TvrStatus, string> = {
   div_qtd_valor: "bg-rose-100 text-rose-800",
   div_valor: "bg-amber-100 text-amber-800",
   pago_a_mais: "bg-fuchsia-100 text-fuchsia-800",
-  pago_sem_tasy: "bg-purple-100 text-purple-800",
+  ausente_tasy: "bg-purple-100 text-purple-800",
   ok: "bg-emerald-100 text-emerald-800",
 };
 
-const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_a_mais", "pago_sem_tasy", "ok"];
+const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_a_mais", "ausente_tasy", "ok"];
 
 function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
   const c: Record<TvrStatus, number> = {
@@ -1510,7 +1510,7 @@ function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
     div_qtd_valor: 0,
     div_valor: 0,
     pago_a_mais: 0,
-    pago_sem_tasy: 0,
+    ausente_tasy: 0,
     ok: 0,
   };
   for (const r of list) c[r.status]++;
@@ -1522,13 +1522,13 @@ const TVR_SOURCE = "tasy_vs_repasse";
 function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
 
   const totalComplementar = list.reduce((sum, r) => {
-    if (r.status === "ok" || r.status === "pago_sem_tasy") return sum;
+    if (r.status === "ok" || r.status === "ausente_tasy") return sum;
     if (r.status === "nao_pago") return sum + r.valor_total_tasy;
     if (r.dif_valor > 0.5) return sum + r.dif_valor;
     return sum;
   }, 0);
   const totalRetirar = list.reduce((sum, r) => {
-    if (r.status === "pago_sem_tasy") return sum + r.valor_pago_base;
+    if (r.status === "ausente_tasy") return sum + r.valor_pago_base;
     if (r.dif_valor < -0.5) return sum + Math.abs(r.dif_valor);
     return sum;
   }, 0);
@@ -1538,7 +1538,7 @@ function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: numb
 function mapTvrStatusToStoredClassification(status: TvrStatus): string {
   if (status === "ok") return "ok_pago";
   if (status === "nao_pago") return "nao_pago";
-  if (status === "pago_sem_tasy") return "sem_lastro";
+  if (status === "ausente_tasy") return "sem_lastro";
   if (status === "pago_a_mais") return "pago_a_mais";
   return "pago_a_menos";
 }
@@ -1550,7 +1550,7 @@ const AUSENTE_TASY_ESSENTIAL_FIELDS = [
 ] as const;
 
 function getAusenteTasyMissingFields(r: TvrResult): string[] {
-  if (r.status !== "pago_sem_tasy") return [];
+  if (r.status !== "ausente_tasy") return [];
   const out: string[] = [];
   for (const [key, label] of AUSENTE_TASY_ESSENTIAL_FIELDS) {
     const v = (r as unknown as Record<string, unknown>)[key];
@@ -1668,7 +1668,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       .filter(isTvrResult);
     if (savedResults.length > 0) {
       setResults(savedResults);
-      setTasyRows(savedResults.filter((r) => r.status !== "pago_sem_tasy").map<TasyRow>((r) => ({
+      setTasyRows(savedResults.filter((r) => r.status !== "ausente_tasy").map<TasyRow>((r) => ({
         tasy_atendimento: r.atendimento,
         tasy_tuss: r.tuss,
         tasy_qtd: String(r.qtd_tasy || 1),
@@ -1978,7 +1978,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
         let status: TvrStatus;
         if (!p && t) status = "nao_pago";
-        else if (!t && p) status = "pago_sem_tasy";
+        else if (!t && p) status = "ausente_tasy";
         else if (dif_valor < -0.5) status = "pago_a_mais";
         else if (Math.abs(dif_qtd) >= 0.5 && Math.abs(dif_valor) > 0.5) status = "div_qtd_valor";
         else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
@@ -2051,7 +2051,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const counts = useMemo(() => {
     const c: Record<TvrStatus, number> = {
-      nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_a_mais: 0, pago_sem_tasy: 0, ok: 0,
+      nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_a_mais: 0, ausente_tasy: 0, ok: 0,
     };
 
     for (const r of results ?? []) c[r.status]++;
@@ -2489,13 +2489,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
           {(() => {
             const totalComplementar = results.reduce((sum, r) => {
-              if (r.status === "ok" || r.status === "pago_sem_tasy") return sum;
+              if (r.status === "ok" || r.status === "ausente_tasy") return sum;
               if (r.status === "nao_pago") return sum + r.valor_total_tasy;
               if (r.dif_valor > 0.5) return sum + r.dif_valor;
               return sum;
             }, 0);
             const totalRetirar = results.reduce((sum, r) => {
-              if (r.status === "pago_sem_tasy") return sum + r.valor_pago_base;
+              if (r.status === "ausente_tasy") return sum + r.valor_pago_base;
               if (r.dif_valor < -0.5) return sum + Math.abs(r.dif_valor);
               return sum;
             }, 0);
