@@ -3424,6 +3424,7 @@ function EncaminharApuracaoModal({
             })}
             disabled={
               busy ||
+              (gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa && selectedDoctorIds.size > 0 && parcelas < 1) ||
               (!includeComplementar &&
                 (gerarGlosa !== "agora" || retirar.length === 0 || selectedDoctorIds.size === 0))
             }
