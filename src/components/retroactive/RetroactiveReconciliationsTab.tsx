@@ -2408,6 +2408,203 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     navigate(`/pagamentos/novo?modo=confeccao&retro=${reconciliationId}`);
   };
 
+  // ===== Caminho B — gera glosa de auditoria a partir dos itens "a retirar" =====
+  const toRetirarItems = (list: TvrResult[]) =>
+    list.filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5);
+
+  const createAuditoriaGlosaBatch = async (
+    retirar: TvrResult[],
+    parcelas: number,
+  ): Promise<{ batch_id: string; total: number; items: number; parcelas: number }> => {
+    if (retirar.length === 0) throw new Error("Nenhum item a retirar.");
+    if (!recon?.company_id) throw new Error("Apuração sem PJ vinculada — não é possível gerar glosa.");
+    if (!doctorInfo.name && !doctorInfo.crm) {
+      throw new Error("Apuração sem médico vinculado — não é possível gerar glosa.");
+    }
+
+    const totalGlosa = retirar.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+    const competence = (recon.period_start ?? "").slice(0, 7);
+    const title = recon.title ?? `Apuração ${recon.id.slice(0, 8)}`;
+
+    // 1) Batch
+    const { data: batchData, error: batchErr } = await (supabase as never as typeof supabase)
+      .from("glosa_batches" as never)
+      .insert({
+        source: "auditoria",
+        reconciliation_id: recon.id,
+        reference: `Auditoria — ${title}`,
+        convenio: null,
+        competence_month: competence || null,
+        file_name: null,
+        status: "concluido",
+        total_items: retirar.length,
+        matched_items: retirar.length,
+        unmatched_items: 0,
+        total_glosa_amount: Number(totalGlosa.toFixed(2)),
+        hospital_id: hospitalIdRecon,
+      } as never)
+      .select("id")
+      .single();
+    if (batchErr || !batchData) throw new Error(batchErr?.message ?? "Falha ao criar lote de glosa.");
+    const batchId = (batchData as { id: string }).id;
+
+    // 2) Items
+    const itemsPayload = retirar.map((r) => {
+      const motivo =
+        r.status === "ausente_tasy"
+          ? "Retirado da conta após auditoria — procedimento pago sem registro de produção"
+          : "Retirado da conta após auditoria — valor pago acima da produção registrada";
+      return {
+        batch_id: batchId,
+        attendance_number: r.atendimento || null,
+        procedure_code: r.tuss || null,
+        procedure_name: r.procedimento || null,
+        procedure_date: dbDateOrNull(r.data),
+        patient_name: r.paciente || null,
+        doctor_name: doctorInfo.name ?? r.medico ?? null,
+        doctor_crm: doctorInfo.crm ?? null,
+        convenio: r.convenio || null,
+        valor_cobrado: Number((r.valor_com_acordo || 0).toFixed(2)),
+        valor_glosa: Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
+        motivo_glosa: motivo,
+        complemento_glosa: `Apuração ${title} · Atend ${r.atendimento || "—"} · TUSS ${r.tuss || "—"}`,
+        status: "vinculado",
+        matched_payment_item_id: r.matched_payment_item_id ?? null,
+        matched_payment_id: r.matched_payment_id ?? null,
+        matched_company_id: recon.company_id,
+        match_source: "auditoria_retroativa",
+        matched_at: new Date().toISOString(),
+        hospital_id: hospitalIdRecon,
+      };
+    });
+    const { data: itemsData, error: itemsErr } = await (supabase as never as typeof supabase)
+      .from("glosa_items" as never)
+      .insert(itemsPayload as never)
+      .select("id, valor_glosa");
+    if (itemsErr || !itemsData) {
+      await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
+      throw new Error(itemsErr?.message ?? "Falha ao gravar itens da glosa.");
+    }
+    const insertedItems = itemsData as Array<{ id: string; valor_glosa: number }>;
+
+    // 3) Débito por médico/PJ (uma apuração = um médico × uma PJ)
+    const docName = doctorInfo.name ?? "Médico";
+    const docCrm = doctorInfo.crm ?? "";
+    // Upsert: tenta achar débito ativo existente para somar
+    const { data: existingDebt } = await supabase
+      .from("glosa_debts" as never)
+      .select("id, total_debt")
+      .eq("doctor_name", docName)
+      .eq("doctor_crm", docCrm)
+      .maybeSingle();
+
+    let debtId: string;
+    if (existingDebt) {
+      debtId = (existingDebt as { id: string }).id;
+      const prev = Number((existingDebt as { total_debt: number }).total_debt ?? 0);
+      await supabase
+        .from("glosa_debts" as never)
+        .update({
+          total_debt: Number((prev + totalGlosa).toFixed(2)),
+          company_id: recon.company_id,
+          parcelas_default: parcelas,
+          status: "ativo",
+          resolution_status: "vinculada",
+          hospital_id: hospitalIdRecon,
+        } as never)
+        .eq("id", debtId);
+    } else {
+      const { data: debtData, error: debtErr } = await (supabase as never as typeof supabase)
+        .from("glosa_debts" as never)
+        .insert({
+          doctor_name: docName,
+          doctor_crm: docCrm,
+          total_debt: Number(totalGlosa.toFixed(2)),
+          status: "ativo",
+          resolution_status: "vinculada",
+          company_id: recon.company_id,
+          parcelas_default: parcelas,
+          hospital_id: hospitalIdRecon,
+        } as never)
+        .select("id")
+        .single();
+      if (debtErr || !debtData) {
+        await supabase.from("glosa_items" as never).delete().eq("batch_id", batchId);
+        await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
+        throw new Error(debtErr?.message ?? "Falha ao criar débito de glosa.");
+      }
+      debtId = (debtData as { id: string }).id;
+    }
+
+    // 4) Vincular itens ao débito
+    const debtItemsPayload = insertedItems.map((it) => ({
+      debt_id: debtId,
+      glosa_item_id: it.id,
+      amount: Number((it.valor_glosa ?? 0).toFixed(2)),
+      hospital_id: hospitalIdRecon,
+    }));
+    const { error: debtItemsErr } = await supabase
+      .from("glosa_debt_items" as never)
+      .insert(debtItemsPayload as never);
+    if (debtItemsErr) {
+      throw new Error(debtItemsErr.message);
+    }
+
+    return { batch_id: batchId, total: totalGlosa, items: retirar.length, parcelas };
+  };
+
+  const runEncaminharFluxo = async (opts: {
+    includeComplementar: boolean;
+    gerarGlosa: boolean;
+    parcelas: number;
+  }) => {
+    if (!results) return;
+    const actionable = results.filter(isActionableTvr);
+    const retirar = toRetirarItems(results);
+
+    if (!opts.includeComplementar && !opts.gerarGlosa) {
+      toast({ title: "Selecione ao menos um caminho", variant: "destructive" });
+      return;
+    }
+    if (opts.includeComplementar && actionable.length === 0) {
+      toast({ title: "Nada para complementar", variant: "destructive" });
+      return;
+    }
+    if (opts.gerarGlosa && retirar.length === 0) {
+      toast({ title: "Nada para retirar/gerar glosa", variant: "destructive" });
+      return;
+    }
+
+    setEncaminharBusy(true);
+    try {
+      // 1) Glosa primeiro (fire-and-forget, mas se falhar aborta tudo).
+      if (opts.gerarGlosa) {
+        const result = await createAuditoriaGlosaBatch(retirar, opts.parcelas);
+        toast({
+          title: "Glosa de auditoria lançada",
+          description: `${result.items} itens · ${brl(result.total)} em ${result.parcelas} parcela(s). Veja em /glosas.`,
+        });
+      }
+      // 2) Complementar → confecção (navega no final).
+      if (opts.includeComplementar) {
+        setEncaminharOpen(false);
+        await sendHandoffToConfeccao(actionable, { silent: true });
+      } else {
+        setEncaminharOpen(false);
+      }
+    } catch (e) {
+      toast({
+        title: "Falha no encaminhamento",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setEncaminharBusy(false);
+    }
+  };
+
+
+
 
 
 
