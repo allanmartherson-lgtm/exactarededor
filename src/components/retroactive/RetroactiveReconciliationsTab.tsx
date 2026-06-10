@@ -2438,7 +2438,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell>{r.tuss || "—"}</TableCell>
                       <TableCell className="max-w-[220px] truncate" title={r.procedimento}>{r.procedimento || "—"}</TableCell>
                       <TableCell className="max-w-[180px] truncate" title={r.paciente}>{r.paciente || "—"}</TableCell>
-                      <TableCell>{r.data || "—"}</TableCell>
+                      <TableCell>{formatTvrDate(r.data)}</TableCell>
                       <TableCell className="max-w-[140px] truncate" title={r.convenio}>{r.convenio || "—"}</TableCell>
                       <TableCell className="max-w-[160px] truncate" title={r.medico}>{r.medico || "—"}</TableCell>
                       <TableCell>{r.funcao || "—"}</TableCell>
