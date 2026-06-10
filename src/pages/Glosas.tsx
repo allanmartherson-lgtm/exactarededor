@@ -894,6 +894,26 @@ export default function Glosas() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 12, flexWrap: "wrap" }}>
                 <SectionLabel>Lotes importados</SectionLabel>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ display: "inline-flex", border: "1px solid hsl(var(--border))", borderRadius: 6, overflow: "hidden" }}>
+                    {(["all", "convenio", "auditoria"] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setSourceFilter(opt)}
+                        style={{
+                          padding: "4px 10px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          background: sourceFilter === opt ? "hsl(var(--muted))" : "transparent",
+                          color: sourceFilter === opt ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {opt === "all" ? "Todos" : opt === "convenio" ? "Convênio" : "Auditoria"}
+                      </button>
+                    ))}
+                  </div>
                   {filteredBatches.length > 0 && (
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>
                       <input
