@@ -2428,25 +2428,102 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     navigate(`/pagamentos/novo?modo=confeccao&retro=${reconciliationId}`);
   };
 
-  // ===== Caminho B — gera glosa de auditoria a partir dos itens "a retirar" =====
   const toRetirarItems = (list: TvrResult[]) =>
     list.filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5);
 
-  const createAuditoriaGlosaBatch = async (
-    retirar: TvrResult[],
-    parcelas: number,
-  ): Promise<{ batch_id: string; total: number; items: number; parcelas: number }> => {
-    if (retirar.length === 0) throw new Error("Nenhum item a retirar.");
-    if (!recon?.company_id) throw new Error("Apuração sem PJ vinculada — não é possível gerar glosa.");
-    if (!doctorInfo.name && !doctorInfo.crm) {
-      throw new Error("Apuração sem médico vinculado — não é possível gerar glosa.");
-    }
+  // ===== Agrupamento por médico (apuração só-PJ) =====
+  type GlosaGroup = {
+    doctor_id: string;
+    doctor_name: string;
+    doctor_crm: string | null;
+    items: TvrResult[];
+  };
 
-    const totalGlosa = retirar.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+  const modoMedicoUnico = !!recon?.doctor_id;
+
+  // Carrega map id→{full_name,crm} para os doctor_ids presentes nos itens a retirar
+  // quando a apuração é só-PJ. Em modo médico-único isso não é usado.
+  useEffect(() => {
+    if (modoMedicoUnico) return;
+    const ids = Array.from(
+      new Set(
+        (results ?? [])
+          .filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5)
+          .map((r) => r.matched_doctor_id)
+          .filter((x): x is string => !!x),
+      ),
+    );
+    const missing = ids.filter((id) => !groupDoctorsMap[id]);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("doctors" as never)
+        .select("id, full_name, crm")
+        .in("id", missing);
+      if (cancelled) return;
+      const next: Record<string, { full_name: string; crm: string | null }> = { ...groupDoctorsMap };
+      for (const d of (data ?? []) as Array<{ id: string; full_name: string | null; crm: string | null }>) {
+        next[d.id] = { full_name: d.full_name ?? "Médico", crm: d.crm ?? null };
+      }
+      setGroupDoctorsMap(next);
+    })();
+    return () => { cancelled = true; };
+  }, [results, modoMedicoUnico, groupDoctorsMap]);
+
+  const buildGlosaGroups = (retirar: TvrResult[]): { groups: GlosaGroup[]; unassigned: TvrResult[] } => {
+    if (modoMedicoUnico) {
+      if (!doctorInfo.id || (!doctorInfo.name && !doctorInfo.crm)) {
+        return { groups: [], unassigned: retirar };
+      }
+      return {
+        groups: [{
+          doctor_id: doctorInfo.id,
+          doctor_name: doctorInfo.name ?? "Médico",
+          doctor_crm: doctorInfo.crm,
+          items: retirar,
+        }],
+        unassigned: [],
+      };
+    }
+    const byDoctor = new Map<string, TvrResult[]>();
+    const unassigned: TvrResult[] = [];
+    for (const r of retirar) {
+      const did = r.matched_doctor_id;
+      if (!did) { unassigned.push(r); continue; }
+      const list = byDoctor.get(did) ?? [];
+      list.push(r);
+      byDoctor.set(did, list);
+    }
+    const groups: GlosaGroup[] = [];
+    for (const [did, items] of byDoctor) {
+      const info = groupDoctorsMap[did];
+      groups.push({
+        doctor_id: did,
+        doctor_name: info?.full_name ?? "Médico",
+        doctor_crm: info?.crm ?? null,
+        items,
+      });
+    }
+    groups.sort((a, b) => a.doctor_name.localeCompare(b.doctor_name));
+    return { groups, unassigned };
+  };
+
+  // ===== Caminho B — gera glosa de auditoria por grupos (1 batch, N débitos) =====
+  const createAuditoriaGlosaForGroups = async (
+    groups: GlosaGroup[],
+    parcelas: number,
+  ): Promise<{ batch_id: string; debts: number; items: number; total: number; parcelas: number }> => {
+    if (groups.length === 0) throw new Error("Nenhum grupo selecionado.");
+    if (!recon?.company_id) throw new Error("Apuração sem PJ vinculada — não é possível gerar glosa.");
+    const allItems = groups.flatMap((g) => g.items);
+    if (allItems.length === 0) throw new Error("Nenhum item a retirar nos grupos selecionados.");
+
+    const totalGlosa = allItems.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
     const competence = (recon.period_start ?? "").slice(0, 7);
     const title = recon.title ?? `Apuração ${recon.id.slice(0, 8)}`;
 
-    // 1) Batch
+    // 1) Batch único
     const { data: batchData, error: batchErr } = await (supabase as never as typeof supabase)
       .from("glosa_batches" as never)
       .insert({
@@ -2457,8 +2534,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         competence_month: competence || null,
         file_name: null,
         status: "concluido",
-        total_items: retirar.length,
-        matched_items: retirar.length,
+        total_items: allItems.length,
+        matched_items: allItems.length,
         unmatched_items: 0,
         total_glosa_amount: Number(totalGlosa.toFixed(2)),
         hospital_id: hospitalIdRecon,
@@ -2468,70 +2545,106 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (batchErr || !batchData) throw new Error(batchErr?.message ?? "Falha ao criar lote de glosa.");
     const batchId = (batchData as { id: string }).id;
 
-    // 2) Items
-    const itemsPayload = retirar.map((r) => {
-      const motivo =
-        r.status === "ausente_tasy"
-          ? "Retirado da conta após auditoria — procedimento pago sem registro de produção"
-          : "Retirado da conta após auditoria — valor pago acima da produção registrada";
-      return {
-        batch_id: batchId,
-        attendance_number: r.atendimento || null,
-        procedure_code: r.tuss || null,
-        procedure_name: r.procedimento || null,
-        procedure_date: dbDateOrNull(r.data),
-        patient_name: r.paciente || null,
-        doctor_name: doctorInfo.name ?? "Médico",
-        doctor_crm: doctorInfo.crm || null,
-        convenio: r.convenio || null,
-        valor_cobrado: Number((r.valor_com_acordo || 0).toFixed(2)),
-        valor_glosa: Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
-        motivo_glosa: motivo,
-        complemento_glosa: `Apuração ${title} · Atend ${r.atendimento || "—"} · TUSS ${r.tuss || "—"}`,
-        status: "vinculado",
-        matched_payment_item_id: r.matched_payment_item_id ?? null,
-        matched_payment_id: r.matched_payment_id ?? null,
-        matched_company_id: recon.company_id,
-        match_source: "auditoria_retroativa",
-        matched_at: new Date().toISOString(),
-        hospital_id: hospitalIdRecon,
-      };
-    });
-    const { data: itemsData, error: itemsErr } = await (supabase as never as typeof supabase)
-      .from("glosa_items" as never)
-      .insert(itemsPayload as never)
-      .select("id, valor_glosa");
-    if (itemsErr || !itemsData) {
-      await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
-      throw new Error(itemsErr?.message ?? "Falha ao gravar itens da glosa.");
-    }
-    const insertedItems = itemsData as Array<{ id: string; valor_glosa: number }>;
-
-    // 3+4) Débito via RPC governado (advisory lock + audit_log + validações + debt_items atômicos)
-    const { error: debtErr } = await supabase.rpc(
-      "create_glosa_debt_with_items" as never,
-      {
-        p_company_id: recon.company_id,
-        p_doctor_crm: doctorInfo.crm || null,
-        p_doctor_name: doctorInfo.name ?? "Médico",
-        p_parcelas: parcelas,
-        p_item_ids: insertedItems.map((it) => it.id),
-      } as never,
-    );
-    if (debtErr) {
-      // Rollback: desfaz itens e batch — sem estado parcial.
+    // 2) Items — doctor_name/doctor_crm vêm do grupo (resolvidos via doctors), não do TASY
+    const allInsertedIdsByGroup: Array<{ group: GlosaGroup; item_ids: string[] }> = [];
+    try {
+      for (const g of groups) {
+        const payload = g.items.map((r) => {
+          const motivo =
+            r.status === "ausente_tasy"
+              ? "Retirado da conta após auditoria — procedimento pago sem registro de produção"
+              : "Retirado da conta após auditoria — valor pago acima da produção registrada";
+          return {
+            batch_id: batchId,
+            attendance_number: r.atendimento || null,
+            procedure_code: r.tuss || null,
+            procedure_name: r.procedimento || null,
+            procedure_date: dbDateOrNull(r.data),
+            patient_name: r.paciente || null,
+            doctor_name: g.doctor_name,
+            doctor_crm: g.doctor_crm,
+            convenio: r.convenio || null,
+            valor_cobrado: Number((r.valor_com_acordo || 0).toFixed(2)),
+            valor_glosa: Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
+            motivo_glosa: motivo,
+            complemento_glosa: `Apuração ${title} · Atend ${r.atendimento || "—"} · TUSS ${r.tuss || "—"}`,
+            status: "vinculado",
+            matched_payment_item_id: r.matched_payment_item_id ?? null,
+            matched_payment_id: r.matched_payment_id ?? null,
+            matched_company_id: recon.company_id,
+            match_source: "auditoria_retroativa",
+            matched_at: new Date().toISOString(),
+            hospital_id: hospitalIdRecon,
+          };
+        });
+        const { data: insData, error: insErr } = await (supabase as never as typeof supabase)
+          .from("glosa_items" as never)
+          .insert(payload as never)
+          .select("id");
+        if (insErr || !insData) throw new Error(insErr?.message ?? `Falha ao gravar itens da glosa (${g.doctor_name}).`);
+        allInsertedIdsByGroup.push({
+          group: g,
+          item_ids: (insData as Array<{ id: string }>).map((x) => x.id),
+        });
+      }
+    } catch (e) {
       await supabase.from("glosa_items" as never).delete().eq("batch_id", batchId);
       await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
-      throw new Error(debtErr.message);
+      throw e;
     }
 
-    return { batch_id: batchId, total: totalGlosa, items: retirar.length, parcelas };
+    // 3+4) Um RPC por grupo. Se qualquer um falhar, rollback total: deletar débitos já criados + items + batch.
+    const createdDebtIds: string[] = [];
+    try {
+      for (const { group: g, item_ids } of allInsertedIdsByGroup) {
+        const { error: debtErr } = await supabase.rpc(
+          "create_glosa_debt_with_items" as never,
+          {
+            p_company_id: recon.company_id,
+            p_doctor_crm: g.doctor_crm,
+            p_doctor_name: g.doctor_name,
+            p_parcelas: parcelas,
+            p_item_ids: item_ids,
+          } as never,
+        );
+        if (debtErr) {
+          throw new Error(`${g.doctor_name}: ${debtErr.message}`);
+        }
+        // Descobre o debt_id criado pelo RPC (para rollback se algum próximo falhar)
+        const { data: linkRows } = await supabase
+          .from("glosa_debt_items" as never)
+          .select("debt_id")
+          .in("glosa_item_id", item_ids);
+        const ids = Array.from(
+          new Set(((linkRows ?? []) as Array<{ debt_id: string }>).map((x) => x.debt_id)),
+        );
+        createdDebtIds.push(...ids);
+      }
+    } catch (e) {
+      // Rollback total: apaga débitos criados nesta execução (CASCADE limpa glosa_debt_items),
+      // depois items e batch.
+      if (createdDebtIds.length > 0) {
+        await supabase.from("glosa_debts" as never).delete().in("id", createdDebtIds);
+      }
+      await supabase.from("glosa_items" as never).delete().eq("batch_id", batchId);
+      await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
+      throw e;
+    }
+
+    return {
+      batch_id: batchId,
+      debts: groups.length,
+      items: allItems.length,
+      total: totalGlosa,
+      parcelas,
+    };
   };
 
   const runEncaminharFluxo = async (opts: {
     includeComplementar: boolean;
     gerarGlosa: boolean;
     parcelas: number;
+    selectedDoctorIds: string[];
   }) => {
     if (!results) return;
     const actionable = results.filter(isActionableTvr);
@@ -2552,15 +2665,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
     setEncaminharBusy(true);
     try {
-      // 1) Glosa primeiro (fire-and-forget, mas se falhar aborta tudo).
       if (opts.gerarGlosa) {
-        const result = await createAuditoriaGlosaBatch(retirar, opts.parcelas);
+        const { groups } = buildGlosaGroups(retirar);
+        const selected = groups.filter((g) => opts.selectedDoctorIds.includes(g.doctor_id));
+        if (selected.length === 0) {
+          throw new Error("Nenhum médico selecionado para gerar glosa.");
+        }
+        const result = await createAuditoriaGlosaForGroups(selected, opts.parcelas);
         toast({
           title: "Glosa de auditoria lançada",
-          description: `${result.items} itens · ${brl(result.total)} em ${result.parcelas} parcela(s). Veja em /glosas.`,
+          description: `${result.debts} débito(s) · ${result.items} itens · ${brl(result.total)} em ${result.parcelas} parcela(s) cada. Veja em /glosas.`,
         });
       }
-      // 2) Complementar → confecção (navega no final).
       if (opts.includeComplementar) {
         setEncaminharOpen(false);
         await sendHandoffToConfeccao(actionable, { silent: true });
@@ -2577,6 +2693,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       setEncaminharBusy(false);
     }
   };
+
+
 
 
 
