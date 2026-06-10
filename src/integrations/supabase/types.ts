@@ -2435,6 +2435,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "glosa_debt_items_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "v_glosa_debts_balance"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "glosa_debt_items_glosa_item_id_fkey"
             columns: ["glosa_item_id"]
             isOneToOne: false
@@ -7515,6 +7522,23 @@ export type Database = {
         }
         Relationships: []
       }
+      v_glosa_debts_balance: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          doctor_crm: string | null
+          doctor_name: string | null
+          id: string | null
+          parcelas_default: number | null
+          resolution_reason: string | null
+          resolution_status: string | null
+          status: string | null
+          total_debt: number | null
+          total_debt_stored: number | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       v_payment_items_registration_issues: {
         Row: {
           company_id: string | null
@@ -8314,6 +8338,18 @@ export type Database = {
           stuck_count: number
           total_stuck_value: number
           worst_status: string
+        }[]
+      }
+      glosa_debt_consistency_check: {
+        Args: never
+        Returns: {
+          debt_id: string
+          diff: number
+          doctor_crm: string
+          doctor_name: string
+          status: string
+          total_debt_from_items: number
+          total_debt_stored: number
         }[]
       }
       glosa_recompute_debt_for_doctor: {
