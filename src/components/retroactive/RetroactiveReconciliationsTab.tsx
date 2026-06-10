@@ -1584,12 +1584,12 @@ function formatTvrDate(value: string | null | undefined): string {
 
 function isTvrResult(value: unknown): value is TvrResult {
   if (!value || typeof value !== "object") return false;
-  const r = value as Partial<TvrResult> & { status?: string };
+  const r = value as Record<string, unknown>;
   // Alias status legados (rodadas antigas) para os canônicos atuais — evita
   // que linhas salvas como "pago_sem_tasy"/"div_qtd" desapareçam da lista após
   // a renomeação dos status.
-  if (r.status === "pago_sem_tasy") r.status = "ausente_tasy" as TvrStatus;
-  if (r.status === "div_qtd") r.status = "div_qtd_valor" as TvrStatus;
+  if (r.status === "pago_sem_tasy") r.status = "ausente_tasy";
+  if (r.status === "div_qtd") r.status = "div_qtd_valor";
   return typeof r.key === "string" && TVR_STATUS_ORDER.includes(r.status as TvrStatus);
 }
 
