@@ -1952,15 +1952,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }, 50);
   };
 
+  const [onlyWithPayment, setOnlyWithPayment] = useState(false);
+
   const visible = useMemo(() => {
     const list = (results ?? []).filter((r) => r.status !== "ok" || statusFilter === "ok");
     const q = search.trim().toLowerCase();
     return list.filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
-      if (q && !`${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico}`.toLowerCase().includes(q)) return false;
+      if (onlyWithPayment && r.status === "nao_pago") return false;
+      if (q) {
+        const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
-  }, [results, statusFilter, search]);
+  }, [results, statusFilter, search, onlyWithPayment]);
 
   const counts = useMemo(() => {
     const c: Record<TvrStatus, number> = {
@@ -1970,35 +1976,61 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     return c;
   }, [results]);
 
-  const exportXlsx = async () => {
+  const buildExportRows = (list: TvrResult[]) => list.map((r) => ({
+    Status: TVR_STATUS_LABEL[r.status],
+    Atendimento: r.atendimento,
+    "Cód. TUSS": r.tuss,
+    Procedimento: r.procedimento,
+    Paciente: r.paciente,
+    Data: r.data,
+    Convênio: r.convenio,
+    Médico: r.medico,
+    Função: r.funcao,
+    "Qtd TASY": r.qtd_tasy,
+    "Valor Unit. TASY": r.valor_unit_tasy,
+    "Valor Total TASY": r.valor_total_tasy,
+    "Qtd Paga/Func": Number(r.qtd_por_func.toFixed(4)),
+    "Nº Funcs": r.n_funcs,
+    "Funções Pagas": r.funcoes_pagas,
+    "Lote(s)": r.lotes,
+    "Valor Pago Base": r.valor_pago_base,
+    "Valor c/ Acordo": r.valor_com_acordo,
+    "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
+    "Dif. Valor": Number(r.dif_valor.toFixed(2)),
+  }));
+
+  const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible") => {
     if (!results) return;
+    const list = scope === "visible" ? visible : results;
+    if (list.length === 0) {
+      toast({ title: "Nada para exportar neste filtro", variant: "destructive" });
+      return;
+    }
+    const stamp = format(new Date(), "yyyyMMdd_HHmm");
+    const baseName = `tasy-vs-repasse_${scope === "visible" ? "filtrado_" : ""}${stamp}`;
+    if (fmt === "json") {
+      const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${baseName}.json`; a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    const rows = buildExportRows(list);
     const XLSX = await import("xlsx");
-    const rows = results.map((r) => ({
-      Status: TVR_STATUS_LABEL[r.status],
-      Atendimento: r.atendimento,
-      "Cód. TUSS": r.tuss,
-      Procedimento: r.procedimento,
-      Paciente: r.paciente,
-      Data: r.data,
-      Convênio: r.convenio,
-      Médico: r.medico,
-      Função: r.funcao,
-      "Qtd TASY": r.qtd_tasy,
-      "Valor Unit. TASY": r.valor_unit_tasy,
-      "Valor Total TASY": r.valor_total_tasy,
-      "Qtd Paga/Func": Number(r.qtd_por_func.toFixed(4)),
-      "Nº Funcs": r.n_funcs,
-      "Funções Pagas": r.funcoes_pagas,
-      "Valor Pago Base": r.valor_pago_base,
-      "Valor c/ Acordo": r.valor_com_acordo,
-      "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
-      "Dif. Valor": Number(r.dif_valor.toFixed(2)),
-    }));
     const ws = XLSX.utils.json_to_sheet(rows);
+    if (fmt === "csv") {
+      const csv = XLSX.utils.sheet_to_csv(ws, { FS: ";" });
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${baseName}.csv`; a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
-    const stamp = format(new Date(), "yyyyMMdd_HHmm");
-    XLSX.writeFile(wb, `tasy-vs-repasse_${stamp}.xlsx`);
+    XLSX.writeFile(wb, `${baseName}.xlsx`);
   };
 
   const persistResults = async (list: TvrResult[]) => {
