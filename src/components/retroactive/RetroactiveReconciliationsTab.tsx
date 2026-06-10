@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -270,9 +270,26 @@ function parsePastedText(raw: string): DraftItem[] {
 export default function RetroactiveReconciliationsTab() {
   const hospitalId = useActiveHospitalId();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const reconciliationParam = searchParams.get("reconciliation");
   const [view, setView] = useState<{ kind: "list" } | { kind: "detail"; id: string } | { kind: "new" }>(
-    { kind: "list" },
+    reconciliationParam ? { kind: "detail", id: reconciliationParam } : { kind: "list" },
   );
+
+  useEffect(() => {
+    if (reconciliationParam && (view.kind !== "detail" || view.id !== reconciliationParam)) {
+      setView({ kind: "detail", id: reconciliationParam });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reconciliationParam]);
+
+  const clearReconParam = () => {
+    if (searchParams.has("reconciliation")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("reconciliation");
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   if (view.kind === "list")
     return <ListView onOpen={(id) => setView({ kind: "detail", id })} onNew={() => setView({ kind: "new" })} />;
@@ -285,7 +302,7 @@ export default function RetroactiveReconciliationsTab() {
         onCancel={() => setView({ kind: "list" })}
       />
     );
-  return <DetailView id={view.id} onBack={() => setView({ kind: "list" })} />;
+  return <DetailView id={view.id} onBack={() => { clearReconParam(); setView({ kind: "list" }); }} />;
 }
 
 /* -------------------------- LIST -------------------------- */

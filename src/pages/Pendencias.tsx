@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/PageHeader";
@@ -83,6 +83,14 @@ const EVENT_LABEL: Record<Pendencia["event_type"], string> = {
 
 export default function Pendencias() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "retroativa" ? "retroativa" : "pendencias";
+  const setActiveTab = (v: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (v === "retroativa") next.set("tab", "retroativa");
+    else next.delete("tab");
+    setSearchParams(next, { replace: true });
+  };
   const { user } = useAuth();
   const [items, setItems] = useState<Pendencia[]>([]);
   const [companies, setCompanies] = useState<Record<string, string>>({});
@@ -200,11 +208,13 @@ export default function Pendencias() {
         showBack={false}
       />
 
-      <Tabs defaultValue="pendencias">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="pendencias">Pendências</TabsTrigger>
           <TabsTrigger value="retroativa">Conciliação retroativa</TabsTrigger>
         </TabsList>
+
+
         <TabsContent value="pendencias" className="mt-4 flex flex-col gap-5">
 
 

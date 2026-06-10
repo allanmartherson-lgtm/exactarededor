@@ -183,6 +183,7 @@ export default function Glosas() {
   const [batchItems, setBatchItems] = useState<Record<string, any[]>>({});
   const [debts, setDebts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "convenio" | "auditoria">("all");
   const [selectedBatches, setSelectedBatches] = useState<Set<string>>(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
   const [bulkSummary, setBulkSummary] = useState<null | {
@@ -815,10 +816,12 @@ export default function Glosas() {
     aplicado: "Aplicado", quitado: "Quitado", ignorado: "Ignorado",
   } as Record<string, string>)[status] ?? status;
 
-  const filteredBatches = batches.filter(b =>
-    !searchTerm || b.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.convenio?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredBatches = batches.filter(b => {
+    if (sourceFilter !== "all" && (b.source ?? "convenio") !== sourceFilter) return false;
+    if (!searchTerm) return true;
+    const q = searchTerm.toLowerCase();
+    return b.reference?.toLowerCase().includes(q) || b.convenio?.toLowerCase().includes(q);
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -891,6 +894,26 @@ export default function Glosas() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 12, flexWrap: "wrap" }}>
                 <SectionLabel>Lotes importados</SectionLabel>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ display: "inline-flex", border: "1px solid hsl(var(--border))", borderRadius: 6, overflow: "hidden" }}>
+                    {(["all", "convenio", "auditoria"] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setSourceFilter(opt)}
+                        style={{
+                          padding: "4px 10px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          background: sourceFilter === opt ? "hsl(var(--muted))" : "transparent",
+                          color: sourceFilter === opt ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {opt === "all" ? "Todos" : opt === "convenio" ? "Convênio" : "Auditoria"}
+                      </button>
+                    ))}
+                  </div>
                   {filteredBatches.length > 0 && (
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>
                       <input
@@ -965,12 +988,47 @@ export default function Glosas() {
                           {expandedBatch === batch.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {batch.reference}
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            {(() => {
+                              const src = (batch.source ?? "convenio") as "convenio" | "auditoria";
+                              const isAudit = src === "auditoria";
+                              return (
+                                <span style={{
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.06em",
+                                  padding: "2px 6px",
+                                  borderRadius: 4,
+                                  background: isAudit ? "hsl(var(--bubble-orange-bg, 30 100% 95%))" : "hsl(var(--muted))",
+                                  color: isAudit ? "hsl(var(--bubble-orange-fg, 25 80% 40%))" : "hsl(var(--muted-foreground))",
+                                  border: isAudit ? "1px solid hsl(var(--bubble-orange-fg, 25 80% 40%) / 0.3)" : "1px solid hsl(var(--border))",
+                                  flexShrink: 0,
+                                }}>
+                                  {isAudit ? "Auditoria" : "Convênio"}
+                                </span>
+                              );
+                            })()}
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {batch.reference}
+                            </div>
                           </div>
                           <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
                             {batch.total_items} itens · {new Date(batch.created_at).toLocaleDateString("pt-BR")}
-                            {batch.file_name && ` · ${batch.file_name}`}
+                            {" · "}
+                            {batch.file_name ? batch.file_name : <em>Gerado internamente</em>}
+                            {(batch.source === "auditoria") && batch.reconciliation_id && (
+                              <>
+                                {" · "}
+                                <a
+                                  href={`/pendencias?tab=retroativa&reconciliation=${batch.reconciliation_id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{ color: "hsl(var(--primary))", textDecoration: "underline" }}
+                                >
+                                  Originado da apuração →
+                                </a>
+                              </>
+                            )}
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
