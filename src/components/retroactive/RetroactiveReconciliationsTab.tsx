@@ -2330,6 +2330,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell className="text-center">{r.qtd_por_func ? r.qtd_por_func.toFixed(2) : "—"}</TableCell>
                       <TableCell className="text-center">{r.n_funcs || "—"}</TableCell>
                       <TableCell className="max-w-[160px] truncate" title={r.funcoes_pagas}>{r.funcoes_pagas || "—"}</TableCell>
+                      <TableCell className="max-w-[160px] truncate font-mono text-[11px]" title={r.lotes}>{r.lotes || "—"}</TableCell>
                       <TableCell>{brl(r.valor_pago_base)}</TableCell>
                       <TableCell className="text-muted-foreground">{brl(r.valor_com_acordo)}</TableCell>
                       <TableCell className={cn("text-center", Math.abs(r.dif_qtd) >= 0.5 && "font-semibold text-amber-700")}>
