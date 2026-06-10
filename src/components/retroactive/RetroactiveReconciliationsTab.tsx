@@ -1719,7 +1719,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       .eq("source", TVR_SOURCE);
     const { error } = await supabase
       .from("retroactive_reconciliations" as never)
-      .update({ summary: { ...(recon?.summary ?? {}), mode: "tasy_vs_repasse" } } as never)
+      .update({
+        summary: {
+          mode: "tasy_vs_repasse",
+          total: 0,
+          total_gap: 0,
+          total_excess: 0,
+          tasy_file: "",
+          exclude_tuss: "",
+          tvr_counts: computeTvrCounts([]),
+        },
+      } as never)
       .eq("id", id);
     if (error) toast({ title: "Erro ao limpar resultado salvo", description: error.message, variant: "destructive" });
   };
