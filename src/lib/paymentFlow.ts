@@ -63,13 +63,18 @@ export const REIMPORT_ALLOWED_STATUSES: ReadonlySet<PaymentStatus> = new Set<Pay
  * Regra de governança financeira: o conteúdo CONGELA assim que sai para
  * validação/aprovação. Admin/diretor que precisarem corrigir devem PRIMEIRO
  * devolver ao analista (gera trilha) — não há mais override silencioso.
+ *
+ * Validador entra como supervisor: pode editar metadados nas mesmas fases
+ * em que o analista pode (alinha com a edição campo-a-campo já liberada
+ * em CompanyAnalysis).
  */
 export const canEditBatch = (
   status: PaymentStatus,
-  opts: { isOwner: boolean; isAnalista: boolean; isAdminOrDiretor: boolean },
+  opts: { isOwner: boolean; isAnalista: boolean; isAdminOrDiretor: boolean; isValidador?: boolean },
 ): boolean => {
   if (!ANALYST_EDITABLE_STATUSES.has(status)) return false;
   if (opts.isAdminOrDiretor) return true;
+  if (opts.isValidador) return true;
   // Relaxado: qualquer analista pode editar se o lote estiver em fase de análise.
   return opts.isAnalista;
 };
