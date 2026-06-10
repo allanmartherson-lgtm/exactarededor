@@ -183,6 +183,16 @@ export default function Glosas() {
   const [batchItems, setBatchItems] = useState<Record<string, any[]>>({});
   const [debts, setDebts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBatches, setSelectedBatches] = useState<Set<string>>(new Set());
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkSummary, setBulkSummary] = useState<null | {
+    batches: number;
+    items: number;
+    matchedByPayment: number;
+    matchedByCadastro: number;
+    unmatched: number;
+    perBatch: Array<{ id: string; reference: string; matchedByPayment: number; matchedByCadastro: number; unmatched: number }>;
+  }>(null);
 
   const [mappingOpen, setMappingOpen] = useState(false);
   const [pendingRows, setPendingRows] = useState<any[][]>([]);
@@ -529,25 +539,36 @@ export default function Glosas() {
     }
   };
 
+  const reprocessSingleBatch = async (batch: any) => {
+    const { data: items } = await supabase
+      .from("glosa_items")
+      .select("*")
+      .eq("batch_id", batch.id);
+    if (!items || items.length === 0) {
+      return { matched: 0, unmatched: 0, matchedByPayment: 0, matchedByCadastro: 0, total: 0 };
+    }
+    const res = await crossReferenceGlosa(batch.id, items);
+    await supabase.from("glosa_batches").update({
+      status: "concluido",
+      matched_items: res.matched,
+      unmatched_items: res.unmatched,
+    }).eq("id", batch.id);
+    return { ...res, total: items.length };
+  };
+
   const reprocessBatch = async (batch: any, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       toast.info("Reprocessando cruzamento…");
-      const { data: items } = await supabase
-        .from("glosa_items")
-        .select("*")
-        .eq("batch_id", batch.id);
-      if (!items || items.length === 0) {
-        toast.error("Nenhum item encontrado no lote.");
-        return;
+      const r = await reprocessSingleBatch(batch);
+      toast.success(
+        `Reprocessado: ${r.matchedByPayment} via pagamento · ${r.matchedByCadastro} via cadastro · ${r.unmatched} sem match`,
+      );
+      // Atualiza grid de itens já aberto, se for este lote
+      if (expandedBatch === batch.id) {
+        setBatchItems(prev => ({ ...prev, [batch.id]: [] }));
+        await loadBatchItems(batch.id);
       }
-      const { matched, unmatched } = await crossReferenceGlosa(batch.id, items);
-      await supabase.from("glosa_batches").update({
-        status: "concluido",
-        matched_items: matched,
-        unmatched_items: unmatched,
-      }).eq("id", batch.id);
-      toast.success(`Reprocessado: ${matched} vinculados · ${unmatched} sem match`);
       loadBatches();
       loadDebts();
     } catch (e: any) {
@@ -555,11 +576,52 @@ export default function Glosas() {
     }
   };
 
+  const reprocessSelectedBatches = async () => {
+    if (selectedBatches.size === 0) return;
+    setBulkRunning(true);
+    setBulkSummary(null);
+    try {
+      const targets = batches.filter(b => selectedBatches.has(b.id));
+      let totals = { matchedByPayment: 0, matchedByCadastro: 0, unmatched: 0, items: 0 };
+      const perBatch: typeof bulkSummary["perBatch"] = [];
+      for (const b of targets) {
+        const r = await reprocessSingleBatch(b);
+        totals.matchedByPayment += r.matchedByPayment;
+        totals.matchedByCadastro += r.matchedByCadastro;
+        totals.unmatched += r.unmatched;
+        totals.items += r.total;
+        perBatch.push({
+          id: b.id,
+          reference: b.reference,
+          matchedByPayment: r.matchedByPayment,
+          matchedByCadastro: r.matchedByCadastro,
+          unmatched: r.unmatched,
+        });
+      }
+      setBulkSummary({
+        batches: targets.length,
+        items: totals.items,
+        matchedByPayment: totals.matchedByPayment,
+        matchedByCadastro: totals.matchedByCadastro,
+        unmatched: totals.unmatched,
+        perBatch,
+      });
+      // limpa cache de itens abertos para refletir mudança
+      setBatchItems({});
+      setSelectedBatches(new Set());
+      loadBatches();
+      loadDebts();
+    } catch (e: any) {
+      toast.error("Erro no reprocessamento em massa", { description: e.message });
+    } finally {
+      setBulkRunning(false);
+    }
+  };
+
 
 
   const crossReferenceGlosa = async (batchId: string, items: any[]) => {
-    let matched = 0;
-    let unmatched = 0;
+    // (contadores movidos para baixo — breakdown completo: payment_item / doctor_companies / sem_match)
 
     // 1) Match primário: payment_items pelo número do atendimento
     const attendanceNumbers = items.map(it => it.attendance_number).filter(Boolean);
@@ -645,36 +707,27 @@ export default function Glosas() {
       return { link: links[0], reason: null };
     };
 
-    const upsertDebt = async (item: any) => {
-      if (!item.doctor_name || !(item.valor_glosa > 0)) return;
-      const crmKey = item.doctor_crm || item.doctor_name;
-      const { data: existing } = await (supabase as any)
-        .from("glosa_debts")
-        .select("id, total_debt")
-        .eq("doctor_crm", crmKey)
-        .maybeSingle();
-      if (existing) {
-        await (supabase as any).from("glosa_debts").update({
-          total_debt: (existing.total_debt ?? 0) + item.valor_glosa,
-          updated_at: new Date().toISOString(),
-          status: "ativo",
-        }).eq("id", existing.id);
-      } else {
-        await (supabase as any).from("glosa_debts").insert({
-          doctor_crm: crmKey,
-          doctor_name: item.doctor_name,
-          total_debt: item.valor_glosa,
-          status: "ativo",
-        });
-      }
+    // glosa_debts é recomputado por médico no final, a partir da fonte da
+    // verdade (glosa_items). Evita inflar saldo a cada reprocessamento.
+    const affectedDoctors = new Map<string, { crm: string; name: string }>();
+    const trackDoctor = (item: any) => {
+      const crm = String(item.doctor_crm ?? "").trim();
+      const name = String(item.doctor_name ?? "").trim();
+      const key = crm || name;
+      if (!key) return;
+      if (!affectedDoctors.has(key)) affectedDoctors.set(key, { crm, name });
     };
+
+    let matchedByPayment = 0;
+    let matchedByCadastro = 0;
+    let unmatched = 0;
 
     for (const item of items) {
       const atend = String(item.attendance_number ?? "").trim();
       const matches = atend ? (piMap.get(atend) ?? []) : [];
+      trackDoctor(item);
 
       if (matches.length > 0) {
-        // Caminho principal: match por pagamento
         let best = matches[0];
         if (item.doctor_crm) {
           const byCrm = matches.find(m => String(m.doctor_document ?? "").includes(item.doctor_crm));
@@ -693,12 +746,10 @@ export default function Glosas() {
           match_reason: null,
           matched_at: new Date().toISOString(),
         }).eq("batch_id", batchId).eq("attendance_number", atend);
-        await upsertDebt(item);
-        matched++;
+        matchedByPayment++;
         continue;
       }
 
-      // Fallback: tenta resolver pela PJ vinculada ao médico no cadastro
       const { link, reason } = resolveByDoctor(item);
       if (link) {
         await (supabase as any).from("glosa_items").update({
@@ -711,8 +762,7 @@ export default function Glosas() {
           match_reason: "vinculado via cadastro do médico (sem pagamento correspondente ainda)",
           matched_at: new Date().toISOString(),
         }).eq("batch_id", batchId).eq("attendance_number", atend);
-        await upsertDebt(item);
-        matched++;
+        matchedByCadastro++;
       } else {
         await (supabase as any).from("glosa_items").update({
           status: "sem_match",
@@ -721,12 +771,24 @@ export default function Glosas() {
           matched_company_name: null,
           match_reason: reason,
         }).eq("batch_id", batchId).eq("attendance_number", atend);
-        await upsertDebt(item);
         unmatched++;
       }
     }
 
-    return { matched, unmatched };
+    // Recompute saldo devedor por médico — idempotente, sobre todos os lotes.
+    for (const { crm, name } of affectedDoctors.values()) {
+      await (supabase as any).rpc("glosa_recompute_debt_for_doctor", {
+        p_crm: crm,
+        p_name: name,
+      });
+    }
+
+    return {
+      matched: matchedByPayment + matchedByCadastro,
+      unmatched,
+      matchedByPayment,
+      matchedByCadastro,
+    };
   };
 
   const loadBatchItems = async (batchId: string) => {
@@ -826,7 +888,38 @@ export default function Glosas() {
             )}
 
             <section>
-              <SectionLabel>Lotes importados</SectionLabel>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 12, flexWrap: "wrap" }}>
+                <SectionLabel>Lotes importados</SectionLabel>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {filteredBatches.length > 0 && (
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={filteredBatches.length > 0 && filteredBatches.every(b => selectedBatches.has(b.id))}
+                        ref={el => { if (el) el.indeterminate = selectedBatches.size > 0 && !filteredBatches.every(b => selectedBatches.has(b.id)); }}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedBatches(new Set(filteredBatches.map(b => b.id)));
+                          } else {
+                            setSelectedBatches(new Set());
+                          }
+                        }}
+                      />
+                      Selecionar todos
+                    </label>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={selectedBatches.size === 0 || bulkRunning}
+                    onClick={() => reprocessSelectedBatches()}
+                  >
+                    {bulkRunning
+                      ? <><RefreshCw size={12} className="animate-spin mr-1" />Reprocessando…</>
+                      : <><RefreshCw size={12} className="mr-1" />Reprocessar selecionados ({selectedBatches.size})</>}
+                  </Button>
+                </div>
+              </div>
               {loading ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {[1,2,3].map(i => <div key={i} style={{ height: 60, background: "hsl(var(--muted))", borderRadius: 8, opacity: 0.3 }} />)}
@@ -841,6 +934,21 @@ export default function Glosas() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {filteredBatches.map(batch => (
                     <SurfaceCard key={batch.id}>
+                      <div style={{ display: "flex", alignItems: "stretch" }}>
+                        <label
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ display: "flex", alignItems: "center", padding: "0 0 0 14px", cursor: "pointer" }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedBatches.has(batch.id)}
+                            onChange={(e) => {
+                              const next = new Set(selectedBatches);
+                              if (e.target.checked) next.add(batch.id); else next.delete(batch.id);
+                              setSelectedBatches(next);
+                            }}
+                          />
+                        </label>
                       <button
                         type="button"
                         onClick={async () => {
@@ -851,7 +959,7 @@ export default function Glosas() {
                             await loadBatchItems(batch.id);
                           }
                         }}
-                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        style={{ flex: 1, display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
                       >
                         <div style={{ color: "hsl(var(--muted-foreground))" }}>
                           {expandedBatch === batch.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -895,6 +1003,8 @@ export default function Glosas() {
 
                         </div>
                       </button>
+                      </div>
+
 
                       {expandedBatch === batch.id && (
                         <div style={{ borderTop: "1px solid hsl(var(--border))" }}>
@@ -969,7 +1079,62 @@ export default function Glosas() {
               )}
             </section>
           </div>
+
+          <Dialog open={!!bulkSummary} onOpenChange={(o) => !o && setBulkSummary(null)}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Reprocessamento concluído</DialogTitle>
+                <DialogDescription>
+                  {bulkSummary?.batches} lote(s) · {bulkSummary?.items} item(ns) reavaliado(s)
+                </DialogDescription>
+              </DialogHeader>
+              {bulkSummary && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-md border border-border bg-card p-3">
+                      <div className="text-[10px] font-semibold uppercase text-muted-foreground">Via pagamento</div>
+                      <div className="text-xl font-light" style={{ color: "hsl(var(--bubble-green-fg))" }}>{bulkSummary.matchedByPayment}</div>
+                    </div>
+                    <div className="rounded-md border border-border bg-card p-3">
+                      <div className="text-[10px] font-semibold uppercase text-muted-foreground">Via cadastro</div>
+                      <div className="text-xl font-light" style={{ color: "hsl(var(--bubble-yellow-fg))" }}>{bulkSummary.matchedByCadastro}</div>
+                    </div>
+                    <div className="rounded-md border border-border bg-card p-3">
+                      <div className="text-[10px] font-semibold uppercase text-muted-foreground">Sem match</div>
+                      <div className="text-xl font-light" style={{ color: "hsl(var(--bubble-red-fg))" }}>{bulkSummary.unmatched}</div>
+                    </div>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto rounded-md border border-border">
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-muted/40 sticky top-0">
+                        <tr>
+                          <th className="text-left px-2 py-1 font-medium text-muted-foreground">Lote</th>
+                          <th className="text-right px-2 py-1 font-medium text-muted-foreground">Pag.</th>
+                          <th className="text-right px-2 py-1 font-medium text-muted-foreground">Cadastro</th>
+                          <th className="text-right px-2 py-1 font-medium text-muted-foreground">Sem match</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bulkSummary.perBatch.map(b => (
+                          <tr key={b.id} className="border-t border-border/40">
+                            <td className="px-2 py-1 truncate max-w-[260px]">{b.reference}</td>
+                            <td className="px-2 py-1 text-right tabular-nums">{b.matchedByPayment}</td>
+                            <td className="px-2 py-1 text-right tabular-nums">{b.matchedByCadastro}</td>
+                            <td className="px-2 py-1 text-right tabular-nums">{b.unmatched}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button size="sm" onClick={() => setBulkSummary(null)}>Fechar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
+
 
         <TabsContent value="conciliacao" className="mt-6">
           <div className="flex flex-col gap-6">
