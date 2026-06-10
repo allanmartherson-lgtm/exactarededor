@@ -1796,8 +1796,25 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_convenio: r.convenio,
         pag_procedimento: r.procedimento,
         pag_lote: r.lotes,
+        pag_payment_item_id: r.matched_payment_item_id,
+        pag_payment_id: r.matched_payment_id,
       })));
       setPaymentsLoaded(true);
+    }
+
+    // Carrega info do médico (CRM/nome) para uso no encaminhamento → glosa.
+    const rowAny = row as unknown as { hospital_id?: string | null };
+    setHospitalIdRecon(rowAny?.hospital_id ?? null);
+    if (row?.doctor_id) {
+      const { data: doc } = await supabase
+        .from("doctors" as never)
+        .select("id, name, crm")
+        .eq("id", row.doctor_id)
+        .maybeSingle();
+      const d = doc as unknown as { id: string; name: string | null; crm: string | null } | null;
+      setDoctorInfo({ id: d?.id ?? row.doctor_id, name: d?.name ?? null, crm: d?.crm ?? null });
+    } else {
+      setDoctorInfo({ id: null, name: null, crm: null });
     }
   };
 
