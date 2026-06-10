@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { useAuth } from "@/contexts/AuthContext";
