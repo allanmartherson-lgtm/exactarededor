@@ -1706,12 +1706,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     void loadPaymentItems(recon);
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     setTasyRows([]);
     setTasyFile("");
     setPagRows([]);
     setPaymentsLoaded(false);
     setResults(null);
+    await supabase
+      .from("retroactive_reconciliation_items" as never)
+      .delete()
+      .eq("reconciliation_id", id)
+      .eq("source", TVR_SOURCE);
+    const { error } = await supabase
+      .from("retroactive_reconciliations" as never)
+      .update({ summary: { ...(recon?.summary ?? {}), mode: "tasy_vs_repasse" } } as never)
+      .eq("id", id);
+    if (error) toast({ title: "Erro ao limpar resultado salvo", description: error.message, variant: "destructive" });
   };
 
   const process = () => {
