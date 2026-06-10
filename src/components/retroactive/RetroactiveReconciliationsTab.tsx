@@ -1868,6 +1868,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_convenio: (row.convenio_slug as string) ?? "",
         pag_procedimento: (row.procedure_name as string) ?? "",
         pag_lote: loteByPaymentId.get(String(row.payment_id ?? "")) ?? "",
+        pag_payment_item_id: row.id ? String(row.id) : "",
+        pag_payment_id: row.payment_id ? String(row.payment_id) : "",
       })).filter((x) => x.pag_atendimento && x.pag_tuss);
 
       setPagRows(rows);
