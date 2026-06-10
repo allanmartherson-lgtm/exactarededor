@@ -401,28 +401,68 @@ const NewPayment = () => {
   })();
   const modoConfeccao = initialMode === "confeccao";
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(initialMode);
-  // Handoff vindo da apuração retroativa (TASY vs Repasse): pré-popula referência,
-  // descrição e mantém o reconciliation_id para vincular o payment criado de volta.
+  // Handoff vindo da apuração retroativa (TASY vs Repasse): persistido no backend
+  // via summary.handoff e referenciado pelo query param ?retro=<id>. Sobrevive a
+  // reload porque a URL carrega o ID — sem dependência de sessionStorage.
   const [retroHandoff, setRetroHandoff] = useState<{
     reconciliation_id: string;
     reference?: string;
     description?: string;
-    doctor_id?: string | null;
-    company_id?: string | null;
     items_count?: number;
+    total_complementar?: number;
+    total_retirar?: number;
   } | null>(null);
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("retroactiveHandoff");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed.reconciliation_id === "string") {
-          setRetroHandoff(parsed);
-          if (parsed.reference) setReference(parsed.reference);
-          if (parsed.description) setDescription(parsed.description);
+    const retroId = searchParams.get("retro");
+    if (!retroId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("retroactive_reconciliations" as never)
+          .select("id, title, summary")
+          .eq("id", retroId)
+          .maybeSingle();
+        if (cancelled || !data) return;
+        const row = data as { id: string; title: string | null; summary: Record<string, unknown> | null };
+        const handoff = (row.summary?.handoff ?? {}) as {
+          payment_id?: string | null;
+          payment_reference?: string | null;
+          items_count?: number;
+          total_complementar?: number;
+          total_retirar?: number;
+        };
+        if (handoff.payment_id) {
+          // Apuração já vinculada a um pagamento — não permite duplicar.
+          toast({
+            title: "Apuração já encaminhada",
+            description: "Esta apuração já está vinculada a um pagamento existente.",
+            variant: "destructive",
+          });
+          return;
         }
-      }
-    } catch { /* ignore */ }
+        const refSuggestion = handoff.payment_reference || `Retro #${row.id.slice(0, 8)} · ${row.title ?? "TASY vs Repasse"}`;
+        const descSuggestion =
+          `Origem: apuração retroativa TASY vs Repasse (id ${row.id}).\n` +
+          `Itens encaminhados: ${handoff.items_count ?? 0}.\n` +
+          (typeof handoff.total_complementar === "number"
+            ? `Complementar previsto: R$ ${handoff.total_complementar.toFixed(2)} · Retirar: R$ ${(handoff.total_retirar ?? 0).toFixed(2)}.`
+            : "");
+        setRetroHandoff({
+          reconciliation_id: row.id,
+          reference: refSuggestion,
+          description: descSuggestion,
+          items_count: handoff.items_count,
+          total_complementar: handoff.total_complementar,
+          total_retirar: handoff.total_retirar,
+        });
+        setReference((cur) => cur || refSuggestion);
+        setDescription((cur) => cur || descSuggestion);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [searchParams]);
+  useEffect(() => {
     // Consome a marca após montar, evitando que uma navegação posterior
     // para /pagamentos/novo sem param herde indevidamente o modo anterior.
     try { sessionStorage.removeItem("newPaymentMode"); } catch { /* ignore */ }
@@ -1330,7 +1370,7 @@ const NewPayment = () => {
             },
           } as never)
           .eq("id", retroHandoff.reconciliation_id);
-        try { sessionStorage.removeItem("retroactiveHandoff"); } catch { /* ignore */ }
+        
       } catch { /* não bloqueia criação do payment */ }
     }
 

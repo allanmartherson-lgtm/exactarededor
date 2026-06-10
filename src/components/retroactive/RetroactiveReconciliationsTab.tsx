@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tabs as InnerTabs,
   TabsList as InnerTabsList,
@@ -1631,6 +1632,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [results, setResults] = useState<TvrResult[] | null>(null);
   const [statusFilter, setStatusFilter] = useState<TvrStatus | "all">("all");
   const [search, setSearch] = useState("");
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   const [wizard, setWizard] = useState<
     | { kind: "none" }
@@ -2020,6 +2022,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       try {
         await persistResults(out);
         setResults(out);
+        setSelectedKeys(new Set());
         await loadTvrReconciliation();
         toast({ title: `Processamento concluído · ${out.length} linha(s) salvas` });
       } catch (e) {
@@ -2209,7 +2212,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     r.status === "div_qtd_valor" ||
     r.status === "pago_a_mais";
 
-  const sendHandoffToConfeccao = async (list: TvrResult[], opts?: { fromRow?: boolean }) => {
+  const sendHandoffToConfeccao = async (list: TvrResult[], opts?: { silent?: boolean }) => {
     const actionable = list.filter(isActionableTvr);
     if (actionable.length === 0) {
       toast({
@@ -2219,7 +2222,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       });
       return;
     }
-    if (!opts?.fromRow) {
+    if (!opts?.silent) {
       const ok = window.confirm(
         `Encaminhar ${actionable.length} item(ns) para confecção de repasse?\n\n` +
         `A apuração ficará travada para edição e o ajuste seguirá pelo fluxo padrão de confecção.`,
@@ -2229,25 +2232,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const financial = computeTvrFinancialTotals(actionable);
     const reconciliationId = id;
     const refSuggestion = `Retro #${reconciliationId.slice(0, 8)} · ${recon?.title ?? "TASY vs Repasse"}`;
-    const descSuggestion =
-      `Origem: apuração retroativa TASY vs Repasse (id ${reconciliationId}).\n` +
-      `Itens encaminhados: ${actionable.length}.\n` +
-      `Complementar previsto: ${brl(financial.totalComplementar)} · Retirar: ${brl(financial.totalRetirar)}.`;
-
-    try {
-      sessionStorage.setItem("newPaymentMode", "confeccao");
-      sessionStorage.setItem(
-        "retroactiveHandoff",
-        JSON.stringify({
-          reconciliation_id: reconciliationId,
-          reference: refSuggestion,
-          description: descSuggestion,
-          doctor_id: recon?.doctor_id ?? null,
-          company_id: recon?.company_id ?? null,
-          items_count: actionable.length,
-        }),
-      );
-    } catch { /* ignore */ }
 
     const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
     const handoffPayload = {
@@ -2272,8 +2256,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     setRecon((prev) => prev ? { ...prev, summary: { ...(prev.summary ?? {}), handoff: handoffPayload } } : prev);
-    navigate("/pagamentos/novo?modo=confeccao");
+    // Persistência via URL — sobrevive a reload e não depende de sessionStorage.
+    navigate(`/pagamentos/novo?modo=confeccao&retro=${reconciliationId}`);
   };
+
+
 
 
   return (
@@ -2320,20 +2307,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                try {
-                  sessionStorage.setItem("newPaymentMode", "confeccao");
-                  sessionStorage.setItem("retroactiveHandoff", JSON.stringify({
-                    reconciliation_id: id,
-                    reference: handoff.payment_reference ?? `Retro #${id.slice(0, 8)}`,
-                    description: `Origem: apuração retroativa ${id}.`,
-                    doctor_id: recon?.doctor_id ?? null,
-                    company_id: recon?.company_id ?? null,
-                    items_count: handoff.items_count,
-                  }));
-                } catch { /* ignore */ }
-                navigate("/pagamentos/novo?modo=confeccao");
-              }}
+              onClick={() => navigate(`/pagamentos/novo?modo=confeccao&retro=${id}`)}
             >
               <SendIcon className="h-3 w-3 mr-1" /> Retomar confecção
             </Button>
@@ -2428,16 +2402,36 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           </DropdownMenu>
         )}
         {results && !isLocked && (
-          <Button
-            size="sm"
-            className="ml-auto"
-            onClick={() => void sendHandoffToConfeccao(results)}
-            disabled={results.filter(isActionableTvr).length === 0}
-            title="Cria um pagamento novo em confecção com os itens acionáveis desta apuração"
-          >
-            <SendIcon className="h-4 w-4 mr-1" />
-            Encaminhar para confecção ({results.filter(isActionableTvr).length})
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            {selectedKeys.size > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setSelectedKeys(new Set())}>
+                Limpar seleção
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant={selectedKeys.size > 0 ? "default" : "outline"}
+              onClick={() => {
+                const picked = results.filter((r) => selectedKeys.has(r.key));
+                void sendHandoffToConfeccao(picked);
+              }}
+              disabled={selectedKeys.size === 0}
+              title="Envia somente os itens marcados nas checkboxes"
+            >
+              <SendIcon className="h-4 w-4 mr-1" />
+              Encaminhar selecionados ({selectedKeys.size})
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedKeys.size > 0 ? "outline" : "default"}
+              onClick={() => void sendHandoffToConfeccao(results)}
+              disabled={results.filter(isActionableTvr).length === 0}
+              title="Encaminha todos os itens acionáveis desta apuração"
+            >
+              <SendIcon className="h-4 w-4 mr-1" />
+              Encaminhar todos ({results.filter(isActionableTvr).length})
+            </Button>
+          </div>
         )}
       </div>
 
@@ -2563,6 +2557,28 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10 text-center">
+                      {(() => {
+                        const selectableKeys = visible.filter(isActionableTvr).map((r) => r.key);
+                        const allSelected = selectableKeys.length > 0 && selectableKeys.every((k) => selectedKeys.has(k));
+                        const someSelected = selectableKeys.some((k) => selectedKeys.has(k));
+                        return (
+                          <Checkbox
+                            checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                            disabled={isLocked || selectableKeys.length === 0}
+                            onCheckedChange={(v) => {
+                              setSelectedKeys((prev) => {
+                                const next = new Set(prev);
+                                if (v) selectableKeys.forEach((k) => next.add(k));
+                                else selectableKeys.forEach((k) => next.delete(k));
+                                return next;
+                              });
+                            }}
+                            aria-label="Selecionar todos os acionáveis visíveis"
+                          />
+                        );
+                      })()}
+                    </TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Atend.</TableHead>
                     <TableHead>TUSS</TableHead>
@@ -2583,15 +2599,33 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <TableHead>Vlr c/ Acordo</TableHead>
                     <TableHead className="text-center">Dif. Qtd</TableHead>
                     <TableHead>Dif. Valor</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visible.length === 0 && (
                     <TableRow><TableCell colSpan={21} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
                   )}
-                  {visible.map((r) => (
-                    <TableRow key={r.key}>
+                  {visible.map((r) => {
+                    const selectable = isActionableTvr(r) && !isLocked;
+                    return (
+                    <TableRow key={r.key} data-state={selectedKeys.has(r.key) ? "selected" : undefined}>
+                      <TableCell className="text-center">
+                        {selectable ? (
+                          <Checkbox
+                            checked={selectedKeys.has(r.key)}
+                            onCheckedChange={(v) => {
+                              setSelectedKeys((prev) => {
+                                const next = new Set(prev);
+                                if (v) next.add(r.key); else next.delete(r.key);
+                                return next;
+                              });
+                            }}
+                            aria-label={`Selecionar ${r.atendimento}/${r.tuss}`}
+                          />
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${TVR_STATUS_TONE[r.status]}`}>
                           {TVR_STATUS_LABEL[r.status]}
@@ -2620,23 +2654,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell className={cn(Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700")}>
                         {brl(r.dif_valor)}
                       </TableCell>
-                      <TableCell className="text-center">
-                        {isActionableTvr(r) && !isLocked ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2"
-                            onClick={() => void sendHandoffToConfeccao([r], { fromRow: true })}
-                            title="Encaminhar somente esta linha para confecção"
-                          >
-                            <SendIcon className="h-3.5 w-3.5" />
-                          </Button>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
