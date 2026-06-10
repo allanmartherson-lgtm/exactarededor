@@ -18,10 +18,11 @@ Em /pendencias → aba "Conciliação retroativa", o analista escolhe o modo ao 
 - Chave: `attendance_number + procedure_code(8d)`.
 - TASY agregado: Qtd_TASY = SUM(qtd); Valor_TASY = SUM(valor_unit × qtd).
 - Repasse agregado: Qtd_Pag_Total, N_Funcs = COUNT DISTINCT(doctor_role), Qtd_por_Func = Qtd_Pag_Total / N_Funcs, Valor_Pag = SUM(procedure_amount).
-- Status: Não Pago | Div. Qtd / Valor | Div. Valor | Pago sem TASY | OK (oculto da tabela por padrão). Div. Qtd isolada (qtd diverge mas valor bate) cai em OK — não é acionável e gera falso positivo em multi-segmento/vias de acesso.
+- Status TVR (nomes canônicos, gravados direto em `retroactive_reconciliation_items.classification` — não há CHECK constraint): `nao_pago`, `div_qtd_valor`, `div_valor`, `pago_a_mais`, `ausente_tasy`, `ok` (gravado como `ok_pago` por compatibilidade). Rótulos UI: "Não Pago", "Div. Qtd / Valor", "Div. Valor", "Pago a mais", "Ausente TASY", "OK". Div. Qtd isolada (qtd diverge mas valor bate) cai em OK — não é acionável e gera falso positivo em multi-segmento/vias de acesso.
 - Tolerâncias: |Dif_Qtd| ≥ 0.5 e |Dif_Valor| > 0.50.
 - Filtro de exclusão de TUSS: campo livre na etapa de mapeamento do TASY (separado por vírgula); aplica nos dois lados.
-- O resultado processado é persistido nas tabelas existentes: `summary.mode = 'tasy_vs_repasse'` identifica o modo e cada linha fica em `retroactive_reconciliation_items` com `source='tasy_vs_repasse'` e payload detalhado em `raw.tvr_result`. Não criar novas colunas para este modo.
+- Persistência: `summary.mode = 'tasy_vs_repasse'` identifica o modo; cada linha vai para `retroactive_reconciliation_items` com `source='tasy_vs_repasse'` e payload em `raw.tvr_result`. Não criar novas colunas para este modo. A cada reprocessamento o motor faz REPLACE completo dos itens (`DELETE WHERE reconciliation_id=? AND source='tasy_vs_repasse'` antes do INSERT) e SOBRESCREVE o `summary` do zero (preservando apenas `handoff` e `tvr_validation_history`) para evitar contadores defasados como `div_qtd` ou `pago_sem_tasy` de rodadas antigas.
+- Contagem no wizard de mapeamento: badge mostra `arquivo = válidas + excluídas + descartadas` para o analista ver onde as linhas se perderam; expander lista os primeiros 10 descartes com o campo obrigatório faltante. Os totais (`tasy_file_totals`) e exemplos (`tasy_dropped_examples`) ficam persistidos no `summary` e rehidratam ao recarregar a tela.
 
 **Componentes:**
 - `src/components/retroactive/RetroactiveReconciliationsTab.tsx` — list + new + DetailView que faz branch entre `AlegacaoDetailView` e `TasyVsRepasseView` (ambos inline). `TasyVsRepasseView` faz `loadPaymentItems()` automaticamente após confirmar o mapeamento do TASY.
