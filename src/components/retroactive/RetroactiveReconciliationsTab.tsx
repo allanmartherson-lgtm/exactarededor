@@ -1508,7 +1508,7 @@ const TVR_STATUS_TONE: Record<TvrStatus, string> = {
 
 const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_a_mais", "ausente_tasy", "ok"];
 
-function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
+export function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
   const c: Record<TvrStatus, number> = {
     nao_pago: 0,
     div_qtd_valor: 0,
@@ -1523,7 +1523,7 @@ function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
 
 const TVR_SOURCE = "tasy_vs_repasse";
 
-function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
+export function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
 
   const totalComplementar = list.reduce((sum, r) => {
     if (r.status === "ok" || r.status === "ausente_tasy") return sum;
@@ -1539,11 +1539,67 @@ function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: numb
   return { totalComplementar, totalRetirar };
 }
 
-function mapTvrStatusToStoredClassification(status: TvrStatus): string {
+export function mapTvrStatusToStoredClassification(status: TvrStatus): string {
   // Grava o status TVR direto (sem CHECK constraint na coluna).
   // Único alias: "ok" -> "ok_pago" (equivalente, mantido por compatibilidade com relatórios).
   if (status === "ok") return "ok_pago";
   return status;
+}
+
+/**
+ * Constrói o objeto `summary` persistido em retroactive_reconciliations a
+ * cada reprocessamento TVR.
+ *
+ * Regra-chave (não regredir): SOBRESCREVE tudo; nunca faz merge com
+ * `previousSummary`. Preserva explicitamente apenas:
+ *   - `handoff` (estado de envio para confecção)
+ *   - `tvr_validation_history` (append-only, truncado em 20)
+ *
+ * Garante que contadores de rodadas antigas (ex.: div_qtd, pago_sem_tasy)
+ * jamais reapareçam por mesclagem residual.
+ */
+export function buildTvrReplaceSummary(
+  list: TvrResult[],
+  previousSummary: Record<string, unknown> | null | undefined,
+  ctx: {
+    tasy_file?: string;
+    tasy_file_totals?: { file: number; valid: number; excluded: number; dropped: number } | null;
+    tasy_dropped_examples?: Array<{ row_index: number; missing: string[] }>;
+    exclude_tuss?: string;
+    processed_at?: string;
+  },
+): Record<string, unknown> {
+  const financial = computeTvrFinancialTotals(list);
+  const tvrCounts = computeTvrCounts(list);
+  const incompleteAusente = list.filter((r) => getAusenteTasyMissingFields(r).length > 0);
+  const prev = (previousSummary ?? {}) as Record<string, unknown>;
+  const prevHistory = Array.isArray(prev.tvr_validation_history)
+    ? (prev.tvr_validation_history as Array<Record<string, unknown>>)
+    : [];
+  const historyEntry: Record<string, unknown> = {
+    at: ctx.processed_at ?? new Date().toISOString(),
+    total: list.length,
+    counts: tvrCounts,
+    ausente_incomplete: incompleteAusente.length,
+  };
+  const trimmedHistory = [...prevHistory.slice(-19), historyEntry];
+  const preservedHandoff = (prev as { handoff?: unknown }).handoff;
+
+  return {
+    mode: "tasy_vs_repasse",
+    total: list.length,
+    total_gap: financial.totalComplementar,
+    total_excess: financial.totalRetirar,
+    tasy_file: ctx.tasy_file ?? "",
+    tasy_file_totals: ctx.tasy_file_totals ?? null,
+    tasy_dropped_examples: ctx.tasy_dropped_examples ?? [],
+    exclude_tuss: ctx.exclude_tuss ?? "",
+    processed_at: ctx.processed_at ?? new Date().toISOString(),
+    tvr_counts: tvrCounts,
+    tvr_ausente_incomplete: incompleteAusente.length,
+    tvr_validation_history: trimmedHistory,
+    ...(preservedHandoff ? { handoff: preservedHandoff } : {}),
+  };
 }
 
 const AUSENTE_TASY_ESSENTIAL_FIELDS = [
