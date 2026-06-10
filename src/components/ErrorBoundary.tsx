@@ -98,12 +98,30 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   /**
-   * Auto-reload DESATIVADO: recarregar a página sem aviso fazia o usuário
-   * perder formulários abertos (ex: edição de regra). Agora apenas marcamos
-   * o flag e exibimos a tela amigável com botão manual "Recarregar página".
+   * Auto-reload APENAS para chunk errors (módulo dinâmico que sumiu após
+   * deploy ou após o sandbox de preview voltar de offline). Faz no máximo
+   * 1 reload por sessão — se mesmo após o reload o erro persistir, mostra a
+   * tela amigável com botão manual. Erros de renderização normais NÃO
+   * recarregam (preserva formulários abertos).
    */
-  private maybeAutoReload(_error: Error) {
-    // intencionalmente vazio — usuário decide quando recarregar
+  private maybeAutoReload(error: Error) {
+    if (!isDynamicImportError(error)) return;
+    let alreadyReloaded = false;
+    try {
+      alreadyReloaded = sessionStorage.getItem(RELOAD_FLAG_KEY) === "1";
+      sessionStorage.setItem(RELOAD_FLAG_KEY, "1");
+    } catch {
+      return; // sessionStorage indisponível — evita loop
+    }
+    if (alreadyReloaded) return;
+    // Antes de recarregar, tenta refrescar o token para reduzir o risco do
+    // próximo boot falhar de novo por sessão expirada.
+    import("@/integrations/supabase/client")
+      .then(({ supabase }) => supabase.auth.getSession().catch(() => null))
+      .catch(() => null)
+      .finally(() => {
+        setTimeout(() => window.location.reload(), 250);
+      });
   }
 
   reset = () => {
