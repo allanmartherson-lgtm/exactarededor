@@ -278,10 +278,10 @@ const App = () => (
                   <Route path="/relatorios/central" element={<ReportsCentral />} />
                   <Route path="/relatorios/auditoria-exportacoes" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><ExportAudit /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
-                  <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><AgingRecebiveis /></ProtectedRoute>} />
+                  <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><AgingRecebiveis /></ProtectedRoute>} />
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
                   <Route path="/ciclo-nf" element={<Navigate to="/notas-fiscais" replace />} />
-                  <Route path="/glosas" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><Glosas /></ProtectedRoute>} />
+                  <Route path="/glosas" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><Glosas /></ProtectedRoute>} />
                   <Route path="/pendencias" element={<Pendencias />} />
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
                   <Route path="/conversas" element={<Conversas />} />
@@ -307,7 +307,7 @@ const App = () => (
                   <Route path="/tipos-pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><PaymentTypes /></ProtectedRoute>} />
                   <Route path="/pools" element={<ProtectedRoute roles={["diretor", "admin"]}><PoolsHub /></ProtectedRoute>} />
                   <Route path="/pools/relatorios" element={<Navigate to="/pools" replace />} />
-                  <Route path="/financeiro/creditos-debitos" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><CreditosDebitos /></ProtectedRoute>} />
+                  <Route path="/financeiro/creditos-debitos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><CreditosDebitos /></ProtectedRoute>} />
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
                   <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
@@ -316,10 +316,10 @@ const App = () => (
                   <Route path="/produtividade-analistas" element={<Navigate to="/saude-processo" replace />} />
                   <Route path="/saude-processo" element={<ProtectedRoute roles={["diretor", "admin"]}><ProcessHealth /></ProtectedRoute>} />
                   
-                  <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
+                  <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><AuditLog /></ProtectedRoute>} />
                   <Route path="/auditoria/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><HospitalSwitchLog /></ProtectedRoute>} />
-                  <Route path="/anomalias-status" element={<ProtectedRoute roles={["diretor", "admin"]}><StatusAnomalies /></ProtectedRoute>} />
-                  <Route path="/insights-observacoes" element={<ProtectedRoute roles={["diretor", "admin"]}><ObservationInsights /></ProtectedRoute>} />
+                  <Route path="/anomalias-status" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><StatusAnomalies /></ProtectedRoute>} />
+                  <Route path="/insights-observacoes" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><ObservationInsights /></ProtectedRoute>} />
                   <Route path="/sobre" element={<About />} />
                   <Route path="/sistema/versoes" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemReleases /></ProtectedRoute>} />
                   <Route path="/sistema/feature-flags" element={<ProtectedRoute roles={["admin", "diretor"]}><FeatureFlagsAdmin /></ProtectedRoute>} />

@@ -1360,12 +1360,13 @@ const PaymentDetail = () => {
   const canSendForValidation = showAnalystActions && (groupsReadyToSend.length > 0 || groupsPendingAnalyst.length > 0);
   const isOwner = payment.created_by === user?.id;
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista", "cancelado"];
-  const canCancel = (isOwner || isDiretor || isAnalista) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
+  const canCancel = (isOwner || isDiretor || isAnalista || isValidador) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
   const canDelete = (isOwner || isDiretor || isAnalista) && editableStatuses.includes(payment.status as PaymentStatus);
   const canEditMeta = canEditBatch(payment.status as PaymentStatus, {
     isOwner,
     isAnalista,
     isAdminOrDiretor: hasRole("admin") || hasRole("diretor"),
+    isValidador,
   });
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
   const canAssumeNow = canAssumeBatch(payment.status as PaymentStatus, {

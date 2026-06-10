@@ -1371,7 +1371,7 @@ export default function CompanyAnalysis() {
   const isAnalista = hasRole("analista") || hasRole("admin");
   const isAdmin = hasRole("admin");
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
-  const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
+  const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor, isValidador: hasRole("validador") });
   // Gate por empresa: mesmo que o lote esteja editável, uma empresa concluída
   // (concluida_analista/aguardando_validacao/...) congela até ser reaberta.
   const companyEditable = isCompanyGroupEditable(gStatus);
