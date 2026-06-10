@@ -3243,7 +3243,7 @@ function EncaminharApuracaoModal({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="p-6 pt-3 border-t shrink-0">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancelar
           </Button>
