@@ -1,0 +1,98 @@
+
+CREATE OR REPLACE FUNCTION public.create_glosa_debt_with_items(
+  p_company_id uuid,
+  p_doctor_crm text,
+  p_doctor_name text,
+  p_parcelas integer,
+  p_item_ids uuid[]
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_debt_id uuid;
+  v_total numeric;
+  v_count int;
+  v_hospital_id uuid;
+  v_company_name text;
+  v_doctor_key text := COALESCE(NULLIF(p_doctor_crm,''), p_doctor_name);
+  v_lock_key bigint;
+BEGIN
+  IF p_company_id IS NULL THEN
+    RAISE EXCEPTION 'company_id obrigatório';
+  END IF;
+  IF p_parcelas IS NULL OR p_parcelas < 1 OR p_parcelas > 24 THEN
+    RAISE EXCEPTION 'parcelas deve estar entre 1 e 24';
+  END IF;
+  IF p_item_ids IS NULL OR array_length(p_item_ids, 1) IS NULL THEN
+    RAISE EXCEPTION 'Selecione ao menos 1 item';
+  END IF;
+  IF v_doctor_key IS NULL OR v_doctor_key = '' THEN
+    RAISE EXCEPTION 'CRM ou nome do médico obrigatório';
+  END IF;
+
+  -- Lock transacional pelo conjunto (empresa+médico). Serializa cliques duplos
+  -- na MESMA tela (mesmo grupo), sem bloquear grupos diferentes.
+  v_lock_key := hashtextextended(p_company_id::text || '|' || v_doctor_key, 0);
+  PERFORM pg_advisory_xact_lock(v_lock_key);
+
+  -- Trava as linhas dos itens. Se algum já entrou em outro débito enquanto o
+  -- analista decidia, o NOT EXISTS abaixo o exclui da contagem e a operação
+  -- falha — sem criar débito parcial.
+  PERFORM 1
+    FROM public.glosa_items
+   WHERE id = ANY(p_item_ids)
+   FOR UPDATE;
+
+  SELECT COALESCE(SUM(gi.valor_glosa), 0), count(*), max(gi.hospital_id)
+    INTO v_total, v_count, v_hospital_id
+  FROM public.glosa_items gi
+  WHERE gi.id = ANY(p_item_ids)
+    AND gi.status = 'vinculado'
+    AND gi.matched_company_id = p_company_id
+    AND COALESCE(NULLIF(gi.doctor_crm,''), gi.doctor_name) = v_doctor_key
+    AND NOT EXISTS (SELECT 1 FROM public.glosa_debt_items di WHERE di.glosa_item_id = gi.id);
+
+  IF v_count <> array_length(p_item_ids, 1) THEN
+    RAISE EXCEPTION 'Itens não elegíveis (já vinculados a outro débito, status alterado ou empresa/médico divergente). Recarregue o painel.';
+  END IF;
+  IF v_total <= 0 THEN
+    RAISE EXCEPTION 'Soma dos itens é zero';
+  END IF;
+
+  SELECT name INTO v_company_name FROM public.companies WHERE id = p_company_id;
+
+  INSERT INTO public.glosa_debts(
+    doctor_crm, doctor_name, total_debt, status,
+    company_id, resolution_status, parcelas_default, hospital_id
+  )
+  VALUES (
+    NULLIF(p_doctor_crm,''), p_doctor_name, v_total, 'ativo',
+    p_company_id, 'resolvido', p_parcelas, v_hospital_id
+  )
+  RETURNING id INTO v_debt_id;
+
+  INSERT INTO public.glosa_debt_items(debt_id, glosa_item_id, amount, hospital_id)
+  SELECT v_debt_id, gi.id, gi.valor_glosa, gi.hospital_id
+    FROM public.glosa_items gi
+   WHERE gi.id = ANY(p_item_ids);
+
+  INSERT INTO public.audit_log
+    (entity_type, entity_id, action, actor_id, company_id, company_name, hospital_id, diff)
+  VALUES
+    ('glosa_debt', v_debt_id, 'create_manual', auth.uid(),
+     p_company_id, v_company_name, v_hospital_id,
+     jsonb_build_object(
+       'doctor_crm', NULLIF(p_doctor_crm,''),
+       'doctor_name', p_doctor_name,
+       'parcelas', p_parcelas,
+       'total', v_total,
+       'item_count', v_count,
+       'glosa_item_ids', to_jsonb(p_item_ids)
+     ));
+
+  RETURN v_debt_id;
+END;
+$function$;
