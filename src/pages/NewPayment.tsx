@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -231,6 +231,62 @@ interface FileBucket {
   /** Coluna efetivamente usada como setor (auto OU escolhida pelo usuário). */
   sectorColumnUsed?: string | null;
 }
+
+type RetroTvrResult = {
+  key?: string;
+  atendimento?: string;
+  tuss?: string;
+  procedimento?: string;
+  paciente?: string;
+  data?: string;
+  convenio?: string;
+  medico?: string;
+  funcao?: string;
+  funcoes_pagas?: string;
+  qtd_tasy?: number;
+  qtd_por_func?: number;
+  valor_unit_tasy?: number;
+  valor_total_tasy?: number;
+  dif_valor?: number;
+  matched_payment_item_id?: string;
+  status?: string;
+};
+
+const isRetroComplementar = (r: RetroTvrResult) =>
+  r.status === "nao_pago" ||
+  ((r.status === "div_valor" || r.status === "div_qtd_valor") && Number(r.dif_valor ?? 0) > 0.5);
+
+const retroComplementBase = (r: RetroTvrResult) => {
+  if (r.status === "nao_pago") return Math.max(0, Number(r.valor_total_tasy ?? 0));
+  return Math.max(0, Number(r.dif_valor ?? 0));
+};
+
+const retroComplementQuantity = (r: RetroTvrResult) => {
+  if (r.status === "nao_pago") return Math.max(1, Number(r.qtd_tasy ?? 1));
+  const missingQty = Number(r.qtd_tasy ?? 0) - Number(r.qtd_por_func ?? 0);
+  return missingQty > 0.5 ? missingQty : 1;
+};
+
+const monthsBetween = (start?: string | null, end?: string | null) => {
+  if (!start || !end) return [];
+  const out: string[] = [];
+  const cur = new Date(`${start.slice(0, 7)}-01T00:00:00`);
+  const last = new Date(`${end.slice(0, 7)}-01T00:00:00`);
+  if (Number.isNaN(cur.getTime()) || Number.isNaN(last.getTime())) return [];
+  while (cur <= last && out.length < 24) {
+    out.push(cur.toISOString().slice(0, 7));
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return out;
+};
+
+const buildRetroWorkbookFile = (rows: Record<string, unknown>[], filename: string) => {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Confecção");
+  const data = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+  return new File([data], filename, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+};
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
 
