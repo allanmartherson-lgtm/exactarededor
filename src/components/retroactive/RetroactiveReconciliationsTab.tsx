@@ -507,6 +507,7 @@ function NewView({
         period_start: effStart,
         period_end: effEnd,
         title: title || null,
+        summary: { mode },
         created_by: userId,
       })
       .select("id")
