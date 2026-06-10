@@ -160,53 +160,116 @@ export default function CreditosDebitos() {
         icon={Scale}
       />
       <div className="p-6 space-y-6">
-        {/* Glosas ativas (de auditoria) */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Receipt className="w-4 h-4" />
-              Glosas ativas <Badge variant="outline">{glosaDebts.length}</Badge>
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Saldos devedores gerados por auditoria/conciliação. Edite o parcelamento antes do próximo lote da PJ.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {loading ? (
-              <p className="text-sm text-muted-foreground">Carregando…</p>
-            ) : glosaDebts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma glosa ativa.</p>
-            ) : (
-              glosaDebts.map(g => {
-                const parc = g.parcelas_default ?? 1;
-                const semDef = !g.parcelas_default || g.parcelas_default <= 1;
-                return (
-                  <div key={g.id} className="flex items-center justify-between border border-border rounded-md px-3 py-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm">{g.doctor_name}</span>
-                        {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
-                        <span className="text-xs text-muted-foreground">·</span>
-                        <span className="text-xs text-muted-foreground truncate">{g._company_name ?? "—"}</span>
-                      </div>
-                      <div className="text-xs mt-0.5">
-                        <span className="font-mono text-destructive">{brl(g.total_debt)}</span>
-                        {" · "}
-                        <span className={semDef ? "text-amber-600 font-medium" : ""}>
-                          {parc}× de {brl(g.total_debt / parc)}
-                        </span>
-                        {semDef && <span className="ml-1 text-[10px] text-amber-600">(definir parcelas)</span>}
-                      </div>
-                    </div>
-                    <Button size="sm" variant={semDef ? "default" : "outline"} onClick={() => openGlosa(g)}>
-                      <Pencil className="w-3.5 h-3.5 mr-1" /> Parcelar
-                    </Button>
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
+        {/* Glosas a confirmar (de auditoria, ainda sem aceite do analista) */}
+        {(() => {
+          const pendentes = glosaDebts.filter(g => !g.confirmed_at);
+          const emAndamento = glosaDebts.filter(g => !!g.confirmed_at);
+          return (
+            <>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Receipt className="w-4 h-4" />
+                    Glosas a confirmar <Badge variant="outline">{pendentes.length}</Badge>
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Saldos gerados por auditoria. Defina o parcelamento e confirme — o próximo lote da PJ só desconta o que estiver confirmado.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {loading ? (
+                    <p className="text-sm text-muted-foreground">Carregando…</p>
+                  ) : pendentes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma glosa pendente de confirmação.</p>
+                  ) : (
+                    pendentes.map(g => {
+                      const parc = g.parcelas_default ?? 1;
+                      return (
+                        <div key={g.id} className="flex items-center justify-between border border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/10 rounded-md px-3 py-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{g.doctor_name}</span>
+                              {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
+                              <span className="text-xs text-muted-foreground">·</span>
+                              <span className="text-xs text-muted-foreground truncate">{g._company_name ?? "—"}</span>
+                            </div>
+                            <div className="text-xs mt-0.5">
+                              <span className="font-mono text-destructive">{brl(g.total_debt)}</span>
+                              {" · "}
+                              <span className="text-amber-600 font-medium">
+                                sugestão {parc}× de {brl(g.total_debt / parc)}
+                              </span>
+                              <span className="ml-1 text-[10px] text-amber-600">(aguardando confirmação)</span>
+                            </div>
+                          </div>
+                          <Button size="sm" onClick={() => openGlosa(g)}>
+                            <Pencil className="w-3.5 h-3.5 mr-1" /> Parcelar e confirmar
+                          </Button>
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Débitos em andamento (já confirmados) */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Scale className="w-4 h-4" />
+                    Débitos em andamento <Badge variant="outline">{emAndamento.length}</Badge>
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Confirmados — entram no próximo <code>apply-company-deductions</code> da PJ, parcela a parcela.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {loading ? (
+                    <p className="text-sm text-muted-foreground">Carregando…</p>
+                  ) : emAndamento.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum débito em andamento.</p>
+                  ) : (
+                    emAndamento.map(g => {
+                      const parc = g.parcelas_default ?? 1;
+                      return (
+                        <div key={g.id} className="flex items-center justify-between border border-border rounded-md px-3 py-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{g.doctor_name}</span>
+                              {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
+                              <span className="text-xs text-muted-foreground">·</span>
+                              <span className="text-xs text-muted-foreground truncate">{g._company_name ?? "—"}</span>
+                            </div>
+                            <div className="text-xs mt-0.5">
+                              <span className="font-mono text-destructive">{brl(g.total_debt)}</span>
+                              {" · "}
+                              <span>{parc}× de {brl(g.total_debt / parc)}</span>
+                              {g.confirmed_at && (
+                                <span className="ml-2 text-[10px] text-muted-foreground">
+                                  confirmado {new Date(g.confirmed_at).toLocaleDateString("pt-BR")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => openGlosa(g)}>
+                              <Pencil className="w-3.5 h-3.5 mr-1" /> Reparcelar
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => reopenGlosa(g)}>
+                              Reabrir
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          );
+        })()}
+
+
 
         {/* Ajustes manuais */}
         <Card>
