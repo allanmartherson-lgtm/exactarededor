@@ -149,13 +149,13 @@ export default function CreditosDebitos() {
     if (!ids.length) { setLoadingLotes(false); return; }
     const { data: pays } = await supabase
       .from("payments")
-      .select("id, competence_month, status, lot_number, hospital_id")
+      .select("id, competence_month, status")
       .in("id", ids)
       .in("status", OPEN_PAYMENT_STATUSES)
       .order("competence_month", { ascending: false });
     const opts: LoteOption[] = ((pays as any[]) ?? []).map(p => ({
       id: p.id,
-      label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}${p.lot_number ? ` · lote ${p.lot_number}` : ""}`,
+      label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`,
     }));
     setOpenLotes(opts);
     setPaymentLabels(prev => {
