@@ -18,7 +18,7 @@ Em /pendencias → aba "Conciliação retroativa", o analista escolhe o modo ao 
 - Chave: `attendance_number + procedure_code(8d)`.
 - TASY agregado: Qtd_TASY = SUM(qtd); Valor_TASY = SUM(valor_unit × qtd).
 - Repasse agregado: Qtd_Pag_Total, N_Funcs = COUNT DISTINCT(doctor_role), Qtd_por_Func = Qtd_Pag_Total / N_Funcs, Valor_Pag = SUM(procedure_amount).
-- Status: Não Pago | Div. Qtd / Valor | Div. Qtd | Div. Valor | Pago sem TASY | OK (oculto da tabela por padrão).
+- Status: Não Pago | Div. Qtd / Valor | Div. Valor | Pago sem TASY | OK (oculto da tabela por padrão). Div. Qtd isolada (qtd diverge mas valor bate) cai em OK — não é acionável e gera falso positivo em multi-segmento/vias de acesso.
 - Tolerâncias: |Dif_Qtd| ≥ 0.5 e |Dif_Valor| > 0.50.
 - Filtro de exclusão de TUSS: campo livre na etapa de mapeamento do TASY (separado por vírgula); aplica nos dois lados.
 - O resultado processado é persistido nas tabelas existentes: `summary.mode = 'tasy_vs_repasse'` identifica o modo e cada linha fica em `retroactive_reconciliation_items` com `source='tasy_vs_repasse'` e payload detalhado em `raw.tvr_result`. Não criar novas colunas para este modo.

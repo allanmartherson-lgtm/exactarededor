@@ -1439,7 +1439,7 @@ type PagRow = {
   pag_lote?: string;
 };
 
-type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_qtd" | "div_valor" | "pago_sem_tasy" | "ok";
+type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_sem_tasy" | "ok";
 
 type TvrResult = {
   key: string;
@@ -1468,7 +1468,6 @@ type TvrResult = {
 const TVR_STATUS_LABEL: Record<TvrStatus, string> = {
   nao_pago: "Não Pago",
   div_qtd_valor: "Div. Qtd / Valor",
-  div_qtd: "Div. Qtd",
   div_valor: "Div. Valor",
   pago_sem_tasy: "Pago sem TASY",
   ok: "OK",
@@ -1477,20 +1476,18 @@ const TVR_STATUS_LABEL: Record<TvrStatus, string> = {
 const TVR_STATUS_TONE: Record<TvrStatus, string> = {
   nao_pago: "bg-red-100 text-red-800",
   div_qtd_valor: "bg-rose-100 text-rose-800",
-  div_qtd: "bg-amber-100 text-amber-800",
   div_valor: "bg-amber-100 text-amber-800",
   pago_sem_tasy: "bg-purple-100 text-purple-800",
   ok: "bg-emerald-100 text-emerald-800",
 };
 
-const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_qtd", "div_valor", "pago_sem_tasy", "ok"];
+const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_sem_tasy", "ok"];
 const TVR_SOURCE = "tasy_vs_repasse";
 
 function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
   const c: Record<TvrStatus, number> = {
     nao_pago: 0,
     div_qtd_valor: 0,
-    div_qtd: 0,
     div_valor: 0,
     pago_sem_tasy: 0,
     ok: 0,
@@ -1911,7 +1908,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         if (!p && t) status = "nao_pago";
         else if (!t && p) status = "pago_sem_tasy";
         else if (Math.abs(dif_qtd) >= 0.5 && Math.abs(dif_valor) > 0.5) status = "div_qtd_valor";
-        else if (Math.abs(dif_qtd) >= 0.5) status = "div_qtd";
         else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
         else status = "ok";
 
@@ -1979,7 +1975,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const counts = useMemo(() => {
     const c: Record<TvrStatus, number> = {
-      nao_pago: 0, div_qtd_valor: 0, div_qtd: 0, div_valor: 0, pago_sem_tasy: 0, ok: 0,
+      nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_sem_tasy: 0, ok: 0,
     };
     for (const r of results ?? []) c[r.status]++;
     return c;
