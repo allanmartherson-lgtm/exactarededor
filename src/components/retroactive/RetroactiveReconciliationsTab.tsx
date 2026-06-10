@@ -1893,6 +1893,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const valor_pago_base = p?.valor_base ?? 0;
         const valor_com_acordo = p?.valor_com_acordo ?? 0;
         const funcoes_pagas = p ? Array.from(p.funcs).join(", ") : "";
+        const lotes = p ? Array.from(p.lotes).join(", ") : "";
 
         const dif_qtd = qtd_tasy - qtd_por_func;
         const dif_valor = valor_total_tasy - valor_pago_base;
