@@ -200,7 +200,12 @@ export default function Pendencias() {
         showBack={false}
       />
 
-      <PendenciasTabs />
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="pendencias">Pendências</TabsTrigger>
+          <TabsTrigger value="retroativa">Conciliação retroativa</TabsTrigger>
+        </TabsList>
+
 
         <TabsContent value="pendencias" className="mt-4 flex flex-col gap-5">
 
