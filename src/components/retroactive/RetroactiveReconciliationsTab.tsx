@@ -1473,7 +1473,7 @@ const TVR_STATUS_LABEL: Record<TvrStatus, string> = {
   div_qtd_valor: "Div. Qtd / Valor",
   div_valor: "Div. Valor",
   pago_a_mais: "Pago a mais",
-  pago_sem_tasy: "Pago sem TASY",
+  pago_sem_tasy: "Ausente TASY",
   ok: "OK",
 };
 
