@@ -2342,7 +2342,9 @@ export type Database = {
           hospital_id: string | null
           id: string
           matched_items: number | null
+          reconciliation_id: string | null
           reference: string
+          source: string
           status: string
           total_glosa_amount: number | null
           total_items: number | null
@@ -2358,7 +2360,9 @@ export type Database = {
           hospital_id?: string | null
           id?: string
           matched_items?: number | null
+          reconciliation_id?: string | null
           reference: string
+          source?: string
           status?: string
           total_glosa_amount?: number | null
           total_items?: number | null
@@ -2374,7 +2378,9 @@ export type Database = {
           hospital_id?: string | null
           id?: string
           matched_items?: number | null
+          reconciliation_id?: string | null
           reference?: string
+          source?: string
           status?: string
           total_glosa_amount?: number | null
           total_items?: number | null
