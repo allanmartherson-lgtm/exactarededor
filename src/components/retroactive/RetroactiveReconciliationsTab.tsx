@@ -2004,8 +2004,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         payment_item_id_first: string;
         payment_id_first: string;
         sample: PagRow;
+        doctor_ids_order: string[];
+        doctor_principal_id: string | null;
       };
       const pMap = new Map<string, PAgg>();
+      const isPrincipal = (fn: string) => /cirurgi[aã]o\s*principal/i.test(fn);
       for (const r of pagRows) {
         if (excluded.has(r.pag_tuss)) continue;
         const key = `${r.pag_atendimento}|${r.pag_tuss}`;
@@ -2014,6 +2017,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const va = num(r.pag_valor_com_acordo);
         const fn = (r.pag_funcao ?? "").trim();
         const lote = (r.pag_lote ?? "").trim();
+        const did = (r.pag_doctor_id ?? "").trim();
         const cur = pMap.get(key);
         if (cur) {
           cur.qtd_total += q;
@@ -2023,6 +2027,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           if (lote) cur.lotes.add(lote);
           if (!cur.payment_item_id_first && r.pag_payment_item_id) cur.payment_item_id_first = r.pag_payment_item_id;
           if (!cur.payment_id_first && r.pag_payment_id) cur.payment_id_first = r.pag_payment_id;
+          if (did && !cur.doctor_ids_order.includes(did)) cur.doctor_ids_order.push(did);
+          if (did && !cur.doctor_principal_id && isPrincipal(fn)) cur.doctor_principal_id = did;
           // enrich sample with non-empty fields from later rows
           const s = cur.sample;
           if (!s.pag_medico && r.pag_medico) s.pag_medico = r.pag_medico;
@@ -2047,6 +2053,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             payment_item_id_first: r.pag_payment_item_id ?? "",
             payment_id_first: r.pag_payment_id ?? "",
             sample: { ...r },
+            doctor_ids_order: did ? [did] : [],
+            doctor_principal_id: did && isPrincipal(fn) ? did : null,
           });
         }
       }
