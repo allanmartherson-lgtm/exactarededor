@@ -401,7 +401,28 @@ const NewPayment = () => {
   })();
   const modoConfeccao = initialMode === "confeccao";
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(initialMode);
+  // Handoff vindo da apuração retroativa (TASY vs Repasse): pré-popula referência,
+  // descrição e mantém o reconciliation_id para vincular o payment criado de volta.
+  const [retroHandoff, setRetroHandoff] = useState<{
+    reconciliation_id: string;
+    reference?: string;
+    description?: string;
+    doctor_id?: string | null;
+    company_id?: string | null;
+    items_count?: number;
+  } | null>(null);
   useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("retroactiveHandoff");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.reconciliation_id === "string") {
+          setRetroHandoff(parsed);
+          if (parsed.reference) setReference(parsed.reference);
+          if (parsed.description) setDescription(parsed.description);
+        }
+      }
+    } catch { /* ignore */ }
     // Consome a marca após montar, evitando que uma navegação posterior
     // para /pagamentos/novo sem param herde indevidamente o modo anterior.
     try { sessionStorage.removeItem("newPaymentMode"); } catch { /* ignore */ }
