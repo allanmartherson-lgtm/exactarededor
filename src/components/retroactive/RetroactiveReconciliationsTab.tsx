@@ -120,6 +120,10 @@ type ReconRow = {
     exclude_tuss?: string;
     processed_at?: string;
     tvr_counts?: Partial<Record<TvrStatus, number>>;
+    tvr_ausente_incomplete?: number;
+    tvr_validation_history?: Array<Record<string, unknown>>;
+    tasy_file_totals?: { file: number; valid: number; excluded: number; dropped: number };
+    tasy_dropped_examples?: Array<{ row_index: number; missing: string[] }>;
     handoff?: {
       status: "encaminhada";
       payment_id?: string | null;
@@ -1457,7 +1461,7 @@ type PagRow = {
 };
 
 
-type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_a_mais" | "pago_sem_tasy" | "ok";
+type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_a_mais" | "ausente_tasy" | "ok";
 
 
 type TvrResult = {
@@ -1489,7 +1493,7 @@ const TVR_STATUS_LABEL: Record<TvrStatus, string> = {
   div_qtd_valor: "Div. Qtd / Valor",
   div_valor: "Div. Valor",
   pago_a_mais: "Pago a mais",
-  pago_sem_tasy: "Ausente TASY",
+  ausente_tasy: "Ausente TASY",
   ok: "OK",
 };
 
@@ -1498,11 +1502,11 @@ const TVR_STATUS_TONE: Record<TvrStatus, string> = {
   div_qtd_valor: "bg-rose-100 text-rose-800",
   div_valor: "bg-amber-100 text-amber-800",
   pago_a_mais: "bg-fuchsia-100 text-fuchsia-800",
-  pago_sem_tasy: "bg-purple-100 text-purple-800",
+  ausente_tasy: "bg-purple-100 text-purple-800",
   ok: "bg-emerald-100 text-emerald-800",
 };
 
-const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_a_mais", "pago_sem_tasy", "ok"];
+const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_a_mais", "ausente_tasy", "ok"];
 
 function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
   const c: Record<TvrStatus, number> = {
@@ -1510,7 +1514,7 @@ function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
     div_qtd_valor: 0,
     div_valor: 0,
     pago_a_mais: 0,
-    pago_sem_tasy: 0,
+    ausente_tasy: 0,
     ok: 0,
   };
   for (const r of list) c[r.status]++;
@@ -1522,13 +1526,13 @@ const TVR_SOURCE = "tasy_vs_repasse";
 function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
 
   const totalComplementar = list.reduce((sum, r) => {
-    if (r.status === "ok" || r.status === "pago_sem_tasy") return sum;
+    if (r.status === "ok" || r.status === "ausente_tasy") return sum;
     if (r.status === "nao_pago") return sum + r.valor_total_tasy;
     if (r.dif_valor > 0.5) return sum + r.dif_valor;
     return sum;
   }, 0);
   const totalRetirar = list.reduce((sum, r) => {
-    if (r.status === "pago_sem_tasy") return sum + r.valor_pago_base;
+    if (r.status === "ausente_tasy") return sum + r.valor_pago_base;
     if (r.dif_valor < -0.5) return sum + Math.abs(r.dif_valor);
     return sum;
   }, 0);
@@ -1536,11 +1540,10 @@ function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: numb
 }
 
 function mapTvrStatusToStoredClassification(status: TvrStatus): string {
+  // Grava o status TVR direto (sem CHECK constraint na coluna).
+  // Único alias: "ok" -> "ok_pago" (equivalente, mantido por compatibilidade com relatórios).
   if (status === "ok") return "ok_pago";
-  if (status === "nao_pago") return "nao_pago";
-  if (status === "pago_sem_tasy") return "sem_lastro";
-  if (status === "pago_a_mais") return "pago_a_mais";
-  return "pago_a_menos";
+  return status;
 }
 
 const AUSENTE_TASY_ESSENTIAL_FIELDS = [
@@ -1550,7 +1553,7 @@ const AUSENTE_TASY_ESSENTIAL_FIELDS = [
 ] as const;
 
 function getAusenteTasyMissingFields(r: TvrResult): string[] {
-  if (r.status !== "pago_sem_tasy") return [];
+  if (r.status !== "ausente_tasy") return [];
   const out: string[] = [];
   for (const [key, label] of AUSENTE_TASY_ESSENTIAL_FIELDS) {
     const v = (r as unknown as Record<string, unknown>)[key];
@@ -1623,6 +1626,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [tasyRows, setTasyRows] = useState<TasyRow[]>([]);
   const [tasyFile, setTasyFile] = useState<string>("");
+  const [tasyFileTotals, setTasyFileTotals] = useState<{ file: number; valid: number; excluded: number; dropped: number } | null>(null);
+  const [tasyDroppedExamples, setTasyDroppedExamples] = useState<Array<{ row_index: number; missing: string[] }>>([]);
   const [pagRows, setPagRows] = useState<PagRow[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [paymentsLoaded, setPaymentsLoaded] = useState(false);
@@ -1656,6 +1661,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setExcludeTuss(row?.summary?.exclude_tuss ?? "");
     setPendingTussExclude(row?.summary?.exclude_tuss ?? "");
     setTasyFile(row?.summary?.tasy_file ?? "");
+    setTasyFileTotals(row?.summary?.tasy_file_totals ?? null);
+    setTasyDroppedExamples(row?.summary?.tasy_dropped_examples ?? []);
 
     const { data: savedItems } = await supabase
       .from("retroactive_reconciliation_items" as never)
@@ -1668,7 +1675,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       .filter(isTvrResult);
     if (savedResults.length > 0) {
       setResults(savedResults);
-      setTasyRows(savedResults.filter((r) => r.status !== "pago_sem_tasy").map<TasyRow>((r) => ({
+      setTasyRows(savedResults.filter((r) => r.status !== "ausente_tasy").map<TasyRow>((r) => ({
         tasy_atendimento: r.atendimento,
         tasy_tuss: r.tuss,
         tasy_qtd: String(r.qtd_tasy || 1),
@@ -1779,7 +1786,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
   };
 
-  const confirmTasy = (drafts: Record<string, string>[]) => {
+  const confirmTasy = (
+    drafts: Record<string, string>[],
+    meta?: {
+      mapping: Record<string, string>;
+      totals: { file: number; valid: number; excluded: number; dropped: number };
+      droppedExamples: Array<{ row_index: number; missing: string[] }>;
+    },
+  ) => {
     const excluded = new Set(
       pendingTussExclude
         .split(",")
@@ -1803,17 +1817,24 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }))
       .filter((r) => r.tasy_atendimento && r.tasy_tuss);
     setTasyRows(filtered);
-    setTasyFile((wizard.kind === "tasy" && wizard.fileName) || "");
+    const fileName = (wizard.kind === "tasy" && wizard.fileName) || "";
+    setTasyFile(fileName);
+    if (meta?.totals) setTasyFileTotals(meta.totals);
+    if (meta?.droppedExamples) setTasyDroppedExamples(meta.droppedExamples);
     setResults(null);
     setWizard({ kind: "none" });
-    toast({ title: `TASY: ${filtered.length} linha(s) carregadas` });
+    toast({ title: `TASY: ${filtered.length} de ${meta?.totals.file ?? filtered.length} linha(s) carregadas` });
     // Dispara busca automática dos payment_items
     void loadPaymentItems(recon);
   };
 
+
+
   const clearAll = async () => {
     setTasyRows([]);
     setTasyFile("");
+    setTasyFileTotals(null);
+    setTasyDroppedExamples([]);
     setPagRows([]);
     setPaymentsLoaded(false);
     setResults(null);
@@ -1978,7 +1999,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
         let status: TvrStatus;
         if (!p && t) status = "nao_pago";
-        else if (!t && p) status = "pago_sem_tasy";
+        else if (!t && p) status = "ausente_tasy";
         else if (dif_valor < -0.5) status = "pago_a_mais";
         else if (Math.abs(dif_qtd) >= 0.5 && Math.abs(dif_valor) > 0.5) status = "div_qtd_valor";
         else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
@@ -2051,7 +2072,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const counts = useMemo(() => {
     const c: Record<TvrStatus, number> = {
-      nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_a_mais: 0, pago_sem_tasy: 0, ok: 0,
+      nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_a_mais: 0, ausente_tasy: 0, ok: 0,
     };
 
     for (const r of results ?? []) c[r.status]++;
@@ -2180,21 +2201,27 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     };
     const trimmedHistory = [...previousHistory.slice(-19), historyEntry];
 
+    // Sobrescreve summary do zero a cada processamento — preserva apenas handoff (estado de envio
+    // para confecção) e histórico de validação. Evita carregar contadores de rodadas antigas
+    // com status que não existem mais (ex.: div_qtd, pago_sem_tasy).
+    const preservedHandoff = (previousSummary as { handoff?: unknown }).handoff;
     const { error: updateError } = await supabase
       .from("retroactive_reconciliations" as never)
       .update({
         summary: {
-          ...previousSummary,
           mode: "tasy_vs_repasse",
           total: list.length,
           total_gap: financial.totalComplementar,
           total_excess: financial.totalRetirar,
           tasy_file: tasyFile,
+          tasy_file_totals: tasyFileTotals,
+          tasy_dropped_examples: tasyDroppedExamples,
           exclude_tuss: excludeTuss,
           processed_at: new Date().toISOString(),
           tvr_counts: tvrCounts,
           tvr_ausente_incomplete: incompleteAusente.length,
           tvr_validation_history: trimmedHistory,
+          ...(preservedHandoff ? { handoff: preservedHandoff } : {}),
         },
         status: "em_analise",
       } as never)
@@ -2327,7 +2354,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
           {tasyRows.length > 0 && (
             <Badge variant="default" className="text-[10px]">
-              {tasyRows.length} linha(s) · {tasyFile}
+              {tasyFileTotals
+                ? `${tasyRows.length} de ${tasyFileTotals.file} linha(s) · ${tasyFile}`
+                : `${tasyRows.length} linha(s) · ${tasyFile}`}
             </Badge>
           )}
         </div>
@@ -2489,13 +2518,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
           {(() => {
             const totalComplementar = results.reduce((sum, r) => {
-              if (r.status === "ok" || r.status === "pago_sem_tasy") return sum;
+              if (r.status === "ok" || r.status === "ausente_tasy") return sum;
               if (r.status === "nao_pago") return sum + r.valor_total_tasy;
               if (r.dif_valor > 0.5) return sum + r.dif_valor;
               return sum;
             }, 0);
             const totalRetirar = results.reduce((sum, r) => {
-              if (r.status === "pago_sem_tasy") return sum + r.valor_pago_base;
+              if (r.status === "ausente_tasy") return sum + r.valor_pago_base;
               if (r.dif_valor < -0.5) return sum + Math.abs(r.dif_valor);
               return sum;
             }, 0);
