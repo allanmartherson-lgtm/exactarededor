@@ -1808,11 +1808,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (row?.doctor_id) {
       const { data: doc } = await supabase
         .from("doctors" as never)
-        .select("id, name, crm")
+        .select("id, full_name, crm")
         .eq("id", row.doctor_id)
         .maybeSingle();
-      const d = doc as unknown as { id: string; name: string | null; crm: string | null } | null;
-      setDoctorInfo({ id: d?.id ?? row.doctor_id, name: d?.name ?? null, crm: d?.crm ?? null });
+      const d = doc as unknown as { id: string; full_name: string | null; crm: string | null } | null;
+      setDoctorInfo({ id: d?.id ?? row.doctor_id, name: d?.full_name ?? null, crm: d?.crm ?? null });
     } else {
       setDoctorInfo({ id: null, name: null, crm: null });
     }
