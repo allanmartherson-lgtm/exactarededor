@@ -42,6 +42,9 @@ import {
   UploadCloudIcon,
   CheckIcon,
   ChevronsUpDownIcon,
+  SendIcon,
+  LockIcon,
+  ExternalLinkIcon,
 } from "lucide-react";
 import {
   Command,
