@@ -2170,6 +2170,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     "Valor c/ Acordo": r.valor_com_acordo,
     "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
     "Dif. Valor": Number(r.dif_valor.toFixed(2)),
+    "A Recuperar (c/ acordo)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
   }));
 
   const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible") => {
