@@ -1922,6 +1922,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           qtd_por_func,
           n_funcs,
           funcoes_pagas,
+          lotes,
           valor_pago_base,
           valor_com_acordo,
           dif_qtd,
