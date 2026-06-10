@@ -4,12 +4,12 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Pencil, Scale } from "lucide-react";
+import { Trash2, Plus, Pencil, Scale, Receipt } from "lucide-react";
 import { toast } from "sonner";
 
 type Company = { id: string; name: string };
@@ -27,23 +27,49 @@ type Adjustment = {
   _company_name?: string;
 };
 
+type GlosaDebt = {
+  id: string;
+  company_id: string;
+  doctor_name: string;
+  doctor_crm: string | null;
+  total_debt: number;
+  parcelas_default: number | null;
+  status: string;
+  created_at: string;
+  _company_name?: string;
+};
+
+const brl = (n: number) =>
+  Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
+
 export default function CreditosDebitos() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
+  const [glosaDebts, setGlosaDebts] = useState<GlosaDebt[]>([]);
   const [loading, setLoading] = useState(true);
   const [adjDialogOpen, setAdjDialogOpen] = useState(false);
   const [editingAdj, setEditingAdj] = useState<Partial<Adjustment> | null>(null);
+  const [editingGlosa, setEditingGlosa] = useState<GlosaDebt | null>(null);
+  const [glosaParc, setGlosaParc] = useState<number>(1);
+  const [busyGlosa, setBusyGlosa] = useState(false);
 
   const loadAll = async () => {
     setLoading(true);
-    const [c, a] = await Promise.all([
+    const [c, a, g] = await Promise.all([
       supabase.from("companies").select("id, name").order("name"),
       supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
+      (supabase as any)
+        .from("glosa_debts")
+        .select("id, company_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at")
+        .eq("status", "ativo")
+        .order("created_at", { ascending: false }),
     ]);
     setCompanies(c.data || []);
-    const adjs = (a.data || []) as Adjustment[];
     const cMap = new Map((c.data || []).map((x: any) => [x.id, x.name]));
+    const adjs = (a.data || []) as Adjustment[];
     setAdjustments(adjs.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
+    const debts = ((g as any).data || []) as GlosaDebt[];
+    setGlosaDebts(debts.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
     setLoading(false);
   };
   useEffect(() => { loadAll(); }, []);
@@ -79,6 +105,27 @@ export default function CreditosDebitos() {
     loadAll();
   };
 
+  const openGlosa = (g: GlosaDebt) => {
+    setEditingGlosa(g);
+    setGlosaParc(g.parcelas_default && g.parcelas_default > 0 ? g.parcelas_default : 1);
+  };
+  const saveGlosa = async () => {
+    if (!editingGlosa) return;
+    if (glosaParc < 1 || glosaParc > 24) {
+      toast.error("Parcelas entre 1 e 24"); return;
+    }
+    setBusyGlosa(true);
+    const { error } = await (supabase as any)
+      .from("glosa_debts")
+      .update({ parcelas_default: glosaParc })
+      .eq("id", editingGlosa.id);
+    setBusyGlosa(false);
+    if (error) { toast.error("Erro: " + error.message); return; }
+    toast.success(`Parcelamento atualizado para ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`);
+    setEditingGlosa(null);
+    loadAll();
+  };
+
   return (
     <div>
       <PageHeader
@@ -86,40 +133,125 @@ export default function CreditosDebitos() {
         description="Ajustes financeiros recorrentes por empresa — aplicados nos próximos pagamentos."
         icon={Scale}
       />
-      <div className="p-6 space-y-4">
-        <div className="flex justify-end">
-          <Button onClick={() => openAdj()}><Plus className="w-4 h-4 mr-1" /> Novo crédito/débito</Button>
-        </div>
-        {loading ? <p>Carregando…</p> : adjustments.length === 0 ? (
-          <Card><CardContent className="py-12 text-center text-muted-foreground">Nenhum ajuste cadastrado.</CardContent></Card>
-        ) : (
-          <div className="grid gap-2">
-            {adjustments.map(a => (
-              <Card key={a.id}>
-                <CardContent className="flex justify-between items-center py-3">
+      <div className="p-6 space-y-6">
+        {/* Glosas ativas (de auditoria) */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Receipt className="w-4 h-4" />
+              Glosas ativas <Badge variant="outline">{glosaDebts.length}</Badge>
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Saldos devedores gerados por auditoria/conciliação. Edite o parcelamento antes do próximo lote da PJ.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Carregando…</p>
+            ) : glosaDebts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma glosa ativa.</p>
+            ) : (
+              glosaDebts.map(g => {
+                const parc = g.parcelas_default ?? 1;
+                const semDef = !g.parcelas_default || g.parcelas_default <= 1;
+                return (
+                  <div key={g.id} className="flex items-center justify-between border border-border rounded-md px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">{g.doctor_name}</span>
+                        {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <span className="text-xs text-muted-foreground truncate">{g._company_name ?? "—"}</span>
+                      </div>
+                      <div className="text-xs mt-0.5">
+                        <span className="font-mono text-destructive">{brl(g.total_debt)}</span>
+                        {" · "}
+                        <span className={semDef ? "text-amber-600 font-medium" : ""}>
+                          {parc}× de {brl(g.total_debt / parc)}
+                        </span>
+                        {semDef && <span className="ml-1 text-[10px] text-amber-600">(definir parcelas)</span>}
+                      </div>
+                    </div>
+                    <Button size="sm" variant={semDef ? "default" : "outline"} onClick={() => openGlosa(g)}>
+                      <Pencil className="w-3.5 h-3.5 mr-1" /> Parcelar
+                    </Button>
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Ajustes manuais */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-base">
+              <span className="flex items-center gap-2">
+                <Scale className="w-4 h-4" />
+                Ajustes manuais <Badge variant="outline">{adjustments.length}</Badge>
+              </span>
+              <Button size="sm" onClick={() => openAdj()}><Plus className="w-4 h-4 mr-1" /> Novo</Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {loading ? <p className="text-sm text-muted-foreground">Carregando…</p>
+              : adjustments.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum ajuste cadastrado.</p>
+              : adjustments.map(a => (
+                <div key={a.id} className="flex justify-between items-center border border-border rounded-md px-3 py-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <Badge variant={a.tipo === "credito" ? "default" : "secondary"}>{a.tipo}</Badge>
-                      <span className="font-medium">{a._company_name}</span>
+                      <span className="font-medium text-sm">{a._company_name}</span>
                       {!a.ativo && <Badge variant="outline">Inativo</Badge>}
                     </div>
-                    <p className="text-sm text-muted-foreground">{a.descricao}</p>
-                    <p className="text-sm">
-                      R$ {Number(a.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} ·
-                      parc. {a.parcelas_pagas}/{a.parcelas_total} · início {a.data_inicio}
+                    <p className="text-xs text-muted-foreground">{a.descricao}</p>
+                    <p className="text-xs">
+                      {brl(a.valor_total)} · parc. {a.parcelas_pagas}/{a.parcelas_total} · início {a.data_inicio}
                     </p>
                   </div>
                   <div className="flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => openAdj(a)}><Pencil className="w-4 h-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => removeAdj(a.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                </div>
+              ))
+            }
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Dialog: editar parcelas de glosa */}
+      <Dialog open={!!editingGlosa} onOpenChange={(o) => !o && setEditingGlosa(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Parcelar glosa</DialogTitle></DialogHeader>
+          {editingGlosa && (
+            <div className="space-y-3 text-sm">
+              <div className="rounded border border-border bg-muted/30 px-3 py-2">
+                <div className="font-medium">{editingGlosa.doctor_name}</div>
+                <div className="text-xs text-muted-foreground">{editingGlosa._company_name}</div>
+                <div className="mt-1 font-mono text-destructive">{brl(editingGlosa.total_debt)}</div>
+              </div>
+              <div>
+                <Label>Parcelas (1–24)</Label>
+                <Input
+                  type="number" min={1} max={24}
+                  value={glosaParc}
+                  onChange={e => setGlosaParc(Math.min(24, Math.max(1, parseInt(e.target.value) || 1)))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Cada parcela: <span className="font-mono">{brl(editingGlosa.total_debt / glosaParc)}</span>
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingGlosa(null)} disabled={busyGlosa}>Cancelar</Button>
+            <Button onClick={saveGlosa} disabled={busyGlosa}>{busyGlosa ? "Salvando…" : "Salvar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: novo/editar ajuste manual */}
       <Dialog open={adjDialogOpen} onOpenChange={setAdjDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader><DialogTitle>{editingAdj?.id ? "Editar ajuste" : "Novo crédito/débito"}</DialogTitle></DialogHeader>
