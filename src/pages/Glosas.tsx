@@ -1079,7 +1079,62 @@ export default function Glosas() {
               )}
             </section>
           </div>
+
+          <Dialog open={!!bulkSummary} onOpenChange={(o) => !o && setBulkSummary(null)}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Reprocessamento concluído</DialogTitle>
+                <DialogDescription>
+                  {bulkSummary?.batches} lote(s) · {bulkSummary?.items} item(ns) reavaliado(s)
+                </DialogDescription>
+              </DialogHeader>
+              {bulkSummary && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-md border border-border bg-card p-3">
+                      <div className="text-[10px] font-semibold uppercase text-muted-foreground">Via pagamento</div>
+                      <div className="text-xl font-light" style={{ color: "hsl(var(--bubble-green-fg))" }}>{bulkSummary.matchedByPayment}</div>
+                    </div>
+                    <div className="rounded-md border border-border bg-card p-3">
+                      <div className="text-[10px] font-semibold uppercase text-muted-foreground">Via cadastro</div>
+                      <div className="text-xl font-light" style={{ color: "hsl(var(--bubble-yellow-fg))" }}>{bulkSummary.matchedByCadastro}</div>
+                    </div>
+                    <div className="rounded-md border border-border bg-card p-3">
+                      <div className="text-[10px] font-semibold uppercase text-muted-foreground">Sem match</div>
+                      <div className="text-xl font-light" style={{ color: "hsl(var(--bubble-red-fg))" }}>{bulkSummary.unmatched}</div>
+                    </div>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto rounded-md border border-border">
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-muted/40 sticky top-0">
+                        <tr>
+                          <th className="text-left px-2 py-1 font-medium text-muted-foreground">Lote</th>
+                          <th className="text-right px-2 py-1 font-medium text-muted-foreground">Pag.</th>
+                          <th className="text-right px-2 py-1 font-medium text-muted-foreground">Cadastro</th>
+                          <th className="text-right px-2 py-1 font-medium text-muted-foreground">Sem match</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bulkSummary.perBatch.map(b => (
+                          <tr key={b.id} className="border-t border-border/40">
+                            <td className="px-2 py-1 truncate max-w-[260px]">{b.reference}</td>
+                            <td className="px-2 py-1 text-right tabular-nums">{b.matchedByPayment}</td>
+                            <td className="px-2 py-1 text-right tabular-nums">{b.matchedByCadastro}</td>
+                            <td className="px-2 py-1 text-right tabular-nums">{b.unmatched}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button size="sm" onClick={() => setBulkSummary(null)}>Fechar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
+
 
         <TabsContent value="conciliacao" className="mt-6">
           <div className="flex flex-col gap-6">
