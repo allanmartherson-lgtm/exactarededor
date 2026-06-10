@@ -75,6 +75,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import RetroactiveMappingWizard, {
   readRawSheet,
   TASY_TARGETS,
@@ -1475,6 +1484,8 @@ type PagRow = {
   pag_convenio?: string;
   pag_procedimento?: string;
   pag_lote?: string;
+  pag_payment_item_id?: string;
+  pag_payment_id?: string;
 };
 
 
@@ -1503,6 +1514,8 @@ export type TvrResult = {
   dif_qtd: number;
   dif_valor: number;
   valor_recuperar_acordo: number;
+  matched_payment_item_id?: string;
+  matched_payment_id?: string;
   status: TvrStatus;
 };
 
@@ -1717,6 +1730,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [statusFilter, setStatusFilter] = useState<TvrStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [doctorInfo, setDoctorInfo] = useState<{ id: string | null; name: string | null; crm: string | null }>({ id: null, name: null, crm: null });
+  const [hospitalIdRecon, setHospitalIdRecon] = useState<string | null>(null);
+  const [encaminharOpen, setEncaminharOpen] = useState(false);
+  const [encaminharBusy, setEncaminharBusy] = useState(false);
 
   const [wizard, setWizard] = useState<
     | { kind: "none" }
@@ -1726,7 +1743,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const loadTvrReconciliation = async () => {
     const { data } = await supabase
       .from("retroactive_reconciliations" as never)
-      .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at")
+      .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at, hospital_id")
       .eq("id", id)
       .single();
     const row = data as unknown as ReconRow;
@@ -1779,8 +1796,25 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_convenio: r.convenio,
         pag_procedimento: r.procedimento,
         pag_lote: r.lotes,
+        pag_payment_item_id: r.matched_payment_item_id,
+        pag_payment_id: r.matched_payment_id,
       })));
       setPaymentsLoaded(true);
+    }
+
+    // Carrega info do médico (CRM/nome) para uso no encaminhamento → glosa.
+    const rowAny = row as unknown as { hospital_id?: string | null };
+    setHospitalIdRecon(rowAny?.hospital_id ?? null);
+    if (row?.doctor_id) {
+      const { data: doc } = await supabase
+        .from("doctors" as never)
+        .select("id, name, crm")
+        .eq("id", row.doctor_id)
+        .maybeSingle();
+      const d = doc as unknown as { id: string; name: string | null; crm: string | null } | null;
+      setDoctorInfo({ id: d?.id ?? row.doctor_id, name: d?.name ?? null, crm: d?.crm ?? null });
+    } else {
+      setDoctorInfo({ id: null, name: null, crm: null });
     }
   };
 
@@ -1815,7 +1849,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       let query = supabase
         .from("payment_items" as never)
-        .select("attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
+        .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
         .gte("procedure_date", start.toISOString().slice(0, 10))
         .lte("procedure_date", end.toISOString().slice(0, 10));
 
@@ -1855,6 +1889,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_convenio: (row.convenio_slug as string) ?? "",
         pag_procedimento: (row.procedure_name as string) ?? "",
         pag_lote: loteByPaymentId.get(String(row.payment_id ?? "")) ?? "",
+        pag_payment_item_id: row.id ? String(row.id) : "",
+        pag_payment_id: row.payment_id ? String(row.payment_id) : "",
       })).filter((x) => x.pag_atendimento && x.pag_tuss);
 
       setPagRows(rows);
@@ -1961,6 +1997,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         lotes: Set<string>;
         valor_base: number;
         valor_com_acordo: number;
+        payment_item_id_first: string;
+        payment_id_first: string;
         sample: PagRow;
       };
       const pMap = new Map<string, PAgg>();
@@ -1979,6 +2017,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           cur.valor_com_acordo += va;
           if (fn) cur.funcs.add(fn);
           if (lote) cur.lotes.add(lote);
+          if (!cur.payment_item_id_first && r.pag_payment_item_id) cur.payment_item_id_first = r.pag_payment_item_id;
+          if (!cur.payment_id_first && r.pag_payment_id) cur.payment_id_first = r.pag_payment_id;
           // enrich sample with non-empty fields from later rows
           const s = cur.sample;
           if (!s.pag_medico && r.pag_medico) s.pag_medico = r.pag_medico;
@@ -1992,7 +2032,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           const lotes = new Set<string>();
           if (fn) funcs.add(fn);
           if (lote) lotes.add(lote);
-          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, lotes, valor_base: vb, valor_com_acordo: va, sample: { ...r } });
+          pMap.set(key, {
+            atendimento: r.pag_atendimento,
+            tuss: r.pag_tuss,
+            qtd_total: q,
+            funcs,
+            lotes,
+            valor_base: vb,
+            valor_com_acordo: va,
+            payment_item_id_first: r.pag_payment_item_id ?? "",
+            payment_id_first: r.pag_payment_id ?? "",
+            sample: { ...r },
+          });
         }
       }
 
@@ -2115,6 +2166,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           dif_qtd,
           dif_valor,
           valor_recuperar_acordo,
+          matched_payment_item_id: p?.payment_item_id_first || undefined,
+          matched_payment_id: p?.payment_id_first || undefined,
           status,
         });
       }
@@ -2355,6 +2408,203 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     navigate(`/pagamentos/novo?modo=confeccao&retro=${reconciliationId}`);
   };
 
+  // ===== Caminho B — gera glosa de auditoria a partir dos itens "a retirar" =====
+  const toRetirarItems = (list: TvrResult[]) =>
+    list.filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5);
+
+  const createAuditoriaGlosaBatch = async (
+    retirar: TvrResult[],
+    parcelas: number,
+  ): Promise<{ batch_id: string; total: number; items: number; parcelas: number }> => {
+    if (retirar.length === 0) throw new Error("Nenhum item a retirar.");
+    if (!recon?.company_id) throw new Error("Apuração sem PJ vinculada — não é possível gerar glosa.");
+    if (!doctorInfo.name && !doctorInfo.crm) {
+      throw new Error("Apuração sem médico vinculado — não é possível gerar glosa.");
+    }
+
+    const totalGlosa = retirar.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+    const competence = (recon.period_start ?? "").slice(0, 7);
+    const title = recon.title ?? `Apuração ${recon.id.slice(0, 8)}`;
+
+    // 1) Batch
+    const { data: batchData, error: batchErr } = await (supabase as never as typeof supabase)
+      .from("glosa_batches" as never)
+      .insert({
+        source: "auditoria",
+        reconciliation_id: recon.id,
+        reference: `Auditoria — ${title}`,
+        convenio: null,
+        competence_month: competence || null,
+        file_name: null,
+        status: "concluido",
+        total_items: retirar.length,
+        matched_items: retirar.length,
+        unmatched_items: 0,
+        total_glosa_amount: Number(totalGlosa.toFixed(2)),
+        hospital_id: hospitalIdRecon,
+      } as never)
+      .select("id")
+      .single();
+    if (batchErr || !batchData) throw new Error(batchErr?.message ?? "Falha ao criar lote de glosa.");
+    const batchId = (batchData as { id: string }).id;
+
+    // 2) Items
+    const itemsPayload = retirar.map((r) => {
+      const motivo =
+        r.status === "ausente_tasy"
+          ? "Retirado da conta após auditoria — procedimento pago sem registro de produção"
+          : "Retirado da conta após auditoria — valor pago acima da produção registrada";
+      return {
+        batch_id: batchId,
+        attendance_number: r.atendimento || null,
+        procedure_code: r.tuss || null,
+        procedure_name: r.procedimento || null,
+        procedure_date: dbDateOrNull(r.data),
+        patient_name: r.paciente || null,
+        doctor_name: doctorInfo.name ?? r.medico ?? null,
+        doctor_crm: doctorInfo.crm ?? null,
+        convenio: r.convenio || null,
+        valor_cobrado: Number((r.valor_com_acordo || 0).toFixed(2)),
+        valor_glosa: Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
+        motivo_glosa: motivo,
+        complemento_glosa: `Apuração ${title} · Atend ${r.atendimento || "—"} · TUSS ${r.tuss || "—"}`,
+        status: "vinculado",
+        matched_payment_item_id: r.matched_payment_item_id ?? null,
+        matched_payment_id: r.matched_payment_id ?? null,
+        matched_company_id: recon.company_id,
+        match_source: "auditoria_retroativa",
+        matched_at: new Date().toISOString(),
+        hospital_id: hospitalIdRecon,
+      };
+    });
+    const { data: itemsData, error: itemsErr } = await (supabase as never as typeof supabase)
+      .from("glosa_items" as never)
+      .insert(itemsPayload as never)
+      .select("id, valor_glosa");
+    if (itemsErr || !itemsData) {
+      await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
+      throw new Error(itemsErr?.message ?? "Falha ao gravar itens da glosa.");
+    }
+    const insertedItems = itemsData as Array<{ id: string; valor_glosa: number }>;
+
+    // 3) Débito por médico/PJ (uma apuração = um médico × uma PJ)
+    const docName = doctorInfo.name ?? "Médico";
+    const docCrm = doctorInfo.crm ?? "";
+    // Upsert: tenta achar débito ativo existente para somar
+    const { data: existingDebt } = await supabase
+      .from("glosa_debts" as never)
+      .select("id, total_debt")
+      .eq("doctor_name", docName)
+      .eq("doctor_crm", docCrm)
+      .maybeSingle();
+
+    let debtId: string;
+    if (existingDebt) {
+      debtId = (existingDebt as { id: string }).id;
+      const prev = Number((existingDebt as { total_debt: number }).total_debt ?? 0);
+      await supabase
+        .from("glosa_debts" as never)
+        .update({
+          total_debt: Number((prev + totalGlosa).toFixed(2)),
+          company_id: recon.company_id,
+          parcelas_default: parcelas,
+          status: "ativo",
+          resolution_status: "vinculada",
+          hospital_id: hospitalIdRecon,
+        } as never)
+        .eq("id", debtId);
+    } else {
+      const { data: debtData, error: debtErr } = await (supabase as never as typeof supabase)
+        .from("glosa_debts" as never)
+        .insert({
+          doctor_name: docName,
+          doctor_crm: docCrm,
+          total_debt: Number(totalGlosa.toFixed(2)),
+          status: "ativo",
+          resolution_status: "vinculada",
+          company_id: recon.company_id,
+          parcelas_default: parcelas,
+          hospital_id: hospitalIdRecon,
+        } as never)
+        .select("id")
+        .single();
+      if (debtErr || !debtData) {
+        await supabase.from("glosa_items" as never).delete().eq("batch_id", batchId);
+        await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
+        throw new Error(debtErr?.message ?? "Falha ao criar débito de glosa.");
+      }
+      debtId = (debtData as { id: string }).id;
+    }
+
+    // 4) Vincular itens ao débito
+    const debtItemsPayload = insertedItems.map((it) => ({
+      debt_id: debtId,
+      glosa_item_id: it.id,
+      amount: Number((it.valor_glosa ?? 0).toFixed(2)),
+      hospital_id: hospitalIdRecon,
+    }));
+    const { error: debtItemsErr } = await supabase
+      .from("glosa_debt_items" as never)
+      .insert(debtItemsPayload as never);
+    if (debtItemsErr) {
+      throw new Error(debtItemsErr.message);
+    }
+
+    return { batch_id: batchId, total: totalGlosa, items: retirar.length, parcelas };
+  };
+
+  const runEncaminharFluxo = async (opts: {
+    includeComplementar: boolean;
+    gerarGlosa: boolean;
+    parcelas: number;
+  }) => {
+    if (!results) return;
+    const actionable = results.filter(isActionableTvr);
+    const retirar = toRetirarItems(results);
+
+    if (!opts.includeComplementar && !opts.gerarGlosa) {
+      toast({ title: "Selecione ao menos um caminho", variant: "destructive" });
+      return;
+    }
+    if (opts.includeComplementar && actionable.length === 0) {
+      toast({ title: "Nada para complementar", variant: "destructive" });
+      return;
+    }
+    if (opts.gerarGlosa && retirar.length === 0) {
+      toast({ title: "Nada para retirar/gerar glosa", variant: "destructive" });
+      return;
+    }
+
+    setEncaminharBusy(true);
+    try {
+      // 1) Glosa primeiro (fire-and-forget, mas se falhar aborta tudo).
+      if (opts.gerarGlosa) {
+        const result = await createAuditoriaGlosaBatch(retirar, opts.parcelas);
+        toast({
+          title: "Glosa de auditoria lançada",
+          description: `${result.items} itens · ${brl(result.total)} em ${result.parcelas} parcela(s). Veja em /glosas.`,
+        });
+      }
+      // 2) Complementar → confecção (navega no final).
+      if (opts.includeComplementar) {
+        setEncaminharOpen(false);
+        await sendHandoffToConfeccao(actionable, { silent: true });
+      } else {
+        setEncaminharOpen(false);
+      }
+    } catch (e) {
+      toast({
+        title: "Falha no encaminhamento",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setEncaminharBusy(false);
+    }
+  };
+
+
+
 
 
 
@@ -2529,26 +2779,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             )}
             <Button
               size="sm"
-              variant={selectedKeys.size > 0 ? "default" : "outline"}
-              onClick={() => {
-                const picked = results.filter((r) => selectedKeys.has(r.key));
-                void sendHandoffToConfeccao(picked);
-              }}
-              disabled={selectedKeys.size === 0}
-              title="Envia somente os itens marcados nas checkboxes"
+              onClick={() => setEncaminharOpen(true)}
+              disabled={results.filter(isActionableTvr).length === 0 && toRetirarItems(results).length === 0}
+              title="Abrir revisão antes de encaminhar"
             >
               <SendIcon className="h-4 w-4 mr-1" />
-              Encaminhar selecionados ({selectedKeys.size})
-            </Button>
-            <Button
-              size="sm"
-              variant={selectedKeys.size > 0 ? "outline" : "default"}
-              onClick={() => void sendHandoffToConfeccao(results)}
-              disabled={results.filter(isActionableTvr).length === 0}
-              title="Encaminha todos os itens acionáveis desta apuração"
-            >
-              <SendIcon className="h-4 w-4 mr-1" />
-              Encaminhar todos ({results.filter(isActionableTvr).length})
+              Encaminhar apuração
             </Button>
           </div>
         )}
@@ -2826,7 +3062,204 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           onConfirm={confirmTasy}
         />
       )}
+
+      <EncaminharApuracaoModal
+        open={encaminharOpen}
+        onOpenChange={(v) => { if (!encaminharBusy) setEncaminharOpen(v); }}
+        results={results ?? []}
+        actionable={(results ?? []).filter(isActionableTvr)}
+        retirar={toRetirarItems(results ?? [])}
+        canGerarGlosa={!!recon?.company_id && (!!doctorInfo.name || !!doctorInfo.crm)}
+        busy={encaminharBusy}
+        onConfirm={runEncaminharFluxo}
+      />
     </div>
+  );
+}
+
+type EncaminharModalProps = {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  results: TvrResult[];
+  actionable: TvrResult[];
+  retirar: TvrResult[];
+  canGerarGlosa: boolean;
+  busy: boolean;
+  onConfirm: (opts: { includeComplementar: boolean; gerarGlosa: boolean; parcelas: number }) => void;
+};
+
+function EncaminharApuracaoModal({
+  open, onOpenChange, results: _results, actionable, retirar, canGerarGlosa, busy, onConfirm,
+}: EncaminharModalProps) {
+  const [includeComplementar, setIncludeComplementar] = useState(true);
+  const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
+  const [parcelas, setParcelas] = useState<number>(1);
+  const [showCompList, setShowCompList] = useState(false);
+  const [showRetList, setShowRetList] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setIncludeComplementar(actionable.length > 0);
+      setGerarGlosa(retirar.length > 0 && canGerarGlosa ? "agora" : "depois");
+      setParcelas(1);
+      setShowCompList(false);
+      setShowRetList(false);
+    }
+  }, [open, actionable.length, retirar.length, canGerarGlosa]);
+
+  const totalBaseComp = actionable.reduce((s, r) => {
+    if (r.status === "nao_pago") return s + r.valor_total_tasy;
+    if (r.dif_valor > 0.5) return s + r.dif_valor;
+    return s;
+  }, 0);
+  const totalBaseRet = retirar.reduce((s, r) => {
+    if (r.status === "ausente_tasy") return s + r.valor_pago_base;
+    if (r.dif_valor < -0.5) return s + Math.abs(r.dif_valor);
+    return s;
+  }, 0);
+  const totalAcordoRet = retirar.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Encaminhar apuração</DialogTitle>
+          <DialogDescription>
+            Revise os dois caminhos antes de confirmar. Ações são executadas em sequência.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Caminho A */}
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                checked={includeComplementar}
+                disabled={actionable.length === 0 || busy}
+                onCheckedChange={(v) => setIncludeComplementar(!!v)}
+                className="mt-1"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold">
+                  ✅ A complementar → novo repasse para confecção
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {actionable.length} item(ns) · Base {brl(totalBaseComp)} (regra aplica acordo na confecção)
+                </div>
+                {actionable.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-[11px] text-primary mt-1 underline"
+                    onClick={() => setShowCompList((v) => !v)}
+                  >
+                    {showCompList ? "ocultar itens ▴" : "ver itens ▾"}
+                  </button>
+                )}
+                {showCompList && (
+                  <div className="mt-2 max-h-40 overflow-auto rounded border border-border bg-background text-[11px]">
+                    {actionable.map((r) => (
+                      <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border last:border-b-0">
+                        <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
+                        <span className="font-mono">{brl(r.status === "nao_pago" ? r.valor_total_tasy : Math.max(0, r.dif_valor))}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Caminho B */}
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+            <div className="flex items-start gap-3">
+              <div className="mt-1 text-base">⚠️</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold">
+                  A retirar → Glosa de auditoria
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {retirar.length} item(ns) · Base {brl(totalBaseRet)} · <span className="font-semibold text-destructive">C/ acordo {brl(totalAcordoRet)}</span>
+                </div>
+                {!canGerarGlosa && retirar.length > 0 && (
+                  <div className="text-[11px] text-amber-700 mt-1">
+                    Apuração precisa ter PJ e médico vinculados para gerar a glosa.
+                  </div>
+                )}
+                <RadioGroup
+                  value={gerarGlosa}
+                  onValueChange={(v) => setGerarGlosa(v as "agora" | "depois")}
+                  className="mt-2"
+                  disabled={busy || retirar.length === 0}
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="g-agora" value="agora" disabled={!canGerarGlosa || retirar.length === 0} />
+                    <Label htmlFor="g-agora" className="text-xs font-normal">
+                      Gerar glosa agora (débito parcelável)
+                    </Label>
+                  </div>
+                  {gerarGlosa === "agora" && (
+                    <div className="ml-6 flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">Parcelas:</span>
+                      <Select value={String(parcelas)} onValueChange={(v) => setParcelas(Number(v))}>
+                        <SelectTrigger className="h-7 w-20 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 6, 12].map((n) => (
+                            <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="g-depois" value="depois" />
+                    <Label htmlFor="g-depois" className="text-xs font-normal">
+                      Não gerar — tratar depois
+                    </Label>
+                  </div>
+                </RadioGroup>
+                {retirar.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-[11px] text-destructive mt-2 underline"
+                    onClick={() => setShowRetList((v) => !v)}
+                  >
+                    {showRetList ? "ocultar itens ▴" : "ver itens ▾"}
+                  </button>
+                )}
+                {showRetList && (
+                  <div className="mt-2 max-h-40 overflow-auto rounded border border-border bg-background text-[11px]">
+                    {retirar.map((r) => (
+                      <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border last:border-b-0">
+                        <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
+                        <span className="font-mono">{brl(r.valor_recuperar_acordo ?? 0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => onConfirm({
+              includeComplementar,
+              gerarGlosa: gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa,
+              parcelas,
+            })}
+            disabled={busy || (!includeComplementar && (gerarGlosa !== "agora" || retirar.length === 0))}
+          >
+            {busy ? "Processando..." : "Confirmar encaminhamento"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
