@@ -1546,7 +1546,21 @@ function getAusenteTasyMissingFields(r: TvrResult): string[] {
 
 
 function dbDateOrNull(value: string): string | null {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const m = value.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return null;
+}
+
+function formatTvrDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const s = String(value).slice(0, 10);
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[3]}-${iso[2]}-${iso[1]}`;
+  const br = s.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (br) return `${br[1]}-${br[2]}-${br[3]}`;
+  return value;
 }
 
 function isTvrResult(value: unknown): value is TvrResult {
@@ -1654,10 +1668,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_qtd: String(r.qtd_por_func || 1),
         pag_valor_base: String(r.valor_pago_base || 0),
         pag_valor_com_acordo: String(r.valor_com_acordo || 0),
-        pag_funcao: r.funcoes_pagas,
+        pag_funcao: r.funcao || r.funcoes_pagas,
+        pag_medico: r.medico,
         pag_data: r.data,
         pag_paciente: r.paciente,
         pag_convenio: r.convenio,
+        pag_procedimento: r.procedimento,
         pag_lote: r.lotes,
       })));
       setPaymentsLoaded(true);
@@ -1845,12 +1861,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           cur.valor_com_acordo += va;
           if (fn) cur.funcs.add(fn);
           if (lote) cur.lotes.add(lote);
+          // enrich sample with non-empty fields from later rows
+          const s = cur.sample;
+          if (!s.pag_medico && r.pag_medico) s.pag_medico = r.pag_medico;
+          if (!s.pag_paciente && r.pag_paciente) s.pag_paciente = r.pag_paciente;
+          if (!s.pag_convenio && r.pag_convenio) s.pag_convenio = r.pag_convenio;
+          if (!s.pag_procedimento && r.pag_procedimento) s.pag_procedimento = r.pag_procedimento;
+          if (!s.pag_data && r.pag_data) s.pag_data = r.pag_data;
+          if (!s.pag_funcao && r.pag_funcao) s.pag_funcao = r.pag_funcao;
         } else {
           const funcs = new Set<string>();
           const lotes = new Set<string>();
           if (fn) funcs.add(fn);
           if (lote) lotes.add(lote);
-          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, lotes, valor_base: vb, valor_com_acordo: va, sample: r });
+          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, lotes, valor_base: vb, valor_com_acordo: va, sample: { ...r } });
         }
       }
 
@@ -2021,7 +2045,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     "Cód. TUSS": r.tuss,
     Procedimento: r.procedimento,
     Paciente: r.paciente,
-    Data: r.data,
+    Data: formatTvrDate(r.data),
     Convênio: r.convenio,
     Médico: r.medico,
     Função: r.funcao,
@@ -2422,7 +2446,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell>{r.tuss || "—"}</TableCell>
                       <TableCell className="max-w-[220px] truncate" title={r.procedimento}>{r.procedimento || "—"}</TableCell>
                       <TableCell className="max-w-[180px] truncate" title={r.paciente}>{r.paciente || "—"}</TableCell>
-                      <TableCell>{r.data || "—"}</TableCell>
+                      <TableCell>{formatTvrDate(r.data)}</TableCell>
                       <TableCell className="max-w-[140px] truncate" title={r.convenio}>{r.convenio || "—"}</TableCell>
                       <TableCell className="max-w-[160px] truncate" title={r.medico}>{r.medico || "—"}</TableCell>
                       <TableCell>{r.funcao || "—"}</TableCell>
