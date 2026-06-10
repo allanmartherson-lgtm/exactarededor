@@ -1003,6 +1003,8 @@ export default function Glosas() {
 
                         </div>
                       </button>
+                      </div>
+
 
                       {expandedBatch === batch.id && (
                         <div style={{ borderTop: "1px solid hsl(var(--border))" }}>
