@@ -1632,6 +1632,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [results, setResults] = useState<TvrResult[] | null>(null);
   const [statusFilter, setStatusFilter] = useState<TvrStatus | "all">("all");
   const [search, setSearch] = useState("");
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   const [wizard, setWizard] = useState<
     | { kind: "none" }
