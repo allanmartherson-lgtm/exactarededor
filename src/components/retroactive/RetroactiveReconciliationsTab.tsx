@@ -2013,7 +2013,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <div>
             <h3 className="text-lg font-semibold">{recon?.title ?? "TASY vs Repasse"}</h3>
             <p className="text-xs text-muted-foreground">
-              Análise ad-hoc · arquivos externos · sem persistência no banco
+              TASY externo · repasse do sistema · resultado salvo na apuração
             </p>
           </div>
         </div>
