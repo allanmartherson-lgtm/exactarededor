@@ -1499,8 +1499,10 @@ function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
   return c;
 }
 
+const TVR_SOURCE = "tasy_vs_repasse";
 
 function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
+
   const totalComplementar = list.reduce((sum, r) => {
     if (r.status === "ok" || r.status === "pago_sem_tasy") return sum;
     if (r.status === "nao_pago") return sum + r.valor_total_tasy;
