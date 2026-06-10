@@ -2354,7 +2354,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
           {tasyRows.length > 0 && (
             <Badge variant="default" className="text-[10px]">
-              {tasyRows.length} linha(s) · {tasyFile}
+              {tasyFileTotals
+                ? `${tasyRows.length} de ${tasyFileTotals.file} linha(s) · ${tasyFile}`
+                : `${tasyRows.length} linha(s) · ${tasyFile}`}
             </Badge>
           )}
         </div>
