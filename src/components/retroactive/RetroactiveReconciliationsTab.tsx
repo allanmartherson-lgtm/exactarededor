@@ -1861,12 +1861,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           cur.valor_com_acordo += va;
           if (fn) cur.funcs.add(fn);
           if (lote) cur.lotes.add(lote);
+          // enrich sample with non-empty fields from later rows
+          const s = cur.sample;
+          if (!s.pag_medico && r.pag_medico) s.pag_medico = r.pag_medico;
+          if (!s.pag_paciente && r.pag_paciente) s.pag_paciente = r.pag_paciente;
+          if (!s.pag_convenio && r.pag_convenio) s.pag_convenio = r.pag_convenio;
+          if (!s.pag_procedimento && r.pag_procedimento) s.pag_procedimento = r.pag_procedimento;
+          if (!s.pag_data && r.pag_data) s.pag_data = r.pag_data;
+          if (!s.pag_funcao && r.pag_funcao) s.pag_funcao = r.pag_funcao;
         } else {
           const funcs = new Set<string>();
           const lotes = new Set<string>();
           if (fn) funcs.add(fn);
           if (lote) lotes.add(lote);
-          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, lotes, valor_base: vb, valor_com_acordo: va, sample: r });
+          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, lotes, valor_base: vb, valor_com_acordo: va, sample: { ...r } });
         }
       }
 
