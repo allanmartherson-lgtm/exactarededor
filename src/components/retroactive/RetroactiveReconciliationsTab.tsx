@@ -1608,7 +1608,7 @@ const AUSENTE_TASY_ESSENTIAL_FIELDS = [
   ["procedimento", "Procedimento"],
 ] as const;
 
-function getAusenteTasyMissingFields(r: TvrResult): string[] {
+export function getAusenteTasyMissingFields(r: TvrResult): string[] {
   if (r.status !== "ausente_tasy") return [];
   const out: string[] = [];
   for (const [key, label] of AUSENTE_TASY_ESSENTIAL_FIELDS) {
