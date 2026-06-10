@@ -1730,6 +1730,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [statusFilter, setStatusFilter] = useState<TvrStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [doctorInfo, setDoctorInfo] = useState<{ id: string | null; name: string | null; crm: string | null }>({ id: null, name: null, crm: null });
+  const [hospitalIdRecon, setHospitalIdRecon] = useState<string | null>(null);
+  const [encaminharOpen, setEncaminharOpen] = useState(false);
+  const [encaminharBusy, setEncaminharBusy] = useState(false);
 
   const [wizard, setWizard] = useState<
     | { kind: "none" }
@@ -1739,7 +1743,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const loadTvrReconciliation = async () => {
     const { data } = await supabase
       .from("retroactive_reconciliations" as never)
-      .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at")
+      .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at, hospital_id")
       .eq("id", id)
       .single();
     const row = data as unknown as ReconRow;
