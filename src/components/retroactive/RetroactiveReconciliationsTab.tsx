@@ -1484,6 +1484,8 @@ type PagRow = {
   pag_convenio?: string;
   pag_procedimento?: string;
   pag_lote?: string;
+  pag_payment_item_id?: string;
+  pag_payment_id?: string;
 };
 
 
