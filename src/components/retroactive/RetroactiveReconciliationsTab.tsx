@@ -2779,26 +2779,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             )}
             <Button
               size="sm"
-              variant={selectedKeys.size > 0 ? "default" : "outline"}
-              onClick={() => {
-                const picked = results.filter((r) => selectedKeys.has(r.key));
-                void sendHandoffToConfeccao(picked);
-              }}
-              disabled={selectedKeys.size === 0}
-              title="Envia somente os itens marcados nas checkboxes"
+              onClick={() => setEncaminharOpen(true)}
+              disabled={results.filter(isActionableTvr).length === 0 && toRetirarItems(results).length === 0}
+              title="Abrir revisão antes de encaminhar"
             >
               <SendIcon className="h-4 w-4 mr-1" />
-              Encaminhar selecionados ({selectedKeys.size})
-            </Button>
-            <Button
-              size="sm"
-              variant={selectedKeys.size > 0 ? "outline" : "default"}
-              onClick={() => void sendHandoffToConfeccao(results)}
-              disabled={results.filter(isActionableTvr).length === 0}
-              title="Encaminha todos os itens acionáveis desta apuração"
-            >
-              <SendIcon className="h-4 w-4 mr-1" />
-              Encaminhar todos ({results.filter(isActionableTvr).length})
+              Encaminhar apuração
             </Button>
           </div>
         )}
