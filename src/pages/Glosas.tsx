@@ -183,6 +183,7 @@ export default function Glosas() {
   const [batchItems, setBatchItems] = useState<Record<string, any[]>>({});
   const [debts, setDebts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "convenio" | "auditoria">("all");
   const [selectedBatches, setSelectedBatches] = useState<Set<string>>(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
   const [bulkSummary, setBulkSummary] = useState<null | {
