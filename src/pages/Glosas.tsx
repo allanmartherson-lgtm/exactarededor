@@ -183,6 +183,16 @@ export default function Glosas() {
   const [batchItems, setBatchItems] = useState<Record<string, any[]>>({});
   const [debts, setDebts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBatches, setSelectedBatches] = useState<Set<string>>(new Set());
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkSummary, setBulkSummary] = useState<null | {
+    batches: number;
+    items: number;
+    matchedByPayment: number;
+    matchedByCadastro: number;
+    unmatched: number;
+    perBatch: Array<{ id: string; reference: string; matchedByPayment: number; matchedByCadastro: number; unmatched: number }>;
+  }>(null);
 
   const [mappingOpen, setMappingOpen] = useState(false);
   const [pendingRows, setPendingRows] = useState<any[][]>([]);
