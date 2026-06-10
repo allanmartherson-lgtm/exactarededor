@@ -1486,6 +1486,7 @@ type PagRow = {
   pag_lote?: string;
   pag_payment_item_id?: string;
   pag_payment_id?: string;
+  pag_doctor_id?: string;
 };
 
 
