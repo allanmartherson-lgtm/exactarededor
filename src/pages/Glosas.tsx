@@ -224,7 +224,9 @@ export default function Glosas() {
   }, []);
 
   const loadDebts = useCallback(async () => {
-    const { data } = await (supabase as any).from("glosa_debts").select("*").eq("status", "ativo").order("total_debt", { ascending: false });
+    // Lê da view v_glosa_debts_balance: total_debt é sempre derivado de glosa_debt_items
+    // (saldo a pagar), garantindo consistência visual mesmo se o stored estiver atrasado.
+    const { data } = await (supabase as any).from("v_glosa_debts_balance").select("*").eq("status", "ativo").order("total_debt", { ascending: false });
     setDebts(data ?? []);
   }, []);
 

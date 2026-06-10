@@ -44,7 +44,7 @@ export default function GlosaResolutionPanel() {
     setLoading(true);
     const [{ data: ds }, { data: cs }] = await Promise.all([
       (supabase as any)
-        .from("glosa_debts")
+        .from("v_glosa_debts_balance")
         .select("id, doctor_crm, doctor_name, total_debt, resolution_status, resolution_reason, company_id")
         .eq("status", "ativo")
         .eq("resolution_status", "pendente_resolucao")
