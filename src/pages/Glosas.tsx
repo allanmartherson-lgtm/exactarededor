@@ -930,8 +930,20 @@ export default function Glosas() {
                               <div style={{ fontSize: 11, fontFamily: "monospace", color: "hsl(var(--muted-foreground))" }}>
                                 {item.attendance_number || "—"}
                               </div>
-                              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {item.matched_company_name || "—"}
+                              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", overflow: "hidden", whiteSpace: "normal" }}>
+                                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {item.matched_company_name || "—"}
+                                  {item.match_source === "doctor_companies" && (
+                                    <span title="Vinculado via cadastro do médico (sem pagamento correspondente)" style={{ marginLeft: 4, padding: "1px 5px", fontSize: 9, borderRadius: 3, background: "hsl(var(--bubble-yellow) / 0.25)", color: "hsl(var(--bubble-yellow-fg))", fontWeight: 600 }}>
+                                      via cadastro
+                                    </span>
+                                  )}
+                                </div>
+                                {item.status === "sem_match" && item.match_reason && (
+                                  <div style={{ fontSize: 9, color: "hsl(var(--bubble-red-fg))", marginTop: 2 }}>
+                                    {item.match_reason}
+                                  </div>
+                                )}
                               </div>
                               <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
                                 {item.procedure_date ? new Date(item.procedure_date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—"}
