@@ -54,7 +54,7 @@ const OPEN_PAYMENT_STATUSES = [
   "aguardando_aprovacao",
   "pedido_nf_enviado",
   "revisao_pos_aprovacao",
-];
+] as const;
 
 
 
