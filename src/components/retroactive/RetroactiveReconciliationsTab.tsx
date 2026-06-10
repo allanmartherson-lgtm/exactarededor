@@ -1546,7 +1546,21 @@ function getAusenteTasyMissingFields(r: TvrResult): string[] {
 
 
 function dbDateOrNull(value: string): string | null {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const m = value.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return null;
+}
+
+function formatTvrDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const s = String(value).slice(0, 10);
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[3]}-${iso[2]}-${iso[1]}`;
+  const br = s.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (br) return `${br[1]}-${br[2]}-${br[3]}`;
+  return value;
 }
 
 function isTvrResult(value: unknown): value is TvrResult {
