@@ -2529,6 +2529,78 @@ export type Database = {
           },
         ]
       }
+      glosa_item_match_history: {
+        Row: {
+          batch_id: string | null
+          event_kind: string
+          glosa_item_id: string
+          id: string
+          new_company_id: string | null
+          new_company_name: string | null
+          new_match_reason: string | null
+          new_match_source: string | null
+          new_status: string | null
+          performed_at: string
+          performed_by: string | null
+          prev_company_id: string | null
+          prev_company_name: string | null
+          prev_match_reason: string | null
+          prev_match_source: string | null
+          prev_status: string | null
+        }
+        Insert: {
+          batch_id?: string | null
+          event_kind?: string
+          glosa_item_id: string
+          id?: string
+          new_company_id?: string | null
+          new_company_name?: string | null
+          new_match_reason?: string | null
+          new_match_source?: string | null
+          new_status?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          prev_company_id?: string | null
+          prev_company_name?: string | null
+          prev_match_reason?: string | null
+          prev_match_source?: string | null
+          prev_status?: string | null
+        }
+        Update: {
+          batch_id?: string | null
+          event_kind?: string
+          glosa_item_id?: string
+          id?: string
+          new_company_id?: string | null
+          new_company_name?: string | null
+          new_match_reason?: string | null
+          new_match_source?: string | null
+          new_status?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          prev_company_id?: string | null
+          prev_company_name?: string | null
+          prev_match_reason?: string | null
+          prev_match_source?: string | null
+          prev_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "glosa_item_match_history_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "glosa_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_item_match_history_glosa_item_id_fkey"
+            columns: ["glosa_item_id"]
+            isOneToOne: false
+            referencedRelation: "glosa_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       glosa_items: {
         Row: {
           applied_at: string | null
@@ -8227,6 +8299,10 @@ export type Database = {
           total_stuck_value: number
           worst_status: string
         }[]
+      }
+      glosa_recompute_debt_for_doctor: {
+        Args: { p_crm: string; p_name: string }
+        Returns: undefined
       }
       has_role: {
         Args: {
