@@ -95,8 +95,10 @@ Deno.serve(async (req) => {
         .from("glosa_debts")
         .select("*")
         .eq("status", "ativo")
+        .not("confirmed_at", "is", null)
         .in("doctor_id", doctorIds)
         .or("resolution_status.is.null,resolution_status.neq.ignorado");
+
 
       const { data: existingGpa } = await supabase
         .from("glosa_payment_applications")
