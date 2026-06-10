@@ -203,6 +203,11 @@ export default function PotentialDebtsPanel({
     toast.success(
       `Débito gerado em ${parcelas}× de ${brl(modalGroup.total / parcelas)}.`,
     );
+    // Remove otimisticamente o grupo (e os itens dele) para evitar segundo
+    // clique antes do reload terminar — defesa em profundidade junto com o
+    // lock transacional no RPC.
+    const removedKey = modalGroup.key;
+    setGroups((prev) => prev.filter((g) => g.key !== removedKey));
     setModalGroup(null);
     void load();
     onCreated?.();
