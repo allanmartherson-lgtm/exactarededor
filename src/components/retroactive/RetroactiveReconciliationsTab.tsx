@@ -1628,30 +1628,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         excludeTuss.split(",").map((s) => normTuss(s.trim())).filter(Boolean),
       );
 
-      // Aggregate TASY by (atendimento, tuss)
-      type TAgg = {
-        atendimento: string;
-        tuss: string;
-        qtd: number;
-        valor_total: number;
-        valor_unit_first: number;
-        sample: TasyRow;
-      };
-      const tMap = new Map<string, TAgg>();
-      for (const r of tasyRows) {
-        if (excluded.has(r.tasy_tuss)) continue;
-        const key = `${r.tasy_atendimento}|${r.tasy_tuss}`;
-        const q = num(r.tasy_qtd) || 1;
-        const u = num(r.tasy_valor_unit);
-        const cur = tMap.get(key);
-        if (cur) {
-          cur.qtd += q;
-          cur.valor_total += u * q;
-        } else {
-          tMap.set(key, { atendimento: r.tasy_atendimento, tuss: r.tasy_tuss, qtd: q, valor_total: u * q, valor_unit_first: u, sample: r });
-        }
-      }
-
       // Aggregate Repasse by (atendimento, tuss)
       type PAgg = {
         atendimento: string;
@@ -1680,6 +1656,62 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           const funcs = new Set<string>();
           if (fn) funcs.add(fn);
           pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, valor_base: vb, valor_com_acordo: va, sample: r });
+        }
+      }
+
+      // Aggregate TASY by (atendimento, tuss). O arquivo TASY pode trazer a coluna
+      // de valor como unitária ou como total da linha; detectamos pelo que melhor
+      // reconcilia com `procedure_amount` já gravado nos itens pagos.
+      type TAgg = {
+        atendimento: string;
+        tuss: string;
+        qtd: number;
+        valor_total: number;
+        valor_unit_first: number;
+        sample: TasyRow;
+      };
+      type TasyCandidate = { qtd: number; asLineTotal: number; asUnitValue: number };
+      const candidates = new Map<string, TasyCandidate>();
+      for (const r of tasyRows) {
+        if (excluded.has(r.tasy_tuss)) continue;
+        const key = `${r.tasy_atendimento}|${r.tasy_tuss}`;
+        const q = num(r.tasy_qtd) || 1;
+        const v = num(r.tasy_valor_unit);
+        const cur = candidates.get(key);
+        if (cur) {
+          cur.qtd += q;
+          cur.asLineTotal += v;
+          cur.asUnitValue += v * q;
+        } else {
+          candidates.set(key, { qtd: q, asLineTotal: v, asUnitValue: v * q });
+        }
+      }
+      let lineTotalDelta = 0;
+      let unitValueDelta = 0;
+      let comparable = 0;
+      for (const [key, c] of candidates) {
+        const paidBase = pMap.get(key)?.valor_base ?? 0;
+        if (paidBase <= 0 || Math.abs(c.asLineTotal - c.asUnitValue) <= 0.01) continue;
+        lineTotalDelta += Math.abs(c.asLineTotal - paidBase);
+        unitValueDelta += Math.abs(c.asUnitValue - paidBase);
+        comparable++;
+      }
+      const tasyValueIsLineTotal = comparable > 0 && lineTotalDelta < unitValueDelta;
+
+      const tMap = new Map<string, TAgg>();
+      for (const r of tasyRows) {
+        if (excluded.has(r.tasy_tuss)) continue;
+        const key = `${r.tasy_atendimento}|${r.tasy_tuss}`;
+        const q = num(r.tasy_qtd) || 1;
+        const v = num(r.tasy_valor_unit);
+        const lineTotal = tasyValueIsLineTotal ? v : v * q;
+        const unitValue = tasyValueIsLineTotal && q > 0 ? v / q : v;
+        const cur = tMap.get(key);
+        if (cur) {
+          cur.qtd += q;
+          cur.valor_total += lineTotal;
+        } else {
+          tMap.set(key, { atendimento: r.tasy_atendimento, tuss: r.tasy_tuss, qtd: q, valor_total: lineTotal, valor_unit_first: unitValue, sample: r });
         }
       }
 
