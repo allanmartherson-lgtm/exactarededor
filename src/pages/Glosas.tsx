@@ -561,10 +561,11 @@ export default function Glosas() {
     let matched = 0;
     let unmatched = 0;
 
+    // 1) Match primário: payment_items pelo número do atendimento
     const attendanceNumbers = items.map(it => it.attendance_number).filter(Boolean);
     const { data: paymentItems } = await supabase
       .from("payment_items")
-      .select("id, attendance_number, doctor_name, doctor_document, company_name, payment_id")
+      .select("id, attendance_number, doctor_name, doctor_document, company_name, company_id, payment_id")
       .in("attendance_number", attendanceNumbers);
 
     const piMap = new Map<string, any[]>();
@@ -574,87 +575,155 @@ export default function Glosas() {
       piMap.get(key)!.push(pi);
     }
 
+    // 2) Fallback: doctor (CRM) → doctor_companies → company
+    //    Carrega cadastro só dos CRMs distintos da glosa, em lote.
+    const normCrm = (v: string) => String(v ?? "").replace(/\D/g, "");
+    const normName = (v: string) =>
+      String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+    const distinctCrms = Array.from(
+      new Set(items.map(it => normCrm(it.doctor_crm)).filter(Boolean)),
+    );
+    const distinctNames = Array.from(
+      new Set(items.map(it => normName(it.doctor_name)).filter(Boolean)),
+    );
+
+    type DoctorRow = { id: string; full_name: string; crm: string };
+    const doctorsByCrm = new Map<string, DoctorRow>();
+    const doctorsByName = new Map<string, DoctorRow>();
+    if (distinctCrms.length > 0 || distinctNames.length > 0) {
+      const { data: doctorRows } = await (supabase as any)
+        .from("doctors")
+        .select("id, full_name, crm")
+        .or([
+          distinctCrms.length ? `crm.in.(${distinctCrms.join(",")})` : null,
+        ].filter(Boolean).join(","));
+      for (const d of (doctorRows ?? []) as DoctorRow[]) {
+        if (d.crm) doctorsByCrm.set(normCrm(d.crm), d);
+        if (d.full_name) doctorsByName.set(normName(d.full_name), d);
+      }
+    }
+
+    // Carrega doctor_companies vigentes para os doctor_id encontrados.
+    const doctorIds = Array.from(new Set([
+      ...Array.from(doctorsByCrm.values()).map(d => d.id),
+      ...Array.from(doctorsByName.values()).map(d => d.id),
+    ]));
+    type Link = { doctor_id: string; company_id: string; company_name: string };
+    const linksByDoctor = new Map<string, Link[]>();
+    if (doctorIds.length > 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: links } = await (supabase as any)
+        .from("doctor_companies")
+        .select("doctor_id, company_id, start_date, end_date, companies!inner(id, name)")
+        .in("doctor_id", doctorIds);
+      for (const raw of (links ?? []) as any[]) {
+        // vigência: start_date NULL ou <= hoje; end_date NULL ou >= hoje
+        const startOk = !raw.start_date || raw.start_date <= today;
+        const endOk = !raw.end_date || raw.end_date >= today;
+        if (!startOk || !endOk) continue;
+        const link: Link = {
+          doctor_id: raw.doctor_id,
+          company_id: raw.company_id,
+          company_name: raw.companies?.name ?? "",
+        };
+        if (!linksByDoctor.has(link.doctor_id)) linksByDoctor.set(link.doctor_id, []);
+        linksByDoctor.get(link.doctor_id)!.push(link);
+      }
+    }
+
+    const resolveByDoctor = (item: any): { link: Link | null; reason: string | null } => {
+      const crmKey = normCrm(item.doctor_crm);
+      const nameKey = normName(item.doctor_name);
+      const doctor = (crmKey && doctorsByCrm.get(crmKey)) || (nameKey && doctorsByName.get(nameKey)) || null;
+      if (!doctor) {
+        return { link: null, reason: "médico não cadastrado" };
+      }
+      const links = linksByDoctor.get(doctor.id) ?? [];
+      if (links.length === 0) return { link: null, reason: "médico sem PJ cadastrada" };
+      if (links.length > 1) return { link: null, reason: `${links.length} PJs ativas — escolher manualmente` };
+      return { link: links[0], reason: null };
+    };
+
+    const upsertDebt = async (item: any) => {
+      if (!item.doctor_name || !(item.valor_glosa > 0)) return;
+      const crmKey = item.doctor_crm || item.doctor_name;
+      const { data: existing } = await (supabase as any)
+        .from("glosa_debts")
+        .select("id, total_debt")
+        .eq("doctor_crm", crmKey)
+        .maybeSingle();
+      if (existing) {
+        await (supabase as any).from("glosa_debts").update({
+          total_debt: (existing.total_debt ?? 0) + item.valor_glosa,
+          updated_at: new Date().toISOString(),
+          status: "ativo",
+        }).eq("id", existing.id);
+      } else {
+        await (supabase as any).from("glosa_debts").insert({
+          doctor_crm: crmKey,
+          doctor_name: item.doctor_name,
+          total_debt: item.valor_glosa,
+          status: "ativo",
+        });
+      }
+    };
+
     for (const item of items) {
       const atend = String(item.attendance_number ?? "").trim();
-      const matches = piMap.get(atend) ?? [];
+      const matches = atend ? (piMap.get(atend) ?? []) : [];
 
-      if (matches.length === 0) {
-        // Sem match no payment_items mas registra saldo devedor do médico
-        await supabase.from("glosa_items").update({
-          status: "sem_match",
-        }).eq("batch_id", batchId).eq("attendance_number", atend);
-
-        if (item.doctor_name && item.valor_glosa > 0) {
-          const crmKey = item.doctor_crm || item.doctor_name;
-          const { data: existing } = await supabase
-            .from("glosa_debts")
-            .select("id, total_debt")
-            .eq("doctor_crm", crmKey)
-            .maybeSingle();
-
-          if (existing) {
-            await supabase.from("glosa_debts").update({
-              total_debt: (existing.total_debt ?? 0) + item.valor_glosa,
-              updated_at: new Date().toISOString(),
-              status: "ativo",
-            }).eq("id", existing.id);
-          } else {
-            await supabase.from("glosa_debts").insert({
-              doctor_crm: crmKey,
-              doctor_name: item.doctor_name,
-              total_debt: item.valor_glosa,
-              status: "ativo",
-            });
-          }
+      if (matches.length > 0) {
+        // Caminho principal: match por pagamento
+        let best = matches[0];
+        if (item.doctor_crm) {
+          const byCrm = matches.find(m => String(m.doctor_document ?? "").includes(item.doctor_crm));
+          if (byCrm) best = byCrm;
+        } else if (item.doctor_name) {
+          const byName = matches.find(m => normName(m.doctor_name ?? "").includes(normName(item.doctor_name).slice(0, 8)));
+          if (byName) best = byName;
         }
-
-        unmatched++;
+        await (supabase as any).from("glosa_items").update({
+          status: "vinculado",
+          match_source: "payment_item",
+          matched_payment_item_id: best.id,
+          matched_payment_id: best.payment_id,
+          matched_company_id: best.company_id ?? null,
+          matched_company_name: best.company_name,
+          match_reason: null,
+          matched_at: new Date().toISOString(),
+        }).eq("batch_id", batchId).eq("attendance_number", atend);
+        await upsertDebt(item);
+        matched++;
         continue;
       }
 
-      let best = matches[0];
-      if (item.doctor_crm) {
-        const byCrm = matches.find(m => String(m.doctor_document ?? "").includes(item.doctor_crm));
-        if (byCrm) best = byCrm;
-      } else if (item.doctor_name) {
-        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        const byName = matches.find(m => norm(m.doctor_name ?? "").includes(norm(item.doctor_name ?? "").slice(0, 8)));
-        if (byName) best = byName;
+      // Fallback: tenta resolver pela PJ vinculada ao médico no cadastro
+      const { link, reason } = resolveByDoctor(item);
+      if (link) {
+        await (supabase as any).from("glosa_items").update({
+          status: "vinculado",
+          match_source: "doctor_companies",
+          matched_payment_item_id: null,
+          matched_payment_id: null,
+          matched_company_id: link.company_id,
+          matched_company_name: link.company_name,
+          match_reason: "vinculado via cadastro do médico (sem pagamento correspondente ainda)",
+          matched_at: new Date().toISOString(),
+        }).eq("batch_id", batchId).eq("attendance_number", atend);
+        await upsertDebt(item);
+        matched++;
+      } else {
+        await (supabase as any).from("glosa_items").update({
+          status: "sem_match",
+          match_source: null,
+          matched_company_id: null,
+          matched_company_name: null,
+          match_reason: reason,
+        }).eq("batch_id", batchId).eq("attendance_number", atend);
+        await upsertDebt(item);
+        unmatched++;
       }
-
-      await (supabase as any).from("glosa_items").update({
-        status: "vinculado",
-        matched_payment_item_id: best.id,
-        matched_payment_id: best.payment_id,
-        matched_company_name: best.company_name,
-        matched_at: new Date().toISOString(),
-      }).eq("batch_id", batchId).eq("attendance_number", atend);
-
-      if (item.doctor_name && item.valor_glosa > 0) {
-        const crmKey = item.doctor_crm || item.doctor_name;
-        const { data: existing } = await (supabase as any)
-          .from("glosa_debts")
-          .select("id, total_debt")
-          .eq("doctor_crm", crmKey)
-          .maybeSingle();
-
-        if (existing) {
-          await (supabase as any).from("glosa_debts").update({
-            total_debt: (existing.total_debt ?? 0) + item.valor_glosa,
-            updated_at: new Date().toISOString(),
-            status: "ativo",
-          }).eq("id", existing.id);
-        } else {
-          await (supabase as any).from("glosa_debts").insert({
-            doctor_crm: crmKey,
-            doctor_name: item.doctor_name,
-            total_debt: item.valor_glosa,
-            status: "ativo",
-          });
-        }
-      }
-
-      matched++;
     }
 
     return { matched, unmatched };
@@ -861,8 +930,20 @@ export default function Glosas() {
                               <div style={{ fontSize: 11, fontFamily: "monospace", color: "hsl(var(--muted-foreground))" }}>
                                 {item.attendance_number || "—"}
                               </div>
-                              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {item.matched_company_name || "—"}
+                              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", overflow: "hidden", whiteSpace: "normal" }}>
+                                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {item.matched_company_name || "—"}
+                                  {item.match_source === "doctor_companies" && (
+                                    <span title="Vinculado via cadastro do médico (sem pagamento correspondente)" style={{ marginLeft: 4, padding: "1px 5px", fontSize: 9, borderRadius: 3, background: "hsl(var(--bubble-yellow) / 0.25)", color: "hsl(var(--bubble-yellow-fg))", fontWeight: 600 }}>
+                                      via cadastro
+                                    </span>
+                                  )}
+                                </div>
+                                {item.status === "sem_match" && item.match_reason && (
+                                  <div style={{ fontSize: 9, color: "hsl(var(--bubble-red-fg))", marginTop: 2 }}>
+                                    {item.match_reason}
+                                  </div>
+                                )}
                               </div>
                               <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
                                 {item.procedure_date ? new Date(item.procedure_date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—"}
