@@ -83,6 +83,14 @@ const EVENT_LABEL: Record<Pendencia["event_type"], string> = {
 
 export default function Pendencias() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "retroativa" ? "retroativa" : "pendencias";
+  const setActiveTab = (v: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (v === "retroativa") next.set("tab", "retroativa");
+    else next.delete("tab");
+    setSearchParams(next, { replace: true });
+  };
   const { user } = useAuth();
   const [items, setItems] = useState<Pendencia[]>([]);
   const [companies, setCompanies] = useState<Record<string, string>>({});
