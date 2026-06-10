@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -232,6 +232,62 @@ interface FileBucket {
   sectorColumnUsed?: string | null;
 }
 
+type RetroTvrResult = {
+  key?: string;
+  atendimento?: string;
+  tuss?: string;
+  procedimento?: string;
+  paciente?: string;
+  data?: string;
+  convenio?: string;
+  medico?: string;
+  funcao?: string;
+  funcoes_pagas?: string;
+  qtd_tasy?: number;
+  qtd_por_func?: number;
+  valor_unit_tasy?: number;
+  valor_total_tasy?: number;
+  dif_valor?: number;
+  matched_payment_item_id?: string;
+  status?: string;
+};
+
+const isRetroComplementar = (r: RetroTvrResult) =>
+  r.status === "nao_pago" ||
+  ((r.status === "div_valor" || r.status === "div_qtd_valor") && Number(r.dif_valor ?? 0) > 0.5);
+
+const retroComplementBase = (r: RetroTvrResult) => {
+  if (r.status === "nao_pago") return Math.max(0, Number(r.valor_total_tasy ?? 0));
+  return Math.max(0, Number(r.dif_valor ?? 0));
+};
+
+const retroComplementQuantity = (r: RetroTvrResult) => {
+  if (r.status === "nao_pago") return Math.max(1, Number(r.qtd_tasy ?? 1));
+  const missingQty = Number(r.qtd_tasy ?? 0) - Number(r.qtd_por_func ?? 0);
+  return missingQty > 0.5 ? missingQty : 1;
+};
+
+const monthsBetween = (start?: string | null, end?: string | null) => {
+  if (!start || !end) return [];
+  const out: string[] = [];
+  const cur = new Date(`${start.slice(0, 7)}-01T00:00:00`);
+  const last = new Date(`${end.slice(0, 7)}-01T00:00:00`);
+  if (Number.isNaN(cur.getTime()) || Number.isNaN(last.getTime())) return [];
+  while (cur <= last && out.length < 24) {
+    out.push(cur.toISOString().slice(0, 7));
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return out;
+};
+
+const buildRetroWorkbookFile = (rows: Record<string, unknown>[], filename: string) => {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Confecção");
+  const data = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+  return new File([data], filename, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+};
+
 interface CompanyRow { id: string; name: string; aliases: string[] }
 
 /** Erro detalhado de parsing — carrega título, motivos e instruções de correção. */
@@ -411,20 +467,30 @@ const NewPayment = () => {
     items_count?: number;
     total_complementar?: number;
     total_retirar?: number;
+    prefilled_count?: number;
   } | null>(null);
+  const retroPrefillDoneRef = useRef<string | null>(null);
   useEffect(() => {
     const retroId = searchParams.get("retro");
     if (!retroId) return;
+    if (retroPrefillDoneRef.current === retroId) return;
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("retroactive_reconciliations" as never)
-          .select("id, title, summary")
+          .select("id, title, summary, company_id, period_start, period_end")
           .eq("id", retroId)
           .maybeSingle();
-        if (cancelled || !data) return;
-        const row = data as { id: string; title: string | null; summary: Record<string, unknown> | null };
+        if (cancelled || error || !data) return;
+        const row = data as {
+          id: string;
+          title: string | null;
+          summary: Record<string, unknown> | null;
+          company_id: string | null;
+          period_start: string | null;
+          period_end: string | null;
+        };
         const handoff = (row.summary?.handoff ?? {}) as {
           payment_id?: string | null;
           payment_reference?: string | null;
@@ -448,6 +514,130 @@ const NewPayment = () => {
           (typeof handoff.total_complementar === "number"
             ? `Complementar previsto: R$ ${handoff.total_complementar.toFixed(2)} · Retirar: R$ ${(handoff.total_retirar ?? 0).toFixed(2)}.`
             : "");
+
+        const [{ data: companyRow }, { data: savedItems }] = await Promise.all([
+          row.company_id
+            ? supabase.from("companies" as never).select("id,name").eq("id", row.company_id).maybeSingle()
+            : Promise.resolve({ data: null } as { data: null }),
+          supabase
+            .from("retroactive_reconciliation_items" as never)
+            .select("id, raw")
+            .eq("reconciliation_id", row.id)
+            .eq("source", "tasy_vs_repasse")
+            .order("created_at", { ascending: true }),
+        ]);
+        const company = companyRow as { id: string; name: string } | null;
+        const tvrRows = ((savedItems ?? []) as Array<{ id: string; raw?: { tvr_result?: unknown } }>)
+          .map((it) => ({ reconciliation_item_id: it.id, result: it.raw?.tvr_result as RetroTvrResult | undefined }))
+          .filter((it): it is { reconciliation_item_id: string; result: RetroTvrResult } => !!it.result && isRetroComplementar(it.result));
+
+        const paymentItemIds = Array.from(new Set(
+          tvrRows.map((it) => it.result.matched_payment_item_id).filter((v): v is string => !!v),
+        ));
+        const paymentItemsById = new Map<string, Record<string, unknown>>();
+        if (paymentItemIds.length > 0) {
+          const { data: paidRows } = await supabase
+            .from("payment_items" as never)
+            .select("id, doctor_name, doctor_document, doctor_email, doctor_id, doctor_role, company_name, company_id, agreement_text, convenio_slug, sector, sector_slug, access_route, procedure_date, patient_name, procedure_name, specialty, attendance_character, cost_center_code, raw_data")
+            .in("id", paymentItemIds);
+          for (const paid of (paidRows ?? []) as Array<Record<string, unknown>>) {
+            paymentItemsById.set(String(paid.id), paid);
+          }
+        }
+
+        const sectorFallback = Array.from(paymentItemsById.values())
+          .map((p) => String(p.sector_slug ?? p.sector ?? "").trim())
+          .find(Boolean) || null;
+        const costCenterFallback = Array.from(paymentItemsById.values())
+          .map((p) => String(p.cost_center_code ?? "").trim())
+          .find(Boolean) || null;
+
+        if (tvrRows.length > 0) {
+          const sourceRows = tvrRows.map(({ reconciliation_item_id, result }) => {
+            const paid = result.matched_payment_item_id ? paymentItemsById.get(result.matched_payment_item_id) : undefined;
+            const qty = retroComplementQuantity(result);
+            const totalBase = retroComplementBase(result);
+            const unitBase = qty > 0 ? Number((totalBase / qty).toFixed(2)) : totalBase;
+            return {
+              Empresa: String(paid?.company_name ?? company?.name ?? ""),
+              Médico: String(paid?.doctor_name ?? result.medico ?? ""),
+              Documento: String(paid?.doctor_document ?? ""),
+              Email: String(paid?.doctor_email ?? ""),
+              "Nr. Atendimento": result.atendimento ?? "",
+              Paciente: String(paid?.patient_name ?? result.paciente ?? ""),
+              Data: String(paid?.procedure_date ?? result.data ?? ""),
+              Convênio: String(paid?.agreement_text ?? paid?.convenio_slug ?? result.convenio ?? ""),
+              "Código TUSS": result.tuss ?? "",
+              "Proced/Mat": String(paid?.procedure_name ?? result.procedimento ?? ""),
+              "Via de Acesso": String(paid?.access_route ?? ""),
+              Função: String(paid?.doctor_role ?? result.funcao ?? result.funcoes_pagas ?? ""),
+              Setor: String(paid?.sector_slug ?? paid?.sector ?? sectorFallback ?? ""),
+              Qtd: qty,
+              "Valor Procedimento": unitBase,
+              "Valor Total TVR": Number(totalBase.toFixed(2)),
+              "Status TVR": result.status ?? "",
+              "Origem TVR": result.key ?? `${result.atendimento ?? ""}|${result.tuss ?? ""}`,
+            };
+          });
+          const file = buildRetroWorkbookFile(sourceRows, `confeccao-retro-${row.id.slice(0, 8)}.xlsx`);
+          const parsedRows: ParsedRow[] = sourceRows.map((raw, idx) => {
+            const linked = tvrRows[idx];
+            const paid = linked.result.matched_payment_item_id ? paymentItemsById.get(linked.result.matched_payment_item_id) : undefined;
+            const base = {
+              doctor_name: String(raw["Médico"] ?? ""),
+              doctor_document: String(raw["Documento"] ?? ""),
+              doctor_email: String(raw["Email"] ?? ""),
+              description: String(raw["Proced/Mat"] ?? ""),
+              gross_amount: Number(raw["Valor Procedimento"] ?? 0),
+              company_name: String(raw["Empresa"] ?? "") || null,
+              company_id: String(paid?.company_id ?? company?.id ?? row.company_id ?? "") || null,
+              attendance_number: String(raw["Nr. Atendimento"] ?? ""),
+              procedure_code: String(raw["Código TUSS"] ?? ""),
+              procedure_name: String(raw["Proced/Mat"] ?? ""),
+              access_route: String(raw["Via de Acesso"] ?? ""),
+              doctor_role: String(raw["Função"] ?? ""),
+              agreement_text: String(raw["Convênio"] ?? ""),
+              specialty: String(paid?.specialty ?? "") || null,
+              procedure_amount: Number(raw["Valor Procedimento"] ?? 0),
+              quantity: Number(raw["Qtd"] ?? 1) || 1,
+              procedure_date: String(raw["Data"] ?? "") || null,
+              patient_name: String(raw["Paciente"] ?? ""),
+              sector: String(raw["Setor"] ?? "") || null,
+              attendance_character: String(paid?.attendance_character ?? ""),
+              raw_data: {
+                ...raw,
+                retro_reconciliation_id: row.id,
+                retro_reconciliation_item_id: linked.reconciliation_item_id,
+                retro_tvr_result: linked.result,
+              },
+              source_file: file.name,
+              source_row_number: idx + 2,
+              tipo_linha_manual: "procedimento" as LineType,
+            };
+            const tipo_linha = base.tipo_linha_manual;
+            const withType = { ...base, tipo_linha };
+            return { ...withType, line_issues: validateLine(withType) } as ParsedRow;
+          });
+          const headers = Object.keys(sourceRows[0] ?? {});
+          setBuckets([{
+            file,
+            rows: parsedRows,
+            rawCompanyName: company?.name ?? "Apuração retroativa",
+            matchedCompany: company ? { id: company.id, name: company.name } : null,
+            matchScore: company ? 1 : 0,
+            sectorMapping: sectorFallback,
+            sectorMissing: false,
+            convenioValueTotalized: false,
+            rawMatrix: [headers, ...sourceRows.map((r) => headers.map((h) => (r as Record<string, unknown>)[h]))],
+            headerRowIndex: 0,
+            sectorColumnUsed: "Setor",
+          }]);
+          if (costCenterFallback) setCostCenterCode((cur) => cur || costCenterFallback);
+          setCompetenceMonths((cur) => cur.length ? cur : monthsBetween(row.period_start, row.period_end));
+          setPaymentKind((cur) => cur || "pendencia");
+          setAnalysisMode("confeccao");
+        }
+
         setRetroHandoff({
           reconciliation_id: row.id,
           reference: refSuggestion,
@@ -455,9 +645,11 @@ const NewPayment = () => {
           items_count: handoff.items_count,
           total_complementar: handoff.total_complementar,
           total_retirar: handoff.total_retirar,
+          prefilled_count: tvrRows.length,
         });
         setReference((cur) => cur || refSuggestion);
         setDescription((cur) => cur || descSuggestion);
+        retroPrefillDoneRef.current = retroId;
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
@@ -1700,7 +1892,9 @@ const NewPayment = () => {
             </div>
             <div className="text-xs text-amber-800 dark:text-amber-300 mt-1">
               {retroHandoff.items_count ?? 0} item(ns) acionáveis encaminhados · ID {retroHandoff.reconciliation_id.slice(0, 8)}.
-              Suba a base e siga o fluxo de confecção normalmente — ao salvar, o pagamento será vinculado à apuração.
+              {retroHandoff.prefilled_count
+                ? ` Base de confecção preenchida automaticamente com ${retroHandoff.prefilled_count} item(ns) complementares; ao salvar, o pagamento será vinculado à apuração.`
+                : " Ao salvar, o pagamento será vinculado à apuração."}
             </div>
           </div>
         )}
