@@ -2075,25 +2075,36 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const persistResults = async (list: TvrResult[]) => {
     const financial = computeTvrFinancialTotals(list);
     const tvrCounts = computeTvrCounts(list);
-    const rows = list.map((r) => ({
-      reconciliation_id: id,
-      source: TVR_SOURCE,
-      attendance: r.atendimento || null,
-      tuss_code: r.tuss || null,
-      procedure_date: dbDateOrNull(r.data),
-      patient_name: r.paciente || null,
-      function_label: r.funcao || r.funcoes_pagas || null,
-      procedure_name: r.procedimento || null,
-      claimed_amount: r.valor_total_tasy || null,
-      claimed_quantity: r.qtd_tasy || null,
-      paid_amount: r.valor_pago_base || null,
-      paid_quantity: r.qtd_por_func || null,
-      expected_amount: r.valor_com_acordo || null,
-      gap_amount: r.dif_valor || null,
-      classification: mapTvrStatusToStoredClassification(r.status),
-      classification_reason: TVR_STATUS_LABEL[r.status],
-      raw: { mode: TVR_SOURCE, tvr_result: r },
-    }));
+    const incompleteAusente = list
+      .map((r) => ({ r, missing: getAusenteTasyMissingFields(r) }))
+      .filter((x) => x.missing.length > 0);
+    const rows = list.map((r) => {
+      const missing = getAusenteTasyMissingFields(r);
+      const warnings = missing.length > 0
+        ? [`Ausente TASY incompleto — faltam: ${missing.join(", ")}`]
+        : [];
+      return {
+        reconciliation_id: id,
+        source: TVR_SOURCE,
+        attendance: r.atendimento || null,
+        tuss_code: r.tuss || null,
+        procedure_date: dbDateOrNull(r.data),
+        patient_name: r.paciente || null,
+        function_label: r.funcao || r.funcoes_pagas || null,
+        procedure_name: r.procedimento || null,
+        claimed_amount: r.valor_total_tasy || null,
+        claimed_quantity: r.qtd_tasy || null,
+        paid_amount: r.valor_pago_base || null,
+        paid_quantity: r.qtd_por_func || null,
+        expected_amount: r.valor_com_acordo || null,
+        gap_amount: r.dif_valor || null,
+        classification: mapTvrStatusToStoredClassification(r.status),
+        classification_reason: warnings.length > 0
+          ? `${TVR_STATUS_LABEL[r.status]} · ${warnings[0]}`
+          : TVR_STATUS_LABEL[r.status],
+        raw: { mode: TVR_SOURCE, tvr_result: r, incomplete_fields: missing, warnings },
+      };
+    });
 
     await supabase
       .from("retroactive_reconciliation_items" as never)
@@ -2108,11 +2119,29 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       if (insertError) throw insertError;
     }
 
+    const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
+    const previousHistory = Array.isArray(previousSummary.tvr_validation_history)
+      ? (previousSummary.tvr_validation_history as Array<Record<string, unknown>>)
+      : [];
+    const historyEntry = {
+      at: new Date().toISOString(),
+      total: list.length,
+      counts: tvrCounts,
+      ausente_incomplete: incompleteAusente.length,
+      ausente_incomplete_keys: incompleteAusente.slice(0, 50).map((x) => ({
+        key: x.r.key,
+        atendimento: x.r.atendimento,
+        tuss: x.r.tuss,
+        missing: x.missing,
+      })),
+    };
+    const trimmedHistory = [...previousHistory.slice(-19), historyEntry];
+
     const { error: updateError } = await supabase
       .from("retroactive_reconciliations" as never)
       .update({
         summary: {
-          ...(recon?.summary ?? {}),
+          ...previousSummary,
           mode: "tasy_vs_repasse",
           total: list.length,
           total_gap: financial.totalComplementar,
@@ -2121,10 +2150,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           exclude_tuss: excludeTuss,
           processed_at: new Date().toISOString(),
           tvr_counts: tvrCounts,
+          tvr_ausente_incomplete: incompleteAusente.length,
+          tvr_validation_history: trimmedHistory,
         },
         status: "em_analise",
       } as never)
       .eq("id", id);
+
     if (updateError) throw updateError;
   };
 
