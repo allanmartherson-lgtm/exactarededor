@@ -1461,10 +1461,10 @@ type PagRow = {
 };
 
 
-type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_a_mais" | "ausente_tasy" | "ok";
+export type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_a_mais" | "ausente_tasy" | "ok";
 
 
-type TvrResult = {
+export type TvrResult = {
   key: string;
   atendimento: string;
   tuss: string;
@@ -1508,7 +1508,7 @@ const TVR_STATUS_TONE: Record<TvrStatus, string> = {
 
 const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_a_mais", "ausente_tasy", "ok"];
 
-function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
+export function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
   const c: Record<TvrStatus, number> = {
     nao_pago: 0,
     div_qtd_valor: 0,
@@ -1523,7 +1523,7 @@ function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
 
 const TVR_SOURCE = "tasy_vs_repasse";
 
-function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
+export function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
 
   const totalComplementar = list.reduce((sum, r) => {
     if (r.status === "ok" || r.status === "ausente_tasy") return sum;
@@ -1539,11 +1539,67 @@ function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: numb
   return { totalComplementar, totalRetirar };
 }
 
-function mapTvrStatusToStoredClassification(status: TvrStatus): string {
+export function mapTvrStatusToStoredClassification(status: TvrStatus): string {
   // Grava o status TVR direto (sem CHECK constraint na coluna).
   // Único alias: "ok" -> "ok_pago" (equivalente, mantido por compatibilidade com relatórios).
   if (status === "ok") return "ok_pago";
   return status;
+}
+
+/**
+ * Constrói o objeto `summary` persistido em retroactive_reconciliations a
+ * cada reprocessamento TVR.
+ *
+ * Regra-chave (não regredir): SOBRESCREVE tudo; nunca faz merge com
+ * `previousSummary`. Preserva explicitamente apenas:
+ *   - `handoff` (estado de envio para confecção)
+ *   - `tvr_validation_history` (append-only, truncado em 20)
+ *
+ * Garante que contadores de rodadas antigas (ex.: div_qtd, pago_sem_tasy)
+ * jamais reapareçam por mesclagem residual.
+ */
+export function buildTvrReplaceSummary(
+  list: TvrResult[],
+  previousSummary: Record<string, unknown> | null | undefined,
+  ctx: {
+    tasy_file?: string;
+    tasy_file_totals?: { file: number; valid: number; excluded: number; dropped: number } | null;
+    tasy_dropped_examples?: Array<{ row_index: number; missing: string[] }>;
+    exclude_tuss?: string;
+    processed_at?: string;
+  },
+): Record<string, unknown> {
+  const financial = computeTvrFinancialTotals(list);
+  const tvrCounts = computeTvrCounts(list);
+  const incompleteAusente = list.filter((r) => getAusenteTasyMissingFields(r).length > 0);
+  const prev = (previousSummary ?? {}) as Record<string, unknown>;
+  const prevHistory = Array.isArray(prev.tvr_validation_history)
+    ? (prev.tvr_validation_history as Array<Record<string, unknown>>)
+    : [];
+  const historyEntry: Record<string, unknown> = {
+    at: ctx.processed_at ?? new Date().toISOString(),
+    total: list.length,
+    counts: tvrCounts,
+    ausente_incomplete: incompleteAusente.length,
+  };
+  const trimmedHistory = [...prevHistory.slice(-19), historyEntry];
+  const preservedHandoff = (prev as { handoff?: unknown }).handoff;
+
+  return {
+    mode: "tasy_vs_repasse",
+    total: list.length,
+    total_gap: financial.totalComplementar,
+    total_excess: financial.totalRetirar,
+    tasy_file: ctx.tasy_file ?? "",
+    tasy_file_totals: ctx.tasy_file_totals ?? null,
+    tasy_dropped_examples: ctx.tasy_dropped_examples ?? [],
+    exclude_tuss: ctx.exclude_tuss ?? "",
+    processed_at: ctx.processed_at ?? new Date().toISOString(),
+    tvr_counts: tvrCounts,
+    tvr_ausente_incomplete: incompleteAusente.length,
+    tvr_validation_history: trimmedHistory,
+    ...(preservedHandoff ? { handoff: preservedHandoff } : {}),
+  };
 }
 
 const AUSENTE_TASY_ESSENTIAL_FIELDS = [
@@ -1552,7 +1608,7 @@ const AUSENTE_TASY_ESSENTIAL_FIELDS = [
   ["procedimento", "Procedimento"],
 ] as const;
 
-function getAusenteTasyMissingFields(r: TvrResult): string[] {
+export function getAusenteTasyMissingFields(r: TvrResult): string[] {
   if (r.status !== "ausente_tasy") return [];
   const out: string[] = [];
   for (const [key, label] of AUSENTE_TASY_ESSENTIAL_FIELDS) {
@@ -2142,8 +2198,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   };
 
   const persistResults = async (list: TvrResult[]) => {
-    const financial = computeTvrFinancialTotals(list);
-    const tvrCounts = computeTvrCounts(list);
     const incompleteAusente = list
       .map((r) => ({ r, missing: getAusenteTasyMissingFields(r) }))
       .filter((x) => x.missing.length > 0);
@@ -2189,47 +2243,29 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
 
     const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
-    const previousHistory = Array.isArray(previousSummary.tvr_validation_history)
-      ? (previousSummary.tvr_validation_history as Array<Record<string, unknown>>)
-      : [];
-    const historyEntry = {
-      at: new Date().toISOString(),
-      total: list.length,
-      counts: tvrCounts,
-      ausente_incomplete: incompleteAusente.length,
-      ausente_incomplete_keys: incompleteAusente.slice(0, 50).map((x) => ({
-        key: x.r.key,
-        atendimento: x.r.atendimento,
-        tuss: x.r.tuss,
-        missing: x.missing,
-      })),
-    };
-    const trimmedHistory = [...previousHistory.slice(-19), historyEntry];
-
-    // Sobrescreve summary do zero a cada processamento — preserva apenas handoff (estado de envio
-    // para confecção) e histórico de validação. Evita carregar contadores de rodadas antigas
-    // com status que não existem mais (ex.: div_qtd, pago_sem_tasy).
-    const preservedHandoff = (previousSummary as { handoff?: unknown }).handoff;
+    const summary = buildTvrReplaceSummary(list, previousSummary, {
+      tasy_file: tasyFile,
+      tasy_file_totals: tasyFileTotals,
+      tasy_dropped_examples: tasyDroppedExamples,
+      exclude_tuss: excludeTuss,
+    });
+    // Enriquecimento extra (não relevante para o teste de replace): chaves dos
+    // ausentes incompletos, anexadas à última entrada do histórico.
+    const history = (summary.tvr_validation_history as Array<Record<string, unknown>>) ?? [];
+    if (history.length > 0) {
+      history[history.length - 1] = {
+        ...history[history.length - 1],
+        ausente_incomplete_keys: incompleteAusente.slice(0, 50).map((x) => ({
+          key: x.r.key,
+          atendimento: x.r.atendimento,
+          tuss: x.r.tuss,
+          missing: x.missing,
+        })),
+      };
+    }
     const { error: updateError } = await supabase
       .from("retroactive_reconciliations" as never)
-      .update({
-        summary: {
-          mode: "tasy_vs_repasse",
-          total: list.length,
-          total_gap: financial.totalComplementar,
-          total_excess: financial.totalRetirar,
-          tasy_file: tasyFile,
-          tasy_file_totals: tasyFileTotals,
-          tasy_dropped_examples: tasyDroppedExamples,
-          exclude_tuss: excludeTuss,
-          processed_at: new Date().toISOString(),
-          tvr_counts: tvrCounts,
-          tvr_ausente_incomplete: incompleteAusente.length,
-          tvr_validation_history: trimmedHistory,
-          ...(preservedHandoff ? { handoff: preservedHandoff } : {}),
-        },
-        status: "em_analise",
-      } as never)
+      .update({ summary, status: "em_analise" } as never)
       .eq("id", id);
 
     if (updateError) throw updateError;
@@ -2357,10 +2393,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               Um único arquivo .xlsx/.csv com o que foi realizado.
             </p>
           </div>
-          {tasyRows.length > 0 && (
+          {(tasyRows.length > 0 || tasyFileTotals) && (
             <Badge variant="default" className="text-[10px]">
               {tasyFileTotals
-                ? `${tasyRows.length} de ${tasyFileTotals.file} linha(s) · ${tasyFile}`
+                ? `${tasyFileTotals.valid} de ${tasyFileTotals.file} linha(s) · ${tasyFile}`
                 : `${tasyRows.length} linha(s) · ${tasyFile}`}
             </Badge>
           )}
@@ -2379,6 +2415,28 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             }}
           />
         </label>
+        {tasyFileTotals && (tasyFileTotals.excluded > 0 || tasyFileTotals.dropped > 0) && (
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+            <Badge variant="outline">{tasyFileTotals.excluded} excluídas (visita/parecer/consulta)</Badge>
+            <Badge variant="outline" className={tasyFileTotals.dropped > 0 ? "border-amber-500 text-amber-700" : ""}>
+              {tasyFileTotals.dropped} descartadas (faltando dados)
+            </Badge>
+          </div>
+        )}
+        {tasyDroppedExamples.length > 0 && (
+          <details className="rounded-md border border-amber-200 bg-amber-50/40 px-3 py-2 text-[11px]">
+            <summary className="cursor-pointer font-medium text-amber-800">
+              Ver exemplos de linhas descartadas ({tasyDroppedExamples.length}{tasyFileTotals ? ` de ${tasyFileTotals.dropped}` : ""})
+            </summary>
+            <ul className="mt-2 space-y-0.5 text-amber-900">
+              {tasyDroppedExamples.map((ex) => (
+                <li key={ex.row_index}>
+                  Linha {ex.row_index}: falta <strong>{ex.missing.join(", ")}</strong>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
 
       {/* Step 2 — Repasse (auto, do sistema) */}
