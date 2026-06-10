@@ -1461,7 +1461,7 @@ type PagRow = {
 };
 
 
-type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_a_mais" | "ausente_tasy" | "ok";
+export type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_a_mais" | "ausente_tasy" | "ok";
 
 
 type TvrResult = {
