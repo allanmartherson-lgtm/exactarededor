@@ -118,16 +118,39 @@ export default function CreditosDebitos() {
       toast.error("Parcelas entre 1 e 24"); return;
     }
     setBusyGlosa(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const patch: any = { parcelas_default: glosaParc };
+    // Confirma se ainda não estava confirmado
+    if (!editingGlosa.confirmed_at) {
+      patch.confirmed_at = new Date().toISOString();
+      patch.confirmed_by = userData.user?.id ?? null;
+    }
     const { error } = await (supabase as any)
       .from("glosa_debts")
-      .update({ parcelas_default: glosaParc })
+      .update(patch)
       .eq("id", editingGlosa.id);
     setBusyGlosa(false);
     if (error) { toast.error("Erro: " + error.message); return; }
-    toast.success(`Parcelamento atualizado para ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`);
+    toast.success(
+      editingGlosa.confirmed_at
+        ? `Reparcelado para ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`
+        : `Débito confirmado em ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`
+    );
     setEditingGlosa(null);
     loadAll();
   };
+
+  const reopenGlosa = async (g: GlosaDebt) => {
+    if (!confirm(`Reabrir débito de ${g.doctor_name}? Sai de "em andamento" e volta para "a confirmar".`)) return;
+    const { error } = await (supabase as any)
+      .from("glosa_debts")
+      .update({ confirmed_at: null, confirmed_by: null })
+      .eq("id", g.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Débito reaberto");
+    loadAll();
+  };
+
 
   return (
     <div>
