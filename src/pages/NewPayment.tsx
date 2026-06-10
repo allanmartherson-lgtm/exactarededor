@@ -401,7 +401,28 @@ const NewPayment = () => {
   })();
   const modoConfeccao = initialMode === "confeccao";
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(initialMode);
+  // Handoff vindo da apuração retroativa (TASY vs Repasse): pré-popula referência,
+  // descrição e mantém o reconciliation_id para vincular o payment criado de volta.
+  const [retroHandoff, setRetroHandoff] = useState<{
+    reconciliation_id: string;
+    reference?: string;
+    description?: string;
+    doctor_id?: string | null;
+    company_id?: string | null;
+    items_count?: number;
+  } | null>(null);
   useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("retroactiveHandoff");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.reconciliation_id === "string") {
+          setRetroHandoff(parsed);
+          if (parsed.reference) setReference(parsed.reference);
+          if (parsed.description) setDescription(parsed.description);
+        }
+      }
+    } catch { /* ignore */ }
     // Consome a marca após montar, evitando que uma navegação posterior
     // para /pagamentos/novo sem param herde indevidamente o modo anterior.
     try { sessionStorage.removeItem("newPaymentMode"); } catch { /* ignore */ }
@@ -1284,6 +1305,36 @@ const NewPayment = () => {
       return;
     }
 
+    // Vincula o payment criado de volta na apuração retroativa (handoff).
+    if (retroHandoff?.reconciliation_id) {
+      try {
+        const { data: rec } = await supabase
+          .from("retroactive_reconciliations" as never)
+          .select("summary")
+          .eq("id", retroHandoff.reconciliation_id)
+          .single();
+        const prevSummary = (rec as { summary?: Record<string, unknown> } | null)?.summary ?? {};
+        const prevHandoff = (prevSummary as { handoff?: Record<string, unknown> }).handoff ?? {};
+        await supabase
+          .from("retroactive_reconciliations" as never)
+          .update({
+            summary: {
+              ...prevSummary,
+              handoff: {
+                ...prevHandoff,
+                status: "encaminhada",
+                payment_id: payment.id,
+                payment_reference: reference.trim(),
+                linked_at: new Date().toISOString(),
+              },
+            },
+          } as never)
+          .eq("id", retroHandoff.reconciliation_id);
+        try { sessionStorage.removeItem("retroactiveHandoff"); } catch { /* ignore */ }
+      } catch { /* não bloqueia criação do payment */ }
+    }
+
+
     const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
     // Fallback de especialidade: para itens sem coluna 'Especialidade' no Excel,
     // tentamos resolver pelo cadastro do médico (CRM ou nome).
@@ -1602,6 +1653,17 @@ const NewPayment = () => {
           : "Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo."}
       />
       <div className="p-8 max-w-7xl space-y-6">
+        {retroHandoff && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
+            <div className="font-semibold text-amber-900 dark:text-amber-200">
+              Origem: apuração retroativa TASY vs Repasse
+            </div>
+            <div className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+              {retroHandoff.items_count ?? 0} item(ns) acionáveis encaminhados · ID {retroHandoff.reconciliation_id.slice(0, 8)}.
+              Suba a base e siga o fluxo de confecção normalmente — ao salvar, o pagamento será vinculado à apuração.
+            </div>
+          </div>
+        )}
         <Card className="shadow-card">
           <CardHeader><CardTitle className="text-base">Identificação</CardTitle></CardHeader>
           <CardContent className="space-y-4">

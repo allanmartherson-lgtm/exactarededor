@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +42,9 @@ import {
   UploadCloudIcon,
   CheckIcon,
   ChevronsUpDownIcon,
+  SendIcon,
+  LockIcon,
+  ExternalLinkIcon,
 } from "lucide-react";
 import {
   Command,
@@ -115,6 +119,17 @@ type ReconRow = {
     exclude_tuss?: string;
     processed_at?: string;
     tvr_counts?: Partial<Record<TvrStatus, number>>;
+    handoff?: {
+      status: "encaminhada";
+      payment_id?: string | null;
+      payment_reference?: string | null;
+      at: string;
+      by?: string | null;
+      items_count: number;
+      total_complementar?: number;
+      total_retirar?: number;
+      item_keys?: string[];
+    };
   } | null;
   adjustment_ids: string[];
   created_at: string;
@@ -1603,6 +1618,7 @@ function normAtt(v: string | undefined): string {
 }
 
 function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
+  const navigate = useNavigate();
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [tasyRows, setTasyRows] = useState<TasyRow[]>([]);
   const [tasyFile, setTasyFile] = useState<string>("");
@@ -2184,6 +2200,82 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (updateError) throw updateError;
   };
 
+  const handoff = recon?.summary?.handoff ?? null;
+  const isLocked = !!handoff;
+
+  const isActionableTvr = (r: TvrResult): boolean =>
+    r.status === "nao_pago" ||
+    r.status === "div_valor" ||
+    r.status === "div_qtd_valor" ||
+    r.status === "pago_a_mais";
+
+  const sendHandoffToConfeccao = async (list: TvrResult[], opts?: { fromRow?: boolean }) => {
+    const actionable = list.filter(isActionableTvr);
+    if (actionable.length === 0) {
+      toast({
+        title: "Nenhum item acionável",
+        description: "Só linhas Não Pago, Div. Valor, Div. Qtd/Valor ou Pago a mais podem ir para confecção.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!opts?.fromRow) {
+      const ok = window.confirm(
+        `Encaminhar ${actionable.length} item(ns) para confecção de repasse?\n\n` +
+        `A apuração ficará travada para edição e o ajuste seguirá pelo fluxo padrão de confecção.`,
+      );
+      if (!ok) return;
+    }
+    const financial = computeTvrFinancialTotals(actionable);
+    const reconciliationId = id;
+    const refSuggestion = `Retro #${reconciliationId.slice(0, 8)} · ${recon?.title ?? "TASY vs Repasse"}`;
+    const descSuggestion =
+      `Origem: apuração retroativa TASY vs Repasse (id ${reconciliationId}).\n` +
+      `Itens encaminhados: ${actionable.length}.\n` +
+      `Complementar previsto: ${brl(financial.totalComplementar)} · Retirar: ${brl(financial.totalRetirar)}.`;
+
+    try {
+      sessionStorage.setItem("newPaymentMode", "confeccao");
+      sessionStorage.setItem(
+        "retroactiveHandoff",
+        JSON.stringify({
+          reconciliation_id: reconciliationId,
+          reference: refSuggestion,
+          description: descSuggestion,
+          doctor_id: recon?.doctor_id ?? null,
+          company_id: recon?.company_id ?? null,
+          items_count: actionable.length,
+        }),
+      );
+    } catch { /* ignore */ }
+
+    const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
+    const handoffPayload = {
+      status: "encaminhada" as const,
+      payment_id: null,
+      payment_reference: refSuggestion,
+      at: new Date().toISOString(),
+      by: null,
+      items_count: actionable.length,
+      total_complementar: financial.totalComplementar,
+      total_retirar: financial.totalRetirar,
+      item_keys: actionable.slice(0, 500).map((r) => r.key),
+    };
+    const { error: updErr } = await supabase
+      .from("retroactive_reconciliations" as never)
+      .update({
+        summary: { ...previousSummary, handoff: handoffPayload },
+      } as never)
+      .eq("id", reconciliationId);
+    if (updErr) {
+      toast({ title: "Falha ao travar apuração", description: updErr.message, variant: "destructive" });
+      return;
+    }
+    setRecon((prev) => prev ? { ...prev, summary: { ...(prev.summary ?? {}), handoff: handoffPayload } } : prev);
+    navigate("/pagamentos/novo?modo=confeccao");
+  };
+
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -2200,6 +2292,55 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
         <Badge variant="outline">TASY vs Repasse</Badge>
       </div>
+
+      {handoff && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 flex items-start gap-3">
+          <LockIcon className="h-5 w-5 text-amber-700 mt-0.5" />
+          <div className="flex-1 text-sm">
+            <div className="font-semibold text-amber-900 dark:text-amber-200">
+              Apuração encaminhada para confecção · travada para edição
+            </div>
+            <div className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+              {handoff.items_count} item(ns) enviados em {formatTvrDate(handoff.at.slice(0, 10))}
+              {handoff.payment_reference ? ` · Ref. sugerida: ${handoff.payment_reference}` : ""}
+              {typeof handoff.total_complementar === "number" ? ` · Complementar: ${brl(handoff.total_complementar)}` : ""}
+              {typeof handoff.total_retirar === "number" ? ` · Retirar: ${brl(handoff.total_retirar)}` : ""}
+            </div>
+          </div>
+          {handoff.payment_id && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/pagamentos/${handoff.payment_id}`)}
+            >
+              <ExternalLinkIcon className="h-3 w-3 mr-1" /> Abrir pagamento
+            </Button>
+          )}
+          {!handoff.payment_id && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                try {
+                  sessionStorage.setItem("newPaymentMode", "confeccao");
+                  sessionStorage.setItem("retroactiveHandoff", JSON.stringify({
+                    reconciliation_id: id,
+                    reference: handoff.payment_reference ?? `Retro #${id.slice(0, 8)}`,
+                    description: `Origem: apuração retroativa ${id}.`,
+                    doctor_id: recon?.doctor_id ?? null,
+                    company_id: recon?.company_id ?? null,
+                    items_count: handoff.items_count,
+                  }));
+                } catch { /* ignore */ }
+                navigate("/pagamentos/novo?modo=confeccao");
+              }}
+            >
+              <SendIcon className="h-3 w-3 mr-1" /> Retomar confecção
+            </Button>
+          )}
+        </div>
+      )}
+
 
       {/* Step 1 — TASY file */}
       <div className="rounded-lg border border-border bg-card p-4 space-y-3">
@@ -2261,12 +2402,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       {/* Step 3 — Process */}
       <div className="flex items-center gap-2">
-        <Button onClick={process} disabled={processing || tasyRows.length === 0 || pagRows.length === 0}>
+        <Button onClick={process} disabled={isLocked || processing || tasyRows.length === 0 || pagRows.length === 0}>
           <PlayIcon className="h-4 w-4 mr-1" />
           {processing ? "Processando…" : "Processar"}
         </Button>
         {(tasyRows.length > 0 || pagRows.length > 0) && (
-          <Button variant="outline" size="sm" onClick={() => void clearAll()}>Limpar tudo</Button>
+          <Button variant="outline" size="sm" onClick={() => void clearAll()} disabled={isLocked}>Limpar tudo</Button>
         )}
         {results && (
           <DropdownMenu>
@@ -2286,7 +2427,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        {results && !isLocked && (
+          <Button
+            size="sm"
+            className="ml-auto"
+            onClick={() => void sendHandoffToConfeccao(results)}
+            disabled={results.filter(isActionableTvr).length === 0}
+            title="Cria um pagamento novo em confecção com os itens acionáveis desta apuração"
+          >
+            <SendIcon className="h-4 w-4 mr-1" />
+            Encaminhar para confecção ({results.filter(isActionableTvr).length})
+          </Button>
+        )}
       </div>
+
 
       {/* Results */}
       {results && (
@@ -2429,11 +2583,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <TableHead>Vlr c/ Acordo</TableHead>
                     <TableHead className="text-center">Dif. Qtd</TableHead>
                     <TableHead>Dif. Valor</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visible.length === 0 && (
-                    <TableRow><TableCell colSpan={20} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={21} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
                   )}
                   {visible.map((r) => (
                     <TableRow key={r.key}>
@@ -2464,6 +2619,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       </TableCell>
                       <TableCell className={cn(Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700")}>
                         {brl(r.dif_valor)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {isActionableTvr(r) && !isLocked ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => void sendHandoffToConfeccao([r], { fromRow: true })}
+                            title="Encaminhar somente esta linha para confecção"
+                          >
+                            <SendIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
