@@ -175,37 +175,8 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
     return { b, lines, dedTotal, liquido, quotas };
   }, [simBase, editDeds, editParts]);
 
-  // --- Ajustes ---
-  const openAdj = (a?: Adjustment) => {
-    setEditingAdj(a ? { ...a } : {
-      tipo: "credito", descricao: "", valor_total: 0, parcelas_total: 1,
-      parcelas_pagas: 0, data_inicio: new Date().toISOString().slice(0, 10), ativo: true, origem: "",
-    });
-    setAdjDialogOpen(true);
-  };
-  const saveAdj = async () => {
-    if (!editingAdj?.company_id || !editingAdj.descricao || !editingAdj.valor_total) {
-      toast.error("Preencha empresa, descrição e valor"); return;
-    }
-    const payload: any = {
-      company_id: editingAdj.company_id, tipo: editingAdj.tipo, descricao: editingAdj.descricao,
-      valor_total: editingAdj.valor_total, parcelas_total: editingAdj.parcelas_total ?? 1,
-      parcelas_pagas: editingAdj.parcelas_pagas ?? 0, data_inicio: editingAdj.data_inicio,
-      ativo: editingAdj.ativo ?? true, origem: editingAdj.origem || null,
-    };
-    const { error } = editingAdj.id
-      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id)
-      : await supabase.from("company_financial_adjustments").insert(payload);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Ajuste salvo");
-    setAdjDialogOpen(false); setEditingAdj(null); loadAll();
-  };
-  const removeAdj = async (id: string) => {
-    if (!confirm("Excluir este ajuste?")) return;
-    const { error } = await supabase.from("company_financial_adjustments").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    loadAll();
-  };
+
+
 
   return (
     <div className={embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"}>
