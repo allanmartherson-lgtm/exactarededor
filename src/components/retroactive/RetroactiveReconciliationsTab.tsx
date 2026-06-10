@@ -3212,7 +3212,7 @@ function EncaminharApuracaoModal({
 }: EncaminharModalProps) {
   const [includeComplementar, setIncludeComplementar] = useState(true);
   const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
-  const [parcelas, setParcelas] = useState<number>(1);
+  const [parcelas, setParcelas] = useState<number>(0);
   const [showCompList, setShowCompList] = useState(false);
   const [selectedDoctorIds, setSelectedDoctorIds] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -3339,17 +3339,22 @@ function EncaminharApuracaoModal({
                   {gerarGlosa === "agora" && groups.length > 0 && (
                     <div className="ml-6 mt-2 space-y-2">
                       <div className="flex items-center gap-2 text-xs">
-                        <span className="text-muted-foreground">Parcelas (aplicado a todos):</span>
-                        <Select value={String(parcelas)} onValueChange={(v) => setParcelas(Number(v))}>
-                          <SelectTrigger className="h-7 w-20 text-xs">
-                            <SelectValue />
+                        <span className="text-muted-foreground">
+                          Parcelas (aplicado a todos) <span className="text-destructive">*</span>:
+                        </span>
+                        <Select value={parcelas > 0 ? String(parcelas) : ""} onValueChange={(v) => setParcelas(Number(v))}>
+                          <SelectTrigger className={`h-7 w-28 text-xs ${parcelas === 0 ? "border-destructive" : ""}`}>
+                            <SelectValue placeholder="Escolher…" />
                           </SelectTrigger>
                           <SelectContent>
                             {[1, 2, 3, 4, 6, 12, 18, 24].map((n) => (
-                              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                              <SelectItem key={n} value={String(n)}>{n}×</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        {parcelas === 0 && (
+                          <span className="text-[10px] text-destructive">obrigatório</span>
+                        )}
                       </div>
                       <div className="rounded border border-border bg-background divide-y divide-border">
                         {groups.map((g) => {
@@ -3419,6 +3424,7 @@ function EncaminharApuracaoModal({
             })}
             disabled={
               busy ||
+              (gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa && selectedDoctorIds.size > 0 && parcelas < 1) ||
               (!includeComplementar &&
                 (gerarGlosa !== "agora" || retirar.length === 0 || selectedDoctorIds.size === 0))
             }
