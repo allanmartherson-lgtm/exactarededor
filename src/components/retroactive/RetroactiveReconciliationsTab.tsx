@@ -1654,10 +1654,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_qtd: String(r.qtd_por_func || 1),
         pag_valor_base: String(r.valor_pago_base || 0),
         pag_valor_com_acordo: String(r.valor_com_acordo || 0),
-        pag_funcao: r.funcoes_pagas,
+        pag_funcao: r.funcao || r.funcoes_pagas,
+        pag_medico: r.medico,
         pag_data: r.data,
         pag_paciente: r.paciente,
         pag_convenio: r.convenio,
+        pag_procedimento: r.procedimento,
         pag_lote: r.lotes,
       })));
       setPaymentsLoaded(true);
