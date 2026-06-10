@@ -1908,7 +1908,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         if (!p && t) status = "nao_pago";
         else if (!t && p) status = "pago_sem_tasy";
         else if (Math.abs(dif_qtd) >= 0.5 && Math.abs(dif_valor) > 0.5) status = "div_qtd_valor";
-        else if (Math.abs(dif_qtd) >= 0.5) status = "div_qtd";
         else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
         else status = "ok";
 
