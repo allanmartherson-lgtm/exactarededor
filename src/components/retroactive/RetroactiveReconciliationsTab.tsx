@@ -1573,15 +1573,47 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     | { kind: "tasy"; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
   >({ kind: "none" });
 
+  const loadTvrReconciliation = async () => {
+    const { data } = await supabase
+      .from("retroactive_reconciliations" as never)
+      .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at")
+      .eq("id", id)
+      .single();
+    const row = data as unknown as ReconRow;
+    setRecon(row);
+    setExcludeTuss(row?.summary?.exclude_tuss ?? "");
+    setPendingTussExclude(row?.summary?.exclude_tuss ?? "");
+    setTasyFile(row?.summary?.tasy_file ?? "");
+
+    const { data: savedItems } = await supabase
+      .from("retroactive_reconciliation_items" as never)
+      .select("raw")
+      .eq("reconciliation_id", id)
+      .eq("source", TVR_SOURCE)
+      .order("created_at", { ascending: true });
+    const savedResults = ((savedItems ?? []) as Array<{ raw?: { tvr_result?: unknown } }>)
+      .map((item) => item.raw?.tvr_result)
+      .filter(isTvrResult);
+    if (savedResults.length > 0) {
+      setResults(savedResults);
+      setTasyRows(savedResults.filter((r) => r.status !== "pago_sem_tasy").map<TasyRow>((r) => ({
+        tasy_atendimento: r.atendimento,
+        tasy_tuss: r.tuss,
+        tasy_qtd: String(r.qtd_tasy || 1),
+        tasy_valor_unit: String(r.valor_unit_tasy || 0),
+        tasy_procedimento: r.procedimento,
+        tasy_paciente: r.paciente,
+        tasy_data: r.data,
+        tasy_convenio: r.convenio,
+        tasy_medico: r.medico,
+        tasy_funcao: r.funcao,
+      })));
+      setPaymentsLoaded(true);
+    }
+  };
+
   useEffect(() => {
-    void (async () => {
-      const { data } = await supabase
-        .from("retroactive_reconciliations" as never)
-        .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at")
-        .eq("id", id)
-        .single();
-      setRecon(data as unknown as ReconRow);
-    })();
+    void loadTvrReconciliation();
   }, [id]);
 
   const onPickTasy = async (file: File) => {
