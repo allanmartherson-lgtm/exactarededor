@@ -92,6 +92,7 @@ type ReconRow = {
   status: "em_analise" | "concluida" | "cancelada";
   title: string | null;
   summary: {
+    mode?: ReconMode;
     total?: number;
     ok_pago?: number;
     pago_a_menos?: number;
@@ -102,6 +103,10 @@ type ReconRow = {
     tuss_divergente?: number;
     total_gap?: number;
     total_excess?: number;
+    tasy_file?: string;
+    exclude_tuss?: string;
+    processed_at?: string;
+    tvr_counts?: Partial<Record<TvrStatus, number>>;
   } | null;
   adjustment_ids: string[];
   created_at: string;
