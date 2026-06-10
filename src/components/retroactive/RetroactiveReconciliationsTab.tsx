@@ -2583,11 +2583,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <TableHead>Vlr c/ Acordo</TableHead>
                     <TableHead className="text-center">Dif. Qtd</TableHead>
                     <TableHead>Dif. Valor</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visible.length === 0 && (
-                    <TableRow><TableCell colSpan={20} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={21} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
                   )}
                   {visible.map((r) => (
                     <TableRow key={r.key}>
