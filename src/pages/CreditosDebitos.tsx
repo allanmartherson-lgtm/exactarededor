@@ -30,6 +30,7 @@ type Adjustment = {
 type GlosaDebt = {
   id: string;
   company_id: string;
+  doctor_id: string | null;
   doctor_name: string;
   doctor_crm: string | null;
   total_debt: number;
@@ -37,8 +38,24 @@ type GlosaDebt = {
   status: string;
   created_at: string;
   confirmed_at: string | null;
+  target_payment_id: string | null;
   _company_name?: string;
 };
+
+type LoteOption = {
+  id: string;
+  label: string;
+};
+
+const OPEN_PAYMENT_STATUSES = [
+  "rascunho",
+  "em_analise_ia",
+  "revisao_analista",
+  "aguardando_aprovacao",
+  "pedido_nf_enviado",
+  "revisao_pos_aprovacao",
+];
+
 
 
 const brl = (n: number) =>
