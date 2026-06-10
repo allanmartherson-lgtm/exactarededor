@@ -3062,7 +3062,204 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           onConfirm={confirmTasy}
         />
       )}
+
+      <EncaminharApuracaoModal
+        open={encaminharOpen}
+        onOpenChange={(v) => { if (!encaminharBusy) setEncaminharOpen(v); }}
+        results={results ?? []}
+        actionable={(results ?? []).filter(isActionableTvr)}
+        retirar={toRetirarItems(results ?? [])}
+        canGerarGlosa={!!recon?.company_id && (!!doctorInfo.name || !!doctorInfo.crm)}
+        busy={encaminharBusy}
+        onConfirm={runEncaminharFluxo}
+      />
     </div>
+  );
+}
+
+type EncaminharModalProps = {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  results: TvrResult[];
+  actionable: TvrResult[];
+  retirar: TvrResult[];
+  canGerarGlosa: boolean;
+  busy: boolean;
+  onConfirm: (opts: { includeComplementar: boolean; gerarGlosa: boolean; parcelas: number }) => void;
+};
+
+function EncaminharApuracaoModal({
+  open, onOpenChange, results: _results, actionable, retirar, canGerarGlosa, busy, onConfirm,
+}: EncaminharModalProps) {
+  const [includeComplementar, setIncludeComplementar] = useState(true);
+  const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
+  const [parcelas, setParcelas] = useState<number>(1);
+  const [showCompList, setShowCompList] = useState(false);
+  const [showRetList, setShowRetList] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setIncludeComplementar(actionable.length > 0);
+      setGerarGlosa(retirar.length > 0 && canGerarGlosa ? "agora" : "depois");
+      setParcelas(1);
+      setShowCompList(false);
+      setShowRetList(false);
+    }
+  }, [open, actionable.length, retirar.length, canGerarGlosa]);
+
+  const totalBaseComp = actionable.reduce((s, r) => {
+    if (r.status === "nao_pago") return s + r.valor_total_tasy;
+    if (r.dif_valor > 0.5) return s + r.dif_valor;
+    return s;
+  }, 0);
+  const totalBaseRet = retirar.reduce((s, r) => {
+    if (r.status === "ausente_tasy") return s + r.valor_pago_base;
+    if (r.dif_valor < -0.5) return s + Math.abs(r.dif_valor);
+    return s;
+  }, 0);
+  const totalAcordoRet = retirar.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Encaminhar apuração</DialogTitle>
+          <DialogDescription>
+            Revise os dois caminhos antes de confirmar. Ações são executadas em sequência.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Caminho A */}
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                checked={includeComplementar}
+                disabled={actionable.length === 0 || busy}
+                onCheckedChange={(v) => setIncludeComplementar(!!v)}
+                className="mt-1"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold">
+                  ✅ A complementar → novo repasse para confecção
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {actionable.length} item(ns) · Base {brl(totalBaseComp)} (regra aplica acordo na confecção)
+                </div>
+                {actionable.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-[11px] text-primary mt-1 underline"
+                    onClick={() => setShowCompList((v) => !v)}
+                  >
+                    {showCompList ? "ocultar itens ▴" : "ver itens ▾"}
+                  </button>
+                )}
+                {showCompList && (
+                  <div className="mt-2 max-h-40 overflow-auto rounded border border-border bg-background text-[11px]">
+                    {actionable.map((r) => (
+                      <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border last:border-b-0">
+                        <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
+                        <span className="font-mono">{brl(r.status === "nao_pago" ? r.valor_total_tasy : Math.max(0, r.dif_valor))}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Caminho B */}
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+            <div className="flex items-start gap-3">
+              <div className="mt-1 text-base">⚠️</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold">
+                  A retirar → Glosa de auditoria
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {retirar.length} item(ns) · Base {brl(totalBaseRet)} · <span className="font-semibold text-destructive">C/ acordo {brl(totalAcordoRet)}</span>
+                </div>
+                {!canGerarGlosa && retirar.length > 0 && (
+                  <div className="text-[11px] text-amber-700 mt-1">
+                    Apuração precisa ter PJ e médico vinculados para gerar a glosa.
+                  </div>
+                )}
+                <RadioGroup
+                  value={gerarGlosa}
+                  onValueChange={(v) => setGerarGlosa(v as "agora" | "depois")}
+                  className="mt-2"
+                  disabled={busy || retirar.length === 0}
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="g-agora" value="agora" disabled={!canGerarGlosa || retirar.length === 0} />
+                    <Label htmlFor="g-agora" className="text-xs font-normal">
+                      Gerar glosa agora (débito parcelável)
+                    </Label>
+                  </div>
+                  {gerarGlosa === "agora" && (
+                    <div className="ml-6 flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">Parcelas:</span>
+                      <Select value={String(parcelas)} onValueChange={(v) => setParcelas(Number(v))}>
+                        <SelectTrigger className="h-7 w-20 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 6, 12].map((n) => (
+                            <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="g-depois" value="depois" />
+                    <Label htmlFor="g-depois" className="text-xs font-normal">
+                      Não gerar — tratar depois
+                    </Label>
+                  </div>
+                </RadioGroup>
+                {retirar.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-[11px] text-destructive mt-2 underline"
+                    onClick={() => setShowRetList((v) => !v)}
+                  >
+                    {showRetList ? "ocultar itens ▴" : "ver itens ▾"}
+                  </button>
+                )}
+                {showRetList && (
+                  <div className="mt-2 max-h-40 overflow-auto rounded border border-border bg-background text-[11px]">
+                    {retirar.map((r) => (
+                      <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border last:border-b-0">
+                        <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
+                        <span className="font-mono">{brl(r.valor_recuperar_acordo ?? 0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => onConfirm({
+              includeComplementar,
+              gerarGlosa: gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa,
+              parcelas,
+            })}
+            disabled={busy || (!includeComplementar && (gerarGlosa !== "agora" || retirar.length === 0))}
+          >
+            {busy ? "Processando..." : "Confirmar encaminhamento"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
