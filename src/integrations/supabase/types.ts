@@ -7754,6 +7754,16 @@ export type Database = {
         }
         Returns: string
       }
+      create_glosa_debt_with_items: {
+        Args: {
+          p_company_id: string
+          p_doctor_crm: string
+          p_doctor_name: string
+          p_item_ids: string[]
+          p_parcelas: number
+        }
+        Returns: string
+      }
       delete_payment_batch: { Args: { p_payment_id: string }; Returns: Json }
       enqueue_ai_retry: {
         Args: {
