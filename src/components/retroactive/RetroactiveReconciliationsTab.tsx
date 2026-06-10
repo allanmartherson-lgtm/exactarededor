@@ -2549,6 +2549,28 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10 text-center">
+                      {(() => {
+                        const selectableKeys = visible.filter(isActionableTvr).map((r) => r.key);
+                        const allSelected = selectableKeys.length > 0 && selectableKeys.every((k) => selectedKeys.has(k));
+                        const someSelected = selectableKeys.some((k) => selectedKeys.has(k));
+                        return (
+                          <Checkbox
+                            checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                            disabled={isLocked || selectableKeys.length === 0}
+                            onCheckedChange={(v) => {
+                              setSelectedKeys((prev) => {
+                                const next = new Set(prev);
+                                if (v) selectableKeys.forEach((k) => next.add(k));
+                                else selectableKeys.forEach((k) => next.delete(k));
+                                return next;
+                              });
+                            }}
+                            aria-label="Selecionar todos os acionáveis visíveis"
+                          />
+                        );
+                      })()}
+                    </TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Atend.</TableHead>
                     <TableHead>TUSS</TableHead>
@@ -2569,15 +2591,33 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <TableHead>Vlr c/ Acordo</TableHead>
                     <TableHead className="text-center">Dif. Qtd</TableHead>
                     <TableHead>Dif. Valor</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visible.length === 0 && (
                     <TableRow><TableCell colSpan={21} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
                   )}
-                  {visible.map((r) => (
-                    <TableRow key={r.key}>
+                  {visible.map((r) => {
+                    const selectable = isActionableTvr(r) && !isLocked;
+                    return (
+                    <TableRow key={r.key} data-state={selectedKeys.has(r.key) ? "selected" : undefined}>
+                      <TableCell className="text-center">
+                        {selectable ? (
+                          <Checkbox
+                            checked={selectedKeys.has(r.key)}
+                            onCheckedChange={(v) => {
+                              setSelectedKeys((prev) => {
+                                const next = new Set(prev);
+                                if (v) next.add(r.key); else next.delete(r.key);
+                                return next;
+                              });
+                            }}
+                            aria-label={`Selecionar ${r.atendimento}/${r.tuss}`}
+                          />
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${TVR_STATUS_TONE[r.status]}`}>
                           {TVR_STATUS_LABEL[r.status]}
@@ -2606,23 +2646,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell className={cn(Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700")}>
                         {brl(r.dif_valor)}
                       </TableCell>
-                      <TableCell className="text-center">
-                        {isActionableTvr(r) && !isLocked ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2"
-                            onClick={() => void sendHandoffToConfeccao([r], { fromRow: true })}
-                            title="Encaminhar somente esta linha para confecção"
-                          >
-                            <SendIcon className="h-3.5 w-3.5" />
-                          </Button>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
