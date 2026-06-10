@@ -71,6 +71,10 @@ export default function CreditosDebitos() {
   const [editingGlosa, setEditingGlosa] = useState<GlosaDebt | null>(null);
   const [glosaParc, setGlosaParc] = useState<number>(1);
   const [busyGlosa, setBusyGlosa] = useState(false);
+  const [openLotes, setOpenLotes] = useState<LoteOption[]>([]);
+  const [loadingLotes, setLoadingLotes] = useState(false);
+  const [lotePick, setLotePick] = useState<string>("");
+  const [paymentLabels, setPaymentLabels] = useState<Record<string, string>>({});
 
   const loadAll = async () => {
     setLoading(true);
