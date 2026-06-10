@@ -34,9 +34,35 @@ const cachePasswordAuthUrl = () => {
 
 cachePasswordAuthUrl();
 
+/**
+ * Pré-warm de sessão antes de carregar chunks dinâmicos.
+ *
+ * Quando o preview do Lovable fica ocioso, o token expira e o primeiro
+ * `import()` após retomar costuma falhar com "Failed to fetch dynamically
+ * imported module". Forçamos `getSession()` (que dispara refresh se preciso)
+ * antes do próximo import. Erro é silencioso: o ErrorBoundary já cuida do
+ * fallback com auto-reload único.
+ */
+const refreshAuthSession = async () => {
+  try {
+    const { supabase } = await import("./integrations/supabase/client.ts");
+    await supabase.auth.getSession();
+  } catch {
+    // ignore — pior caso, ErrorBoundary recarrega
+  }
+};
+
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void refreshAuthSession();
+  });
+  window.addEventListener("online", () => void refreshAuthSession());
+}
+
 const rootElement = document.getElementById("root");
 if (rootElement) {
   import("./App.tsx").then(({ default: App }) => {
     createRoot(rootElement).render(<App />);
   });
 }
+
