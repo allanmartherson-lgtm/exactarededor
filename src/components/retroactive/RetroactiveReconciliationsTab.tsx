@@ -2240,6 +2240,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             const unknown = (results ?? []).filter((r) => !knownSet.has(r.status as string));
             const totalKnown = TVR_STATUS_ORDER.reduce((s, k) => s + (counts[k] ?? 0), 0);
             const missingTotal = (results?.length ?? 0) - totalKnown - unknown.length;
+            const ausenteIncomplete = (results ?? []).filter((r) => getAusenteTasyMissingFields(r).length > 0);
+            const missingByField = new Map<string, number>();
+            for (const r of ausenteIncomplete) {
+              for (const f of getAusenteTasyMissingFields(r)) {
+                missingByField.set(f, (missingByField.get(f) ?? 0) + 1);
+              }
+            }
             return (
               <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="font-medium uppercase tracking-wider text-muted-foreground">Validação</span>
@@ -2253,12 +2260,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 {missingTotal > 0 && (
                   <span className="text-destructive font-semibold">⚠ {missingTotal} sem status</span>
                 )}
-                {unknown.length === 0 && missingTotal === 0 && (
-                  <span className="text-emerald-700">✓ Todas as linhas classificadas</span>
+                {ausenteIncomplete.length > 0 && (
+                  <span className="text-amber-700 font-semibold" title={ausenteIncomplete.map((r) => `${r.atendimento}/${r.tuss}: faltam ${getAusenteTasyMissingFields(r).join(", ")}`).join("\n")}>
+                    ⚠ {ausenteIncomplete.length} Ausente TASY incompleta(s) — faltam: {Array.from(missingByField.entries()).map(([k, n]) => `${k} (${n})`).join(", ")}
+                  </span>
+                )}
+                {unknown.length === 0 && missingTotal === 0 && ausenteIncomplete.length === 0 && (
+                  <span className="text-emerald-700">✓ Todas as linhas classificadas e completas</span>
                 )}
               </div>
             );
           })()}
+
 
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             {TVR_STATUS_ORDER.map((s) => (
