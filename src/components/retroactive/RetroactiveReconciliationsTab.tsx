@@ -1875,9 +1875,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         return a.tuss.localeCompare(b.tuss);
       });
 
-      setResults(out);
-      setProcessing(false);
-      toast({ title: `Processamento concluído · ${out.length} linha(s)` });
+      try {
+        await persistResults(out);
+        setResults(out);
+        await loadTvrReconciliation();
+        toast({ title: `Processamento concluído · ${out.length} linha(s) salvas` });
+      } catch (e) {
+        toast({ title: "Erro ao salvar resultado", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      } finally {
+        setProcessing(false);
+      }
     }, 50);
   };
 
