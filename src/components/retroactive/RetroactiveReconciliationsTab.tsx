@@ -2393,10 +2393,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               Um único arquivo .xlsx/.csv com o que foi realizado.
             </p>
           </div>
-          {tasyRows.length > 0 && (
+          {(tasyRows.length > 0 || tasyFileTotals) && (
             <Badge variant="default" className="text-[10px]">
               {tasyFileTotals
-                ? `${tasyRows.length} de ${tasyFileTotals.file} linha(s) · ${tasyFile}`
+                ? `${tasyFileTotals.valid} de ${tasyFileTotals.file} linha(s) · ${tasyFile}`
                 : `${tasyRows.length} linha(s) · ${tasyFile}`}
             </Badge>
           )}
@@ -2415,6 +2415,28 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             }}
           />
         </label>
+        {tasyFileTotals && (tasyFileTotals.excluded > 0 || tasyFileTotals.dropped > 0) && (
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+            <Badge variant="outline">{tasyFileTotals.excluded} excluídas (visita/parecer/consulta)</Badge>
+            <Badge variant="outline" className={tasyFileTotals.dropped > 0 ? "border-amber-500 text-amber-700" : ""}>
+              {tasyFileTotals.dropped} descartadas (faltando dados)
+            </Badge>
+          </div>
+        )}
+        {tasyDroppedExamples.length > 0 && (
+          <details className="rounded-md border border-amber-200 bg-amber-50/40 px-3 py-2 text-[11px]">
+            <summary className="cursor-pointer font-medium text-amber-800">
+              Ver exemplos de linhas descartadas ({tasyDroppedExamples.length}{tasyFileTotals ? ` de ${tasyFileTotals.dropped}` : ""})
+            </summary>
+            <ul className="mt-2 space-y-0.5 text-amber-900">
+              {tasyDroppedExamples.map((ex) => (
+                <li key={ex.row_index}>
+                  Linha {ex.row_index}: falta <strong>{ex.missing.join(", ")}</strong>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
 
       {/* Step 2 — Repasse (auto, do sistema) */}
