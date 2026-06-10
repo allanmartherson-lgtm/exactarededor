@@ -889,7 +889,7 @@ export default function Glosas() {
 
             <section>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 12, flexWrap: "wrap" }}>
-                <SectionLabel style={{ margin: 0 }}>Lotes importados</SectionLabel>
+                <SectionLabel>Lotes importados</SectionLabel>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {filteredBatches.length > 0 && (
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>
