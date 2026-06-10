@@ -1981,8 +1981,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const counts = useMemo(() => {
     const c: Record<TvrStatus, number> = {
-      nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_sem_tasy: 0, ok: 0,
+      nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_a_mais: 0, pago_sem_tasy: 0, ok: 0,
     };
+
     for (const r of results ?? []) c[r.status]++;
     return c;
   }, [results]);
