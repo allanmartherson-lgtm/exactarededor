@@ -2414,16 +2414,36 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           </DropdownMenu>
         )}
         {results && !isLocked && (
-          <Button
-            size="sm"
-            className="ml-auto"
-            onClick={() => void sendHandoffToConfeccao(results)}
-            disabled={results.filter(isActionableTvr).length === 0}
-            title="Cria um pagamento novo em confecção com os itens acionáveis desta apuração"
-          >
-            <SendIcon className="h-4 w-4 mr-1" />
-            Encaminhar para confecção ({results.filter(isActionableTvr).length})
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            {selectedKeys.size > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setSelectedKeys(new Set())}>
+                Limpar seleção
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant={selectedKeys.size > 0 ? "default" : "outline"}
+              onClick={() => {
+                const picked = results.filter((r) => selectedKeys.has(r.key));
+                void sendHandoffToConfeccao(picked);
+              }}
+              disabled={selectedKeys.size === 0}
+              title="Envia somente os itens marcados nas checkboxes"
+            >
+              <SendIcon className="h-4 w-4 mr-1" />
+              Encaminhar selecionados ({selectedKeys.size})
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedKeys.size > 0 ? "outline" : "default"}
+              onClick={() => void sendHandoffToConfeccao(results)}
+              disabled={results.filter(isActionableTvr).length === 0}
+              title="Encaminha todos os itens acionáveis desta apuração"
+            >
+              <SendIcon className="h-4 w-4 mr-1" />
+              Encaminhar todos ({results.filter(isActionableTvr).length})
+            </Button>
+          </div>
         )}
       </div>
 
