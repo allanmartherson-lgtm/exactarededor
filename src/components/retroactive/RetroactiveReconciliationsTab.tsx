@@ -2307,20 +2307,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                try {
-                  sessionStorage.setItem("newPaymentMode", "confeccao");
-                  sessionStorage.setItem("retroactiveHandoff", JSON.stringify({
-                    reconciliation_id: id,
-                    reference: handoff.payment_reference ?? `Retro #${id.slice(0, 8)}`,
-                    description: `Origem: apuração retroativa ${id}.`,
-                    doctor_id: recon?.doctor_id ?? null,
-                    company_id: recon?.company_id ?? null,
-                    items_count: handoff.items_count,
-                  }));
-                } catch { /* ignore */ }
-                navigate("/pagamentos/novo?modo=confeccao");
-              }}
+              onClick={() => navigate(`/pagamentos/novo?modo=confeccao&retro=${id}`)}
             >
               <SendIcon className="h-3 w-3 mr-1" /> Retomar confecção
             </Button>
