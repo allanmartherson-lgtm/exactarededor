@@ -234,13 +234,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
         </div>
       )}
 
-      <Tabs defaultValue="pools">
-        <TabsList>
-          <TabsTrigger value="pools">Pools ({pools.length})</TabsTrigger>
-          <TabsTrigger value="adjustments">Créditos/Débitos ({adjustments.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pools" className="space-y-4">
+      <div className="space-y-4">
           <div className="flex justify-end">
             <Button onClick={() => openPool(null)}><Plus className="w-4 h-4 mr-1" /> Novo pool</Button>
           </div>
@@ -267,42 +261,8 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
               ))}
             </div>
           )}
-        </TabsContent>
+      </div>
 
-        <TabsContent value="adjustments" className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => openAdj()}><Plus className="w-4 h-4 mr-1" /> Novo crédito/débito</Button>
-          </div>
-          {adjustments.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">Nenhum ajuste cadastrado.</CardContent></Card>
-          ) : (
-            <div className="grid gap-2">
-              {adjustments.map(a => (
-                <Card key={a.id}>
-                  <CardContent className="flex justify-between items-center py-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={a.tipo === "credito" ? "default" : "secondary"}>{a.tipo}</Badge>
-                        <span className="font-medium">{a._company_name}</span>
-                        {!a.ativo && <Badge variant="outline">Inativo</Badge>}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{a.descricao}</p>
-                      <p className="text-sm">
-                        R$ {Number(a.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} ·
-                        parc. {a.parcelas_pagas}/{a.parcelas_total} · início {a.data_inicio}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => openAdj(a)}><Pencil className="w-4 h-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => removeAdj(a.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
 
       {/* ===== Dialog Pool ===== */}
       <Dialog open={showPoolDialog} onOpenChange={setShowPoolDialog}>
