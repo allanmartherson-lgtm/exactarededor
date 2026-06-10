@@ -1527,6 +1527,23 @@ function mapTvrStatusToStoredClassification(status: TvrStatus): string {
   return "pago_a_menos";
 }
 
+const AUSENTE_TASY_ESSENTIAL_FIELDS = [
+  ["paciente", "Paciente"],
+  ["convenio", "Convênio"],
+  ["procedimento", "Procedimento"],
+] as const;
+
+function getAusenteTasyMissingFields(r: TvrResult): string[] {
+  if (r.status !== "pago_sem_tasy") return [];
+  const out: string[] = [];
+  for (const [key, label] of AUSENTE_TASY_ESSENTIAL_FIELDS) {
+    const v = (r as unknown as Record<string, unknown>)[key];
+    if (!v || String(v).trim() === "") out.push(label);
+  }
+  return out;
+}
+
+
 
 function dbDateOrNull(value: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
