@@ -2187,7 +2187,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         await loadTvrReconciliation();
         toast({ title: `Processamento concluído · ${out.length} linha(s) salvas` });
       } catch (e) {
-        toast({ title: "Erro ao salvar resultado", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+        const msg = e instanceof Error
+          ? e.message
+          : (e && typeof e === "object" && "message" in e && typeof (e as { message?: unknown }).message === "string")
+            ? (e as { message: string }).message
+            : JSON.stringify(e);
+        toast({ title: "Erro ao salvar resultado", description: msg, variant: "destructive" });
       } finally {
         setProcessing(false);
       }
