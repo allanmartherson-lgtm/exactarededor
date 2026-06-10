@@ -50,6 +50,14 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
@@ -1428,6 +1436,7 @@ type PagRow = {
   pag_data?: string;
   pag_paciente?: string;
   pag_convenio?: string;
+  pag_lote?: string;
 };
 
 type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_qtd" | "div_valor" | "pago_sem_tasy" | "ok";
@@ -1448,6 +1457,7 @@ type TvrResult = {
   qtd_por_func: number;
   n_funcs: number;
   funcoes_pagas: string;
+  lotes: string;
   valor_pago_base: number;
   valor_com_acordo: number;
   dif_qtd: number;
@@ -1624,6 +1634,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_data: r.data,
         pag_paciente: r.paciente,
         pag_convenio: r.convenio,
+        pag_lote: r.lotes,
       })));
       setPaymentsLoaded(true);
     }
@@ -1660,7 +1671,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       let query = supabase
         .from("payment_items" as never)
-        .select("attendance_number, procedure_code, quantity, procedure_amount, doctor_role, procedure_date, patient_name, procedure_name")
+        .select("attendance_number, procedure_code, quantity, procedure_amount, doctor_role, procedure_date, patient_name, procedure_name, payment_id")
         .gte("procedure_date", start.toISOString().slice(0, 10))
         .lte("procedure_date", end.toISOString().slice(0, 10));
 
@@ -1672,7 +1683,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         toast({ title: "Erro ao buscar pagamentos", description: error.message, variant: "destructive" });
         return;
       }
-      const rows: PagRow[] = (data ?? []).map((row: Record<string, unknown>) => ({
+      const rawItems = (data ?? []) as Array<Record<string, unknown>>;
+      const paymentIds = Array.from(new Set(rawItems.map((it) => String(it.payment_id ?? "")).filter(Boolean)));
+      const loteByPaymentId = new Map<string, string>();
+      if (paymentIds.length > 0) {
+        const { data: paymentsData } = await supabase
+          .from("payments" as never)
+          .select("id, reference, competence_month")
+          .in("id", paymentIds);
+        for (const p of (paymentsData ?? []) as Array<Record<string, unknown>>) {
+          const ref = String(p.reference ?? "").trim();
+          const comp = p.competence_month ? String(p.competence_month).slice(0, 7) : "";
+          const label = ref || (comp ? `Comp. ${comp}` : String(p.id).slice(0, 8));
+          loteByPaymentId.set(String(p.id), label);
+        }
+      }
+      const rows: PagRow[] = rawItems.map((row) => ({
         pag_atendimento: normAtt(String(row.attendance_number ?? "")),
         pag_tuss: normTuss(String(row.procedure_code ?? "")),
         pag_qtd: String(row.quantity ?? "1"),
@@ -1682,6 +1708,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_data: (row.procedure_date as string) ?? "",
         pag_paciente: (row.patient_name as string) ?? "",
         pag_convenio: "",
+        pag_lote: loteByPaymentId.get(String(row.payment_id ?? "")) ?? "",
       })).filter((x) => x.pag_atendimento && x.pag_tuss);
       setPagRows(rows);
       setPaymentsLoaded(true);
@@ -1770,6 +1797,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         tuss: string;
         qtd_total: number;
         funcs: Set<string>;
+        lotes: Set<string>;
         valor_base: number;
         valor_com_acordo: number;
         sample: PagRow;
@@ -1782,16 +1810,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const vb = num(r.pag_valor_base);
         const va = num(r.pag_valor_com_acordo);
         const fn = (r.pag_funcao ?? "").trim();
+        const lote = (r.pag_lote ?? "").trim();
         const cur = pMap.get(key);
         if (cur) {
           cur.qtd_total += q;
           cur.valor_base += vb;
           cur.valor_com_acordo += va;
           if (fn) cur.funcs.add(fn);
+          if (lote) cur.lotes.add(lote);
         } else {
           const funcs = new Set<string>();
+          const lotes = new Set<string>();
           if (fn) funcs.add(fn);
-          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, valor_base: vb, valor_com_acordo: va, sample: r });
+          if (lote) lotes.add(lote);
+          pMap.set(key, { atendimento: r.pag_atendimento, tuss: r.pag_tuss, qtd_total: q, funcs, lotes, valor_base: vb, valor_com_acordo: va, sample: r });
         }
       }
 
@@ -1870,6 +1902,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const valor_pago_base = p?.valor_base ?? 0;
         const valor_com_acordo = p?.valor_com_acordo ?? 0;
         const funcoes_pagas = p ? Array.from(p.funcs).join(", ") : "";
+        const lotes = p ? Array.from(p.lotes).join(", ") : "";
 
         const dif_qtd = qtd_tasy - qtd_por_func;
         const dif_valor = valor_total_tasy - valor_pago_base;
@@ -1898,6 +1931,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           qtd_por_func,
           n_funcs,
           funcoes_pagas,
+          lotes,
           valor_pago_base,
           valor_com_acordo,
           dif_qtd,
@@ -1927,15 +1961,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }, 50);
   };
 
+  const [onlyWithPayment, setOnlyWithPayment] = useState(false);
+
   const visible = useMemo(() => {
     const list = (results ?? []).filter((r) => r.status !== "ok" || statusFilter === "ok");
     const q = search.trim().toLowerCase();
     return list.filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
-      if (q && !`${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico}`.toLowerCase().includes(q)) return false;
+      if (onlyWithPayment && r.status === "nao_pago") return false;
+      if (q) {
+        const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
-  }, [results, statusFilter, search]);
+  }, [results, statusFilter, search, onlyWithPayment]);
 
   const counts = useMemo(() => {
     const c: Record<TvrStatus, number> = {
@@ -1945,35 +1985,61 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     return c;
   }, [results]);
 
-  const exportXlsx = async () => {
+  const buildExportRows = (list: TvrResult[]) => list.map((r) => ({
+    Status: TVR_STATUS_LABEL[r.status],
+    Atendimento: r.atendimento,
+    "Cód. TUSS": r.tuss,
+    Procedimento: r.procedimento,
+    Paciente: r.paciente,
+    Data: r.data,
+    Convênio: r.convenio,
+    Médico: r.medico,
+    Função: r.funcao,
+    "Qtd TASY": r.qtd_tasy,
+    "Valor Unit. TASY": r.valor_unit_tasy,
+    "Valor Total TASY": r.valor_total_tasy,
+    "Qtd Paga/Func": Number(r.qtd_por_func.toFixed(4)),
+    "Nº Funcs": r.n_funcs,
+    "Funções Pagas": r.funcoes_pagas,
+    "Lote(s)": r.lotes,
+    "Valor Pago Base": r.valor_pago_base,
+    "Valor c/ Acordo": r.valor_com_acordo,
+    "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
+    "Dif. Valor": Number(r.dif_valor.toFixed(2)),
+  }));
+
+  const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible") => {
     if (!results) return;
+    const list = scope === "visible" ? visible : results;
+    if (list.length === 0) {
+      toast({ title: "Nada para exportar neste filtro", variant: "destructive" });
+      return;
+    }
+    const stamp = format(new Date(), "yyyyMMdd_HHmm");
+    const baseName = `tasy-vs-repasse_${scope === "visible" ? "filtrado_" : ""}${stamp}`;
+    if (fmt === "json") {
+      const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${baseName}.json`; a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    const rows = buildExportRows(list);
     const XLSX = await import("xlsx");
-    const rows = results.map((r) => ({
-      Status: TVR_STATUS_LABEL[r.status],
-      Atendimento: r.atendimento,
-      "Cód. TUSS": r.tuss,
-      Procedimento: r.procedimento,
-      Paciente: r.paciente,
-      Data: r.data,
-      Convênio: r.convenio,
-      Médico: r.medico,
-      Função: r.funcao,
-      "Qtd TASY": r.qtd_tasy,
-      "Valor Unit. TASY": r.valor_unit_tasy,
-      "Valor Total TASY": r.valor_total_tasy,
-      "Qtd Paga/Func": Number(r.qtd_por_func.toFixed(4)),
-      "Nº Funcs": r.n_funcs,
-      "Funções Pagas": r.funcoes_pagas,
-      "Valor Pago Base": r.valor_pago_base,
-      "Valor c/ Acordo": r.valor_com_acordo,
-      "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
-      "Dif. Valor": Number(r.dif_valor.toFixed(2)),
-    }));
     const ws = XLSX.utils.json_to_sheet(rows);
+    if (fmt === "csv") {
+      const csv = XLSX.utils.sheet_to_csv(ws, { FS: ";" });
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${baseName}.csv`; a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
-    const stamp = format(new Date(), "yyyyMMdd_HHmm");
-    XLSX.writeFile(wb, `tasy-vs-repasse_${stamp}.xlsx`);
+    XLSX.writeFile(wb, `${baseName}.xlsx`);
   };
 
   const persistResults = async (list: TvrResult[]) => {
@@ -2117,7 +2183,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <Button variant="outline" size="sm" onClick={() => void clearAll()}>Limpar tudo</Button>
         )}
         {results && (
-          <Button variant="outline" size="sm" onClick={exportXlsx}>Exportar Excel</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">Exportar</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Todos ({results.length})</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => void exportData("xlsx", "all")}>Excel (.xlsx)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void exportData("csv", "all")}>CSV (;)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void exportData("json", "all")}>JSON</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Filtrado ({visible.length})</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => void exportData("xlsx", "visible")}>Excel (.xlsx)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void exportData("csv", "visible")}>CSV (;)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void exportData("json", "visible")}>JSON</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
@@ -2170,13 +2251,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <div className="rounded-lg border border-border bg-card overflow-hidden">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
               <div className="text-sm font-semibold">Resultado · {visible.length} de {results.length}</div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar…"
-                  className="h-8 w-[200px] text-xs"
+                  placeholder="Buscar atend., TUSS, lote, convênio, médico, paciente, função…"
+                  className="h-8 w-[340px] text-xs"
                 />
+                <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none px-2 py-1 rounded border border-border">
+                  <input
+                    type="checkbox"
+                    checked={onlyWithPayment}
+                    onChange={(e) => setOnlyWithPayment(e.target.checked)}
+                    className="h-3.5 w-3.5"
+                  />
+                  Apenas com pagamento
+                </label>
                 <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
                   <SelectTrigger className="h-8 w-[180px] text-xs">
                     <SelectValue />
@@ -2209,6 +2299,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <TableHead className="text-center">Qtd/Func</TableHead>
                     <TableHead className="text-center">Nº Func</TableHead>
                     <TableHead>Funções pagas</TableHead>
+                    <TableHead>Lote(s)</TableHead>
                     <TableHead>Vlr Pago Base</TableHead>
                     <TableHead>Vlr c/ Acordo</TableHead>
                     <TableHead className="text-center">Dif. Qtd</TableHead>
@@ -2217,7 +2308,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 </TableHeader>
                 <TableBody>
                   {visible.length === 0 && (
-                    <TableRow><TableCell colSpan={19} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={20} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
                   )}
                   {visible.map((r) => (
                     <TableRow key={r.key}>
@@ -2240,6 +2331,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell className="text-center">{r.qtd_por_func ? r.qtd_por_func.toFixed(2) : "—"}</TableCell>
                       <TableCell className="text-center">{r.n_funcs || "—"}</TableCell>
                       <TableCell className="max-w-[160px] truncate" title={r.funcoes_pagas}>{r.funcoes_pagas || "—"}</TableCell>
+                      <TableCell className="max-w-[160px] truncate font-mono text-[11px]" title={r.lotes}>{r.lotes || "—"}</TableCell>
                       <TableCell>{brl(r.valor_pago_base)}</TableCell>
                       <TableCell className="text-muted-foreground">{brl(r.valor_com_acordo)}</TableCell>
                       <TableCell className={cn("text-center", Math.abs(r.dif_qtd) >= 0.5 && "font-semibold text-amber-700")}>
