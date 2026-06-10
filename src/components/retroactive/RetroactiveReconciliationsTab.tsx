@@ -1439,7 +1439,8 @@ type PagRow = {
   pag_lote?: string;
 };
 
-type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_sem_tasy" | "ok";
+type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_a_mais" | "pago_sem_tasy" | "ok";
+
 
 type TvrResult = {
   key: string;
@@ -1469,6 +1470,7 @@ const TVR_STATUS_LABEL: Record<TvrStatus, string> = {
   nao_pago: "Não Pago",
   div_qtd_valor: "Div. Qtd / Valor",
   div_valor: "Div. Valor",
+  pago_a_mais: "Pago a mais",
   pago_sem_tasy: "Pago sem TASY",
   ok: "OK",
 };
@@ -1477,18 +1479,19 @@ const TVR_STATUS_TONE: Record<TvrStatus, string> = {
   nao_pago: "bg-red-100 text-red-800",
   div_qtd_valor: "bg-rose-100 text-rose-800",
   div_valor: "bg-amber-100 text-amber-800",
+  pago_a_mais: "bg-fuchsia-100 text-fuchsia-800",
   pago_sem_tasy: "bg-purple-100 text-purple-800",
   ok: "bg-emerald-100 text-emerald-800",
 };
 
-const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_sem_tasy", "ok"];
-const TVR_SOURCE = "tasy_vs_repasse";
+const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_a_mais", "pago_sem_tasy", "ok"];
 
 function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
   const c: Record<TvrStatus, number> = {
     nao_pago: 0,
     div_qtd_valor: 0,
     div_valor: 0,
+    pago_a_mais: 0,
     pago_sem_tasy: 0,
     ok: 0,
   };
@@ -1496,7 +1499,10 @@ function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
   return c;
 }
 
+const TVR_SOURCE = "tasy_vs_repasse";
+
 function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
+
   const totalComplementar = list.reduce((sum, r) => {
     if (r.status === "ok" || r.status === "pago_sem_tasy") return sum;
     if (r.status === "nao_pago") return sum + r.valor_total_tasy;
@@ -1515,8 +1521,10 @@ function mapTvrStatusToStoredClassification(status: TvrStatus): string {
   if (status === "ok") return "ok_pago";
   if (status === "nao_pago") return "nao_pago";
   if (status === "pago_sem_tasy") return "sem_lastro";
+  if (status === "pago_a_mais") return "pago_a_mais";
   return "pago_a_menos";
 }
+
 
 function dbDateOrNull(value: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
@@ -1907,9 +1915,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         let status: TvrStatus;
         if (!p && t) status = "nao_pago";
         else if (!t && p) status = "pago_sem_tasy";
+        else if (dif_valor < -0.5) status = "pago_a_mais";
         else if (Math.abs(dif_qtd) >= 0.5 && Math.abs(dif_valor) > 0.5) status = "div_qtd_valor";
         else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
         else status = "ok";
+
 
         out.push({
           key,
@@ -1975,8 +1985,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const counts = useMemo(() => {
     const c: Record<TvrStatus, number> = {
-      nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_sem_tasy: 0, ok: 0,
+      nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_a_mais: 0, pago_sem_tasy: 0, ok: 0,
     };
+
     for (const r of results ?? []) c[r.status]++;
     return c;
   }, [results]);
@@ -2201,6 +2212,31 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       {/* Results */}
       {results && (
         <>
+          {(() => {
+            const knownSet = new Set<string>(TVR_STATUS_ORDER);
+            const unknown = (results ?? []).filter((r) => !knownSet.has(r.status as string));
+            const totalKnown = TVR_STATUS_ORDER.reduce((s, k) => s + (counts[k] ?? 0), 0);
+            const missingTotal = (results?.length ?? 0) - totalKnown - unknown.length;
+            return (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="font-medium uppercase tracking-wider text-muted-foreground">Validação</span>
+                <span>Total: <b>{results.length}</b></span>
+                {TVR_STATUS_ORDER.map((s) => (
+                  <span key={s}>{TVR_STATUS_LABEL[s]}: <b>{counts[s] ?? 0}</b></span>
+                ))}
+                {unknown.length > 0 && (
+                  <span className="text-destructive font-semibold">⚠ {unknown.length} classificação(ões) desconhecida(s): {Array.from(new Set(unknown.map((u) => String(u.status)))).join(", ")}</span>
+                )}
+                {missingTotal > 0 && (
+                  <span className="text-destructive font-semibold">⚠ {missingTotal} sem status</span>
+                )}
+                {unknown.length === 0 && missingTotal === 0 && (
+                  <span className="text-emerald-700">✓ Todas as linhas classificadas</span>
+                )}
+              </div>
+            );
+          })()}
+
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             {TVR_STATUS_ORDER.map((s) => (
               <div key={s} className="rounded-lg border border-border bg-card px-3 py-2">
@@ -2209,6 +2245,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             ))}
           </div>
+
 
           {(() => {
             const totalComplementar = results.reduce((sum, r) => {
