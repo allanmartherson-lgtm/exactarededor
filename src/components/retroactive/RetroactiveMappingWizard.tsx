@@ -193,15 +193,18 @@ export default function RetroactiveMappingWizard({
 
   const preview = useMemo(() => rows.slice(0, 3), [rows]);
 
-  const { valid, dropped, excluded } = useMemo(() => {
-    if (Object.keys(mapping).length === 0) return { valid: [] as Record<string, string>[], dropped: 0, excluded: 0 };
+  const { valid, dropped, excluded, droppedExamples } = useMemo(() => {
+    if (Object.keys(mapping).length === 0)
+      return { valid: [] as Record<string, string>[], dropped: 0, excluded: 0, droppedExamples: [] as Array<{ row_index: number; missing: string[] }> };
     const descKey = targets.find((t) => /procedure_name|procedimento|descricao/i.test(t.key))?.key;
     const descCol = descKey ? mapping[descKey] : undefined;
     let excludedCount = 0;
     const built: Record<string, string>[] = [];
     let droppedCount = 0;
-    const requiredKeys = targets.filter((t) => t.required).map((t) => t.key);
-    for (const r of rows) {
+    const examples: Array<{ row_index: number; missing: string[] }> = [];
+    const requiredTargets = targets.filter((t) => t.required);
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
       if (showExcludeConsultas && excludeConsultas && descCol && descCol !== NONE) {
         const desc = String(r[descCol] ?? "");
         if (EXCLUDE_REGEX.test(desc)) {
@@ -210,11 +213,14 @@ export default function RetroactiveMappingWizard({
         }
       }
       const d = buildRow(r, mapping, targets);
-      const hasRequired = requiredKeys.every((k) => d[k]);
-      if (hasRequired) built.push(d);
-      else droppedCount++;
+      const missing = requiredTargets.filter((t) => !d[t.key]).map((t) => t.label);
+      if (missing.length === 0) built.push(d);
+      else {
+        droppedCount++;
+        if (examples.length < 10) examples.push({ row_index: i + 2, missing });
+      }
     }
-    return { valid: built, dropped: droppedCount, excluded: excludedCount };
+    return { valid: built, dropped: droppedCount, excluded: excludedCount, droppedExamples: examples };
   }, [rows, mapping, excludeConsultas, targets, showExcludeConsultas]);
 
   const missingRequired = targets.filter(
