@@ -1808,11 +1808,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (row?.doctor_id) {
       const { data: doc } = await supabase
         .from("doctors" as never)
-        .select("id, name, crm")
+        .select("id, full_name, crm")
         .eq("id", row.doctor_id)
         .maybeSingle();
-      const d = doc as unknown as { id: string; name: string | null; crm: string | null } | null;
-      setDoctorInfo({ id: d?.id ?? row.doctor_id, name: d?.name ?? null, crm: d?.crm ?? null });
+      const d = doc as unknown as { id: string; full_name: string | null; crm: string | null } | null;
+      setDoctorInfo({ id: d?.id ?? row.doctor_id, name: d?.full_name ?? null, crm: d?.crm ?? null });
     } else {
       setDoctorInfo({ id: null, name: null, crm: null });
     }
@@ -2461,8 +2461,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         procedure_name: r.procedimento || null,
         procedure_date: dbDateOrNull(r.data),
         patient_name: r.paciente || null,
-        doctor_name: doctorInfo.name ?? r.medico ?? null,
-        doctor_crm: doctorInfo.crm ?? null,
+        doctor_name: doctorInfo.name ?? "Médico",
+        doctor_crm: doctorInfo.crm || null,
         convenio: r.convenio || null,
         valor_cobrado: Number((r.valor_com_acordo || 0).toFixed(2)),
         valor_glosa: Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
@@ -2487,67 +2487,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
     const insertedItems = itemsData as Array<{ id: string; valor_glosa: number }>;
 
-    // 3) Débito por médico/PJ (uma apuração = um médico × uma PJ)
-    const docName = doctorInfo.name ?? "Médico";
-    const docCrm = doctorInfo.crm ?? "";
-    // Upsert: tenta achar débito ativo existente para somar
-    const { data: existingDebt } = await supabase
-      .from("glosa_debts" as never)
-      .select("id, total_debt")
-      .eq("doctor_name", docName)
-      .eq("doctor_crm", docCrm)
-      .maybeSingle();
-
-    let debtId: string;
-    if (existingDebt) {
-      debtId = (existingDebt as { id: string }).id;
-      const prev = Number((existingDebt as { total_debt: number }).total_debt ?? 0);
-      await supabase
-        .from("glosa_debts" as never)
-        .update({
-          total_debt: Number((prev + totalGlosa).toFixed(2)),
-          company_id: recon.company_id,
-          parcelas_default: parcelas,
-          status: "ativo",
-          resolution_status: "vinculada",
-          hospital_id: hospitalIdRecon,
-        } as never)
-        .eq("id", debtId);
-    } else {
-      const { data: debtData, error: debtErr } = await (supabase as never as typeof supabase)
-        .from("glosa_debts" as never)
-        .insert({
-          doctor_name: docName,
-          doctor_crm: docCrm,
-          total_debt: Number(totalGlosa.toFixed(2)),
-          status: "ativo",
-          resolution_status: "vinculada",
-          company_id: recon.company_id,
-          parcelas_default: parcelas,
-          hospital_id: hospitalIdRecon,
-        } as never)
-        .select("id")
-        .single();
-      if (debtErr || !debtData) {
-        await supabase.from("glosa_items" as never).delete().eq("batch_id", batchId);
-        await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
-        throw new Error(debtErr?.message ?? "Falha ao criar débito de glosa.");
-      }
-      debtId = (debtData as { id: string }).id;
-    }
-
-    // 4) Vincular itens ao débito
-    const debtItemsPayload = insertedItems.map((it) => ({
-      debt_id: debtId,
-      glosa_item_id: it.id,
-      amount: Number((it.valor_glosa ?? 0).toFixed(2)),
-      hospital_id: hospitalIdRecon,
-    }));
-    const { error: debtItemsErr } = await supabase
-      .from("glosa_debt_items" as never)
-      .insert(debtItemsPayload as never);
-    if (debtItemsErr) {
-      throw new Error(debtItemsErr.message);
+    // 3+4) Débito via RPC governado (advisory lock + audit_log + validações + debt_items atômicos)
+    const { error: debtErr } = await supabase.rpc(
+      "create_glosa_debt_with_items" as never,
+      {
+        p_company_id: recon.company_id,
+        p_doctor_crm: doctorInfo.crm || null,
+        p_doctor_name: doctorInfo.name ?? "Médico",
+        p_parcelas: parcelas,
+        p_item_ids: insertedItems.map((it) => it.id),
+      } as never,
+    );
+    if (debtErr) {
+      // Rollback: desfaz itens e batch — sem estado parcial.
+      await supabase.from("glosa_items" as never).delete().eq("batch_id", batchId);
+      await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
+      throw new Error(debtErr.message);
     }
 
     return { batch_id: batchId, total: totalGlosa, items: retirar.length, parcelas };
