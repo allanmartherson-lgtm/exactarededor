@@ -2199,21 +2199,27 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     };
     const trimmedHistory = [...previousHistory.slice(-19), historyEntry];
 
+    // Sobrescreve summary do zero a cada processamento — preserva apenas handoff (estado de envio
+    // para confecção) e histórico de validação. Evita carregar contadores de rodadas antigas
+    // com status que não existem mais (ex.: div_qtd, pago_sem_tasy).
+    const preservedHandoff = (previousSummary as { handoff?: unknown }).handoff;
     const { error: updateError } = await supabase
       .from("retroactive_reconciliations" as never)
       .update({
         summary: {
-          ...previousSummary,
           mode: "tasy_vs_repasse",
           total: list.length,
           total_gap: financial.totalComplementar,
           total_excess: financial.totalRetirar,
           tasy_file: tasyFile,
+          tasy_file_totals: tasyFileTotals,
+          tasy_dropped_examples: tasyDroppedExamples,
           exclude_tuss: excludeTuss,
           processed_at: new Date().toISOString(),
           tvr_counts: tvrCounts,
           tvr_ausente_incomplete: incompleteAusente.length,
           tvr_validation_history: trimmedHistory,
+          ...(preservedHandoff ? { handoff: preservedHandoff } : {}),
         },
         status: "em_analise",
       } as never)
