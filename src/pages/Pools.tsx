@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -42,19 +42,7 @@ type Participant = {
   _label?: string;
 };
 type Company = { id: string; name: string };
-type Adjustment = {
-  id: string;
-  company_id: string;
-  tipo: "credito" | "debito" | "glosa_parcelada" | "acordo";
-  descricao: string;
-  valor_total: number;
-  parcelas_total: number;
-  parcelas_pagas: number;
-  data_inicio: string;
-  ativo: boolean;
-  origem: string | null;
-  _company_name?: string;
-};
+
 
 const BASE_LABELS: Record<string, string> = {
   soma_convenio_100: "Soma 100% convênio",
@@ -73,29 +61,23 @@ const DED_LABELS: Record<string, string> = {
 export default function Pools({ embedded = false }: { embedded?: boolean } = {}) {
   const [pools, setPools] = useState<Pool[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Pool | null>(null);
   const [editDeds, setEditDeds] = useState<Deduction[]>([]);
   const [editParts, setEditParts] = useState<Participant[]>([]);
   const [showPoolDialog, setShowPoolDialog] = useState(false);
-  const [adjDialogOpen, setAdjDialogOpen] = useState(false);
-  const [editingAdj, setEditingAdj] = useState<Partial<Adjustment> | null>(null);
 
   const loadAll = async () => {
     setLoading(true);
-    const [p, c, a] = await Promise.all([
+    const [p, c] = await Promise.all([
       supabase.from("pools").select("*").order("created_at", { ascending: false }),
       supabase.from("companies").select("id, name").order("name"),
-      supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
     ]);
     setPools((p.data || []) as Pool[]);
     setCompanies(c.data || []);
-    const adjs = (a.data || []) as Adjustment[];
-    const cMap = new Map((c.data || []).map((x: any) => [x.id, x.name]));
-    setAdjustments(adjs.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
     setLoading(false);
   };
+
   useEffect(() => { loadAll(); }, []);
 
   const openPool = async (pool: Pool | null) => {
@@ -193,37 +175,8 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
     return { b, lines, dedTotal, liquido, quotas };
   }, [simBase, editDeds, editParts]);
 
-  // --- Ajustes ---
-  const openAdj = (a?: Adjustment) => {
-    setEditingAdj(a ? { ...a } : {
-      tipo: "credito", descricao: "", valor_total: 0, parcelas_total: 1,
-      parcelas_pagas: 0, data_inicio: new Date().toISOString().slice(0, 10), ativo: true, origem: "",
-    });
-    setAdjDialogOpen(true);
-  };
-  const saveAdj = async () => {
-    if (!editingAdj?.company_id || !editingAdj.descricao || !editingAdj.valor_total) {
-      toast.error("Preencha empresa, descrição e valor"); return;
-    }
-    const payload: any = {
-      company_id: editingAdj.company_id, tipo: editingAdj.tipo, descricao: editingAdj.descricao,
-      valor_total: editingAdj.valor_total, parcelas_total: editingAdj.parcelas_total ?? 1,
-      parcelas_pagas: editingAdj.parcelas_pagas ?? 0, data_inicio: editingAdj.data_inicio,
-      ativo: editingAdj.ativo ?? true, origem: editingAdj.origem || null,
-    };
-    const { error } = editingAdj.id
-      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id)
-      : await supabase.from("company_financial_adjustments").insert(payload);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Ajuste salvo");
-    setAdjDialogOpen(false); setEditingAdj(null); loadAll();
-  };
-  const removeAdj = async (id: string) => {
-    if (!confirm("Excluir este ajuste?")) return;
-    const { error } = await supabase.from("company_financial_adjustments").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    loadAll();
-  };
+
+
 
   return (
     <div className={embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"}>
@@ -234,13 +187,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
         </div>
       )}
 
-      <Tabs defaultValue="pools">
-        <TabsList>
-          <TabsTrigger value="pools">Pools ({pools.length})</TabsTrigger>
-          <TabsTrigger value="adjustments">Créditos/Débitos ({adjustments.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pools" className="space-y-4">
+      <div className="space-y-4">
           <div className="flex justify-end">
             <Button onClick={() => openPool(null)}><Plus className="w-4 h-4 mr-1" /> Novo pool</Button>
           </div>
@@ -267,42 +214,8 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
               ))}
             </div>
           )}
-        </TabsContent>
+      </div>
 
-        <TabsContent value="adjustments" className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => openAdj()}><Plus className="w-4 h-4 mr-1" /> Novo crédito/débito</Button>
-          </div>
-          {adjustments.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">Nenhum ajuste cadastrado.</CardContent></Card>
-          ) : (
-            <div className="grid gap-2">
-              {adjustments.map(a => (
-                <Card key={a.id}>
-                  <CardContent className="flex justify-between items-center py-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={a.tipo === "credito" ? "default" : "secondary"}>{a.tipo}</Badge>
-                        <span className="font-medium">{a._company_name}</span>
-                        {!a.ativo && <Badge variant="outline">Inativo</Badge>}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{a.descricao}</p>
-                      <p className="text-sm">
-                        R$ {Number(a.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} ·
-                        parc. {a.parcelas_pagas}/{a.parcelas_total} · início {a.data_inicio}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => openAdj(a)}><Pencil className="w-4 h-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => removeAdj(a.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
 
       {/* ===== Dialog Pool ===== */}
       <Dialog open={showPoolDialog} onOpenChange={setShowPoolDialog}>
@@ -462,67 +375,6 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
         </DialogContent>
       </Dialog>
 
-      {/* ===== Dialog Ajuste ===== */}
-      <Dialog open={adjDialogOpen} onOpenChange={setAdjDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader><DialogTitle>{editingAdj?.id ? "Editar ajuste" : "Novo crédito/débito"}</DialogTitle></DialogHeader>
-          {editingAdj && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <Label>Empresa</Label>
-                <Select value={editingAdj.company_id ?? ""} onValueChange={v => setEditingAdj({ ...editingAdj, company_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                  <SelectContent>{companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Tipo</Label>
-                <Select value={editingAdj.tipo} onValueChange={(v: any) => setEditingAdj({ ...editingAdj, tipo: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="credito">Crédito</SelectItem>
-                    <SelectItem value="debito">Débito</SelectItem>
-                    <SelectItem value="glosa_parcelada">Glosa parcelada</SelectItem>
-                    <SelectItem value="acordo">Acordo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Data início</Label>
-                <Input type="date" value={editingAdj.data_inicio || ""} onChange={e => setEditingAdj({ ...editingAdj, data_inicio: e.target.value })} />
-              </div>
-              <div className="col-span-2">
-                <Label>Descrição</Label>
-                <Input value={editingAdj.descricao || ""} onChange={e => setEditingAdj({ ...editingAdj, descricao: e.target.value })} />
-              </div>
-              <div>
-                <Label>Valor total (R$)</Label>
-                <Input type="number" step="0.01" value={editingAdj.valor_total ?? ""} onChange={e => setEditingAdj({ ...editingAdj, valor_total: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <Label>Parcelas total</Label>
-                <Input type="number" min={1} value={editingAdj.parcelas_total ?? 1} onChange={e => setEditingAdj({ ...editingAdj, parcelas_total: parseInt(e.target.value) || 1 })} />
-              </div>
-              <div>
-                <Label>Parcelas pagas</Label>
-                <Input type="number" min={0} value={editingAdj.parcelas_pagas ?? 0} onChange={e => setEditingAdj({ ...editingAdj, parcelas_pagas: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <Label>Origem</Label>
-                <Input value={editingAdj.origem || ""} onChange={e => setEditingAdj({ ...editingAdj, origem: e.target.value })} placeholder="ex: manual, glosa 03/2025" />
-              </div>
-              <div className="flex items-center gap-2 col-span-2">
-                <Switch checked={editingAdj.ativo ?? true} onCheckedChange={v => setEditingAdj({ ...editingAdj, ativo: v })} />
-                <Label>Ativo (aplica em próximos pagamentos)</Label>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={saveAdj}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
