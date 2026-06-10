@@ -120,6 +120,10 @@ type ReconRow = {
     exclude_tuss?: string;
     processed_at?: string;
     tvr_counts?: Partial<Record<TvrStatus, number>>;
+    tvr_ausente_incomplete?: number;
+    tvr_validation_history?: Array<Record<string, unknown>>;
+    tasy_file_totals?: { file: number; valid: number; excluded: number; dropped: number };
+    tasy_dropped_examples?: Array<{ row_index: number; missing: string[] }>;
     handoff?: {
       status: "encaminhada";
       payment_id?: string | null;
