@@ -1486,6 +1486,7 @@ type PagRow = {
   pag_lote?: string;
   pag_payment_item_id?: string;
   pag_payment_id?: string;
+  pag_doctor_id?: string;
 };
 
 
@@ -1516,6 +1517,8 @@ export type TvrResult = {
   valor_recuperar_acordo: number;
   matched_payment_item_id?: string;
   matched_payment_id?: string;
+  matched_doctor_id?: string;
+  matched_doctor_ids?: string[];
   status: TvrStatus;
 };
 
@@ -1734,6 +1737,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [hospitalIdRecon, setHospitalIdRecon] = useState<string | null>(null);
   const [encaminharOpen, setEncaminharOpen] = useState(false);
   const [encaminharBusy, setEncaminharBusy] = useState(false);
+  const [groupDoctorsMap, setGroupDoctorsMap] = useState<Record<string, { full_name: string; crm: string | null }>>({});
 
   const [wizard, setWizard] = useState<
     | { kind: "none" }
@@ -1849,7 +1853,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       let query = supabase
         .from("payment_items" as never)
-        .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
+        .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
         .gte("procedure_date", start.toISOString().slice(0, 10))
         .lte("procedure_date", end.toISOString().slice(0, 10));
 
@@ -1891,6 +1895,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_lote: loteByPaymentId.get(String(row.payment_id ?? "")) ?? "",
         pag_payment_item_id: row.id ? String(row.id) : "",
         pag_payment_id: row.payment_id ? String(row.payment_id) : "",
+        pag_doctor_id: row.doctor_id ? String(row.doctor_id) : "",
       })).filter((x) => x.pag_atendimento && x.pag_tuss);
 
       setPagRows(rows);
@@ -2000,8 +2005,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         payment_item_id_first: string;
         payment_id_first: string;
         sample: PagRow;
+        doctor_ids_order: string[];
+        doctor_principal_id: string | null;
       };
       const pMap = new Map<string, PAgg>();
+      const isPrincipal = (fn: string) => /cirurgi[aã]o\s*principal/i.test(fn);
       for (const r of pagRows) {
         if (excluded.has(r.pag_tuss)) continue;
         const key = `${r.pag_atendimento}|${r.pag_tuss}`;
@@ -2010,6 +2018,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const va = num(r.pag_valor_com_acordo);
         const fn = (r.pag_funcao ?? "").trim();
         const lote = (r.pag_lote ?? "").trim();
+        const did = (r.pag_doctor_id ?? "").trim();
         const cur = pMap.get(key);
         if (cur) {
           cur.qtd_total += q;
@@ -2019,6 +2028,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           if (lote) cur.lotes.add(lote);
           if (!cur.payment_item_id_first && r.pag_payment_item_id) cur.payment_item_id_first = r.pag_payment_item_id;
           if (!cur.payment_id_first && r.pag_payment_id) cur.payment_id_first = r.pag_payment_id;
+          if (did && !cur.doctor_ids_order.includes(did)) cur.doctor_ids_order.push(did);
+          if (did && !cur.doctor_principal_id && isPrincipal(fn)) cur.doctor_principal_id = did;
           // enrich sample with non-empty fields from later rows
           const s = cur.sample;
           if (!s.pag_medico && r.pag_medico) s.pag_medico = r.pag_medico;
@@ -2043,6 +2054,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             payment_item_id_first: r.pag_payment_item_id ?? "",
             payment_id_first: r.pag_payment_id ?? "",
             sample: { ...r },
+            doctor_ids_order: did ? [did] : [],
+            doctor_principal_id: did && isPrincipal(fn) ? did : null,
           });
         }
       }
@@ -2168,6 +2181,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           valor_recuperar_acordo,
           matched_payment_item_id: p?.payment_item_id_first || undefined,
           matched_payment_id: p?.payment_id_first || undefined,
+          matched_doctor_id: p ? (p.doctor_principal_id || p.doctor_ids_order[0] || undefined) : undefined,
+          matched_doctor_ids: p && p.doctor_ids_order.length > 0 ? [...p.doctor_ids_order] : undefined,
           status,
         });
       }
@@ -2413,25 +2428,102 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     navigate(`/pagamentos/novo?modo=confeccao&retro=${reconciliationId}`);
   };
 
-  // ===== Caminho B — gera glosa de auditoria a partir dos itens "a retirar" =====
   const toRetirarItems = (list: TvrResult[]) =>
     list.filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5);
 
-  const createAuditoriaGlosaBatch = async (
-    retirar: TvrResult[],
-    parcelas: number,
-  ): Promise<{ batch_id: string; total: number; items: number; parcelas: number }> => {
-    if (retirar.length === 0) throw new Error("Nenhum item a retirar.");
-    if (!recon?.company_id) throw new Error("Apuração sem PJ vinculada — não é possível gerar glosa.");
-    if (!doctorInfo.name && !doctorInfo.crm) {
-      throw new Error("Apuração sem médico vinculado — não é possível gerar glosa.");
-    }
+  // ===== Agrupamento por médico (apuração só-PJ) =====
+  type GlosaGroup = {
+    doctor_id: string;
+    doctor_name: string;
+    doctor_crm: string | null;
+    items: TvrResult[];
+  };
 
-    const totalGlosa = retirar.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+  const modoMedicoUnico = !!recon?.doctor_id;
+
+  // Carrega map id→{full_name,crm} para os doctor_ids presentes nos itens a retirar
+  // quando a apuração é só-PJ. Em modo médico-único isso não é usado.
+  useEffect(() => {
+    if (modoMedicoUnico) return;
+    const ids = Array.from(
+      new Set(
+        (results ?? [])
+          .filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5)
+          .map((r) => r.matched_doctor_id)
+          .filter((x): x is string => !!x),
+      ),
+    );
+    const missing = ids.filter((id) => !groupDoctorsMap[id]);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("doctors" as never)
+        .select("id, full_name, crm")
+        .in("id", missing);
+      if (cancelled) return;
+      const next: Record<string, { full_name: string; crm: string | null }> = { ...groupDoctorsMap };
+      for (const d of (data ?? []) as Array<{ id: string; full_name: string | null; crm: string | null }>) {
+        next[d.id] = { full_name: d.full_name ?? "Médico", crm: d.crm ?? null };
+      }
+      setGroupDoctorsMap(next);
+    })();
+    return () => { cancelled = true; };
+  }, [results, modoMedicoUnico, groupDoctorsMap]);
+
+  const buildGlosaGroups = (retirar: TvrResult[]): { groups: GlosaGroup[]; unassigned: TvrResult[] } => {
+    if (modoMedicoUnico) {
+      if (!doctorInfo.id || (!doctorInfo.name && !doctorInfo.crm)) {
+        return { groups: [], unassigned: retirar };
+      }
+      return {
+        groups: [{
+          doctor_id: doctorInfo.id,
+          doctor_name: doctorInfo.name ?? "Médico",
+          doctor_crm: doctorInfo.crm,
+          items: retirar,
+        }],
+        unassigned: [],
+      };
+    }
+    const byDoctor = new Map<string, TvrResult[]>();
+    const unassigned: TvrResult[] = [];
+    for (const r of retirar) {
+      const did = r.matched_doctor_id;
+      if (!did) { unassigned.push(r); continue; }
+      const list = byDoctor.get(did) ?? [];
+      list.push(r);
+      byDoctor.set(did, list);
+    }
+    const groups: GlosaGroup[] = [];
+    for (const [did, items] of byDoctor) {
+      const info = groupDoctorsMap[did];
+      groups.push({
+        doctor_id: did,
+        doctor_name: info?.full_name ?? "Médico",
+        doctor_crm: info?.crm ?? null,
+        items,
+      });
+    }
+    groups.sort((a, b) => a.doctor_name.localeCompare(b.doctor_name));
+    return { groups, unassigned };
+  };
+
+  // ===== Caminho B — gera glosa de auditoria por grupos (1 batch, N débitos) =====
+  const createAuditoriaGlosaForGroups = async (
+    groups: GlosaGroup[],
+    parcelas: number,
+  ): Promise<{ batch_id: string; debts: number; items: number; total: number; parcelas: number }> => {
+    if (groups.length === 0) throw new Error("Nenhum grupo selecionado.");
+    if (!recon?.company_id) throw new Error("Apuração sem PJ vinculada — não é possível gerar glosa.");
+    const allItems = groups.flatMap((g) => g.items);
+    if (allItems.length === 0) throw new Error("Nenhum item a retirar nos grupos selecionados.");
+
+    const totalGlosa = allItems.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
     const competence = (recon.period_start ?? "").slice(0, 7);
     const title = recon.title ?? `Apuração ${recon.id.slice(0, 8)}`;
 
-    // 1) Batch
+    // 1) Batch único
     const { data: batchData, error: batchErr } = await (supabase as never as typeof supabase)
       .from("glosa_batches" as never)
       .insert({
@@ -2442,8 +2534,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         competence_month: competence || null,
         file_name: null,
         status: "concluido",
-        total_items: retirar.length,
-        matched_items: retirar.length,
+        total_items: allItems.length,
+        matched_items: allItems.length,
         unmatched_items: 0,
         total_glosa_amount: Number(totalGlosa.toFixed(2)),
         hospital_id: hospitalIdRecon,
@@ -2453,70 +2545,106 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (batchErr || !batchData) throw new Error(batchErr?.message ?? "Falha ao criar lote de glosa.");
     const batchId = (batchData as { id: string }).id;
 
-    // 2) Items
-    const itemsPayload = retirar.map((r) => {
-      const motivo =
-        r.status === "ausente_tasy"
-          ? "Retirado da conta após auditoria — procedimento pago sem registro de produção"
-          : "Retirado da conta após auditoria — valor pago acima da produção registrada";
-      return {
-        batch_id: batchId,
-        attendance_number: r.atendimento || null,
-        procedure_code: r.tuss || null,
-        procedure_name: r.procedimento || null,
-        procedure_date: dbDateOrNull(r.data),
-        patient_name: r.paciente || null,
-        doctor_name: doctorInfo.name ?? "Médico",
-        doctor_crm: doctorInfo.crm || null,
-        convenio: r.convenio || null,
-        valor_cobrado: Number((r.valor_com_acordo || 0).toFixed(2)),
-        valor_glosa: Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
-        motivo_glosa: motivo,
-        complemento_glosa: `Apuração ${title} · Atend ${r.atendimento || "—"} · TUSS ${r.tuss || "—"}`,
-        status: "vinculado",
-        matched_payment_item_id: r.matched_payment_item_id ?? null,
-        matched_payment_id: r.matched_payment_id ?? null,
-        matched_company_id: recon.company_id,
-        match_source: "auditoria_retroativa",
-        matched_at: new Date().toISOString(),
-        hospital_id: hospitalIdRecon,
-      };
-    });
-    const { data: itemsData, error: itemsErr } = await (supabase as never as typeof supabase)
-      .from("glosa_items" as never)
-      .insert(itemsPayload as never)
-      .select("id, valor_glosa");
-    if (itemsErr || !itemsData) {
-      await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
-      throw new Error(itemsErr?.message ?? "Falha ao gravar itens da glosa.");
-    }
-    const insertedItems = itemsData as Array<{ id: string; valor_glosa: number }>;
-
-    // 3+4) Débito via RPC governado (advisory lock + audit_log + validações + debt_items atômicos)
-    const { error: debtErr } = await supabase.rpc(
-      "create_glosa_debt_with_items" as never,
-      {
-        p_company_id: recon.company_id,
-        p_doctor_crm: doctorInfo.crm || null,
-        p_doctor_name: doctorInfo.name ?? "Médico",
-        p_parcelas: parcelas,
-        p_item_ids: insertedItems.map((it) => it.id),
-      } as never,
-    );
-    if (debtErr) {
-      // Rollback: desfaz itens e batch — sem estado parcial.
+    // 2) Items — doctor_name/doctor_crm vêm do grupo (resolvidos via doctors), não do TASY
+    const allInsertedIdsByGroup: Array<{ group: GlosaGroup; item_ids: string[] }> = [];
+    try {
+      for (const g of groups) {
+        const payload = g.items.map((r) => {
+          const motivo =
+            r.status === "ausente_tasy"
+              ? "Retirado da conta após auditoria — procedimento pago sem registro de produção"
+              : "Retirado da conta após auditoria — valor pago acima da produção registrada";
+          return {
+            batch_id: batchId,
+            attendance_number: r.atendimento || null,
+            procedure_code: r.tuss || null,
+            procedure_name: r.procedimento || null,
+            procedure_date: dbDateOrNull(r.data),
+            patient_name: r.paciente || null,
+            doctor_name: g.doctor_name,
+            doctor_crm: g.doctor_crm,
+            convenio: r.convenio || null,
+            valor_cobrado: Number((r.valor_com_acordo || 0).toFixed(2)),
+            valor_glosa: Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
+            motivo_glosa: motivo,
+            complemento_glosa: `Apuração ${title} · Atend ${r.atendimento || "—"} · TUSS ${r.tuss || "—"}`,
+            status: "vinculado",
+            matched_payment_item_id: r.matched_payment_item_id ?? null,
+            matched_payment_id: r.matched_payment_id ?? null,
+            matched_company_id: recon.company_id,
+            match_source: "auditoria_retroativa",
+            matched_at: new Date().toISOString(),
+            hospital_id: hospitalIdRecon,
+          };
+        });
+        const { data: insData, error: insErr } = await (supabase as never as typeof supabase)
+          .from("glosa_items" as never)
+          .insert(payload as never)
+          .select("id");
+        if (insErr || !insData) throw new Error(insErr?.message ?? `Falha ao gravar itens da glosa (${g.doctor_name}).`);
+        allInsertedIdsByGroup.push({
+          group: g,
+          item_ids: (insData as Array<{ id: string }>).map((x) => x.id),
+        });
+      }
+    } catch (e) {
       await supabase.from("glosa_items" as never).delete().eq("batch_id", batchId);
       await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
-      throw new Error(debtErr.message);
+      throw e;
     }
 
-    return { batch_id: batchId, total: totalGlosa, items: retirar.length, parcelas };
+    // 3+4) Um RPC por grupo. Se qualquer um falhar, rollback total: deletar débitos já criados + items + batch.
+    const createdDebtIds: string[] = [];
+    try {
+      for (const { group: g, item_ids } of allInsertedIdsByGroup) {
+        const { error: debtErr } = await supabase.rpc(
+          "create_glosa_debt_with_items" as never,
+          {
+            p_company_id: recon.company_id,
+            p_doctor_crm: g.doctor_crm,
+            p_doctor_name: g.doctor_name,
+            p_parcelas: parcelas,
+            p_item_ids: item_ids,
+          } as never,
+        );
+        if (debtErr) {
+          throw new Error(`${g.doctor_name}: ${debtErr.message}`);
+        }
+        // Descobre o debt_id criado pelo RPC (para rollback se algum próximo falhar)
+        const { data: linkRows } = await supabase
+          .from("glosa_debt_items" as never)
+          .select("debt_id")
+          .in("glosa_item_id", item_ids);
+        const ids = Array.from(
+          new Set(((linkRows ?? []) as Array<{ debt_id: string }>).map((x) => x.debt_id)),
+        );
+        createdDebtIds.push(...ids);
+      }
+    } catch (e) {
+      // Rollback total: apaga débitos criados nesta execução (CASCADE limpa glosa_debt_items),
+      // depois items e batch.
+      if (createdDebtIds.length > 0) {
+        await supabase.from("glosa_debts" as never).delete().in("id", createdDebtIds);
+      }
+      await supabase.from("glosa_items" as never).delete().eq("batch_id", batchId);
+      await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
+      throw e;
+    }
+
+    return {
+      batch_id: batchId,
+      debts: groups.length,
+      items: allItems.length,
+      total: totalGlosa,
+      parcelas,
+    };
   };
 
   const runEncaminharFluxo = async (opts: {
     includeComplementar: boolean;
     gerarGlosa: boolean;
     parcelas: number;
+    selectedDoctorIds: string[];
   }) => {
     if (!results) return;
     const actionable = results.filter(isActionableTvr);
@@ -2537,15 +2665,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
     setEncaminharBusy(true);
     try {
-      // 1) Glosa primeiro (fire-and-forget, mas se falhar aborta tudo).
       if (opts.gerarGlosa) {
-        const result = await createAuditoriaGlosaBatch(retirar, opts.parcelas);
+        const { groups } = buildGlosaGroups(retirar);
+        const selected = groups.filter((g) => opts.selectedDoctorIds.includes(g.doctor_id));
+        if (selected.length === 0) {
+          throw new Error("Nenhum médico selecionado para gerar glosa.");
+        }
+        const result = await createAuditoriaGlosaForGroups(selected, opts.parcelas);
         toast({
           title: "Glosa de auditoria lançada",
-          description: `${result.items} itens · ${brl(result.total)} em ${result.parcelas} parcela(s). Veja em /glosas.`,
+          description: `${result.debts} débito(s) · ${result.items} itens · ${brl(result.total)} em ${result.parcelas} parcela(s) cada. Veja em /glosas.`,
         });
       }
-      // 2) Complementar → confecção (navega no final).
       if (opts.includeComplementar) {
         setEncaminharOpen(false);
         await sendHandoffToConfeccao(actionable, { silent: true });
@@ -2562,6 +2693,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       setEncaminharBusy(false);
     }
   };
+
+
 
 
 
@@ -3023,19 +3156,36 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         />
       )}
 
-      <EncaminharApuracaoModal
-        open={encaminharOpen}
-        onOpenChange={(v) => { if (!encaminharBusy) setEncaminharOpen(v); }}
-        results={results ?? []}
-        actionable={(results ?? []).filter(isActionableTvr)}
-        retirar={toRetirarItems(results ?? [])}
-        canGerarGlosa={!!recon?.company_id && (!!doctorInfo.name || !!doctorInfo.crm)}
-        busy={encaminharBusy}
-        onConfirm={runEncaminharFluxo}
-      />
+      {(() => {
+        const retirar = toRetirarItems(results ?? []);
+        const { groups, unassigned } = buildGlosaGroups(retirar);
+        const canGerarGlosa = !!recon?.company_id && groups.some((g) => g.items.length > 0);
+        return (
+          <EncaminharApuracaoModal
+            open={encaminharOpen}
+            onOpenChange={(v) => { if (!encaminharBusy) setEncaminharOpen(v); }}
+            results={results ?? []}
+            actionable={(results ?? []).filter(isActionableTvr)}
+            retirar={retirar}
+            groups={groups}
+            unassigned={unassigned}
+            canGerarGlosa={canGerarGlosa}
+            modoMedicoUnico={modoMedicoUnico}
+            busy={encaminharBusy}
+            onConfirm={runEncaminharFluxo}
+          />
+        );
+      })()}
     </div>
   );
 }
+
+type GlosaGroupView = {
+  doctor_id: string;
+  doctor_name: string;
+  doctor_crm: string | null;
+  items: TvrResult[];
+};
 
 type EncaminharModalProps = {
   open: boolean;
@@ -3043,19 +3193,29 @@ type EncaminharModalProps = {
   results: TvrResult[];
   actionable: TvrResult[];
   retirar: TvrResult[];
+  groups: GlosaGroupView[];
+  unassigned: TvrResult[];
   canGerarGlosa: boolean;
+  modoMedicoUnico: boolean;
   busy: boolean;
-  onConfirm: (opts: { includeComplementar: boolean; gerarGlosa: boolean; parcelas: number }) => void;
+  onConfirm: (opts: {
+    includeComplementar: boolean;
+    gerarGlosa: boolean;
+    parcelas: number;
+    selectedDoctorIds: string[];
+  }) => void;
 };
 
 function EncaminharApuracaoModal({
-  open, onOpenChange, results: _results, actionable, retirar, canGerarGlosa, busy, onConfirm,
+  open, onOpenChange, results: _results, actionable, retirar,
+  groups, unassigned, canGerarGlosa, modoMedicoUnico, busy, onConfirm,
 }: EncaminharModalProps) {
   const [includeComplementar, setIncludeComplementar] = useState(true);
   const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
   const [parcelas, setParcelas] = useState<number>(1);
   const [showCompList, setShowCompList] = useState(false);
-  const [showRetList, setShowRetList] = useState(false);
+  const [selectedDoctorIds, setSelectedDoctorIds] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (open) {
@@ -3063,21 +3223,32 @@ function EncaminharApuracaoModal({
       setGerarGlosa(retirar.length > 0 && canGerarGlosa ? "agora" : "depois");
       setParcelas(1);
       setShowCompList(false);
-      setShowRetList(false);
+      setSelectedDoctorIds(new Set(groups.map((g) => g.doctor_id)));
+      setExpandedGroups(new Set());
     }
-  }, [open, actionable.length, retirar.length, canGerarGlosa]);
+  }, [open, actionable.length, retirar.length, canGerarGlosa, groups]);
 
   const totalBaseComp = actionable.reduce((s, r) => {
     if (r.status === "nao_pago") return s + r.valor_total_tasy;
     if (r.dif_valor > 0.5) return s + r.dif_valor;
     return s;
   }, 0);
-  const totalBaseRet = retirar.reduce((s, r) => {
-    if (r.status === "ausente_tasy") return s + r.valor_pago_base;
-    if (r.dif_valor < -0.5) return s + Math.abs(r.dif_valor);
-    return s;
-  }, 0);
   const totalAcordoRet = retirar.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+
+  const toggleDoctor = (id: string) => {
+    setSelectedDoctorIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleGroupExpand = (id: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -3135,14 +3306,22 @@ function EncaminharApuracaoModal({
               <div className="mt-1 text-base">⚠️</div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold">
-                  A retirar → Glosa de auditoria
+                  A retirar → Glosa de auditoria {modoMedicoUnico ? "" : "(por médico)"}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  {retirar.length} item(ns) · Base {brl(totalBaseRet)} · <span className="font-semibold text-destructive">C/ acordo {brl(totalAcordoRet)}</span>
+                  {retirar.length} item(ns) · <span className="font-semibold text-destructive">C/ acordo {brl(totalAcordoRet)}</span>
+                  {!modoMedicoUnico && groups.length > 0 && ` · ${groups.length} médico(s)`}
                 </div>
                 {!canGerarGlosa && retirar.length > 0 && (
                   <div className="text-[11px] text-amber-700 mt-1">
-                    Apuração precisa ter PJ e médico vinculados para gerar a glosa.
+                    {modoMedicoUnico
+                      ? "Apuração precisa ter PJ e médico vinculados para gerar a glosa."
+                      : "Apuração precisa ter PJ vinculada e itens com médico identificado nos pagamentos para gerar a glosa."}
+                  </div>
+                )}
+                {unassigned.length > 0 && (
+                  <div className="text-[11px] text-amber-700 mt-1">
+                    {unassigned.length} item(ns) sem médico identificado no pagamento — não atribuíveis e serão ignorados.
                   </div>
                 )}
                 <RadioGroup
@@ -3157,19 +3336,62 @@ function EncaminharApuracaoModal({
                       Gerar glosa agora (débito parcelável)
                     </Label>
                   </div>
-                  {gerarGlosa === "agora" && (
-                    <div className="ml-6 flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground">Parcelas:</span>
-                      <Select value={String(parcelas)} onValueChange={(v) => setParcelas(Number(v))}>
-                        <SelectTrigger className="h-7 w-20 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 6, 12].map((n) => (
-                            <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  {gerarGlosa === "agora" && groups.length > 0 && (
+                    <div className="ml-6 mt-2 space-y-2">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">Parcelas (aplicado a todos):</span>
+                        <Select value={String(parcelas)} onValueChange={(v) => setParcelas(Number(v))}>
+                          <SelectTrigger className="h-7 w-20 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1, 2, 3, 4, 6, 12, 18, 24].map((n) => (
+                              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="rounded border border-border bg-background divide-y divide-border">
+                        {groups.map((g) => {
+                          const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+                          const isExpanded = expandedGroups.has(g.doctor_id);
+                          const isSel = selectedDoctorIds.has(g.doctor_id);
+                          return (
+                            <div key={g.doctor_id} className="px-2 py-1.5 text-[11px]">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  checked={isSel}
+                                  disabled={busy}
+                                  onCheckedChange={() => toggleDoctor(g.doctor_id)}
+                                />
+                                <div className="flex-1 min-w-0 truncate">
+                                  <span className="font-medium">{g.doctor_name}</span>
+                                  {g.doctor_crm && <span className="text-muted-foreground"> ({g.doctor_crm})</span>}
+                                </div>
+                                <span className="text-muted-foreground">{g.items.length} itens</span>
+                                <span className="font-mono w-24 text-right">{brl(subtotal)}</span>
+                                <button
+                                  type="button"
+                                  className="text-[10px] text-destructive underline"
+                                  onClick={() => toggleGroupExpand(g.doctor_id)}
+                                >
+                                  {isExpanded ? "ocultar" : "ver itens"}
+                                </button>
+                              </div>
+                              {isExpanded && (
+                                <div className="mt-1 ml-6 max-h-32 overflow-auto rounded bg-muted/40">
+                                  {g.items.map((r) => (
+                                    <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border/50 last:border-b-0">
+                                      <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
+                                      <span className="font-mono">{brl(r.valor_recuperar_acordo ?? 0)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
@@ -3179,25 +3401,6 @@ function EncaminharApuracaoModal({
                     </Label>
                   </div>
                 </RadioGroup>
-                {retirar.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-[11px] text-destructive mt-2 underline"
-                    onClick={() => setShowRetList((v) => !v)}
-                  >
-                    {showRetList ? "ocultar itens ▴" : "ver itens ▾"}
-                  </button>
-                )}
-                {showRetList && (
-                  <div className="mt-2 max-h-40 overflow-auto rounded border border-border bg-background text-[11px]">
-                    {retirar.map((r) => (
-                      <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border last:border-b-0">
-                        <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
-                        <span className="font-mono">{brl(r.valor_recuperar_acordo ?? 0)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -3210,10 +3413,15 @@ function EncaminharApuracaoModal({
           <Button
             onClick={() => onConfirm({
               includeComplementar,
-              gerarGlosa: gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa,
+              gerarGlosa: gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa && selectedDoctorIds.size > 0,
               parcelas,
+              selectedDoctorIds: Array.from(selectedDoctorIds),
             })}
-            disabled={busy || (!includeComplementar && (gerarGlosa !== "agora" || retirar.length === 0))}
+            disabled={
+              busy ||
+              (!includeComplementar &&
+                (gerarGlosa !== "agora" || retirar.length === 0 || selectedDoctorIds.size === 0))
+            }
           >
             {busy ? "Processando..." : "Confirmar encaminhamento"}
           </Button>
