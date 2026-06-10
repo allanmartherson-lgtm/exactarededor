@@ -153,7 +153,11 @@ export type MappingWizardProps = {
   onCancel: () => void;
   onConfirm: (
     drafts: Record<string, string>[],
-    meta: { mapping: Record<string, string> },
+    meta: {
+      mapping: Record<string, string>;
+      totals: { file: number; valid: number; excluded: number; dropped: number };
+      droppedExamples: Array<{ row_index: number; missing: string[] }>;
+    },
   ) => void;
 };
 
