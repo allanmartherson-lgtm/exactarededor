@@ -1712,6 +1712,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setPagRows([]);
     setPaymentsLoaded(false);
     setResults(null);
+    setExcludeTuss("");
+    setPendingTussExclude("");
     await supabase
       .from("retroactive_reconciliation_items" as never)
       .delete()
