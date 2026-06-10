@@ -934,6 +934,21 @@ export default function Glosas() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {filteredBatches.map(batch => (
                     <SurfaceCard key={batch.id}>
+                      <div style={{ display: "flex", alignItems: "stretch" }}>
+                        <label
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ display: "flex", alignItems: "center", padding: "0 0 0 14px", cursor: "pointer" }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedBatches.has(batch.id)}
+                            onChange={(e) => {
+                              const next = new Set(selectedBatches);
+                              if (e.target.checked) next.add(batch.id); else next.delete(batch.id);
+                              setSelectedBatches(next);
+                            }}
+                          />
+                        </label>
                       <button
                         type="button"
                         onClick={async () => {
@@ -944,7 +959,7 @@ export default function Glosas() {
                             await loadBatchItems(batch.id);
                           }
                         }}
-                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        style={{ flex: 1, display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
                       >
                         <div style={{ color: "hsl(var(--muted-foreground))" }}>
                           {expandedBatch === batch.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
