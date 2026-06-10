@@ -888,7 +888,38 @@ export default function Glosas() {
             )}
 
             <section>
-              <SectionLabel>Lotes importados</SectionLabel>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 12, flexWrap: "wrap" }}>
+                <SectionLabel style={{ margin: 0 }}>Lotes importados</SectionLabel>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {filteredBatches.length > 0 && (
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={filteredBatches.length > 0 && filteredBatches.every(b => selectedBatches.has(b.id))}
+                        ref={el => { if (el) el.indeterminate = selectedBatches.size > 0 && !filteredBatches.every(b => selectedBatches.has(b.id)); }}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedBatches(new Set(filteredBatches.map(b => b.id)));
+                          } else {
+                            setSelectedBatches(new Set());
+                          }
+                        }}
+                      />
+                      Selecionar todos
+                    </label>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={selectedBatches.size === 0 || bulkRunning}
+                    onClick={() => reprocessSelectedBatches()}
+                  >
+                    {bulkRunning
+                      ? <><RefreshCw size={12} className="animate-spin mr-1" />Reprocessando…</>
+                      : <><RefreshCw size={12} className="mr-1" />Reprocessar selecionados ({selectedBatches.size})</>}
+                  </Button>
+                </div>
+              </div>
               {loading ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {[1,2,3].map(i => <div key={i} style={{ height: 60, background: "hsl(var(--muted))", borderRadius: 8, opacity: 0.3 }} />)}
