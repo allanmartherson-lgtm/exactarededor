@@ -558,8 +558,7 @@ export default function Glosas() {
 
 
   const crossReferenceGlosa = async (batchId: string, items: any[]) => {
-    let matched = 0;
-    let unmatched = 0;
+    // (contadores movidos para baixo — breakdown completo: payment_item / doctor_companies / sem_match)
 
     // 1) Match primário: payment_items pelo número do atendimento
     const attendanceNumbers = items.map(it => it.attendance_number).filter(Boolean);
