@@ -2402,12 +2402,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       {/* Step 3 — Process */}
       <div className="flex items-center gap-2">
-        <Button onClick={process} disabled={processing || tasyRows.length === 0 || pagRows.length === 0}>
+        <Button onClick={process} disabled={isLocked || processing || tasyRows.length === 0 || pagRows.length === 0}>
           <PlayIcon className="h-4 w-4 mr-1" />
           {processing ? "Processando…" : "Processar"}
         </Button>
         {(tasyRows.length > 0 || pagRows.length > 0) && (
-          <Button variant="outline" size="sm" onClick={() => void clearAll()}>Limpar tudo</Button>
+          <Button variant="outline" size="sm" onClick={() => void clearAll()} disabled={isLocked}>Limpar tudo</Button>
         )}
         {results && (
           <DropdownMenu>
@@ -2427,7 +2427,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        {results && !isLocked && (
+          <Button
+            size="sm"
+            className="ml-auto"
+            onClick={() => void sendHandoffToConfeccao(results)}
+            disabled={results.filter(isActionableTvr).length === 0}
+            title="Cria um pagamento novo em confecção com os itens acionáveis desta apuração"
+          >
+            <SendIcon className="h-4 w-4 mr-1" />
+            Encaminhar para confecção ({results.filter(isActionableTvr).length})
+          </Button>
+        )}
       </div>
+
 
       {/* Results */}
       {results && (
