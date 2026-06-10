@@ -2245,47 +2245,29 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
 
     const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
-    const previousHistory = Array.isArray(previousSummary.tvr_validation_history)
-      ? (previousSummary.tvr_validation_history as Array<Record<string, unknown>>)
-      : [];
-    const historyEntry = {
-      at: new Date().toISOString(),
-      total: list.length,
-      counts: tvrCounts,
-      ausente_incomplete: incompleteAusente.length,
-      ausente_incomplete_keys: incompleteAusente.slice(0, 50).map((x) => ({
-        key: x.r.key,
-        atendimento: x.r.atendimento,
-        tuss: x.r.tuss,
-        missing: x.missing,
-      })),
-    };
-    const trimmedHistory = [...previousHistory.slice(-19), historyEntry];
-
-    // Sobrescreve summary do zero a cada processamento — preserva apenas handoff (estado de envio
-    // para confecção) e histórico de validação. Evita carregar contadores de rodadas antigas
-    // com status que não existem mais (ex.: div_qtd, pago_sem_tasy).
-    const preservedHandoff = (previousSummary as { handoff?: unknown }).handoff;
+    const summary = buildTvrReplaceSummary(list, previousSummary, {
+      tasy_file: tasyFile,
+      tasy_file_totals: tasyFileTotals,
+      tasy_dropped_examples: tasyDroppedExamples,
+      exclude_tuss: excludeTuss,
+    });
+    // Enriquecimento extra (não relevante para o teste de replace): chaves dos
+    // ausentes incompletos, anexadas à última entrada do histórico.
+    const history = (summary.tvr_validation_history as Array<Record<string, unknown>>) ?? [];
+    if (history.length > 0) {
+      history[history.length - 1] = {
+        ...history[history.length - 1],
+        ausente_incomplete_keys: incompleteAusente.slice(0, 50).map((x) => ({
+          key: x.r.key,
+          atendimento: x.r.atendimento,
+          tuss: x.r.tuss,
+          missing: x.missing,
+        })),
+      };
+    }
     const { error: updateError } = await supabase
       .from("retroactive_reconciliations" as never)
-      .update({
-        summary: {
-          mode: "tasy_vs_repasse",
-          total: list.length,
-          total_gap: financial.totalComplementar,
-          total_excess: financial.totalRetirar,
-          tasy_file: tasyFile,
-          tasy_file_totals: tasyFileTotals,
-          tasy_dropped_examples: tasyDroppedExamples,
-          exclude_tuss: excludeTuss,
-          processed_at: new Date().toISOString(),
-          tvr_counts: tvrCounts,
-          tvr_ausente_incomplete: incompleteAusente.length,
-          tvr_validation_history: trimmedHistory,
-          ...(preservedHandoff ? { handoff: preservedHandoff } : {}),
-        },
-        status: "em_analise",
-      } as never)
+      .update({ summary, status: "em_analise" } as never)
       .eq("id", id);
 
     if (updateError) throw updateError;
