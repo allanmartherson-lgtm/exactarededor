@@ -2037,7 +2037,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     "Cód. TUSS": r.tuss,
     Procedimento: r.procedimento,
     Paciente: r.paciente,
-    Data: r.data,
+    Data: formatTvrDate(r.data),
     Convênio: r.convenio,
     Médico: r.medico,
     Função: r.funcao,
