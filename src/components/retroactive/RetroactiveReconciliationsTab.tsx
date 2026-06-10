@@ -1485,6 +1485,7 @@ export type TvrResult = {
   valor_com_acordo: number;
   dif_qtd: number;
   dif_valor: number;
+  valor_recuperar_acordo: number;
   status: TvrStatus;
 };
 
