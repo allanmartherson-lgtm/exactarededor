@@ -312,7 +312,7 @@ export default function CreditosDebitos() {
       {/* Dialog: editar parcelas de glosa */}
       <Dialog open={!!editingGlosa} onOpenChange={(o) => !o && setEditingGlosa(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Parcelar glosa</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingGlosa?.confirmed_at ? "Reparcelar glosa" : "Confirmar débito"}</DialogTitle></DialogHeader>
           {editingGlosa && (
             <div className="space-y-3 text-sm">
               <div className="rounded border border-border bg-muted/30 px-3 py-2">
