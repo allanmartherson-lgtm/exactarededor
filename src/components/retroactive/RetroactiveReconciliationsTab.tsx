@@ -1514,6 +1514,8 @@ export type TvrResult = {
   dif_qtd: number;
   dif_valor: number;
   valor_recuperar_acordo: number;
+  matched_payment_item_id?: string;
+  matched_payment_id?: string;
   status: TvrStatus;
 };
 
