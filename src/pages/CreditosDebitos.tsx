@@ -335,7 +335,10 @@ export default function CreditosDebitos() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingGlosa(null)} disabled={busyGlosa}>Cancelar</Button>
-            <Button onClick={saveGlosa} disabled={busyGlosa}>{busyGlosa ? "Salvando…" : "Salvar"}</Button>
+            <Button onClick={saveGlosa} disabled={busyGlosa}>
+              {busyGlosa ? "Salvando…" : (editingGlosa?.confirmed_at ? "Salvar parcelamento" : "Confirmar débito")}
+            </Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>
