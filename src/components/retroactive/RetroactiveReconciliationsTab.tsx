@@ -1970,7 +1970,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (onlyWithPayment && r.status === "nao_pago") return false;
       if (q) {
-        const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes}`.toLowerCase();
+        const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
