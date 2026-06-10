@@ -1581,6 +1581,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       .single();
     const row = data as unknown as ReconRow;
     setRecon(row);
+    if (row && row.summary?.mode !== "tasy_vs_repasse") {
+      await supabase
+        .from("retroactive_reconciliations" as never)
+        .update({ summary: { ...(row.summary ?? {}), mode: "tasy_vs_repasse" } } as never)
+        .eq("id", id);
+    }
     setExcludeTuss(row?.summary?.exclude_tuss ?? "");
     setPendingTussExclude(row?.summary?.exclude_tuss ?? "");
     setTasyFile(row?.summary?.tasy_file ?? "");
