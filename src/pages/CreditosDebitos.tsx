@@ -414,6 +414,26 @@ export default function CreditosDebitos() {
                   Cada parcela: <span className="font-mono">{brl(editingGlosa.total_debt / glosaParc)}</span>
                 </p>
               </div>
+              <div>
+                <Label>Lote-alvo (onde a parcela será aplicada)</Label>
+                <Select value={lotePick} onValueChange={setLotePick} disabled={loadingLotes}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingLotes ? "Carregando lotes…" : "Selecione um lote em aberto"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {openLotes.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        Nenhum lote em aberto encontrado para esta PJ.
+                      </div>
+                    ) : (
+                      openLotes.map(l => <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>)
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  O motor só desconta a parcela quando o lote em execução for este. Se a PJ tem outros lotes em paralelo, eles serão ignorados.
+                </p>
+              </div>
             </div>
           )}
           <DialogFooter>
