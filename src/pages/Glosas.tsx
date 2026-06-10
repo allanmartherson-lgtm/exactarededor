@@ -539,29 +539,82 @@ export default function Glosas() {
     }
   };
 
+  const reprocessSingleBatch = async (batch: any) => {
+    const { data: items } = await supabase
+      .from("glosa_items")
+      .select("*")
+      .eq("batch_id", batch.id);
+    if (!items || items.length === 0) {
+      return { matched: 0, unmatched: 0, matchedByPayment: 0, matchedByCadastro: 0, total: 0 };
+    }
+    const res = await crossReferenceGlosa(batch.id, items);
+    await supabase.from("glosa_batches").update({
+      status: "concluido",
+      matched_items: res.matched,
+      unmatched_items: res.unmatched,
+    }).eq("id", batch.id);
+    return { ...res, total: items.length };
+  };
+
   const reprocessBatch = async (batch: any, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       toast.info("Reprocessando cruzamento…");
-      const { data: items } = await supabase
-        .from("glosa_items")
-        .select("*")
-        .eq("batch_id", batch.id);
-      if (!items || items.length === 0) {
-        toast.error("Nenhum item encontrado no lote.");
-        return;
+      const r = await reprocessSingleBatch(batch);
+      toast.success(
+        `Reprocessado: ${r.matchedByPayment} via pagamento · ${r.matchedByCadastro} via cadastro · ${r.unmatched} sem match`,
+      );
+      // Atualiza grid de itens já aberto, se for este lote
+      if (expandedBatch === batch.id) {
+        setBatchItems(prev => ({ ...prev, [batch.id]: [] }));
+        await loadBatchItems(batch.id);
       }
-      const { matched, unmatched } = await crossReferenceGlosa(batch.id, items);
-      await supabase.from("glosa_batches").update({
-        status: "concluido",
-        matched_items: matched,
-        unmatched_items: unmatched,
-      }).eq("id", batch.id);
-      toast.success(`Reprocessado: ${matched} vinculados · ${unmatched} sem match`);
       loadBatches();
       loadDebts();
     } catch (e: any) {
       toast.error("Erro ao reprocessar", { description: e.message });
+    }
+  };
+
+  const reprocessSelectedBatches = async () => {
+    if (selectedBatches.size === 0) return;
+    setBulkRunning(true);
+    setBulkSummary(null);
+    try {
+      const targets = batches.filter(b => selectedBatches.has(b.id));
+      let totals = { matchedByPayment: 0, matchedByCadastro: 0, unmatched: 0, items: 0 };
+      const perBatch: typeof bulkSummary["perBatch"] = [];
+      for (const b of targets) {
+        const r = await reprocessSingleBatch(b);
+        totals.matchedByPayment += r.matchedByPayment;
+        totals.matchedByCadastro += r.matchedByCadastro;
+        totals.unmatched += r.unmatched;
+        totals.items += r.total;
+        perBatch.push({
+          id: b.id,
+          reference: b.reference,
+          matchedByPayment: r.matchedByPayment,
+          matchedByCadastro: r.matchedByCadastro,
+          unmatched: r.unmatched,
+        });
+      }
+      setBulkSummary({
+        batches: targets.length,
+        items: totals.items,
+        matchedByPayment: totals.matchedByPayment,
+        matchedByCadastro: totals.matchedByCadastro,
+        unmatched: totals.unmatched,
+        perBatch,
+      });
+      // limpa cache de itens abertos para refletir mudança
+      setBatchItems({});
+      setSelectedBatches(new Set());
+      loadBatches();
+      loadDebts();
+    } catch (e: any) {
+      toast.error("Erro no reprocessamento em massa", { description: e.message });
+    } finally {
+      setBulkRunning(false);
     }
   };
 
