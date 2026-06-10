@@ -699,7 +699,20 @@ function NewView({
 
 /* -------------------------- DETAIL -------------------------- */
 function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
-  const mode = getStoredMode(id);
+  const [mode, setMode] = useState<ReconMode | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from("retroactive_reconciliations" as never)
+        .select("summary")
+        .eq("id", id)
+        .single();
+      const summary = (data as unknown as { summary?: { mode?: ReconMode } } | null)?.summary;
+      const stored = getStoredMode(id);
+      setMode(summary?.mode === "tasy_vs_repasse" ? "tasy_vs_repasse" : stored);
+    })();
+  }, [id]);
+  if (!mode) return <Skeleton className="h-24 w-full" />;
   if (mode === "tasy_vs_repasse") {
     return <TasyVsRepasseView id={id} onBack={onBack} />;
   }
