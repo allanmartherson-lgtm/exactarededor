@@ -62,9 +62,10 @@ export default function CreditosDebitos() {
       supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
       (supabase as any)
         .from("glosa_debts")
-        .select("id, company_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at")
+        .select("id, company_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at")
         .eq("status", "ativo")
         .order("created_at", { ascending: false }),
+
     ]);
     setCompanies(c.data || []);
     const cMap = new Map((c.data || []).map((x: any) => [x.id, x.name]));
