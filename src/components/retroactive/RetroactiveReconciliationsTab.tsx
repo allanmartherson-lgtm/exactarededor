@@ -2250,13 +2250,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <div className="rounded-lg border border-border bg-card overflow-hidden">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
               <div className="text-sm font-semibold">Resultado · {visible.length} de {results.length}</div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar…"
-                  className="h-8 w-[200px] text-xs"
+                  placeholder="Buscar atend., TUSS, lote, convênio, médico, paciente, função…"
+                  className="h-8 w-[340px] text-xs"
                 />
+                <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none px-2 py-1 rounded border border-border">
+                  <input
+                    type="checkbox"
+                    checked={onlyWithPayment}
+                    onChange={(e) => setOnlyWithPayment(e.target.checked)}
+                    className="h-3.5 w-3.5"
+                  />
+                  Apenas com pagamento
+                </label>
                 <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
                   <SelectTrigger className="h-8 w-[180px] text-xs">
                     <SelectValue />
