@@ -129,18 +129,60 @@ export default function CreditosDebitos() {
     loadAll();
   };
 
+  const fmtCompetence = (s: string | null) => {
+    if (!s) return "—";
+    const [y, m] = s.split("-");
+    return m && y ? `${m}/${y}` : s;
+  };
+  const statusShort = (s: string) =>
+    ({ rascunho: "rascunho", em_analise_ia: "análise IA", revisao_analista: "revisão", aguardando_aprovacao: "aprovação", pedido_nf_enviado: "NF enviada", revisao_pos_aprovacao: "revisão pós-ap." } as Record<string, string>)[s] ?? s;
+
+  const loadOpenLotes = async (g: GlosaDebt) => {
+    setLoadingLotes(true);
+    setOpenLotes([]);
+    // Lotes em aberto que contêm a PJ do débito (via payment_company_groups).
+    const { data: pcg } = await (supabase as any)
+      .from("payment_company_groups")
+      .select("payment_id")
+      .eq("company_id", g.company_id);
+    const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
+    if (!ids.length) { setLoadingLotes(false); return; }
+    const { data: pays } = await supabase
+      .from("payments")
+      .select("id, competence_month, status, lot_number, hospital_id")
+      .in("id", ids)
+      .in("status", OPEN_PAYMENT_STATUSES)
+      .order("competence_month", { ascending: false });
+    const opts: LoteOption[] = ((pays as any[]) ?? []).map(p => ({
+      id: p.id,
+      label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}${p.lot_number ? ` · lote ${p.lot_number}` : ""}`,
+    }));
+    setOpenLotes(opts);
+    setPaymentLabels(prev => {
+      const next = { ...prev };
+      opts.forEach(o => { next[o.id] = o.label; });
+      return next;
+    });
+    setLoadingLotes(false);
+  };
+
   const openGlosa = (g: GlosaDebt) => {
     setEditingGlosa(g);
     setGlosaParc(g.parcelas_default && g.parcelas_default > 0 ? g.parcelas_default : 1);
+    setLotePick(g.target_payment_id ?? "");
+    loadOpenLotes(g);
   };
   const saveGlosa = async () => {
     if (!editingGlosa) return;
     if (glosaParc < 1 || glosaParc > 24) {
       toast.error("Parcelas entre 1 e 24"); return;
     }
+    if (!lotePick) {
+      toast.error("Escolha o lote-alvo onde este débito deve ser aplicado."); return;
+    }
     setBusyGlosa(true);
     const { data: userData } = await supabase.auth.getUser();
-    const patch: any = { parcelas_default: glosaParc };
+    const patch: any = { parcelas_default: glosaParc, target_payment_id: lotePick };
     // Confirma se ainda não estava confirmado
     if (!editingGlosa.confirmed_at) {
       patch.confirmed_at = new Date().toISOString();
