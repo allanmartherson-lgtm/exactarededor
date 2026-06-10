@@ -2719,7 +2719,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 </TableHeader>
                 <TableBody>
                   {visible.length === 0 && (
-                    <TableRow><TableCell colSpan={21} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={22} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
                   )}
                   {visible.map((r) => {
                     const selectable = isActionableTvr(r) && !isLocked;
