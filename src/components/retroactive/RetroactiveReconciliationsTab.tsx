@@ -2620,6 +2620,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell className={cn(Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700")}>
                         {brl(r.dif_valor)}
                       </TableCell>
+                      <TableCell className="text-center">
+                        {isActionableTvr(r) && !isLocked ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => void sendHandoffToConfeccao([r], { fromRow: true })}
+                            title="Encaminhar somente esta linha para confecção"
+                          >
+                            <SendIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
