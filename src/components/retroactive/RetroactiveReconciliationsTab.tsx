@@ -1661,6 +1661,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setExcludeTuss(row?.summary?.exclude_tuss ?? "");
     setPendingTussExclude(row?.summary?.exclude_tuss ?? "");
     setTasyFile(row?.summary?.tasy_file ?? "");
+    setTasyFileTotals(row?.summary?.tasy_file_totals ?? null);
+    setTasyDroppedExamples(row?.summary?.tasy_dropped_examples ?? []);
 
     const { data: savedItems } = await supabase
       .from("retroactive_reconciliation_items" as never)
