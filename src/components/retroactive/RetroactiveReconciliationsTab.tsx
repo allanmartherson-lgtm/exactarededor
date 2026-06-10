@@ -2180,6 +2180,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           valor_recuperar_acordo,
           matched_payment_item_id: p?.payment_item_id_first || undefined,
           matched_payment_id: p?.payment_id_first || undefined,
+          matched_doctor_id: p ? (p.doctor_principal_id || p.doctor_ids_order[0] || undefined) : undefined,
+          matched_doctor_ids: p && p.doctor_ids_order.length > 0 ? [...p.doctor_ids_order] : undefined,
           status,
         });
       }
