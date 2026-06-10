@@ -94,6 +94,17 @@ export default function CreditosDebitos() {
     setAdjustments(adjs.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
     const debts = ((g as any).data || []) as GlosaDebt[];
     setGlosaDebts(debts.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
+    // Resolve rótulos dos lotes-alvo já referenciados
+    const tgtIds = Array.from(new Set(debts.map(d => d.target_payment_id).filter(Boolean))) as string[];
+    if (tgtIds.length) {
+      const { data: pays } = await supabase
+        .from("payments").select("id, competence_month, status").in("id", tgtIds);
+      const labels: Record<string, string> = {};
+      ((pays as any[]) ?? []).forEach(p => {
+        labels[p.id] = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
+      });
+      setPaymentLabels(prev => ({ ...prev, ...labels }));
+    }
     setLoading(false);
   };
   useEffect(() => { loadAll(); }, []);
