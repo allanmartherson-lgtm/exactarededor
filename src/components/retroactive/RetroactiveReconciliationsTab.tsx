@@ -1712,11 +1712,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_valor_base: String(row.procedure_amount ?? "0"),
         pag_valor_com_acordo: "",
         pag_funcao: (row.doctor_role as string) ?? "",
+        pag_medico: (row.doctor_name as string) ?? "",
         pag_data: (row.procedure_date as string) ?? "",
         pag_paciente: (row.patient_name as string) ?? "",
-        pag_convenio: "",
+        pag_convenio: (row.convenio_slug as string) ?? "",
+        pag_procedimento: (row.procedure_name as string) ?? "",
         pag_lote: loteByPaymentId.get(String(row.payment_id ?? "")) ?? "",
       })).filter((x) => x.pag_atendimento && x.pag_tuss);
+
       setPagRows(rows);
       setPaymentsLoaded(true);
       toast({ title: `${rows.length} item(ns) carregados do sistema` });
