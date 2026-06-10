@@ -380,43 +380,80 @@ export default function PotentialDebtsPanel({
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Parcelas
+                    Parcelas (1–24)
                   </label>
-                  <Select
-                    value={String(parcelas)}
-                    onValueChange={(v) => setParcelas(parseInt(v, 10) || 1)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PARC_OPTIONS.map((n) => (
-                        <SelectItem key={n} value={String(n)}>
-                          {n}×
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={24}
+                    step={1}
+                    value={parcelas}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      if (Number.isFinite(n)) {
+                        setParcelas(Math.min(24, Math.max(1, n)));
+                      }
+                    }}
+                  />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Início desconto (informativo)
+                    Início desconto
                   </label>
                   <Input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    placeholder="próximo pagamento"
                   />
                 </div>
               </div>
 
-              <div className="rounded-md border border-border px-3 py-2 text-sm">
-                Valor por parcela:{" "}
-                <span className="font-semibold">
-                  {brl(modalGroup.total / Math.max(parcelas, 1))}
-                </span>
-              </div>
+              {(() => {
+                const baseDate =
+                  ymdToLocalDate(startDate) ??
+                  (() => {
+                    const t = new Date();
+                    return new Date(t.getFullYear(), t.getMonth() + 1, 1);
+                  })();
+                const values = splitInstallments(modalGroup.total, parcelas);
+                return (
+                  <div className="rounded-md border border-border">
+                    <div className="px-3 py-1.5 border-b border-border bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground flex items-center justify-between">
+                      <span>Prévia das parcelas</span>
+                      <span>
+                        {parcelas}× · {brl(modalGroup.total)}
+                      </span>
+                    </div>
+                    <div className="max-h-44 overflow-auto">
+                      <table className="w-full text-[12px]">
+                        <thead className="text-muted-foreground">
+                          <tr>
+                            <th className="text-left px-3 py-1 font-medium w-10">#</th>
+                            <th className="text-left px-3 py-1 font-medium">Competência</th>
+                            <th className="text-left px-3 py-1 font-medium">Data estimada</th>
+                            <th className="text-right px-3 py-1 font-medium">Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {values.map((v, i) => {
+                            const d = addMonths(baseDate, i);
+                            return (
+                              <tr key={i} className="border-t border-border/60">
+                                <td className="px-3 py-1">{i + 1}</td>
+                                <td className="px-3 py-1">{fmtComp(d)}</td>
+                                <td className="px-3 py-1">{fmtBR(d)}</td>
+                                <td className="px-3 py-1 text-right font-mono">
+                                  {brl(v)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
           <DialogFooter>
