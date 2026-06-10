@@ -1517,6 +1517,8 @@ export type TvrResult = {
   valor_recuperar_acordo: number;
   matched_payment_item_id?: string;
   matched_payment_id?: string;
+  matched_doctor_id?: string;
+  matched_doctor_ids?: string[];
   status: TvrStatus;
 };
 
