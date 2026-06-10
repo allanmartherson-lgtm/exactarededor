@@ -3212,7 +3212,7 @@ function EncaminharApuracaoModal({
 }: EncaminharModalProps) {
   const [includeComplementar, setIncludeComplementar] = useState(true);
   const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
-  const [parcelas, setParcelas] = useState<number>(1);
+  const [parcelas, setParcelas] = useState<number>(0);
   const [showCompList, setShowCompList] = useState(false);
   const [selectedDoctorIds, setSelectedDoctorIds] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
