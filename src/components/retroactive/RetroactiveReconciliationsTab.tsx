@@ -3121,15 +3121,15 @@ function EncaminharApuracaoModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-6 pb-2 shrink-0">
           <DialogTitle>Encaminhar apuração</DialogTitle>
           <DialogDescription>
             Revise os dois caminhos antes de confirmar. Ações são executadas em sequência.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto px-6 py-2 flex-1 min-h-0">
           {/* Caminho A */}
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
             <div className="flex items-start gap-3">
@@ -3243,7 +3243,7 @@ function EncaminharApuracaoModal({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="p-6 pt-3 border-t shrink-0">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancelar
           </Button>
