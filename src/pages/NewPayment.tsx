@@ -1305,6 +1305,36 @@ const NewPayment = () => {
       return;
     }
 
+    // Vincula o payment criado de volta na apuração retroativa (handoff).
+    if (retroHandoff?.reconciliation_id) {
+      try {
+        const { data: rec } = await supabase
+          .from("retroactive_reconciliations" as never)
+          .select("summary")
+          .eq("id", retroHandoff.reconciliation_id)
+          .single();
+        const prevSummary = (rec as { summary?: Record<string, unknown> } | null)?.summary ?? {};
+        const prevHandoff = (prevSummary as { handoff?: Record<string, unknown> }).handoff ?? {};
+        await supabase
+          .from("retroactive_reconciliations" as never)
+          .update({
+            summary: {
+              ...prevSummary,
+              handoff: {
+                ...prevHandoff,
+                status: "encaminhada",
+                payment_id: payment.id,
+                payment_reference: reference.trim(),
+                linked_at: new Date().toISOString(),
+              },
+            },
+          } as never)
+          .eq("id", retroHandoff.reconciliation_id);
+        try { sessionStorage.removeItem("retroactiveHandoff"); } catch { /* ignore */ }
+      } catch { /* não bloqueia criação do payment */ }
+    }
+
+
     const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
     // Fallback de especialidade: para itens sem coluna 'Especialidade' no Excel,
     // tentamos resolver pelo cadastro do médico (CRM ou nome).
