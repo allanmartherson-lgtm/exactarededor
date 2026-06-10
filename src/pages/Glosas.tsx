@@ -816,10 +816,12 @@ export default function Glosas() {
     aplicado: "Aplicado", quitado: "Quitado", ignorado: "Ignorado",
   } as Record<string, string>)[status] ?? status;
 
-  const filteredBatches = batches.filter(b =>
-    !searchTerm || b.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.convenio?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredBatches = batches.filter(b => {
+    if (sourceFilter !== "all" && (b.source ?? "convenio") !== sourceFilter) return false;
+    if (!searchTerm) return true;
+    const q = searchTerm.toLowerCase();
+    return b.reference?.toLowerCase().includes(q) || b.convenio?.toLowerCase().includes(q);
+  });
 
   return (
     <div className="flex flex-col gap-6">
