@@ -2212,6 +2212,31 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       {/* Results */}
       {results && (
         <>
+          {(() => {
+            const knownSet = new Set<string>(TVR_STATUS_ORDER);
+            const unknown = (results ?? []).filter((r) => !knownSet.has(r.status as string));
+            const totalKnown = TVR_STATUS_ORDER.reduce((s, k) => s + (counts[k] ?? 0), 0);
+            const missingTotal = (results?.length ?? 0) - totalKnown - unknown.length;
+            return (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="font-medium uppercase tracking-wider text-muted-foreground">Validação</span>
+                <span>Total: <b>{results.length}</b></span>
+                {TVR_STATUS_ORDER.map((s) => (
+                  <span key={s}>{TVR_STATUS_LABEL[s]}: <b>{counts[s] ?? 0}</b></span>
+                ))}
+                {unknown.length > 0 && (
+                  <span className="text-destructive font-semibold">⚠ {unknown.length} classificação(ões) desconhecida(s): {Array.from(new Set(unknown.map((u) => String(u.status)))).join(", ")}</span>
+                )}
+                {missingTotal > 0 && (
+                  <span className="text-destructive font-semibold">⚠ {missingTotal} sem status</span>
+                )}
+                {unknown.length === 0 && missingTotal === 0 && (
+                  <span className="text-emerald-700">✓ Todas as linhas classificadas</span>
+                )}
+              </div>
+            );
+          })()}
+
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             {TVR_STATUS_ORDER.map((s) => (
               <div key={s} className="rounded-lg border border-border bg-card px-3 py-2">
@@ -2220,6 +2245,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             ))}
           </div>
+
 
           {(() => {
             const totalComplementar = results.reduce((sum, r) => {
