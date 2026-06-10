@@ -61,29 +61,23 @@ const DED_LABELS: Record<string, string> = {
 export default function Pools({ embedded = false }: { embedded?: boolean } = {}) {
   const [pools, setPools] = useState<Pool[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Pool | null>(null);
   const [editDeds, setEditDeds] = useState<Deduction[]>([]);
   const [editParts, setEditParts] = useState<Participant[]>([]);
   const [showPoolDialog, setShowPoolDialog] = useState(false);
-  const [adjDialogOpen, setAdjDialogOpen] = useState(false);
-  const [editingAdj, setEditingAdj] = useState<Partial<Adjustment> | null>(null);
 
   const loadAll = async () => {
     setLoading(true);
-    const [p, c, a] = await Promise.all([
+    const [p, c] = await Promise.all([
       supabase.from("pools").select("*").order("created_at", { ascending: false }),
       supabase.from("companies").select("id, name").order("name"),
-      supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
     ]);
     setPools((p.data || []) as Pool[]);
     setCompanies(c.data || []);
-    const adjs = (a.data || []) as Adjustment[];
-    const cMap = new Map((c.data || []).map((x: any) => [x.id, x.name]));
-    setAdjustments(adjs.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
     setLoading(false);
   };
+
   useEffect(() => { loadAll(); }, []);
 
   const openPool = async (pool: Pool | null) => {
