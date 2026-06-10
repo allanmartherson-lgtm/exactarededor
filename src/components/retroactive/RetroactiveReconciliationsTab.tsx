@@ -1449,6 +1449,7 @@ type TvrResult = {
   qtd_por_func: number;
   n_funcs: number;
   funcoes_pagas: string;
+  lotes: string;
   valor_pago_base: number;
   valor_com_acordo: number;
   dif_qtd: number;
