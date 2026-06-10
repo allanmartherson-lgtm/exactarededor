@@ -2198,8 +2198,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   };
 
   const persistResults = async (list: TvrResult[]) => {
-    const financial = computeTvrFinancialTotals(list);
-    const tvrCounts = computeTvrCounts(list);
     const incompleteAusente = list
       .map((r) => ({ r, missing: getAusenteTasyMissingFields(r) }))
       .filter((x) => x.missing.length > 0);
