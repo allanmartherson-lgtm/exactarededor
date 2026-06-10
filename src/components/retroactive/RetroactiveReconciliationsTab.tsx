@@ -1436,8 +1436,10 @@ type PagRow = {
   pag_data?: string;
   pag_paciente?: string;
   pag_convenio?: string;
+  pag_procedimento?: string;
   pag_lote?: string;
 };
+
 
 type TvrStatus = "nao_pago" | "div_qtd_valor" | "div_valor" | "pago_a_mais" | "pago_sem_tasy" | "ok";
 
@@ -1471,7 +1473,7 @@ const TVR_STATUS_LABEL: Record<TvrStatus, string> = {
   div_qtd_valor: "Div. Qtd / Valor",
   div_valor: "Div. Valor",
   pago_a_mais: "Pago a mais",
-  pago_sem_tasy: "Pago sem TASY",
+  pago_sem_tasy: "Ausente TASY",
   ok: "OK",
 };
 
@@ -1676,7 +1678,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       let query = supabase
         .from("payment_items" as never)
-        .select("attendance_number, procedure_code, quantity, procedure_amount, doctor_role, procedure_date, patient_name, procedure_name, payment_id")
+        .select("attendance_number, procedure_code, quantity, procedure_amount, doctor_role, doctor_name, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
         .gte("procedure_date", start.toISOString().slice(0, 10))
         .lte("procedure_date", end.toISOString().slice(0, 10));
 
@@ -1710,11 +1712,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_valor_base: String(row.procedure_amount ?? "0"),
         pag_valor_com_acordo: "",
         pag_funcao: (row.doctor_role as string) ?? "",
+        pag_medico: (row.doctor_name as string) ?? "",
         pag_data: (row.procedure_date as string) ?? "",
         pag_paciente: (row.patient_name as string) ?? "",
-        pag_convenio: "",
+        pag_convenio: (row.convenio_slug as string) ?? "",
+        pag_procedimento: (row.procedure_name as string) ?? "",
         pag_lote: loteByPaymentId.get(String(row.payment_id ?? "")) ?? "",
       })).filter((x) => x.pag_atendimento && x.pag_tuss);
+
       setPagRows(rows);
       setPaymentsLoaded(true);
       toast({ title: `${rows.length} item(ns) carregados do sistema` });
@@ -1925,12 +1930,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           key,
           atendimento,
           tuss,
-          procedimento: t?.sample.tasy_procedimento ?? "",
-          paciente: t?.sample.tasy_paciente ?? p?.sample.pag_paciente ?? "",
-          data: t?.sample.tasy_data ?? "",
-          convenio: t?.sample.tasy_convenio ?? "",
-          medico: t?.sample.tasy_medico ?? "",
-          funcao: t?.sample.tasy_funcao ?? "",
+          procedimento: t?.sample.tasy_procedimento || p?.sample.pag_procedimento || "",
+          paciente: t?.sample.tasy_paciente || p?.sample.pag_paciente || "",
+          data: t?.sample.tasy_data || p?.sample.pag_data || "",
+          convenio: t?.sample.tasy_convenio || p?.sample.pag_convenio || "",
+          medico: t?.sample.tasy_medico || p?.sample.pag_medico || "",
+          funcao: t?.sample.tasy_funcao || p?.sample.pag_funcao || "",
+
           qtd_tasy,
           valor_unit_tasy,
           valor_total_tasy,
@@ -2273,7 +2279,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   <div className={cn("text-2xl font-bold", totalRetirar > 0 ? "text-destructive" : "text-muted-foreground")}>
                     {totalRetirar > 0 ? brl(totalRetirar) : "R$ -"}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">Pago sem TASY + excedentes</div>
+                  <div className="text-xs text-muted-foreground mt-1">Ausente TASY + excedentes</div>
                 </div>
               </div>
             );
