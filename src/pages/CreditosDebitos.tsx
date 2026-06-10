@@ -313,6 +313,15 @@ export default function CreditosDebitos() {
                                 </span>
                               )}
                             </div>
+                            <div className="text-[11px] mt-0.5">
+                              {g.target_payment_id ? (
+                                <span className="text-emerald-600">
+                                  → lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
+                                </span>
+                              ) : (
+                                <span className="text-amber-600">⚠ sem lote-alvo definido — não será aplicado</span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex gap-1">
                             <Button size="sm" variant="outline" onClick={() => openGlosa(g)}>
