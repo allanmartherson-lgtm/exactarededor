@@ -1527,6 +1527,23 @@ function mapTvrStatusToStoredClassification(status: TvrStatus): string {
   return "pago_a_menos";
 }
 
+const AUSENTE_TASY_ESSENTIAL_FIELDS = [
+  ["paciente", "Paciente"],
+  ["convenio", "Convênio"],
+  ["procedimento", "Procedimento"],
+] as const;
+
+function getAusenteTasyMissingFields(r: TvrResult): string[] {
+  if (r.status !== "pago_sem_tasy") return [];
+  const out: string[] = [];
+  for (const [key, label] of AUSENTE_TASY_ESSENTIAL_FIELDS) {
+    const v = (r as unknown as Record<string, unknown>)[key];
+    if (!v || String(v).trim() === "") out.push(label);
+  }
+  return out;
+}
+
+
 
 function dbDateOrNull(value: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
@@ -2058,25 +2075,36 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const persistResults = async (list: TvrResult[]) => {
     const financial = computeTvrFinancialTotals(list);
     const tvrCounts = computeTvrCounts(list);
-    const rows = list.map((r) => ({
-      reconciliation_id: id,
-      source: TVR_SOURCE,
-      attendance: r.atendimento || null,
-      tuss_code: r.tuss || null,
-      procedure_date: dbDateOrNull(r.data),
-      patient_name: r.paciente || null,
-      function_label: r.funcao || r.funcoes_pagas || null,
-      procedure_name: r.procedimento || null,
-      claimed_amount: r.valor_total_tasy || null,
-      claimed_quantity: r.qtd_tasy || null,
-      paid_amount: r.valor_pago_base || null,
-      paid_quantity: r.qtd_por_func || null,
-      expected_amount: r.valor_com_acordo || null,
-      gap_amount: r.dif_valor || null,
-      classification: mapTvrStatusToStoredClassification(r.status),
-      classification_reason: TVR_STATUS_LABEL[r.status],
-      raw: { mode: TVR_SOURCE, tvr_result: r },
-    }));
+    const incompleteAusente = list
+      .map((r) => ({ r, missing: getAusenteTasyMissingFields(r) }))
+      .filter((x) => x.missing.length > 0);
+    const rows = list.map((r) => {
+      const missing = getAusenteTasyMissingFields(r);
+      const warnings = missing.length > 0
+        ? [`Ausente TASY incompleto — faltam: ${missing.join(", ")}`]
+        : [];
+      return {
+        reconciliation_id: id,
+        source: TVR_SOURCE,
+        attendance: r.atendimento || null,
+        tuss_code: r.tuss || null,
+        procedure_date: dbDateOrNull(r.data),
+        patient_name: r.paciente || null,
+        function_label: r.funcao || r.funcoes_pagas || null,
+        procedure_name: r.procedimento || null,
+        claimed_amount: r.valor_total_tasy || null,
+        claimed_quantity: r.qtd_tasy || null,
+        paid_amount: r.valor_pago_base || null,
+        paid_quantity: r.qtd_por_func || null,
+        expected_amount: r.valor_com_acordo || null,
+        gap_amount: r.dif_valor || null,
+        classification: mapTvrStatusToStoredClassification(r.status),
+        classification_reason: warnings.length > 0
+          ? `${TVR_STATUS_LABEL[r.status]} · ${warnings[0]}`
+          : TVR_STATUS_LABEL[r.status],
+        raw: { mode: TVR_SOURCE, tvr_result: r, incomplete_fields: missing, warnings },
+      };
+    });
 
     await supabase
       .from("retroactive_reconciliation_items" as never)
@@ -2091,11 +2119,29 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       if (insertError) throw insertError;
     }
 
+    const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
+    const previousHistory = Array.isArray(previousSummary.tvr_validation_history)
+      ? (previousSummary.tvr_validation_history as Array<Record<string, unknown>>)
+      : [];
+    const historyEntry = {
+      at: new Date().toISOString(),
+      total: list.length,
+      counts: tvrCounts,
+      ausente_incomplete: incompleteAusente.length,
+      ausente_incomplete_keys: incompleteAusente.slice(0, 50).map((x) => ({
+        key: x.r.key,
+        atendimento: x.r.atendimento,
+        tuss: x.r.tuss,
+        missing: x.missing,
+      })),
+    };
+    const trimmedHistory = [...previousHistory.slice(-19), historyEntry];
+
     const { error: updateError } = await supabase
       .from("retroactive_reconciliations" as never)
       .update({
         summary: {
-          ...(recon?.summary ?? {}),
+          ...previousSummary,
           mode: "tasy_vs_repasse",
           total: list.length,
           total_gap: financial.totalComplementar,
@@ -2104,10 +2150,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           exclude_tuss: excludeTuss,
           processed_at: new Date().toISOString(),
           tvr_counts: tvrCounts,
+          tvr_ausente_incomplete: incompleteAusente.length,
+          tvr_validation_history: trimmedHistory,
         },
         status: "em_analise",
       } as never)
       .eq("id", id);
+
     if (updateError) throw updateError;
   };
 
@@ -2223,6 +2272,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             const unknown = (results ?? []).filter((r) => !knownSet.has(r.status as string));
             const totalKnown = TVR_STATUS_ORDER.reduce((s, k) => s + (counts[k] ?? 0), 0);
             const missingTotal = (results?.length ?? 0) - totalKnown - unknown.length;
+            const ausenteIncomplete = (results ?? []).filter((r) => getAusenteTasyMissingFields(r).length > 0);
+            const missingByField = new Map<string, number>();
+            for (const r of ausenteIncomplete) {
+              for (const f of getAusenteTasyMissingFields(r)) {
+                missingByField.set(f, (missingByField.get(f) ?? 0) + 1);
+              }
+            }
             return (
               <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="font-medium uppercase tracking-wider text-muted-foreground">Validação</span>
@@ -2236,12 +2292,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 {missingTotal > 0 && (
                   <span className="text-destructive font-semibold">⚠ {missingTotal} sem status</span>
                 )}
-                {unknown.length === 0 && missingTotal === 0 && (
-                  <span className="text-emerald-700">✓ Todas as linhas classificadas</span>
+                {ausenteIncomplete.length > 0 && (
+                  <span className="text-amber-700 font-semibold" title={ausenteIncomplete.map((r) => `${r.atendimento}/${r.tuss}: faltam ${getAusenteTasyMissingFields(r).join(", ")}`).join("\n")}>
+                    ⚠ {ausenteIncomplete.length} Ausente TASY incompleta(s) — faltam: {Array.from(missingByField.entries()).map(([k, n]) => `${k} (${n})`).join(", ")}
+                  </span>
+                )}
+                {unknown.length === 0 && missingTotal === 0 && ausenteIncomplete.length === 0 && (
+                  <span className="text-emerald-700">✓ Todas as linhas classificadas e completas</span>
                 )}
               </div>
             );
           })()}
+
 
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             {TVR_STATUS_ORDER.map((s) => (
