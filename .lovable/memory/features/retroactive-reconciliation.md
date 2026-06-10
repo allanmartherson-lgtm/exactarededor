@@ -27,3 +27,10 @@ Em /pendencias → aba "Conciliação retroativa", o analista escolhe o modo ao 
 **Componentes:**
 - `src/components/retroactive/RetroactiveReconciliationsTab.tsx` — list + new + DetailView que faz branch entre `AlegacaoDetailView` e `TasyVsRepasseView` (ambos inline). `TasyVsRepasseView` faz `loadPaymentItems()` automaticamente após confirmar o mapeamento do TASY.
 - `src/components/retroactive/RetroactiveMappingWizard.tsx` — wizard genérico que aceita `targets: TargetField[]` custom; exporta `TASY_TARGETS` (e `REPASSE_TARGETS` mantido para uso futuro, não usado pelo modo 2 atual).
+
+**Encaminhamento → Glosa de auditoria (Caminho B):**
+- Apuração com `doctor_id` (médico-único): glosa cai em 1 grupo com nome/CRM do `doctorInfo` resolvido do recon.
+- Apuração só-PJ (`company_id` preenchido, `doctor_id` nulo): itens "a retirar" são agrupados por `matched_doctor_id` (gravado no `TvrResult` durante o `process()`, vindo do `payment_items.doctor_id` da chave; se múltiplos médicos na mesma chave, prefere o `doctor_id` cujo `doctor_role` casa com "Cirurgião Principal", senão o primeiro). Texto livre do TASY NUNCA é usado como chave de agrupamento.
+- Modal renderiza grupos com checkbox por médico (default: todos marcados), parcelas aplicadas a todos. Itens sem `matched_doctor_id` aparecem como "não atribuíveis" e são ignorados.
+- Execução: 1 `glosa_batches` para a apuração inteira; `glosa_items` inseridos por grupo com `doctor_name`/`doctor_crm` resolvidos da tabela `doctors` (não TASY); 1 RPC `create_glosa_debt_with_items` por grupo, sequencial. Falha em qualquer RPC → rollback total (apaga débitos criados via `glosa_debt_items.glosa_item_id` → `glosa_debts`, depois `glosa_items` e `batch`). Sem estado parcial.
+- `canGerarGlosa` agora exige apenas PJ + ≥1 grupo com médico resolvido — não exige `doctor_id` no recon.
