@@ -1833,6 +1833,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const clearAll = async () => {
     setTasyRows([]);
     setTasyFile("");
+    setTasyFileTotals(null);
+    setTasyDroppedExamples([]);
     setPagRows([]);
     setPaymentsLoaded(false);
     setResults(null);
