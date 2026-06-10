@@ -2209,7 +2209,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     r.status === "div_qtd_valor" ||
     r.status === "pago_a_mais";
 
-  const sendHandoffToConfeccao = async (list: TvrResult[], opts?: { fromRow?: boolean }) => {
+  const sendHandoffToConfeccao = async (list: TvrResult[], opts?: { silent?: boolean }) => {
     const actionable = list.filter(isActionableTvr);
     if (actionable.length === 0) {
       toast({
@@ -2219,7 +2219,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       });
       return;
     }
-    if (!opts?.fromRow) {
+    if (!opts?.silent) {
       const ok = window.confirm(
         `Encaminhar ${actionable.length} item(ns) para confecção de repasse?\n\n` +
         `A apuração ficará travada para edição e o ajuste seguirá pelo fluxo padrão de confecção.`,
@@ -2229,25 +2229,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const financial = computeTvrFinancialTotals(actionable);
     const reconciliationId = id;
     const refSuggestion = `Retro #${reconciliationId.slice(0, 8)} · ${recon?.title ?? "TASY vs Repasse"}`;
-    const descSuggestion =
-      `Origem: apuração retroativa TASY vs Repasse (id ${reconciliationId}).\n` +
-      `Itens encaminhados: ${actionable.length}.\n` +
-      `Complementar previsto: ${brl(financial.totalComplementar)} · Retirar: ${brl(financial.totalRetirar)}.`;
-
-    try {
-      sessionStorage.setItem("newPaymentMode", "confeccao");
-      sessionStorage.setItem(
-        "retroactiveHandoff",
-        JSON.stringify({
-          reconciliation_id: reconciliationId,
-          reference: refSuggestion,
-          description: descSuggestion,
-          doctor_id: recon?.doctor_id ?? null,
-          company_id: recon?.company_id ?? null,
-          items_count: actionable.length,
-        }),
-      );
-    } catch { /* ignore */ }
 
     const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
     const handoffPayload = {
@@ -2272,8 +2253,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     setRecon((prev) => prev ? { ...prev, summary: { ...(prev.summary ?? {}), handoff: handoffPayload } } : prev);
-    navigate("/pagamentos/novo?modo=confeccao");
+    // Persistência via URL — sobrevive a reload e não depende de sessionStorage.
+    navigate(`/pagamentos/novo?modo=confeccao&retro=${reconciliationId}`);
   };
+
+
 
 
   return (
