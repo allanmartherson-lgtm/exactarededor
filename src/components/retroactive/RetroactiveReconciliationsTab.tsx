@@ -119,6 +119,17 @@ type ReconRow = {
     exclude_tuss?: string;
     processed_at?: string;
     tvr_counts?: Partial<Record<TvrStatus, number>>;
+    handoff?: {
+      status: "encaminhada";
+      payment_id?: string | null;
+      payment_reference?: string | null;
+      at: string;
+      by?: string | null;
+      items_count: number;
+      total_complementar?: number;
+      total_retirar?: number;
+      item_keys?: string[];
+    };
   } | null;
   adjustment_ids: string[];
   created_at: string;
