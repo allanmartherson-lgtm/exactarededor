@@ -2279,7 +2279,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   <div className={cn("text-2xl font-bold", totalRetirar > 0 ? "text-destructive" : "text-muted-foreground")}>
                     {totalRetirar > 0 ? brl(totalRetirar) : "R$ -"}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">Pago sem TASY + excedentes</div>
+                  <div className="text-xs text-muted-foreground mt-1">Ausente TASY + excedentes</div>
                 </div>
               </div>
             );
