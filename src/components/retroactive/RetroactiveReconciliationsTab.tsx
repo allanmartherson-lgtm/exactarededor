@@ -92,6 +92,7 @@ type ReconRow = {
   status: "em_analise" | "concluida" | "cancelada";
   title: string | null;
   summary: {
+    mode?: ReconMode;
     total?: number;
     ok_pago?: number;
     pago_a_menos?: number;
@@ -102,6 +103,10 @@ type ReconRow = {
     tuss_divergente?: number;
     total_gap?: number;
     total_excess?: number;
+    tasy_file?: string;
+    exclude_tuss?: string;
+    processed_at?: string;
+    tvr_counts?: Partial<Record<TvrStatus, number>>;
   } | null;
   adjustment_ids: string[];
   created_at: string;
@@ -502,6 +507,7 @@ function NewView({
         period_start: effStart,
         period_end: effEnd,
         title: title || null,
+        summary: { mode },
         created_by: userId,
       })
       .select("id")
@@ -693,7 +699,20 @@ function NewView({
 
 /* -------------------------- DETAIL -------------------------- */
 function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
-  const mode = getStoredMode(id);
+  const [mode, setMode] = useState<ReconMode | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from("retroactive_reconciliations" as never)
+        .select("summary")
+        .eq("id", id)
+        .single();
+      const summary = (data as unknown as { summary?: { mode?: ReconMode } } | null)?.summary;
+      const stored = getStoredMode(id);
+      setMode(summary?.mode === "tasy_vs_repasse" ? "tasy_vs_repasse" : stored);
+    })();
+  }, [id]);
+  if (!mode) return <Skeleton className="h-24 w-full" />;
   if (mode === "tasy_vs_repasse") {
     return <TasyVsRepasseView id={id} onBack={onBack} />;
   }
@@ -1455,6 +1474,52 @@ const TVR_STATUS_TONE: Record<TvrStatus, string> = {
 };
 
 const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_qtd", "div_valor", "pago_sem_tasy", "ok"];
+const TVR_SOURCE = "tasy_vs_repasse";
+
+function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
+  const c: Record<TvrStatus, number> = {
+    nao_pago: 0,
+    div_qtd_valor: 0,
+    div_qtd: 0,
+    div_valor: 0,
+    pago_sem_tasy: 0,
+    ok: 0,
+  };
+  for (const r of list) c[r.status]++;
+  return c;
+}
+
+function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
+  const totalComplementar = list.reduce((sum, r) => {
+    if (r.status === "ok" || r.status === "pago_sem_tasy") return sum;
+    if (r.status === "nao_pago") return sum + r.valor_total_tasy;
+    if (r.dif_valor > 0.5) return sum + r.dif_valor;
+    return sum;
+  }, 0);
+  const totalRetirar = list.reduce((sum, r) => {
+    if (r.status === "pago_sem_tasy") return sum + r.valor_pago_base;
+    if (r.dif_valor < -0.5) return sum + Math.abs(r.dif_valor);
+    return sum;
+  }, 0);
+  return { totalComplementar, totalRetirar };
+}
+
+function mapTvrStatusToStoredClassification(status: TvrStatus): string {
+  if (status === "ok") return "ok_pago";
+  if (status === "nao_pago") return "nao_pago";
+  if (status === "pago_sem_tasy") return "sem_lastro";
+  return "pago_a_menos";
+}
+
+function dbDateOrNull(value: string): string | null {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
+
+function isTvrResult(value: unknown): value is TvrResult {
+  if (!value || typeof value !== "object") return false;
+  const r = value as Partial<TvrResult>;
+  return typeof r.key === "string" && TVR_STATUS_ORDER.includes(r.status as TvrStatus);
+}
 
 function num(v: string | number | undefined | null): number {
   if (v === null || v === undefined || v === "") return 0;
@@ -1508,15 +1573,64 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     | { kind: "tasy"; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
   >({ kind: "none" });
 
-  useEffect(() => {
-    void (async () => {
-      const { data } = await supabase
+  const loadTvrReconciliation = async () => {
+    const { data } = await supabase
+      .from("retroactive_reconciliations" as never)
+      .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at")
+      .eq("id", id)
+      .single();
+    const row = data as unknown as ReconRow;
+    setRecon(row);
+    if (row && row.summary?.mode !== "tasy_vs_repasse") {
+      await supabase
         .from("retroactive_reconciliations" as never)
-        .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at")
-        .eq("id", id)
-        .single();
-      setRecon(data as unknown as ReconRow);
-    })();
+        .update({ summary: { ...(row.summary ?? {}), mode: "tasy_vs_repasse" } } as never)
+        .eq("id", id);
+    }
+    setExcludeTuss(row?.summary?.exclude_tuss ?? "");
+    setPendingTussExclude(row?.summary?.exclude_tuss ?? "");
+    setTasyFile(row?.summary?.tasy_file ?? "");
+
+    const { data: savedItems } = await supabase
+      .from("retroactive_reconciliation_items" as never)
+      .select("raw")
+      .eq("reconciliation_id", id)
+      .eq("source", TVR_SOURCE)
+      .order("created_at", { ascending: true });
+    const savedResults = ((savedItems ?? []) as Array<{ raw?: { tvr_result?: unknown } }>)
+      .map((item) => item.raw?.tvr_result)
+      .filter(isTvrResult);
+    if (savedResults.length > 0) {
+      setResults(savedResults);
+      setTasyRows(savedResults.filter((r) => r.status !== "pago_sem_tasy").map<TasyRow>((r) => ({
+        tasy_atendimento: r.atendimento,
+        tasy_tuss: r.tuss,
+        tasy_qtd: String(r.qtd_tasy || 1),
+        tasy_valor_unit: String(r.valor_unit_tasy || 0),
+        tasy_procedimento: r.procedimento,
+        tasy_paciente: r.paciente,
+        tasy_data: r.data,
+        tasy_convenio: r.convenio,
+        tasy_medico: r.medico,
+        tasy_funcao: r.funcao,
+      })));
+      setPagRows(savedResults.filter((r) => r.status !== "nao_pago").map<PagRow>((r) => ({
+        pag_atendimento: r.atendimento,
+        pag_tuss: r.tuss,
+        pag_qtd: String(r.qtd_por_func || 1),
+        pag_valor_base: String(r.valor_pago_base || 0),
+        pag_valor_com_acordo: String(r.valor_com_acordo || 0),
+        pag_funcao: r.funcoes_pagas,
+        pag_data: r.data,
+        pag_paciente: r.paciente,
+        pag_convenio: r.convenio,
+      })));
+      setPaymentsLoaded(true);
+    }
+  };
+
+  useEffect(() => {
+    void loadTvrReconciliation();
   }, [id]);
 
   const onPickTasy = async (file: File) => {
@@ -1609,12 +1723,34 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     void loadPaymentItems(recon);
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     setTasyRows([]);
     setTasyFile("");
     setPagRows([]);
     setPaymentsLoaded(false);
     setResults(null);
+    setExcludeTuss("");
+    setPendingTussExclude("");
+    await supabase
+      .from("retroactive_reconciliation_items" as never)
+      .delete()
+      .eq("reconciliation_id", id)
+      .eq("source", TVR_SOURCE);
+    const { error } = await supabase
+      .from("retroactive_reconciliations" as never)
+      .update({
+        summary: {
+          mode: "tasy_vs_repasse",
+          total: 0,
+          total_gap: 0,
+          total_excess: 0,
+          tasy_file: "",
+          exclude_tuss: "",
+          tvr_counts: computeTvrCounts([]),
+        },
+      } as never)
+      .eq("id", id);
+    if (error) toast({ title: "Erro ao limpar resultado salvo", description: error.message, variant: "destructive" });
   };
 
   const process = () => {
@@ -1623,7 +1759,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     setProcessing(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       const excluded = new Set(
         excludeTuss.split(",").map((s) => normTuss(s.trim())).filter(Boolean),
       );
@@ -1778,9 +1914,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         return a.tuss.localeCompare(b.tuss);
       });
 
-      setResults(out);
-      setProcessing(false);
-      toast({ title: `Processamento concluído · ${out.length} linha(s)` });
+      try {
+        await persistResults(out);
+        setResults(out);
+        await loadTvrReconciliation();
+        toast({ title: `Processamento concluído · ${out.length} linha(s) salvas` });
+      } catch (e) {
+        toast({ title: "Erro ao salvar resultado", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      } finally {
+        setProcessing(false);
+      }
     }, 50);
   };
 
@@ -1833,6 +1976,62 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     XLSX.writeFile(wb, `tasy-vs-repasse_${stamp}.xlsx`);
   };
 
+  const persistResults = async (list: TvrResult[]) => {
+    const financial = computeTvrFinancialTotals(list);
+    const tvrCounts = computeTvrCounts(list);
+    const rows = list.map((r) => ({
+      reconciliation_id: id,
+      source: TVR_SOURCE,
+      attendance: r.atendimento || null,
+      tuss_code: r.tuss || null,
+      procedure_date: dbDateOrNull(r.data),
+      patient_name: r.paciente || null,
+      function_label: r.funcao || r.funcoes_pagas || null,
+      procedure_name: r.procedimento || null,
+      claimed_amount: r.valor_total_tasy || null,
+      claimed_quantity: r.qtd_tasy || null,
+      paid_amount: r.valor_pago_base || null,
+      paid_quantity: r.qtd_por_func || null,
+      expected_amount: r.valor_com_acordo || null,
+      gap_amount: r.dif_valor || null,
+      classification: mapTvrStatusToStoredClassification(r.status),
+      classification_reason: TVR_STATUS_LABEL[r.status],
+      raw: { mode: TVR_SOURCE, tvr_result: r },
+    }));
+
+    await supabase
+      .from("retroactive_reconciliation_items" as never)
+      .delete()
+      .eq("reconciliation_id", id)
+      .eq("source", TVR_SOURCE);
+
+    if (rows.length > 0) {
+      const { error: insertError } = await supabase
+        .from("retroactive_reconciliation_items" as never)
+        .insert(rows as never);
+      if (insertError) throw insertError;
+    }
+
+    const { error: updateError } = await supabase
+      .from("retroactive_reconciliations" as never)
+      .update({
+        summary: {
+          ...(recon?.summary ?? {}),
+          mode: "tasy_vs_repasse",
+          total: list.length,
+          total_gap: financial.totalComplementar,
+          total_excess: financial.totalRetirar,
+          tasy_file: tasyFile,
+          exclude_tuss: excludeTuss,
+          processed_at: new Date().toISOString(),
+          tvr_counts: tvrCounts,
+        },
+        status: "em_analise",
+      } as never)
+      .eq("id", id);
+    if (updateError) throw updateError;
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -1843,7 +2042,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <div>
             <h3 className="text-lg font-semibold">{recon?.title ?? "TASY vs Repasse"}</h3>
             <p className="text-xs text-muted-foreground">
-              Análise ad-hoc · arquivos externos · sem persistência no banco
+              TASY externo · repasse do sistema · resultado salvo na apuração
             </p>
           </div>
         </div>
@@ -1915,7 +2114,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           {processing ? "Processando…" : "Processar"}
         </Button>
         {(tasyRows.length > 0 || pagRows.length > 0) && (
-          <Button variant="outline" size="sm" onClick={clearAll}>Limpar tudo</Button>
+          <Button variant="outline" size="sm" onClick={() => void clearAll()}>Limpar tudo</Button>
         )}
         {results && (
           <Button variant="outline" size="sm" onClick={exportXlsx}>Exportar Excel</Button>
