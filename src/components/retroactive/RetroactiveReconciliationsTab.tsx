@@ -1485,6 +1485,7 @@ export type TvrResult = {
   valor_com_acordo: number;
   dif_qtd: number;
   dif_valor: number;
+  valor_recuperar_acordo: number;
   status: TvrStatus;
 };
 
@@ -1797,7 +1798,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       let query = supabase
         .from("payment_items" as never)
-        .select("attendance_number, procedure_code, quantity, procedure_amount, doctor_role, doctor_name, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
+        .select("attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
         .gte("procedure_date", start.toISOString().slice(0, 10))
         .lte("procedure_date", end.toISOString().slice(0, 10));
 
@@ -1829,7 +1830,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_tuss: normTuss(String(row.procedure_code ?? "")),
         pag_qtd: String(row.quantity ?? "1"),
         pag_valor_base: String(row.procedure_amount ?? "0"),
-        pag_valor_com_acordo: "",
+        pag_valor_com_acordo: String(row.expected_amount ?? "0"),
         pag_funcao: (row.doctor_role as string) ?? "",
         pag_medico: (row.doctor_name as string) ?? "",
         pag_data: (row.procedure_date as string) ?? "",
@@ -2066,6 +2067,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
         else status = "ok";
 
+        let valor_recuperar_acordo = 0;
+        if (status === "ausente_tasy") {
+          valor_recuperar_acordo = valor_com_acordo;
+        } else if (dif_valor < -0.5) {
+          const fator = valor_pago_base > 0 ? valor_com_acordo / valor_pago_base : 1;
+          valor_recuperar_acordo = Math.abs(dif_valor) * fator;
+        }
 
         out.push({
           key,
@@ -2089,6 +2097,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           valor_com_acordo,
           dif_qtd,
           dif_valor,
+          valor_recuperar_acordo,
           status,
         });
       }
@@ -2161,6 +2170,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     "Valor c/ Acordo": r.valor_com_acordo,
     "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
     "Dif. Valor": Number(r.dif_valor.toFixed(2)),
+    "A Recuperar (c/ acordo)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
   }));
 
   const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible") => {
@@ -2605,7 +2615,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   <div className={cn("text-2xl font-bold", totalRetirar > 0 ? "text-destructive" : "text-muted-foreground")}>
                     {totalRetirar > 0 ? brl(totalRetirar) : "R$ -"}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">Ausente TASY + excedentes</div>
+                  {(() => {
+                    const totalRecuperarAcordo = results.reduce(
+                      (sum, r) => sum + (r.valor_recuperar_acordo ?? 0),
+                      0,
+                    );
+                    return (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Base: {brl(totalRetirar)} ·{" "}
+                        <span className="font-semibold text-destructive">
+                          C/ acordo: {brl(totalRecuperarAcordo)}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             );
@@ -2691,11 +2714,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <TableHead>Vlr c/ Acordo</TableHead>
                     <TableHead className="text-center">Dif. Qtd</TableHead>
                     <TableHead>Dif. Valor</TableHead>
+                    <TableHead>A Recuperar (c/ acordo)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visible.length === 0 && (
-                    <TableRow><TableCell colSpan={21} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={22} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
                   )}
                   {visible.map((r) => {
                     const selectable = isActionableTvr(r) && !isLocked;
@@ -2745,6 +2769,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       </TableCell>
                       <TableCell className={cn(Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700")}>
                         {brl(r.dif_valor)}
+                      </TableCell>
+                      <TableCell className={cn((r.valor_recuperar_acordo ?? 0) > 0.5 && "font-semibold text-destructive")}>
+                        {(r.valor_recuperar_acordo ?? 0) > 0.5 ? brl(r.valor_recuperar_acordo) : "—"}
                       </TableCell>
                     </TableRow>
                     );
