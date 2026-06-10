@@ -1653,6 +1653,17 @@ const NewPayment = () => {
           : "Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo."}
       />
       <div className="p-8 max-w-7xl space-y-6">
+        {retroHandoff && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
+            <div className="font-semibold text-amber-900 dark:text-amber-200">
+              Origem: apuração retroativa TASY vs Repasse
+            </div>
+            <div className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+              {retroHandoff.items_count ?? 0} item(ns) acionáveis encaminhados · ID {retroHandoff.reconciliation_id.slice(0, 8)}.
+              Suba a base e siga o fluxo de confecção normalmente — ao salvar, o pagamento será vinculado à apuração.
+            </div>
+          </div>
+        )}
         <Card className="shadow-card">
           <CardHeader><CardTitle className="text-base">Identificação</CardTitle></CardHeader>
           <CardContent className="space-y-4">
