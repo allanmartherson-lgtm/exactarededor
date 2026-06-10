@@ -1883,6 +1883,40 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             ))}
           </div>
 
+          {(() => {
+            const totalComplementar = results.reduce((sum, r) => {
+              if (r.status === "ok" || r.status === "pago_sem_tasy") return sum;
+              if (r.status === "nao_pago") return sum + r.valor_total_tasy;
+              if (r.dif_valor > 0.5) return sum + r.dif_valor;
+              return sum;
+            }, 0);
+            const totalRetirar = results.reduce((sum, r) => {
+              if (r.status === "pago_sem_tasy") return sum + r.valor_pago_base;
+              if (r.dif_valor < -0.5) return sum + Math.abs(r.dif_valor);
+              return sum;
+            }, 0);
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total a complementar</div>
+                  <div className={cn("text-2xl font-bold", totalComplementar > 0 ? "text-primary" : "text-muted-foreground")}>
+                    {totalComplementar > 0 ? brl(totalComplementar) : "R$ -"}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Não pago + subpagamentos</div>
+                </div>
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total a retirar / recuperar</div>
+                  <div className={cn("text-2xl font-bold", totalRetirar > 0 ? "text-destructive" : "text-muted-foreground")}>
+                    {totalRetirar > 0 ? brl(totalRetirar) : "R$ -"}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Pago sem TASY + excedentes</div>
+                </div>
+              </div>
+            );
+          })()}
+
+
+
           <div className="rounded-lg border border-border bg-card overflow-hidden">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
               <div className="text-sm font-semibold">Resultado · {visible.length} de {results.length}</div>
