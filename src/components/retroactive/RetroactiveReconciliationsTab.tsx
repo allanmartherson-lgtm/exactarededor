@@ -1461,6 +1461,52 @@ const TVR_STATUS_TONE: Record<TvrStatus, string> = {
 };
 
 const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_qtd", "div_valor", "pago_sem_tasy", "ok"];
+const TVR_SOURCE = "tasy_vs_repasse";
+
+function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
+  const c: Record<TvrStatus, number> = {
+    nao_pago: 0,
+    div_qtd_valor: 0,
+    div_qtd: 0,
+    div_valor: 0,
+    pago_sem_tasy: 0,
+    ok: 0,
+  };
+  for (const r of list) c[r.status]++;
+  return c;
+}
+
+function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
+  const totalComplementar = list.reduce((sum, r) => {
+    if (r.status === "ok" || r.status === "pago_sem_tasy") return sum;
+    if (r.status === "nao_pago") return sum + r.valor_total_tasy;
+    if (r.dif_valor > 0.5) return sum + r.dif_valor;
+    return sum;
+  }, 0);
+  const totalRetirar = list.reduce((sum, r) => {
+    if (r.status === "pago_sem_tasy") return sum + r.valor_pago_base;
+    if (r.dif_valor < -0.5) return sum + Math.abs(r.dif_valor);
+    return sum;
+  }, 0);
+  return { totalComplementar, totalRetirar };
+}
+
+function mapTvrStatusToStoredClassification(status: TvrStatus): string {
+  if (status === "ok") return "ok_pago";
+  if (status === "nao_pago") return "nao_pago";
+  if (status === "pago_sem_tasy") return "sem_lastro";
+  return "pago_a_menos";
+}
+
+function dbDateOrNull(value: string): string | null {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
+
+function isTvrResult(value: unknown): value is TvrResult {
+  if (!value || typeof value !== "object") return false;
+  const r = value as Partial<TvrResult>;
+  return typeof r.key === "string" && TVR_STATUS_ORDER.includes(r.status as TvrStatus);
+}
 
 function num(v: string | number | undefined | null): number {
   if (v === null || v === undefined || v === "") return 0;
