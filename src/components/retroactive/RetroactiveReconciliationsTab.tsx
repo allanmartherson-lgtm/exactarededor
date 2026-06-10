@@ -1614,6 +1614,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         tasy_medico: r.medico,
         tasy_funcao: r.funcao,
       })));
+      setPagRows(savedResults.filter((r) => r.status !== "nao_pago").map<PagRow>((r) => ({
+        pag_atendimento: r.atendimento,
+        pag_tuss: r.tuss,
+        pag_qtd: String(r.qtd_por_func || 1),
+        pag_valor_base: String(r.valor_pago_base || 0),
+        pag_valor_com_acordo: String(r.valor_com_acordo || 0),
+        pag_funcao: r.funcoes_pagas,
+        pag_data: r.data,
+        pag_paciente: r.paciente,
+        pag_convenio: r.convenio,
+      })));
       setPaymentsLoaded(true);
     }
   };
