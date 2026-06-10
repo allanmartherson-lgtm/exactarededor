@@ -2542,7 +2542,10 @@ export type Database = {
           doctor_name: string | null
           hospital_id: string | null
           id: string
+          match_reason: string | null
+          match_source: string | null
           matched_at: string | null
+          matched_company_id: string | null
           matched_company_name: string | null
           matched_payment_id: string | null
           matched_payment_item_id: string | null
@@ -2568,7 +2571,10 @@ export type Database = {
           doctor_name?: string | null
           hospital_id?: string | null
           id?: string
+          match_reason?: string | null
+          match_source?: string | null
           matched_at?: string | null
+          matched_company_id?: string | null
           matched_company_name?: string | null
           matched_payment_id?: string | null
           matched_payment_item_id?: string | null
@@ -2594,7 +2600,10 @@ export type Database = {
           doctor_name?: string | null
           hospital_id?: string | null
           id?: string
+          match_reason?: string | null
+          match_source?: string | null
           matched_at?: string | null
+          matched_company_id?: string | null
           matched_company_name?: string | null
           matched_payment_id?: string | null
           matched_payment_item_id?: string | null
@@ -2635,6 +2644,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_items_matched_company_id_fkey"
+            columns: ["matched_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
