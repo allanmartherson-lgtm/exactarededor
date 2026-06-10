@@ -1607,6 +1607,7 @@ function normAtt(v: string | undefined): string {
 }
 
 function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
+  const navigate = useNavigate();
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [tasyRows, setTasyRows] = useState<TasyRow[]>([]);
   const [tasyFile, setTasyFile] = useState<string>("");
