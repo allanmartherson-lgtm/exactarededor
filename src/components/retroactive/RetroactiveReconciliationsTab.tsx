@@ -2200,6 +2200,82 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (updateError) throw updateError;
   };
 
+  const handoff = recon?.summary?.handoff ?? null;
+  const isLocked = !!handoff;
+
+  const isActionableTvr = (r: TvrResult): boolean =>
+    r.status === "nao_pago" ||
+    r.status === "div_valor" ||
+    r.status === "div_qtd_valor" ||
+    r.status === "pago_a_mais";
+
+  const sendHandoffToConfeccao = async (list: TvrResult[], opts?: { fromRow?: boolean }) => {
+    const actionable = list.filter(isActionableTvr);
+    if (actionable.length === 0) {
+      toast({
+        title: "Nenhum item acionável",
+        description: "Só linhas Não Pago, Div. Valor, Div. Qtd/Valor ou Pago a mais podem ir para confecção.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!opts?.fromRow) {
+      const ok = window.confirm(
+        `Encaminhar ${actionable.length} item(ns) para confecção de repasse?\n\n` +
+        `A apuração ficará travada para edição e o ajuste seguirá pelo fluxo padrão de confecção.`,
+      );
+      if (!ok) return;
+    }
+    const financial = computeTvrFinancialTotals(actionable);
+    const reconciliationId = id;
+    const refSuggestion = `Retro #${reconciliationId.slice(0, 8)} · ${recon?.title ?? "TASY vs Repasse"}`;
+    const descSuggestion =
+      `Origem: apuração retroativa TASY vs Repasse (id ${reconciliationId}).\n` +
+      `Itens encaminhados: ${actionable.length}.\n` +
+      `Complementar previsto: ${brl(financial.totalComplementar)} · Retirar: ${brl(financial.totalRetirar)}.`;
+
+    try {
+      sessionStorage.setItem("newPaymentMode", "confeccao");
+      sessionStorage.setItem(
+        "retroactiveHandoff",
+        JSON.stringify({
+          reconciliation_id: reconciliationId,
+          reference: refSuggestion,
+          description: descSuggestion,
+          doctor_id: recon?.doctor_id ?? null,
+          company_id: recon?.company_id ?? null,
+          items_count: actionable.length,
+        }),
+      );
+    } catch { /* ignore */ }
+
+    const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
+    const handoffPayload = {
+      status: "encaminhada" as const,
+      payment_id: null,
+      payment_reference: refSuggestion,
+      at: new Date().toISOString(),
+      by: null,
+      items_count: actionable.length,
+      total_complementar: financial.totalComplementar,
+      total_retirar: financial.totalRetirar,
+      item_keys: actionable.slice(0, 500).map((r) => r.key),
+    };
+    const { error: updErr } = await supabase
+      .from("retroactive_reconciliations" as never)
+      .update({
+        summary: { ...previousSummary, handoff: handoffPayload },
+      } as never)
+      .eq("id", reconciliationId);
+    if (updErr) {
+      toast({ title: "Falha ao travar apuração", description: updErr.message, variant: "destructive" });
+      return;
+    }
+    setRecon((prev) => prev ? { ...prev, summary: { ...(prev.summary ?? {}), handoff: handoffPayload } } : prev);
+    navigate("/pagamentos/novo?modo=confeccao");
+  };
+
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
