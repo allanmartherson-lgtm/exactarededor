@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -47,7 +47,6 @@ import {
 } from "@/lib/registryLookup";
 import { RegistryResolutionPanel, type UnresolvedGroup } from "@/components/RegistryResolutionPanel";
 import {
-  similarity,
   extractCompanyFromFilename,
   matchCompany,
   MATCH_AUTO_THRESHOLD,
@@ -440,6 +439,8 @@ const NewPayment = () => {
   const [parseErrors, setParseErrors] = useState<Array<{ fileName: string; title: string; reasons: string[]; howToFix: string[] }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
+  const companiesRef = useRef<CompanyRow[]>([]);
+  const companiesLoadPromiseRef = useRef<Promise<CompanyRow[]> | null>(null);
   const [searchParams] = useSearchParams();
   // Resolve o modo na seguinte ordem: query param → sessionStorage (escolhido
   // no modal antes de navegar) → padrão. Garante que se o param se perder no
