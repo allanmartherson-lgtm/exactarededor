@@ -24,6 +24,13 @@ import {
 export type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
 export type ElectiveMode = "qualquer" | "eletiva" | "urgencia";
 
+export type PackageRoleDistribution = {
+  role_key: string;
+  label: string;
+  dist_type: "pct" | "fixo";
+  value: string;
+};
+
 export type CalcItem = {
   /** id na DB quando carregado do banco; novos itens não têm id. */
   id?: string;
@@ -57,6 +64,7 @@ export type CalcItem = {
   package_opinions_count: boolean;
   package_visits_count: boolean;
   extras_codes: string; // entrada livre
+  package_roles_distribution: PackageRoleDistribution[];
   apply_access_route: boolean;
   /** Vias de acesso permitidas para este item de cálculo. */
   allowed_access_routes: string[];
@@ -110,6 +118,11 @@ export function makeEmptyCalc(): CalcItem {
     package_included_codes: "", package_auxiliaries_included: true,
     package_opinions_count: false, package_visits_count: false,
     extras_codes: "", apply_access_route: false,
+    package_roles_distribution: [
+      { role_key: "cirurgiao", label: "Cirurgião Principal", dist_type: "pct" as const, value: "" },
+      { role_key: "aux1", label: "1º Auxiliar", dist_type: "pct" as const, value: "" },
+      { role_key: "aux2", label: "2º Auxiliar", dist_type: "pct" as const, value: "" },
+    ],
     allowed_access_routes: [],
     has_conditions: false, time_mode: "qualquer", weekdays: [],
     time_start: "", time_end: "", includes_holidays: false, elective_mode: "qualquer",
@@ -411,6 +424,206 @@ function ComplementosBlock({
   );
 }
 
+
+/* ============================================================
+ *  PackageCodeChips — chip input para códigos TUSS no pacote
+ * ============================================================ */
+function PackageCodeChips({
+  value,
+  onChange,
+  placeholder,
+  single,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  single?: boolean;
+}) {
+  const codes = value.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean);
+  const addCode = (raw: string) => {
+    const newCodes = raw.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean);
+    if (single) {
+      onChange(newCodes[0] ?? "");
+    } else {
+      const merged = Array.from(new Set([...codes, ...newCodes]));
+      onChange(merged.join(", "));
+    }
+  };
+  const removeCode = (code: string) => {
+    onChange(codes.filter((c) => c !== code).join(", "));
+  };
+  return (
+    <div className="flex flex-wrap gap-1.5 p-2 border border-border rounded-md min-h-[38px] bg-background cursor-text"
+      onClick={(e) => (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus()}>
+      {codes.map((code) => (
+        <span key={code} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-mono"
+          style={{ background: single ? "#e6f1fb" : "#e1f5ee", color: single ? "#185fa5" : "#0f6e56", border: `0.5px solid ${single ? "#b5d4f4" : "#9fe1cb"}` }}>
+          {code}
+          <button type="button" className="opacity-60 hover:opacity-100 leading-none" onClick={(e) => { e.stopPropagation(); removeCode(code); }}>×</button>
+        </span>
+      ))}
+      {(!single || codes.length === 0) && (
+        <input
+          className="outline-none bg-transparent text-xs flex-1 min-w-[120px] placeholder:text-muted-foreground"
+          placeholder={placeholder ?? "código + Enter"}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === "," || e.key === " ") {
+              e.preventDefault();
+              const v = e.currentTarget.value.trim();
+              if (v) { addCode(v); e.currentTarget.value = ""; }
+            }
+            if (e.key === "Backspace" && !e.currentTarget.value && codes.length > 0) {
+              removeCode(codes[codes.length - 1]);
+            }
+          }}
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            if (v) { addCode(v); e.target.value = ""; }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+ *  PackageRolesEditor — distribuição de valores por função
+ * ============================================================ */
+function PackageRolesEditor({
+  roles,
+  packageAmount,
+  onChange,
+}: {
+  roles: PackageRoleDistribution[];
+  packageAmount: string;
+  onChange: (next: PackageRoleDistribution[]) => void;
+}) {
+  const total = parseFloat(String(packageAmount).replace(",", ".")) || 0;
+
+  const calcValue = (role: PackageRoleDistribution): number => {
+    const v = parseFloat(String(role.value).replace(",", ".")) || 0;
+    return role.dist_type === "pct" ? (v / 100) * total : v;
+  };
+
+  const sum = roles.reduce((acc, r) => acc + calcValue(r), 0);
+  const overBudget = total > 0 && sum > total + 0.01;
+  const exact = total > 0 && Math.abs(sum - total) < 0.01;
+  const pct = total > 0 ? Math.min(100, (sum / total) * 100) : 0;
+
+  const updateRole = (i: number, patch: Partial<PackageRoleDistribution>) => {
+    const next = roles.map((r, idx) => idx === i ? { ...r, ...patch } : r);
+    onChange(next);
+  };
+
+  const removeRole = (i: number) => {
+    if (roles.length <= 1) return;
+    onChange(roles.filter((_, idx) => idx !== i));
+  };
+
+  const addRole = () => {
+    onChange([...roles, { role_key: `func${roles.length + 1}`, label: "", dist_type: "pct", value: "" }]);
+  };
+
+  return (
+    <div className="rounded-md border border-border bg-muted/40 overflow-hidden">
+      <div className="px-3 py-2 bg-muted/60 border-b border-border flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Distribuição por função</span>
+        <span className="text-[10px] text-muted-foreground">% do total ou R$ fixo por função</span>
+      </div>
+
+      {/* Cabeçalho */}
+      <div className="grid gap-2 px-3 py-1.5 border-b border-border bg-muted/30"
+        style={{ gridTemplateColumns: "1fr 84px 100px 90px 28px" }}>
+        {["Função", "Tipo", "Valor", "Calculado", ""].map((h, i) => (
+          <span key={i} className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground" style={{ textAlign: i >= 2 ? "right" : "left" }}>{h}</span>
+        ))}
+      </div>
+
+      {/* Linhas por função */}
+      {roles.map((role, i) => {
+        const computed = calcValue(role);
+        return (
+          <div key={i} className="grid gap-2 px-3 py-2 border-b border-border items-center"
+            style={{ gridTemplateColumns: "1fr 84px 100px 90px 28px" }}>
+            <Input
+              className="h-7 text-xs"
+              placeholder="Ex.: Cirurgião Principal"
+              value={role.label}
+              onChange={(e) => updateRole(i, { label: e.target.value })}
+            />
+            {/* Toggle % / R$ */}
+            <div className="flex border border-border rounded-md overflow-hidden h-7">
+              <button type="button" className="flex-1 text-[11px] font-medium transition-colors"
+                style={{
+                  background: role.dist_type === "pct" ? "#e6f1fb" : "hsl(var(--background))",
+                  color: role.dist_type === "pct" ? "#185fa5" : "hsl(var(--muted-foreground))",
+                }}
+                onClick={() => updateRole(i, { dist_type: "pct" })}>%</button>
+              <button type="button" className="flex-1 text-[11px] font-medium transition-colors border-l border-border"
+                style={{
+                  background: role.dist_type === "fixo" ? "#e1f5ee" : "hsl(var(--background))",
+                  color: role.dist_type === "fixo" ? "#0f6e56" : "hsl(var(--muted-foreground))",
+                }}
+                onClick={() => updateRole(i, { dist_type: "fixo" })}>R$</button>
+            </div>
+            <Input
+              className="h-7 text-xs text-right font-mono"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={role.value}
+              onChange={(e) => updateRole(i, { value: e.target.value })}
+            />
+            <div className="text-right text-[11px] font-mono" style={{ color: computed > 0 ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))" }}>
+              R$ {computed.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <button type="button" className="flex items-center justify-center w-6 h-6 rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors text-sm"
+              disabled={roles.length <= 1} onClick={() => removeRole(i)}>×</button>
+          </div>
+        );
+      })}
+
+      {/* Adicionar função */}
+      <div className="px-3 py-2 border-b border-border">
+        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground w-full justify-start" onClick={addRole}>
+          <Plus className="h-3 w-3 mr-1" /> Adicionar função
+        </Button>
+      </div>
+
+      {/* Barra de total */}
+      <div className="px-3 py-2.5 flex flex-wrap items-center gap-3">
+        <span className="text-xs text-muted-foreground">Total distribuído:</span>
+        <span className="text-sm font-mono font-medium" style={{ color: overBudget ? "#a32d2d" : exact ? "#0f6e56" : "#854f0b" }}>
+          R$ {sum.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+        <span className="text-xs text-muted-foreground">/</span>
+        <span className="text-xs font-mono text-foreground">
+          R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+        <div className="flex-1 min-w-[80px] h-1.5 rounded-full bg-muted overflow-hidden">
+          <div className="h-full rounded-full transition-all"
+            style={{ width: `${pct}%`, background: overBudget ? "#a32d2d" : exact ? "#0f6e56" : "#854f0b" }} />
+        </div>
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+          style={{
+            background: overBudget ? "#fcebeb" : exact ? "#e1f5ee" : "#faeeda",
+            color: overBudget ? "#a32d2d" : exact ? "#0f6e56" : "#854f0b",
+          }}>
+          {overBudget
+            ? "⚠ Ultrapassa o total"
+            : exact
+            ? "✓ Distribuído"
+            : `R$ ${(total - sum).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sem função`}
+        </span>
+      </div>
+
+      {overBudget && (
+        <p className="px-3 pb-2 text-[11px] text-destructive">
+          A soma das funções ultrapassa o valor total do pacote. Ajuste os valores antes de salvar.
+        </p>
+      )}
+    </div>
+  );
+}
 
 const FieldGroup = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
   <div style={{
@@ -780,54 +993,88 @@ function CalcCard({
           </FieldGroup>
 
           {isPacote && (
-            <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Tipo de pacote *</Label>
-                <Select value={c.package_subtype} onValueChange={(v) => onChange({ package_subtype: v as "fechado" | "com_extras" })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fechado">Fechado</SelectItem>
-                    <SelectItem value="com_extras">Com extras</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Valor do pacote (R$) *</Label>
-                  <Input type="number" step="0.01" value={c.package_amount} onChange={(e) => onChange({ package_amount: e.target.value })} />
+            <div className="space-y-3">
+              {/* Identificação */}
+              <div className="rounded-md border border-border bg-muted/40 p-3 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Valor total do pacote (R$) *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Ex.: 29321.93"
+                      value={c.package_amount}
+                      onChange={(e) => onChange({ package_amount: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Tipo de pacote</Label>
+                    <Select value={c.package_subtype} onValueChange={(v) => onChange({ package_subtype: v as "fechado" | "com_extras" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fechado">Fechado</SelectItem>
+                        <SelectItem value="com_extras">Com extras</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Código principal do pacote</Label>
-                  <Input placeholder="Ex.: 31005497" value={c.package_main_code} onChange={(e) => onChange({ package_main_code: e.target.value })} />
+                  <Label className="text-xs">Código principal — dispara o pacote *</Label>
+                  <PackageCodeChips
+                    value={c.package_main_code}
+                    onChange={(v) => onChange({ package_main_code: v })}
+                    placeholder="Digite o código TUSS e pressione Enter"
+                    single
+                  />
+                  <p className="text-[10px] text-muted-foreground">Um único código. Quando presente no atendimento, este pacote é ativado.</p>
                 </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Códigos incluídos no pacote</Label>
-                <Input placeholder="Ex.: 31002, 31003" value={c.package_included_codes} onChange={(e) => onChange({ package_included_codes: e.target.value })} />
-              </div>
-              {isPacoteComExtras && (
+
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Códigos extras permitidos</Label>
-                  <Input placeholder="Ex.: 31005470" value={c.extras_codes} onChange={(e) => onChange({ extras_codes: e.target.value })} />
+                  <Label className="text-xs">Códigos incluídos — absorvidos pelo pacote</Label>
+                  <PackageCodeChips
+                    value={c.package_included_codes}
+                    onChange={(v) => onChange({ package_included_codes: v })}
+                    placeholder="Digite código + Enter (ex.: 30805228)"
+                  />
+                  <p className="text-[10px] text-muted-foreground">Todos os códigos que aparecem junto ao principal no mesmo atendimento e fazem parte do pacote.</p>
                 </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", opacity: !isPacoteComExtras ? 0.5 : 1 }}>
-                  <Checkbox checked={c.package_visits_count} disabled={!isPacoteComExtras}
-                    onCheckedChange={(v) => onChange({ package_visits_count: !!v })} />
-                  <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Visitas somam ao pacote</span>
-                </label>
-                <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", opacity: !isPacoteComExtras ? 0.5 : 1 }}>
-                  <Checkbox checked={c.package_opinions_count} disabled={!isPacoteComExtras}
-                    onCheckedChange={(v) => onChange({ package_opinions_count: !!v })} />
-                  <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Pareceres somam ao pacote</span>
-                </label>
-                <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", opacity: !isPacoteComExtras ? 0.5 : 1 }}>
-                  <Checkbox checked={c.package_auxiliaries_included} disabled={!isPacoteComExtras}
-                    onCheckedChange={(v) => onChange({ package_auxiliaries_included: !!v })} />
-                  <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Auxiliares incluídos no pacote</span>
-                </label>
+
+                {isPacoteComExtras && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Códigos extras permitidos</Label>
+                    <PackageCodeChips
+                      value={c.extras_codes}
+                      onChange={(v) => onChange({ extras_codes: v })}
+                      placeholder="Digite código + Enter"
+                    />
+                  </div>
+                )}
+
+                {isPacoteComExtras && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                    <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                      <Checkbox checked={c.package_visits_count} onCheckedChange={(v) => onChange({ package_visits_count: !!v })} />
+                      <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Visitas somam ao pacote</span>
+                    </label>
+                    <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                      <Checkbox checked={c.package_opinions_count} onCheckedChange={(v) => onChange({ package_opinions_count: !!v })} />
+                      <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Pareceres somam ao pacote</span>
+                    </label>
+                    <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                      <Checkbox checked={c.package_auxiliaries_included} onCheckedChange={(v) => onChange({ package_auxiliaries_included: !!v })} />
+                      <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Auxiliares incluídos no pacote</span>
+                    </label>
+                  </div>
+                )}
               </div>
+
+              {/* Distribuição por função */}
+              <PackageRolesEditor
+                roles={c.package_roles_distribution}
+                packageAmount={c.package_amount}
+                onChange={(next) => onChange({ package_roles_distribution: next })}
+              />
             </div>
           )}
 
@@ -977,6 +1224,18 @@ export function calcFromDb(r: any): CalcItem {
     package_opinions_count: !!r.package_opinions_count,
     package_visits_count: !!r.package_visits_count,
     extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "",
+    package_roles_distribution: Array.isArray(r.package_roles_distribution)
+      ? r.package_roles_distribution.map((d: any) => ({
+          role_key: String(d.role_key ?? ""),
+          label: String(d.label ?? ""),
+          dist_type: (d.dist_type === "fixo" ? "fixo" : "pct") as "fixo" | "pct",
+          value: d.value != null ? String(d.value) : "",
+        }))
+      : [
+          { role_key: "cirurgiao", label: "Cirurgião Principal", dist_type: "pct" as const, value: "" },
+          { role_key: "aux1", label: "1º Auxiliar", dist_type: "pct" as const, value: "" },
+          { role_key: "aux2", label: "2º Auxiliar", dist_type: "pct" as const, value: "" },
+        ],
     apply_access_route: !!r.apply_access_route,
     allowed_access_routes: Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [],
     has_conditions: !!r.has_conditions || tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer" || (Array.isArray(r.allowed_access_routes) && r.allowed_access_routes.length > 0) || (Array.isArray(r.sectors) && r.sectors.length > 0) || (Array.isArray(r.specialties) && r.specialties.length > 0),
@@ -1050,6 +1309,16 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     package_opinions_count: isPacoteComExtras ? c.package_opinions_count : false,
     package_visits_count: isPacoteComExtras ? c.package_visits_count : false,
     extras_codes: isPacoteComExtras ? splitCodes(c.extras_codes) : null,
+    package_roles_distribution: isPacote
+      ? c.package_roles_distribution
+          .filter((d) => d.value.trim() !== "")
+          .map((d) => ({
+            role_key: d.role_key,
+            label: d.label,
+            dist_type: d.dist_type,
+            value: numOrNull(d.value) ?? 0,
+          }))
+      : null,
     apply_access_route: isTabela ? c.apply_access_route : false,
     allowed_access_routes: c.allowed_access_routes.length > 0 ? c.allowed_access_routes : null,
     has_conditions: c.has_conditions,

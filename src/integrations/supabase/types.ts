@@ -6455,6 +6455,7 @@ export type Database = {
           package_included_codes: string[] | null
           package_main_code: string | null
           package_opinions_count: boolean
+          package_roles_distribution: Json | null
           package_subtype: string | null
           package_visits_count: boolean
           procedure_codes: string[] | null
@@ -6508,6 +6509,7 @@ export type Database = {
           package_included_codes?: string[] | null
           package_main_code?: string | null
           package_opinions_count?: boolean
+          package_roles_distribution?: Json | null
           package_subtype?: string | null
           package_visits_count?: boolean
           procedure_codes?: string[] | null
@@ -6561,6 +6563,7 @@ export type Database = {
           package_included_codes?: string[] | null
           package_main_code?: string | null
           package_opinions_count?: boolean
+          package_roles_distribution?: Json | null
           package_subtype?: string | null
           package_visits_count?: boolean
           procedure_codes?: string[] | null
