@@ -1094,8 +1094,17 @@ export default function CompanyAnalysis() {
 
   const openEditItem = (it: PaymentItemRow) => {
     setEditItem(it);
+    // Sugestão automática: se a IA calculou um expected_amount e ele difere do
+    // valor atual, pré-preenche o campo com a sugestão da IA. Assim o analista
+    // só precisa confirmar (Salvar) sem digitar/copiar o valor manualmente.
+    const gross = Number(it.gross_amount ?? 0);
+    const expected = it.expected_amount != null ? Number(it.expected_amount) : null;
+    const suggested =
+      expected != null && Number.isFinite(expected) && Math.abs(expected - gross) > 0.001
+        ? expected
+        : gross;
     setEditDraft({
-      gross_amount: String(it.gross_amount ?? 0),
+      gross_amount: String(suggested),
       specialty: it.specialty ?? "",
       doctor_name: it.doctor_name ?? "",
       description: it.description ?? "",
@@ -2155,6 +2164,41 @@ export default function CompanyAnalysis() {
             <div>
               <Label className="text-xs">Valor (R$)</Label>
               <Input value={editDraft.gross_amount} onChange={(e) => setEditDraft((d) => ({ ...d, gross_amount: e.target.value }))} inputMode="decimal" />
+              {(() => {
+                if (!editItem) return null;
+                const gross = Number(editItem.gross_amount ?? 0);
+                const expected = editItem.expected_amount != null ? Number(editItem.expected_amount) : null;
+                const hasSuggestion = expected != null && Number.isFinite(expected) && Math.abs(expected - gross) > 0.001;
+                if (!hasSuggestion) return null;
+                const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                const currentDraft = Number(editDraft.gross_amount.replace(",", "."));
+                const draftMatchesSuggestion = Math.abs(currentDraft - (expected as number)) < 0.001;
+                return (
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                    <span>
+                      Sugestão IA: <strong className="text-foreground">{fmt(expected as number)}</strong>{" "}
+                      · Original: {fmt(gross)}
+                    </span>
+                    {draftMatchesSuggestion ? (
+                      <button
+                        type="button"
+                        className="underline hover:text-foreground"
+                        onClick={() => setEditDraft((d) => ({ ...d, gross_amount: String(gross) }))}
+                      >
+                        restaurar original
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="underline hover:text-foreground"
+                        onClick={() => setEditDraft((d) => ({ ...d, gross_amount: String(expected) }))}
+                      >
+                        usar sugestão
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <div>
               <Label className="text-xs">Especialidade</Label>
