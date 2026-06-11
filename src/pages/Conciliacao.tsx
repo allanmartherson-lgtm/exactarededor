@@ -28,7 +28,7 @@ type RunRow = {
   conciliado: number;
   valor_divergente: number;
   so_hospital: number;
-  so_medpay: number;
+  so_exacta: number;
 };
 
 type PaymentLite = {
