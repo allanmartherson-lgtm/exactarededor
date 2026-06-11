@@ -69,12 +69,15 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
 
   const loadAll = async () => {
     setLoading(true);
-    const [p, c] = await Promise.all([
+    const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+    const [p, companiesAll] = await Promise.all([
       supabase.from("pools").select("*").order("created_at", { ascending: false }),
-      supabase.from("companies").select("id, name").order("name"),
+      fetchAllPaginated<{ id: string; name: string }>((from, to) =>
+        supabase.from("companies").select("id, name").order("name").range(from, to),
+      ),
     ]);
     setPools((p.data || []) as Pool[]);
-    setCompanies(c.data || []);
+    setCompanies(companiesAll);
     setLoading(false);
   };
 
