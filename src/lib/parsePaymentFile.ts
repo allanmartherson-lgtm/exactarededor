@@ -1,6 +1,14 @@
 // Parser compartilhado de arquivos Excel de base de pagamento.
 // Extraído de src/pages/NewPayment.tsx para reutilização no reimport.
 import * as XLSX from "xlsx";
+import {
+  FIELD_BY_KEY,
+  inspectColumnMapping,
+  type FieldKey,
+  type FieldMappingHit,
+  type ManualMapping,
+} from "@/lib/columnMapping";
+export type { ManualMapping, FieldMappingHit } from "@/lib/columnMapping";
 
 export type LineType =
   | "procedimento"
