@@ -1628,6 +1628,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       applied_calc_method: AppliedCalcMethod | null;
       expected_amount: number | null;
       applied_at: string | null;
+      // Pacote: marcação de absorção persistida no DB. Garante que
+      // compute-company-financials EXCLUA o gross do secundário do bruto.
+      package_absorbed?: boolean;
+      package_absorbed_calc_id?: string | null;
     };
     type VersionRow = Record<string, unknown>;
     type ObsRow = Record<string, unknown>;
