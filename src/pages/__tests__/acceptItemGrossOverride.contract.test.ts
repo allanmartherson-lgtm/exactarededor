@@ -66,46 +66,37 @@ describe("acatar item · sobrescrita de gross_amount", () => {
   });
 
   it("accept_payment_item copia expected_amount → gross_amount", () => {
-    // Bloco da função
-    const fn = null /*replaced*/;
-    expect(fn, "accept_payment_item não encontrada").toBeTruthy();
-    const body = fn![0];
-    // gross_amount = CASE WHEN v_expected IS NOT NULL THEN v_expected
+    const body = lastFn("accept_payment_item");
     expect(body).toMatch(/gross_amount\s*=\s*CASE[\s\S]*v_expected\s+IS\s+NOT\s+NULL[\s\S]*THEN\s+v_expected/i);
   });
 
   it("accept_payment_item preserva original só na 1ª sobrescrita", () => {
-    const fn = null /*replaced*/![0];
-    // Usa flag v_already_overridden para não sobrescrever original
+    const fn = lastFn("accept_payment_item");
     expect(fn).toMatch(/v_already_overridden/i);
     expect(fn).toMatch(/gross_amount_original\s*=\s*CASE[\s\S]*NOT\s+v_already_overridden[\s\S]*THEN\s+v_gross/i);
   });
 
   it("accept_payment_item marca reason='acatado_esperado' e audita", () => {
-    const fn = null /*replaced*/![0];
+    const fn = lastFn("accept_payment_item");
     expect(fn).toMatch(/gross_override_reason\s*=\s*CASE[\s\S]*'acatado_esperado'/i);
     expect(fn).toMatch(/INSERT INTO public\.audit_log[\s\S]*'gross_anterior'[\s\S]*'gross_novo'/i);
   });
 
   it("undo_accept_payment_item restaura gross original e limpa flags", () => {
-    const fn = sql.match(/CREATE OR REPLACE FUNCTION public\.undo_accept_payment_item[\s\S]*?\$function\$/i);
-    expect(fn, "undo_accept_payment_item não encontrada").toBeTruthy();
-    const body = fn![0];
-    // Restaura gross
+    const body = lastFn("undo_accept_payment_item");
     expect(body).toMatch(/gross_amount\s*=\s*CASE[\s\S]*gross_override_reason\s*=\s*'acatado_esperado'[\s\S]*gross_amount_original\s+IS\s+NOT\s+NULL[\s\S]*THEN\s+gross_amount_original/i);
-    // Limpa trilha
     expect(body).toMatch(/gross_amount_original\s*=\s*CASE[\s\S]*'acatado_esperado'[\s\S]*THEN\s+NULL/i);
     expect(body).toMatch(/gross_override_at\s*=\s*CASE[\s\S]*'acatado_esperado'[\s\S]*THEN\s+NULL/i);
     expect(body).toMatch(/gross_override_reason\s*=\s*CASE[\s\S]*'acatado_esperado'[\s\S]*THEN\s+NULL/i);
-    // Auditoria
     expect(body).toMatch(/INSERT INTO public\.audit_log[\s\S]*'gross_restaurado'/i);
   });
 
   it("undo só age quando o motivo foi 'acatado_esperado' (não mexe em outros overrides)", () => {
-    const fn = sql.match(/CREATE OR REPLACE FUNCTION public\.undo_accept_payment_item[\s\S]*?\$function\$/i)![0];
-    // ELSE preserva o valor atual (não NULL fora do reason específico)
-    expect(fn).toMatch(/THEN\s+NULL\s+END/i);
+    const fn = lastFn("undo_accept_payment_item");
+    // Ramos com ELSE explícito preservando o valor atual
     expect(fn).toMatch(/ELSE\s+gross_amount\s+END/i);
+    expect(fn).toMatch(/ELSE\s+gross_amount_original\s+END/i);
+    expect(fn).toMatch(/ELSE\s+gross_override_reason\s+END/i);
   });
 });
 
