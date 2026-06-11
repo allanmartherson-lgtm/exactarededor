@@ -1000,9 +1000,11 @@ export function ItemsDataGrid({
           className="grid-scroll-rail hidden md:block h-4 overflow-x-scroll overflow-y-hidden border-b bg-muted/20"
           aria-label="Rolagem horizontal da tabela"
           onScroll={(e) => syncScrollLeft("top", e.currentTarget.scrollLeft)}
+          style={{ paddingRight: vScrollbarWidth, boxSizing: "border-box" }}
         >
           <div style={{ width: Math.max(measuredScrollWidth, tableMinWidth), height: 1 }} />
         </div>
+
         <div
           ref={gridScrollRef}
           className="grid-scroll-area h-[calc(100%-1rem)] w-full overflow-scroll isolate pb-4"
