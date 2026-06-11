@@ -38,15 +38,20 @@ type PaymentLite = {
   status: string;
 };
 
+const TAB_VALUES = ["pagamento", "bases", "retroativa"] as const;
+type TabValue = (typeof TAB_VALUES)[number];
+
 export default function Conciliacao() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab =
-    searchParams.get("tab") === "retroativa" ? "retroativa" : "pagamento";
+  const tabParam = searchParams.get("tab");
+  const activeTab: TabValue = (TAB_VALUES as readonly string[]).includes(tabParam ?? "")
+    ? (tabParam as TabValue)
+    : "pagamento";
   const setActiveTab = (v: string) => {
     const next = new URLSearchParams(searchParams);
-    if (v === "retroativa") next.set("tab", "retroativa");
-    else next.delete("tab");
+    if (v === "pagamento") next.delete("tab");
+    else next.set("tab", v);
     setSearchParams(next, { replace: true });
   };
 
