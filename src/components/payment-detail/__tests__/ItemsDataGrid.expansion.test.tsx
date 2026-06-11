@@ -112,10 +112,12 @@ describe("ItemsDataGrid — expansão inline e altura adaptativa", () => {
     const { unmount } = renderGrid(small);
     const wrapperA = findWrapper()!;
     expect(wrapperA).toBeTruthy();
-    expect(wrapperA.style.height).toMatch(/min\(/);
-    expect(wrapperA.style.height).toMatch(/640px/);
+    const styleAttrA = wrapperA.getAttribute("style") ?? "";
+    expect(styleAttrA).toMatch(/min\(/);
+    expect(styleAttrA).toContain("640px");
     // 2 itens * 38 + 0 banners * 44 + 0 expandido + 140 = 216px
-    expect(wrapperA.style.height).toContain("216px");
+    expect(styleAttrA).toContain("216px");
+
     unmount();
 
     // Caso B: grupo de pacote adiciona +44px por banner
