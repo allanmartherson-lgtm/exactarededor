@@ -505,30 +505,30 @@ function NewView({
 
   useEffect(() => {
     void (async () => {
-      // Pagina para garantir todos os médicos ativos (4k+).
-      const PAGE = 1000;
-      const all: Doctor[] = [];
-      for (let from = 0; from < 10000; from += PAGE) {
-        const { data } = await supabase
-          .from("doctors")
-          .select("id, full_name, crm, crm_uf")
-          .eq("active", true)
-          .order("full_name")
-          .range(from, from + PAGE - 1);
-        const rows = (data ?? []) as Doctor[];
-        all.push(...rows);
-        if (rows.length < PAGE) break;
-      }
+      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+      const [all, cs] = await Promise.all([
+        fetchAllPaginated<Doctor>((from, to) =>
+          supabase
+            .from("doctors")
+            .select("id, full_name, crm, crm_uf")
+            .eq("active", true)
+            .order("full_name")
+            .range(from, to),
+        ),
+        fetchAllPaginated<Company>((from, to) =>
+          supabase
+            .from("companies")
+            .select("id, name, document")
+            .eq("active", true)
+            .order("name")
+            .range(from, to),
+        ),
+      ]);
       setDoctors(all);
-      const { data: cs } = await supabase
-        .from("companies")
-        .select("id, name, document")
-        .eq("active", true)
-        .order("name")
-        .limit(5000);
-      setCompanies((cs ?? []) as Company[]);
+      setCompanies(cs);
     })();
   }, []);
+
 
   const selectedDoctor = doctors.find((d) => d.id === doctorId);
   const selectedCompany = companies.find((c) => c.id === companyId);
