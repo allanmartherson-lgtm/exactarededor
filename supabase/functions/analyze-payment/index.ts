@@ -2066,6 +2066,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_at: u.applied_at,
         convenio_basis_detected: (u as any).convenio_basis_detected,
         basis_confidence: (u as any).basis_confidence,
+        // Pacote: marca/desmarca absorção (idempotente em reanálise).
+        package_absorbed: u.package_absorbed === true,
+        package_absorbed_calc_id: u.package_absorbed_calc_id ?? null,
       };
       // CONFECÇÃO: motor PRODUZ o gross_amount (valor a pagar) a partir do
       // expected_amount calculado pela regra. Sem regra (sem_regra ou bloqueio
