@@ -2186,7 +2186,7 @@ function ItemDetailsRow({
   const isBonus = (it as any).tipo_linha === "complemento_bonus";
   if (isBonus) {
     return (
-      <tr className="border-b bg-indigo-50/40 dark:bg-indigo-950/15">
+      <tr className="border-b bg-indigo-50/40 dark:bg-indigo-950/15" data-expanded-row={it.id}>
         <td colSpan={colSpan} className="p-0 align-top">
           <div
             className={cn("sticky left-0 px-3 sm:px-4 py-3 sm:py-4", TEXT_BODY)}
