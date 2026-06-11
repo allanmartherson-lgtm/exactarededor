@@ -617,6 +617,9 @@ export function ItemsDataGrid({
       // Itens cancelados (via conciliação ou grupo cancelado) saem do total
       // financeiro — não somam mais ao "Valor Repasse" nem ao "Esperado".
       if ((it as any).is_cancelled) continue;
+      // Itens absorvidos manualmente em pacote: o valor já está no banner do
+      // pacote (totalGross) — somar de novo geraria duplicidade no total.
+      if ((it as any).package_absorbed) continue;
       count++;
       valor += Number(it.gross_amount ?? 0);
       procedure += Number((it as any).procedure_amount ?? 0);
@@ -1852,7 +1855,7 @@ function PackageBannerRow({
           )}>
             {statusLabel}
           </span>
-          {canEdit && onToggleAbsorcoes && (
+          {canEdit && onToggleAbsorcoes && !isCollapsed && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleAbsorcoes(); }}
@@ -1949,8 +1952,11 @@ function RowMain({
   showDiferencaCol?: boolean;
 }) {
   const convenio = getAgreement(it);
-  const grossN = Number(it.gross_amount ?? 0);
-  const expN = expected != null ? Number(expected) : null;
+  // Itens absorvidos manualmente em pacote: zerados visualmente — o valor
+  // foi incorporado ao pacote principal, não devem aparecer como repasse próprio.
+  const isAbsorbed = (it as any).package_absorbed === true;
+  const grossN = isAbsorbed ? 0 : Number(it.gross_amount ?? 0);
+  const expN = isAbsorbed ? 0 : (expected != null ? Number(expected) : null);
   const diff = expN != null ? expN - grossN : null;
   const diverges = diff != null && Math.abs(diff) > 0.01;
   const sectorAliases = useSectorAliases();
