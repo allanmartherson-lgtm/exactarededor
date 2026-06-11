@@ -2173,11 +2173,18 @@ function RowMain({
                 TEXT_META,
               )}
               style={{ backgroundColor: "hsl(var(--success))", color: "hsl(var(--primary-foreground))", borderColor: "hsl(var(--success))" }}
-              title={
-                it.acatado_status_original
+              title={(() => {
+                const origin = it.acatado_status_original
                   ? `Acatado (era ${it.acatado_status_original})`
-                  : "Acatado"
-              }
+                  : "Acatado";
+                const orig = (it as any).gross_amount_original;
+                const overridden = (it as any).gross_override_at;
+                if (overridden && orig != null && Number(orig) !== Number(it.gross_amount ?? 0)) {
+                  const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                  return `${origin} · valor ajustado de ${fmt(Number(orig))} para ${fmt(Number(it.gross_amount ?? 0))}`;
+                }
+                return origin;
+              })()}
             >
               <CheckCircle2 className="h-2.5 w-2.5" />
               ACATADO
