@@ -1115,6 +1115,35 @@ const NewPayment = () => {
     });
   };
 
+  /**
+   * Aplica um override de mapeamento de colunas vindo do diálogo
+   * (ou de um template salvo). Reprocessa as linhas com o novo mapping.
+   */
+  const applyColumnMappingOverride = (idx: number, mapping: ManualMapping) => {
+    setBuckets((prev) => prev.map((bucket, bIdx) => {
+      if (bIdx !== idx) return bucket;
+      const matrix = bucket.rawMatrix;
+      const headerIdx = bucket.headerRowIndex ?? 0;
+      if (!matrix) return { ...bucket, columnMapping: mapping };
+      const json = matrixToJson(matrix, headerIdx);
+      const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
+      const registry = companiesRef.current.length ? companiesRef.current : companies;
+      const company = bucket.matchedCompany
+        ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
+        : null;
+      const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, bucket.sectorColumnUsed ?? null, mapping);
+      const baseHits = inspectColumnMapping(bucket.detectedHeaders ?? []);
+      const mappingHits: FieldMappingHit[] = baseHits.map((h) => {
+        const override = mapping[h.field];
+        if (override && (bucket.detectedHeaders ?? []).includes(override)) {
+          return { ...h, header: override, score: 100, confidence: "high" as const };
+        }
+        return h;
+      });
+      return { ...bucket, rows, columnMapping: mapping, mappingHits };
+    }));
+    toast({ title: "Mapeamento de colunas atualizado", description: "As linhas foram reprocessadas com o novo mapeamento." });
+  };
 
 
   const reportParseError = (fileName: string, e: unknown) => {
