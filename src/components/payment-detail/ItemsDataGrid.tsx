@@ -195,6 +195,7 @@ export function ItemsDataGrid({
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
   const [onlyAdjusted, setOnlyAdjusted] = useState(false);
+  const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
 
   // IDs dos itens que tiveram valor corrigido pelo analista (mesma fonte do
   // relatório "Correções em análise"): observações com author_type='analista'
@@ -469,6 +470,50 @@ export function ItemsDataGrid({
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, groupStatus, sortKey, sortDir]);
+
+  // Detecta grupos de pacote: atendimentos onde applied_calc_method === 'pacote'
+  const packageGroups = useMemo(() => {
+    type PkgGroup = {
+      firstItemIdx: number;
+      items: PaymentItemRowData[];
+      ruleName: string;
+      totalGross: number;
+      totalExpected: number | null;
+      worstStatus: "reprovado" | "alerta" | "aprovado";
+    };
+    const groups = new Map<string, PkgGroup>();
+    filtered.forEach((it, idx) => {
+      if ((it as any).applied_calc_method !== "pacote") return;
+      const att = (it.attendance_number ?? "").toString().trim();
+      if (!att) return;
+      if (!groups.has(att)) {
+        const ruleNameRaw =
+          (it as any).applied_rule_label ??
+          ((it.ai_findings?.matched_rules as string[] | undefined)?.[0]) ??
+          "Pacote";
+        const ruleName = String(ruleNameRaw).replace(/\s*—\s*Pacote\s*$/i, "");
+        groups.set(att, {
+          firstItemIdx: idx,
+          items: [],
+          ruleName,
+          totalGross: 0,
+          totalExpected: 0,
+          worstStatus: "aprovado",
+        });
+      }
+      const g = groups.get(att)!;
+      g.items.push(it);
+      g.totalGross += Number(it.gross_amount ?? 0);
+      const exp =
+        (it.ai_findings?.expected_amount as number | undefined) ??
+        ((it as any).expected_amount as number | undefined);
+      if (exp != null) g.totalExpected = (g.totalExpected ?? 0) + Number(exp);
+      if (it.ai_status === "reprovado") g.worstStatus = "reprovado";
+      else if (it.ai_status === "alerta" && g.worstStatus !== "reprovado")
+        g.worstStatus = "alerta";
+    });
+    return groups;
+  }, [filtered]);
 
 
   // Totais da seleção atual (após filtros).
@@ -1283,6 +1328,16 @@ export function ItemsDataGrid({
                 const prevIsBonus = !!prev && (prev as any).tipo_linha === "complemento_bonus";
                 const isFirstAdjust = isAdjust && !isBonus && !prevIsAdjust;
                 const isFirstBonus = isBonus && !prevIsBonus;
+
+                // Detecção de pacote
+                const isPackageItem = (it as any).applied_calc_method === "pacote";
+                const pkgAtt = isPackageItem ? (it.attendance_number ?? "").toString().trim() : "";
+                const pkgGroup = isPackageItem && pkgAtt ? packageGroups.get(pkgAtt) : undefined;
+                const isFirstPkgItem = !!(pkgGroup && pkgGroup.firstItemIdx === idx);
+                const isPackageCollapsed = isPackageItem && pkgAtt ? collapsedPackages.has(pkgAtt) : false;
+                if (isPackageItem && isPackageCollapsed && !isFirstPkgItem) return null;
+                const showItemRow = !isPackageItem || !isPackageCollapsed;
+
                 return (
                   <Fragment key={it.id}>
 
@@ -1304,37 +1359,57 @@ export function ItemsDataGrid({
                         </td>
                       </tr>
                     )}
-                    <RowMain
-                      key={it.id}
-                      it={it}
-                      allItems={items}
-                      paciente={paciente}
-                      expected={expected ?? null}
-                      eff={eff}
-                      tone={tone}
-                      isActive={isActive}
-                      isExpanded={isExpanded}
-                      isCritical={isCritical}
-                      hasAlert={alerts.length > 0}
-                      onSelect={() => selectRow(it.id)}
-                      onOpen={() => openDetail(it.id)}
-                      colVis={colVis}
-                      rulesIndex={rulesIndex}
-                      rulesByName={rulesByName}
-                      observations={observations}
-                      profiles={profiles}
-                      obsCount={obsCount}
-                      isCompact={isCompact}
-                      totalCols={totalCols}
-                      canEdit={canEdit}
-                      onEditItem={onEditItem}
-                      onDeleteItem={onDeleteItem}
-                      onAcceptItem={onAcceptItem}
-                      onUndoAcceptItem={onUndoAcceptItem}
-                      showGrossColumn={showGrossColumn}
-                      showProcedureColumn={showProcedureColumn}
-                      showDiferencaCol={showDiferencaCol}
-                    />
+                    {isFirstPkgItem && pkgGroup && (
+                      <PackageBannerRow
+                        group={pkgGroup}
+                        att={pkgAtt}
+                        isCollapsed={isPackageCollapsed}
+                        onToggle={() =>
+                          setCollapsedPackages((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(pkgAtt)) next.delete(pkgAtt);
+                            else next.add(pkgAtt);
+                            return next;
+                          })
+                        }
+                        totalCols={totalCols}
+                        isCompact={isCompact}
+                        showGrossColumn={showGrossColumn}
+                      />
+                    )}
+                    {showItemRow && (
+                      <RowMain
+                        key={it.id}
+                        it={it}
+                        allItems={items}
+                        paciente={paciente}
+                        expected={expected ?? null}
+                        eff={eff}
+                        tone={tone}
+                        isActive={isActive}
+                        isExpanded={isExpanded}
+                        isCritical={isCritical}
+                        hasAlert={alerts.length > 0}
+                        onSelect={() => selectRow(it.id)}
+                        onOpen={() => openDetail(it.id)}
+                        colVis={colVis}
+                        rulesIndex={rulesIndex}
+                        rulesByName={rulesByName}
+                        observations={observations}
+                        profiles={profiles}
+                        obsCount={obsCount}
+                        isCompact={isCompact}
+                        totalCols={totalCols}
+                        canEdit={canEdit}
+                        onEditItem={onEditItem}
+                        onDeleteItem={onDeleteItem}
+                        onAcceptItem={onAcceptItem}
+                        onUndoAcceptItem={onUndoAcceptItem}
+                        showGrossColumn={showGrossColumn}
+                        showProcedureColumn={showProcedureColumn}
+                        showDiferencaCol={showDiferencaCol}
+                      />
+                    )}
                   </Fragment>
 
                 );
@@ -1412,6 +1487,114 @@ export function ItemsDataGrid({
         </div>
       )}
     </div>
+  );
+}
+
+// ============================================================
+//  PackageBannerRow — cabeçalho colapsável de grupo de pacote
+// ============================================================
+function PackageBannerRow({
+  group,
+  att,
+  isCollapsed,
+  onToggle,
+  totalCols,
+  isCompact,
+  showGrossColumn,
+}: {
+  group: {
+    items: import("@/hooks/usePaymentDetailData").PaymentItemRow[];
+    ruleName: string;
+    totalGross: number;
+    totalExpected: number | null;
+    worstStatus: "reprovado" | "alerta" | "aprovado";
+  };
+  att: string;
+  isCollapsed: boolean;
+  onToggle: () => void;
+  totalCols: number;
+  isCompact: boolean;
+  showGrossColumn: boolean;
+}) {
+  const statusColor =
+    group.worstStatus === "reprovado"
+      ? { bg: "hsl(0 70% 96%)", border: "hsl(0 60% 65%)", text: "hsl(0 60% 35%)" }
+      : group.worstStatus === "alerta"
+      ? { bg: "hsl(38 80% 95%)", border: "hsl(38 70% 58%)", text: "hsl(38 60% 30%)" }
+      : { bg: "hsl(142 40% 95%)", border: "hsl(142 40% 62%)", text: "hsl(142 40% 25%)" };
+
+  const statusLabel =
+    group.worstStatus === "aprovado"
+      ? "✓ Pacote OK"
+      : group.worstStatus === "alerta"
+      ? "⚠ Com alertas"
+      : "✗ Com divergência";
+
+  const tone: keyof typeof TONE_CLASSES =
+    group.worstStatus === "reprovado"
+      ? "destructive"
+      : group.worstStatus === "alerta"
+      ? "warning"
+      : "success";
+
+  const pad = isCompact ? "5px 12px" : "8px 16px";
+
+  return (
+    <tr
+      className="cursor-pointer select-none hover:brightness-95 transition-all"
+      style={{ background: statusColor.bg }}
+      onClick={onToggle}
+      title={isCollapsed ? "Expandir itens do pacote" : "Colapsar itens do pacote"}
+    >
+      <td
+        colSpan={totalCols}
+        style={{
+          padding: pad,
+          borderBottom: "1px solid hsl(var(--border))",
+          borderTop: `2px solid ${statusColor.border}`,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <span style={{ color: statusColor.text, display: "flex", alignItems: "center", flexShrink: 0 }}>
+            {isCollapsed
+              ? <ChevronRight className="h-3.5 w-3.5" />
+              : <ChevronDown className="h-3.5 w-3.5" />}
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: statusColor.text, whiteSpace: "nowrap" }}>
+            📦 {group.ruleName}
+          </span>
+          <span style={{ fontFamily: "monospace", fontSize: 10, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>
+            Atend. {att}
+          </span>
+          <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>
+            · {group.items.length} {group.items.length === 1 ? "item" : "itens"}
+          </span>
+          <div style={{ flex: 1 }} />
+          {showGrossColumn && (
+            <span style={{
+              fontFamily: "monospace",
+              fontSize: 13,
+              fontWeight: 700,
+              color: statusColor.text,
+              whiteSpace: "nowrap",
+            }}>
+              {formatCurrency(group.totalGross)}
+            </span>
+          )}
+          {group.totalExpected != null && Math.abs(group.totalGross - group.totalExpected) > 0.02 && (
+            <span style={{ fontFamily: "monospace", fontSize: 11, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>
+              esp. {formatCurrency(group.totalExpected)}
+            </span>
+          )}
+          <span className={cn(
+            "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap",
+            TONE_CLASSES[tone],
+          )}>
+            {statusLabel}
+          </span>
+        </div>
+      </td>
+    </tr>
   );
 }
 
