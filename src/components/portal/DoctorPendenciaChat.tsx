@@ -67,20 +67,23 @@ export function DoctorPendenciaChat({ pendenciaId, doctorId, doctorName, classNa
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase
-      .from("doctor_messages" as never)
-      .select(
-        "id,doctor_id,author_user_id,author_type,author_name,message,read_at,read_by_doctor_at,created_at,thread_id",
-      )
-      .eq("doctor_id", doctorId)
-      .eq("thread_id", pendenciaId)
-      .order("created_at", { ascending: true })
-      .limit(1000);
-    if (error) {
-      setError(error.message);
+    const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+    try {
+      const data = await fetchAllPaginated<DoctorMsg>((from, to) =>
+        supabase
+          .from("doctor_messages" as never)
+          .select(
+            "id,doctor_id,author_user_id,author_type,author_name,message,read_at,read_by_doctor_at,created_at,thread_id",
+          )
+          .eq("doctor_id", doctorId)
+          .eq("thread_id", pendenciaId)
+          .order("created_at", { ascending: true })
+          .range(from, to),
+      );
+      setMessages(data);
+    } catch (error: any) {
+      setError(error?.message ?? String(error));
       setMessages([]);
-    } else {
-      setMessages((data ?? []) as unknown as DoctorMsg[]);
     }
     setLoading(false);
   }, [doctorId, pendenciaId]);
