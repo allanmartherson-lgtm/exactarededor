@@ -1445,7 +1445,7 @@ export function ItemsDataGrid({
                   </td>
                 </tr>
               )}
-              {filtered.map((it, idx) => {
+              {displayRows.map((it, idx) => {
                 const paciente = getPatient(it);
                 const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
                 const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus, (it as any).is_cancelled);
