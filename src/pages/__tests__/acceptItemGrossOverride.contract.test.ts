@@ -39,7 +39,7 @@ function loadMigrations(): string {
 const sql = loadMigrations();
 
 function lastFn(name: string): string {
-  const re = new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}[\\s\\S]*?\\$function\\$`, "gi");
+  const re = new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\b[\\s\\S]*?\\$function\\$[\\s\\S]*?\\$function\\$`, "gi");
   const all = [...sql.matchAll(re)].map((m) => m[0]);
   if (all.length === 0) throw new Error(`função ${name} não encontrada`);
   return all[all.length - 1];
