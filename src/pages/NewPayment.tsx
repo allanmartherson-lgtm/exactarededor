@@ -52,6 +52,16 @@ import {
   MATCH_AUTO_THRESHOLD,
   MATCH_REVIEW_THRESHOLD,
 } from "@/lib/parsePaymentFile";
+import {
+  applyManualMappingShim,
+  inspectColumnMapping,
+  summarizeMissing,
+  FIELD_BY_KEY,
+  type ManualMapping,
+  type FieldMappingHit,
+} from "@/lib/columnMapping";
+import { useSheetColumnTemplates } from "@/hooks/useSheetColumnTemplates";
+import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
 
 interface ParsedRow {
   doctor_name: string;
