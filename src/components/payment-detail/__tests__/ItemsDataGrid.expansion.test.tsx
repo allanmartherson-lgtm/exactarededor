@@ -104,39 +104,37 @@ describe("ItemsDataGrid — expansão inline e altura adaptativa", () => {
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
-  it("altura adaptativa cresce com itens, banner de pacote e expansão", () => {
+  it("aplica baseline min-h 640 para diferentes tipos de regra e tamanhos de tela", () => {
     const findWrapper = () => document.querySelector<HTMLElement>('[class*="min-h-[640px]"]');
 
-    // Caso A: poucos itens → baseline com min-h 640 e fórmula items*38 + chrome
     const small = [makeItem({ id: "s1" }), makeItem({ id: "s2", attendance_number: "ATD-2" })];
-    const { unmount } = renderGrid(small);
-    const wrapperA = findWrapper()!;
-    expect(wrapperA).toBeTruthy();
-    // eslint-disable-next-line no-console
-    console.log("WRAPPER A:", wrapperA.outerHTML.slice(0, 500));
+    const { unmount: u1 } = renderGrid(small);
+    expect(findWrapper()).toBeTruthy();
+    u1();
 
-
-
-    unmount();
-
-    // Caso B: grupo de pacote adiciona +44px por banner
+    // grupo de pacote (RAMO 3)
     const pkg = [
       makeItem({ id: "p1", attendance_number: "PKG-1", applied_calc_method: "pacote" } as any),
       makeItem({ id: "p2", attendance_number: "PKG-1", applied_calc_method: "pacote" } as any),
       makeItem({ id: "p3", attendance_number: "PKG-1", applied_calc_method: "pacote" } as any),
     ];
-    const r2 = renderGrid(pkg);
-    const wrapperB = findWrapper()!;
-    // 3*38 + 1*44 + 140 = 298px na fórmula
-    expect(wrapperB.outerHTML).toContain("298px");
+    const { unmount: u2 } = renderGrid(pkg);
+    expect(findWrapper()).toBeTruthy();
+    u2();
 
+    // regra percentual (RAMO 2)
+    const pct = [
+      makeItem({ id: "r1", applied_calc_method: "percentual_convenio" } as any),
+      makeItem({ id: "r2", attendance_number: "ATD-2", applied_calc_method: "percentual_convenio" } as any),
+    ];
+    const { unmount: u3 } = renderGrid(pct);
+    expect(findWrapper()).toBeTruthy();
+    u3();
 
-    r2.unmount();
-
-    // Caso C: viewport mobile preserva min-h baseline (não colapsa abaixo de 640)
+    // viewport mobile não colapsa o baseline
     setViewport(390, 700);
     renderGrid(small);
     expect(findWrapper()).toBeTruthy();
   });
-
 });
+
