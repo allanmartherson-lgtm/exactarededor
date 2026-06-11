@@ -497,7 +497,8 @@ export const parsePaymentFile = async (
     let doctorNameRaw = toStr(pick(row, [
       "medico parecerista","médico parecerista","parecerista",
       "medico executante","médico executante","executante",
-      "medico","médico","nome","prestador",
+      "medico exec","medico exec.","médico exec","medico executante","médico executante",
+      "medico","médico","prestador",
     ], DOCTOR_EXCLUDES));
     // Fallback: planilhas de parecer usam coluna "Repasse" para o nome do
     // recebedor. Só aceitamos se NÃO for número (valores ficam em outra coluna).
@@ -532,7 +533,7 @@ export const parsePaymentFile = async (
         "dt resposta","dt. resp","dt resp","data resposta",
         "dt solic","dt. solic","data solicitacao","data solicitação",
       ])),
-      patient_name: toStr(pick(row, ["paciente","nome paciente","nm paciente","nome do paciente"])),
+      patient_name: toStr(pick(row, ["paciente","nome paciente","nm paciente","nome do paciente","nome"])),
       sector: toStr(pick(row, ["setor do pagamento", "setor", "unidade de atendimento", "unidade", "departamento", "servico", "serviço", "localizacao", "localização"])),
       attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
       raw_data: row,
