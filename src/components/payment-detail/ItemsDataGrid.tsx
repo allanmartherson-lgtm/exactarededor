@@ -2258,9 +2258,9 @@ function RowMain({
                   TEXT_META,
                 )}
                 style={{
-                  backgroundColor: "hsl(var(--warning) / 0.15)",
+                  backgroundColor: "hsl(var(--warning) / 0.12)",
                   color: "hsl(var(--warning))",
-                  borderColor: "hsl(var(--warning))",
+                  borderColor: "hsl(var(--warning) / 0.35)",
                 }}
                 title={tip}
                 data-testid="analyst-adjusted-badge"
