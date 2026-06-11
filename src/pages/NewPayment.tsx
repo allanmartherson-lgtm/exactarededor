@@ -763,7 +763,8 @@ const NewPayment = () => {
       const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
       let rowMatchedCompany: CompanyRow | null = null;
       if (!filenameTrusted && rowCompanyNameRaw) {
-        const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
+        const registry = companiesRef.current.length ? companiesRef.current : companies;
+        const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, registry);
         if (s >= MATCH_AUTO_THRESHOLD) rowMatchedCompany = matched;
       }
       const rawSector = sectorColumnOverride
