@@ -1456,23 +1456,138 @@ export function ItemsDataGrid({
                       </tr>
                     )}
                     {isFirstPkgItem && pkgGroup && (
-                      <PackageBannerRow
-                        group={pkgGroup}
-                        att={pkgAtt}
-                        isCollapsed={isPackageCollapsed}
-                        onToggle={() =>
-                          setCollapsedPackages((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(pkgAtt)) next.delete(pkgAtt);
-                            else next.add(pkgAtt);
-                            return next;
-                          })
-                        }
-                        totalCols={totalCols}
-                        isCompact={isCompact}
-                        showGrossColumn={showGrossColumn}
-                      />
+                      <>
+                        <PackageBannerRow
+                          group={pkgGroup}
+                          att={pkgAtt}
+                          isCollapsed={isPackageCollapsed}
+                          onToggle={() =>
+                            setCollapsedPackages((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(pkgAtt)) next.delete(pkgAtt);
+                              else next.add(pkgAtt);
+                              return next;
+                            })
+                          }
+                          totalCols={totalCols}
+                          isCompact={isCompact}
+                          showGrossColumn={showGrossColumn}
+                          canEdit={canEdit}
+                          isAbsorcoesOpen={absorcoesOpenAtt === pkgAtt}
+                          onToggleAbsorcoes={() =>
+                            setAbsorcoesOpenAtt((cur) => (cur === pkgAtt ? null : pkgAtt))
+                          }
+                        />
+                        {canEdit && absorcoesOpenAtt === pkgAtt && (
+                          <tr key={`absorcoes-${pkgAtt}`}>
+                            <td colSpan={totalCols} style={{ padding: 0, background: "hsl(45 100% 97%)", borderBottom: "1px solid hsl(var(--border))" }}>
+                              <div className="p-3 space-y-2">
+                                <div className="text-xs font-semibold text-amber-900">
+                                  Gerenciar absorções — Atend. {pkgAtt}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  Marque códigos deste atendimento que devem ser absorvidos pelo pacote (expected = 0, aprovado).
+                                  Os códigos já incluídos pela regra são automáticos.
+                                </div>
+
+                                {/* Itens já no pacote — via regra, bloqueados */}
+                                {pkgGroup.items.map((pi) => (
+                                  <div key={`pkg-locked-${pi.id}`} className="flex items-center gap-2 text-[11px] py-0.5">
+                                    <CheckSquare className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+                                    <span className="font-mono">{getProcedureCode(pi)}</span>
+                                    <span className="flex-1 truncate text-muted-foreground">{getProcedureName(pi) ?? "—"}</span>
+                                    <span className="text-[10px] uppercase tracking-wide text-emerald-700">via regra</span>
+                                  </div>
+                                ))}
+
+                                {/* Itens fora do pacote no mesmo atendimento */}
+                                {(filtered as PaymentItemRowData[])
+                                  .filter((x) => (x.attendance_number ?? "").toString().trim() === pkgAtt
+                                    && !pkgGroup.items.some((p) => p.id === x.id))
+                                  .map((x) => {
+                                    const isAbsorbed = (x as any).package_absorbed === true;
+                                    const isPending = absorcaoPending === x.id;
+                                    const note = absorcaoNoteDraft[x.id] ?? "";
+                                    return (
+                                      <div key={`pkg-cand-${x.id}`} className="border border-amber-200 bg-white/60 rounded px-2 py-1.5 space-y-1">
+                                        <div className="flex items-center gap-2 text-[11px]">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (isAbsorbed) {
+                                                if (confirm("Reverter absorção deste código?")) reverterAbsorcao(x.id);
+                                              } else {
+                                                setAbsorcaoPending(isPending ? null : x.id);
+                                              }
+                                            }}
+                                            disabled={!!savingAbsorcao}
+                                            className="flex-shrink-0"
+                                            title={isAbsorbed ? "Reverter absorção" : "Absorver no pacote"}
+                                          >
+                                            {isAbsorbed
+                                              ? <CheckSquare className="h-4 w-4 text-amber-700" />
+                                              : <Square className="h-4 w-4 text-muted-foreground" />
+                                            }
+                                          </button>
+                                          <span className="font-mono">{getProcedureCode(x)}</span>
+                                          <span className="flex-1 truncate text-muted-foreground">{getProcedureName(x) ?? "—"}</span>
+                                          <span className="font-mono text-[10px] text-muted-foreground">R$ {Number(x.gross_amount ?? 0).toFixed(2)}</span>
+                                          {isAbsorbed && (
+                                            <button
+                                              type="button"
+                                              onClick={() => { if (confirm("Reverter absorção?")) reverterAbsorcao(x.id); }}
+                                              disabled={!!savingAbsorcao}
+                                              className="inline-flex items-center gap-1 text-[10px] text-red-600 hover:text-red-700"
+                                              title="Reverter absorção manual"
+                                            >
+                                              <RotateCcw className="h-3 w-3" /> reverter
+                                            </button>
+                                          )}
+                                        </div>
+                                        {isAbsorbed && (x as any).package_absorbed_note && (
+                                          <div className="text-[10px] italic text-muted-foreground pl-6">
+                                            "{(x as any).package_absorbed_note}"
+                                          </div>
+                                        )}
+                                        {isPending && !isAbsorbed && (
+                                          <div className="pl-6 space-y-1">
+                                            <textarea
+                                              value={note}
+                                              placeholder="Justifique a absorção (mín. 10 caracteres)…"
+                                              onChange={(e) => setAbsorcaoNoteDraft((d) => ({ ...d, [x.id]: e.target.value }))}
+                                              rows={2}
+                                              className="w-full text-[11px] rounded border border-amber-300 bg-white px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-amber-400"
+                                            />
+                                            <div className="flex items-center gap-2">
+                                              <button
+                                                type="button"
+                                                disabled={note.trim().length < 10 || !!savingAbsorcao}
+                                                onClick={() => absorverItem(x.id, (x as any).package_absorbed_calc_id ?? null, note)}
+                                                className="px-2 py-0.5 rounded bg-amber-600 text-white text-[10px] font-medium disabled:opacity-40 hover:bg-amber-700"
+                                              >
+                                                {savingAbsorcao === x.id ? "Salvando…" : "Confirmar absorção"}
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setAbsorcaoPending(null)}
+                                                className="px-2 py-0.5 rounded border text-[10px] text-muted-foreground hover:bg-muted"
+                                              >
+                                                Cancelar
+                                              </button>
+                                              <span className="text-[10px] text-muted-foreground">{note.trim().length}/mín.10</span>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     )}
+
                     {showItemRow && (
                       <RowMain
                         key={it.id}
