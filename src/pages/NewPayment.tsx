@@ -850,7 +850,7 @@ const NewPayment = () => {
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         sector: rawSector,
         attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
-        raw_data: row,
+        raw_data: rawRow,
         source_file: f.name,
         source_row_number: headerOffset + 2 + rowIndex,
       };
