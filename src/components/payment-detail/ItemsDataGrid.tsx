@@ -2195,8 +2195,8 @@ function RowMain({
               className={cn(
                 "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold",
                 TEXT_META,
+                TONE_CLASSES.success,
               )}
-              style={{ backgroundColor: "hsl(var(--success))", color: "hsl(var(--primary-foreground))", borderColor: "hsl(var(--success))" }}
               title={(() => {
                 const origin = it.acatado_status_original
                   ? `Acatado (era ${it.acatado_status_original})`
@@ -2213,6 +2213,7 @@ function RowMain({
               <CheckCircle2 className="h-2.5 w-2.5" />
               ACATADO
             </span>
+
           ) : (
             <span className={cn("inline-flex rounded-full border px-1 py-0.5", TEXT_META, "uppercase tracking-wide", TONE_CLASSES[tone])}>
               {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
@@ -2256,18 +2257,15 @@ function RowMain({
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold",
                   TEXT_META,
+                  TONE_CLASSES.warning,
                 )}
-                style={{
-                  backgroundColor: "hsl(var(--warning) / 0.12)",
-                  color: "hsl(var(--warning))",
-                  borderColor: "hsl(var(--warning) / 0.35)",
-                }}
                 title={tip}
                 data-testid="analyst-adjusted-badge"
               >
                 <Pencil className="h-2.5 w-2.5" />
                 AJUSTADO
               </span>
+
             );
           })()}
           {(() => {

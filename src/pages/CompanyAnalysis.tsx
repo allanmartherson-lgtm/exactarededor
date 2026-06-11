@@ -426,11 +426,17 @@ export default function CompanyAnalysis() {
 
       if (isInformativo) continue; // bônus/complemento/manual não contam como alerta
 
+      // Alertas/críticos contam apenas itens ainda em aberto.
+      // Itens acatados, aprovados ou seguidos pelo analista já foram resolvidos
+      // e não devem inflar o contador do card.
+      if (eff === "acatado" || eff === "aprovado" || eff === "seguido") continue;
+
       const alerts = (it.ai_findings?.alerts ?? []) as string[];
       if (alerts.length > 0) {
         if (it.ai_status === "reprovado") c.criticosTotal += 1;
         else c.alertasTotal += 1;
       }
+
     }
     return c;
   }, [items, gStatus]);
