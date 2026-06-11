@@ -1483,7 +1483,7 @@ export function ItemsDataGrid({
                 const itemOrigem = (it as any).item_origem as string | null | undefined;
                 const isAdjust = !!itemOrigem && itemOrigem !== "pagamento_atual";
                 const isBonus = (it as any).tipo_linha === "complemento_bonus";
-                const prev = idx > 0 ? filtered[idx - 1] : null;
+                const prev = idx > 0 ? displayRows[idx - 1] : null;
                 const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual" && (prev as any).tipo_linha !== "complemento_bonus";
                 const prevIsBonus = !!prev && (prev as any).tipo_linha === "complemento_bonus";
                 const isFirstAdjust = isAdjust && !isBonus && !prevIsAdjust;
