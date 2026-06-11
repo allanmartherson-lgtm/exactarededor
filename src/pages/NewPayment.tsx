@@ -2847,6 +2847,28 @@ const NewPayment = () => {
         </div>
 
       </div>
+
+      {mappingDialog.bucketIdx !== null && buckets[mappingDialog.bucketIdx] && (
+        <ColumnMappingDialog
+          open={mappingDialog.open}
+          onOpenChange={(open) => setMappingDialog((d) => ({ ...d, open }))}
+          fileName={buckets[mappingDialog.bucketIdx].file.name}
+          headers={buckets[mappingDialog.bucketIdx].detectedHeaders ?? []}
+          initialMapping={
+            buckets[mappingDialog.bucketIdx].columnMapping
+            ?? Object.fromEntries(
+              (buckets[mappingDialog.bucketIdx].mappingHits ?? [])
+                .filter((h) => h.header)
+                .map((h) => [h.field, h.header!]),
+            )
+          }
+          sampleRow={buckets[mappingDialog.bucketIdx].sampleRow}
+          hospitalId={hospital?.id ?? null}
+          onApply={(mapping) => {
+            applyColumnMappingOverride(mappingDialog.bucketIdx!, mapping);
+          }}
+        />
+      )}
     </>
   );
 };
