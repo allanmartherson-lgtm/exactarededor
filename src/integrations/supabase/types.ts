@@ -3907,6 +3907,11 @@ export type Database = {
           manual_note: string | null
           origem_reconciliation_item_id: string | null
           origem_referencia: string | null
+          package_absorbed: boolean | null
+          package_absorbed_at: string | null
+          package_absorbed_by: string | null
+          package_absorbed_calc_id: string | null
+          package_absorbed_note: string | null
           patient_name: string | null
           payment_id: string
           procedure_amount: number | null
@@ -3989,6 +3994,11 @@ export type Database = {
           manual_note?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
+          package_absorbed?: boolean | null
+          package_absorbed_at?: string | null
+          package_absorbed_by?: string | null
+          package_absorbed_calc_id?: string | null
+          package_absorbed_note?: string | null
           patient_name?: string | null
           payment_id: string
           procedure_amount?: number | null
@@ -4071,6 +4081,11 @@ export type Database = {
           manual_note?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
+          package_absorbed?: boolean | null
+          package_absorbed_at?: string | null
+          package_absorbed_by?: string | null
+          package_absorbed_calc_id?: string | null
+          package_absorbed_note?: string | null
           patient_name?: string | null
           payment_id?: string
           procedure_amount?: number | null
@@ -4146,6 +4161,13 @@ export type Database = {
             columns: ["origem_reconciliation_item_id"]
             isOneToOne: false
             referencedRelation: "reconciliation_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_package_absorbed_calc_id_fkey"
+            columns: ["package_absorbed_calc_id"]
+            isOneToOne: false
+            referencedRelation: "rule_calculations"
             referencedColumns: ["id"]
           },
           {
