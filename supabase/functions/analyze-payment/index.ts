@@ -902,10 +902,42 @@ serve(async (req) => {
           (byAttendance[att] ||= []).push(it);
         }
 
+        // Fix cross-PJ: cada worker vê só os itens da sua empresa. Em pacotes onde
+        // os códigos se distribuem por múltiplas PJs (ex.: Cirurgião na SALUTAIRE,
+        // Auxiliares na THORAX), o codeSet local não tem o main_code → o pacote não
+        // casa. Solução: para cada attendance_number desta empresa, buscar todos os
+        // procedure_codes do payment (todas as PJs) e usar esse codeSet expandido
+        // apenas para matching. A distribuição por função continua aplicada só nos
+        // itens da empresa corrente (attItems).
+        const crossPjCodeSetByAtt: Record<string, Set<string>> = {};
+        const attNumbers = Object.keys(byAttendance);
+        if (attNumbers.length > 0) {
+          try {
+            const { data: siblingRows } = await supabase
+              .from("payment_items")
+              .select("attendance_number,procedure_code")
+              .eq("payment_id", payment_id)
+              .in("attendance_number", attNumbers)
+              .not("procedure_code", "is", null);
+            for (const row of (siblingRows ?? []) as any[]) {
+              const att = (row.attendance_number ?? "").toString().trim();
+              const code = (row.procedure_code ?? "").toString().trim();
+              if (!att || !code) continue;
+              if (!crossPjCodeSetByAtt[att]) crossPjCodeSetByAtt[att] = new Set<string>();
+              crossPjCodeSetByAtt[att].add(code);
+            }
+          } catch (crossPjErr) {
+            console.warn("[pacote_rule_calcs] cross-PJ query falhou, usando codeSet local:", (crossPjErr as any)?.message ?? crossPjErr);
+          }
+        }
+
         for (const [att, attItems] of Object.entries(byAttendance)) {
-          const codeSet = new Set(
+          // codeSet expandido: inclui códigos de outras PJs do mesmo atendimento.
+          // Fallback para codeSet local se a query cross-PJ não rodou.
+          const localCodeSet = new Set(
             attItems.map(it => (it.procedure_code ?? "").toString().trim()).filter(Boolean),
           );
+          const codeSet = crossPjCodeSetByAtt[att] ?? localCodeSet;
 
           // Encontra todos os pacotes que batem neste atendimento
           const matches: Array<{
