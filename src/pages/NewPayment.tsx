@@ -1027,6 +1027,17 @@ const NewPayment = () => {
     const dominantMapped = mapSectorFromRaw(dominantSectorRaw);
     const sectorMissing = rows.length > 0 && (Object.keys(sectorCounts).length === 0 || dominantMapped === null);
 
+    // Hits do mapeamento (com override aplicado se houver template/manual)
+    const baseHits = inspectColumnMapping(headerNames);
+    const mappingHits: FieldMappingHit[] = baseHits.map((h) => {
+      const override = manualMapping?.[h.field];
+      if (override && headerNames.includes(override)) {
+        return { ...h, header: override, score: 100, confidence: "high" as const };
+      }
+      return h;
+    });
+    const sampleRow = json[0] ?? null;
+
     return {
       file: f,
       rows,
@@ -1039,6 +1050,11 @@ const NewPayment = () => {
       headerRowIndex: headerIdx,
       sectorColumnDetection: detection,
       sectorColumnUsed: autoSectorColumn,
+      detectedHeaders: headerNames,
+      sampleRow,
+      mappingHits,
+      columnMapping: manualMapping,
+      appliedTemplate,
     };
   };
 
