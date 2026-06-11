@@ -170,6 +170,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Pagamentos", iconName: "Wallet" },
   { label: "Notas Fiscais", iconName: "Receipt" },
   { label: "Glosas e Conciliação", iconName: "ShieldX" },
+  { label: "Conciliação", iconName: "GitCompare" },
   { label: "Créditos e Débitos", iconName: "Scale" },
   { label: "Livro Contábil", iconName: "BookOpen" },
   { label: "Pendências", iconName: "ListChecksIcon" },
