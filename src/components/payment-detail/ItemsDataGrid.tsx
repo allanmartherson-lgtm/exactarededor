@@ -1578,14 +1578,16 @@ function PackageBannerRow({
           style={{
             display: "flex",
             alignItems: "center",
+            flexWrap: "wrap",
             gap: 8,
             minWidth: 0,
             position: "sticky",
             left: 12,
             // Mantém o conteúdo do banner sempre dentro da viewport do scroll
             // horizontal (caso contrário, badges e totais ficam cortados na
-            // ponta direita da tabela, fora da tela).
-            maxWidth: "calc(100vw - 280px)",
+            // ponta direita da tabela, fora da tela). Em telas pequenas o
+            // wrap garante que o badge "COM ALERTAS" nunca seja cortado.
+            maxWidth: "min(calc(100vw - 32px), 100%)",
           }}
         >
           <span style={{ color: statusColor.text, display: "flex", alignItems: "center", flexShrink: 0 }}>
@@ -1602,6 +1604,13 @@ function PackageBannerRow({
           <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>
             · {group.items.length} {group.items.length === 1 ? "item" : "itens"}
           </span>
+          {/* Badge logo após o contador de itens — alinhamento consistente em todas as variantes */}
+          <span className={cn(
+            "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap flex-shrink-0",
+            TONE_CLASSES[tone],
+          )}>
+            {statusLabel}
+          </span>
           {showGrossColumn && (
             <span style={{
               fontFamily: "monospace",
@@ -1609,7 +1618,7 @@ function PackageBannerRow({
               fontWeight: 700,
               color: statusColor.text,
               whiteSpace: "nowrap",
-              marginLeft: 12,
+              marginLeft: 4,
             }}>
               {formatCurrency(group.totalGross)}
             </span>
@@ -1619,12 +1628,6 @@ function PackageBannerRow({
               esp. {formatCurrency(group.totalExpected)}
             </span>
           )}
-          <span className={cn(
-            "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap",
-            TONE_CLASSES[tone],
-          )}>
-            {statusLabel}
-          </span>
         </div>
       </td>
     </tr>
