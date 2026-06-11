@@ -1328,6 +1328,16 @@ export function ItemsDataGrid({
                 const prevIsBonus = !!prev && (prev as any).tipo_linha === "complemento_bonus";
                 const isFirstAdjust = isAdjust && !isBonus && !prevIsAdjust;
                 const isFirstBonus = isBonus && !prevIsBonus;
+
+                // Detecção de pacote
+                const isPackageItem = (it as any).applied_calc_method === "pacote";
+                const pkgAtt = isPackageItem ? (it.attendance_number ?? "").toString().trim() : "";
+                const pkgGroup = isPackageItem && pkgAtt ? packageGroups.get(pkgAtt) : undefined;
+                const isFirstPkgItem = !!(pkgGroup && pkgGroup.firstItemIdx === idx);
+                const isPackageCollapsed = isPackageItem && pkgAtt ? collapsedPackages.has(pkgAtt) : false;
+                if (isPackageItem && isPackageCollapsed && !isFirstPkgItem) return null;
+                const showItemRow = !isPackageItem || !isPackageCollapsed;
+
                 return (
                   <Fragment key={it.id}>
 
@@ -1349,37 +1359,57 @@ export function ItemsDataGrid({
                         </td>
                       </tr>
                     )}
-                    <RowMain
-                      key={it.id}
-                      it={it}
-                      allItems={items}
-                      paciente={paciente}
-                      expected={expected ?? null}
-                      eff={eff}
-                      tone={tone}
-                      isActive={isActive}
-                      isExpanded={isExpanded}
-                      isCritical={isCritical}
-                      hasAlert={alerts.length > 0}
-                      onSelect={() => selectRow(it.id)}
-                      onOpen={() => openDetail(it.id)}
-                      colVis={colVis}
-                      rulesIndex={rulesIndex}
-                      rulesByName={rulesByName}
-                      observations={observations}
-                      profiles={profiles}
-                      obsCount={obsCount}
-                      isCompact={isCompact}
-                      totalCols={totalCols}
-                      canEdit={canEdit}
-                      onEditItem={onEditItem}
-                      onDeleteItem={onDeleteItem}
-                      onAcceptItem={onAcceptItem}
-                      onUndoAcceptItem={onUndoAcceptItem}
-                      showGrossColumn={showGrossColumn}
-                      showProcedureColumn={showProcedureColumn}
-                      showDiferencaCol={showDiferencaCol}
-                    />
+                    {isFirstPkgItem && pkgGroup && (
+                      <PackageBannerRow
+                        group={pkgGroup}
+                        att={pkgAtt}
+                        isCollapsed={isPackageCollapsed}
+                        onToggle={() =>
+                          setCollapsedPackages((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(pkgAtt)) next.delete(pkgAtt);
+                            else next.add(pkgAtt);
+                            return next;
+                          })
+                        }
+                        totalCols={totalCols}
+                        isCompact={isCompact}
+                        showGrossColumn={showGrossColumn}
+                      />
+                    )}
+                    {showItemRow && (
+                      <RowMain
+                        key={it.id}
+                        it={it}
+                        allItems={items}
+                        paciente={paciente}
+                        expected={expected ?? null}
+                        eff={eff}
+                        tone={tone}
+                        isActive={isActive}
+                        isExpanded={isExpanded}
+                        isCritical={isCritical}
+                        hasAlert={alerts.length > 0}
+                        onSelect={() => selectRow(it.id)}
+                        onOpen={() => openDetail(it.id)}
+                        colVis={colVis}
+                        rulesIndex={rulesIndex}
+                        rulesByName={rulesByName}
+                        observations={observations}
+                        profiles={profiles}
+                        obsCount={obsCount}
+                        isCompact={isCompact}
+                        totalCols={totalCols}
+                        canEdit={canEdit}
+                        onEditItem={onEditItem}
+                        onDeleteItem={onDeleteItem}
+                        onAcceptItem={onAcceptItem}
+                        onUndoAcceptItem={onUndoAcceptItem}
+                        showGrossColumn={showGrossColumn}
+                        showProcedureColumn={showProcedureColumn}
+                        showDiferencaCol={showDiferencaCol}
+                      />
+                    )}
                   </Fragment>
 
                 );
