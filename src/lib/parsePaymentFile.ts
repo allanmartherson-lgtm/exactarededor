@@ -608,4 +608,3 @@ export const inspectFileHeaders = async (
   headerRow.forEach((k, i) => { sampleRow[k] = sampleArr[i] ?? ""; });
   return { headers, sampleRow };
 };
-};
