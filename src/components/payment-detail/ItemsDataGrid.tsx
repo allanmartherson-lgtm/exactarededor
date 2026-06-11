@@ -617,6 +617,9 @@ export function ItemsDataGrid({
       // Itens cancelados (via conciliação ou grupo cancelado) saem do total
       // financeiro — não somam mais ao "Valor Repasse" nem ao "Esperado".
       if ((it as any).is_cancelled) continue;
+      // Itens absorvidos manualmente em pacote: o valor já está no banner do
+      // pacote (totalGross) — somar de novo geraria duplicidade no total.
+      if ((it as any).package_absorbed) continue;
       count++;
       valor += Number(it.gross_amount ?? 0);
       procedure += Number((it as any).procedure_amount ?? 0);
