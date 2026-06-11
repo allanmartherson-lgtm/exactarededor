@@ -1157,6 +1157,9 @@ const NewPayment = () => {
             variant: "destructive",
           });
         } else {
+          companiesRef.current = companiesRef.current.map((c) =>
+            c.id === picked.id ? { ...c, aliases: res.aliases } : c,
+          );
           setCompanies((prev) =>
             prev.map((c) => (c.id === picked.id ? { ...c, aliases: res.aliases } : c)),
           );
@@ -1204,6 +1207,9 @@ const NewPayment = () => {
     if (mustLearn) {
       const res = await learnCompanyAlias(supabase, { companyId: picked.id, rawName: rawAlias });
       if (res.ok) {
+        companiesRef.current = companiesRef.current.map((c) =>
+          c.id === picked.id ? { ...c, aliases: res.aliases } : c,
+        );
         setCompanies((prev) =>
           prev.map((c) => (c.id === picked.id ? { ...c, aliases: res.aliases } : c)),
         );
