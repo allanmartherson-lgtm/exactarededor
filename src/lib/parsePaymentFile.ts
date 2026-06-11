@@ -533,7 +533,7 @@ export const parsePaymentFile = async (
         "dt resposta","dt. resp","dt resp","data resposta",
         "dt solic","dt. solic","data solicitacao","data solicitação",
       ])),
-      patient_name: toStr(pick(row, ["paciente","nome paciente","nm paciente","nome do paciente"])),
+      patient_name: toStr(pick(row, ["paciente","nome paciente","nm paciente","nome do paciente","nome"])),
       sector: toStr(pick(row, ["setor do pagamento", "setor", "unidade de atendimento", "unidade", "departamento", "servico", "serviço", "localizacao", "localização"])),
       attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
       raw_data: row,
