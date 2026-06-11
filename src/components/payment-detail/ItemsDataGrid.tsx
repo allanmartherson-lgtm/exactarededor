@@ -630,29 +630,15 @@ export function ItemsDataGrid({
   // painel apareça visível dentro da grid (e na viewport da página).
   useEffect(() => {
     if (!expandedId) return;
-    // Aguarda o próximo frame para que o <tr> do painel já esteja no DOM.
     const raf = requestAnimationFrame(() => {
-      const container = gridScrollRef.current;
-      const panel = container?.querySelector<HTMLElement>(
+      const panel = gridScrollRef.current?.querySelector<HTMLElement>(
         `[data-expanded-row="${CSS.escape(expandedId)}"]`,
       );
-      if (!panel || !container) return;
-      const cRect = container.getBoundingClientRect();
-      const pRect = panel.getBoundingClientRect();
-      // Scroll interno da grid (vertical) — leva o topo do painel para ~24px
-      // abaixo do header, evitando que fique escondido pela linha clicada.
-      const delta = pRect.top - cRect.top - 24;
-      if (delta > 0 || pRect.bottom > cRect.bottom) {
-        container.scrollBy({ top: delta, behavior: "smooth" });
-      }
-      // Scroll da página: se o container inteiro não está visível, traz pra cá.
-      const pageBottom = window.innerHeight;
-      if (cRect.bottom > pageBottom - 40 || cRect.top < 0) {
-        panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
+      panel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
     return () => cancelAnimationFrame(raf);
   }, [expandedId]);
+
 
   const syncScrollLeft = (source: "top" | "grid", left: number) => {
     const target = source === "top" ? gridScrollRef.current : topScrollRef.current;
