@@ -1875,6 +1875,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_at: isCalcDuplicityBlock ? null : new Date().toISOString(),
         convenio_basis_detected: r.convenio_basis_detected ?? null,
         basis_confidence: r.basis_confidence ?? null,
+        package_absorbed: (r as any).package_absorbed === true,
+        package_absorbed_calc_id: (r as any).package_absorbed_calc_id ?? null,
       });
 
 
