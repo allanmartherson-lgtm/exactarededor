@@ -1574,7 +1574,20 @@ function PackageBannerRow({
           borderTop: `2px solid ${statusColor.border}`,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            minWidth: 0,
+            position: "sticky",
+            left: 12,
+            // Mantém o conteúdo do banner sempre dentro da viewport do scroll
+            // horizontal (caso contrário, badges e totais ficam cortados na
+            // ponta direita da tabela, fora da tela).
+            maxWidth: "calc(100vw - 280px)",
+          }}
+        >
           <span style={{ color: statusColor.text, display: "flex", alignItems: "center", flexShrink: 0 }}>
             {isCollapsed
               ? <ChevronRight className="h-3.5 w-3.5" />
@@ -1589,7 +1602,6 @@ function PackageBannerRow({
           <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>
             · {group.items.length} {group.items.length === 1 ? "item" : "itens"}
           </span>
-          <div style={{ flex: 1 }} />
           {showGrossColumn && (
             <span style={{
               fontFamily: "monospace",
@@ -1597,6 +1609,7 @@ function PackageBannerRow({
               fontWeight: 700,
               color: statusColor.text,
               whiteSpace: "nowrap",
+              marginLeft: 12,
             }}>
               {formatCurrency(group.totalGross)}
             </span>
