@@ -93,8 +93,10 @@ Deno.serve(async (req) => {
   const isAnalista = roles.has("analista");
   const isCreator = payment.created_by === userId;
   const statusOk = DELETABLE_STATUSES.has(payment.status as string);
+  const analistaCanDelete =
+    isAnalista && isCreator && ANALISTA_INITIAL_STATUSES.has(payment.status as string);
 
-  if (!(isAdmin || isDiretor || ((isCreator || isAnalista) && statusOk))) {
+  if (!(isAdmin || isDiretor || (isCreator && statusOk) || analistaCanDelete)) {
     return json({ error: "forbidden" }, 403);
   }
 
