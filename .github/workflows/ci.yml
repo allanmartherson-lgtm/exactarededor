@@ -94,6 +94,7 @@ jobs:
           bun vitest run \
             src/pages/__tests__/acceptItemGrossOverride.contract.test.ts \
             src/lib/__tests__/financialAcceptUndo.test.ts \
+            src/lib/__tests__/packageAbsorbedEngine.contract.test.ts \
             --reporter=verbose
 
   # Job 5: Todos os testes (suite completa)
