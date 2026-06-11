@@ -196,6 +196,25 @@ const pick = (
   return bestKey != null ? row[bestKey] : undefined;
 };
 
+/**
+ * Wrapper de pick que respeita um manualMapping vindo do diálogo de
+ * mapeamento ou de um template salvo. Quando o campo está explicitamente
+ * mapeado para um header, lemos direto desse header (mesmo que o `pick`
+ * heurístico chegasse a outro resultado).
+ */
+const pickField = (
+  row: Record<string, unknown>,
+  fieldKey: FieldKey,
+  manual?: ManualMapping,
+): unknown => {
+  if (manual && manual[fieldKey]) {
+    const header = manual[fieldKey]!;
+    if (header in row) return row[header];
+  }
+  const def = FIELD_BY_KEY[fieldKey];
+  return pick(row, def.keys, def.excludes ?? []);
+};
+
 const toNumber = (v: unknown): number => {
   if (v == null || v === "") return 0;
   if (typeof v === "number") return v;
