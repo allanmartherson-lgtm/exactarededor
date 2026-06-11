@@ -59,7 +59,7 @@ export function NotificationBell() {
               {unread > 9 ? "9+" : unread}
             </span>
           )}
-        </Button>
+        </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[420px] p-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
