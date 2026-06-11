@@ -882,6 +882,24 @@ const NewPayment = () => {
     const rawCompanyName = extractCompanyFromFilename(f.name);
     const { company, score } = matchCompany(rawCompanyName, companies);
     const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
+    // DIAGNÓSTICO: ajuda a entender por que um match óbvio falha em produção.
+    // Imprime nome bruto, total de PJs carregadas, top-5 candidatos e se a PJ
+    // alvo (FACE E TORAX) está presente no array. Remover após confirmação.
+    try {
+      // eslint-disable-next-line no-console
+      console.log("[match-debug] file:", f.name);
+      // eslint-disable-next-line no-console
+      console.log("[match-debug] rawCompanyName:", rawCompanyName, "| companies loaded:", companies.length);
+      const ranked = companies
+        .map((c) => ({ id: c.id, name: c.name, s: similarity(rawCompanyName, c.name) }))
+        .sort((a, b) => b.s - a.s)
+        .slice(0, 5);
+      // eslint-disable-next-line no-console
+      console.log("[match-debug] top-5:", ranked);
+      const target = companies.find((c) => /face\s*e\s*torax/i.test(c.name));
+      // eslint-disable-next-line no-console
+      console.log("[match-debug] FACE E TORAX presente?", !!target, target);
+    } catch {}
 
     // Detecta a coluna "setor" cruzando cabeçalho + valores com sectores cadastrados.
     // Só auto-aplica quando o NOME do cabeçalho bate explicitamente (ex.: "Setor",
