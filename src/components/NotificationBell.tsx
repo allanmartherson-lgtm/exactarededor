@@ -48,13 +48,12 @@ export function NotificationBell() {
   return (
     <Popover open={open} onOpenChange={handleOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative h-11 w-11 text-muted-foreground hover:text-foreground"
+        <button
+          type="button"
+          className="relative size-8 grid place-items-center rounded-md border border-border/60 bg-background hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
           aria-label={`Notificações${unread > 0 ? ` (${unread} não lidas)` : ""}`}
         >
-          <Bell className="h-[22px] w-[22px]" />
+          <Bell className="size-4" strokeWidth={1.7} />
           {unread > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold leading-none flex items-center justify-center px-1">
               {unread > 9 ? "9+" : unread}
