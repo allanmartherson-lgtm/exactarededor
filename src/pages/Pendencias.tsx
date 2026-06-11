@@ -211,7 +211,6 @@ export default function Pendencias() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="pendencias">Pendências</TabsTrigger>
-          <TabsTrigger value="retroativa">Conciliação retroativa</TabsTrigger>
         </TabsList>
 
 
