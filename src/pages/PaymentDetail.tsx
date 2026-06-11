@@ -2039,12 +2039,15 @@ const PaymentDetail = () => {
                           ? `${totalNow} alerta(s) em ${flaggedNow} item(ns).`
                           : "Nenhuma inconsistência detectada.",
                       });
-                      const { data: freshItems } = await supabase
-                        .from("payment_items")
-                        .select("*")
-                        .eq("payment_id", id)
-                        .order("created_at")
-                        .limit(5000);
+                      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+                      const freshItems = await fetchAllPaginated<any>((from, to) =>
+                        supabase
+                          .from("payment_items")
+                          .select("*")
+                          .eq("payment_id", id)
+                          .order("created_at")
+                          .range(from, to),
+                      );
                       if (freshItems) setItems(freshItems as any);
                       load();
                     } catch (e: unknown) {
