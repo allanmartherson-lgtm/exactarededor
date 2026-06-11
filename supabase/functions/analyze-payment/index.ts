@@ -444,6 +444,7 @@ serve(async (req) => {
         package_absorbed,
         package_absorbed_calc_id,
         ai_status,
+        gross_override_at,
         item_hash,
         ai_findings,
         raw_data
