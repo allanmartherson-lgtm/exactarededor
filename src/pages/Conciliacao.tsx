@@ -110,10 +110,33 @@ export default function Conciliacao() {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="pagamento">Do pagamento</TabsTrigger>
-          <TabsTrigger value="bases">Bases hospitalares</TabsTrigger>
-          <TabsTrigger value="retroativa">Retroativa</TabsTrigger>
+        <TabsList className="h-auto bg-card p-1.5 rounded-2xl border border-border shadow-sm gap-1 inline-flex w-auto">
+          <TabsTrigger
+            value="pagamento"
+            className="group relative flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-muted-foreground font-medium text-sm transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 hover:text-primary hover:bg-muted data-[state=active]:hover:bg-primary"
+          >
+            <Wallet className="h-[18px] w-[18px] opacity-60 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary-foreground/70 group-hover:scale-110 transition-transform" />
+            <span>Do pagamento</span>
+            {runs.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold leading-none border bg-muted text-muted-foreground border-border group-data-[state=active]:bg-primary/80 group-data-[state=active]:text-primary-foreground group-data-[state=active]:border-primary-foreground/20">
+                {runs.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="bases"
+            className="group relative flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-muted-foreground font-medium text-sm transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 hover:text-primary hover:bg-muted data-[state=active]:hover:bg-primary"
+          >
+            <Database className="h-[18px] w-[18px] opacity-60 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary-foreground/70 group-hover:scale-110 transition-transform" />
+            <span>Bases hospitalares</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="retroativa"
+            className="group relative flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-muted-foreground font-medium text-sm transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 hover:text-primary hover:bg-muted data-[state=active]:hover:bg-primary"
+          >
+            <History className="h-[18px] w-[18px] opacity-60 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary-foreground/70 group-hover:scale-110 transition-transform" />
+            <span>Retroativa</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pagamento" className="mt-4 flex flex-col gap-4">
