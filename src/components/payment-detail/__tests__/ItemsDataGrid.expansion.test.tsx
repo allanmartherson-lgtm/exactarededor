@@ -100,42 +100,40 @@ describe("ItemsDataGrid — expansão inline e altura adaptativa", () => {
       makeItem({ id: "row-b", attendance_number: "ATD-2", patient_name: "Paciente Dois" }),
     ]);
     clickFirstRow("row-a");
-    // useEffect usa requestAnimationFrame
-    await new Promise((r) => requestAnimationFrame(() => r(null)));
-    const calls =
-      (Element.prototype.scrollBy as unknown as { mock: { calls: unknown[] } }).mock.calls.length +
-      (Element.prototype.scrollIntoView as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
-    expect(calls).toBeGreaterThan(0);
+    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
-  it("altura adaptativa cresce com itens, banner de pacote e expansão", async () => {
-    // Caso A: poucos itens, sem pacote, sem expansão → baseline 640px
+  it("altura adaptativa cresce com itens, banner de pacote e expansão", () => {
+    const findWrapper = () => document.querySelector<HTMLElement>('[class*="min-h-[640px]"]');
+
+    // Caso A: poucos itens → baseline com min-h 640 e fórmula items*38 + chrome
     const small = [makeItem({ id: "s1" }), makeItem({ id: "s2", attendance_number: "ATD-2" })];
     const { unmount } = renderGrid(small);
-    const containerA = document.querySelector(".grid-scroll-area")?.parentElement as HTMLElement;
-    expect(containerA).toBeTruthy();
-    // O wrapper externo recebe o style inline com height.
-    const wrapperA = containerA.parentElement as HTMLElement;
+    const wrapperA = findWrapper()!;
+    expect(wrapperA).toBeTruthy();
     expect(wrapperA.style.height).toMatch(/min\(/);
     expect(wrapperA.style.height).toMatch(/640px/);
+    // 2 itens * 38 + 0 banners * 44 + 0 expandido + 140 = 216px
+    expect(wrapperA.style.height).toContain("216px");
     unmount();
 
-    // Caso B: grupo de pacote → calc inclui +44px por banner
+    // Caso B: grupo de pacote adiciona +44px por banner
     const pkg = [
       makeItem({ id: "p1", attendance_number: "PKG-1", applied_calc_method: "pacote" } as any),
       makeItem({ id: "p2", attendance_number: "PKG-1", applied_calc_method: "pacote" } as any),
       makeItem({ id: "p3", attendance_number: "PKG-1", applied_calc_method: "pacote" } as any),
     ];
     const r2 = renderGrid(pkg);
-    const wrapperB = (document.querySelector(".grid-scroll-area")?.parentElement?.parentElement) as HTMLElement;
-    // 3*38 + 1*44 + 140 = 298 → max(640, 298) = 640. Validamos que a fórmula inclui o termo.
-    expect(wrapperB.style.height).toContain("max(640px,");
+    const wrapperB = findWrapper()!;
+    // 3*38 + 1*44 + 140 = 298px na fórmula
+    expect(wrapperB.style.height).toContain("298px");
     r2.unmount();
 
-    // Caso C: viewport mobile pequena ainda respeita min-h
+    // Caso C: viewport mobile preserva min-h baseline (não colapsa abaixo de 640)
     setViewport(390, 700);
     renderGrid(small);
-    const wrapperC = (document.querySelector(".grid-scroll-area")?.parentElement?.parentElement) as HTMLElement;
-    expect(wrapperC.className).toMatch(/min-h-\[640px\]/);
+    expect(findWrapper()).toBeTruthy();
   });
+
 });
