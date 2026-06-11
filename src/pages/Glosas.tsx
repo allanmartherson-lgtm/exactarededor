@@ -219,11 +219,10 @@ export default function Glosas() {
 
 
   useEffect(() => {
-    document.title = "Glosas e Conciliação | Exacta";
+    document.title = "Glosas | Exacta";
     loadBatches();
     loadDebts();
-    loadConcBases();
-  }, [loadBatches, loadDebts, loadConcBases]);
+  }, [loadBatches, loadDebts]);
 
   const processFile = async (file: File) => {
     const buf = await file.arrayBuffer();
