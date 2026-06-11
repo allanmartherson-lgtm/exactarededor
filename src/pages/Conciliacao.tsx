@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import RetroactiveReconciliationsTab from "@/components/retroactive/RetroactiveReconciliationsTab";
+import BasesConciliacaoPanel from "@/components/conciliacao/BasesConciliacaoPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
