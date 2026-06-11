@@ -912,7 +912,8 @@ export default function CompanyAnalysis() {
     if (!id || !payment || !user || !group) return;
     setReimporting(true);
     try {
-      const { parsePaymentFile, similarity } = await import("@/lib/parsePaymentFile");
+      const { parsePaymentFile, similarity, inspectFileHeaders } = await import("@/lib/parsePaymentFile");
+      const { computeHeaderSignature, summarizeMissing, inspectColumnMapping, FIELD_BY_KEY } = await import("@/lib/columnMapping");
       const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
       const companiesData = await fetchAllPaginated<any>((from, to) =>
         supabase.from("companies").select("id,name,aliases").range(from, to),
@@ -939,7 +940,43 @@ export default function CompanyAnalysis() {
       };
 
       for (const file of files) {
-        const bucket = await parsePaymentFile(file, companies, payment.payment_kind);
+        // Aplica template salvo (se houver) e bloqueia em caso de obrigatório faltando
+        const { headers } = await inspectFileHeaders(file);
+        const sig = await computeHeaderSignature(headers);
+        const hospitalId = (payment as any).hospital_id ?? null;
+        const tplQuery = supabase
+          .from("sheet_column_templates" as never)
+          .select("id,mapping,name")
+          .eq("header_signature", sig)
+          .limit(1);
+        const { data: tplRows } = hospitalId
+          ? await tplQuery.or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
+          : await tplQuery.is("hospital_id", null);
+        const tpl = (tplRows ?? [])[0] as { id: string; mapping: any; name: string } | undefined;
+        const manualMapping = tpl?.mapping;
+        const hits = inspectColumnMapping(headers).map((h) => {
+          const override = manualMapping?.[h.field];
+          if (override && headers.includes(override)) return { ...h, header: override, score: 100, confidence: "high" as const };
+          return h;
+        });
+        const { missingRequired } = summarizeMissing(hits);
+        if (missingRequired.length > 0) {
+          toast({
+            title: `Colunas obrigatórias ausentes em ${file.name}`,
+            description: `Faltam: ${missingRequired.map((m) => FIELD_BY_KEY[m.field].label).join(", ")}. Use /pagamentos/novo para revisar o mapeamento e salvar template.`,
+            variant: "destructive",
+          });
+          setReimporting(false);
+          return;
+        }
+
+        const bucket = await parsePaymentFile(file, companies, payment.payment_kind, { manualMapping });
+        if (tpl) {
+          await supabase
+            .from("sheet_column_templates" as never)
+            .update({ last_used_at: new Date().toISOString() } as never)
+            .eq("id", tpl.id);
+        }
         if (bucket.rows.length > 0) {
           const fileMatchesGroup = matchesTarget(bucket.rawCompanyName, bucket.matchedCompany?.id ?? null)
             || matchesTarget(bucket.matchedCompany?.name ?? null, bucket.matchedCompany?.id ?? null);
