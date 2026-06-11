@@ -1,6 +1,14 @@
 // Parser compartilhado de arquivos Excel de base de pagamento.
 // Extraído de src/pages/NewPayment.tsx para reutilização no reimport.
 import * as XLSX from "xlsx";
+import {
+  FIELD_BY_KEY,
+  inspectColumnMapping,
+  type FieldKey,
+  type FieldMappingHit,
+  type ManualMapping,
+} from "@/lib/columnMapping";
+export type { ManualMapping, FieldMappingHit } from "@/lib/columnMapping";
 
 export type LineType =
   | "procedimento"
@@ -54,6 +62,12 @@ export interface FileBucket {
   matchedCompany: { id: string; name: string } | null;
   matchScore: number;
   manualOverride?: boolean;
+  /** Headers reais detectados na linha de cabeçalho da planilha. */
+  detectedHeaders: string[];
+  /** Mapping campo → header efetivamente usado neste parse. */
+  effectiveMapping: ManualMapping;
+  /** Hits de mapping com score/confiança — alimenta o ColumnMappingDialog. */
+  mappingHits: FieldMappingHit[];
 }
 
 const COMPLEMENTO_TERMS = ["bonus","bônus","complemento","adicional","diferenca","diferença","ajuste de valor","complemento pacote","complemento cirurg","produtividade","incentivo","valor complementar"];
@@ -180,6 +194,25 @@ const pick = (
     }
   });
   return bestKey != null ? row[bestKey] : undefined;
+};
+
+/**
+ * Wrapper de pick que respeita um manualMapping vindo do diálogo de
+ * mapeamento ou de um template salvo. Quando o campo está explicitamente
+ * mapeado para um header, lemos direto desse header (mesmo que o `pick`
+ * heurístico chegasse a outro resultado).
+ */
+const pickField = (
+  row: Record<string, unknown>,
+  fieldKey: FieldKey,
+  manual?: ManualMapping,
+): unknown => {
+  if (manual && manual[fieldKey]) {
+    const header = manual[fieldKey]!;
+    if (header in row) return row[header];
+  }
+  const def = FIELD_BY_KEY[fieldKey];
+  return pick(row, def.keys, def.excludes ?? []);
 };
 
 const toNumber = (v: unknown): number => {
@@ -430,11 +463,18 @@ const detectHeaderRow = (rows: unknown[][]): number => {
   return bestScore >= 3 ? bestIdx : 0;
 };
 
+export interface ParseOptions {
+  /** Override manual de campos → header da planilha. Vence o pick() heurístico. */
+  manualMapping?: ManualMapping;
+}
+
 export const parsePaymentFile = async (
   f: File,
   companies: CompanyRow[],
   paymentKind?: string | null,
+  options: ParseOptions = {},
 ): Promise<FileBucket> => {
+  const { manualMapping } = options;
   const buf = await f.arrayBuffer();
   const wb = XLSX.read(buf, { cellDates: false });
   const sheet = wb.Sheets[wb.SheetNames[0]];
@@ -446,6 +486,7 @@ export const parsePaymentFile = async (
     const s = (h ?? "").toString().trim();
     return s.length ? s : `__col_${i}`;
   });
+  const detectedHeaders = headerRow.filter((h) => !h.startsWith("__col_"));
   const json: Record<string, unknown>[] = [];
   for (let i = headerIdx + 1; i < matrix.length; i++) {
     const row = matrix[i] || [];
@@ -455,23 +496,33 @@ export const parsePaymentFile = async (
     json.push(obj);
   }
 
+  // Calcula mapping efetivo: heurística + override manual.
+  const heuristicHits = inspectColumnMapping(detectedHeaders);
+  const mappingHits: FieldMappingHit[] = heuristicHits.map((h) => {
+    const override = manualMapping?.[h.field];
+    if (override && detectedHeaders.includes(override)) {
+      return { ...h, header: override, score: 100, confidence: "high" };
+    }
+    return h;
+  });
+  const effectiveMapping: ManualMapping = {};
+  mappingHits.forEach((h) => { if (h.header) effectiveMapping[h.field] = h.header; });
+
   const rawCompanyName = extractCompanyFromFilename(f.name);
   const { company: fileMatchedCompany, score: fileMatchScore } = matchCompany(rawCompanyName, companies);
-  // Quando o filename casou com alta confiança, ele é a verdade — a coluna empresa
-  // da linha vira ruído (analista frequentemente preenche com hospital/cliente, não PJ).
   const filenameTrusted = fileMatchScore >= MATCH_AUTO_THRESHOLD && !!fileMatchedCompany;
 
   const rows: ParsedRow[] = json.map((row) => {
-    const role = toStr(pick(row, ["funcao","função","papel"]));
-    const repasse = toNumber(pick(row, ["vl repasse","valor repasse","valor a repassar","valor repassar","vlrepasse","vl. repasse","r$ a pagar","rs a pagar","a pagar","valor a pagar","vl a pagar"]));
-    const procVal = toNumber(pick(row, ["valor procedimento","valor proce","vl proce","vlproce","valor convenio","valor convênio","vl convenio","vl. convenio"]));
+    const role = toStr(pickField(row, "doctor_role", manualMapping));
+    const repasse = toNumber(pickField(row, "gross_amount", manualMapping));
+    const procVal = toNumber(pickField(row, "procedure_amount", manualMapping));
+    // Fallback "valor bruto" só se NADA foi mapeado para gross_amount/procedure_amount
     const grossFromAny = repasse
-      || toNumber(pick(row, ["valor bruto","vlrbruto","bruto","valor"], ["repasse"]))
+      || (manualMapping?.gross_amount ? 0 : toNumber(pick(row, ["valor bruto","vlrbruto","bruto","valor"], ["repasse"])))
       || procVal;
     const procedureAmountFinal = procVal || grossFromAny || null;
 
-    // Identificação por linha — só ativa se filename NÃO foi confiável
-    const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
+    const rowCompanyNameRaw = toStr(pickField(row, "company_name", manualMapping));
     let rowMatchedCompany: CompanyRow | null = null;
     if (!filenameTrusted && rowCompanyNameRaw) {
       const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
@@ -485,24 +536,10 @@ export const parsePaymentFile = async (
       || (filenameTrusted ? fileMatchedCompany!.name : (rowCompanyNameRaw || rawCompanyName))
       || null;
 
-    // Excludes: termos que indicam OUTRO papel/coluna e não devem ser confundidos.
-    //   - doctor_name: "solic"/"solicitante" = quem pediu o parecer, não o prestador
-    //   - date: "solic"/"emiss" = datas de solicitação/emissão, não a do procedimento
-    //     (mas se nada melhor existir, ainda é melhor que vazio — só desempata)
-    const DOCTOR_EXCLUDES = ["solic","solicitante","requisit","pedinte"];
-
-    // Nome do médico: aceita variantes "Médico Parecerista", "Médico Executante",
-    // "Prestador", coluna "Repasse" (em planilhas de parecer, contém o nome do
-    // parecerista) — sempre evitando colunas de "solicitante".
-    let doctorNameRaw = toStr(pick(row, [
-      "medico parecerista","médico parecerista","parecerista",
-      "medico executante","médico executante","executante",
-      "medico exec","medico exec.","médico exec","medico executante","médico executante",
-      "medico","médico","prestador",
-    ], DOCTOR_EXCLUDES));
+    let doctorNameRaw = toStr(pickField(row, "doctor_name", manualMapping));
     // Fallback: planilhas de parecer usam coluna "Repasse" para o nome do
     // recebedor. Só aceitamos se NÃO for número (valores ficam em outra coluna).
-    if (!doctorNameRaw) {
+    if (!doctorNameRaw && !manualMapping?.doctor_name) {
       const repasseCell = pick(row, ["repasse"]);
       const s = toStr(repasseCell);
       if (s && isNaN(Number(s.replace(/[\sR$.,]/g, "")))) doctorNameRaw = s;
@@ -510,32 +547,25 @@ export const parsePaymentFile = async (
 
     const base = {
       doctor_name: doctorNameRaw ?? "",
-      doctor_document: toStr(pick(row, ["cpf","cnpj","documento","doc"])) ?? "",
-      doctor_email: toStr(pick(row, ["email","e-mail"])) ?? "",
-      description: toStr(pick(row, ["procedmat","proced/mat","proced.","procedimento","descricao","descrição","servico","serviço"])) ?? "",
+      doctor_document: toStr(pickField(row, "doctor_document", manualMapping)) ?? "",
+      doctor_email: toStr(pickField(row, "doctor_email", manualMapping)) ?? "",
+      description: toStr(pickField(row, "description", manualMapping)) ?? "",
       gross_amount: grossFromAny,
       company_name: resolvedName,
       company_id: resolvedCompany?.id || null,
-      attendance_number: toStr(pick(row, ["nr atendimento","n atendimento","atendimento","atend","nratendim"])),
-      procedure_code: toStr(pick(row, ["codigo procedimento","código procedimento","codigoproc","codproc","cod. tuss","tuss"])),
-      procedure_name: toStr(pick(row, ["procedmat","proced/mat","proced.","procedimento"])),
-      access_route: toStr(pick(row, ["via de acesso","viaacesso","via acesso"])),
+      attendance_number: toStr(pickField(row, "attendance_number", manualMapping)),
+      procedure_code: toStr(pickField(row, "procedure_code", manualMapping)),
+      procedure_name: toStr(pickField(row, "procedure_name", manualMapping)),
+      access_route: toStr(pickField(row, "access_route", manualMapping)),
       doctor_role: role,
-      agreement_text: toStr(pick(row, ["convenio","convênio","acordo","operadora","plano"])),
-      specialty: toStr(pick(row, [
-        "especialidade","especialid","especialidade médica","especialidade medica",
-        "espec destino","espec. dest","espec dest","especialidade destino",
-      ])) || null,
+      agreement_text: toStr(pickField(row, "agreement_text", manualMapping)),
+      specialty: toStr(pickField(row, "specialty", manualMapping)) || null,
       procedure_amount: procedureAmountFinal,
-      quantity: toNumber(pick(row, ["qtd","quantidade"])) || null,
-      procedure_date: excelDateToISO(pick(row, [
-        "data procedimento","data atendimento","data",
-        "dt resposta","dt. resp","dt resp","data resposta",
-        "dt solic","dt. solic","data solicitacao","data solicitação",
-      ])),
-      patient_name: toStr(pick(row, ["paciente","nome paciente","nm paciente","nome do paciente","nome"])),
-      sector: toStr(pick(row, ["setor do pagamento", "setor", "unidade de atendimento", "unidade", "departamento", "servico", "serviço", "localizacao", "localização"])),
-      attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
+      quantity: toNumber(pickField(row, "quantity", manualMapping)) || null,
+      procedure_date: excelDateToISO(pickField(row, "procedure_date", manualMapping)),
+      patient_name: toStr(pickField(row, "patient_name", manualMapping)),
+      sector: toStr(pickField(row, "sector", manualMapping)),
+      attendance_character: toStr(pickField(row, "attendance_character", manualMapping)),
       raw_data: row,
     };
     const tipo_linha = classifyLine(base, paymentKind || null);
@@ -544,5 +574,37 @@ export const parsePaymentFile = async (
     return { ...withType, line_issues } as ParsedRow;
   }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
 
-  return { file: f, rows, rawCompanyName, matchedCompany: fileMatchedCompany ? { id: fileMatchedCompany.id, name: fileMatchedCompany.name } : null, matchScore: fileMatchScore };
+  return {
+    file: f,
+    rows,
+    rawCompanyName,
+    matchedCompany: fileMatchedCompany ? { id: fileMatchedCompany.id, name: fileMatchedCompany.name } : null,
+    matchScore: fileMatchScore,
+    detectedHeaders,
+    effectiveMapping,
+    mappingHits,
+  };
+};
+
+/**
+ * Lê apenas o cabeçalho da planilha (sem parsear linhas). Usado pelo
+ * diálogo de mapeamento para pré-aplicar template salvo antes do parse real.
+ */
+export const inspectFileHeaders = async (
+  f: File,
+): Promise<{ headers: string[]; sampleRow: Record<string, unknown> | null }> => {
+  const buf = await f.arrayBuffer();
+  const wb = XLSX.read(buf, { cellDates: false });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
+  const headerIdx = detectHeaderRow(matrix);
+  const headerRow = (matrix[headerIdx] || []).map((h, i) => {
+    const s = (h ?? "").toString().trim();
+    return s.length ? s : `__col_${i}`;
+  });
+  const headers = headerRow.filter((h) => !h.startsWith("__col_"));
+  const sampleArr = matrix[headerIdx + 1] || [];
+  const sampleRow: Record<string, unknown> = {};
+  headerRow.forEach((k, i) => { sampleRow[k] = sampleArr[i] ?? ""; });
+  return { headers, sampleRow };
 };

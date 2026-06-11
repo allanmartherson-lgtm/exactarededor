@@ -6927,6 +6927,56 @@ export type Database = {
         }
         Relationships: []
       }
+      sheet_column_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          header_signature: string
+          headers: Json
+          hospital_id: string | null
+          id: string
+          last_used_at: string | null
+          mapping: Json
+          name: string
+          updated_at: string
+          use_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          header_signature: string
+          headers?: Json
+          hospital_id?: string | null
+          id?: string
+          last_used_at?: string | null
+          mapping?: Json
+          name: string
+          updated_at?: string
+          use_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          header_signature?: string
+          headers?: Json
+          hospital_id?: string | null
+          id?: string
+          last_used_at?: string | null
+          mapping?: Json
+          name?: string
+          updated_at?: string
+          use_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sheet_column_templates_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sla_settings: {
         Row: {
           active: boolean

@@ -52,6 +52,16 @@ import {
   MATCH_AUTO_THRESHOLD,
   MATCH_REVIEW_THRESHOLD,
 } from "@/lib/parsePaymentFile";
+import {
+  applyManualMappingShim,
+  inspectColumnMapping,
+  summarizeMissing,
+  FIELD_BY_KEY,
+  type ManualMapping,
+  type FieldMappingHit,
+} from "@/lib/columnMapping";
+import { useSheetColumnTemplates } from "@/hooks/useSheetColumnTemplates";
+import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
 
 interface ParsedRow {
   doctor_name: string;
@@ -229,6 +239,16 @@ interface FileBucket {
   sectorColumnDetection?: SectorColumnDetection;
   /** Coluna efetivamente usada como setor (auto OU escolhida pelo usuário). */
   sectorColumnUsed?: string | null;
+  /** Headers crus detectados na linha de cabeçalho. */
+  detectedHeaders?: string[];
+  /** Linha de exemplo (primeira de dados) — alimenta preview no diálogo de mapeamento. */
+  sampleRow?: Record<string, unknown> | null;
+  /** Resultado da inspeção campo→header (heurística + overrides). */
+  mappingHits?: FieldMappingHit[];
+  /** Override de mapeamento aplicado pelo analista ou por template salvo. */
+  columnMapping?: ManualMapping;
+  /** Template aplicado automaticamente (quando assinatura bateu). */
+  appliedTemplate?: { id: string; name: string } | null;
 }
 
 type RetroTvrResult = {
@@ -436,6 +456,12 @@ const NewPayment = () => {
   const [pSectors, setPSectors] = useState<string[]>([]);
   const [pSpecialties, setPSpecialties] = useState<string[]>([]);
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
+  const [mappingDialog, setMappingDialog] = useState<{ open: boolean; bucketIdx: number | null }>({ open: false, bucketIdx: null });
+  const { findMatching: findMatchingTemplate, markUsed: markTemplateUsed } = useSheetColumnTemplates(hospital?.id ?? null);
+  const findMatchingTemplateRef = useRef(findMatchingTemplate);
+  const markTemplateUsedRef = useRef(markTemplateUsed);
+  useEffect(() => { findMatchingTemplateRef.current = findMatchingTemplate; }, [findMatchingTemplate]);
+  useEffect(() => { markTemplateUsedRef.current = markTemplateUsed; }, [markTemplateUsed]);
   const [parseErrors, setParseErrors] = useState<Array<{ fileName: string; title: string; reasons: string[]; howToFix: string[] }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
@@ -745,8 +771,14 @@ const NewPayment = () => {
     filenameTrusted: boolean,
     rawCompanyName: string,
     sectorColumnOverride?: string | null,
+    manualMapping?: ManualMapping,
   ): ParsedRow[] => {
-    return json.map((row, rowIndex) => {
+    return json.map((rawRow, rowIndex) => {
+      // Quando o analista (ou um template) forneceu mapeamento explícito,
+      // injetamos o valor da coluna escolhida em todas as chaves canônicas
+      // que o pick() conhece. Assim os pick() abaixo encontram o valor certo
+      // sem precisarmos refatorar todas as listas de sinônimos.
+      const row = applyManualMappingShim(rawRow, manualMapping);
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
       const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "valor a repassar", "valor repassar", "vlrepasse", "vl. repasse"]));
       const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
@@ -824,7 +856,7 @@ const NewPayment = () => {
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         sector: rawSector,
         attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
-        raw_data: row,
+        raw_data: rawRow,
         source_file: f.name,
         source_row_number: headerOffset + 2 + rowIndex,
       };
@@ -929,7 +961,23 @@ const NewPayment = () => {
     const sectorAliasesMap = await loadSectorAliases();
     const detection = detectSectorColumn(headerNames, json, sectorAliasesMap.resolveSlug);
     const autoSectorColumn = detection.confidence === "header" ? detection.recommended : null;
-    const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName, autoSectorColumn);
+
+    // Tenta achar template salvo com a mesma assinatura de cabeçalho.
+    // Quando encontra, aplica automaticamente e marca para incrementar o use_count.
+    let appliedTemplate: { id: string; name: string } | null = null;
+    let manualMapping: ManualMapping | undefined;
+    try {
+      const tpl = await findMatchingTemplateRef.current(headerNames);
+      if (tpl) {
+        manualMapping = tpl.mapping;
+        appliedTemplate = { id: tpl.id, name: tpl.name };
+        void markTemplateUsedRef.current(tpl.id);
+      }
+    } catch (e) {
+      console.warn("[mapping-template] lookup failed", e);
+    }
+
+    const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName, autoSectorColumn, manualMapping);
 
     // 6) Colunas obrigatórias presentes
     const hasDoctor = rows.some((r) => r.doctor_name && r.doctor_name.trim().length > 0);
@@ -979,6 +1027,17 @@ const NewPayment = () => {
     const dominantMapped = mapSectorFromRaw(dominantSectorRaw);
     const sectorMissing = rows.length > 0 && (Object.keys(sectorCounts).length === 0 || dominantMapped === null);
 
+    // Hits do mapeamento (com override aplicado se houver template/manual)
+    const baseHits = inspectColumnMapping(headerNames);
+    const mappingHits: FieldMappingHit[] = baseHits.map((h) => {
+      const override = manualMapping?.[h.field];
+      if (override && headerNames.includes(override)) {
+        return { ...h, header: override, score: 100, confidence: "high" as const };
+      }
+      return h;
+    });
+    const sampleRow = json[0] ?? null;
+
     return {
       file: f,
       rows,
@@ -991,6 +1050,11 @@ const NewPayment = () => {
       headerRowIndex: headerIdx,
       sectorColumnDetection: detection,
       sectorColumnUsed: autoSectorColumn,
+      detectedHeaders: headerNames,
+      sampleRow,
+      mappingHits,
+      columnMapping: manualMapping,
+      appliedTemplate,
     };
   };
 
@@ -1010,7 +1074,7 @@ const NewPayment = () => {
       const company = bucket.matchedCompany
         ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
-      const rows = mapJsonToRows(json, bucket.file, newHeaderIdx, company, filenameTrusted, bucket.rawCompanyName, bucket.sectorColumnUsed ?? null);
+      const rows = mapJsonToRows(json, bucket.file, newHeaderIdx, company, filenameTrusted, bucket.rawCompanyName, bucket.sectorColumnUsed ?? null, bucket.columnMapping);
       const sc: Record<string, number> = {};
       for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
       const dominantRaw = Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
@@ -1037,7 +1101,7 @@ const NewPayment = () => {
       const company = bucket.matchedCompany
         ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
-      const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, columnName);
+      const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, columnName, bucket.columnMapping);
       const sc: Record<string, number> = {};
       for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
       const dominantRaw = Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
@@ -1051,6 +1115,35 @@ const NewPayment = () => {
     });
   };
 
+  /**
+   * Aplica um override de mapeamento de colunas vindo do diálogo
+   * (ou de um template salvo). Reprocessa as linhas com o novo mapping.
+   */
+  const applyColumnMappingOverride = (idx: number, mapping: ManualMapping) => {
+    setBuckets((prev) => prev.map((bucket, bIdx) => {
+      if (bIdx !== idx) return bucket;
+      const matrix = bucket.rawMatrix;
+      const headerIdx = bucket.headerRowIndex ?? 0;
+      if (!matrix) return { ...bucket, columnMapping: mapping };
+      const json = matrixToJson(matrix, headerIdx);
+      const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
+      const registry = companiesRef.current.length ? companiesRef.current : companies;
+      const company = bucket.matchedCompany
+        ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
+        : null;
+      const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, bucket.sectorColumnUsed ?? null, mapping);
+      const baseHits = inspectColumnMapping(bucket.detectedHeaders ?? []);
+      const mappingHits: FieldMappingHit[] = baseHits.map((h) => {
+        const override = mapping[h.field];
+        if (override && (bucket.detectedHeaders ?? []).includes(override)) {
+          return { ...h, header: override, score: 100, confidence: "high" as const };
+        }
+        return h;
+      });
+      return { ...bucket, rows, columnMapping: mapping, mappingHits };
+    }));
+    toast({ title: "Mapeamento de colunas atualizado", description: "As linhas foram reprocessadas com o novo mapeamento." });
+  };
 
 
   const reportParseError = (fileName: string, e: unknown) => {
@@ -2477,6 +2570,40 @@ const NewPayment = () => {
                             </PopoverContent>
                           </Popover>
 
+                          {/* Botão de revisão do mapeamento de colunas */}
+                          {(() => {
+                            const hits = b.mappingHits ?? [];
+                            const summary = hits.length ? summarizeMissing(hits) : { missingRequired: [], lowConfidence: [] };
+                            const hasMissing = summary.missingRequired.length > 0;
+                            const hasLow = summary.lowConfidence.length > 0;
+                            const variant = hasMissing ? "outline" : "ghost";
+                            const klass = hasMissing
+                              ? "border-destructive text-destructive hover:text-destructive"
+                              : hasLow
+                                ? "border-amber-500 text-amber-700 hover:text-amber-700"
+                                : "text-muted-foreground hover:text-foreground";
+                            const label = b.appliedTemplate
+                              ? `Mapeamento (template: ${b.appliedTemplate.name.slice(0, 18)}${b.appliedTemplate.name.length > 18 ? "…" : ""})`
+                              : hasMissing
+                                ? `Mapeamento: ${summary.missingRequired.length} faltando`
+                                : hasLow
+                                  ? `Mapeamento: ${summary.lowConfidence.length} revisar`
+                                  : "Mapeamento de colunas";
+                            return (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={variant as "outline" | "ghost"}
+                                className={`h-6 px-2 text-[11px] ${hasMissing ? "border" : ""} ${klass}`}
+                                onClick={() => setMappingDialog({ open: true, bucketIdx: idx })}
+                              >
+                                <Sparkles className="h-3 w-3 mr-1" />
+                                {label}
+                              </Button>
+                            );
+                          })()}
+
+
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
@@ -2720,6 +2847,28 @@ const NewPayment = () => {
         </div>
 
       </div>
+
+      {mappingDialog.bucketIdx !== null && buckets[mappingDialog.bucketIdx] && (
+        <ColumnMappingDialog
+          open={mappingDialog.open}
+          onOpenChange={(open) => setMappingDialog((d) => ({ ...d, open }))}
+          fileName={buckets[mappingDialog.bucketIdx].file.name}
+          headers={buckets[mappingDialog.bucketIdx].detectedHeaders ?? []}
+          initialMapping={
+            buckets[mappingDialog.bucketIdx].columnMapping
+            ?? Object.fromEntries(
+              (buckets[mappingDialog.bucketIdx].mappingHits ?? [])
+                .filter((h) => h.header)
+                .map((h) => [h.field, h.header!]),
+            )
+          }
+          sampleRow={buckets[mappingDialog.bucketIdx].sampleRow}
+          hospitalId={hospital?.id ?? null}
+          onApply={(mapping) => {
+            applyColumnMappingOverride(mappingDialog.bucketIdx!, mapping);
+          }}
+        />
+      )}
     </>
   );
 };
