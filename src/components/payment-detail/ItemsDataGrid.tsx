@@ -471,6 +471,50 @@ export function ItemsDataGrid({
     return result;
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, groupStatus, sortKey, sortDir]);
 
+  // Detecta grupos de pacote: atendimentos onde applied_calc_method === 'pacote'
+  const packageGroups = useMemo(() => {
+    type PkgGroup = {
+      firstItemIdx: number;
+      items: PaymentItemRowData[];
+      ruleName: string;
+      totalGross: number;
+      totalExpected: number | null;
+      worstStatus: "reprovado" | "alerta" | "aprovado";
+    };
+    const groups = new Map<string, PkgGroup>();
+    filtered.forEach((it, idx) => {
+      if ((it as any).applied_calc_method !== "pacote") return;
+      const att = (it.attendance_number ?? "").toString().trim();
+      if (!att) return;
+      if (!groups.has(att)) {
+        const ruleNameRaw =
+          (it as any).applied_rule_label ??
+          ((it.ai_findings?.matched_rules as string[] | undefined)?.[0]) ??
+          "Pacote";
+        const ruleName = String(ruleNameRaw).replace(/\s*—\s*Pacote\s*$/i, "");
+        groups.set(att, {
+          firstItemIdx: idx,
+          items: [],
+          ruleName,
+          totalGross: 0,
+          totalExpected: 0,
+          worstStatus: "aprovado",
+        });
+      }
+      const g = groups.get(att)!;
+      g.items.push(it);
+      g.totalGross += Number(it.gross_amount ?? 0);
+      const exp =
+        (it.ai_findings?.expected_amount as number | undefined) ??
+        ((it as any).expected_amount as number | undefined);
+      if (exp != null) g.totalExpected = (g.totalExpected ?? 0) + Number(exp);
+      if (it.ai_status === "reprovado") g.worstStatus = "reprovado";
+      else if (it.ai_status === "alerta" && g.worstStatus !== "reprovado")
+        g.worstStatus = "alerta";
+    });
+    return groups;
+  }, [filtered]);
+
 
   // Totais da seleção atual (após filtros).
   // gross_amount/expected_amount já representam o valor da linha como
