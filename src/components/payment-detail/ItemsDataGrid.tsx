@@ -1808,6 +1808,20 @@ function PackageBannerRow({
           )}>
             {statusLabel}
           </span>
+          {canEdit && onToggleAbsorcoes && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onToggleAbsorcoes(); }}
+              className={cn(
+                "ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border border-border transition-colors flex-shrink-0",
+                isAbsorcoesOpen ? "bg-amber-100 text-amber-900 border-amber-300" : "text-muted-foreground hover:bg-muted/60",
+              )}
+              title="Gerenciar absorções do pacote neste atendimento"
+            >
+              <Settings2 className="h-3 w-3" />
+              Absorções
+            </button>
+          )}
           {showGrossColumn && (
             <span style={{
               fontFamily: "monospace",
