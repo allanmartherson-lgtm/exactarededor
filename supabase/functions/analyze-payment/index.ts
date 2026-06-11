@@ -441,6 +441,8 @@ serve(async (req) => {
         tipo_linha,complement_reason,
         agreement_text,specialty,tipo_item,sector,attendance_character,
         convenio_value_totalized,
+        package_absorbed,
+        package_absorbed_calc_id,
         ai_status,
         item_hash,
         ai_findings,
