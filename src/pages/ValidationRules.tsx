@@ -266,10 +266,13 @@ export default function ValidationRules() {
     setLoading(true);
     const today = new Date().toISOString().slice(0, 10);
     const in30 = new Date(Date.now() + 30 * 24 * 3600000).toISOString().slice(0, 10);
-    const [{ data: vr }, { data: ag }, { data: co }, { data: expiring }] = await Promise.all([
+    const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+    const [{ data: vr }, { data: ag }, co, { data: expiring }] = await Promise.all([
       supabase.from("validation_rules").select("*").order("created_at", { ascending: false }),
       supabase.from("assistance_groups").select("*").order("name"),
-      supabase.from("companies").select("id, name"),
+      fetchAllPaginated<{ id: string; name: string }>((from, to) =>
+        supabase.from("companies").select("id, name").range(from, to),
+      ),
       supabase
         .from("rules")
         .select("id, name, valid_until")
