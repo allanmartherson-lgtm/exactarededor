@@ -71,7 +71,7 @@ export default function Conciliacao() {
       if (ids.length > 0) {
         const { data: ps } = await supabase
           .from("payments")
-          .select("id, number, competence, status")
+          .select("id, reference, competence_month, status")
           .in("id", ids);
         const map: Record<string, PaymentLite> = {};
         (ps ?? []).forEach((p: PaymentLite) => { map[p.id] = p; });
