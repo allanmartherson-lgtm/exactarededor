@@ -1069,7 +1069,7 @@ export function ItemsDataGrid({
             {filtered.length === 0 && (
               <li className="text-center py-8 text-muted-foreground text-xs">Nenhum item para exibir.</li>
             )}
-            {filtered.map((it, idx) => {
+            {displayRows.map((it, idx) => {
               const paciente = getPatient(it);
               const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
               const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus, (it as any).is_cancelled);
