@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -47,7 +47,6 @@ import {
 } from "@/lib/registryLookup";
 import { RegistryResolutionPanel, type UnresolvedGroup } from "@/components/RegistryResolutionPanel";
 import {
-  similarity,
   extractCompanyFromFilename,
   matchCompany,
   MATCH_AUTO_THRESHOLD,
@@ -440,6 +439,8 @@ const NewPayment = () => {
   const [parseErrors, setParseErrors] = useState<Array<{ fileName: string; title: string; reasons: string[]; howToFix: string[] }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
+  const companiesRef = useRef<CompanyRow[]>([]);
+  const companiesLoadPromiseRef = useRef<Promise<CompanyRow[]> | null>(null);
   const [searchParams] = useSearchParams();
   // Resolve o modo na seguinte ordem: query param → sessionStorage (escolhido
   // no modal antes de navegar) → padrão. Garante que se o param se perder no
@@ -689,11 +690,47 @@ const NewPayment = () => {
     return () => window.removeEventListener("beforeunload", preventRefresh);
   }, [buckets.length, submitting]);
 
-  useEffect(() => {
-    supabase.from("companies").select("id,name,aliases").limit(5000).then(({ data }) => {
-      setCompanies((data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] })));
-    });
+  const loadCompanies = useCallback(async () => {
+    if (companiesLoadPromiseRef.current) return companiesLoadPromiseRef.current;
+
+    companiesLoadPromiseRef.current = (async () => {
+      const pageSize = 1000;
+      const all: CompanyRow[] = [];
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from("companies")
+          .select("id,name,aliases")
+          .order("name", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+
+        const page = (data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
+        all.push(...page);
+        if (page.length < pageSize) break;
+      }
+
+      companiesRef.current = all;
+      setCompanies(all);
+      return all;
+    })();
+
+    try {
+      return await companiesLoadPromiseRef.current;
+    } finally {
+      companiesLoadPromiseRef.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    loadCompanies().catch((error) => {
+      console.error("[NewPayment] loadCompanies", error);
+      toast({
+        title: "Não foi possível carregar empresas",
+        description: "Atualize a página e tente enviar os arquivos novamente.",
+        variant: "destructive",
+      });
+    });
+  }, [loadCompanies]);
 
   /**
    * Mapeia um array de linhas JSON (já com cabeçalho correto) para ParsedRow[].
@@ -726,7 +763,8 @@ const NewPayment = () => {
       const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
       let rowMatchedCompany: CompanyRow | null = null;
       if (!filenameTrusted && rowCompanyNameRaw) {
-        const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
+        const registry = companiesRef.current.length ? companiesRef.current : companies;
+        const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, registry);
         if (s >= MATCH_AUTO_THRESHOLD) rowMatchedCompany = matched;
       }
       const rawSector = sectorColumnOverride
@@ -879,27 +917,10 @@ const NewPayment = () => {
       );
     }
 
+    const companyRegistry = await loadCompanies();
     const rawCompanyName = extractCompanyFromFilename(f.name);
-    const { company, score } = matchCompany(rawCompanyName, companies);
+    const { company, score } = matchCompany(rawCompanyName, companyRegistry);
     const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
-    // DIAGNÓSTICO: ajuda a entender por que um match óbvio falha em produção.
-    // Imprime nome bruto, total de PJs carregadas, top-5 candidatos e se a PJ
-    // alvo (FACE E TORAX) está presente no array. Remover após confirmação.
-    try {
-      // eslint-disable-next-line no-console
-      console.log("[match-debug] file:", f.name);
-      // eslint-disable-next-line no-console
-      console.log("[match-debug] rawCompanyName:", rawCompanyName, "| companies loaded:", companies.length);
-      const ranked = companies
-        .map((c) => ({ id: c.id, name: c.name, s: similarity(rawCompanyName, c.name) }))
-        .sort((a, b) => b.s - a.s)
-        .slice(0, 5);
-      // eslint-disable-next-line no-console
-      console.log("[match-debug] top-5:", ranked);
-      const target = companies.find((c) => /face\s*e\s*torax/i.test(c.name));
-      // eslint-disable-next-line no-console
-      console.log("[match-debug] FACE E TORAX presente?", !!target, target);
-    } catch {}
 
     // Detecta a coluna "setor" cruzando cabeçalho + valores com sectores cadastrados.
     // Só auto-aplica quando o NOME do cabeçalho bate explicitamente (ex.: "Setor",
@@ -985,8 +1006,9 @@ const NewPayment = () => {
       if (!matrix) return bucket;
       const json = matrixToJson(matrix, newHeaderIdx);
       const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
+      const registry = companiesRef.current.length ? companiesRef.current : companies;
       const company = bucket.matchedCompany
-        ? (companies.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
+        ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
       const rows = mapJsonToRows(json, bucket.file, newHeaderIdx, company, filenameTrusted, bucket.rawCompanyName, bucket.sectorColumnUsed ?? null);
       const sc: Record<string, number> = {};
@@ -1011,8 +1033,9 @@ const NewPayment = () => {
       if (!matrix) return { ...bucket, sectorColumnUsed: columnName };
       const json = matrixToJson(matrix, headerIdx);
       const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
+      const registry = companiesRef.current.length ? companiesRef.current : companies;
       const company = bucket.matchedCompany
-        ? (companies.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
+        ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
       const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, columnName);
       const sc: Record<string, number> = {};
@@ -1134,6 +1157,9 @@ const NewPayment = () => {
             variant: "destructive",
           });
         } else {
+          companiesRef.current = companiesRef.current.map((c) =>
+            c.id === picked.id ? { ...c, aliases: res.aliases } : c,
+          );
           setCompanies((prev) =>
             prev.map((c) => (c.id === picked.id ? { ...c, aliases: res.aliases } : c)),
           );
@@ -1174,12 +1200,16 @@ const NewPayment = () => {
     );
 
     const rawAlias = b.rawCompanyName?.trim() ?? "";
-    const candidate = companies.find((c) => c.id === picked.id);
+    const registry = companiesRef.current.length ? companiesRef.current : companies;
+    const candidate = registry.find((c) => c.id === picked.id);
     const mustLearn = shouldLearnAlias(rawAlias, candidate ?? null);
 
     if (mustLearn) {
       const res = await learnCompanyAlias(supabase, { companyId: picked.id, rawName: rawAlias });
       if (res.ok) {
+        companiesRef.current = companiesRef.current.map((c) =>
+          c.id === picked.id ? { ...c, aliases: res.aliases } : c,
+        );
         setCompanies((prev) =>
           prev.map((c) => (c.id === picked.id ? { ...c, aliases: res.aliases } : c)),
         );
