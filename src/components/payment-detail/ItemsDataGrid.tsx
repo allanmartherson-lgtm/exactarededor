@@ -2229,7 +2229,7 @@ function ItemDetailsRow({
     );
   }
   return (
-    <tr className="border-b bg-muted/20">
+    <tr className="border-b bg-muted/20" data-expanded-row={it.id}>
       <td colSpan={colSpan} className="p-0 align-top">
         {/*
           O <td> com colSpan ocupa toda a largura do <table> (table-fixed, pode ser
