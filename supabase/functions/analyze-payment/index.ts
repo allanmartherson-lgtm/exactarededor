@@ -1008,6 +1008,8 @@ serve(async (req) => {
               r.diff_pct = null;
               r.status = "aprovado" as any;
               r.needs_ai_review = false;
+              (r as any).package_absorbed = true;
+              (r as any).package_absorbed_calc_id = calc.id ?? null;
               r.alerts = r.alerts.filter((a) =>
                 !a.toLowerCase().includes("sem regra") && !a.toLowerCase().includes("no rule"),
               );
@@ -1028,11 +1030,13 @@ serve(async (req) => {
 
             if (!isPrimary) {
               // Código secundário absorvido: repasse da função está no item âncora.
-              // Fica aprovado com expected = 0.
+              // Fica aprovado com expected = 0 e gross zerado (via package_absorbed).
               r.expected_amount = 0;
               r.diff_pct = null;
               r.status = "aprovado" as any;
               r.needs_ai_review = false;
+              (r as any).package_absorbed = true;
+              (r as any).package_absorbed_calc_id = calc.id ?? null;
               r.alerts = r.alerts.filter((a) =>
                 !a.toLowerCase().includes("sem regra") && !a.toLowerCase().includes("no rule"),
               );
@@ -1628,6 +1632,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       applied_calc_method: AppliedCalcMethod | null;
       expected_amount: number | null;
       applied_at: string | null;
+      // Pacote: marcação de absorção persistida no DB. Garante que
+      // compute-company-financials EXCLUA o gross do secundário do bruto.
+      package_absorbed?: boolean;
+      package_absorbed_calc_id?: string | null;
     };
     type VersionRow = Record<string, unknown>;
     type ObsRow = Record<string, unknown>;
@@ -1867,6 +1875,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_at: isCalcDuplicityBlock ? null : new Date().toISOString(),
         convenio_basis_detected: r.convenio_basis_detected ?? null,
         basis_confidence: r.basis_confidence ?? null,
+        package_absorbed: (r as any).package_absorbed === true,
+        package_absorbed_calc_id: (r as any).package_absorbed_calc_id ?? null,
       });
 
 
@@ -2056,6 +2066,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_at: u.applied_at,
         convenio_basis_detected: (u as any).convenio_basis_detected,
         basis_confidence: (u as any).basis_confidence,
+        // Pacote: marca/desmarca absorção (idempotente em reanálise).
+        package_absorbed: u.package_absorbed === true,
+        package_absorbed_calc_id: u.package_absorbed_calc_id ?? null,
       };
       // CONFECÇÃO: motor PRODUZ o gross_amount (valor a pagar) a partir do
       // expected_amount calculado pela regra. Sem regra (sem_regra ou bloqueio
