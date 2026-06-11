@@ -1006,8 +1006,9 @@ const NewPayment = () => {
       if (!matrix) return bucket;
       const json = matrixToJson(matrix, newHeaderIdx);
       const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
+      const registry = companiesRef.current.length ? companiesRef.current : companies;
       const company = bucket.matchedCompany
-        ? (companies.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
+        ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
       const rows = mapJsonToRows(json, bucket.file, newHeaderIdx, company, filenameTrusted, bucket.rawCompanyName, bucket.sectorColumnUsed ?? null);
       const sc: Record<string, number> = {};
@@ -1032,8 +1033,9 @@ const NewPayment = () => {
       if (!matrix) return { ...bucket, sectorColumnUsed: columnName };
       const json = matrixToJson(matrix, headerIdx);
       const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
+      const registry = companiesRef.current.length ? companiesRef.current : companies;
       const company = bucket.matchedCompany
-        ? (companies.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
+        ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
       const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, columnName);
       const sc: Record<string, number> = {};
@@ -1195,7 +1197,8 @@ const NewPayment = () => {
     );
 
     const rawAlias = b.rawCompanyName?.trim() ?? "";
-    const candidate = companies.find((c) => c.id === picked.id);
+    const registry = companiesRef.current.length ? companiesRef.current : companies;
+    const candidate = registry.find((c) => c.id === picked.id);
     const mustLearn = shouldLearnAlias(rawAlias, candidate ?? null);
 
     if (mustLearn) {
