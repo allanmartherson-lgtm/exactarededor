@@ -51,6 +51,7 @@ import {
   ListChecks,
   Chats,
   Scales,
+  ArrowsLeftRight,
   PencilSimple,
   type IconProps,
 } from "@phosphor-icons/react";
