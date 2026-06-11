@@ -690,11 +690,47 @@ const NewPayment = () => {
     return () => window.removeEventListener("beforeunload", preventRefresh);
   }, [buckets.length, submitting]);
 
-  useEffect(() => {
-    supabase.from("companies").select("id,name,aliases").limit(5000).then(({ data }) => {
-      setCompanies((data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] })));
-    });
+  const loadCompanies = useCallback(async () => {
+    if (companiesLoadPromiseRef.current) return companiesLoadPromiseRef.current;
+
+    companiesLoadPromiseRef.current = (async () => {
+      const pageSize = 1000;
+      const all: CompanyRow[] = [];
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from("companies")
+          .select("id,name,aliases")
+          .order("name", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+
+        const page = (data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
+        all.push(...page);
+        if (page.length < pageSize) break;
+      }
+
+      companiesRef.current = all;
+      setCompanies(all);
+      return all;
+    })();
+
+    try {
+      return await companiesLoadPromiseRef.current;
+    } finally {
+      companiesLoadPromiseRef.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    loadCompanies().catch((error) => {
+      console.error("[NewPayment] loadCompanies", error);
+      toast({
+        title: "Não foi possível carregar empresas",
+        description: "Atualize a página e tente enviar os arquivos novamente.",
+        variant: "destructive",
+      });
+    });
+  }, [loadCompanies]);
 
   /**
    * Mapeia um array de linhas JSON (já com cabeçalho correto) para ParsedRow[].
