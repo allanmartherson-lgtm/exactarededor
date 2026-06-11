@@ -85,7 +85,7 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { to: "/pagamentos", label: "Pagamentos", icon: Wallet, iconName: "Wallet", roles: ALL_ROLES },
       { to: "/notas-fiscais", label: "Notas Fiscais", icon: Receipt, iconName: "Receipt", roles: ALL_ROLES },
-      { to: "/glosas", label: "Glosas e Conciliação", icon: ShieldX, iconName: "ShieldX", roles: ["diretor", "admin", "analista", "validador"] as const },
+      { to: "/glosas", label: "Glosas", icon: ShieldX, iconName: "ShieldX", roles: ["diretor", "admin", "analista", "validador"] as const },
       { to: "/financeiro/conciliacao", label: "Conciliação", icon: GitCompare, iconName: "GitCompare", roles: ["diretor", "admin", "analista", "validador"] as const },
       { to: "/financeiro/creditos-debitos", label: "Créditos e Débitos", icon: Scale, iconName: "Scale", roles: ["admin", "diretor", "analista"] as const },
       { to: "/sistema/journal", label: "Livro Contábil", icon: BookOpen, iconName: "BookOpen", roles: ["admin", "diretor"] },
@@ -169,7 +169,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Dashboard", iconName: "LayoutDashboard" },
   { label: "Pagamentos", iconName: "Wallet" },
   { label: "Notas Fiscais", iconName: "Receipt" },
-  { label: "Glosas e Conciliação", iconName: "ShieldX" },
+  { label: "Glosas", iconName: "ShieldX" },
   { label: "Conciliação", iconName: "GitCompare" },
   { label: "Créditos e Débitos", iconName: "Scale" },
   { label: "Livro Contábil", iconName: "BookOpen" },
