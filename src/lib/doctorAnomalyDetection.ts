@@ -71,17 +71,25 @@ export async function detectDoctorSectorAnomalies(
 ): Promise<DoctorSectorAnomaly[]> {
   if (!paymentId) return [];
 
+  const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+
   // Lote atual
-  const { data: current, error: currentErr } = await supabase
-    .from("payment_items")
-    .select("doctor_name, sector")
-    .eq("payment_id", paymentId)
-    .limit(5000);
-  if (currentErr || !current) return [];
+  let current: Array<{ doctor_name: string | null; sector: string | null }> = [];
+  try {
+    current = await fetchAllPaginated((from, to) =>
+      supabase
+        .from("payment_items")
+        .select("doctor_name, sector")
+        .eq("payment_id", paymentId)
+        .range(from, to),
+    );
+  } catch {
+    return [];
+  }
 
   // Agrupa atual por médico
   const currentByDoctor: Record<string, Record<string, number>> = {};
-  for (const row of current as Array<{ doctor_name: string | null; sector: string | null }>) {
+  for (const row of current) {
     const name = (row.doctor_name ?? "").trim();
     const sec = normalizeSector((row.sector ?? "").trim());
     if (!name || !sec) continue;
@@ -94,14 +102,20 @@ export async function detectDoctorSectorAnomalies(
   // Histórico 6 meses
   const since = new Date();
   since.setMonth(since.getMonth() - SAMPLE_MONTHS);
-  const { data: history, error: histErr } = await supabase
-    .from("payment_items")
-    .select("doctor_name, sector, payment_id")
-    .in("doctor_name", doctorNames)
-    .neq("payment_id", paymentId)
-    .gte("created_at", since.toISOString())
-    .limit(5000);
-  if (histErr || !history) return [];
+  let history: Array<{ doctor_name: string | null; sector: string | null; payment_id: string | null }> = [];
+  try {
+    history = await fetchAllPaginated((from, to) =>
+      supabase
+        .from("payment_items")
+        .select("doctor_name, sector, payment_id")
+        .in("doctor_name", doctorNames)
+        .neq("payment_id", paymentId)
+        .gte("created_at", since.toISOString())
+        .range(from, to),
+    );
+  } catch {
+    return [];
+  }
 
   const histByDoctor: Record<string, Record<string, number>> = {};
   for (const row of history as Array<{ doctor_name: string | null; sector: string | null }>) {
