@@ -555,6 +555,7 @@ export function ItemsDataGrid({
       worstStatus: "reprovado" | "alerta" | "aprovado";
     };
     const groups = new Map<string, PkgGroup>();
+    // 1ª passada: cria grupo a partir de itens com applied_calc_method === 'pacote'
     filtered.forEach((it, idx) => {
       if ((it as any).applied_calc_method !== "pacote") return;
       const att = (it.attendance_number ?? "").toString().trim();
@@ -585,8 +586,21 @@ export function ItemsDataGrid({
       else if (it.ai_status === "alerta" && g.worstStatus !== "reprovado")
         g.worstStatus = "alerta";
     });
+    // 2ª passada: itens manualmente absorvidos (package_absorbed=true) entram no grupo
+    // do mesmo atendimento — para serem ocultados no colapso e somados ao banner.
+    filtered.forEach((it) => {
+      if ((it as any).applied_calc_method === "pacote") return;
+      if ((it as any).package_absorbed !== true) return;
+      const att = (it.attendance_number ?? "").toString().trim();
+      if (!att) return;
+      const g = groups.get(att);
+      if (!g) return;
+      g.items.push(it);
+      g.totalGross += Number(it.gross_amount ?? 0);
+    });
     return groups;
   }, [filtered]);
+
 
 
   // Totais da seleção atual (após filtros).
