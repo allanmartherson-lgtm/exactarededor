@@ -961,11 +961,9 @@ export default function CompanyAnalysis() {
         });
         const { missingRequired } = summarizeMissing(hits);
         if (missingRequired.length > 0) {
-          toast({
-            title: `Colunas obrigatórias ausentes em ${file.name}`,
-            description: `Faltam: ${missingRequired.map((m) => FIELD_BY_KEY[m.field].label).join(", ")}. Use /pagamentos/novo para revisar o mapeamento e salvar template.`,
-            variant: "destructive",
-          });
+          toast.error(
+            `Colunas obrigatórias ausentes em ${file.name}: ${missingRequired.map((m) => FIELD_BY_KEY[m.field].label).join(", ")}. Use /pagamentos/novo para revisar o mapeamento.`,
+          );
           setReimporting(false);
           return;
         }
