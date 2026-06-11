@@ -239,6 +239,16 @@ interface FileBucket {
   sectorColumnDetection?: SectorColumnDetection;
   /** Coluna efetivamente usada como setor (auto OU escolhida pelo usuário). */
   sectorColumnUsed?: string | null;
+  /** Headers crus detectados na linha de cabeçalho. */
+  detectedHeaders?: string[];
+  /** Linha de exemplo (primeira de dados) — alimenta preview no diálogo de mapeamento. */
+  sampleRow?: Record<string, unknown> | null;
+  /** Resultado da inspeção campo→header (heurística + overrides). */
+  mappingHits?: FieldMappingHit[];
+  /** Override de mapeamento aplicado pelo analista ou por template salvo. */
+  columnMapping?: ManualMapping;
+  /** Template aplicado automaticamente (quando assinatura bateu). */
+  appliedTemplate?: { id: string; name: string } | null;
 }
 
 type RetroTvrResult = {
