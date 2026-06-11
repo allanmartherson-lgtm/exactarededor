@@ -111,6 +111,7 @@ export default function Conciliacao() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="pagamento">Do pagamento</TabsTrigger>
+          <TabsTrigger value="bases">Bases hospitalares</TabsTrigger>
           <TabsTrigger value="retroativa">Retroativa</TabsTrigger>
         </TabsList>
 
