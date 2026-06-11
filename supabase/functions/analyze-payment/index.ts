@@ -22,6 +22,7 @@ import {
   type AppliedCalcMethod,
 } from "../_shared/calcMethodMapping.ts";
 import { classifyDuplicateMatch, evaluateDuplicate, type DuplicateOverridePayload } from "../_shared/itemHash.ts";
+import { buildPrimaryItemByRole, isPrimaryAnchor, normRole } from "../_shared/packagePrimary.ts";
 // rebuild: allowlist estrita para group_company_links com doctors preenchido (2026-06-04)
 
 const corsHeaders = {
@@ -981,19 +982,7 @@ serve(async (req) => {
           //   • fallback: primeiro item da função encontrado em attItems
           // Itens secundários (mesma função, outros códigos absorvidos) recebem
           // expected = 0 e status = aprovado ("absorvido pelo pacote").
-          const primaryItemByRole = new Map<string, string>(); // norm(role) → item.id
-          for (const it of attItems) {
-            const code = (it.procedure_code ?? "").toString().trim();
-            if (!absorbedCodes.has(code)) continue;
-            if (!it.doctor_role) continue;
-            const rn = norm(it.doctor_role);
-            if (!primaryItemByRole.has(rn)) {
-              primaryItemByRole.set(rn, it.id);
-            }
-            if (code === calc.package_main_code) {
-              primaryItemByRole.set(rn, it.id); // main_code tem prioridade
-            }
-          }
+          const primaryItemByRole = buildPrimaryItemByRole(attItems as any, absorbedCodes, calc.package_main_code);
 
           // Aplica resultado de pacote em cada item absorvido
           for (const it of attItems) {
@@ -1009,8 +998,7 @@ serve(async (req) => {
             (r as any).calculation_type_used = "pacote";
             r.matched_priority = "match";
 
-            const roleNorm = norm(it.doctor_role ?? "");
-            const isPrimary = !it.doctor_role || primaryItemByRole.get(roleNorm) === it.id;
+            const isPrimary = isPrimaryAnchor(it as any, primaryItemByRole);
 
             if (!isPrimary) {
               // Código secundário absorvido: repasse da função está no item âncora.
