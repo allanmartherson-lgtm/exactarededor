@@ -45,20 +45,19 @@ export function PortalUnreadBadge() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
+        <button
+          type="button"
           onClick={() => navigate("/conversas")}
           aria-label={`Conversas do portal${count > 0 ? ` (${count} não lidas)` : ""}`}
-          className="relative h-11 w-11 text-muted-foreground hover:text-foreground"
+          className="relative size-8 grid place-items-center rounded-md border border-border/60 bg-background hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
         >
-          <MessageCircle className="h-[22px] w-[22px]" />
+          <MessageCircle className="size-4" strokeWidth={1.7} />
           {count > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold leading-none flex items-center justify-center px-1">
               {count > 9 ? "9+" : count}
             </span>
           )}
-        </Button>
+        </button>
       </TooltipTrigger>
       <TooltipContent>Conversas do portal</TooltipContent>
     </Tooltip>
