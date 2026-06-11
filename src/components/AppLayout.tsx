@@ -1031,8 +1031,7 @@ export const AppLayout = () => {
               <InboxBadge />
               <NotificationBell />
               <div className="hidden md:flex items-center gap-1">
-                <ThemeToggle />
-                <ContrastToggle />
+                <AccessibilityMenu />
                 <LayoutToggle />
               </div>
 
@@ -1227,8 +1226,7 @@ export const AppLayout = () => {
               >
                 <LogOut className="h-3.5 w-3.5" />
               </Button>
-              <ThemeToggle />
-              <ContrastToggle />
+                <AccessibilityMenu />
               <LayoutToggle />
             </>
           ) : (
@@ -1279,8 +1277,7 @@ export const AppLayout = () => {
             </Button>
           </div>
           <div className="flex items-center gap-1">
-            <ThemeToggle />
-            <ContrastToggle />
+                <AccessibilityMenu />
             <LayoutToggle />
           </div>
           <SidebarVersionFooter />
