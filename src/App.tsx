@@ -284,6 +284,7 @@ const App = () => (
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
                   <Route path="/ciclo-nf" element={<Navigate to="/notas-fiscais" replace />} />
                   <Route path="/glosas" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><Glosas /></ProtectedRoute>} />
+                  <Route path="/financeiro/conciliacao" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><Conciliacao /></ProtectedRoute>} />
                   <Route path="/pendencias" element={<Pendencias />} />
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
                   <Route path="/conversas" element={<Conversas />} />
