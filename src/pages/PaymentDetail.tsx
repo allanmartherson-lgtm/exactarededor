@@ -1093,8 +1093,11 @@ const PaymentDetail = () => {
     setReimporting(true);
     try {
       const { parsePaymentFile } = await import("@/lib/parsePaymentFile");
-      const { data: companiesData } = await supabase.from("companies").select("id,name,aliases").limit(5000);
-      const companies = (companiesData ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
+      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+      const companiesData = await fetchAllPaginated<any>((from, to) =>
+        supabase.from("companies").select("id,name,aliases").range(from, to),
+      );
+      const companies = companiesData.map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
       
       let allRows: any[] = [];
       let fileNames: string[] = [];
