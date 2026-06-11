@@ -159,7 +159,7 @@ serve(async (req) => {
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase
       .from("payments")
-      .select("sectors,specialties,payment_type,payment_due_date,competence_month,analysis_mode")
+      .select("sectors,specialties,payment_type,payment_due_date,competence_month,analysis_mode,hospital_id")
       .eq("id", payment_id)
       .maybeSingle<PaymentRow>();
 
@@ -2085,6 +2085,55 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       await supabase.from("payment_items").update(patch).eq("id", u.id);
     });
     console.timeEnd(`${__t} writes_payment_items`);
+
+    // ---------- Auditoria: registra mudanças de package_absorbed feitas pelo motor ----------
+    // Cada transição (false→true ou true→false) gera uma linha em audit_log com
+    // entity_type='payment_item', action='update', diff contendo o estado anterior/novo,
+    // o calc_id responsável pela absorção e o motivo. Sem actor_id (motor automático).
+    try {
+      const oldAbsorbedById = new Map<string, boolean>();
+      for (const it of items as any[]) {
+        oldAbsorbedById.set(it.id, it.package_absorbed === true);
+      }
+      const auditRows: Record<string, unknown>[] = [];
+      for (const u of itemUpdates) {
+        const oldVal = oldAbsorbedById.get(u.id) ?? false;
+        const newVal = u.package_absorbed === true;
+        if (oldVal === newVal) continue;
+        const srcItem = (items as any[]).find((it) => it.id === u.id);
+        auditRows.push({
+          entity_type: "payment_item",
+          entity_id: u.id,
+          action: "update",
+          actor_id: null,
+          company_id: srcItem?.company_id ?? null,
+          company_name: srcItem?.company_name ?? null,
+          hospital_id: (payment as any)?.hospital_id ?? null,
+          diff: {
+            package_absorbed: { before: oldVal, after: newVal },
+            package_absorbed_calc_id: {
+              before: srcItem?.package_absorbed_calc_id ?? null,
+              after: u.package_absorbed_calc_id ?? null,
+            },
+            source: "analyze-payment",
+            reason: newVal ? "package_secondary_absorbed" : "package_absorption_cleared",
+            applied_rule_id: u.applied_rule_id ?? null,
+            applied_calc_method: u.applied_calc_method ?? null,
+            ai_findings_engine: (u.ai_findings as any)?.engine ?? null,
+          },
+        });
+      }
+      if (auditRows.length > 0) {
+        for (let i = 0; i < auditRows.length; i += 200) {
+          const slice = auditRows.slice(i, i + 200);
+          const { error: auditErr } = await supabase.from("audit_log").insert(slice);
+          if (auditErr) console.warn(`${__t} audit_package_absorbed_error`, auditErr.message);
+        }
+        console.log(`${__t} audit_package_absorbed_logged count=${auditRows.length}`);
+      }
+    } catch (e: any) {
+      console.warn(`${__t} audit_package_absorbed_exception`, e?.message ?? String(e));
+    }
 
     // Idempotência: apaga linhas de bônus prévias deste payment para as
     // empresas que este worker está processando — evita duplicar em reanálise.
