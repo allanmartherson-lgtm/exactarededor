@@ -78,8 +78,11 @@ export default function CreditosDebitos() {
 
   const loadAll = async () => {
     setLoading(true);
-    const [c, a, g] = await Promise.all([
-      supabase.from("companies").select("id, name").order("name"),
+    const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+    const [companiesAll, a, g] = await Promise.all([
+      fetchAllPaginated<{ id: string; name: string }>((from, to) =>
+        supabase.from("companies").select("id, name").order("name").range(from, to),
+      ),
       supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
       (supabase as any)
         .from("glosa_debts")
@@ -88,8 +91,8 @@ export default function CreditosDebitos() {
         .order("created_at", { ascending: false }),
 
     ]);
-    setCompanies(c.data || []);
-    const cMap = new Map((c.data || []).map((x: any) => [x.id, x.name]));
+    setCompanies(companiesAll);
+    const cMap = new Map(companiesAll.map((x) => [x.id, x.name]));
     const adjs = (a.data || []) as Adjustment[];
     setAdjustments(adjs.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
     const debts = ((g as any).data || []) as GlosaDebt[];
