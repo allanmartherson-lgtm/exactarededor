@@ -36,13 +36,16 @@ Deno.serve(async (req) => {
 
     // Bruto (soma de gross_amount dos itens da empresa neste pagamento)
     // Exclui itens cancelados individualmente (is_cancelled) — eles saem do pagamento.
+    // Exclui também itens absorvidos manualmente em pacote (package_absorbed=true) — o valor
+    // deles passa a fazer parte do pacote principal, não pode ser somado em duplicidade no bruto.
     const { data: items } = await supabase
       .from("payment_items")
-      .select("gross_amount, is_cancelled")
+      .select("gross_amount, is_cancelled, package_absorbed")
       .eq("payment_id", payment_id).eq("company_id", company_id);
     const bruto = round2((items ?? [])
-      .filter((it: any) => !it.is_cancelled)
+      .filter((it: any) => !it.is_cancelled && !it.package_absorbed)
       .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0));
+
 
     // Débitos/Créditos
     const { data: caa } = await supabase
