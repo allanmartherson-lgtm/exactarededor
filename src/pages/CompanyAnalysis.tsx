@@ -1905,6 +1905,7 @@ export default function CompanyAnalysis() {
                 onAcceptItem={acceptItem}
                 onUndoAcceptItem={undoAcceptItem}
                 mode={(payment as any).analysis_mode === "confeccao" ? "confeccao" : "analise"}
+                onRefresh={() => { void load(); }}
               />
             </CardContent>
           </Card>
