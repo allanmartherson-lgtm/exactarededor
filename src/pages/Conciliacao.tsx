@@ -189,17 +189,6 @@ export default function Conciliacao() {
               </TableBody>
             </Table>
           </div>
-          <p className="text-xs text-muted-foreground">
-            As bases hospitalares mensais usadas como insumo continuam sendo importadas em
-            <button
-              type="button"
-              onClick={() => navigate("/glosas")}
-              className="ml-1 underline text-foreground hover:text-primary"
-            >
-              Glosas › Bases de Conciliação
-            </button>
-            .
-          </p>
         </TabsContent>
 
         <TabsContent value="bases" className="mt-4">
