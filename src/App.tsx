@@ -80,6 +80,7 @@ const loadDreReport = () => import("./pages/DreReport.tsx");
 const loadMoneyHealth = () => import("./pages/MoneyHealth.tsx");
 const loadBusinessObservability = () => import("./pages/BusinessObservability.tsx");
 const loadPendencias = () => import("./pages/Pendencias.tsx");
+const loadConciliacao = () => import("./pages/Conciliacao.tsx");
 const loadPendenciaDetail = () => import("./pages/PendenciaDetail.tsx");
 const loadConversas = () => import("./pages/Conversas.tsx");
 const loadHospitals = () => import("./pages/Hospitals.tsx");
@@ -154,6 +155,7 @@ const DreReport = lazy(loadDreReport);
 const MoneyHealth = lazy(loadMoneyHealth);
 const BusinessObservability = lazy(loadBusinessObservability);
 const Pendencias = lazy(loadPendencias);
+const Conciliacao = lazy(loadConciliacao);
 const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
 const MassCommunication = lazy(() => import("./pages/MassCommunication.tsx"));
@@ -282,6 +284,7 @@ const App = () => (
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
                   <Route path="/ciclo-nf" element={<Navigate to="/notas-fiscais" replace />} />
                   <Route path="/glosas" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><Glosas /></ProtectedRoute>} />
+                  <Route path="/financeiro/conciliacao" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><Conciliacao /></ProtectedRoute>} />
                   <Route path="/pendencias" element={<Pendencias />} />
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
                   <Route path="/conversas" element={<Conversas />} />

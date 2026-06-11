@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import RetroactiveReconciliationsTab from "@/components/retroactive/RetroactiveReconciliationsTab";
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -211,7 +211,6 @@ export default function Pendencias() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="pendencias">Pendências</TabsTrigger>
-          <TabsTrigger value="retroativa">Conciliação retroativa</TabsTrigger>
         </TabsList>
 
 
@@ -389,9 +388,6 @@ export default function Pendencias() {
           </TableBody>
         </Table>
       </div>
-        </TabsContent>
-        <TabsContent value="retroativa" className="mt-4">
-          <RetroactiveReconciliationsTab />
         </TabsContent>
       </Tabs>
     </div>

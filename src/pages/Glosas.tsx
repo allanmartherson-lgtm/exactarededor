@@ -1031,7 +1031,7 @@ export default function Glosas() {
                               <>
                                 {" · "}
                                 <a
-                                  href={`/pendencias?tab=retroativa&reconciliation=${batch.reconciliation_id}`}
+                                  href={`/financeiro/conciliacao?tab=retroativa&reconciliation=${batch.reconciliation_id}`}
                                   onClick={(e) => e.stopPropagation()}
                                   style={{ color: "hsl(var(--primary))", textDecoration: "underline" }}
                                 >
