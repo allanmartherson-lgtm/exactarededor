@@ -135,15 +135,25 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
   const load = async () => {
     try {
       setLoadingDoctors(true);
-      // Carregamento de empresas e vínculos primeiro (são menores)
-      const [c, l, countResp] = await Promise.all([
-        supabase.from("companies").select("id,name,document").order("name").limit(5000),
-        supabase.from("doctor_companies").select("doctor_id,company_id,start_date,end_date,end_reason").limit(50000),
-        supabase.from("doctors").select("*", { count: 'exact', head: true })
+      // Carregamento de empresas e vínculos primeiro (são menores).
+      // Paginação explícita: PostgREST trunca em 1000 linhas, então .limit(5000) por si só
+      // perdia silenciosamente registros conforme a base cresce.
+      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+      const [companiesAll, linksAll, countResp] = await Promise.all([
+        fetchAllPaginated<Company>((from, to) =>
+          supabase.from("companies").select("id,name,document").order("name").range(from, to),
+        ),
+        fetchAllPaginated<Link>((from, to) =>
+          supabase
+            .from("doctor_companies")
+            .select("doctor_id,company_id,start_date,end_date,end_reason")
+            .range(from, to),
+        ),
+        supabase.from("doctors").select("*", { count: 'exact', head: true }),
       ]);
-      
-      setCompanies((c.data ?? []) as Company[]);
-      setLinks((l.data ?? []) as Link[]);
+
+      setCompanies(companiesAll);
+      setLinks(linksAll);
       const total = countResp.count || 0;
       console.log(`Carregando base total: ${total} médicos`);
       setTotalDatabase(total);

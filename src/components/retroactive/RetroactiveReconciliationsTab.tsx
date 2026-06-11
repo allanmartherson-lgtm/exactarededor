@@ -505,30 +505,30 @@ function NewView({
 
   useEffect(() => {
     void (async () => {
-      // Pagina para garantir todos os médicos ativos (4k+).
-      const PAGE = 1000;
-      const all: Doctor[] = [];
-      for (let from = 0; from < 10000; from += PAGE) {
-        const { data } = await supabase
-          .from("doctors")
-          .select("id, full_name, crm, crm_uf")
-          .eq("active", true)
-          .order("full_name")
-          .range(from, from + PAGE - 1);
-        const rows = (data ?? []) as Doctor[];
-        all.push(...rows);
-        if (rows.length < PAGE) break;
-      }
+      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+      const [all, cs] = await Promise.all([
+        fetchAllPaginated<Doctor>((from, to) =>
+          supabase
+            .from("doctors")
+            .select("id, full_name, crm, crm_uf")
+            .eq("active", true)
+            .order("full_name")
+            .range(from, to),
+        ),
+        fetchAllPaginated<Company>((from, to) =>
+          supabase
+            .from("companies")
+            .select("id, name, document")
+            .eq("active", true)
+            .order("name")
+            .range(from, to),
+        ),
+      ]);
       setDoctors(all);
-      const { data: cs } = await supabase
-        .from("companies")
-        .select("id, name, document")
-        .eq("active", true)
-        .order("name")
-        .limit(5000);
-      setCompanies((cs ?? []) as Company[]);
+      setCompanies(cs);
     })();
   }, []);
+
 
   const selectedDoctor = doctors.find((d) => d.id === doctorId);
   const selectedCompany = companies.find((c) => c.id === companyId);
@@ -1851,21 +1851,24 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       start.setDate(start.getDate() - 90);
       end.setDate(end.getDate() + 90);
 
-      let query = supabase
-        .from("payment_items" as never)
-        .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
-        .gte("procedure_date", start.toISOString().slice(0, 10))
-        .lte("procedure_date", end.toISOString().slice(0, 10));
-
-      if (r.doctor_id) query = query.eq("doctor_id", r.doctor_id);
-      if (r.company_id) query = query.eq("company_id", r.company_id);
-
-      const { data, error } = await query.limit(5000);
-      if (error) {
-        toast({ title: "Erro ao buscar pagamentos", description: error.message, variant: "destructive" });
+      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+      let data: Array<Record<string, unknown>> = [];
+      try {
+        data = await fetchAllPaginated<Record<string, unknown>>((from, to) => {
+          let q = supabase
+            .from("payment_items" as never)
+            .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
+            .gte("procedure_date", start.toISOString().slice(0, 10))
+            .lte("procedure_date", end.toISOString().slice(0, 10));
+          if (r.doctor_id) q = q.eq("doctor_id", r.doctor_id);
+          if (r.company_id) q = q.eq("company_id", r.company_id);
+          return q.range(from, to);
+        });
+      } catch (error: any) {
+        toast({ title: "Erro ao buscar pagamentos", description: error?.message ?? String(error), variant: "destructive" });
         return;
       }
-      const rawItems = (data ?? []) as Array<Record<string, unknown>>;
+      const rawItems = data;
       const paymentIds = Array.from(new Set(rawItems.map((it) => String(it.payment_id ?? "")).filter(Boolean)));
       const loteByPaymentId = new Map<string, string>();
       if (paymentIds.length > 0) {

@@ -42,18 +42,21 @@ export default function GlosaResolutionPanel() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: ds }, { data: cs }] = await Promise.all([
+    const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+    const [{ data: ds }, cs] = await Promise.all([
       (supabase as any)
         .from("v_glosa_debts_balance")
         .select("id, doctor_crm, doctor_name, total_debt, resolution_status, resolution_reason, company_id")
         .eq("status", "ativo")
         .eq("resolution_status", "pendente_resolucao")
         .order("total_debt", { ascending: false }),
-      supabase.from("companies").select("id, name").order("name"),
+      fetchAllPaginated<{ id: string; name: string }>((from, to) =>
+        supabase.from("companies").select("id, name").order("name").range(from, to),
+      ),
     ]);
     const debts = (ds ?? []) as Debt[];
     setPendentes(debts);
-    setCompanies((cs ?? []) as any);
+    setCompanies(cs as any);
     // pré-popula company_id sugerido pelo banco (quando há 1 PJ única)
     setSelections((prev) => {
       const next = { ...prev };
