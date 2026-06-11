@@ -630,18 +630,23 @@ export function ItemsDataGrid({
     if (target && Math.abs(target.scrollLeft - left) > 1) target.scrollLeft = left;
   };
 
+  // Estimativa de altura: rows + banners de pacote/regra + painel expandido + chrome.
+  // ~38px por linha (compacto), ~44px por banner de grupo, ~320px quando há painel
+  // expandido inline, ~140px de chrome (toolbar + header + scrollbar + footer).
+  const estimatedHeight =
+    items.length * 38 +
+    packageGroups.size * 44 +
+    (expandedId ? 320 : 0) +
+    140;
+
   return (
     // Altura própria pra ativar o scroll interno mesmo dentro de um pai sem altura.
-    // Reduzimos o offset (de 220 → 170) pra dar mais área vertical à tabela e
-    // manter o scrollbar horizontal sempre visível, sem precisar rolar até o fim
-    // da página em pagamentos grandes.
+    // Baseline maior (640px) + expansão dinâmica quando o usuário abre um painel
+    // ou quando há banners de grupo (regra/pacote) ocupando espaço extra.
     <div
-      className={cn("flex flex-col min-h-[420px]", className)}
+      className={cn("flex flex-col min-h-[640px]", className)}
       style={{
-        // Altura adaptativa: lotes pequenos ficam compactos; lotes grandes
-        // ocupam ~toda a viewport disponível para mostrar o máximo de linhas.
-        // ~38px por linha em modo compacto + ~120px de chrome (toolbar + header + scrollbar + footer total).
-        height: `min(calc(100vh - 160px), max(420px, ${items.length * 38 + 120}px))`,
+        height: `min(calc(100vh - 120px), max(640px, ${estimatedHeight}px))`,
       }}
     >
 
