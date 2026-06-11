@@ -933,7 +933,7 @@ export function ItemsDataGrid({
           aria-label="Rolagem horizontal da tabela"
           onScroll={(e) => syncScrollLeft("top", e.currentTarget.scrollLeft)}
         >
-          <div style={{ width: tableMinWidth, height: 1 }} />
+          <div style={{ width: Math.max(measuredScrollWidth, tableMinWidth), height: 1 }} />
         </div>
         <div
           ref={gridScrollRef}
