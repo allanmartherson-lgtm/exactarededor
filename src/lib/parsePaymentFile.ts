@@ -62,6 +62,12 @@ export interface FileBucket {
   matchedCompany: { id: string; name: string } | null;
   matchScore: number;
   manualOverride?: boolean;
+  /** Headers reais detectados na linha de cabeçalho da planilha. */
+  detectedHeaders: string[];
+  /** Mapping campo → header efetivamente usado neste parse. */
+  effectiveMapping: ManualMapping;
+  /** Hits de mapping com score/confiança — alimenta o ColumnMappingDialog. */
+  mappingHits: FieldMappingHit[];
 }
 
 const COMPLEMENTO_TERMS = ["bonus","bônus","complemento","adicional","diferenca","diferença","ajuste de valor","complemento pacote","complemento cirurg","produtividade","incentivo","valor complementar"];
