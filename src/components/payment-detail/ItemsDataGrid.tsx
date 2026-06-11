@@ -1852,7 +1852,7 @@ function PackageBannerRow({
           )}>
             {statusLabel}
           </span>
-          {canEdit && onToggleAbsorcoes && (
+          {canEdit && onToggleAbsorcoes && !isCollapsed && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleAbsorcoes(); }}
