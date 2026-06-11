@@ -62,7 +62,7 @@ function composicao(items: Item[], opts: { debitos?: number; creditos?: number; 
 }
 
 /** Replica accept_payment_item: copia expected→gross, preserva original 1x. */
-function aceitar(item: Item, by = "tester"): Item {
+function aceitar(item: Item): Item {
   if (item.expected_amount == null) return item;
   const alreadyOverridden = item.gross_override_at != null;
   return {
