@@ -20,15 +20,20 @@ import {
   ChevronDown,
   ChevronsUpDown,
   CheckCircle2,
+  CheckSquare,
   FileText,
   Pencil,
   RotateCcw,
   Search,
+  Settings2,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Square,
   Trash2,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import {
   SEVERITY_TOKENS,
