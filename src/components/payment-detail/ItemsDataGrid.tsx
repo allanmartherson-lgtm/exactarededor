@@ -1462,14 +1462,21 @@ export function ItemsDataGrid({
                 const isFirstAdjust = isAdjust && !isBonus && !prevIsAdjust;
                 const isFirstBonus = isBonus && !prevIsBonus;
 
-                // Detecção de pacote
-                const isPackageItem = (it as any).applied_calc_method === "pacote";
-                const pkgAtt = isPackageItem ? (it.attendance_number ?? "").toString().trim() : "";
-                const pkgGroup = isPackageItem && pkgAtt ? packageGroups.get(pkgAtt) : undefined;
+                // Detecção de pacote — inclui itens manualmente absorvidos
+                // (package_absorbed=true) como membros do mesmo atendimento,
+                // para que sejam ocultados quando o pacote está colapsado e
+                // não apareçam como linhas independentes (reprovado/aprovado).
+                const isPacoteMethod = (it as any).applied_calc_method === "pacote";
+                const isManuallyAbsorbed = (it as any).package_absorbed === true;
+                const attForPkg = (it.attendance_number ?? "").toString().trim();
+                const pkgGroup = attForPkg ? packageGroups.get(attForPkg) : undefined;
+                const isPackageItem = (isPacoteMethod || isManuallyAbsorbed) && !!pkgGroup;
+                const pkgAtt = isPackageItem ? attForPkg : "";
                 const isFirstPkgItem = !!(pkgGroup && pkgGroup.firstItemIdx === idx);
                 const isPackageCollapsed = isPackageItem && pkgAtt ? collapsedPackages.has(pkgAtt) : false;
                 if (isPackageItem && isPackageCollapsed && !isFirstPkgItem) return null;
                 const showItemRow = !isPackageItem || !isPackageCollapsed;
+
 
                 return (
                   <Fragment key={it.id}>
