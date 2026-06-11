@@ -67,7 +67,7 @@ describe("acatar item · sobrescrita de gross_amount", () => {
 
   it("accept_payment_item copia expected_amount → gross_amount", () => {
     // Bloco da função
-    const fn = sql.match(/CREATE OR REPLACE FUNCTION public\.accept_payment_item[\s\S]*?\$function\$/i);
+    const fn = null /*replaced*/;
     expect(fn, "accept_payment_item não encontrada").toBeTruthy();
     const body = fn![0];
     // gross_amount = CASE WHEN v_expected IS NOT NULL THEN v_expected
@@ -75,14 +75,14 @@ describe("acatar item · sobrescrita de gross_amount", () => {
   });
 
   it("accept_payment_item preserva original só na 1ª sobrescrita", () => {
-    const fn = sql.match(/CREATE OR REPLACE FUNCTION public\.accept_payment_item[\s\S]*?\$function\$/i)![0];
+    const fn = null /*replaced*/![0];
     // Usa flag v_already_overridden para não sobrescrever original
     expect(fn).toMatch(/v_already_overridden/i);
     expect(fn).toMatch(/gross_amount_original\s*=\s*CASE[\s\S]*NOT\s+v_already_overridden[\s\S]*THEN\s+v_gross/i);
   });
 
   it("accept_payment_item marca reason='acatado_esperado' e audita", () => {
-    const fn = sql.match(/CREATE OR REPLACE FUNCTION public\.accept_payment_item[\s\S]*?\$function\$/i)![0];
+    const fn = null /*replaced*/![0];
     expect(fn).toMatch(/gross_override_reason\s*=\s*CASE[\s\S]*'acatado_esperado'/i);
     expect(fn).toMatch(/INSERT INTO public\.audit_log[\s\S]*'gross_anterior'[\s\S]*'gross_novo'/i);
   });
