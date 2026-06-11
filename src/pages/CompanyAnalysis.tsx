@@ -544,7 +544,8 @@ export default function CompanyAnalysis() {
     const res = data as { ok: boolean; error?: string } | null;
     if (!res?.ok) return toast.error("Erro ao acatar", { description: res?.error ?? "Falha desconhecida" });
     toast.success("Item acatado");
-    load();
+    await load();
+    await composition.refresh();
   };
 
   const undoAcceptItem = async (it: PaymentItemRow) => {
@@ -556,7 +557,8 @@ export default function CompanyAnalysis() {
     const res = data as { ok: boolean; error?: string } | null;
     if (!res?.ok) return toast.error("Erro ao desfazer", { description: res?.error ?? "Falha desconhecida" });
     toast.success("Acate desfeito");
-    load();
+    await load();
+    await composition.refresh();
   };
 
   // Ações de fluxo (paridade com o popup de análise por empresa).

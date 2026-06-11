@@ -1,46 +1,64 @@
+# Acatar esperado = ajustar o valor a pagar
 
-## Problema
+## Premissa corrigida
+`gross_amount` = valor que **será pago** (proposta atual). Não é histórico de pagamento. Durante confecção/análise, o analista está justamente montando esse número. Quando ele "acata o esperado", o bruto a pagar tem que virar o esperado — senão o card de composição mente.
 
-Hoje, dentro da apuração retroativa, a aba **Planilha** chama `parseSpreadsheet()` que procura cegamente colunas chamadas `atendimento`, `tuss`, `data`, `paciente`, `funcao`, `valor`. Se a base hospitalar usar nomes diferentes (ex.: "Nr. Atendimento", "Cód. Procedimento", "Vlr Pago", "CRM Executor", "Empresa"), o parser devolve linhas vazias e **nenhuma UI aparece** — você vê só um toast genérico ou nada.
+## Modelo
+Modelo **(B) com trilha + reversão**:
+- Acatar item → `gross_amount := expected_amount`
+- Guardar valor original em `gross_amount_original` (preenchido só na 1ª sobrescrita)
+- Registrar `gross_override_at`, `gross_override_by`, `gross_override_reason='acatado_esperado'`
+- Botão "Reverter para valor original" restaura `gross_amount := gross_amount_original` e limpa as flags
+- Trava: só permitido enquanto `status ∈ {em_confeccao, revisao_analista, divergente}`. Após aprovado/pago, bloqueado.
 
-Você quer: subir o arquivo, **ver um wizard de mapeamento** (igual aos imports do sistema), confirmar quais colunas representam o quê, e aí o cruzamento roda dentro do escopo (médico/PJ/período) que você já definiu na apuração.
+## Comportamento por tipo de regra (uniforme)
+Funciona igual para qualquer método, porque a operação é sempre "gross := expected":
+- **valor_fixo / tabela_diferenciada / percentual_convenio / bonus**: item individual, gross vira expected.
+- **pacote**: itens secundários já entram com `expected = 0` e `package_absorbed = true`. Ao acatar o pacote inteiro:
+  - item âncora: `gross := expected` (valor do pacote)
+  - itens absorvidos: `gross := 0`, `package_absorbed = true`
+  - composição: bruto da empresa cai para o valor do pacote naturalmente (já filtramos `package_absorbed` no `compute-company-financials`)
+- **sem_regra**: não permite acatar (não há esperado confiável). Mantém comportamento atual.
 
-## O que vai mudar
+## Onde toca
 
-### 1. Novo componente `RetroactiveMappingWizard`
-Arquivo: `src/components/retroactive/RetroactiveMappingWizard.tsx`
+### Banco (migration)
+Em `payment_items`:
+- `gross_amount_original numeric` (nullable)
+- `gross_override_at timestamptz`
+- `gross_override_by uuid`
+- `gross_override_reason text` — enum textual: `acatado_esperado | ajuste_manual | pacote_absorvido`
 
-Ao selecionar um arquivo (.xlsx/.csv) na aba "Planilha":
-- Faz parse bruto da 1ª aba (sem tentar adivinhar) e mostra as **N colunas detectadas** com 3 linhas de preview.
-- Para cada campo-alvo (Atendimento, TUSS, Data, Paciente, Função, Valor alegado, Médico, Empresa), um `<Select>` lista as colunas do arquivo. Sugere automaticamente por heurística (mesma lógica de `findCol`), mas analista pode trocar.
-- Campos obrigatórios mínimos: **Atendimento + TUSS + Valor alegado**. Médico/Empresa são opcionais (só usados pra alertar quando linha vier fora do escopo da apuração).
-- Mostra contador: "X linhas vão entrar / Y descartadas por falta de Atendimento ou TUSS".
-- Botão "Confirmar mapeamento" preenche os drafts e fecha o wizard. Mantém o botão "Rodar cruzamento" inalterado.
+### Backend
+- Novo edge `accept-expected-value` (ou estender `override-duplicate-item` pattern):
+  - input: `{ payment_id, item_ids[], reason }`
+  - valida status, copia `expected_amount → gross_amount`, preserva original
+  - trigger `compute-company-financials` no fim
+- Reverter: mesma função com `action: 'revert'`
+- `analyze-payment`: NÃO sobrescrever `gross_amount` quando `gross_override_at IS NOT NULL` (respeitar override do analista). Continua atualizando `expected_amount` se a regra mudar — aí o analista decide reacatar.
 
-### 2. Validação contra o escopo
-Após mapear, antes de enviar pro edge function:
-- Se a apuração tem `doctor_id` definido e a planilha trouxe nomes de médico diferentes → marca essas linhas com um aviso visual (badge "fora do escopo"), mas deixa o analista decidir incluir ou não.
-- Mesma coisa pra empresa.
-- Datas fora do `period_start/period_end ±90d` também ganham aviso.
+### Frontend
+- `ItemsDataGrid.tsx`:
+  - Ação "Acatar esperado" já existe → passa a chamar o novo endpoint (não só mudar status)
+  - Badge "ajustado" nos itens com `gross_override_at`, tooltip mostra original
+  - Menu de item: "Reverter para valor original" quando há override
+  - Banner do pacote: usa o gross efetivo (que agora bate com expected)
+- `CompanyAnalysis.tsx`: após acatar, `await load()` + `composition.refresh()` (já está feito)
+- `FinancialCompositionStrip`: nenhum mudança — passa a bater sozinho
 
-### 3. Feedback de upload
-Quando o parser não encontra **nenhuma linha** com dados úteis, mostra um modal explicando o motivo (ex.: "Não identificamos coluna de atendimento") em vez do toast atual que some.
+## Reversibilidade e auditoria
+- `audit_log` recebe entrada por override (item_id, valor antes/depois, motivo, usuário)
+- Reversão é livre até aprovação. Após aprovado, qualquer mudança de valor exige reabrir o grupo (fluxo existente).
 
-### 4. Aproveitar parser canônico (opcional, segunda etapa)
-Não vou tocar agora em `parsePaymentFile.ts`. Se depois você quiser uniformizar 100% com a conciliação do lote, a gente extrai um `ConciliationGrid` compartilhado — mas isso era a "Opção 1" do refactor completo. Aqui mantenho a tela atual e só conserto o ponto cego do upload.
+## Não faz parte deste plano
+- Mudar semântica de `gross_amount` para pagamentos já aprovados (imutável após aprovação)
+- Editar valor livre (só "acatar esperado" e "reverter"; edição manual de valor continua via campo de override existente, agora também grava `gross_amount_original` se ainda não estiver setado)
+- Glosas e débitos: continuam exatamente como hoje, na tela própria, somando no card de composição
 
-## Arquivos tocados
+## Ordem de execução
+1. Migration dos 4 campos novos
+2. Edge `accept-expected-value` + ajuste no `analyze-payment` para respeitar override
+3. UI: ação acatar → endpoint, badge "ajustado", reverter
+4. Smoke no caso atual (DF Star, R$ 19.547,95 do pacote) e em 1 caso de tabela_diferenciada
 
-- **Novo:** `src/components/retroactive/RetroactiveMappingWizard.tsx`
-- **Editado:** `src/components/retroactive/RetroactiveReconciliationsTab.tsx`
-  - Substitui o `<input type="file">` da aba "Planilha" por trigger que abre o wizard
-  - `parseSpreadsheet()` vira `parseRawSheet()` (só lê + devolve linhas brutas + cabeçalhos)
-  - Aplicação do mapeamento gera os `DraftItem[]` igual hoje
-
-## Fora de escopo agora
-
-- Mudar a tela pra modal único estilo `PaymentConciliationModal` (Opção 1 anterior).
-- Tocar nas edge functions `run-retroactive-reconciliation` / `generate-retroactive-adjustment`.
-- Mudar a regra de criação da apuração (continua exigindo médico e/ou PJ + período).
-
-Confirma que sigo por aí?
+Confirma que sigo com isso?
