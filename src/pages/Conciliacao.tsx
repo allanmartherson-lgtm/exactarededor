@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import RetroactiveReconciliationsTab from "@/components/retroactive/RetroactiveReconciliationsTab";
+import BasesConciliacaoPanel from "@/components/conciliacao/BasesConciliacaoPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -38,15 +39,20 @@ type PaymentLite = {
   status: string;
 };
 
+const TAB_VALUES = ["pagamento", "bases", "retroativa"] as const;
+type TabValue = (typeof TAB_VALUES)[number];
+
 export default function Conciliacao() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab =
-    searchParams.get("tab") === "retroativa" ? "retroativa" : "pagamento";
+  const tabParam = searchParams.get("tab");
+  const activeTab: TabValue = (TAB_VALUES as readonly string[]).includes(tabParam ?? "")
+    ? (tabParam as TabValue)
+    : "pagamento";
   const setActiveTab = (v: string) => {
     const next = new URLSearchParams(searchParams);
-    if (v === "retroativa") next.set("tab", "retroativa");
-    else next.delete("tab");
+    if (v === "pagamento") next.delete("tab");
+    else next.set("tab", v);
     setSearchParams(next, { replace: true });
   };
 
@@ -105,6 +111,7 @@ export default function Conciliacao() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="pagamento">Do pagamento</TabsTrigger>
+          <TabsTrigger value="bases">Bases hospitalares</TabsTrigger>
           <TabsTrigger value="retroativa">Retroativa</TabsTrigger>
         </TabsList>
 
@@ -182,17 +189,10 @@ export default function Conciliacao() {
               </TableBody>
             </Table>
           </div>
-          <p className="text-xs text-muted-foreground">
-            As bases hospitalares mensais usadas como insumo continuam sendo importadas em
-            <button
-              type="button"
-              onClick={() => navigate("/glosas")}
-              className="ml-1 underline text-foreground hover:text-primary"
-            >
-              Glosas › Bases de Conciliação
-            </button>
-            .
-          </p>
+        </TabsContent>
+
+        <TabsContent value="bases" className="mt-4">
+          <BasesConciliacaoPanel />
         </TabsContent>
 
         <TabsContent value="retroativa" className="mt-4">
