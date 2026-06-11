@@ -80,6 +80,7 @@ const loadDreReport = () => import("./pages/DreReport.tsx");
 const loadMoneyHealth = () => import("./pages/MoneyHealth.tsx");
 const loadBusinessObservability = () => import("./pages/BusinessObservability.tsx");
 const loadPendencias = () => import("./pages/Pendencias.tsx");
+const loadConciliacao = () => import("./pages/Conciliacao.tsx");
 const loadPendenciaDetail = () => import("./pages/PendenciaDetail.tsx");
 const loadConversas = () => import("./pages/Conversas.tsx");
 const loadHospitals = () => import("./pages/Hospitals.tsx");
