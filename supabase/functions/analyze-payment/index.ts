@@ -2061,8 +2061,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       // expected_amount calculado pela regra. Sem regra (sem_regra ou bloqueio
       // por duplicidade de cálculo) → grava null e mantém alerta — coerente
       // com "motor nunca aplica default hardcoded de repasse".
+      // Respeita override manual (acatar/ajuste do analista): se gross_override_at
+      // está setado, NÃO sobrescreve gross_amount.
       if (isConfeccao) {
-        patch.gross_amount = u.expected_amount ?? null;
+        const srcItem = items.find((it: any) => it.id === u.id) as any;
+        if (!srcItem?.gross_override_at) {
+          patch.gross_amount = u.expected_amount ?? null;
+        }
       }
       await supabase.from("payment_items").update(patch).eq("id", u.id);
     });
