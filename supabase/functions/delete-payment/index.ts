@@ -21,6 +21,7 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+// Admin/diretor podem apagar em qualquer status editável (inclusive devoluções).
 const DELETABLE_STATUSES = new Set([
   "rascunho",
   "em_analise_ia",
@@ -28,6 +29,15 @@ const DELETABLE_STATUSES = new Set([
   "devolvido_analista",
   "revisao_analista",
   "cancelado",
+]);
+
+// Analista (criador) só pode apagar enquanto o lote está na PRIMEIRA análise
+// e ainda não avançou. Se voltou para revisao_analista/devolvido_analista
+// (ou seja, já andou e retornou), não pode mais apagar.
+const ANALISTA_INITIAL_STATUSES = new Set([
+  "rascunho",
+  "em_analise_ia",
+  "aguardando_validacao",
 ]);
 
 Deno.serve(async (req) => {
@@ -83,8 +93,10 @@ Deno.serve(async (req) => {
   const isAnalista = roles.has("analista");
   const isCreator = payment.created_by === userId;
   const statusOk = DELETABLE_STATUSES.has(payment.status as string);
+  const analistaCanDelete =
+    isAnalista && isCreator && ANALISTA_INITIAL_STATUSES.has(payment.status as string);
 
-  if (!(isAdmin || isDiretor || ((isCreator || isAnalista) && statusOk))) {
+  if (!(isAdmin || isDiretor || (isCreator && statusOk) || analistaCanDelete)) {
     return json({ error: "forbidden" }, 403);
   }
 
