@@ -625,6 +625,21 @@ export function ItemsDataGrid({
     (canEdit ? 120 : 0);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll: quando o usuário expande uma linha inline, garantimos que o
+  // painel apareça visível dentro da grid (e na viewport da página).
+  useEffect(() => {
+    if (!expandedId) return;
+    const raf = requestAnimationFrame(() => {
+      const panel = gridScrollRef.current?.querySelector<HTMLElement>(
+        `[data-expanded-row="${CSS.escape(expandedId)}"]`,
+      );
+      panel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [expandedId]);
+
+
   const syncScrollLeft = (source: "top" | "grid", left: number) => {
     const target = source === "top" ? gridScrollRef.current : topScrollRef.current;
     if (target && Math.abs(target.scrollLeft - left) > 1) target.scrollLeft = left;
@@ -2157,7 +2172,7 @@ function ItemDetailsRow({
   const isBonus = (it as any).tipo_linha === "complemento_bonus";
   if (isBonus) {
     return (
-      <tr className="border-b bg-indigo-50/40 dark:bg-indigo-950/15">
+      <tr className="border-b bg-indigo-50/40 dark:bg-indigo-950/15" data-expanded-row={it.id}>
         <td colSpan={colSpan} className="p-0 align-top">
           <div
             className={cn("sticky left-0 px-3 sm:px-4 py-3 sm:py-4", TEXT_BODY)}
@@ -2200,7 +2215,7 @@ function ItemDetailsRow({
     );
   }
   return (
-    <tr className="border-b bg-muted/20">
+    <tr className="border-b bg-muted/20" data-expanded-row={it.id}>
       <td colSpan={colSpan} className="p-0 align-top">
         {/*
           O <td> com colSpan ocupa toda a largura do <table> (table-fixed, pode ser
