@@ -690,10 +690,17 @@ export function ItemsDataGrid({
   // rolagem superior 1:1 com a inferior — sem isso, o thumb do top scroll
   // fica desproporcional em relação ao scroll real do grid.
   const [measuredScrollWidth, setMeasuredScrollWidth] = useState<number>(0);
+  // Diferença entre offsetWidth e clientWidth do grid = largura do scrollbar
+  // vertical. Precisamos aplicar a mesma reserva de espaço no rail superior,
+  // senão ele fica mais largo que o inferior e os thumbs ficam desalinhados.
+  const [vScrollbarWidth, setVScrollbarWidth] = useState<number>(0);
   useEffect(() => {
     const el = gridScrollRef.current;
     if (!el) return;
-    const update = () => setMeasuredScrollWidth(el.scrollWidth);
+    const update = () => {
+      setMeasuredScrollWidth(el.scrollWidth);
+      setVScrollbarWidth(Math.max(0, el.offsetWidth - el.clientWidth));
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -701,6 +708,7 @@ export function ItemsDataGrid({
     if (inner) ro.observe(inner);
     return () => ro.disconnect();
   }, [items.length, expandedId]);
+
 
   // Auto-scroll: quando o usuário expande uma linha inline, garantimos que o
   // painel apareça visível dentro da grid (e na viewport da página).
@@ -992,9 +1000,11 @@ export function ItemsDataGrid({
           className="grid-scroll-rail hidden md:block h-4 overflow-x-scroll overflow-y-hidden border-b bg-muted/20"
           aria-label="Rolagem horizontal da tabela"
           onScroll={(e) => syncScrollLeft("top", e.currentTarget.scrollLeft)}
+          style={{ paddingRight: vScrollbarWidth, boxSizing: "border-box" }}
         >
           <div style={{ width: Math.max(measuredScrollWidth, tableMinWidth), height: 1 }} />
         </div>
+
         <div
           ref={gridScrollRef}
           className="grid-scroll-area h-[calc(100%-1rem)] w-full overflow-scroll isolate pb-4"
