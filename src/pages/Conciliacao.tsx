@@ -61,7 +61,7 @@ export default function Conciliacao() {
       setLoading(true);
       const { data: r } = await supabase
         .from("reconciliation_runs")
-        .select("id,payment_id,created_at,status,total_items,conciliado,valor_divergente,so_hospital,so_medpay")
+        .select("id,payment_id,created_at,status,total_items,conciliado,valor_divergente,so_hospital,so_exacta")
         .order("created_at", { ascending: false })
         .limit(200);
       if (cancelled) return;
@@ -88,8 +88,8 @@ export default function Conciliacao() {
     return runs.filter((r) => {
       const p = paymentsById[r.payment_id];
       return (
-        (p?.number ?? "").toLowerCase().includes(q) ||
-        (p?.competence ?? "").toLowerCase().includes(q)
+        (p?.reference ?? "").toLowerCase().includes(q) ||
+        (p?.competence_month ?? "").toLowerCase().includes(q)
       );
     });
   }, [runs, paymentsById, search]);
@@ -164,13 +164,13 @@ export default function Conciliacao() {
                         <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
                           {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                         </TableCell>
-                        <TableCell className="font-medium">{p?.number ?? "—"}</TableCell>
-                        <TableCell>{p?.competence ?? "—"}</TableCell>
+                        <TableCell className="font-medium">{p?.reference ?? "—"}</TableCell>
+                        <TableCell>{p?.competence_month ?? "—"}</TableCell>
                         <TableCell className="text-right tabular-nums">{r.total_items}</TableCell>
                         <TableCell className="text-right tabular-nums text-success">{r.conciliado}</TableCell>
                         <TableCell className="text-right tabular-nums text-warning">{r.valor_divergente}</TableCell>
                         <TableCell className="text-right tabular-nums">{r.so_hospital}</TableCell>
-                        <TableCell className="text-right tabular-nums">{r.so_medpay}</TableCell>
+                        <TableCell className="text-right tabular-nums">{r.so_exacta}</TableCell>
                         <TableCell>
                           <Badge variant={r.status === "done" ? "outline" : r.status === "error" ? "destructive" : "secondary"}>
                             {r.status === "done" ? "Concluída" : r.status === "error" ? "Erro" : "Processando"}
