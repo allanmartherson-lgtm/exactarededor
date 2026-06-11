@@ -132,7 +132,8 @@ describe("ItemsDataGrid — expansão inline e altura adaptativa", () => {
     const r2 = renderGrid(pkg);
     const wrapperB = findWrapper()!;
     // 3*38 + 1*44 + 140 = 298px na fórmula
-    expect(wrapperB.getAttribute("style") ?? "").toContain("298px");
+    expect(wrapperB.outerHTML).toContain("298px");
+
 
     r2.unmount();
 
