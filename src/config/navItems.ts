@@ -36,6 +36,7 @@ import {
   Megaphone,
   Info,
   BookOpen,
+  GitCompare,
   HeadsetIcon,
   ListChecksIcon,
   ChatsIcon,
