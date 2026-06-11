@@ -157,6 +157,8 @@ export type ItemsDataGridProps = {
    *   "Valor Repasse (calculado)". A coluna "Diferença" é forçadamente escondida.
    */
   mode?: "analise" | "confeccao";
+  /** Callback para recarregar os itens após uma ação (ex.: absorção manual). */
+  onRefresh?: () => void;
 };
 
 export function ItemsDataGrid({
