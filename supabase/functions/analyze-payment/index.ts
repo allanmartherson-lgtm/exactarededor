@@ -975,6 +975,26 @@ serve(async (req) => {
           // Conjunto de códigos absorvidos por este pacote
           const absorbedCodes = new Set([calc.package_main_code, ...includedFound]);
 
+          // Para pacotes, a distribuição por função é o valor TOTAL do atendimento
+          // (não por código). Identifica o item âncora de cada função:
+          //   • preferência: item cujo procedure_code === package_main_code
+          //   • fallback: primeiro item da função encontrado em attItems
+          // Itens secundários (mesma função, outros códigos absorvidos) recebem
+          // expected = 0 e status = aprovado ("absorvido pelo pacote").
+          const primaryItemByRole = new Map<string, string>(); // norm(role) → item.id
+          for (const it of attItems) {
+            const code = (it.procedure_code ?? "").toString().trim();
+            if (!absorbedCodes.has(code)) continue;
+            if (!it.doctor_role) continue;
+            const rn = norm(it.doctor_role);
+            if (!primaryItemByRole.has(rn)) {
+              primaryItemByRole.set(rn, it.id);
+            }
+            if (code === calc.package_main_code) {
+              primaryItemByRole.set(rn, it.id); // main_code tem prioridade
+            }
+          }
+
           // Aplica resultado de pacote em cada item absorvido
           for (const it of attItems) {
             const code = (it.procedure_code ?? "").toString().trim();
@@ -983,7 +1003,32 @@ serve(async (req) => {
             const r = resultById[it.id];
             if (!r) continue;
 
-            // Determina valor esperado para a função deste item
+            // Metadados de pacote (comuns a todos os absorbed)
+            r.matched_rule_id = calc.rule_id;
+            r.matched_rule_name = `${calc.rule_name} — Pacote`;
+            (r as any).calculation_type_used = "pacote";
+            r.matched_priority = "match";
+
+            const roleNorm = norm(it.doctor_role ?? "");
+            const isPrimary = !it.doctor_role || primaryItemByRole.get(roleNorm) === it.id;
+
+            if (!isPrimary) {
+              // Código secundário absorvido: repasse da função está no item âncora.
+              // Fica aprovado com expected = 0.
+              r.expected_amount = 0;
+              r.diff_pct = null;
+              r.status = "aprovado" as any;
+              r.needs_ai_review = false;
+              r.alerts = r.alerts.filter((a) =>
+                !a.toLowerCase().includes("sem regra") && !a.toLowerCase().includes("no rule"),
+              );
+              r.calculation_explanation =
+                `Atendimento ${att}: código ${code} absorvido pelo pacote ${calc.package_main_code} ` +
+                `(${calc.rule_name}). O repasse desta função está consolidado no código âncora.`;
+              continue;
+            }
+
+            // Item primário (âncora da função): recebe o valor total da distribuição.
             let expectedAmt: number | null = null;
             if (calc.package_roles_distribution && calc.package_roles_distribution.length > 0) {
               const dist = calc.package_roles_distribution.find(d =>
@@ -996,11 +1041,6 @@ serve(async (req) => {
               }
             }
 
-            // Atualiza o resultado
-            r.matched_rule_id = calc.rule_id;
-            r.matched_rule_name = `${calc.rule_name} — Pacote`;
-            (r as any).calculation_type_used = "pacote";
-            r.matched_priority = "match";
             r.expected_amount = expectedAmt;
             r.diff_pct = expectedAmt && expectedAmt > 0
               ? ((it.gross_amount - expectedAmt) / expectedAmt) * 100
