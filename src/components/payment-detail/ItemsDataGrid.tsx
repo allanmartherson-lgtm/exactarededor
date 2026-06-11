@@ -2257,18 +2257,15 @@ function RowMain({
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold",
                   TEXT_META,
+                  TONE_CLASSES.warning,
                 )}
-                style={{
-                  backgroundColor: "hsl(var(--warning) / 0.12)",
-                  color: "hsl(var(--warning))",
-                  borderColor: "hsl(var(--warning) / 0.35)",
-                }}
                 title={tip}
                 data-testid="analyst-adjusted-badge"
               >
                 <Pencil className="h-2.5 w-2.5" />
                 AJUSTADO
               </span>
+
             );
           })()}
           {(() => {
