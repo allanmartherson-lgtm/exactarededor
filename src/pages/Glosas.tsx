@@ -202,19 +202,6 @@ export default function Glosas() {
   const [pendingHeaders, setPendingHeaders] = useState<string[]>([]);
   const [pendingFile, setPendingFile] = useState<{ name: string; sheet: string } | null>(null);
 
-  const [concBases, setConcBases] = useState<any[]>([]);
-  const [uploadingConc, setUploadingConc] = useState(false);
-  const concFileRef = useRef<HTMLInputElement>(null);
-  const [expandedConcBase, setExpandedConcBase] = useState<string | null>(null);
-  const [importPreview, setImportPreview] = useState<{
-    file: File;
-    rows: any[];
-    colMap: Record<string, string>;
-    competenceMonth: string;
-    reference: string;
-    terceirosUnicos: string[];
-    sheetName: string;
-  } | null>(null);
 
   const loadBatches = useCallback(async () => {
     setLoading(true);
