@@ -1712,6 +1712,9 @@ function PackageBannerRow({
   totalCols,
   isCompact,
   showGrossColumn,
+  canEdit = false,
+  isAbsorcoesOpen = false,
+  onToggleAbsorcoes,
 }: {
   group: {
     items: import("@/hooks/usePaymentDetailData").PaymentItemRow[];
@@ -1726,6 +1729,9 @@ function PackageBannerRow({
   totalCols: number;
   isCompact: boolean;
   showGrossColumn: boolean;
+  canEdit?: boolean;
+  isAbsorcoesOpen?: boolean;
+  onToggleAbsorcoes?: () => void;
 }) {
   const statusColor =
     group.worstStatus === "reprovado"
