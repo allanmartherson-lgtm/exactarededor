@@ -604,20 +604,14 @@ export default function Glosas() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
-          Glosas e <span style={{ fontWeight: 700 }}>Conciliação</span>
+          <span style={{ fontWeight: 700 }}>Glosas</span>
         </h1>
         <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
-          Gestão de glosas do convênio e bases de conciliação mensal
+          Gestão de glosas do convênio e auditoria
         </p>
       </div>
 
-      <Tabs defaultValue="glosas">
-        <TabsList>
-          <TabsTrigger value="glosas">Glosas</TabsTrigger>
-          <TabsTrigger value="conciliacao">Bases de Conciliação</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="glosas" className="mt-6">
+      <div className="mt-6">
           <div className="flex flex-col gap-8">
             <PotentialDebtsPanel
               reloadKey={debts.length}
