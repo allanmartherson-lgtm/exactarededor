@@ -1875,8 +1875,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_at: isCalcDuplicityBlock ? null : new Date().toISOString(),
         convenio_basis_detected: r.convenio_basis_detected ?? null,
         basis_confidence: r.basis_confidence ?? null,
-        package_absorbed: (r as any).package_absorbed === true,
-        package_absorbed_calc_id: (r as any).package_absorbed_calc_id ?? null,
+        // Preserva absorção manual feita pelo analista: se o item raw já vinha
+        // com package_absorbed=true e o motor não absorveu/desabsorveu
+        // explicitamente neste run, mantém o flag (e o calc_id) do banco.
+        // Sem isso, qualquer reanálise desfaz o "incluir no pacote" do analista.
+        package_absorbed: (r as any).package_absorbed === true
+          || (rawItem?.package_absorbed === true),
+        package_absorbed_calc_id: (r as any).package_absorbed_calc_id
+          ?? (rawItem?.package_absorbed === true ? (rawItem?.package_absorbed_calc_id ?? null) : null),
       });
 
 
