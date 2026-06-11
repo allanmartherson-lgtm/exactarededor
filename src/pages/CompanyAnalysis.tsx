@@ -1094,8 +1094,17 @@ export default function CompanyAnalysis() {
 
   const openEditItem = (it: PaymentItemRow) => {
     setEditItem(it);
+    // Sugestão automática: se a IA calculou um expected_amount e ele difere do
+    // valor atual, pré-preenche o campo com a sugestão da IA. Assim o analista
+    // só precisa confirmar (Salvar) sem digitar/copiar o valor manualmente.
+    const gross = Number(it.gross_amount ?? 0);
+    const expected = it.expected_amount != null ? Number(it.expected_amount) : null;
+    const suggested =
+      expected != null && Number.isFinite(expected) && Math.abs(expected - gross) > 0.001
+        ? expected
+        : gross;
     setEditDraft({
-      gross_amount: String(it.gross_amount ?? 0),
+      gross_amount: String(suggested),
       specialty: it.specialty ?? "",
       doctor_name: it.doctor_name ?? "",
       description: it.description ?? "",
