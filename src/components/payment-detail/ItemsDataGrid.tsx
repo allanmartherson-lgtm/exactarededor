@@ -544,8 +544,11 @@ export function ItemsDataGrid({
     return result;
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, groupStatus, sortKey, sortDir]);
 
-  // Detecta grupos de pacote: atendimentos onde applied_calc_method === 'pacote'
-  const packageGroups = useMemo(() => {
+  // Detecta grupos de pacote e reordena a lista exibida (`displayRows`) para
+  // que TODOS os membros do pacote (regra + absorvidos manualmente) apareçam
+  // agrupados visualmente logo após a âncora, sob o banner — em vez de
+  // espalhados pela tabela. Não altera dados nem totais — só a ordem de render.
+  const { packageGroups, displayRows } = useMemo(() => {
     type PkgGroup = {
       firstItemIdx: number;
       items: PaymentItemRowData[];
@@ -554,51 +557,72 @@ export function ItemsDataGrid({
       totalExpected: number | null;
       worstStatus: "reprovado" | "alerta" | "aprovado";
     };
-    const groups = new Map<string, PkgGroup>();
-    // 1ª passada: cria grupo a partir de itens com applied_calc_method === 'pacote'
-    filtered.forEach((it, idx) => {
-      if ((it as any).applied_calc_method !== "pacote") return;
+
+    // 1) Descobrir quais atendimentos formam pacote.
+    const pkgAtts = new Set<string>();
+    for (const it of filtered) {
+      if ((it as any).applied_calc_method !== "pacote") continue;
       const att = (it.attendance_number ?? "").toString().trim();
-      if (!att) return;
-      if (!groups.has(att)) {
+      if (att) pkgAtts.add(att);
+    }
+
+    // 2) Reordenar: na 1ª ocorrência de um membro do pacote, despejar em
+    //    sequência todos os membros daquele atendimento (regra + absorvidos).
+    const isMember = (it: PaymentItemRowData) =>
+      (it as any).applied_calc_method === "pacote" || (it as any).package_absorbed === true;
+    const handledAtt = new Set<string>();
+    const display: PaymentItemRowData[] = [];
+    for (const it of filtered) {
+      const att = (it.attendance_number ?? "").toString().trim();
+      const inPkg = !!att && pkgAtts.has(att) && isMember(it);
+      if (inPkg) {
+        if (handledAtt.has(att)) continue;
+        handledAtt.add(att);
+        for (const m of filtered) {
+          const mAtt = (m.attendance_number ?? "").toString().trim();
+          if (mAtt === att && isMember(m)) display.push(m);
+        }
+      } else {
+        display.push(it);
+      }
+    }
+
+    // 3) Recomputar groups a partir do displayRows (firstItemIdx correto).
+    const groups = new Map<string, PkgGroup>();
+    display.forEach((it, idx) => {
+      const att = (it.attendance_number ?? "").toString().trim();
+      if (!att || !pkgAtts.has(att) || !isMember(it)) return;
+      let g = groups.get(att);
+      if (!g) {
         const ruleNameRaw =
           (it as any).applied_rule_label ??
           ((it.ai_findings?.matched_rules as string[] | undefined)?.[0]) ??
           "Pacote";
         const ruleName = String(ruleNameRaw).replace(/\s*—\s*Pacote\s*$/i, "");
-        groups.set(att, {
+        g = {
           firstItemIdx: idx,
           items: [],
           ruleName,
           totalGross: 0,
           totalExpected: 0,
           worstStatus: "aprovado",
-        });
+        };
+        groups.set(att, g);
       }
-      const g = groups.get(att)!;
       g.items.push(it);
       g.totalGross += Number(it.gross_amount ?? 0);
-      const exp =
-        (it.ai_findings?.expected_amount as number | undefined) ??
-        ((it as any).expected_amount as number | undefined);
-      if (exp != null) g.totalExpected = (g.totalExpected ?? 0) + Number(exp);
+      if ((it as any).applied_calc_method === "pacote") {
+        const exp =
+          (it.ai_findings?.expected_amount as number | undefined) ??
+          ((it as any).expected_amount as number | undefined);
+        if (exp != null) g.totalExpected = (g.totalExpected ?? 0) + Number(exp);
+      }
       if (it.ai_status === "reprovado") g.worstStatus = "reprovado";
       else if (it.ai_status === "alerta" && g.worstStatus !== "reprovado")
         g.worstStatus = "alerta";
     });
-    // 2ª passada: itens manualmente absorvidos (package_absorbed=true) entram no grupo
-    // do mesmo atendimento — para serem ocultados no colapso e somados ao banner.
-    filtered.forEach((it) => {
-      if ((it as any).applied_calc_method === "pacote") return;
-      if ((it as any).package_absorbed !== true) return;
-      const att = (it.attendance_number ?? "").toString().trim();
-      if (!att) return;
-      const g = groups.get(att);
-      if (!g) return;
-      g.items.push(it);
-      g.totalGross += Number(it.gross_amount ?? 0);
-    });
-    return groups;
+
+    return { packageGroups: groups, displayRows: display };
   }, [filtered]);
 
 
@@ -1045,7 +1069,7 @@ export function ItemsDataGrid({
             {filtered.length === 0 && (
               <li className="text-center py-8 text-muted-foreground text-xs">Nenhum item para exibir.</li>
             )}
-            {filtered.map((it, idx) => {
+            {displayRows.map((it, idx) => {
               const paciente = getPatient(it);
               const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
               const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus, (it as any).is_cancelled);
@@ -1063,7 +1087,7 @@ export function ItemsDataGrid({
               const itemOrigem = (it as any).item_origem as string | null | undefined;
               const isAdjust = !!itemOrigem && itemOrigem !== "pagamento_atual";
               const isBonus = (it as any).tipo_linha === "complemento_bonus";
-              const prev = idx > 0 ? filtered[idx - 1] : null;
+              const prev = idx > 0 ? displayRows[idx - 1] : null;
               const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual" && (prev as any).tipo_linha !== "complemento_bonus";
               const prevIsBonus = !!prev && (prev as any).tipo_linha === "complemento_bonus";
               const isFirstAdjust = isAdjust && !isBonus && !prevIsAdjust;
@@ -1421,7 +1445,7 @@ export function ItemsDataGrid({
                   </td>
                 </tr>
               )}
-              {filtered.map((it, idx) => {
+              {displayRows.map((it, idx) => {
                 const paciente = getPatient(it);
                 const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
                 const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus, (it as any).is_cancelled);
@@ -1459,7 +1483,7 @@ export function ItemsDataGrid({
                 const itemOrigem = (it as any).item_origem as string | null | undefined;
                 const isAdjust = !!itemOrigem && itemOrigem !== "pagamento_atual";
                 const isBonus = (it as any).tipo_linha === "complemento_bonus";
-                const prev = idx > 0 ? filtered[idx - 1] : null;
+                const prev = idx > 0 ? displayRows[idx - 1] : null;
                 const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual" && (prev as any).tipo_linha !== "complemento_bonus";
                 const prevIsBonus = !!prev && (prev as any).tipo_linha === "complemento_bonus";
                 const isFirstAdjust = isAdjust && !isBonus && !prevIsAdjust;
