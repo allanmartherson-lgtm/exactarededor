@@ -178,7 +178,9 @@ export function ItemsDataGrid({
   onUndoAcceptItem,
   className,
   mode = "analise",
+  onRefresh,
 }: ItemsDataGridProps) {
+  const { user } = useAuth();
   const isConfeccao = mode === "confeccao";
   // Em confecção a base não traz "Valor Repasse" — o sistema gera. Esperado vira o repasse calculado.
   const showGrossColumn = !isConfeccao;
