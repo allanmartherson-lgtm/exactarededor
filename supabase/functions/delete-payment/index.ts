@@ -80,10 +80,11 @@ Deno.serve(async (req) => {
   const roles = new Set((roleRows ?? []).map((r) => r.role));
   const isAdmin = roles.has("admin");
   const isDiretor = roles.has("diretor");
+  const isAnalista = roles.has("analista");
   const isCreator = payment.created_by === userId;
   const statusOk = DELETABLE_STATUSES.has(payment.status as string);
 
-  if (!(isAdmin || isDiretor || (isCreator && statusOk))) {
+  if (!(isAdmin || isDiretor || ((isCreator || isAnalista) && statusOk))) {
     return json({ error: "forbidden" }, 403);
   }
 
