@@ -3899,6 +3899,10 @@ export type Database = {
           exception_reason: string | null
           expected_amount: number | null
           gross_amount: number | null
+          gross_amount_original: number | null
+          gross_override_at: string | null
+          gross_override_by: string | null
+          gross_override_reason: string | null
           hospital_id: string | null
           id: string
           is_cancelled: boolean
@@ -3986,6 +3990,10 @@ export type Database = {
           exception_reason?: string | null
           expected_amount?: number | null
           gross_amount?: number | null
+          gross_amount_original?: number | null
+          gross_override_at?: string | null
+          gross_override_by?: string | null
+          gross_override_reason?: string | null
           hospital_id?: string | null
           id?: string
           is_cancelled?: boolean
@@ -4073,6 +4081,10 @@ export type Database = {
           exception_reason?: string | null
           expected_amount?: number | null
           gross_amount?: number | null
+          gross_amount_original?: number | null
+          gross_override_at?: string | null
+          gross_override_by?: string | null
+          gross_override_reason?: string | null
           hospital_id?: string | null
           id?: string
           is_cancelled?: boolean
