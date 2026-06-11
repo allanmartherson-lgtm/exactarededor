@@ -498,10 +498,23 @@ function PackageRolesEditor({
   packageAmount: string;
   onChange: (next: PackageRoleDistribution[]) => void;
 }) {
-  const total = parseFloat(String(packageAmount).replace(",", ".")) || 0;
+  const parseBR = (s: string): number => {
+    const v = String(s).trim().replace(/\s/g, "");
+    if (v.includes(".") && v.includes(",")) {
+      // Formato BR: 1.234,56 — ponto = milhar, vírgula = decimal
+      return parseFloat(v.replace(/\./g, "").replace(",", ".")) || 0;
+    }
+    if (v.includes(",")) {
+      // Só vírgula: trata como separador decimal
+      return parseFloat(v.replace(",", ".")) || 0;
+    }
+    return parseFloat(v) || 0;
+  };
+
+  const total = parseBR(packageAmount);
 
   const calcValue = (role: PackageRoleDistribution): number => {
-    const v = parseFloat(String(role.value).replace(",", ".")) || 0;
+    const v = parseBR(role.value);
     return role.dist_type === "pct" ? (v / 100) * total : v;
   };
 
