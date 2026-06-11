@@ -625,6 +625,22 @@ export function ItemsDataGrid({
     (canEdit ? 120 : 0);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  // Largura real do conteúdo do grid (pode divergir do `tableMinWidth`
+  // calculado quando células crescem por conteúdo). Mantém a barra de
+  // rolagem superior 1:1 com a inferior — sem isso, o thumb do top scroll
+  // fica desproporcional em relação ao scroll real do grid.
+  const [measuredScrollWidth, setMeasuredScrollWidth] = useState<number>(0);
+  useEffect(() => {
+    const el = gridScrollRef.current;
+    if (!el) return;
+    const update = () => setMeasuredScrollWidth(el.scrollWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    const inner = el.firstElementChild as HTMLElement | null;
+    if (inner) ro.observe(inner);
+    return () => ro.disconnect();
+  }, [items.length, expandedId]);
 
   // Auto-scroll: quando o usuário expande uma linha inline, garantimos que o
   // painel apareça visível dentro da grid (e na viewport da página).
