@@ -257,7 +257,8 @@ serve(async (req) => {
       bonus_amount,bonus_pct,target_amount,allowed_access_routes,
       force_totalized,application_unit,sectors,specialties,
       procedure_codes,code_match_mode,doctor_roles,
-      agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions
+      agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
+      package_roles_distribution
     `;
 
     // [Sprint 3 - Tier 1.B] Cache de contexto compartilhado por job:
