@@ -336,6 +336,34 @@ export const hitsToMapping = (hits: FieldMappingHit[]): ManualMapping => {
   return out;
 };
 
+/**
+ * "Shim" que injeta o valor da coluna mapeada em TODAS as chaves canônicas
+ * do campo. Útil para integrar com parsers legados que usam `pick(row, keys)`
+ * heurístico — basta passar `applyManualMappingShim(row, mapping)` antes do
+ * pick e os overrides do analista são respeitados sem refatorar o parser.
+ *
+ * Ex.: mapping.gross_amount = "Honorário Líquido" →
+ *      out["vl repasse"] = out["valor repasse"] = ... = row["Honorário Líquido"]
+ */
+export const applyManualMappingShim = (
+  row: Record<string, unknown>,
+  mapping: ManualMapping | undefined,
+): Record<string, unknown> => {
+  if (!mapping) return row;
+  const entries = Object.entries(mapping) as Array<[FieldKey, string]>;
+  if (entries.length === 0) return row;
+  const out = { ...row };
+  for (const [field, header] of entries) {
+    if (!header || !(header in row)) continue;
+    const value = row[header];
+    const def = FIELD_BY_KEY[field];
+    for (const alias of def.keys) {
+      out[alias] = value;
+    }
+  }
+  return out;
+};
+
 // ============= Assinatura de headers (para reuso de template) =============
 
 /**
