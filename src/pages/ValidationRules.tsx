@@ -287,7 +287,7 @@ export default function ValidationRules() {
     setRules(vr ?? []);
     setGroups(ag ?? []);
 
-    if (co) {
+    {
       const map: Record<string, string> = {};
       co.forEach(c => map[c.id] = c.name);
       setAllCompaniesMap(map);
