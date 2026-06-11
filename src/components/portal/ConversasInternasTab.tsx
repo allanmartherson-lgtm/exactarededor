@@ -59,12 +59,14 @@ export function ConversasInternasTab() {
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data: msgs } = await supabase
-      .from("payment_questions")
-      .select("id,payment_id,parent_id,author_id,author_name,message,status,created_at")
-      .order("created_at", { ascending: false })
-      .limit(1000);
-    const list = (msgs ?? []) as QRow[];
+    const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+    const list = await fetchAllPaginated<QRow>((from, to) =>
+      supabase
+        .from("payment_questions")
+        .select("id,payment_id,parent_id,author_id,author_name,message,status,created_at")
+        .order("created_at", { ascending: false })
+        .range(from, to),
+    );
     setRows(list);
 
     const paymentIds = Array.from(new Set(list.map((m) => m.payment_id)));
