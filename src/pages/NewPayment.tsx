@@ -961,7 +961,23 @@ const NewPayment = () => {
     const sectorAliasesMap = await loadSectorAliases();
     const detection = detectSectorColumn(headerNames, json, sectorAliasesMap.resolveSlug);
     const autoSectorColumn = detection.confidence === "header" ? detection.recommended : null;
-    const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName, autoSectorColumn);
+
+    // Tenta achar template salvo com a mesma assinatura de cabeçalho.
+    // Quando encontra, aplica automaticamente e marca para incrementar o use_count.
+    let appliedTemplate: { id: string; name: string } | null = null;
+    let manualMapping: ManualMapping | undefined;
+    try {
+      const tpl = await findMatchingTemplateRef.current(headerNames);
+      if (tpl) {
+        manualMapping = tpl.mapping;
+        appliedTemplate = { id: tpl.id, name: tpl.name };
+        void markTemplateUsedRef.current(tpl.id);
+      }
+    } catch (e) {
+      console.warn("[mapping-template] lookup failed", e);
+    }
+
+    const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName, autoSectorColumn, manualMapping);
 
     // 6) Colunas obrigatórias presentes
     const hasDoctor = rows.some((r) => r.doctor_name && r.doctor_name.trim().length > 0);
