@@ -124,14 +124,15 @@ export default function CampaignApprovalQueue() {
   // carrega criadores e empresas para filtros (uma vez)
   useEffect(() => {
     void (async () => {
-      const { data: creatorRows } = await supabase
-        .from("comm_campaigns" as never)
-        .select("created_by")
-        .not("created_by", "is", null)
-        .limit(1000);
-      const ids = Array.from(
-        new Set((creatorRows ?? []).map((r: { created_by: string }) => r.created_by)),
+      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+      const creatorRows = await fetchAllPaginated<{ created_by: string }>((from, to) =>
+        supabase
+          .from("comm_campaigns" as never)
+          .select("created_by")
+          .not("created_by", "is", null)
+          .range(from, to),
       );
+      const ids = Array.from(new Set(creatorRows.map((r) => r.created_by)));
       if (ids.length) {
         const { data: profs } = await supabase
           .from("profiles").select("id, full_name").in("id", ids);
@@ -141,10 +142,12 @@ export default function CampaignApprovalQueue() {
         });
         setCreators(map);
       }
-      const { data: comps } = await supabase
-        .from("companies").select("id, name").eq("active", true).order("name").limit(500);
+      const comps = await fetchAllPaginated<{ id: string; name: string }>((from, to) =>
+        supabase
+          .from("companies").select("id, name").eq("active", true).order("name").range(from, to),
+      );
       const cmap: Record<string, string> = {};
-      (comps ?? []).forEach((c: { id: string; name: string }) => { cmap[c.id] = c.name; });
+      comps.forEach((c) => { cmap[c.id] = c.name; });
       setCompanyMap(cmap);
     })();
   }, []);
