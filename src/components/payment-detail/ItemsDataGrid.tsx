@@ -206,6 +206,57 @@ export function ItemsDataGrid({
   const [onlyAdjusted, setOnlyAdjusted] = useState(false);
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
 
+  // Painel de absorção manual de códigos no pacote (analista).
+  const [absorcoesOpenAtt, setAbsorcoesOpenAtt] = useState<string | null>(null);
+  const [absorcaoNoteDraft, setAbsorcaoNoteDraft] = useState<Record<string, string>>({});
+  const [absorcaoPending, setAbsorcaoPending] = useState<string | null>(null);
+  const [savingAbsorcao, setSavingAbsorcao] = useState<string | null>(null);
+
+  const absorverItem = async (itemId: string, calcId: string | null, note: string) => {
+    if (!note.trim() || note.trim().length < 10) return;
+    setSavingAbsorcao(itemId);
+    try {
+      await supabase.from("payment_items").update({
+        package_absorbed: true,
+        package_absorbed_calc_id: calcId,
+        package_absorbed_by: user?.id ?? null,
+        package_absorbed_at: new Date().toISOString(),
+        package_absorbed_note: note.trim(),
+        expected_amount: 0,
+        ai_status: "aprovado",
+        applied_calc_method: "pacote",
+      } as any).eq("id", itemId);
+      setAbsorcaoPending(null);
+      setAbsorcaoNoteDraft((d) => { const n = { ...d }; delete n[itemId]; return n; });
+      onRefresh?.();
+    } catch (e) {
+      console.error("Erro ao absorver item:", e);
+    } finally {
+      setSavingAbsorcao(null);
+    }
+  };
+
+  const reverterAbsorcao = async (itemId: string) => {
+    setSavingAbsorcao(itemId);
+    try {
+      await supabase.from("payment_items").update({
+        package_absorbed: false,
+        package_absorbed_calc_id: null,
+        package_absorbed_by: null,
+        package_absorbed_at: null,
+        package_absorbed_note: null,
+        ai_status: "pendente",
+        expected_amount: null,
+      } as any).eq("id", itemId);
+      onRefresh?.();
+    } catch (e) {
+      console.error("Erro ao reverter absorção:", e);
+    } finally {
+      setSavingAbsorcao(null);
+    }
+  };
+
+
   // IDs dos itens que tiveram valor corrigido pelo analista (mesma fonte do
   // relatório "Correções em análise"): observações com author_type='analista'
   // e mensagem iniciando por "Item editado pelo analista".
