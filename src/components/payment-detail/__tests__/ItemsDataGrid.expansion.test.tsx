@@ -112,11 +112,14 @@ describe("ItemsDataGrid — expansão inline e altura adaptativa", () => {
     const { unmount } = renderGrid(small);
     const wrapperA = findWrapper()!;
     expect(wrapperA).toBeTruthy();
-    const styleAttrA = wrapperA.getAttribute("style") ?? "";
-    expect(styleAttrA).toMatch(/min\(/);
-    expect(styleAttrA).toContain("640px");
+    // jsdom não preserva valores de CSS com funções (min/max/calc) em style.height,
+    // então buscamos o outerHTML que contém o style inline serializado pelo React.
+    const htmlA = wrapperA.outerHTML;
+    expect(htmlA).toMatch(/min\(/);
+    expect(htmlA).toContain("640px");
     // 2 itens * 38 + 0 banners * 44 + 0 expandido + 140 = 216px
-    expect(styleAttrA).toContain("216px");
+    expect(htmlA).toContain("216px");
+
 
     unmount();
 
