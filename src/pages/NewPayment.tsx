@@ -1101,7 +1101,7 @@ const NewPayment = () => {
       const company = bucket.matchedCompany
         ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
-      const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, columnName);
+      const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, columnName, bucket.columnMapping);
       const sc: Record<string, number> = {};
       for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
       const dominantRaw = Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
