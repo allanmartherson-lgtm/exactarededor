@@ -129,7 +129,8 @@ describe("ItemsDataGrid — expansão inline e altura adaptativa", () => {
     const r2 = renderGrid(pkg);
     const wrapperB = findWrapper()!;
     // 3*38 + 1*44 + 140 = 298px na fórmula
-    expect(wrapperB.style.height).toContain("298px");
+    expect(wrapperB.getAttribute("style") ?? "").toContain("298px");
+
     r2.unmount();
 
     // Caso C: viewport mobile preserva min-h baseline (não colapsa abaixo de 640)
