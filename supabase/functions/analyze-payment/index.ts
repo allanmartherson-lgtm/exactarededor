@@ -820,6 +820,197 @@ serve(async (req) => {
     const resultById: Record<string, AnalysisResult> = {};
     for (const r of results) resultById[r.item_id] = r;
 
+    // ---------- 4.1 PACOTES por rule_calculations (package_main_code) ----------
+    // Agrupa itens por attendance_number e detecta pacotes cadastrados nas regras.
+    // Roda após o motor item-a-item e SOBRESCREVE o resultado onde um pacote bate.
+    // Princípios:
+    //   • Só atua se a regra se aplica à empresa do item (group_company_links).
+    //   • Se dois pacotes batem pelo mesmo main_code → vence o de maior cobertura
+    //     (mais included_codes presentes no atendimento).
+    //   • Códigos absorvidos: main_code + included_codes encontrados.
+    //   • Distribuição por função via package_roles_distribution (fixo ou %).
+    try {
+      // Coleta todos os cálculos de pacote de todas as regras carregadas
+      type PkgCalc = {
+        rule_id: string;
+        rule_name: string;
+        calc_id: string;
+        package_main_code: string;
+        package_included_codes: string[];
+        package_amount: number;
+        package_roles_distribution: Array<{
+          role_key: string;
+          label: string;
+          dist_type: "pct" | "fixo";
+          value: number;
+        }> | null;
+        rule_company_ids: Set<string>;
+        rule_scope: string;
+      };
+
+      const packageCalcs: PkgCalc[] = [];
+      for (const rule of rules as any[]) {
+        const calcs = Array.isArray(rule.calculations) ? rule.calculations : [];
+        for (const calc of calcs) {
+          const isPkg =
+            calc.calculation_type === "pacote" ||
+            calc.calculation_type === "pacote_fechado" ||
+            calc.calculation_type === "pacote_com_extras" ||
+            calc.calculation_type === "pacote_por_atendimento";
+          if (!isPkg || !calc.package_main_code) continue;
+          const links = Array.isArray(rule.group_company_links) ? rule.group_company_links : [];
+          packageCalcs.push({
+            rule_id: rule.id,
+            rule_name: rule.name,
+            calc_id: calc.id,
+            package_main_code: String(calc.package_main_code).trim(),
+            package_included_codes: Array.isArray(calc.package_included_codes)
+              ? calc.package_included_codes.map((c: string) => String(c).trim()).filter(Boolean)
+              : [],
+            package_amount: Number(calc.package_amount ?? 0),
+            package_roles_distribution: Array.isArray(calc.package_roles_distribution)
+              ? calc.package_roles_distribution
+              : null,
+            rule_company_ids: new Set(links.map((l: any) => l?.company_id).filter(Boolean)),
+            rule_scope: rule.scope ?? "master",
+          });
+        }
+      }
+
+      if (packageCalcs.length > 0) {
+        // Helper: normaliza texto removendo acentos e caixa
+        const norm = (s: string) =>
+          s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+        // Helper: verifica se doctor_role bate com um role_key
+        const matchRole = (doctorRole: string | null | undefined, roleKey: string): boolean => {
+          const r = norm(doctorRole ?? "");
+          const k = norm(roleKey);
+          if (k === "cirurgiao") return r.includes("cirurgi") || r.includes("principal");
+          if (k === "aux1" || k === "primeiro_aux") return r.includes("primeiro") || /\b1\b/.test(r);
+          if (k === "aux2" || k === "segundo_aux") return r.includes("segundo") || /\b2\b/.test(r);
+          if (k === "aux3" || k === "terceiro_aux") return r.includes("terceiro") || /\b3\b/.test(r);
+          if (k === "instrumentador") return r.includes("instrument");
+          return r.includes(k);
+        };
+
+        // Agrupa itens por attendance_number (sem attendance não participa de pacote)
+        const byAttendance: Record<string, typeof items> = {};
+        for (const it of items) {
+          const att = (it.attendance_number ?? "").toString().trim();
+          if (!att) continue;
+          (byAttendance[att] ||= []).push(it);
+        }
+
+        for (const [att, attItems] of Object.entries(byAttendance)) {
+          const codeSet = new Set(
+            attItems.map(it => (it.procedure_code ?? "").toString().trim()).filter(Boolean),
+          );
+
+          // Encontra todos os pacotes que batem neste atendimento
+          const matches: Array<{
+            calc: PkgCalc;
+            coverageCount: number;
+            includedFound: string[];
+          }> = [];
+
+          for (const calc of packageCalcs) {
+            // O main_code deve estar presente
+            if (!codeSet.has(calc.package_main_code)) continue;
+
+            // Verifica se a regra se aplica à empresa dos itens deste atendimento
+            if (calc.rule_scope === "grupo" && calc.rule_company_ids.size > 0) {
+              const attCompanyIds = new Set(attItems.map(it => it.company_id).filter(Boolean));
+              const appliesToCompany = [...attCompanyIds].some(cid => calc.rule_company_ids.has(cid));
+              if (!appliesToCompany) continue;
+            }
+
+            const includedFound = calc.package_included_codes.filter(c => codeSet.has(c));
+            matches.push({ calc, coverageCount: includedFound.length, includedFound });
+          }
+
+          if (matches.length === 0) continue;
+
+          // Desempate: maior cobertura de included_codes primeiro; em empate, mais específico (mais included declarados)
+          matches.sort((a, b) => {
+            if (b.coverageCount !== a.coverageCount) return b.coverageCount - a.coverageCount;
+            return b.calc.package_included_codes.length - a.calc.package_included_codes.length;
+          });
+
+          const winner = matches[0];
+          const { calc, includedFound } = winner;
+
+          // Conjunto de códigos absorvidos por este pacote
+          const absorbedCodes = new Set([calc.package_main_code, ...includedFound]);
+
+          // Aplica resultado de pacote em cada item absorvido
+          for (const it of attItems) {
+            const code = (it.procedure_code ?? "").toString().trim();
+            if (!absorbedCodes.has(code)) continue;
+
+            const r = resultById[it.id];
+            if (!r) continue;
+
+            // Determina valor esperado para a função deste item
+            let expectedAmt: number | null = null;
+            if (calc.package_roles_distribution && calc.package_roles_distribution.length > 0) {
+              const dist = calc.package_roles_distribution.find(d =>
+                matchRole(it.doctor_role, d.role_key),
+              );
+              if (dist) {
+                expectedAmt = dist.dist_type === "fixo"
+                  ? Number(dist.value)
+                  : (Number(dist.value) / 100) * calc.package_amount;
+              }
+            }
+
+            // Atualiza o resultado
+            r.matched_rule_id = calc.rule_id;
+            r.matched_rule_name = `${calc.rule_name} — Pacote`;
+            (r as any).calculation_type_used = "pacote";
+            r.matched_priority = "match";
+            r.expected_amount = expectedAmt;
+            r.diff_pct = expectedAmt && expectedAmt > 0
+              ? ((it.gross_amount - expectedAmt) / expectedAmt) * 100
+              : null;
+
+            if (expectedAmt !== null) {
+              if (Math.abs(it.gross_amount - expectedAmt) <= 0.02) {
+                r.status = "aprovado" as any;
+                r.needs_ai_review = false;
+                r.alerts = r.alerts.filter((a) =>
+                  !a.toLowerCase().includes("sem regra") && !a.toLowerCase().includes("no rule"),
+                );
+              } else {
+                r.status = "alerta" as any;
+                r.needs_ai_review = true;
+                const diff = it.gross_amount - expectedAmt;
+                r.alerts = [
+                  `Pacote (${calc.package_main_code}): esperado R$ ${expectedAmt.toFixed(2)}, pago R$ ${it.gross_amount.toFixed(2)} (${diff > 0 ? "+" : ""}${diff.toFixed(2)}).`,
+                  ...r.alerts.filter(a => !a.toLowerCase().includes("sem regra")),
+                ];
+              }
+            } else {
+              r.status = "alerta" as any;
+              r.needs_ai_review = true;
+              r.alerts = [
+                `Pacote detectado (${calc.package_main_code}), mas sem distribuição configurada para a função "${it.doctor_role ?? "—"}". Configure package_roles_distribution nesta regra.`,
+                ...r.alerts.filter(a => !a.toLowerCase().includes("sem regra")),
+              ];
+            }
+
+            r.calculation_explanation =
+              `Atendimento ${att}: pacote identificado pelo código ${calc.package_main_code}. ` +
+              `Códigos absorvidos: ${Array.from(absorbedCodes).join(", ")}. ` +
+              `Valor total do pacote: R$ ${calc.package_amount.toFixed(2)}.` +
+              (expectedAmt !== null ? ` Esperado para "${it.doctor_role}": R$ ${expectedAmt.toFixed(2)}.` : " Função sem distribuição cadastrada.");
+          }
+        }
+      }
+    } catch (pkgErr) {
+      console.error("[pacote_rule_calcs] falha:", pkgErr);
+    }
+
     // ---------- 4.2 PACOTES FIXOS por combinação de códigos ----------
     // Tabelas reference_tables.kind = 'pacote_combinacao' SÓ atuam quando
     // estiverem vinculadas a alguma regra ativa (via reference_table_id da
