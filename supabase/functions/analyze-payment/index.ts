@@ -1030,11 +1030,13 @@ serve(async (req) => {
 
             if (!isPrimary) {
               // Código secundário absorvido: repasse da função está no item âncora.
-              // Fica aprovado com expected = 0.
+              // Fica aprovado com expected = 0 e gross zerado (via package_absorbed).
               r.expected_amount = 0;
               r.diff_pct = null;
               r.status = "aprovado" as any;
               r.needs_ai_review = false;
+              (r as any).package_absorbed = true;
+              (r as any).package_absorbed_calc_id = calc.id ?? null;
               r.alerts = r.alerts.filter((a) =>
                 !a.toLowerCase().includes("sem regra") && !a.toLowerCase().includes("no rule"),
               );
