@@ -441,6 +441,8 @@ serve(async (req) => {
         tipo_linha,complement_reason,
         agreement_text,specialty,tipo_item,sector,attendance_character,
         convenio_value_totalized,
+        package_absorbed,
+        package_absorbed_calc_id,
         ai_status,
         item_hash,
         ai_findings,
@@ -991,6 +993,29 @@ serve(async (req) => {
 
             const r = resultById[it.id];
             if (!r) continue;
+
+            // Absorção manual pelo analista: motor respeita o override.
+            // Item marcado como package_absorbed = true se comporta como
+            // item secundário absorvido, independente de estar no included_codes.
+            const rawIt = (itemsRaw ?? []).find((x: any) => x.id === it.id);
+            if (rawIt?.package_absorbed === true) {
+              r.matched_rule_id = calc.rule_id;
+              r.matched_rule_name = `${calc.rule_name} — Pacote`;
+              (r as any).calculation_type_used = "pacote";
+              r.matched_priority = "match";
+              r.expected_amount = 0;
+              r.diff_pct = null;
+              r.status = "aprovado" as any;
+              r.needs_ai_review = false;
+              r.alerts = r.alerts.filter((a) =>
+                !a.toLowerCase().includes("sem regra") && !a.toLowerCase().includes("no rule"),
+              );
+              r.calculation_explanation =
+                `Atendimento ${att}: código ${code} manualmente absorvido pelo analista ` +
+                `no pacote ${calc.package_main_code} (${calc.rule_name}).`;
+              continue;
+            }
+
 
             // Metadados de pacote (comuns a todos os absorbed)
             r.matched_rule_id = calc.rule_id;
