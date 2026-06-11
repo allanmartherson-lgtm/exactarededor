@@ -96,7 +96,7 @@ jobs:
             src/lib/__tests__/financialAcceptUndo.test.ts \
             --reporter=verbose
 
-
+  # Job 5: Todos os testes (suite completa)
   test-suite:
     name: Full Test Suite
     runs-on: ubuntu-latest
