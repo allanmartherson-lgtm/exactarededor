@@ -765,8 +765,14 @@ const NewPayment = () => {
     filenameTrusted: boolean,
     rawCompanyName: string,
     sectorColumnOverride?: string | null,
+    manualMapping?: ManualMapping,
   ): ParsedRow[] => {
-    return json.map((row, rowIndex) => {
+    return json.map((rawRow, rowIndex) => {
+      // Quando o analista (ou um template) forneceu mapeamento explícito,
+      // injetamos o valor da coluna escolhida em todas as chaves canônicas
+      // que o pick() conhece. Assim os pick() abaixo encontram o valor certo
+      // sem precisarmos refatorar todas as listas de sinônimos.
+      const row = applyManualMappingShim(rawRow, manualMapping);
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
       const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "valor a repassar", "valor repassar", "vlrepasse", "vl. repasse"]));
       const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
