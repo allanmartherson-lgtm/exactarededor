@@ -1154,7 +1154,9 @@ export default function CompanyAnalysis() {
       } catch (e) { console.warn("Reanálise pós-edição falhou:", e); }
       toast.success("Item atualizado");
       setEditItem(null);
-      load();
+      await load();
+      // Reexecuta o cálculo server-side para refletir o novo bruto no líquido.
+      await composition.refresh();
     } catch (e) {
       toast.error("Falha ao salvar", { description: e instanceof Error ? e.message : String(e) });
     } finally {
