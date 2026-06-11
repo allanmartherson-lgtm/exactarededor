@@ -195,6 +195,7 @@ export function ItemsDataGrid({
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
   const [onlyAdjusted, setOnlyAdjusted] = useState(false);
+  const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
 
   // IDs dos itens que tiveram valor corrigido pelo analista (mesma fonte do
   // relatório "Correções em análise"): observações com author_type='analista'
