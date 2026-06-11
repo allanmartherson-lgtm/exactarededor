@@ -111,6 +111,8 @@ export const HeadsetIcon = makeIcon(Headset, "HeadsetIcon");
 export const ListChecksIcon = makeIcon(ListChecks, "ListChecksIcon");
 export const ChatsIcon = makeIcon(Chats, "ChatsIcon");
 export const Scale = makeIcon(Scales, "Scale");
+export const GitCompare = makeIcon(ArrowsLeftRight, "GitCompare");
+export const GitCompareIcon = GitCompare;
 export const Pencil = makeIcon(PencilSimple, "Pencil");
 
 export type NavIconComponent = ReturnType<typeof makeIcon>;
