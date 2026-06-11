@@ -202,6 +202,10 @@ export default function Conciliacao() {
           </p>
         </TabsContent>
 
+        <TabsContent value="bases" className="mt-4">
+          <BasesConciliacaoPanel />
+        </TabsContent>
+
         <TabsContent value="retroativa" className="mt-4">
           <RetroactiveReconciliationsTab />
         </TabsContent>
