@@ -2570,6 +2570,40 @@ const NewPayment = () => {
                             </PopoverContent>
                           </Popover>
 
+                          {/* Botão de revisão do mapeamento de colunas */}
+                          {(() => {
+                            const hits = b.mappingHits ?? [];
+                            const summary = hits.length ? summarizeMissing(hits) : { missingRequired: [], lowConfidence: [] };
+                            const hasMissing = summary.missingRequired.length > 0;
+                            const hasLow = summary.lowConfidence.length > 0;
+                            const variant = hasMissing ? "outline" : "ghost";
+                            const klass = hasMissing
+                              ? "border-destructive text-destructive hover:text-destructive"
+                              : hasLow
+                                ? "border-amber-500 text-amber-700 hover:text-amber-700"
+                                : "text-muted-foreground hover:text-foreground";
+                            const label = b.appliedTemplate
+                              ? `Mapeamento (template: ${b.appliedTemplate.name.slice(0, 18)}${b.appliedTemplate.name.length > 18 ? "…" : ""})`
+                              : hasMissing
+                                ? `Mapeamento: ${summary.missingRequired.length} faltando`
+                                : hasLow
+                                  ? `Mapeamento: ${summary.lowConfidence.length} revisar`
+                                  : "Mapeamento de colunas";
+                            return (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={variant as "outline" | "ghost"}
+                                className={`h-6 px-2 text-[11px] ${hasMissing ? "border" : ""} ${klass}`}
+                                onClick={() => setMappingDialog({ open: true, bucketIdx: idx })}
+                              >
+                                <Sparkles className="h-3 w-3 mr-1" />
+                                {label}
+                              </Button>
+                            );
+                          })()}
+
+
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
