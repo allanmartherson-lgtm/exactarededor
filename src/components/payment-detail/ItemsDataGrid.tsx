@@ -1490,6 +1490,114 @@ export function ItemsDataGrid({
   );
 }
 
+// ============================================================
+//  PackageBannerRow — cabeçalho colapsável de grupo de pacote
+// ============================================================
+function PackageBannerRow({
+  group,
+  att,
+  isCollapsed,
+  onToggle,
+  totalCols,
+  isCompact,
+  showGrossColumn,
+}: {
+  group: {
+    items: import("@/hooks/usePaymentDetailData").PaymentItemRow[];
+    ruleName: string;
+    totalGross: number;
+    totalExpected: number | null;
+    worstStatus: "reprovado" | "alerta" | "aprovado";
+  };
+  att: string;
+  isCollapsed: boolean;
+  onToggle: () => void;
+  totalCols: number;
+  isCompact: boolean;
+  showGrossColumn: boolean;
+}) {
+  const statusColor =
+    group.worstStatus === "reprovado"
+      ? { bg: "hsl(0 70% 96%)", border: "hsl(0 60% 65%)", text: "hsl(0 60% 35%)" }
+      : group.worstStatus === "alerta"
+      ? { bg: "hsl(38 80% 95%)", border: "hsl(38 70% 58%)", text: "hsl(38 60% 30%)" }
+      : { bg: "hsl(142 40% 95%)", border: "hsl(142 40% 62%)", text: "hsl(142 40% 25%)" };
+
+  const statusLabel =
+    group.worstStatus === "aprovado"
+      ? "✓ Pacote OK"
+      : group.worstStatus === "alerta"
+      ? "⚠ Com alertas"
+      : "✗ Com divergência";
+
+  const tone: keyof typeof TONE_CLASSES =
+    group.worstStatus === "reprovado"
+      ? "destructive"
+      : group.worstStatus === "alerta"
+      ? "warning"
+      : "success";
+
+  const pad = isCompact ? "5px 12px" : "8px 16px";
+
+  return (
+    <tr
+      className="cursor-pointer select-none hover:brightness-95 transition-all"
+      style={{ background: statusColor.bg }}
+      onClick={onToggle}
+      title={isCollapsed ? "Expandir itens do pacote" : "Colapsar itens do pacote"}
+    >
+      <td
+        colSpan={totalCols}
+        style={{
+          padding: pad,
+          borderBottom: "1px solid hsl(var(--border))",
+          borderTop: `2px solid ${statusColor.border}`,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <span style={{ color: statusColor.text, display: "flex", alignItems: "center", flexShrink: 0 }}>
+            {isCollapsed
+              ? <ChevronRight className="h-3.5 w-3.5" />
+              : <ChevronDown className="h-3.5 w-3.5" />}
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: statusColor.text, whiteSpace: "nowrap" }}>
+            📦 {group.ruleName}
+          </span>
+          <span style={{ fontFamily: "monospace", fontSize: 10, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>
+            Atend. {att}
+          </span>
+          <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>
+            · {group.items.length} {group.items.length === 1 ? "item" : "itens"}
+          </span>
+          <div style={{ flex: 1 }} />
+          {showGrossColumn && (
+            <span style={{
+              fontFamily: "monospace",
+              fontSize: 13,
+              fontWeight: 700,
+              color: statusColor.text,
+              whiteSpace: "nowrap",
+            }}>
+              {formatCurrency(group.totalGross)}
+            </span>
+          )}
+          {group.totalExpected != null && Math.abs(group.totalGross - group.totalExpected) > 0.02 && (
+            <span style={{ fontFamily: "monospace", fontSize: 11, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>
+              esp. {formatCurrency(group.totalExpected)}
+            </span>
+          )}
+          <span className={cn(
+            "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap",
+            TONE_CLASSES[tone],
+          )}>
+            {statusLabel}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 function RowMain({
   it,
   allItems,
