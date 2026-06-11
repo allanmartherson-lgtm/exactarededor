@@ -968,8 +968,7 @@ export default function Glosas() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </TabsContent>
-      </Tabs>
+      </div>
 
 
       <ColumnMappingModal
