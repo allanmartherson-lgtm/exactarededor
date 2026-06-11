@@ -33,10 +33,9 @@ type RunRow = {
 
 type PaymentLite = {
   id: string;
-  number: string | null;
-  competence: string | null;
+  reference: string | null;
+  competence_month: string | null;
   status: string;
-  company_name?: string | null;
 };
 
 export default function Conciliacao() {
