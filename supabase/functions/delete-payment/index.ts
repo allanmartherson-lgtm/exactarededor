@@ -26,6 +26,7 @@ const DELETABLE_STATUSES = new Set([
   "em_analise_ia",
   "aguardando_validacao",
   "devolvido_analista",
+  "revisao_analista",
   "cancelado",
 ]);
 
