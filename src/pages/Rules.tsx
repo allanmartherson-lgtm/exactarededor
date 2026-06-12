@@ -309,6 +309,8 @@ const Rules = () => {
   const [pendingRuleData, setPendingRuleData] = useState<Record<string, unknown> | null>(null);
   const [pendingCalcs, setPendingCalcs] = useState<Record<string, unknown>[]>([]);
   const [pendingIsUpdate, setPendingIsUpdate] = useState(false);
+  // Clone-to-hospital dialog
+  const [cloneTarget, setCloneTarget] = useState<RuleRow | null>(null);
   const STEP_LABELS: Record<CalcSyncError["step"], string> = {
     "delete-calculavel": "Remover cálculos antigos (regra calculável)",
     "insert-calculavel": "Inserir novos cálculos",
