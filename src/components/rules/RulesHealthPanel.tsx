@@ -122,6 +122,8 @@ function exportDoctorCollisionsPdf(collisions: DoctorMultiRuleProblem[]) {
 }
 
 export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string) => void }) {
+  const { hospital } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<RuleHealth[]>([]);
@@ -136,7 +138,9 @@ export function RulesHealthPanel({ onSelectRule }: { onSelectRule?: (id: string)
   const analyze = async () => {
     setLoading(true);
     try {
-      const { data: rules } = await supabase.from("rules").select("*").order("created_at", { ascending: false });
+      let rulesQ = supabase.from("rules").select("*").order("created_at", { ascending: false });
+      if (activeHospitalId) rulesQ = rulesQ.eq("hospital_id", activeHospitalId);
+      const { data: rules } = await rulesQ;
       const { data: calcs } = await supabase.from("rule_calculations").select("*");
       const byRule = new Map<string, any[]>();
       (calcs ?? []).forEach((c: any) => {
