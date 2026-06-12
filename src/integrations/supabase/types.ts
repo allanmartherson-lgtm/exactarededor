@@ -4900,6 +4900,60 @@ export type Database = {
           },
         ]
       }
+      payment_recompute_failures: {
+        Row: {
+          attempts: number
+          created_at: string
+          error_code: string | null
+          error_message: string
+          first_failed_at: string
+          id: string
+          last_attempt_at: string
+          payment_id: string
+          resolved_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error_code?: string | null
+          error_message: string
+          first_failed_at?: string
+          id?: string
+          last_attempt_at?: string
+          payment_id: string
+          resolved_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error_code?: string | null
+          error_message?: string
+          first_failed_at?: string
+          id?: string
+          last_attempt_at?: string
+          payment_id?: string
+          resolved_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_recompute_failures_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_recompute_failures_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_status_history: {
         Row: {
           changed_at: string
@@ -8920,6 +8974,10 @@ export type Database = {
         }
         Returns: string
       }
+      log_payment_recompute_failure: {
+        Args: { _code: string; _error: string; _payment_id: string }
+        Returns: undefined
+      }
       lp_scope_hash: { Args: { _scope: Json }; Returns: string }
       map_calculation_type_to_method: {
         Args: { _ctype: string }
@@ -9076,6 +9134,14 @@ export type Database = {
       resolve_glosa_to_company: {
         Args: { _debt_id: string }
         Returns: undefined
+      }
+      retry_payment_recompute_failures: {
+        Args: { _limit?: number }
+        Returns: {
+          error_message: string
+          payment_id: string
+          succeeded: boolean
+        }[]
       }
       return_groups_to_analyst:
         | {
