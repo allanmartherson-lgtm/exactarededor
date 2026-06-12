@@ -1,64 +1,135 @@
-# Acatar esperado = ajustar o valor a pagar
+# Mínimo Garantido — Plano de implementação
 
-## Premissa corrigida
-`gross_amount` = valor que **será pago** (proposta atual). Não é histórico de pagamento. Durante confecção/análise, o analista está justamente montando esse número. Quando ele "acata o esperado", o bruto a pagar tem que virar o esperado — senão o card de composição mente.
+## Conceito
+Cláusula de **piso** aplicada **após** o cálculo normal da regra. Não é um novo `calculation_type` — é um *modificador pós-cálculo* que convive com qualquer método (percentual_convenio, valor_fixo, tabela_diferenciada, pacote, bonus).
 
-## Modelo
-Modelo **(B) com trilha + reversão**:
-- Acatar item → `gross_amount := expected_amount`
-- Guardar valor original em `gross_amount_original` (preenchido só na 1ª sobrescrita)
-- Registrar `gross_override_at`, `gross_override_by`, `gross_override_reason='acatado_esperado'`
-- Botão "Reverter para valor original" restaura `gross_amount := gross_amount_original` e limpa as flags
-- Trava: só permitido enquanto `status ∈ {em_confeccao, revisao_analista, divergente}`. Após aprovado/pago, bloqueado.
+```
+producao_competencia = SOMA(gross_amount) de todos payment_items
+                       do (medico + PJ) na mesma competência
+piso                  = rules.minimo_garantido_valor
+complemento           = max(0, piso − producao_competencia)
+total_pago            = max(producao_competencia, piso)
+```
 
-## Comportamento por tipo de regra (uniforme)
-Funciona igual para qualquer método, porque a operação é sempre "gross := expected":
-- **valor_fixo / tabela_diferenciada / percentual_convenio / bonus**: item individual, gross vira expected.
-- **pacote**: itens secundários já entram com `expected = 0` e `package_absorbed = true`. Ao acatar o pacote inteiro:
-  - item âncora: `gross := expected` (valor do pacote)
-  - itens absorvidos: `gross := 0`, `package_absorbed = true`
-  - composição: bruto da empresa cai para o valor do pacote naturalmente (já filtramos `package_absorbed` no `compute-company-financials`)
-- **sem_regra**: não permite acatar (não há esperado confiável). Mantém comportamento atual.
+Decisões já confirmadas:
+- **Janela:** competência (mês). Soma todas as folhas do mesmo `competence_month`.
+- **Escopo:** médico + PJ específica (cada vínculo `doctor_companies` tem seu próprio piso).
+- **Base:** bruto (produção calculada pelo motor, antes de glosas/descontos).
 
-## Onde toca
+## Modelo de dados
 
-### Banco (migration)
-Em `payment_items`:
-- `gross_amount_original numeric` (nullable)
-- `gross_override_at timestamptz`
-- `gross_override_by uuid`
-- `gross_override_reason text` — enum textual: `acatado_esperado | ajuste_manual | pacote_absorvido`
+### Migration 1 — campos em `rules`
+```sql
+ALTER TABLE public.rules
+  ADD COLUMN minimo_garantido_ativo boolean NOT NULL DEFAULT false,
+  ADD COLUMN minimo_garantido_valor numeric,
+  ADD COLUMN minimo_garantido_escopo text DEFAULT 'medico_empresa'
+    CHECK (minimo_garantido_escopo IN ('medico_empresa')),
+  ADD COLUMN minimo_garantido_periodicidade text DEFAULT 'competencia'
+    CHECK (minimo_garantido_periodicidade IN ('competencia')),
+  ADD COLUMN minimo_garantido_base text DEFAULT 'bruto'
+    CHECK (minimo_garantido_base IN ('bruto'));
+```
+Campos `escopo/periodicidade/base` ficam parametrizáveis (CHECK aceita só 1 valor agora; abre caminho pra "líquido" e "anual" depois sem nova migration).
 
-### Backend
-- Novo edge `accept-expected-value` (ou estender `override-duplicate-item` pattern):
-  - input: `{ payment_id, item_ids[], reason }`
-  - valida status, copia `expected_amount → gross_amount`, preserva original
-  - trigger `compute-company-financials` no fim
-- Reverter: mesma função com `action: 'revert'`
-- `analyze-payment`: NÃO sobrescrever `gross_amount` quando `gross_override_at IS NOT NULL` (respeitar override do analista). Continua atualizando `expected_amount` se a regra mudar — aí o analista decide reacatar.
+### Migration 2 — tabela de aplicações (idempotência + auditoria)
+```sql
+CREATE TABLE public.minimum_guarantee_applications (
+  id uuid PK default gen_random_uuid(),
+  rule_id uuid → rules,
+  doctor_id uuid → doctors,
+  company_id uuid → companies,
+  competence_month text,           -- 'YYYY-MM'
+  hospital_id uuid → hospitals,
+  producao_calculada numeric,      -- soma bruto antes do piso
+  piso_aplicado numeric,
+  complemento_valor numeric,       -- 0 se produção ≥ piso
+  payment_id uuid → payments,      -- folha onde o complemento foi lançado
+  synthetic_item_id uuid,          -- payment_item criado p/ o complemento
+  status text ('aplicado'|'revertido'),
+  applied_at, applied_by, reverted_at, reverted_by,
+  UNIQUE (rule_id, doctor_id, company_id, competence_month, status)
+    WHERE status = 'aplicado'
+);
+```
+A UNIQUE parcial garante: **um único complemento aplicado por (médico, PJ, competência, regra)**. Reaplicar exige reverter o anterior.
 
-### Frontend
-- `ItemsDataGrid.tsx`:
-  - Ação "Acatar esperado" já existe → passa a chamar o novo endpoint (não só mudar status)
-  - Badge "ajustado" nos itens com `gross_override_at`, tooltip mostra original
-  - Menu de item: "Reverter para valor original" quando há override
-  - Banner do pacote: usa o gross efetivo (que agora bate com expected)
-- `CompanyAnalysis.tsx`: após acatar, `await load()` + `composition.refresh()` (já está feito)
-- `FinancialCompositionStrip`: nenhum mudança — passa a bater sozinho
+### Migration 3 — flag no item sintético
+Em `payment_items`, novo valor pro enum/text que distingue tipo:
+```sql
+ALTER TABLE payment_items
+  ADD COLUMN item_origin text DEFAULT 'producao'
+    CHECK (item_origin IN ('producao','complemento_minimo','bonus','ajuste'));
+```
+Item sintético do complemento:
+- `item_origin='complemento_minimo'`
+- `procedure_name='Complemento Mínimo Garantido — <regra>'`
+- `gross_amount = complemento_valor`, `expected_amount = complemento_valor`
+- `applied_calc_method = NULL`, ligado à `rule_id` do piso
 
-## Reversibilidade e auditoria
-- `audit_log` recebe entrada por override (item_id, valor antes/depois, motivo, usuário)
-- Reversão é livre até aprovação. Após aprovado, qualquer mudança de valor exige reabrir o grupo (fluxo existente).
+## Motor — novo pass
 
-## Não faz parte deste plano
-- Mudar semântica de `gross_amount` para pagamentos já aprovados (imutável após aprovação)
-- Editar valor livre (só "acatar esperado" e "reverter"; edição manual de valor continua via campo de override existente, agora também grava `gross_amount_original` se ainda não estiver setado)
-- Glosas e débitos: continuam exatamente como hoje, na tela própria, somando no card de composição
+Edge function nova: `apply-minimum-guarantee` (Pass 3, roda **depois** de `compute-company-financials` e antes de fechar status para validação).
+
+Algoritmo:
+1. Carrega `payment` → `competence_month`.
+2. Lista regras ativas com `minimo_garantido_ativo=true` cujo escopo (médico/PJ) tem itens neste pagamento.
+3. Para cada (regra, médico, PJ):
+   a. Soma `gross_amount` dos `payment_items` **dessa competência** em **todos os payments** com o mesmo `(doctor_id, company_id, competence_month)` — filtra `item_origin='producao'` (não conta complemento anterior).
+   b. Lê `minimum_guarantee_applications` existente pra mesma chave.
+   c. Se `producao ≥ piso`: nada a fazer. Se já existia complemento aplicado, **reverter** (deletar item sintético + marcar `status='revertido'`).
+   d. Se `producao < piso`: criar item sintético no **payment atual** (último da competência) e registrar aplicação.
+4. Re-disparar `compute-company-financials` no payment que recebeu o complemento.
+
+**Idempotência**: rodar 2x dá o mesmo estado (compara aplicação existente, atualiza só se valor mudou).
+
+**Quando dispara**: ao final do `analyze-payment` (se a regra do médico tem piso), e manualmente via botão "Recalcular mínimos" no detalhe do payment.
+
+## UI
+
+### Cadastro de regra (`ValidationRules.tsx` / `RuleEditor`)
+Nova seção colapsável **"Mínimo garantido"** com:
+- Switch "Aplicar piso de produção"
+- Input R$ "Valor mínimo mensal"
+- Read-only por enquanto: "Avaliado por competência, sobre produção bruta, por médico+PJ"
+- Helper text explicando o cálculo
+
+### Detalhe do pagamento (`CompanyAnalysis.tsx`)
+- Card novo "Complemento de mínimo garantido" quando houver `minimum_guarantee_applications` no pagamento, mostrando:
+  - Produção da competência (bruta)
+  - Piso configurado
+  - Complemento aplicado (ou "Produção acima do piso ✓")
+  - Link pra outras folhas da mesma competência consideradas
+- Item sintético aparece na grid de itens com badge "Complemento mínimo" e ação "ver memorial de cálculo"
+
+### Botão de recálculo
+Em `PaymentConciliationModal` ou no header do payment: "Reaplicar mínimos garantidos" (admin).
+
+## Casos de borda tratados
+
+| Caso | Comportamento |
+|---|---|
+| 2 folhas no mesmo mês (ex.: produção + retroativa) | Soma as duas; complemento entra na **última** processada |
+| Produção sobe após complemento já lançado (correção) | Pass detecta `producao ≥ piso`, reverte item sintético, marca `revertido` |
+| Médico sem PJ vinculada | Regra não aplica (core: médico precisa de PJ pra receber) |
+| Pagamento já aprovado | Pass não toca; complementos retroativos viram **retroactive_reconciliation** (fluxo existente) |
+| Regra com `valid_from/until` | Respeita vigência por competência |
+| Múltiplas regras com piso pro mesmo médico | Erro de validação no save da regra (UNIQUE lógica via `validate-rule-save`) |
 
 ## Ordem de execução
-1. Migration dos 4 campos novos
-2. Edge `accept-expected-value` + ajuste no `analyze-payment` para respeitar override
-3. UI: ação acatar → endpoint, badge "ajustado", reverter
-4. Smoke no caso atual (DF Star, R$ 19.547,95 do pacote) e em 1 caso de tabela_diferenciada
 
-Confirma que sigo com isso?
+1. **Migrations** (3 acima) — uma única chamada
+2. **Edge function** `apply-minimum-guarantee` + tests deno
+3. Hook no `analyze-payment` pra chamar o pass 3 ao final
+4. UI cadastro de regra (formulário + validação)
+5. UI detalhe do payment (card + badge no item)
+6. Botão "Reaplicar mínimos" + audit_log
+7. Smoke: criar regra com piso de R$ 20k, importar folha com produção de R$ 12k → ver complemento de R$ 8k
+
+## Fora do escopo desta entrega
+- Periodicidade anual / por pagamento (estrutura aceita, mas não implementada)
+- Base líquida (após glosa)
+- Piso por médico agregando todas as PJs
+- Bônus de superação (médico recebe piso + % do excesso) — outro tipo de regra
+
+Confirma que sigo nessa ordem?

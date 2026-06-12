@@ -3308,6 +3308,136 @@ export type Database = {
         }
         Relationships: []
       }
+      minimum_guarantee_applications: {
+        Row: {
+          applied_at: string
+          applied_by: string | null
+          company_id: string
+          competence_month: string
+          complemento_valor: number
+          created_at: string
+          doctor_id: string
+          hospital_id: string | null
+          id: string
+          notes: string | null
+          payment_id: string | null
+          piso_aplicado: number
+          producao_calculada: number
+          reverted_at: string | null
+          reverted_by: string | null
+          rule_id: string
+          status: string
+          synthetic_item_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string
+          applied_by?: string | null
+          company_id: string
+          competence_month: string
+          complemento_valor?: number
+          created_at?: string
+          doctor_id: string
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          payment_id?: string | null
+          piso_aplicado: number
+          producao_calculada?: number
+          reverted_at?: string | null
+          reverted_by?: string | null
+          rule_id: string
+          status?: string
+          synthetic_item_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string
+          applied_by?: string | null
+          company_id?: string
+          competence_month?: string
+          complemento_valor?: number
+          created_at?: string
+          doctor_id?: string
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          payment_id?: string | null
+          piso_aplicado?: number
+          producao_calculada?: number
+          reverted_at?: string | null
+          reverted_by?: string | null
+          rule_id?: string
+          status?: string
+          synthetic_item_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "minimum_guarantee_applications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "minimum_guarantee_applications_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "minimum_guarantee_applications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "minimum_guarantee_applications_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "minimum_guarantee_applications_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "minimum_guarantee_applications_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "minimum_guarantee_applications_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules_pending_doctors_summary"
+            referencedColumns: ["rule_id"]
+          },
+          {
+            foreignKeyName: "minimum_guarantee_applications_synthetic_item_id_fkey"
+            columns: ["synthetic_item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "minimum_guarantee_applications_synthetic_item_id_fkey"
+            columns: ["synthetic_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
+          },
+        ]
+      }
       notification_channels: {
         Row: {
           channel: Database["public"]["Enums"]["notification_channel"]
@@ -3908,6 +4038,7 @@ export type Database = {
           is_cancelled: boolean
           item_hash: string | null
           item_origem: string | null
+          item_origin: string
           manual_note: string | null
           origem_reconciliation_item_id: string | null
           origem_referencia: string | null
@@ -3999,6 +4130,7 @@ export type Database = {
           is_cancelled?: boolean
           item_hash?: string | null
           item_origem?: string | null
+          item_origin?: string
           manual_note?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
@@ -4090,6 +4222,7 @@ export type Database = {
           is_cancelled?: boolean
           item_hash?: string | null
           item_origem?: string | null
+          item_origin?: string
           manual_note?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
@@ -6679,6 +6812,11 @@ export type Database = {
             | Database["public"]["Enums"]["threshold_type"]
             | null
           limiar_bloqueio_valor: number | null
+          minimo_garantido_ativo: boolean
+          minimo_garantido_base: string | null
+          minimo_garantido_escopo: string | null
+          minimo_garantido_periodicidade: string | null
+          minimo_garantido_valor: number | null
           multiplier: number | null
           name: string
           package_amount: number | null
@@ -6746,6 +6884,11 @@ export type Database = {
             | Database["public"]["Enums"]["threshold_type"]
             | null
           limiar_bloqueio_valor?: number | null
+          minimo_garantido_ativo?: boolean
+          minimo_garantido_base?: string | null
+          minimo_garantido_escopo?: string | null
+          minimo_garantido_periodicidade?: string | null
+          minimo_garantido_valor?: number | null
           multiplier?: number | null
           name: string
           package_amount?: number | null
@@ -6813,6 +6956,11 @@ export type Database = {
             | Database["public"]["Enums"]["threshold_type"]
             | null
           limiar_bloqueio_valor?: number | null
+          minimo_garantido_ativo?: boolean
+          minimo_garantido_base?: string | null
+          minimo_garantido_escopo?: string | null
+          minimo_garantido_periodicidade?: string | null
+          minimo_garantido_valor?: number | null
           multiplier?: number | null
           name?: string
           package_amount?: number | null

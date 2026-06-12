@@ -2594,6 +2594,19 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       console.warn(`${__t} [learn-convenio] falha ao persistir aliases aprendidos`, (learnErr as any)?.message ?? learnErr);
     }
 
+
+    // === Pass 3: Mínimo garantido ===
+    // Dispara apply-minimum-guarantee (fire-and-forget). Failures não bloqueiam o
+    // analyze-payment — a função é idempotente e pode ser reexecutada manualmente.
+    try {
+      void supabase.functions.invoke("apply-minimum-guarantee", {
+        body: { payment_id: __payment_id },
+      }).catch((e) => console.warn(`${__t} [apply-minimum-guarantee] falha não-fatal:`, (e as any)?.message ?? e));
+    } catch (mgErr) {
+      console.warn(`${__t} [apply-minimum-guarantee] erro ao disparar:`, (mgErr as any)?.message ?? mgErr);
+    }
+
+
     return new Response(
       JSON.stringify({
         ok: true,
