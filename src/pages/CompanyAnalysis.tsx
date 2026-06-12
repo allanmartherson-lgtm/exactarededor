@@ -21,6 +21,7 @@ import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ConversationsSheet } from "@/components/payment-detail/conversations/ConversationsSheet";
 import { DeductionsBanner } from "@/components/payment-detail/DeductionsBanner";
 import { FinancialCompositionStrip } from "@/components/payment-detail/FinancialCompositionStrip";
+import { MinimumGuaranteeCard } from "@/components/payment-detail/MinimumGuaranteeCard";
 import { useFinancialComposition } from "@/hooks/useFinancialComposition";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -1818,6 +1819,14 @@ export default function CompanyAnalysis() {
 
       {/* Faixa de composição financeira: Bruto − Débitos − Glosas − Pool ± Conciliação = Líquido */}
       {id && group?.company_id && <FinancialCompositionStrip comp={composition} />}
+
+      {id && group?.company_id && (
+        <MinimumGuaranteeCard
+          paymentId={id}
+          companyId={group.company_id}
+          canRecalc={isAdminOrDiretor}
+        />
+      )}
 
       {/* Notas pessoais + marcadores (Fixar / Aguardando info / Já revisei) — visíveis apenas para você. */}
       {id && groupId && (
