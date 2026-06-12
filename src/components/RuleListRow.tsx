@@ -2,12 +2,14 @@ import { ReactNode } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Pencil, Copy, FileDown, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, Pencil, Copy, FileDown, Trash2, UserPlus, Building2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 export interface RuleListRowProps {
   name: string;
+  code?: string | null;
+  hospitalName?: string | null;
   severity?: "bloqueio" | "aviso" | "info" | string | null;
   active?: boolean | null;
   expired?: boolean;
@@ -26,6 +28,7 @@ export interface RuleListRowProps {
   onToggleSelect?: () => void;
   onEdit?: () => void;
   onDuplicate?: () => void;
+  onCloneToHospital?: () => void;
   onExportPdf?: () => void;
   onDelete?: () => void;
 }
