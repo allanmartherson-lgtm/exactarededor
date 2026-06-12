@@ -141,6 +141,17 @@ export const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStat
 export const isTerminalStatus = (s: PaymentStatus): boolean => TERMINAL_STATUSES.has(s);
 
 /**
+ * Pagamento histórico (import_mode='historico'): subiu via "Importação histórica"
+ * para alimentar aprendizado / KPIs retroativos. NÃO segue fluxo operacional —
+ * apenas leitura, relatórios e reabertura administrativa.
+ */
+export const isHistoricoPayment = (
+  payment: { import_mode?: string | null; origem?: string | null } | null | undefined,
+): boolean =>
+  Boolean(payment && (payment.import_mode === "historico" || payment.origem === "historico"));
+
+
+/**
  * Mapa autoritativo de transições válidas, por papel.
  * Toda mudança de status do grupo PRECISA passar por aqui.
  */

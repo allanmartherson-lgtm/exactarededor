@@ -48,7 +48,10 @@ interface Row {
   processing_diagnostics?: any;
   processing_timeout_occurred?: boolean;
   priority_score?: number | null;
+  import_mode?: string | null;
+  origem?: string | null;
 }
+
 
 interface StatusEntry { status: PaymentStatus; changed_at: string }
 
@@ -494,7 +497,7 @@ const Payments = () => {
 
       // Dados companion escopados aos IDs visíveis — mantém renderização rica
       // (analistas, empresas/PJ, SLAs, histórico de status) sem custo de tabela inteira.
-      const [profsRes, groupsRes, jobsRes, histRes, slasRes, openQsRes] = await Promise.all([
+      const [profsRes, groupsRes, jobsRes, histRes, slasRes, openQsRes, modesRes] = await Promise.all([
         userIds.length
           ? supabase.from("profiles").select("id,full_name,email").in("id", userIds)
           : Promise.resolve({ data: [] as any[] } as any),
@@ -511,6 +514,9 @@ const Payments = () => {
         ids.length
           ? supabase.from("payment_observations").select("payment_id").in("payment_id", ids).eq("is_question", true).is("resolved_at", null)
           : Promise.resolve({ data: [] as any[] } as any),
+        ids.length
+          ? supabase.from("payments").select("id,import_mode,origem").in("id", ids)
+          : Promise.resolve({ data: [] as any[] } as any),
       ]);
 
       const profs = profsRes.data ?? [];
@@ -519,6 +525,16 @@ const Payments = () => {
       const hist = histRes.data ?? [];
       const slas = slasRes.data ?? [];
       const openQs = openQsRes.data ?? [];
+      const modes = (modesRes.data ?? []) as Array<{ id: string; import_mode?: string | null; origem?: string | null }>;
+      const modeMap = new Map(modes.map((m) => [m.id, m]));
+      list.forEach((r) => {
+        const m = modeMap.get(r.id);
+        if (m) {
+          (r as any).import_mode = m.import_mode ?? null;
+          (r as any).origem = m.origem ?? null;
+        }
+      });
+
 
       const profMap: Record<string, string> = {};
       profs.forEach((p: any) => { profMap[p.id] = p.full_name || p.email || "—"; });
@@ -864,7 +880,13 @@ const Payments = () => {
           <Link to={`/pagamentos/${p.id}`} className="min-w-0 flex-1 space-y-2">
             <div className="flex items-center gap-2 min-w-0">
               <p className="font-medium text-sm truncate">{p.reference}</p>
+              {(p.import_mode === "historico" || p.origem === "historico") && (
+                <Badge variant="outline" className="border-amber-500/50 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 text-[10px] uppercase tracking-wide">
+                  Histórico
+                </Badge>
+              )}
               <PaymentRiskBadgeInline paymentId={p.id} />
+
               <PaymentPriorityBadgeInline
                 paymentId={p.id}
                 slaLevel={sla?.level ?? null}

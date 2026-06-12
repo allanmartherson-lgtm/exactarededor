@@ -159,9 +159,9 @@ serve(async (req) => {
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase
       .from("payments")
-      .select("sectors,specialties,payment_type,payment_due_date,competence_month,analysis_mode,hospital_id")
+      .select("sectors,specialties,payment_type,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode")
       .eq("id", payment_id)
-      .maybeSingle<PaymentRow>();
+      .maybeSingle<PaymentRow & { import_mode?: string | null }>();
 
     const ctx: PaymentContext = {
       sectors: payment?.sectors ?? [],
@@ -178,6 +178,11 @@ serve(async (req) => {
     };
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
     const isConfeccao = payment?.analysis_mode === "confeccao";
+    // Importação histórica: motor roda normalmente (aprende aliases, calcula
+    // diferenca_regra, alimenta DRE), porém grava status final = 'pago' nos
+    // grupos para que o fluxo de validação/aprovação/NF NÃO seja acionado.
+    const isHistorico = (payment as any)?.import_mode === "historico";
+
 
     // ---------- 2. carrega configurações globais e regras ----------
     const __rulesStart = Date.now();
@@ -2262,7 +2267,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const obsTransition = ANALYST_OWNED_FOR_REWRITE.has(curStatus);
     // Em CONFECÇÃO o status (análise) não muda — fica em 'rascunho' como
     // placeholder enquanto confeccao_status='em_confeccao' carrega a fase real.
-    const obsStatusTo = isConfeccao ? "rascunho" : "revisao_analista";
+    const obsStatusTo = isHistorico ? "pago" : (isConfeccao ? "rascunho" : "revisao_analista");
     await supabase.from("payment_observations").insert({
       payment_id,
       author_type: "ia",
@@ -2332,7 +2337,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         if (ANALYST_OWNED_FOR_REWRITE.has((existing as any).status as string)) {
           // Confecção: status placeholder + confeccao_status vivo (trigger DB
           // exige status ∈ rascunho/arquivado/cancelado quando mode=confeccao).
-          groupUpd.status = isConfeccao ? "rascunho" : "revisao_analista";
+          // Histórico: pula direto para 'pago' — não passa pelo fluxo.
+          groupUpd.status = isHistorico ? "pago" : (isConfeccao ? "rascunho" : "revisao_analista");
           if (isConfeccao) groupUpd.confeccao_status = "em_confeccao";
         }
         await supabase.from("payment_company_groups").update(groupUpd).eq("id", existing.id);
@@ -2341,13 +2347,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           payment_id,
           company_id: g.company_id,
           company_name: g.company_name,
-          status: isConfeccao ? "rascunho" : "revisao_analista",
+          status: isHistorico ? "pago" : (isConfeccao ? "rascunho" : "revisao_analista"),
           confeccao_status: isConfeccao ? "em_confeccao" : null,
           items_count: g.items.length,
           total_amount: total,
         }).select("id").single();
         if (newG) processedGroupIds.add(newG.id);
       }
+
     }
 
     // Limpeza: só é segura em análise global. Em análise por empresa, cada worker

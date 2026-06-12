@@ -841,6 +841,35 @@ const Users = () => {
                   </div>
                 </section>
 
+                <section className="space-y-2 border-t pt-4">
+                  <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Analista sênior</h4>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm text-muted-foreground">
+                      Quando marcado, analistas podem fazer <strong>Importação histórica</strong> (jan–abr/26).
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={(currentUser as any)?.is_senior ? "default" : "outline"}
+                      onClick={async () => {
+                        const next = !((currentUser as any)?.is_senior === true);
+                        const { error } = await supabase
+                          .from("profiles")
+                          .update({ is_senior: next } as any)
+                          .eq("id", editingUser.id);
+                        if (error) {
+                          toast({ title: "Falha ao atualizar", description: error.message, variant: "destructive" });
+                          return;
+                        }
+                        toast({ title: next ? "Marcado como sênior" : "Marca de sênior removida" });
+                        load();
+                      }}
+                    >
+                      {(currentUser as any)?.is_senior ? "Remover sênior" : "Marcar como sênior"}
+                    </Button>
+                  </div>
+                </section>
+
+
                 <section className="space-y-3 border-t pt-4">
                   <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Dados cadastrais</h4>
                   <div className="space-y-2">

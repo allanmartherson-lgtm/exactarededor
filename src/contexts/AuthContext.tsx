@@ -9,6 +9,7 @@ interface AuthContextValue {
   session: Session | null;
   roles: AppRole[];
   accountActive: boolean;
+  isSenior: boolean;
   loading: boolean;
   rolesLoading: boolean;
   hasRole: (role: AppRole) => boolean;
@@ -18,6 +19,7 @@ interface AuthContextValue {
   refreshRoles: () => Promise<void>;
 }
 
+
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -26,6 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [accountActive, setAccountActive] = useState<boolean>(true);
+  const [isSenior, setIsSenior] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(true);
   // Mantemos o último userId cuja role foi carregada para evitar recarregar
@@ -42,13 +45,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setRolesLoading(true);
     const [rolesRes, profileRes] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase.from("profiles").select("active").eq("id", userId).maybeSingle(),
+      supabase.from("profiles").select("active,is_senior").eq("id", userId).maybeSingle(),
     ]);
     setRoles((rolesRes.data ?? []).map((r) => r.role as AppRole));
-    setAccountActive((profileRes.data as { active?: boolean } | null)?.active !== false);
+    const profile = profileRes.data as { active?: boolean; is_senior?: boolean } | null;
+    setAccountActive(profile?.active !== false);
+    setIsSenior(profile?.is_senior === true);
     setRolesLoading(false);
     lastLoadedUserIdRef.current = userId;
   };
+
 
   useEffect(() => {
     // IMPORTANTE: sempre registramos o onAuthStateChange, mesmo quando a
@@ -149,10 +155,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, roles, accountActive, loading, rolesLoading, hasRole, signIn, signUp, signOut, refreshRoles }}>
+    <AuthContext.Provider value={{ user, session, roles, accountActive, isSenior, loading, rolesLoading, hasRole, signIn, signUp, signOut, refreshRoles }}>
       {children}
     </AuthContext.Provider>
   );
+
 };
 
 export const useAuth = () => {

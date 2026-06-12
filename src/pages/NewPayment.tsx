@@ -442,7 +442,10 @@ const matrixToJson = (matrix: unknown[][], headerIdx: number): Record<string, un
 
 
 const NewPayment = () => {
-  const { user } = useAuth();
+  const { user, roles, isSenior } = useAuth();
+  const canImportHistorico =
+    roles.includes("admin") || roles.includes("diretor") || (roles.includes("analista") && isSenior);
+
   const { hospital } = useHospital();
   const navigate = useNavigate();
   const [reference, setReference] = useState("");
@@ -484,6 +487,13 @@ const NewPayment = () => {
   })();
   const modoConfeccao = initialMode === "confeccao";
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(initialMode);
+  const [importMode, setImportMode] = useState<"normal" | "historico">("normal");
+  const isHistoricoImport = importMode === "historico";
+  const HISTORICO_WINDOW = { start: "2026-01", end: "2026-04" };
+  const competenceOutOfWindow = isHistoricoImport
+    ? competenceMonths.some((m) => m < HISTORICO_WINDOW.start || m > HISTORICO_WINDOW.end)
+    : false;
+
   // Handoff vindo da apuração retroativa (TASY vs Repasse): persistido no backend
   // via summary.handoff e referenciado pelo query param ?retro=<id>. Sobrevive a
   // reload porque a URL carrega o ID — sem dependência de sessionStorage.
@@ -1633,6 +1643,28 @@ const NewPayment = () => {
       const ok = confirm(`Conflito detectado entre seleção manual e a base:\n\n${sectorConflicts.join("\n")}\n\nDeseja prosseguir mesmo assim?`);
       if (!ok) return;
     }
+    if (isHistoricoImport) {
+      if (!canImportHistorico) {
+        toast({ title: "Sem permissão para importação histórica", variant: "destructive" });
+        return;
+      }
+      if (competenceOutOfWindow || competenceMonths.length === 0) {
+        toast({
+          title: "Competência fora da janela histórica",
+          description: `A importação histórica só aceita competências entre ${HISTORICO_WINDOW.start} e ${HISTORICO_WINDOW.end}.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      const ok = confirm(
+        "ATENÇÃO: este lote será marcado como HISTÓRICO.\n\n" +
+        "• O motor vai rodar (regras, repasses, aliases, KPIs).\n" +
+        "• NÃO passará por validação, aprovação ou NF.\n" +
+        "• Será gravado direto com status PAGO.\n\n" +
+        "Confirma?",
+      );
+      if (!ok) return;
+    }
     setSubmitting(true);
 
     // Upload de todos os arquivos
@@ -1651,6 +1683,8 @@ const NewPayment = () => {
         // Em CONFECÇÃO, payments.status fica em 'rascunho' (placeholder);
         // o status operacional vive em confeccao_status. Em ANÁLISE,
         // o motor é disparado imediatamente (em_analise_ia).
+        // Em HISTÓRICO, também entra em em_analise_ia para o motor rodar;
+        // ao final, será marcado como 'pago' pelo próprio motor.
         status: (analysisMode === "confeccao" ? "rascunho" : "em_analise_ia") as any,
         confeccao_status: (analysisMode === "confeccao" ? "em_confeccao" : null) as any,
         total_amount: total,
@@ -1668,9 +1702,11 @@ const NewPayment = () => {
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
-      })
+        import_mode: isHistoricoImport ? "historico" : "normal",
+      } as any)
       .select()
       .single();
+
 
     if (error || !payment) {
       setSubmitting(false);
@@ -2167,6 +2203,35 @@ const NewPayment = () => {
                 </RadioGroup>
               </div>
               )}
+              {!modoConfeccao && canImportHistorico && (
+              <div className="space-y-2 sm:col-span-2 rounded-md border border-amber-300/60 bg-amber-50/40 p-3 dark:bg-amber-950/20">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="import-historico"
+                    checked={isHistoricoImport}
+                    onCheckedChange={(v) => setImportMode(v ? "historico" : "normal")}
+                  />
+                  <Label htmlFor="import-historico" className="cursor-pointer text-sm font-medium">
+                    Importação histórica (jan–abr/2026)
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Use para subir bases que já transitaram fora do Exacta. O motor roda normalmente (regras,
+                  repasses, aprendizado de aliases, KPIs), mas o lote pula validação/aprovação/NF e fica gravado
+                  como <strong>PAGO</strong>. Competência permitida: {HISTORICO_WINDOW.start} a {HISTORICO_WINDOW.end}.
+                </p>
+                {isHistoricoImport && competenceOutOfWindow && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Competência fora da janela</AlertTitle>
+                    <AlertDescription>
+                      Selecione apenas meses entre {HISTORICO_WINDOW.start} e {HISTORICO_WINDOW.end}.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+              )}
+
               <div className="space-y-2 sm:col-span-2">
                 <Label>Setor(es) / Item Pagamento</Label>
                 <div className="flex items-center gap-2">

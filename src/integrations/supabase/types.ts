@@ -4982,10 +4982,14 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          historico_window_end: string | null
+          historico_window_start: string | null
           hospital_id: string | null
           id: string
+          import_mode: string
           items_count: number
           liquido_total: number
+          origem: string
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
           payment_track: Database["public"]["Enums"]["payment_track"] | null
@@ -5021,10 +5025,14 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          historico_window_end?: string | null
+          historico_window_start?: string | null
           hospital_id?: string | null
           id?: string
+          import_mode?: string
           items_count?: number
           liquido_total?: number
+          origem?: string
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
@@ -5060,10 +5068,14 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          historico_window_end?: string | null
+          historico_window_start?: string | null
           hospital_id?: string | null
           id?: string
+          import_mode?: string
           items_count?: number
           liquido_total?: number
+          origem?: string
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
@@ -5807,6 +5819,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          is_senior: boolean
           last_active_hospital_id: string | null
           phone: string | null
           phone_e164: string | null
@@ -5826,6 +5839,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          is_senior?: boolean
           last_active_hospital_id?: string | null
           phone?: string | null
           phone_e164?: string | null
@@ -5845,6 +5859,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          is_senior?: boolean
           last_active_hospital_id?: string | null
           phone?: string | null
           phone_e164?: string | null
@@ -8697,6 +8712,7 @@ export type Database = {
         Returns: boolean
       }
       is_global_role: { Args: { _uid: string }; Returns: boolean }
+      is_payment_historico: { Args: { p_payment_id: string }; Returns: boolean }
       is_payment_in_analyst_phase: {
         Args: { p_payment_id: string }
         Returns: boolean
