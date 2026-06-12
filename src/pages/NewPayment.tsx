@@ -487,6 +487,13 @@ const NewPayment = () => {
   })();
   const modoConfeccao = initialMode === "confeccao";
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(initialMode);
+  const [importMode, setImportMode] = useState<"normal" | "historico">("normal");
+  const isHistoricoImport = importMode === "historico";
+  const HISTORICO_WINDOW = { start: "2026-01", end: "2026-04" };
+  const competenceOutOfWindow = isHistoricoImport
+    ? competenceMonths.some((m) => m < HISTORICO_WINDOW.start || m > HISTORICO_WINDOW.end)
+    : false;
+
   // Handoff vindo da apuração retroativa (TASY vs Repasse): persistido no backend
   // via summary.handoff e referenciado pelo query param ?retro=<id>. Sobrevive a
   // reload porque a URL carrega o ID — sem dependência de sessionStorage.
