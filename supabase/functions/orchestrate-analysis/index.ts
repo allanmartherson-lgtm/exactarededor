@@ -284,6 +284,15 @@ Deno.serve(async (req) => {
 
     // 7. Se esta era a última página, dispara recálculo de pools (fire-and-forget).
     if (!hasNext) {
+      // [Hardening 2026-06-12] Reconcilia o contador a partir do estado real
+      // dos grupos antes de decidir se o lote está concluído. Cobre o caso de
+      // workers terem terminado a análise mas terem sido mortos pelo runtime
+      // antes de chamar increment_processing_progress.
+      try {
+        await supabase.rpc("reconcile_job_progress", { _job_id: job_id });
+      } catch (e) {
+        console.error("[orchestrate] reconcile_job_progress falhou", e);
+      }
       const { data: finalJob } = await supabase
         .from("payment_processing_jobs")
         .select("status, processed_companies, total_companies")

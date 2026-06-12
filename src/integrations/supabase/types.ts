@@ -9002,6 +9002,31 @@ export type Database = {
         Args: { _payment_id: string }
         Returns: undefined
       }
+      reconcile_job_progress: {
+        Args: { _job_id: string }
+        Returns: {
+          company_list: string[] | null
+          created_at: string
+          current_page: number
+          failed_companies: Json
+          finished_at: string | null
+          hospital_id: string | null
+          id: string
+          payment_id: string
+          processed_companies: number
+          started_at: string
+          status: string
+          total_companies: number
+          total_items: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_processing_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       record_journal_entry: {
         Args: {
           p_company_id?: string

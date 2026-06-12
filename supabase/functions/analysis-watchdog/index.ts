@@ -38,6 +38,26 @@ Deno.serve(async (req) => {
     const actions: Array<Record<string, unknown>> = [];
 
     for (const job of (jobs ?? [])) {
+      // [Hardening 2026-06-12] Antes de qualquer decisão, reconcilia o
+      // contador `processed_companies` a partir do estado real dos grupos
+      // (payment_company_groups). Resolve o "phantom 156/159" — quando o
+      // orchestrator/worker foi morto pelo runtime sem chamar
+      // increment_processing_progress, mas as empresas FORAM analisadas.
+      try {
+        const { data: reconciled } = await supabase.rpc("reconcile_job_progress", { _job_id: job.id });
+        if (reconciled && typeof reconciled === "object") {
+          job.processed_companies = (reconciled as Record<string, unknown>).processed_companies as number;
+          job.status = (reconciled as Record<string, unknown>).status as string;
+          job.updated_at = (reconciled as Record<string, unknown>).updated_at as string;
+        }
+        if (job.status === "concluido" || job.status === "parcial" || job.status === "cancelado") {
+          actions.push({ job_id: job.id, action: "reconciled_to_terminal", new_status: job.status });
+          continue;
+        }
+      } catch (e) {
+        console.error("[analysis-watchdog] reconcile_job_progress falhou", e);
+      }
+
       const ageMs = Date.now() - new Date(job.updated_at as string).getTime();
       const ageMin = ageMs / 60_000;
       const companyList: string[] = Array.isArray(job.company_list) ? (job.company_list as string[]) : [];
