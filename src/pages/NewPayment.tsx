@@ -1643,6 +1643,28 @@ const NewPayment = () => {
       const ok = confirm(`Conflito detectado entre seleção manual e a base:\n\n${sectorConflicts.join("\n")}\n\nDeseja prosseguir mesmo assim?`);
       if (!ok) return;
     }
+    if (isHistoricoImport) {
+      if (!canImportHistorico) {
+        toast({ title: "Sem permissão para importação histórica", variant: "destructive" });
+        return;
+      }
+      if (competenceOutOfWindow || competenceMonths.length === 0) {
+        toast({
+          title: "Competência fora da janela histórica",
+          description: `A importação histórica só aceita competências entre ${HISTORICO_WINDOW.start} e ${HISTORICO_WINDOW.end}.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      const ok = confirm(
+        "ATENÇÃO: este lote será marcado como HISTÓRICO.\n\n" +
+        "• O motor vai rodar (regras, repasses, aliases, KPIs).\n" +
+        "• NÃO passará por validação, aprovação ou NF.\n" +
+        "• Será gravado direto com status PAGO.\n\n" +
+        "Confirma?",
+      );
+      if (!ok) return;
+    }
     setSubmitting(true);
 
     // Upload de todos os arquivos
@@ -1661,6 +1683,8 @@ const NewPayment = () => {
         // Em CONFECÇÃO, payments.status fica em 'rascunho' (placeholder);
         // o status operacional vive em confeccao_status. Em ANÁLISE,
         // o motor é disparado imediatamente (em_analise_ia).
+        // Em HISTÓRICO, também entra em em_analise_ia para o motor rodar;
+        // ao final, será marcado como 'pago' pelo próprio motor.
         status: (analysisMode === "confeccao" ? "rascunho" : "em_analise_ia") as any,
         confeccao_status: (analysisMode === "confeccao" ? "em_confeccao" : null) as any,
         total_amount: total,
@@ -1678,9 +1702,11 @@ const NewPayment = () => {
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
-      })
+        import_mode: isHistoricoImport ? "historico" : "normal",
+      } as any)
       .select()
       .single();
+
 
     if (error || !payment) {
       setSubmitting(false);
