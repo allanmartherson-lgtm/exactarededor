@@ -163,6 +163,11 @@ export function RuleListRow({
               <Copy className="h-4 w-4" />
             </Button>
           )}
+          {onCloneToHospital && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={onCloneToHospital} title="Clonar para outro hospital">
+              <Building2 className="h-4 w-4" />
+            </Button>
+          )}
           {onExportPdf && (
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={onExportPdf} title="Exportar PDF">
               <FileDown className="h-4 w-4" />
