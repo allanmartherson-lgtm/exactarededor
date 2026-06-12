@@ -326,6 +326,11 @@ serve(async (req) => {
     } else {
       // Cache miss → caminho original + grava snapshot ao final.
       let rulesQuery = supabase.from("rules").select(RULES_SELECT).eq("active", true);
+      // Isolamento multi-tenant: regras são por hospital.
+      const paymentHospitalId = (payment as any)?.hospital_id ?? null;
+      if (paymentHospitalId) {
+        rulesQuery = rulesQuery.eq("hospital_id", paymentHospitalId);
+      }
       if (scopedCompanyId) {
         // Carrega master + especifica da PJ + TODAS as regras de grupo (o motor decide
         // via targetsGroup; group_doctors seguem o médico em qualquer PJ).
