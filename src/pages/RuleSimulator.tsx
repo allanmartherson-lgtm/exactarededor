@@ -92,6 +92,7 @@ const PAYMENT_TYPE = [
 ];
 
 export default function RuleSimulator() {
+  const { hospital } = useHospital();
   const [form, setForm] = useState<SimForm>(empty);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any | null>(null);
