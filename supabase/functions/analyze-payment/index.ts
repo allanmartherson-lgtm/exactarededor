@@ -2267,7 +2267,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const obsTransition = ANALYST_OWNED_FOR_REWRITE.has(curStatus);
     // Em CONFECÇÃO o status (análise) não muda — fica em 'rascunho' como
     // placeholder enquanto confeccao_status='em_confeccao' carrega a fase real.
-    const obsStatusTo = isConfeccao ? "rascunho" : "revisao_analista";
+    const obsStatusTo = isHistorico ? "pago" : (isConfeccao ? "rascunho" : "revisao_analista");
     await supabase.from("payment_observations").insert({
       payment_id,
       author_type: "ia",
