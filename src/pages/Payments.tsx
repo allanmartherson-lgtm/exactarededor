@@ -1443,7 +1443,7 @@ const Payments = () => {
                 </Button>
                 {view === "lista" && (
                   <Select value={colSort ? "__col" : sortBy} onValueChange={(v) => { if (v === "__col") return; setColSort(null); setSortBy(v as typeof sortBy); }}>
-                    <SelectTrigger className="w-[170px]"><SelectValue placeholder="Ordenar" /></SelectTrigger>
+                    <SelectTrigger className="w-[200px]"><SelectValue placeholder="Ordenar">{colSort ? `Coluna: ${({reference:"Lote",competence:"Competência",elapsed:"Tempo",items:"Volumetria",value:"Valor",status:"Status"} as const)[colSort.col]} ${colSort.dir === "asc" ? "↑" : "↓"}` : undefined}</SelectValue></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="relevance">Sua vez + maior valor</SelectItem>
                       <SelectItem value="created">Mais recentes</SelectItem>
