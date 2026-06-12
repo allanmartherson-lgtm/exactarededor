@@ -41,6 +41,8 @@ export interface RuleListRowProps {
  */
 export function RuleListRow({
   name,
+  code,
+  hospitalName,
   severity,
   active,
   expired,
@@ -59,6 +61,7 @@ export function RuleListRow({
   onToggleSelect,
   onEdit,
   onDuplicate,
+  onCloneToHospital,
   onExportPdf,
   onDelete,
 }: RuleListRowProps) {
