@@ -1213,8 +1213,12 @@ const Rules = () => {
     // acontece quando o usuário clica "Aplicar correções e salvar".
     const ruleData: Record<string, unknown> = {
       ...payload,
-      ...(editingId ? { id: editingId } : {}),
+      ...(editingId ? { id: editingId } : { hospital_id: activeHospitalId }),
     };
+    if (!editingId && !activeHospitalId) {
+      toast({ title: "Selecione um hospital", description: "Não é possível criar regras sem um hospital ativo.", variant: "destructive" });
+      return;
+    }
     const calcsForRpc: Record<string, unknown>[] =
       fNature === "calculavel"
         ? fCalculations.map((c, i) => {
@@ -1240,6 +1244,7 @@ const Rules = () => {
           valid_from: payload.valid_from,
           valid_until: payload.valid_until,
           calculations: calcsForRpc,
+          hospital_id: activeHospitalId,
         },
       },
     );
