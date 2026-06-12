@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import { Link } from "react-router-dom";
 import {
   Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw,
