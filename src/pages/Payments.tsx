@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_SHORT_LABELS, type PaymentStatus, type PaymentType, type PaymentKind, type PaymentTrack } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope, Trash2, SlidersHorizontal, Receipt } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope, Trash2, SlidersHorizontal, Receipt, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
@@ -181,10 +181,12 @@ type PersistedPaymentsState = Partial<{
   competenceFilter: string;
   view: "lista" | "kanban";
   sortBy: "relevance" | "created" | "elapsed" | "status" | "priority";
+  colSort: { col: ColSortCol; dir: "asc" | "desc" } | null;
   divergenceFilter: "all" | "with" | "without";
   questionedFilter: "all" | "with" | "without";
   archivedView: boolean;
 }>;
+type ColSortCol = "reference" | "competence" | "elapsed" | "items" | "value" | "status";
 const loadPersistedPaymentsState = (): PersistedPaymentsState => {
   if (typeof window === "undefined") return {};
   try {
@@ -266,6 +268,11 @@ const Payments = () => {
 
   const [view, setView] = useState<"lista" | "kanban">(persisted.view ?? "lista");
   const [sortBy, setSortBy] = useState<"relevance" | "created" | "elapsed" | "status" | "priority">(persisted.sortBy ?? "relevance");
+  // Ordenação por clique no cabeçalho da tabela — sobrescreve `sortBy` quando ativa.
+  // Default: competência DESC (mais recente primeiro) para combater "perdi a competência atual".
+  const [colSort, setColSort] = useState<{ col: ColSortCol; dir: "asc" | "desc" } | null>(
+    persisted.colSort ?? { col: "competence", dir: "desc" },
+  );
   // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
   // Default = "ativos" — esconde finalizados das filas de trabalho diárias.
   // Pode ser ligado via querystring (?archived=1) ou pelo toggle na UI.
@@ -301,7 +308,7 @@ const Payments = () => {
       page, pageSize, q,
       companyFilter, doctorFilter,
       analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
-      view, sortBy,
+      view, sortBy, colSort,
       divergenceFilter, questionedFilter,
       archivedView,
     };
@@ -314,7 +321,7 @@ const Payments = () => {
     page, pageSize, q,
     companyFilter, doctorFilter,
     analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
-    view, sortBy,
+    view, sortBy, colSort,
     divergenceFilter, questionedFilter,
     archivedView,
   ]);
@@ -754,15 +761,46 @@ const Payments = () => {
     return 1;
   };
 
+  // Competência da row → "YYYY-MM" string (usa o mais recente do array).
+  const competenceKey = (p: Row): string => {
+    const arr = p.competence_months?.length ? p.competence_months : (p.competence_month ? [p.competence_month] : []);
+    if (!arr.length) return "";
+    // Cada item pode vir como "YYYY-MM" ou "YYYY-MM-DD" — pega o maior.
+    return arr.map((s) => String(s).slice(0, 7)).sort().reverse()[0] ?? "";
+  };
+
   const sortedList = useMemo(() => {
     const arr = [...filtered];
-    if (sortBy === "elapsed") arr.sort((a, b) => elapsedFor(b) - elapsedFor(a));
-    else if (sortBy === "status") arr.sort((a, b) => a.status.localeCompare(b.status));
-    else if (sortBy === "priority") {
-      // Usa priority_score já calculado no banco (sempre fresco via triggers).
-      arr.sort((a, b) => (Number(b.priority_score) || 0) - (Number(a.priority_score) || 0));
+    // Tiebreaker padrão: competência DESC (sempre respeita competência).
+    const byCompetenceDesc = (a: Row, b: Row) => competenceKey(b).localeCompare(competenceKey(a));
+
+    if (colSort) {
+      const dir = colSort.dir === "asc" ? 1 : -1;
+      arr.sort((a, b) => {
+        let cmp = 0;
+        switch (colSort.col) {
+          case "reference": cmp = a.reference.localeCompare(b.reference, "pt-BR"); break;
+          case "competence": cmp = competenceKey(a).localeCompare(competenceKey(b)); break;
+          case "elapsed": cmp = elapsedFor(a) - elapsedFor(b); break;
+          case "items": cmp = (a.items_count || 0) - (b.items_count || 0); break;
+          case "value": cmp = (Number(a.liquido_total ?? a.total_amount) || 0) - (Number(b.liquido_total ?? b.total_amount) || 0); break;
+          case "status": cmp = a.status.localeCompare(b.status); break;
+        }
+        if (cmp !== 0) return cmp * dir;
+        // Tiebreaker: competência DESC, depois criado DESC
+        const c = byCompetenceDesc(a, b);
+        if (c !== 0) return c;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+      return arr;
     }
-    else if (sortBy === "created") arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    if (sortBy === "elapsed") arr.sort((a, b) => elapsedFor(b) - elapsedFor(a) || byCompetenceDesc(a, b));
+    else if (sortBy === "status") arr.sort((a, b) => a.status.localeCompare(b.status) || byCompetenceDesc(a, b));
+    else if (sortBy === "priority") {
+      arr.sort((a, b) => ((Number(b.priority_score) || 0) - (Number(a.priority_score) || 0)) || byCompetenceDesc(a, b));
+    }
+    else if (sortBy === "created") arr.sort((a, b) => (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) || byCompetenceDesc(a, b));
     else {
       // relevance (default)
       arr.sort((a, b) => {
@@ -772,11 +810,30 @@ const Payments = () => {
         const va = Number(a.total_amount) || 0;
         const vb = Number(b.total_amount) || 0;
         if (vb !== va) return vb - va;
+        const c = byCompetenceDesc(a, b);
+        if (c !== 0) return c;
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
     }
     return arr;
-  }, [filtered, sortBy, statusEnteredAt, now, myOwnerStatuses]);
+  }, [filtered, sortBy, colSort, statusEnteredAt, now, myOwnerStatuses]);
+
+  const toggleColSort = (col: ColSortCol) => {
+    setColSort((cur) => {
+      if (!cur || cur.col !== col) {
+        // Default direction: numéricos/data → DESC (mais recente/maior); texto → ASC
+        const desc = col === "competence" || col === "elapsed" || col === "items" || col === "value";
+        return { col, dir: desc ? "desc" : "asc" };
+      }
+      if (cur.dir === "desc") return { col, dir: "asc" };
+      return null; // terceiro clique: volta para ordenação padrão
+    });
+  };
+
+  const SortIcon = ({ col }: { col: ColSortCol }) => {
+    if (!colSort || colSort.col !== col) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
+    return colSort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  };
 
   // Ordem das colunas do kanban (segue fluxo lógico)
   const KANBAN_ORDER: PaymentStatus[] = [
@@ -1385,8 +1442,8 @@ const Payments = () => {
                   {archivedView ? "Ver ativos" : `Ver arquivados${archivedCount ? ` (${archivedCount})` : ""}`}
                 </Button>
                 {view === "lista" && (
-                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                    <SelectTrigger className="w-[170px]"><SelectValue placeholder="Ordenar" /></SelectTrigger>
+                  <Select value={colSort ? "__col" : sortBy} onValueChange={(v) => { if (v === "__col") return; setColSort(null); setSortBy(v as typeof sortBy); }}>
+                    <SelectTrigger className="w-[200px]"><SelectValue placeholder="Ordenar">{colSort ? `Coluna: ${({reference:"Lote",competence:"Competência",elapsed:"Tempo",items:"Volumetria",value:"Valor",status:"Status"} as const)[colSort.col]} ${colSort.dir === "asc" ? "↑" : "↓"}` : undefined}</SelectValue></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="relevance">Sua vez + maior valor</SelectItem>
                       <SelectItem value="created">Mais recentes</SelectItem>
@@ -1549,12 +1606,38 @@ const Payments = () => {
                   <thead>
                     <tr className="bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       <th className="border-b border-border px-3 py-2.5 w-[40px]"></th>
-                      <th className="border-b border-border px-3 py-2.5">Lote / Risco</th>
+                      <th className="border-b border-border px-3 py-2.5">
+                        <button type="button" onClick={() => toggleColSort("reference")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider">
+                          Lote / Risco <SortIcon col="reference" />
+                        </button>
+                      </th>
                       <th className="border-b border-border px-3 py-2.5 hidden 2xl:table-cell">Responsável / Info</th>
-                      <th className="border-b border-border px-3 py-2.5 hidden md:table-cell">Tempo / Competência</th>
-                      <th className="border-b border-border px-3 py-2.5 text-right hidden md:table-cell">Volumetria</th>
-                      <th className="border-b border-border px-3 py-2.5 text-right">Valor Total</th>
-                      <th className="border-b border-border px-3 py-2.5">Status</th>
+                      <th className="border-b border-border px-3 py-2.5 hidden md:table-cell">
+                        <span className="inline-flex items-center gap-2">
+                          <button type="button" onClick={() => toggleColSort("elapsed")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider">
+                            Tempo <SortIcon col="elapsed" />
+                          </button>
+                          <span className="opacity-40">/</span>
+                          <button type="button" onClick={() => toggleColSort("competence")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider">
+                            Competência <SortIcon col="competence" />
+                          </button>
+                        </span>
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-right hidden md:table-cell">
+                        <button type="button" onClick={() => toggleColSort("items")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider ml-auto">
+                          Volumetria <SortIcon col="items" />
+                        </button>
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-right">
+                        <button type="button" onClick={() => toggleColSort("value")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider ml-auto">
+                          Valor Total <SortIcon col="value" />
+                        </button>
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5">
+                        <button type="button" onClick={() => toggleColSort("status")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider">
+                          Status <SortIcon col="status" />
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="text-[13px] tabular-nums">
