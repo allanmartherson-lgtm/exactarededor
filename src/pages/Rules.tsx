@@ -453,7 +453,8 @@ const Rules = () => {
     }
     setCompanies(all as any);
   };
-  useEffect(() => { document.title = "Regras | Exacta"; load(); loadGlobalThresholds(); loadRefs(); loadCompanies(); }, []);
+  useEffect(() => { document.title = "Regras | Exacta"; loadGlobalThresholds(); loadRefs(); loadCompanies(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeHospitalId]);
 
   const exportRuleToPDF = (r: RuleRow) => {
     const doc = new jsPDF();
