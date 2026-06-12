@@ -308,7 +308,7 @@ const Payments = () => {
       page, pageSize, q,
       companyFilter, doctorFilter,
       analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
-      view, sortBy,
+      view, sortBy, colSort,
       divergenceFilter, questionedFilter,
       archivedView,
     };
@@ -321,7 +321,7 @@ const Payments = () => {
     page, pageSize, q,
     companyFilter, doctorFilter,
     analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
-    view, sortBy,
+    view, sortBy, colSort,
     divergenceFilter, questionedFilter,
     archivedView,
   ]);
