@@ -1671,7 +1671,7 @@ const Payments = () => {
                           <td className="px-3 py-3 align-middle">
                             <Link to={`/pagamentos/${p.id}`} className="block group/link">
                               <div className="flex flex-col gap-1 min-w-0">
-                                <span className="font-semibold text-sm text-foreground group-hover/link:text-primary transition-colors truncate">{p.reference}</span>
+                                <span className="font-semibold text-sm text-foreground group-hover/link:text-primary transition-colors break-words whitespace-normal">{p.reference}</span>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <PaymentRiskBadgeInline paymentId={p.id} compact />
                                   {openQuestionCount[p.id] > 0 && (
