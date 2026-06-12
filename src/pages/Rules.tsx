@@ -3040,6 +3040,15 @@ const Rules = () => {
         }}
         onApplyAndSave={handleConflictApply}
       />
+
+      <CloneRuleToHospitalDialog
+        open={!!cloneTarget}
+        ruleId={cloneTarget?.id ?? null}
+        ruleName={cloneTarget?.name ?? null}
+        ruleHospitalId={cloneTarget?.hospital_id ?? null}
+        onClose={() => setCloneTarget(null)}
+        onCloned={() => { load(); }}
+      />
     </>
   );
 };
