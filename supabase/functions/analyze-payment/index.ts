@@ -159,9 +159,9 @@ serve(async (req) => {
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase
       .from("payments")
-      .select("sectors,specialties,payment_type,payment_due_date,competence_month,analysis_mode,hospital_id")
+      .select("sectors,specialties,payment_type,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode")
       .eq("id", payment_id)
-      .maybeSingle<PaymentRow>();
+      .maybeSingle<PaymentRow & { import_mode?: string | null }>();
 
     const ctx: PaymentContext = {
       sectors: payment?.sectors ?? [],
@@ -178,6 +178,11 @@ serve(async (req) => {
     };
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
     const isConfeccao = payment?.analysis_mode === "confeccao";
+    // Importação histórica: motor roda normalmente (aprende aliases, calcula
+    // diferenca_regra, alimenta DRE), porém grava status final = 'pago' nos
+    // grupos para que o fluxo de validação/aprovação/NF NÃO seja acionado.
+    const isHistorico = (payment as any)?.import_mode === "historico";
+
 
     // ---------- 2. carrega configurações globais e regras ----------
     const __rulesStart = Date.now();
