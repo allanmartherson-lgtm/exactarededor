@@ -3257,6 +3257,104 @@ export type Database = {
           },
         ]
       }
+      learned_pattern_events: {
+        Row: {
+          created_at: string
+          id: string
+          pattern_id: string
+          payload: Json
+          payment_id: string | null
+          payment_item_id: string | null
+          source_id: string | null
+          source_kind: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pattern_id: string
+          payload?: Json
+          payment_id?: string | null
+          payment_item_id?: string | null
+          source_id?: string | null
+          source_kind: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pattern_id?: string
+          payload?: Json
+          payment_id?: string | null
+          payment_item_id?: string | null
+          source_id?: string | null
+          source_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learned_pattern_events_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "learned_patterns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learned_patterns: {
+        Row: {
+          confidence: number
+          created_at: string
+          first_seen_at: string
+          hospital_id: string
+          id: string
+          kind: string
+          last_seen_at: string
+          occurrences: number
+          scope: Json
+          scope_hash: string
+          signal: Json
+          silenced_at: string | null
+          silenced_by: string | null
+          silenced_reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          first_seen_at?: string
+          hospital_id: string
+          id?: string
+          kind: string
+          last_seen_at?: string
+          occurrences?: number
+          scope: Json
+          scope_hash: string
+          signal?: Json
+          silenced_at?: string | null
+          silenced_by?: string | null
+          silenced_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          first_seen_at?: string
+          hospital_id?: string
+          id?: string
+          kind?: string
+          last_seen_at?: string
+          occurrences?: number
+          scope?: Json
+          scope_hash?: string
+          signal?: Json
+          silenced_at?: string | null
+          silenced_by?: string | null
+          silenced_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       magic_link_tokens: {
         Row: {
           action: Database["public"]["Enums"]["magic_link_action"]
@@ -3974,6 +4072,61 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "payments"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_item_hints: {
+        Row: {
+          confidence: number
+          created_at: string
+          hospital_id: string
+          id: string
+          kind: string
+          message: string | null
+          pattern_id: string
+          payment_item_id: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          hospital_id: string
+          id?: string
+          kind: string
+          message?: string | null
+          pattern_id: string
+          payment_item_id: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          kind?: string
+          message?: string | null
+          pattern_id?: string
+          payment_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_item_hints_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "learned_patterns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_item_hints_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_item_hints_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
           },
         ]
       }
@@ -8075,6 +8228,10 @@ export type Database = {
         }
         Returns: string
       }
+      consume_validation_feedback: {
+        Args: { _feedback_id: string }
+        Returns: string
+      }
       create_glosa_debt_with_items: {
         Args: {
           p_company_id: string
@@ -8759,6 +8916,7 @@ export type Database = {
         }
         Returns: string
       }
+      lp_scope_hash: { Args: { _scope: Json }; Returns: string }
       map_calculation_type_to_method: {
         Args: { _ctype: string }
         Returns: string
@@ -8948,6 +9106,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      silence_learned_pattern: {
+        Args: { _new_status?: string; _pattern_id: string; _reason: string }
+        Returns: undefined
+      }
       state_scope_allows: { Args: { _state_uf: string }; Returns: boolean }
       unaccent: { Args: { "": string }; Returns: string }
       undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
