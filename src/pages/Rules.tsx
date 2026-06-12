@@ -232,6 +232,9 @@ const Rules = () => {
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
+  // Mínimo garantido (piso de produção). Atualmente: escopo medico+PJ, por competência, base bruta.
+  const [fMinGarantidoAtivo, setFMinGarantidoAtivo] = useState(false);
+  const [fMinGarantidoValor, setFMinGarantidoValor] = useState<string>("");
   // Escopo "grupo" (inline na regra)
   const [fGroupCompanyIds, setFGroupCompanyIds] = useState<string[]>([]);
   const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
@@ -816,6 +819,7 @@ const Rules = () => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
+    setFMinGarantidoAtivo(false); setFMinGarantidoValor("");
     
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setCollapsedCompanies(new Set()); setCompanyLinksFilter("");
@@ -888,6 +892,8 @@ const Rules = () => {
     // sectors/specialties/agreement_* legados ignorados — restritivos vivem por Cálculo.
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
+    setFMinGarantidoAtivo(!!(r as any).minimo_garantido_ativo);
+    setFMinGarantidoValor((r as any).minimo_garantido_valor != null ? String((r as any).minimo_garantido_valor) : "");
     setFDoctors([]);
     const glinks = Array.isArray((r as any).group_company_links) ? (r as any).group_company_links : [];
     setFGroupCompanyIds([]);
@@ -1133,6 +1139,11 @@ const Rules = () => {
       exception_table_ids: fExceptionTableIds,
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
+      minimo_garantido_ativo: fMinGarantidoAtivo,
+      minimo_garantido_valor: fMinGarantidoAtivo ? (num(fMinGarantidoValor) ?? null) : null,
+      minimo_garantido_escopo: fMinGarantidoAtivo ? "medico_empresa" : null,
+      minimo_garantido_periodicidade: fMinGarantidoAtivo ? "competencia" : null,
+      minimo_garantido_base: fMinGarantidoAtivo ? "bruto" : null,
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
       group_doctors: scope === "grupo" ? fGroupDoctors : [],
       time_mode: "qualquer",
@@ -1977,6 +1988,45 @@ const Rules = () => {
                                   <Input type="date" value={fValidUntil} onChange={(e) => setFValidUntil(e.target.value)} />
                                 </div>
                               </div>
+                            </div>
+
+                            {/* Mínimo garantido (piso de produção) */}
+                            <div className="field-section">
+                              <div className="field-section-title flex items-center justify-between">
+                                <span>Mínimo garantido</span>
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    id="rule-min-garantido"
+                                    checked={fMinGarantidoAtivo}
+                                    onCheckedChange={(v) => setFMinGarantidoAtivo(!!v)}
+                                  />
+                                  <Label htmlFor="rule-min-garantido" className="text-xs font-normal cursor-pointer">
+                                    Aplicar piso de produção
+                                  </Label>
+                                </div>
+                              </div>
+                              {fMinGarantidoAtivo && (
+                                <div className="space-y-2">
+                                  <div style={{ display: "grid", gridTemplateColumns: "minmax(0,220px) 1fr", gap: 12, alignItems: "end" }}>
+                                    <div className="space-y-1.5">
+                                      <Label>Valor mínimo mensal (R$) *</Label>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={fMinGarantidoValor}
+                                        onChange={(e) => setFMinGarantidoValor(e.target.value)}
+                                        placeholder="Ex: 20000,00"
+                                      />
+                                    </div>
+                                    <div className="text-xs text-muted-foreground rounded-md border border-dashed p-2.5">
+                                      Avaliado <strong>por competência (mês)</strong>, sobre <strong>produção bruta</strong>,
+                                      por <strong>médico + PJ</strong>. Se a produção do médico naquele mês ficar abaixo do
+                                      piso, o sistema lança um <strong>item de complemento</strong> automaticamente.
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
 
                             {/* Descrição e texto */}
