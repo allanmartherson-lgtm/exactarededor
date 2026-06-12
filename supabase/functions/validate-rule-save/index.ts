@@ -126,6 +126,7 @@ Deno.serve(async (req) => {
     _group_company_links: body.group_company_links ?? null,
     _valid_from: body.valid_from ?? null,
     _valid_until: body.valid_until ?? null,
+    _hospital_id: body.hospital_id ?? null,
   });
   if (rpcErr) {
     return new Response(
