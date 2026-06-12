@@ -1298,9 +1298,36 @@ const PaymentDetail = () => {
       if (error) throw error;
       const skipped = isConfeccaoMode ? [] : ((data as any)?.skipped_companies ?? []);
       setSkippedCompanies(Array.isArray(skipped) ? skipped : []);
-      
-      const filterDesc = statuses && statuses.length > 0 
-        ? ` (filtrado por: ${statuses.join(", ")}; tolerância: ${toleranceValue * 100}%)` 
+
+      const dispatched = (data as any)?.total_companies ?? 0;
+      const alreadyRunning = (data as any)?.already_running === true;
+
+      // Nada foi disparado: todas as empresas foram bloqueadas pelo gate de governança
+      // (status fora de revisao_analista/devolvido_analista — tipicamente já pago/validado).
+      if (!alreadyRunning && dispatched === 0) {
+        const sample = Array.isArray(skipped) && skipped.length > 0
+          ? ` Status encontrados: ${Array.from(new Set(skipped.map((s: any) => s.status))).slice(0, 4).join(", ")}.`
+          : "";
+        toast({
+          title: "Nenhuma empresa reanalisada",
+          description:
+            (data as any)?.message ||
+            `As ${skipped.length || "demais"} empresa(s) estão fora do estado editável (ex.: pago, em validação, aprovado).${sample} Reabra a empresa para reanalisar.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (alreadyRunning) {
+        toast({
+          title: "Já existe uma análise em andamento",
+          description: (data as any)?.message ?? "Aguarde a análise atual concluir.",
+        });
+        return;
+      }
+
+      const filterDesc = statuses && statuses.length > 0
+        ? ` (filtrado por: ${statuses.join(", ")}; tolerância: ${toleranceValue * 100}%)`
         : ` em todo o lote (tolerância: ${toleranceValue * 100}%)`;
 
       await recordObservation({
@@ -1316,9 +1343,10 @@ const PaymentDetail = () => {
       toast({
         title: isConfeccaoMode ? "Repasse recalculado" : "Análise reprocessada",
         description: isConfeccaoMode
-          ? "O motor recalculou o repasse de todas as empresas do lote."
-          : "A IA reprocessou os itens deste lote.",
+          ? `O motor recalculou o repasse de ${dispatched} empresa(s).`
+          : `A IA está reprocessando ${dispatched} empresa(s) deste lote.`,
       });
+
       await load();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
