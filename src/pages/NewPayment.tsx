@@ -2203,6 +2203,35 @@ const NewPayment = () => {
                 </RadioGroup>
               </div>
               )}
+              {!modoConfeccao && canImportHistorico && (
+              <div className="space-y-2 sm:col-span-2 rounded-md border border-amber-300/60 bg-amber-50/40 p-3 dark:bg-amber-950/20">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="import-historico"
+                    checked={isHistoricoImport}
+                    onCheckedChange={(v) => setImportMode(v ? "historico" : "normal")}
+                  />
+                  <Label htmlFor="import-historico" className="cursor-pointer text-sm font-medium">
+                    Importação histórica (jan–abr/2026)
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Use para subir bases que já transitaram fora do Exacta. O motor roda normalmente (regras,
+                  repasses, aprendizado de aliases, KPIs), mas o lote pula validação/aprovação/NF e fica gravado
+                  como <strong>PAGO</strong>. Competência permitida: {HISTORICO_WINDOW.start} a {HISTORICO_WINDOW.end}.
+                </p>
+                {isHistoricoImport && competenceOutOfWindow && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Competência fora da janela</AlertTitle>
+                    <AlertDescription>
+                      Selecione apenas meses entre {HISTORICO_WINDOW.start} e {HISTORICO_WINDOW.end}.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+              )}
+
               <div className="space-y-2 sm:col-span-2">
                 <Label>Setor(es) / Item Pagamento</Label>
                 <div className="flex items-center gap-2">
