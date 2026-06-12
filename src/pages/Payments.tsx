@@ -48,7 +48,10 @@ interface Row {
   processing_diagnostics?: any;
   processing_timeout_occurred?: boolean;
   priority_score?: number | null;
+  import_mode?: string | null;
+  origem?: string | null;
 }
+
 
 interface StatusEntry { status: PaymentStatus; changed_at: string }
 
