@@ -142,6 +142,8 @@ function fmtHoras(h: number): string {
 }
 
 export default function HealthMonitoring() {
+  const { hospital } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const [data, setData] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
