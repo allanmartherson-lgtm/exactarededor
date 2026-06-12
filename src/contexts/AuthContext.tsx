@@ -9,6 +9,7 @@ interface AuthContextValue {
   session: Session | null;
   roles: AppRole[];
   accountActive: boolean;
+  isSenior: boolean;
   loading: boolean;
   rolesLoading: boolean;
   hasRole: (role: AppRole) => boolean;
@@ -17,6 +18,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
 }
+
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
