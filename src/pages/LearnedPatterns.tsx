@@ -29,7 +29,7 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 export default function LearnedPatterns() {
-  const { selectedHospitalId } = useHospital();
+  const selectedHospitalId = useActiveHospitalId();
   const [items, setItems] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
