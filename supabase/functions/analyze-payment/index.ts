@@ -382,7 +382,9 @@ serve(async (req) => {
       if (__job_id) {
         (async () => {
           try {
-            const { data: allRules } = await supabase.from("rules").select(RULES_SELECT).eq("active", true);
+            let allRulesQ = supabase.from("rules").select(RULES_SELECT).eq("active", true);
+            if (paymentHospitalId) allRulesQ = allRulesQ.eq("hospital_id", paymentHospitalId);
+            const { data: allRules } = await allRulesQ;
             const allRuleIds = (allRules ?? []).map((r: any) => r.id);
             let allCalcs: any[] = [];
             if (allRuleIds.length > 0) {
