@@ -268,6 +268,11 @@ const Payments = () => {
 
   const [view, setView] = useState<"lista" | "kanban">(persisted.view ?? "lista");
   const [sortBy, setSortBy] = useState<"relevance" | "created" | "elapsed" | "status" | "priority">(persisted.sortBy ?? "relevance");
+  // Ordenação por clique no cabeçalho da tabela — sobrescreve `sortBy` quando ativa.
+  // Default: competência DESC (mais recente primeiro) para combater "perdi a competência atual".
+  const [colSort, setColSort] = useState<{ col: ColSortCol; dir: "asc" | "desc" } | null>(
+    persisted.colSort ?? { col: "competence", dir: "desc" },
+  );
   // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
   // Default = "ativos" — esconde finalizados das filas de trabalho diárias.
   // Pode ser ligado via querystring (?archived=1) ou pelo toggle na UI.
