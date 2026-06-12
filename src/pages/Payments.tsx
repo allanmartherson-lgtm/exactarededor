@@ -880,7 +880,13 @@ const Payments = () => {
           <Link to={`/pagamentos/${p.id}`} className="min-w-0 flex-1 space-y-2">
             <div className="flex items-center gap-2 min-w-0">
               <p className="font-medium text-sm truncate">{p.reference}</p>
+              {(p.import_mode === "historico" || p.origem === "historico") && (
+                <Badge variant="outline" className="border-amber-500/50 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 text-[10px] uppercase tracking-wide">
+                  Histórico
+                </Badge>
+              )}
               <PaymentRiskBadgeInline paymentId={p.id} />
+
               <PaymentPriorityBadgeInline
                 paymentId={p.id}
                 slaLevel={sla?.level ?? null}
