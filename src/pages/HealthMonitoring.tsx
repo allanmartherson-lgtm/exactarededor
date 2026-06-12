@@ -312,7 +312,7 @@ export default function HealthMonitoring() {
       setLoading(false);
       setLastRefresh(new Date());
     }
-  }, []);
+  }, [activeHospitalId]);
 
   useEffect(() => {
     document.title = "Saúde do Motor | Exacta";
