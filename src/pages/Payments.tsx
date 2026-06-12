@@ -1606,12 +1606,38 @@ const Payments = () => {
                   <thead>
                     <tr className="bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       <th className="border-b border-border px-3 py-2.5 w-[40px]"></th>
-                      <th className="border-b border-border px-3 py-2.5">Lote / Risco</th>
+                      <th className="border-b border-border px-3 py-2.5">
+                        <button type="button" onClick={() => toggleColSort("reference")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider">
+                          Lote / Risco <SortIcon col="reference" />
+                        </button>
+                      </th>
                       <th className="border-b border-border px-3 py-2.5 hidden 2xl:table-cell">Responsável / Info</th>
-                      <th className="border-b border-border px-3 py-2.5 hidden md:table-cell">Tempo / Competência</th>
-                      <th className="border-b border-border px-3 py-2.5 text-right hidden md:table-cell">Volumetria</th>
-                      <th className="border-b border-border px-3 py-2.5 text-right">Valor Total</th>
-                      <th className="border-b border-border px-3 py-2.5">Status</th>
+                      <th className="border-b border-border px-3 py-2.5 hidden md:table-cell">
+                        <span className="inline-flex items-center gap-2">
+                          <button type="button" onClick={() => toggleColSort("elapsed")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider">
+                            Tempo <SortIcon col="elapsed" />
+                          </button>
+                          <span className="opacity-40">/</span>
+                          <button type="button" onClick={() => toggleColSort("competence")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider">
+                            Competência <SortIcon col="competence" />
+                          </button>
+                        </span>
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-right hidden md:table-cell">
+                        <button type="button" onClick={() => toggleColSort("items")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider ml-auto">
+                          Volumetria <SortIcon col="items" />
+                        </button>
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5 text-right">
+                        <button type="button" onClick={() => toggleColSort("value")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider ml-auto">
+                          Valor Total <SortIcon col="value" />
+                        </button>
+                      </th>
+                      <th className="border-b border-border px-3 py-2.5">
+                        <button type="button" onClick={() => toggleColSort("status")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider">
+                          Status <SortIcon col="status" />
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="text-[13px] tabular-nums">
