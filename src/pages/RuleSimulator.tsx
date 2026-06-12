@@ -129,6 +129,7 @@ export default function RuleSimulator() {
         payment_type: form.payment_type || null,
         reference_date: form.reference_date || null,
         tipo_linha: form.tipo_linha || null,
+        hospital_id: hospital?.id ?? null,
       };
       const { data, error } = await supabase.functions.invoke("simulate-rule", { body: payload });
       if (error) throw error;
