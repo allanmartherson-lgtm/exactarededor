@@ -761,15 +761,46 @@ const Payments = () => {
     return 1;
   };
 
+  // Competência da row → "YYYY-MM" string (usa o mais recente do array).
+  const competenceKey = (p: Row): string => {
+    const arr = p.competence_months?.length ? p.competence_months : (p.competence_month ? [p.competence_month] : []);
+    if (!arr.length) return "";
+    // Cada item pode vir como "YYYY-MM" ou "YYYY-MM-DD" — pega o maior.
+    return arr.map((s) => String(s).slice(0, 7)).sort().reverse()[0] ?? "";
+  };
+
   const sortedList = useMemo(() => {
     const arr = [...filtered];
-    if (sortBy === "elapsed") arr.sort((a, b) => elapsedFor(b) - elapsedFor(a));
-    else if (sortBy === "status") arr.sort((a, b) => a.status.localeCompare(b.status));
-    else if (sortBy === "priority") {
-      // Usa priority_score já calculado no banco (sempre fresco via triggers).
-      arr.sort((a, b) => (Number(b.priority_score) || 0) - (Number(a.priority_score) || 0));
+    // Tiebreaker padrão: competência DESC (sempre respeita competência).
+    const byCompetenceDesc = (a: Row, b: Row) => competenceKey(b).localeCompare(competenceKey(a));
+
+    if (colSort) {
+      const dir = colSort.dir === "asc" ? 1 : -1;
+      arr.sort((a, b) => {
+        let cmp = 0;
+        switch (colSort.col) {
+          case "reference": cmp = a.reference.localeCompare(b.reference, "pt-BR"); break;
+          case "competence": cmp = competenceKey(a).localeCompare(competenceKey(b)); break;
+          case "elapsed": cmp = elapsedFor(a) - elapsedFor(b); break;
+          case "items": cmp = (a.items_count || 0) - (b.items_count || 0); break;
+          case "value": cmp = (Number(a.liquido_total ?? a.total_amount) || 0) - (Number(b.liquido_total ?? b.total_amount) || 0); break;
+          case "status": cmp = a.status.localeCompare(b.status); break;
+        }
+        if (cmp !== 0) return cmp * dir;
+        // Tiebreaker: competência DESC, depois criado DESC
+        const c = byCompetenceDesc(a, b);
+        if (c !== 0) return c;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+      return arr;
     }
-    else if (sortBy === "created") arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    if (sortBy === "elapsed") arr.sort((a, b) => elapsedFor(b) - elapsedFor(a) || byCompetenceDesc(a, b));
+    else if (sortBy === "status") arr.sort((a, b) => a.status.localeCompare(b.status) || byCompetenceDesc(a, b));
+    else if (sortBy === "priority") {
+      arr.sort((a, b) => ((Number(b.priority_score) || 0) - (Number(a.priority_score) || 0)) || byCompetenceDesc(a, b));
+    }
+    else if (sortBy === "created") arr.sort((a, b) => (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) || byCompetenceDesc(a, b));
     else {
       // relevance (default)
       arr.sort((a, b) => {
@@ -779,11 +810,30 @@ const Payments = () => {
         const va = Number(a.total_amount) || 0;
         const vb = Number(b.total_amount) || 0;
         if (vb !== va) return vb - va;
+        const c = byCompetenceDesc(a, b);
+        if (c !== 0) return c;
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
     }
     return arr;
-  }, [filtered, sortBy, statusEnteredAt, now, myOwnerStatuses]);
+  }, [filtered, sortBy, colSort, statusEnteredAt, now, myOwnerStatuses]);
+
+  const toggleColSort = (col: ColSortCol) => {
+    setColSort((cur) => {
+      if (!cur || cur.col !== col) {
+        // Default direction: numéricos/data → DESC (mais recente/maior); texto → ASC
+        const desc = col === "competence" || col === "elapsed" || col === "items" || col === "value";
+        return { col, dir: desc ? "desc" : "asc" };
+      }
+      if (cur.dir === "desc") return { col, dir: "asc" };
+      return null; // terceiro clique: volta para ordenação padrão
+    });
+  };
+
+  const SortIcon = ({ col }: { col: ColSortCol }) => {
+    if (!colSort || colSort.col !== col) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
+    return colSort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  };
 
   // Ordem das colunas do kanban (segue fluxo lógico)
   const KANBAN_ORDER: PaymentStatus[] = [
