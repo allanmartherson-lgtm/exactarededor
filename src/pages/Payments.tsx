@@ -497,7 +497,7 @@ const Payments = () => {
 
       // Dados companion escopados aos IDs visíveis — mantém renderização rica
       // (analistas, empresas/PJ, SLAs, histórico de status) sem custo de tabela inteira.
-      const [profsRes, groupsRes, jobsRes, histRes, slasRes, openQsRes] = await Promise.all([
+      const [profsRes, groupsRes, jobsRes, histRes, slasRes, openQsRes, modesRes] = await Promise.all([
         userIds.length
           ? supabase.from("profiles").select("id,full_name,email").in("id", userIds)
           : Promise.resolve({ data: [] as any[] } as any),
@@ -514,6 +514,9 @@ const Payments = () => {
         ids.length
           ? supabase.from("payment_observations").select("payment_id").in("payment_id", ids).eq("is_question", true).is("resolved_at", null)
           : Promise.resolve({ data: [] as any[] } as any),
+        ids.length
+          ? supabase.from("payments").select("id,import_mode,origem").in("id", ids)
+          : Promise.resolve({ data: [] as any[] } as any),
       ]);
 
       const profs = profsRes.data ?? [];
@@ -522,6 +525,16 @@ const Payments = () => {
       const hist = histRes.data ?? [];
       const slas = slasRes.data ?? [];
       const openQs = openQsRes.data ?? [];
+      const modes = (modesRes.data ?? []) as Array<{ id: string; import_mode?: string | null; origem?: string | null }>;
+      const modeMap = new Map(modes.map((m) => [m.id, m]));
+      list.forEach((r) => {
+        const m = modeMap.get(r.id);
+        if (m) {
+          (r as any).import_mode = m.import_mode ?? null;
+          (r as any).origem = m.origem ?? null;
+        }
+      });
+
 
       const profMap: Record<string, string> = {};
       profs.forEach((p: any) => { profMap[p.id] = p.full_name || p.email || "—"; });
