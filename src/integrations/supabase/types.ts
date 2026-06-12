@@ -6785,6 +6785,7 @@ export type Database = {
           bonus_amount: number | null
           bonus_pct: number | null
           calculation_type: Database["public"]["Enums"]["rule_calculation_type"]
+          code: string
           convenio_percentage: number | null
           created_at: string
           created_by: string | null
@@ -6799,7 +6800,7 @@ export type Database = {
           group_company_links: Json
           group_doctors: Json
           has_conditions: boolean | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           include_auxiliaries: boolean
           includes_holidays: boolean
@@ -6857,6 +6858,7 @@ export type Database = {
           bonus_amount?: number | null
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          code: string
           convenio_percentage?: number | null
           created_at?: string
           created_by?: string | null
@@ -6871,7 +6873,7 @@ export type Database = {
           group_company_links?: Json
           group_doctors?: Json
           has_conditions?: boolean | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           include_auxiliaries?: boolean
           includes_holidays?: boolean
@@ -6929,6 +6931,7 @@ export type Database = {
           bonus_amount?: number | null
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          code?: string
           convenio_percentage?: number | null
           created_at?: string
           created_by?: string | null
@@ -6943,7 +6946,7 @@ export type Database = {
           group_company_links?: Json
           group_doctors?: Json
           has_conditions?: boolean | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           include_auxiliaries?: boolean
           includes_holidays?: boolean
@@ -8760,6 +8763,7 @@ export type Database = {
           uf: string
         }[]
       }
+      next_rule_code: { Args: { _hospital_id: string }; Returns: string }
       norm_for_hash: { Args: { s: string }; Returns: string }
       norm_name: { Args: { t: string }; Returns: string }
       normalize_alias: { Args: { t: string }; Returns: string }
@@ -8944,6 +8948,7 @@ export type Database = {
         Args: {
           _group_company_links: Json
           _group_doctors: Json
+          _hospital_id?: string
           _rule_id: string
           _scope: Database["public"]["Enums"]["rule_scope"]
           _target_company_id: string

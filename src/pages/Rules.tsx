@@ -19,6 +19,7 @@ import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -156,6 +157,8 @@ const missingFields = (r: RuleRow) => REQUIRED_NEW_FIELDS.filter((f) => f.isMiss
 
 const Rules = () => {
   const { user } = useAuth();
+  const { hospital } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [refTables, setRefTables] = useState<{ id: string; name: string; purpose?: string }[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
@@ -386,7 +389,9 @@ const Rules = () => {
 
   const [pendingByRule, setPendingByRule] = useState<Record<string, number>>({});
   const load = async () => {
-    const { data } = await supabase.from("rules").select("*").order("created_at", { ascending: false });
+    let q = supabase.from("rules").select("*").order("created_at", { ascending: false });
+    if (activeHospitalId) q = q.eq("hospital_id", activeHospitalId);
+    const { data } = await q;
     setRules(data ?? []);
     // Carrega contagem de médicos novos pendentes por regra (auto-include + aviso).
     const { data: pend } = await (supabase as any)
@@ -448,7 +453,8 @@ const Rules = () => {
     }
     setCompanies(all as any);
   };
-  useEffect(() => { document.title = "Regras | Exacta"; load(); loadGlobalThresholds(); loadRefs(); loadCompanies(); }, []);
+  useEffect(() => { document.title = "Regras | Exacta"; loadGlobalThresholds(); loadRefs(); loadCompanies(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeHospitalId]);
 
   const exportRuleToPDF = (r: RuleRow) => {
     const doc = new jsPDF();
@@ -1207,8 +1213,12 @@ const Rules = () => {
     // acontece quando o usuário clica "Aplicar correções e salvar".
     const ruleData: Record<string, unknown> = {
       ...payload,
-      ...(editingId ? { id: editingId } : {}),
+      ...(editingId ? { id: editingId } : { hospital_id: activeHospitalId }),
     };
+    if (!editingId && !activeHospitalId) {
+      toast({ title: "Selecione um hospital", description: "Não é possível criar regras sem um hospital ativo.", variant: "destructive" });
+      return;
+    }
     const calcsForRpc: Record<string, unknown>[] =
       fNature === "calculavel"
         ? fCalculations.map((c, i) => {
@@ -1234,6 +1244,7 @@ const Rules = () => {
           valid_from: payload.valid_from,
           valid_until: payload.valid_until,
           calculations: calcsForRpc,
+          hospital_id: activeHospitalId,
         },
       },
     );
@@ -1437,6 +1448,7 @@ const Rules = () => {
       const { procedure_codes: _pc, sectors: _s, specialties: _sp, ...rest } = d;
       const ruleData: Record<string, unknown> = {
         ...rest,
+        hospital_id: activeHospitalId,
         description: d.description || null,
         target_type: d.scope === "especifica" ? d.target_type : null,
         target_identifier: d.scope === "especifica"
@@ -1463,6 +1475,7 @@ const Rules = () => {
             valid_from: d.valid_from ?? null,
             valid_until: d.valid_until ?? null,
             calculations: [],
+            hospital_id: activeHospitalId,
           },
         },
       );

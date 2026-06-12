@@ -326,6 +326,11 @@ serve(async (req) => {
     } else {
       // Cache miss → caminho original + grava snapshot ao final.
       let rulesQuery = supabase.from("rules").select(RULES_SELECT).eq("active", true);
+      // Isolamento multi-tenant: regras são por hospital.
+      const paymentHospitalId = (payment as any)?.hospital_id ?? null;
+      if (paymentHospitalId) {
+        rulesQuery = rulesQuery.eq("hospital_id", paymentHospitalId);
+      }
       if (scopedCompanyId) {
         // Carrega master + especifica da PJ + TODAS as regras de grupo (o motor decide
         // via targetsGroup; group_doctors seguem o médico em qualquer PJ).
@@ -377,7 +382,9 @@ serve(async (req) => {
       if (__job_id) {
         (async () => {
           try {
-            const { data: allRules } = await supabase.from("rules").select(RULES_SELECT).eq("active", true);
+            let allRulesQ = supabase.from("rules").select(RULES_SELECT).eq("active", true);
+            if (paymentHospitalId) allRulesQ = allRulesQ.eq("hospital_id", paymentHospitalId);
+            const { data: allRules } = await allRulesQ;
             const allRuleIds = (allRules ?? []).map((r: any) => r.id);
             let allCalcs: any[] = [];
             if (allRuleIds.length > 0) {
