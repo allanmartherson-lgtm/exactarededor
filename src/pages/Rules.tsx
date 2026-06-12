@@ -1448,6 +1448,7 @@ const Rules = () => {
       const { procedure_codes: _pc, sectors: _s, specialties: _sp, ...rest } = d;
       const ruleData: Record<string, unknown> = {
         ...rest,
+        hospital_id: activeHospitalId,
         description: d.description || null,
         target_type: d.scope === "especifica" ? d.target_type : null,
         target_identifier: d.scope === "especifica"
@@ -1474,6 +1475,7 @@ const Rules = () => {
             valid_from: d.valid_from ?? null,
             valid_until: d.valid_until ?? null,
             calculations: [],
+            hospital_id: activeHospitalId,
           },
         },
       );
