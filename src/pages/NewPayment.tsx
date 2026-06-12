@@ -166,7 +166,9 @@ const validateLine = (
   const hasCode = !!r.procedure_code?.trim();
   const hasDesc = !!(r.description?.trim() || r.procedure_name?.trim());
 
-  if (r.valor_invalido) {
+  if (r.valor_invalido && r.tipo_linha !== "glosa_desconto") {
+    // Em glosa/desconto valores negativos são esperados (estorno/abatimento),
+    // então não bloqueamos. NaN ainda cai em "Valor obrigatório" abaixo (value=0).
     issues.push({ severity: "critico", field: "gross_amount", message: "Valor numérico inválido ou negativo detectado na linha" });
   }
 
