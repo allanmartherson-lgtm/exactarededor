@@ -107,10 +107,10 @@ serve(async (req) => {
     };
 
     // ---- 3. Carrega regras ativas + cálculos ----
-    const { data: rulesRaw, error: rulesErr } = await supabase
+    let rulesQuery = supabase
       .from("rules")
       .select(`
-        id,name,rule_text,description,active,severity,scope,
+        id,name,rule_text,description,active,severity,scope,hospital_id,
         target_type,target_identifier,target_name,target_company_id,target_doctor_id,
         valid_from,valid_until,
         calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes,
@@ -126,6 +126,8 @@ serve(async (req) => {
         force_totalized
       `)
       .eq("active", true);
+    if (body.hospital_id) rulesQuery = rulesQuery.eq("hospital_id", body.hospital_id);
+    const { data: rulesRaw, error: rulesErr } = await rulesQuery;
 
     if (rulesErr) {
       console.error("[simulate-rule] rules query error:", rulesErr);
