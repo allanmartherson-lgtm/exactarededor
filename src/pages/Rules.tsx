@@ -19,6 +19,7 @@ import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -156,6 +157,8 @@ const missingFields = (r: RuleRow) => REQUIRED_NEW_FIELDS.filter((f) => f.isMiss
 
 const Rules = () => {
   const { user } = useAuth();
+  const { hospital } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [refTables, setRefTables] = useState<{ id: string; name: string; purpose?: string }[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
@@ -386,7 +389,9 @@ const Rules = () => {
 
   const [pendingByRule, setPendingByRule] = useState<Record<string, number>>({});
   const load = async () => {
-    const { data } = await supabase.from("rules").select("*").order("created_at", { ascending: false });
+    let q = supabase.from("rules").select("*").order("created_at", { ascending: false });
+    if (activeHospitalId) q = q.eq("hospital_id", activeHospitalId);
+    const { data } = await q;
     setRules(data ?? []);
     // Carrega contagem de médicos novos pendentes por regra (auto-include + aviso).
     const { data: pend } = await (supabase as any)
