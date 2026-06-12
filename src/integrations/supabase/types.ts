@@ -2927,6 +2927,7 @@ export type Database = {
         Row: {
           active: boolean
           cnpj: string | null
+          code_prefix: string | null
           created_at: string
           id: string
           name: string
@@ -2937,6 +2938,7 @@ export type Database = {
         Insert: {
           active?: boolean
           cnpj?: string | null
+          code_prefix?: string | null
           created_at?: string
           id?: string
           name: string
@@ -2947,6 +2949,7 @@ export type Database = {
         Update: {
           active?: boolean
           cnpj?: string | null
+          code_prefix?: string | null
           created_at?: string
           id?: string
           name?: string
