@@ -2873,6 +2873,7 @@ const Rules = () => {
                             <CardContent className="p-0">
                               <RuleListRow
                                 name={r.name}
+                                code={r.code}
                                 severity={r.severity}
                                 active={r.active}
                                 expired={expired}
@@ -2891,6 +2892,7 @@ const Rules = () => {
                                 onToggleSelect={() => toggleSelect(r.id)}
                                 onEdit={() => openEdit(r)}
                                 onDuplicate={() => openDuplicate(r)}
+                                onCloneToHospital={() => setCloneTarget(r)}
                                 onExportPdf={() => exportRuleToPDF(r)}
                                 onDelete={() => remove(r.id)}
                               />
