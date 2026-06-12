@@ -8083,6 +8083,10 @@ export type Database = {
         Args: { _item_id: string; _justification: string }
         Returns: Json
       }
+      apply_learned_hints_for_payment: {
+        Args: { _payment_id: string }
+        Returns: number
+      }
       apply_rule_save_with_corrections: {
         Args: { _calculations: Json; _corrections: Json; _rule_data: Json }
         Returns: Json
