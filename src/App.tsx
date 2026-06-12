@@ -41,6 +41,7 @@ const loadInvoices = () => import("./pages/Invoices.tsx");
 const loadInvoicePortal = () => import("./pages/InvoicePortal.tsx");
 const loadCompanies = () => import("./pages/Companies.tsx");
 const loadCompanyAliases = () => import("./pages/CompanyAliases.tsx");
+const loadLearnedPatterns = () => import("./pages/LearnedPatterns.tsx");
 const loadDoctors = () => import("./pages/Doctors.tsx");
 const loadProcedureSpecialtyMap = () => import("./pages/ProcedureSpecialtyMap.tsx");
 const loadSectors = () => import("./pages/Sectors.tsx");
@@ -115,6 +116,7 @@ const Invoices = lazy(loadInvoices);
 const InvoicePortal = lazy(loadInvoicePortal);
 const Companies = lazy(loadCompanies);
 const CompanyAliases = lazy(loadCompanyAliases);
+const LearnedPatterns = lazy(loadLearnedPatterns);
 const Doctors = lazy(loadDoctors);
 const ProcedureSpecialtyMap = lazy(loadProcedureSpecialtyMap);
 const MedicosHub = lazy(loadMedicosHub);
@@ -302,6 +304,7 @@ const App = () => (
                   
                   <Route path="/empresas" element={<ProtectedRoute roles={["diretor", "admin"]}><Companies /></ProtectedRoute>} />
                   <Route path="/empresas/apelidos" element={<ProtectedRoute roles={["diretor", "admin"]}><CompanyAliases /></ProtectedRoute>} />
+                  <Route path="/aprendizado/padroes" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><LearnedPatterns /></ProtectedRoute>} />
                   <Route path="/medicos" element={<ProtectedRoute roles={["diretor", "admin"]}><MedicosHub /></ProtectedRoute>} />
                   <Route path="/mapa-especialidades" element={<Navigate to="/medicos" replace />} />
                   <Route path="/setores" element={<ProtectedRoute roles={["diretor", "admin"]}><Sectors /></ProtectedRoute>} />

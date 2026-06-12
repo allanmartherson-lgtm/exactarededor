@@ -316,6 +316,17 @@ Deno.serve(async (req) => {
             .then(() => {}),
           "falha ao marcar payment_job_context como snapshot",
         );
+
+        // Aprendizado: aplica hints de padrões aprendidos (validações aceitas)
+        // aos itens deste pagamento. Soft — só gera badge na UI.
+        runInBackground(
+          supabase.rpc("apply_learned_hints_for_payment", { _payment_id: payment_id })
+            .then(({ error, data }) => {
+              if (error) console.error("[orchestrate] apply_learned_hints erro", error.message);
+              else console.log("[orchestrate] learned hints aplicados:", data);
+            }),
+          "falha ao aplicar learned hints",
+        );
       }
     }
 

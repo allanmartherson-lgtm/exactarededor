@@ -90,7 +90,12 @@ export function ProductionValidationPanel({ paymentId, currentUserId, onChanged 
       .eq("id", feedbackId);
     setBusy(null);
     if (error) { toast({ title: "Erro ao resolver feedback", variant: "destructive" }); return; }
-    toast({ title: "Feedback resolvido" });
+    toast({
+      title: "Feedback resolvido",
+      description: newStatus === "aceito"
+        ? "Padrão registrado — próximas análises sinalizarão itens semelhantes."
+        : undefined,
+    });
     load();
     onChanged();
   };

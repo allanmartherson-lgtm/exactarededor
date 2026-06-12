@@ -116,6 +116,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/saude-processo", label: "Saúde do Processo", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/recebiveis", label: "Contas a Pagar", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
       { to: "/inteligencia-financeira", label: "Inteligência Financeira", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
+      { to: "/aprendizado/padroes", label: "Aprendizado de padrões", icon: BrainCircuit, iconName: "BrainCircuit", roles: ["diretor", "admin", "analista"] as const },
     ],
   },
   {

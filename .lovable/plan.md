@@ -1,89 +1,95 @@
-# Importação histórica (Caminho B)
+# Aprendizado de validador → soft hints na próxima análise
 
-Objetivo: subir as bases de pagamento de **jan–abr/2026** rodando o motor por completo (regras, repasses, glosas, aliases, KPIs, DRE), mas **sem** disparar fluxo operacional (validador, diretor, NF, magic link, SLA, notificações).
+Objetivo: consolidar feedbacks aceitos do `ProductionValidationPanel` em **padrões** reutilizáveis e, na próxima análise, **sinalizar** (não bloquear) itens que casam com esses padrões. Humano sempre decide.
 
 ## Decisões confirmadas
-- Caminho B — motor roda e gera divergência retroativa
-- Escopo: só pagamentos (glosas/NFs ficam fora nesta fase)
-- Permissão: admin/diretor + analista sênior (flag `is_senior` ou role `analista_senior`)
-- Janela travada: `competencia` entre `2026-01-01` e `2026-04-30`
+- **Fonte:** só `production_validation_feedbacks` com `status='aceito'` (validador → analista aceitou).
+- **Modo:** soft — gera hint/badge no item, nunca muda status, nunca cria/edita regra automaticamente.
+- **Sinais:** exclusões recorrentes, ausências recorrentes, overrides de valor, aceitar divergência.
 
-## Mudanças
+## Modelagem
 
-### 1. Banco
-Migração adicionando em `payments`:
-- `import_mode text not null default 'normal'` — `'normal' | 'historico'`
-- `origem text not null default 'fluxo'` — `'fluxo' | 'historico'`
-- `historico_window_start date`, `historico_window_end date` (auditoria)
-- check: `import_mode='historico'` ⇒ `competencia` dentro da janela global `[2026-01-01, 2026-04-30]`
+### 1. Nova tabela `learned_patterns`
+Consolidação por chave estável. Uma linha = um padrão observado N vezes.
 
-Em `payment_company_groups`:
-- coluna virtual via view? não — basta herdar via FK; UI lê do `payments`.
+| campo | tipo | descrição |
+|---|---|---|
+| id | uuid pk | |
+| hospital_id | uuid | tenancy |
+| kind | text | `exclusao` \| `ausencia` \| `override_valor` \| `aceitar_divergencia` |
+| scope | jsonb | chave canônica do padrão (ver abaixo) |
+| signal | jsonb | dados agregados (motivo dominante, delta médio, etc.) |
+| occurrences | int | contagem |
+| first_seen_at / last_seen_at | timestamptz | |
+| confidence | numeric | 0..1 (occurrences normalizado + concordância de motivo) |
+| status | text | `ativo` \| `silenciado` \| `arquivado` |
+| silenced_by / silenced_at / silenced_reason | auditoria humana |
 
-Nova role: `app_role` ganha valor `analista_senior` (ou flag `profiles.is_senior boolean`). Vou usar **flag** `profiles.is_senior` para não fragmentar enum.
+Chave única: `(hospital_id, kind, scope_hash)` — `scope_hash` gerado via trigger MD5(scope::text canônico).
 
-Trigger `trg_payments_historico_guard`:
-- bloqueia transições de status em pagamentos com `import_mode='historico'` que saiam de `pago`/`arquivado`
-- bloqueia criação de pendência, observation, magic link, NF request, notificação para payment histórico
-- libera somente leitura + reabrir (admin) + soft cancel
+**`scope` por kind:**
+- `exclusao`: `{company_id, tuss, convenio_id, exclusion_reason}`
+- `ausencia`: `{company_id, doctor_id, tuss, convenio_id}`
+- `override_valor`: `{company_id, tuss, convenio_id, direction: 'maior'|'menor'}` — analista corrige `gross_amount` consistentemente
+- `aceitar_divergencia`: `{company_id, doctor_id, convenio_id}` — analista aceita diff repetidamente
 
-### 2. Motor (`analyze-payment`)
-- Recebe `import_mode` no contexto do job
-- Se `historico`: roda cálculo (gross/expected/diff/aliases) e marca cada item `ai_status='processado_historico'`
-- **Pula**: criação de `pendencias`, `payment_director_notifications`, `notification_queue`, `comm_*`, `magic_link_tokens`
-- Ao final: seta `payments.status='pago'`, `origem='historico'`, `analysis_mode='historico'`
-- `rule_calculations` é gravado normal (alimenta DRE/KPIs)
-- Aprendizado de alias (`learnCompanyAlias`, doctor/convenio/sector) **roda igual**
+### 2. Nova tabela `learned_pattern_events`
+Audit trail: 1 linha por feedback/correção consumido. Permite recontar e reverter.
+Campos: `pattern_id`, `source_kind` (`validation_feedback`|`item_override`|`accept_divergence`), `source_id`, `payment_id`, `payment_item_id`, `created_at`.
 
-### 3. UI
-- `src/pages/Payments.tsx`: badge "Histórico" + filtro `origem`
-- `src/components/payment-upload/*`: novo toggle "Importação histórica" (visível só pra admin/diretor/senior); ao ligar, mostra alerta "este lote pula validação/aprovação/NF e fica em status PAGO"
-- `src/lib/paymentFlow.ts`: `isHistorico(payment) ⇒` todos os `can*` retornam false exceto leitura/relatório
-- `CompanyAnalysis.tsx`: banner amarelo no topo "Pagamento histórico — somente leitura"
-- Dashboard/KPIs: adicionar toggle "incluir histórico" (default ligado para indicadores de aprendizado, desligado para fila operacional)
+### 3. Nova tabela `payment_item_hints`
+Snapshot por análise — evita recomputar a cada render.
+Campos: `payment_item_id pk`, `hospital_id`, `pattern_id fk`, `kind`, `confidence`, `message`, `created_at`. Único por (item, pattern).
 
-### 4. Permissão
-- `profiles.is_senior boolean default false`
-- página `/usuarios`: admin liga/desliga flag
-- gate no upload: `isAdmin || isDiretor || (isAnalista && isSenior)`
-
-### 5. KPIs retroativos
-- View `vw_intervention_savings_historico` mostrando soma de `diferenca_regra` dos pagamentos `origem='historico'` — "quanto a Exacta teria pego no período pré-go-live"
-- Card no `ExecutiveDashboard`: "Divergência retroativa identificada — R$ X em 4 meses"
-
-## Detalhes técnicos
+## Pipeline
 
 ```text
-upload (admin/senior)
-  └─> payments {import_mode:'historico', competencia:in_window}
-      └─> orchestrate-analysis (passa flag)
-          └─> analyze-payment
-              ├── rule_calculations  ✅
-              ├── aliases learned    ✅
-              ├── diferenca_regra    ✅
-              ├── pendencias         ⏭️ skip
-              ├── notifications      ⏭️ skip
-              ├── magic links        ⏭️ skip
-              └── status = 'pago', origem='historico'
+ProductionValidationPanel.resolve(status='aceito')
+  └─> trigger DB after update on production_validation_feedbacks
+      └─> upsert em learned_patterns (occurrences+1, last_seen_at, confidence)
+      └─> insert em learned_pattern_events
 ```
 
+```text
+analyze-payment (final do cálculo de cada item)
+  └─> match item contra learned_patterns ativos do hospital
+      ├─ kind=exclusao  → hint "histórico: excluído N vezes por {motivo}"
+      ├─ kind=ausencia  → hint "histórico: empresa costuma reportar ausência"
+      ├─ kind=override  → hint "histórico: valor costuma ser corrigido para {direção}"
+      └─ kind=aceitar   → hint "histórico: diferença costuma ser aceita"
+  └─> insert payment_item_hints
+```
+
+## UI
+
+- **PaymentItemRow / CompanyAnalysis:** badge amarelo `Lightbulb` "Aprendizado N×" com tooltip detalhando padrão e confiança. Click → drawer com histórico de eventos.
+- **Nova página `/aprendizado-padroes`** (admin/diretor/senior): lista `learned_patterns` filtrável por kind/empresa/confiança, ações `silenciar` / `arquivar` / `ver eventos`. Reaproveita layout de `CompanyAliases`.
+- **`ProductionValidationPanel`:** quando analista clica **Aceitar** num feedback, toast informa "padrão registrado, próxima análise será sinalizada".
+
+## Confiança (simples e auditável)
+
+```
+confidence = min(1, occurrences / 5) * agreement_ratio
+```
+- `agreement_ratio` para `exclusao` = % do motivo dominante / total
+- ≥0.6 vira hint visível; <0.6 fica latente (só na página de padrões)
+
+## Permissões
+- `learned_patterns` / `events` / `hints`: SELECT autenticado por hospital; INSERT/UPDATE só service_role (motor + trigger).
+- Silenciar/arquivar via RPC `silence_learned_pattern(uuid, text)` que checa role admin/diretor/senior.
+
+## Fora de escopo
+- Criar/editar `rules` automaticamente (modo hard) — descartado.
+- Aprender com glosas, magic link, validações que expiraram, feedbacks rejeitados.
+- Cross-hospital pattern sharing.
+
 ## Arquivos a tocar
-- `supabase/migrations/2026xxxx_historico_mode.sql` (novo)
-- `supabase/functions/analyze-payment/index.ts`
-- `supabase/functions/orchestrate-analysis/index.ts`
-- `supabase/functions/dispatch-payment-analysis/index.ts`
-- `src/lib/paymentFlow.ts`
-- `src/pages/Payments.tsx` (filtro + badge)
-- `src/components/payment-upload/` (toggle + validação janela)
-- `src/pages/CompanyAnalysis.tsx` (banner read-only)
-- `src/pages/ExecutiveDashboard.tsx` (card divergência retroativa)
-- `src/pages/Users.tsx` (toggle is_senior)
-- `src/integrations/supabase/types.ts` (auto)
+- `supabase/migrations/2026xxxx_learned_patterns.sql` (novo) — tabelas, trigger, RPC, GRANTs, RLS.
+- `supabase/functions/analyze-payment/index.ts` — passo de matching + insert em `payment_item_hints`.
+- `src/components/payment-detail/ProductionValidationPanel.tsx` — toast pós-aceitar.
+- `src/components/payment-detail/PaymentItemRow.tsx` (ou equivalente) — badge de hint.
+- `src/pages/CompanyAnalysis.tsx` — leitura dos hints + drawer.
+- `src/pages/LearnedPatterns.tsx` (novo) + entrada em `navItems.ts`.
+- `src/integrations/supabase/types.ts` (auto após migração).
 
-## Fora de escopo desta fase
-- Glosas históricas
-- NFs históricas
-- Aprovação retroativa por diretor
-- Reabrir pagamento histórico para reprocessamento (admin pode via SQL se necessário)
-
-Confirma que posso seguir?
+Confirma que posso seguir nesse desenho?
