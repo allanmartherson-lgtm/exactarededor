@@ -181,10 +181,12 @@ type PersistedPaymentsState = Partial<{
   competenceFilter: string;
   view: "lista" | "kanban";
   sortBy: "relevance" | "created" | "elapsed" | "status" | "priority";
+  colSort: { col: ColSortCol; dir: "asc" | "desc" } | null;
   divergenceFilter: "all" | "with" | "without";
   questionedFilter: "all" | "with" | "without";
   archivedView: boolean;
 }>;
+type ColSortCol = "reference" | "competence" | "elapsed" | "items" | "value" | "status";
 const loadPersistedPaymentsState = (): PersistedPaymentsState => {
   if (typeof window === "undefined") return {};
   try {
