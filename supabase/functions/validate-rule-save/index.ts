@@ -39,6 +39,7 @@ interface ValidateRuleSaveRequest {
   valid_from?: string | null;
   valid_until?: string | null;
   calculations?: RuleCalculationItem[] | null;
+  hospital_id?: string | null;
 }
 
 Deno.serve(async (req) => {
