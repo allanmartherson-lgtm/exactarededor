@@ -191,10 +191,12 @@ export default function HealthMonitoring() {
       const maisAntigo = (filaRaw ?? [])[0]?.created_at ?? null;
 
       const since30 = new Date(Date.now() - 30 * 24 * 3_600_000).toISOString();
-      const { data: rulesRaw } = await supabase
+      let rulesQ = supabase
         .from("rules")
         .select("id, name, updated_at")
         .eq("active", true);
+      if (activeHospitalId) rulesQ = rulesQ.eq("hospital_id", activeHospitalId);
+      const { data: rulesRaw } = await rulesQ;
 
       const { data: matchedRules } = await supabase
         .from("payment_items")
