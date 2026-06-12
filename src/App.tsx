@@ -41,6 +41,7 @@ const loadInvoices = () => import("./pages/Invoices.tsx");
 const loadInvoicePortal = () => import("./pages/InvoicePortal.tsx");
 const loadCompanies = () => import("./pages/Companies.tsx");
 const loadCompanyAliases = () => import("./pages/CompanyAliases.tsx");
+const loadLearnedPatterns = () => import("./pages/LearnedPatterns.tsx");
 const loadDoctors = () => import("./pages/Doctors.tsx");
 const loadProcedureSpecialtyMap = () => import("./pages/ProcedureSpecialtyMap.tsx");
 const loadSectors = () => import("./pages/Sectors.tsx");
