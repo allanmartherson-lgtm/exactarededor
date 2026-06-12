@@ -46,6 +46,7 @@ interface SimInput {
   reference_date?: string | null;
   sectors?: string[] | null;
   specialties?: string[] | null;
+  hospital_id?: string | null;
 }
 
 serve(async (req) => {
