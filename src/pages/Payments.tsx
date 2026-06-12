@@ -1442,7 +1442,7 @@ const Payments = () => {
                   {archivedView ? "Ver ativos" : `Ver arquivados${archivedCount ? ` (${archivedCount})` : ""}`}
                 </Button>
                 {view === "lista" && (
-                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                  <Select value={colSort ? "__col" : sortBy} onValueChange={(v) => { if (v === "__col") return; setColSort(null); setSortBy(v as typeof sortBy); }}>
                     <SelectTrigger className="w-[170px]"><SelectValue placeholder="Ordenar" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="relevance">Sua vez + maior valor</SelectItem>
