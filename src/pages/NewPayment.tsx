@@ -2373,7 +2373,14 @@ const NewPayment = () => {
 
             {buckets.length > 0 && (
               <div className="space-y-2">
-                {buckets.map((b, idx) => (
+                {buckets
+                  .map((b, idx) => ({ b, idx }))
+                  .sort((a, z) => {
+                    const an = (a.b.matchedCompany?.name ?? a.b.rawCompanyName ?? a.b.file.name ?? "").toLowerCase();
+                    const zn = (z.b.matchedCompany?.name ?? z.b.rawCompanyName ?? z.b.file.name ?? "").toLowerCase();
+                    return an.localeCompare(zn, "pt-BR", { sensitivity: "base" });
+                  })
+                  .map(({ b, idx }) => (
                   <div key={idx} className="w-full border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
                     <FileSpreadsheet className="h-8 w-8 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
