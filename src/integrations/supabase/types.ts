@@ -8012,6 +8012,14 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      clone_rule_to_hospital: {
+        Args: {
+          _new_name?: string
+          _rule_id: string
+          _target_hospital_id: string
+        }
+        Returns: string
+      }
       comm_reply_on_behalf: {
         Args: {
           p_channel: string
