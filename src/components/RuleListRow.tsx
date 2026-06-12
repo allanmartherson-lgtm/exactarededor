@@ -97,7 +97,17 @@ export function RuleListRow({
       <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
+            {code && (
+              <Badge variant="outline" className="font-mono text-[10px] tracking-wider">
+                {code}
+              </Badge>
+            )}
             <p className="font-medium text-sm truncate">{name}</p>
+            {hospitalName && (
+              <Badge variant="muted" className="font-normal gap-1">
+                <Building2 className="h-3 w-3" /> {hospitalName}
+              </Badge>
+            )}
             {active === false && <Badge variant="destructive" className="font-normal">Inativa</Badge>}
             {expired && <Badge variant="warning" className="font-normal">Expirada</Badge>}
           </div>
