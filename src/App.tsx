@@ -116,6 +116,7 @@ const Invoices = lazy(loadInvoices);
 const InvoicePortal = lazy(loadInvoicePortal);
 const Companies = lazy(loadCompanies);
 const CompanyAliases = lazy(loadCompanyAliases);
+const LearnedPatterns = lazy(loadLearnedPatterns);
 const Doctors = lazy(loadDoctors);
 const ProcedureSpecialtyMap = lazy(loadProcedureSpecialtyMap);
 const MedicosHub = lazy(loadMedicosHub);
