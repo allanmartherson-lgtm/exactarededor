@@ -442,7 +442,10 @@ const matrixToJson = (matrix: unknown[][], headerIdx: number): Record<string, un
 
 
 const NewPayment = () => {
-  const { user } = useAuth();
+  const { user, roles, isSenior } = useAuth();
+  const canImportHistorico =
+    roles.includes("admin") || roles.includes("diretor") || (roles.includes("analista") && isSenior);
+
   const { hospital } = useHospital();
   const navigate = useNavigate();
   const [reference, setReference] = useState("");
