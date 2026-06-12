@@ -54,6 +54,7 @@ import {
 } from "@/components/rules/RuleCalculationsEditor";
 import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
 import { RuleConflictModal, type Problem as ConflictProblem, type Correction as ConflictCorrection } from "@/components/rules/RuleConflictModal";
+import { CloneRuleToHospitalDialog } from "@/components/rules/CloneRuleToHospitalDialog";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
@@ -309,6 +310,8 @@ const Rules = () => {
   const [pendingRuleData, setPendingRuleData] = useState<Record<string, unknown> | null>(null);
   const [pendingCalcs, setPendingCalcs] = useState<Record<string, unknown>[]>([]);
   const [pendingIsUpdate, setPendingIsUpdate] = useState(false);
+  // Clone-to-hospital dialog
+  const [cloneTarget, setCloneTarget] = useState<RuleRow | null>(null);
   const STEP_LABELS: Record<CalcSyncError["step"], string> = {
     "delete-calculavel": "Remover cálculos antigos (regra calculável)",
     "insert-calculavel": "Inserir novos cálculos",
@@ -2871,6 +2874,7 @@ const Rules = () => {
                             <CardContent className="p-0">
                               <RuleListRow
                                 name={r.name}
+                                code={r.code}
                                 severity={r.severity}
                                 active={r.active}
                                 expired={expired}
@@ -2889,6 +2893,7 @@ const Rules = () => {
                                 onToggleSelect={() => toggleSelect(r.id)}
                                 onEdit={() => openEdit(r)}
                                 onDuplicate={() => openDuplicate(r)}
+                                onCloneToHospital={() => setCloneTarget(r)}
                                 onExportPdf={() => exportRuleToPDF(r)}
                                 onDelete={() => remove(r.id)}
                               />
@@ -3035,6 +3040,15 @@ const Rules = () => {
           setPendingCalcs([]);
         }}
         onApplyAndSave={handleConflictApply}
+      />
+
+      <CloneRuleToHospitalDialog
+        open={!!cloneTarget}
+        ruleId={cloneTarget?.id ?? null}
+        ruleName={cloneTarget?.name ?? null}
+        ruleHospitalId={cloneTarget?.hospital_id ?? null}
+        onClose={() => setCloneTarget(null)}
+        onCloned={() => { load(); }}
       />
     </>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,6 +92,7 @@ const PAYMENT_TYPE = [
 ];
 
 export default function RuleSimulator() {
+  const { hospital } = useHospital();
   const [form, setForm] = useState<SimForm>(empty);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any | null>(null);
@@ -127,6 +129,7 @@ export default function RuleSimulator() {
         payment_type: form.payment_type || null,
         reference_date: form.reference_date || null,
         tipo_linha: form.tipo_linha || null,
+        hospital_id: hospital?.id ?? null,
       };
       const { data, error } = await supabase.functions.invoke("simulate-rule", { body: payload });
       if (error) throw error;

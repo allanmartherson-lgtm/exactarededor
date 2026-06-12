@@ -2,12 +2,14 @@ import { ReactNode } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Pencil, Copy, FileDown, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, Pencil, Copy, FileDown, Trash2, UserPlus, Building2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 export interface RuleListRowProps {
   name: string;
+  code?: string | null;
+  hospitalName?: string | null;
   severity?: "bloqueio" | "aviso" | "info" | string | null;
   active?: boolean | null;
   expired?: boolean;
@@ -26,6 +28,7 @@ export interface RuleListRowProps {
   onToggleSelect?: () => void;
   onEdit?: () => void;
   onDuplicate?: () => void;
+  onCloneToHospital?: () => void;
   onExportPdf?: () => void;
   onDelete?: () => void;
 }
@@ -38,6 +41,8 @@ export interface RuleListRowProps {
  */
 export function RuleListRow({
   name,
+  code,
+  hospitalName,
   severity,
   active,
   expired,
@@ -56,6 +61,7 @@ export function RuleListRow({
   onToggleSelect,
   onEdit,
   onDuplicate,
+  onCloneToHospital,
   onExportPdf,
   onDelete,
 }: RuleListRowProps) {
@@ -91,7 +97,17 @@ export function RuleListRow({
       <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
+            {code && (
+              <Badge variant="outline" className="font-mono text-[10px] tracking-wider">
+                {code}
+              </Badge>
+            )}
             <p className="font-medium text-sm truncate">{name}</p>
+            {hospitalName && (
+              <Badge variant="muted" className="font-normal gap-1">
+                <Building2 className="h-3 w-3" /> {hospitalName}
+              </Badge>
+            )}
             {active === false && <Badge variant="destructive" className="font-normal">Inativa</Badge>}
             {expired && <Badge variant="warning" className="font-normal">Expirada</Badge>}
           </div>
@@ -145,6 +161,11 @@ export function RuleListRow({
           {onDuplicate && (
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={onDuplicate} title="Duplicar">
               <Copy className="h-4 w-4" />
+            </Button>
+          )}
+          {onCloneToHospital && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={onCloneToHospital} title="Clonar para outro hospital">
+              <Building2 className="h-4 w-4" />
             </Button>
           )}
           {onExportPdf && (

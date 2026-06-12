@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import { Link } from "react-router-dom";
 import {
   Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw,
@@ -141,6 +142,8 @@ function fmtHoras(h: number): string {
 }
 
 export default function HealthMonitoring() {
+  const { hospital } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const [data, setData] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -188,10 +191,12 @@ export default function HealthMonitoring() {
       const maisAntigo = (filaRaw ?? [])[0]?.created_at ?? null;
 
       const since30 = new Date(Date.now() - 30 * 24 * 3_600_000).toISOString();
-      const { data: rulesRaw } = await supabase
+      let rulesQ = supabase
         .from("rules")
         .select("id, name, updated_at")
         .eq("active", true);
+      if (activeHospitalId) rulesQ = rulesQ.eq("hospital_id", activeHospitalId);
+      const { data: rulesRaw } = await rulesQ;
 
       const { data: matchedRules } = await supabase
         .from("payment_items")
@@ -307,7 +312,7 @@ export default function HealthMonitoring() {
       setLoading(false);
       setLastRefresh(new Date());
     }
-  }, []);
+  }, [activeHospitalId]);
 
   useEffect(() => {
     document.title = "Saúde do Motor | Exacta";
