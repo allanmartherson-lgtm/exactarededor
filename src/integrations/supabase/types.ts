@@ -887,6 +887,85 @@ export type Database = {
           },
         ]
       }
+      company_group_approvals: {
+        Row: {
+          approved_at: string
+          approved_by: string | null
+          bruto_total: number
+          company_id: string | null
+          created_at: string
+          hospital_id: string | null
+          id: string
+          items_snapshot: Json | null
+          liquido_total: number
+          magic_link_token_id: string | null
+          payment_company_group_id: string
+          pdf_url: string | null
+          reason: string | null
+          superseded_at: string | null
+          superseded_by_version: number | null
+          version: number
+        }
+        Insert: {
+          approved_at?: string
+          approved_by?: string | null
+          bruto_total?: number
+          company_id?: string | null
+          created_at?: string
+          hospital_id?: string | null
+          id?: string
+          items_snapshot?: Json | null
+          liquido_total?: number
+          magic_link_token_id?: string | null
+          payment_company_group_id: string
+          pdf_url?: string | null
+          reason?: string | null
+          superseded_at?: string | null
+          superseded_by_version?: number | null
+          version: number
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string | null
+          bruto_total?: number
+          company_id?: string | null
+          created_at?: string
+          hospital_id?: string | null
+          id?: string
+          items_snapshot?: Json | null
+          liquido_total?: number
+          magic_link_token_id?: string | null
+          payment_company_group_id?: string
+          pdf_url?: string | null
+          reason?: string | null
+          superseded_at?: string | null
+          superseded_by_version?: number | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_group_approvals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_group_approvals_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_group_approvals_payment_company_group_id_fkey"
+            columns: ["payment_company_group_id"]
+            isOneToOne: false
+            referencedRelation: "payment_company_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_hospital_overrides: {
         Row: {
           company_id: string
@@ -2921,6 +3000,41 @@ export type Database = {
           },
         ]
       }
+      hospital_settings: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          reapproval_require_reason: boolean
+          reapproval_threshold_brl: number
+          reapproval_threshold_pct: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          reapproval_require_reason?: boolean
+          reapproval_threshold_brl?: number
+          reapproval_threshold_pct?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          reapproval_require_reason?: boolean
+          reapproval_threshold_brl?: number
+          reapproval_threshold_pct?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_settings_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: true
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_switch_log: {
         Row: {
           id: string
@@ -3963,6 +4077,7 @@ export type Database = {
       }
       payment_company_groups: {
         Row: {
+          approval_version: number
           approved_at: string | null
           approved_by: string | null
           bruto_total: number
@@ -3989,8 +4104,17 @@ export type Database = {
           hospital_id: string | null
           id: string
           items_count: number
+          last_approved_bruto: number | null
+          last_approved_company_id: string | null
+          last_approved_liquido: number | null
           liquido_total: number
           payment_id: string
+          reapproval_pending: boolean
+          reapproval_reason: string | null
+          reapproval_trigger_source:
+            | Database["public"]["Enums"]["reapproval_trigger_source"]
+            | null
+          reapproval_triggered_at: string | null
           reconciliation_run_id: string | null
           rejected_at: string | null
           rejected_by: string | null
@@ -4002,6 +4126,7 @@ export type Database = {
           validated_by: string | null
         }
         Insert: {
+          approval_version?: number
           approved_at?: string | null
           approved_by?: string | null
           bruto_total?: number
@@ -4028,8 +4153,17 @@ export type Database = {
           hospital_id?: string | null
           id?: string
           items_count?: number
+          last_approved_bruto?: number | null
+          last_approved_company_id?: string | null
+          last_approved_liquido?: number | null
           liquido_total?: number
           payment_id: string
+          reapproval_pending?: boolean
+          reapproval_reason?: string | null
+          reapproval_trigger_source?:
+            | Database["public"]["Enums"]["reapproval_trigger_source"]
+            | null
+          reapproval_triggered_at?: string | null
           reconciliation_run_id?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
@@ -4041,6 +4175,7 @@ export type Database = {
           validated_by?: string | null
         }
         Update: {
+          approval_version?: number
           approved_at?: string | null
           approved_by?: string | null
           bruto_total?: number
@@ -4067,8 +4202,17 @@ export type Database = {
           hospital_id?: string | null
           id?: string
           items_count?: number
+          last_approved_bruto?: number | null
+          last_approved_company_id?: string | null
+          last_approved_liquido?: number | null
           liquido_total?: number
           payment_id?: string
+          reapproval_pending?: boolean
+          reapproval_reason?: string | null
+          reapproval_trigger_source?:
+            | Database["public"]["Enums"]["reapproval_trigger_source"]
+            | null
+          reapproval_triggered_at?: string | null
           reconciliation_run_id?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
@@ -9511,6 +9655,8 @@ export type Database = {
         | "return_to_analyst"
         | "return_to_validator"
         | "view"
+        | "approve_reapproval"
+        | "reject_reapproval"
       notification_channel: "email" | "whatsapp" | "both" | "off"
       notification_delivery_status:
         | "queued"
@@ -9569,6 +9715,11 @@ export type Database = {
         | "revisao_pos_aprovacao"
       payment_track: "prioritario" | "habitual"
       portal_link_health: "ok" | "orphan_user" | "orphan_target" | "inactive"
+      reapproval_trigger_source:
+        | "analyst_edit"
+        | "invoice_pendency"
+        | "company_change_source"
+        | "company_change_destination"
       reference_table_kind:
         | "simples"
         | "cbhpm"
@@ -9791,6 +9942,8 @@ export const Constants = {
         "return_to_analyst",
         "return_to_validator",
         "view",
+        "approve_reapproval",
+        "reject_reapproval",
       ],
       notification_channel: ["email", "whatsapp", "both", "off"],
       notification_delivery_status: [
@@ -9850,6 +10003,12 @@ export const Constants = {
       ],
       payment_track: ["prioritario", "habitual"],
       portal_link_health: ["ok", "orphan_user", "orphan_target", "inactive"],
+      reapproval_trigger_source: [
+        "analyst_edit",
+        "invoice_pendency",
+        "company_change_source",
+        "company_change_destination",
+      ],
       reference_table_kind: [
         "simples",
         "cbhpm",

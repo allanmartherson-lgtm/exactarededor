@@ -5,6 +5,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { processValidatorAssignment } from "./handlers/validatorAssignment.ts";
 import { processDirectorApproval } from "./handlers/directorApproval.ts";
+import { processDirectorReapproval } from "./handlers/directorReapproval.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +21,7 @@ const MAX_ATTEMPTS = 3;
 const HANDLERS: Record<string, (supabase: any, row: any) => Promise<{ ok: boolean; meta: unknown }>> = {
   validator_assignment: processValidatorAssignment,
   director_approval: processDirectorApproval,
+  director_reapproval: processDirectorReapproval,
 };
 
 Deno.serve(async (req) => {

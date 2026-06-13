@@ -7,7 +7,15 @@ import { z } from "npm:zod@3.23.8";
 import { signMagicLink, sha256Hex } from "../_shared/magicLink.ts";
 
 const BodySchema = z.object({
-  action: z.enum(["approve", "reject", "return_to_analyst", "return_to_validator", "view"]),
+  action: z.enum([
+    "approve",
+    "reject",
+    "return_to_analyst",
+    "return_to_validator",
+    "view",
+    "approve_reapproval",
+    "reject_reapproval",
+  ]),
   payment_id: z.string().uuid(),
   company_group_id: z.string().uuid().optional(),
   issued_to_user_id: z.string().uuid(),
