@@ -123,3 +123,26 @@ jobs:
           path: |
             coverage/
             test-results/
+
+  # Job 6: Guard multi-tenant (obrigatório — bloqueia merge)
+  # Falha se alguma RPC de leitura passar a ler payments sem filtrar por
+  # current_active_hospital(), evitando regressão de vazamento entre hospitais.
+  hospital-scope-guard:
+    name: Hospital Scope Guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Audit hospital scope (multi-tenant guard)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: bun run scripts/audit-hospital-scope.ts
