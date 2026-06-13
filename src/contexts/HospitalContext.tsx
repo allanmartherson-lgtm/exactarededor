@@ -39,18 +39,43 @@ const HOSPITAL_HEADER = "x-active-hospital";
  */
 const applyHospitalHeader = (hospitalId: string | null) => {
   const anyClient = supabase as unknown as {
-    rest?: { headers?: Record<string, string> };
-    functions?: { headers?: Record<string, string> };
-    realtime?: { setAuth?: (token: string) => void };
+    rest?: { headers: Headers | Record<string, string> };
+    functions?: { headers: Record<string, string> };
   };
-  const restHeaders = anyClient.rest?.headers;
+
+  // REST/PostgREST: o postgrest-js v1+ armazena `headers` como uma instância
+  // `Headers` (não um objeto plano). Cada query faz `new Headers(this.headers)`
+  // ao montar a request, então mutações via `.set()/.delete()` PRECISAM ser
+  // feitas na instância — atribuir `headers[name] = value` NÃO tem efeito e
+  // foi exatamente o bug que mascarou o vazamento entre hospitais.
+  const rest = anyClient.rest;
+  if (rest) {
+    const h = rest.headers as Headers | Record<string, string>;
+    if (typeof Headers !== "undefined" && h instanceof Headers) {
+      if (hospitalId) h.set(HOSPITAL_HEADER, hospitalId);
+      else h.delete(HOSPITAL_HEADER);
+    } else {
+      const obj = h as Record<string, string>;
+      if (hospitalId) obj[HOSPITAL_HEADER] = hospitalId;
+      else delete obj[HOSPITAL_HEADER];
+    }
+  }
+
+  // Functions: headers é objeto plano e é espalhado em cada invoke.
   const fnHeaders = anyClient.functions?.headers;
-  if (hospitalId) {
-    if (restHeaders) restHeaders[HOSPITAL_HEADER] = hospitalId;
-    if (fnHeaders) fnHeaders[HOSPITAL_HEADER] = hospitalId;
-  } else {
-    if (restHeaders) delete restHeaders[HOSPITAL_HEADER];
-    if (fnHeaders) delete fnHeaders[HOSPITAL_HEADER];
+  if (fnHeaders) {
+    if (hospitalId) fnHeaders[HOSPITAL_HEADER] = hospitalId;
+    else delete fnHeaders[HOSPITAL_HEADER];
+  }
+
+  // Auth global headers (atinge realtime/storage e qualquer subcliente que
+  // herde os globais). API interna mas usada largamente — fallback seguro.
+  const globalHeaders = (
+    supabase as unknown as { headers?: Record<string, string> }
+  ).headers;
+  if (globalHeaders) {
+    if (hospitalId) globalHeaders[HOSPITAL_HEADER] = hospitalId;
+    else delete globalHeaders[HOSPITAL_HEADER];
   }
 };
 
