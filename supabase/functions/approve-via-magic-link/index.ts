@@ -77,6 +77,71 @@ Deno.serve(async (req) => {
     view: payment.status, // no-op
   };
 
+  // ============================================================
+  // Re-aprovação por grupo: ações específicas para grupo de empresa.
+  // approve_reapproval insere nova versão em company_group_approvals
+  // (triggers do banco fazem snapshot + liberam reapproval_pending).
+  // reject_reapproval devolve apenas o grupo para o analista.
+  // ============================================================
+  if (row.action === "approve_reapproval" || row.action === "reject_reapproval") {
+    if (!row.company_group_id) {
+      return json({ error: "missing_company_group_id" }, 400);
+    }
+
+    const { data: group, error: gErr } = await admin
+      .from("payment_company_groups")
+      .select("id, hospital_id, bruto_total, liquido_total, company_id, approval_version, reapproval_pending, reapproval_reason, reapproval_trigger_source")
+      .eq("id", row.company_group_id)
+      .maybeSingle();
+
+    if (gErr || !group) return json({ error: "group_not_found" }, 404);
+    if (!group.reapproval_pending) {
+      return json({ error: "no_pending_reapproval" }, 409);
+    }
+
+    if (row.action === "approve_reapproval") {
+      const nextVersion = (group.approval_version ?? 0) + 1;
+      const { error: insErr } = await admin
+        .from("company_group_approvals")
+        .insert({
+          payment_company_group_id: group.id,
+          hospital_id: group.hospital_id,
+          version: nextVersion,
+          approved_by: row.issued_to_user_id,
+          bruto_total: group.bruto_total,
+          liquido_total: group.liquido_total,
+          company_id: group.company_id,
+          reason: comment ?? group.reapproval_reason,
+          magic_link_token_id: row.id,
+        });
+      if (insErr) return json({ error: "approval_insert_failed", detail: insErr.message }, 409);
+    } else {
+      // reject_reapproval → mantém pendente, devolve grupo ao analista via observação
+      const { error: obsErr } = await admin.from("payment_observations").insert({
+        payment_id: row.payment_id,
+        author_user_id: row.issued_to_user_id,
+        author_type: "diretor",
+        observation_type: "magic_link_action",
+        message: `[Grupo ${group.id}] Re-aprovação rejeitada pelo diretor via magic link.${comment ? "\n\nComentário: " + comment : ""}`,
+        metadata: { ip, user_agent: ua, action: row.action, company_group_id: group.id },
+      });
+      if (obsErr) return json({ error: "rejection_log_failed", detail: obsErr.message }, 409);
+    }
+
+    await admin
+      .from("magic_link_tokens")
+      .update({ used_at: new Date().toISOString(), used_by_ip: ip, used_by_user_agent: ua })
+      .eq("id", row.id);
+
+    return json({
+      success: true,
+      action: row.action,
+      payment_id: row.payment_id,
+      company_group_id: group.id,
+      new_version: row.action === "approve_reapproval" ? (group.approval_version ?? 0) + 1 : group.approval_version,
+    }, 200);
+  }
+
   const newStatus = transitions[row.action];
 
   if (row.action !== "view") {
