@@ -154,9 +154,15 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
             if (error) console.warn("[hospital-switch] log falhou:", error.message);
           });
 
-        // Pequena janela para o usuário perceber o feedback e os componentes refazerem queries
-        await new Promise((r) => setTimeout(r, 400));
+        // Força reload completo da aplicação: garante que TODAS as telas
+        // recarreguem com o novo hospital ativo — inclusive as que buscam
+        // dados via RPC/fetch manual (ex.: Pagamentos), que não reagem ao
+        // queryClient.clear(). Sem isso, dados da unidade anterior permanecem
+        // visíveis até um refresh manual.
+        window.location.reload();
       } finally {
+        // Mantém o overlay visível até o reload assumir; caso o reload não
+        // ocorra por algum motivo, libera o bloqueio de ações.
         setSwitching(false);
       }
     },
