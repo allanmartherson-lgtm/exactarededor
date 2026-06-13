@@ -8385,6 +8385,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      audit_hospital_scope: {
+        Args: never
+        Returns: {
+          args: string
+          motivo: string
+          proname: string
+        }[]
+      }
       backfill_payment_items_engine_columns: {
         Args: { _dry_run?: boolean }
         Returns: Json
