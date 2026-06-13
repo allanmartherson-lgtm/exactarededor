@@ -140,7 +140,11 @@ const Kpis = () => {
           <span className="text-xs text-muted-foreground ml-auto">
             {seesAll ? "Visão completa" : isValidador ? "Visão da equipe" : "Apenas suas bases"}
             {" · Variação vs "}{range} dias anteriores.
+            {historicalCount > 0 && (
+              <> {" · "}<span title="Lotes lançados direto sem passar por validação/aprovação são excluídos das métricas de fluxo, mas contam em DRE, conciliação e volumetria.">{historicalCount} {historicalCount === 1 ? "lote histórico excluído" : "lotes históricos excluídos"}</span></>
+            )}
           </span>
+
         </div>
 
         {!loading && bottleneck && (
