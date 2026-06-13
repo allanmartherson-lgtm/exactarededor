@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { setActiveHospitalId } from "@/integrations/supabase/activeHospital";
 
 export interface Hospital {
   id: string;
@@ -27,57 +28,6 @@ interface HospitalContextValue {
 }
 
 const STORAGE_KEY = "medpay.active_hospital_id";
-const HOSPITAL_HEADER = "x-active-hospital";
-
-/**
- * Aplica o header `x-active-hospital` em toda requisição do cliente Supabase
- * (REST/PostgREST + Edge Functions). É o que ativa a RLS RESTRICTIVE
- * `active_hospital_scope` no banco — sem esse header, o banco devolveria
- * dados de qualquer hospital ao qual o usuário tem acesso, voltando ao
- * vazamento que tínhamos antes. Setar/limpar é idempotente; usar `null`
- * para remover (ex.: durante a troca, quando ainda não há hospital ativo).
- */
-const applyHospitalHeader = (hospitalId: string | null) => {
-  const anyClient = supabase as unknown as {
-    rest?: { headers: Headers | Record<string, string> };
-    functions?: { headers: Record<string, string> };
-  };
-
-  // REST/PostgREST: o postgrest-js v1+ armazena `headers` como uma instância
-  // `Headers` (não um objeto plano). Cada query faz `new Headers(this.headers)`
-  // ao montar a request, então mutações via `.set()/.delete()` PRECISAM ser
-  // feitas na instância — atribuir `headers[name] = value` NÃO tem efeito e
-  // foi exatamente o bug que mascarou o vazamento entre hospitais.
-  const rest = anyClient.rest;
-  if (rest) {
-    const h = rest.headers as Headers | Record<string, string>;
-    if (typeof Headers !== "undefined" && h instanceof Headers) {
-      if (hospitalId) h.set(HOSPITAL_HEADER, hospitalId);
-      else h.delete(HOSPITAL_HEADER);
-    } else {
-      const obj = h as Record<string, string>;
-      if (hospitalId) obj[HOSPITAL_HEADER] = hospitalId;
-      else delete obj[HOSPITAL_HEADER];
-    }
-  }
-
-  // Functions: headers é objeto plano e é espalhado em cada invoke.
-  const fnHeaders = anyClient.functions?.headers;
-  if (fnHeaders) {
-    if (hospitalId) fnHeaders[HOSPITAL_HEADER] = hospitalId;
-    else delete fnHeaders[HOSPITAL_HEADER];
-  }
-
-  // Auth global headers (atinge realtime/storage e qualquer subcliente que
-  // herde os globais). API interna mas usada largamente — fallback seguro.
-  const globalHeaders = (
-    supabase as unknown as { headers?: Record<string, string> }
-  ).headers;
-  if (globalHeaders) {
-    if (hospitalId) globalHeaders[HOSPITAL_HEADER] = hospitalId;
-    else delete globalHeaders[HOSPITAL_HEADER];
-  }
-};
 
 const HospitalContext = createContext<HospitalContextValue | undefined>(undefined);
 
@@ -155,7 +105,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     setHospital(active);
     setNeedsSelection(!active && hospitals.length > 1);
     if (active) localStorage.setItem(STORAGE_KEY, active.id);
-    applyHospitalHeader(active?.id ?? null);
+    setActiveHospitalId(active?.id ?? null);
     setLoading(false);
   }, [userId]);
 
@@ -163,7 +113,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
   // reidratação após reload, restore de sessão e qualquer atualização externa
   // do state que não passe por load()/switchHospital().
   useEffect(() => {
-    applyHospitalHeader(hospital?.id ?? null);
+    setActiveHospitalId(hospital?.id ?? null);
   }, [hospital?.id]);
 
   useEffect(() => {
@@ -188,7 +138,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
         // refetch disparado pela invalidação já carrega o hospital novo na
         // RLS do banco — sem janela em que o cliente pode pedir dados do
         // hospital anterior.
-        applyHospitalHeader(next.id);
+        setActiveHospitalId(next.id);
 
         // Limpa cache: nenhum dado do hospital anterior pode aparecer no novo
         queryClient.clear();
