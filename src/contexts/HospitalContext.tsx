@@ -105,7 +105,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     setHospital(active);
     setNeedsSelection(!active && hospitals.length > 1);
     if (active) localStorage.setItem(STORAGE_KEY, active.id);
-    applyHospitalHeader(active?.id ?? null);
+    setActiveHospitalId(active?.id ?? null);
     setLoading(false);
   }, [userId]);
 
@@ -113,7 +113,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
   // reidratação após reload, restore de sessão e qualquer atualização externa
   // do state que não passe por load()/switchHospital().
   useEffect(() => {
-    applyHospitalHeader(hospital?.id ?? null);
+    setActiveHospitalId(hospital?.id ?? null);
   }, [hospital?.id]);
 
   useEffect(() => {
@@ -138,7 +138,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
         // refetch disparado pela invalidação já carrega o hospital novo na
         // RLS do banco — sem janela em que o cliente pode pedir dados do
         // hospital anterior.
-        applyHospitalHeader(next.id);
+        setActiveHospitalId(next.id);
 
         // Limpa cache: nenhum dado do hospital anterior pode aparecer no novo
         queryClient.clear();
