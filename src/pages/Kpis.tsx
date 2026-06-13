@@ -53,6 +53,8 @@ const Kpis = () => {
   const [historyPrev, setHistoryPrev] = useState<HistoryLite[]>([]);
   const [invoices, setInvoices] = useState<InvoiceLite[]>([]);
   const [invoicesPrev, setInvoicesPrev] = useState<InvoiceLite[]>([]);
+  const [historicalIds, setHistoricalIds] = useState<Set<string>>(new Set());
+  const [historicalCount, setHistoricalCount] = useState(0);
 
   const isAdmin = hasRole("admin");
   const isDiretor = hasRole("diretor");
@@ -60,6 +62,7 @@ const Kpis = () => {
   const isAnalista = hasRole("analista");
   const seesAll = isAdmin || isDiretor;
   const invoicesUnscoped = seesAll || isValidador;
+
 
   useEffect(() => {
     document.title = "KPIs | Exacta";
