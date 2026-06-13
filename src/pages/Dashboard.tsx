@@ -702,16 +702,25 @@ const Dashboard = () => {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }, { data: openQs }] = await Promise.all([
-      supabase
-        .from("payments")
-        .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+      (hospitalId
+        ? supabase
+            .from("payments")
+            .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+            .eq("hospital_id", hospitalId)
+        : supabase
+            .from("payments")
+            .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+      )
         .order("created_at", { ascending: false })
         .limit(20),
       supabase.from("profiles").select("id,full_name,email"),
-      supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at"),
+      (hospitalId
+        ? supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at").eq("hospital_id", hospitalId)
+        : supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at")
+      ),
       supabase
         .from("invoices")
-        .select("id, payment:payments!inner(created_by)")
+        .select("id, payment:payments!inner(created_by,hospital_id)")
         .eq("status", "divergente"),
       Promise.resolve({ data: [] as Array<{ payment: { created_by: string | null } | null }> }),
       supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(2000),
