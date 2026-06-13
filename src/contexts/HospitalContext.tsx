@@ -159,6 +159,12 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
         setNeedsSelection(false);
         localStorage.setItem(STORAGE_KEY, next.id);
 
+        // CRÍTICO: trocar o header ANTES de limpar o cache. Assim, qualquer
+        // refetch disparado pela invalidação já carrega o hospital novo na
+        // RLS do banco — sem janela em que o cliente pode pedir dados do
+        // hospital anterior.
+        applyHospitalHeader(next.id);
+
         // Limpa cache: nenhum dado do hospital anterior pode aparecer no novo
         queryClient.clear();
 
