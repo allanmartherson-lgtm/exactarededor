@@ -659,6 +659,7 @@ const ChipGroup = <T extends string>({
 
 const Dashboard = () => {
   const { roles, user } = useAuth();
+  const hospitalId = useActiveHospitalId();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [counts, setCounts] = useState<DashboardCounts>(initialDashboardCounts());
