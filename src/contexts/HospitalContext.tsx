@@ -27,6 +27,32 @@ interface HospitalContextValue {
 }
 
 const STORAGE_KEY = "medpay.active_hospital_id";
+const HOSPITAL_HEADER = "x-active-hospital";
+
+/**
+ * Aplica o header `x-active-hospital` em toda requisição do cliente Supabase
+ * (REST/PostgREST + Edge Functions). É o que ativa a RLS RESTRICTIVE
+ * `active_hospital_scope` no banco — sem esse header, o banco devolveria
+ * dados de qualquer hospital ao qual o usuário tem acesso, voltando ao
+ * vazamento que tínhamos antes. Setar/limpar é idempotente; usar `null`
+ * para remover (ex.: durante a troca, quando ainda não há hospital ativo).
+ */
+const applyHospitalHeader = (hospitalId: string | null) => {
+  const anyClient = supabase as unknown as {
+    rest?: { headers?: Record<string, string> };
+    functions?: { headers?: Record<string, string> };
+    realtime?: { setAuth?: (token: string) => void };
+  };
+  const restHeaders = anyClient.rest?.headers;
+  const fnHeaders = anyClient.functions?.headers;
+  if (hospitalId) {
+    if (restHeaders) restHeaders[HOSPITAL_HEADER] = hospitalId;
+    if (fnHeaders) fnHeaders[HOSPITAL_HEADER] = hospitalId;
+  } else {
+    if (restHeaders) delete restHeaders[HOSPITAL_HEADER];
+    if (fnHeaders) delete fnHeaders[HOSPITAL_HEADER];
+  }
+};
 
 const HospitalContext = createContext<HospitalContextValue | undefined>(undefined);
 
