@@ -130,8 +130,16 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     setHospital(active);
     setNeedsSelection(!active && hospitals.length > 1);
     if (active) localStorage.setItem(STORAGE_KEY, active.id);
+    applyHospitalHeader(active?.id ?? null);
     setLoading(false);
   }, [userId]);
+
+  // Garantia extra: aplica o header sempre que o hospital ativo muda — cobre
+  // reidratação após reload, restore de sessão e qualquer atualização externa
+  // do state que não passe por load()/switchHospital().
+  useEffect(() => {
+    applyHospitalHeader(hospital?.id ?? null);
+  }, [hospital?.id]);
 
   useEffect(() => {
     if (authLoading) return;
