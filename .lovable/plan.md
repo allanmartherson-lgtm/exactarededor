@@ -1,95 +1,103 @@
-# Aprendizado de validador → soft hints na próxima análise
 
-Objetivo: consolidar feedbacks aceitos do `ProductionValidationPanel` em **padrões** reutilizáveis e, na próxima análise, **sinalizar** (não bloquear) itens que casam com esses padrões. Humano sempre decide.
+# Re-aprovação pós-aprovação (por empresa)
 
-## Decisões confirmadas
-- **Fonte:** só `production_validation_feedbacks` com `status='aceito'` (validador → analista aceitou).
-- **Modo:** soft — gera hint/badge no item, nunca muda status, nunca cria/edita regra automaticamente.
-- **Sinais:** exclusões recorrentes, ausências recorrentes, overrides de valor, aceitar divergência.
+Objetivo: quando um grupo de empresa já aprovado sofre alteração relevante (valor acima do limiar do hospital, ou troca de PJ), aquele grupo (e o destino, no caso de troca) volta sozinho ao diretor para nova aprovação — sem reabrir o lote inteiro — gerando uma nova versão do "de acordo" e mantendo histórico auditável.
 
-## Modelagem
+## Decisões já fechadas
 
-### 1. Nova tabela `learned_patterns`
-Consolidação por chave estável. Uma linha = um padrão observado N vezes.
+- **Unidade**: `payment_company_group`. Outros grupos do lote seguem rumo a NF/pago.
+- **Gatilho de valor**: configurável por hospital (`hospital_settings.reapproval_threshold_pct` e `reapproval_threshold_brl`; default 0% / R$ 0,01).
+- **Troca de PJ**: re-aprovação total dos **dois** grupos afetados (origem + destino).
+- **Granularidade**: re-aprova o **grupo inteiro** (novo "de acordo" completo substitui o anterior).
+- **Versionamento**: ativo desde o MVP; documento vigente é sempre a última versão; anteriores ficam como histórico.
 
-| campo | tipo | descrição |
-|---|---|---|
-| id | uuid pk | |
-| hospital_id | uuid | tenancy |
-| kind | text | `exclusao` \| `ausencia` \| `override_valor` \| `aceitar_divergencia` |
-| scope | jsonb | chave canônica do padrão (ver abaixo) |
-| signal | jsonb | dados agregados (motivo dominante, delta médio, etc.) |
-| occurrences | int | contagem |
-| first_seen_at / last_seen_at | timestamptz | |
-| confidence | numeric | 0..1 (occurrences normalizado + concordância de motivo) |
-| status | text | `ativo` \| `silenciado` \| `arquivado` |
-| silenced_by / silenced_at / silenced_reason | auditoria humana |
+## Mudanças no banco
 
-Chave única: `(hospital_id, kind, scope_hash)` — `scope_hash` gerado via trigger MD5(scope::text canônico).
+### 1. `hospital_settings` (estender, criar se não existir)
+- `reapproval_threshold_pct` numeric default 0
+- `reapproval_threshold_brl` numeric default 0.01
+- `reapproval_require_reason` boolean default true
 
-**`scope` por kind:**
-- `exclusao`: `{company_id, tuss, convenio_id, exclusion_reason}`
-- `ausencia`: `{company_id, doctor_id, tuss, convenio_id}`
-- `override_valor`: `{company_id, tuss, convenio_id, direction: 'maior'|'menor'}` — analista corrige `gross_amount` consistentemente
-- `aceitar_divergencia`: `{company_id, doctor_id, convenio_id}` — analista aceita diff repetidamente
+### 2. `payment_company_groups` (estender)
+- `approval_version` int default 0 — incrementado a cada novo "de acordo".
+- `reapproval_pending` boolean default false
+- `reapproval_reason` text — preenchido pelo analista ou trigger automático.
+- `reapproval_triggered_at` timestamptz
+- `reapproval_trigger_source` enum (`analyst_edit`, `invoice_pendency`, `company_change_source`, `company_change_destination`)
+- `last_approved_bruto`, `last_approved_liquido` numeric — snapshot do último de acordo (para o trigger comparar).
+- `last_approved_company_id` uuid — idem para detectar troca.
 
-### 2. Nova tabela `learned_pattern_events`
-Audit trail: 1 linha por feedback/correção consumido. Permite recontar e reverter.
-Campos: `pattern_id`, `source_kind` (`validation_feedback`|`item_override`|`accept_divergence`), `source_id`, `payment_id`, `payment_item_id`, `created_at`.
-
-### 3. Nova tabela `payment_item_hints`
-Snapshot por análise — evita recomputar a cada render.
-Campos: `payment_item_id pk`, `hospital_id`, `pattern_id fk`, `kind`, `confidence`, `message`, `created_at`. Único por (item, pattern).
-
-## Pipeline
-
-```text
-ProductionValidationPanel.resolve(status='aceito')
-  └─> trigger DB after update on production_validation_feedbacks
-      └─> upsert em learned_patterns (occurrences+1, last_seen_at, confidence)
-      └─> insert em learned_pattern_events
+### 3. Nova tabela `company_group_approvals` (histórico imutável)
 ```
-
-```text
-analyze-payment (final do cálculo de cada item)
-  └─> match item contra learned_patterns ativos do hospital
-      ├─ kind=exclusao  → hint "histórico: excluído N vezes por {motivo}"
-      ├─ kind=ausencia  → hint "histórico: empresa costuma reportar ausência"
-      ├─ kind=override  → hint "histórico: valor costuma ser corrigido para {direção}"
-      └─ kind=aceitar   → hint "histórico: diferença costuma ser aceita"
-  └─> insert payment_item_hints
+id, payment_company_group_id, version, approved_by, approved_at,
+bruto_total, liquido_total, company_id, items_snapshot jsonb,
+pdf_url text, magic_link_token_id uuid,
+superseded_at timestamptz, superseded_by_version int,
+reason text, hospital_id uuid
 ```
+- GRANT padrão (authenticated SELECT/INSERT/UPDATE/DELETE, service_role ALL).
+- RLS: usuários do hospital ativo + service_role.
 
-## UI
+### 4. Triggers
+- `trg_detect_group_reapproval` (AFTER UPDATE em `payment_company_groups` quando `approval_version > 0`): compara `bruto_total`/`liquido_total`/`company_id` contra os `last_approved_*`. Se delta acima do threshold do hospital ou troca de empresa → `reapproval_pending = true`, registra `reapproval_trigger_source` e enfileira notificação.
+- `trg_block_group_advance_on_reapproval` (BEFORE UPDATE em `payment_company_groups`): impede avançar para `pedido_nf_enviado`, `nf_conciliada`, `lancado`, `pago` enquanto `reapproval_pending = true`.
+- `trg_company_change_dual` (AFTER UPDATE em `payment_items` quando muda `company_id` e o grupo origem está aprovado): marca ambos os grupos (origem + destino) como pendentes.
+- `trg_approval_snapshot` (AFTER INSERT em `company_group_approvals`): atualiza `payment_company_groups.last_approved_*`, incrementa `approval_version`, zera `reapproval_pending`, marca versão anterior como `superseded`.
 
-- **PaymentItemRow / CompanyAnalysis:** badge amarelo `Lightbulb` "Aprendizado N×" com tooltip detalhando padrão e confiança. Click → drawer com histórico de eventos.
-- **Nova página `/aprendizado-padroes`** (admin/diretor/senior): lista `learned_patterns` filtrável por kind/empresa/confiança, ações `silenciar` / `arquivar` / `ver eventos`. Reaproveita layout de `CompanyAliases`.
-- **`ProductionValidationPanel`:** quando analista clica **Aceitar** num feedback, toast informa "padrão registrado, próxima análise será sinalizada".
+## Edge functions
 
-## Confiança (simples e auditável)
+### Novas
+- `regenerate-de-acordo` — gera novo PDF para a versão N do grupo, salva em storage, retorna `pdf_url` para inserir em `company_group_approvals`.
+- `notify-director-reapproval` — variação do `notify-director-approval` com payload de diff (antes vs depois, motivo, link para versão anterior). Reusa magic link existente, action = `approve_reapproval`.
 
-```
-confidence = min(1, occurrences / 5) * agreement_ratio
-```
-- `agreement_ratio` para `exclusao` = % do motivo dominante / total
-- ≥0.6 vira hint visível; <0.6 fica latente (só na página de padrões)
+### Alterar
+- `approve-via-magic-link` — aceitar action `approve_reapproval`/`reject_reapproval`. Em aprovação: insere row em `company_group_approvals` (trigger faz o resto) e dispara `regenerate-de-acordo`. Em rejeição: devolve para analista com observação obrigatória.
+- `dispatch-payment-analysis` / fluxo de NF: respeitar gate de `reapproval_pending` (já bloqueado em trigger, mas evita 500 silencioso).
 
-## Permissões
-- `learned_patterns` / `events` / `hints`: SELECT autenticado por hospital; INSERT/UPDATE só service_role (motor + trigger).
-- Silenciar/arquivar via RPC `silence_learned_pattern(uuid, text)` que checa role admin/diretor/senior.
+## Frontend
 
-## Fora de escopo
-- Criar/editar `rules` automaticamente (modo hard) — descartado.
-- Aprender com glosas, magic link, validações que expiraram, feedbacks rejeitados.
-- Cross-hospital pattern sharing.
+### `CompanyAnalysis.tsx` e modal de pagamento
+- Badge **"Re-aprovação pendente"** quando `reapproval_pending=true` — cor âmbar, ao lado do status.
+- Painel de diff: tabela "Versão N (atual) vs Versão N-1 (aprovada)" com bruto/líquido/empresa.
+- Campo de motivo obrigatório quando analista altera valor/empresa de grupo aprovado (popup antes de salvar).
+- Aba "Histórico de aprovações" no grupo: lista `company_group_approvals` com link para cada PDF.
 
-## Arquivos a tocar
-- `supabase/migrations/2026xxxx_learned_patterns.sql` (novo) — tabelas, trigger, RPC, GRANTs, RLS.
-- `supabase/functions/analyze-payment/index.ts` — passo de matching + insert em `payment_item_hints`.
-- `src/components/payment-detail/ProductionValidationPanel.tsx` — toast pós-aceitar.
-- `src/components/payment-detail/PaymentItemRow.tsx` (ou equivalente) — badge de hint.
-- `src/pages/CompanyAnalysis.tsx` — leitura dos hints + drawer.
-- `src/pages/LearnedPatterns.tsx` (novo) + entrada em `navItems.ts`.
-- `src/integrations/supabase/types.ts` (auto após migração).
+### `Payments.tsx`
+- Filtro/coluna nova: "Grupos pendentes de re-aprovação" (contagem).
+- Indicador visual no card de pagamento quando há ≥1 grupo pendente.
 
-Confirma que posso seguir nesse desenho?
+### Aprovação por magic link (`ApproveMagicLink.tsx`)
+- Renderizar diff antes/depois quando `act = approve_reapproval`.
+- Mostrar motivo do analista + link para PDF da versão anterior.
+
+### Conexão com fluxo de NF/pendência
+- `InvoicePortal.tsx` / fluxo de pendência da empresa: quando analista aceita uma correção significativa que altera valor, marcar `reapproval_trigger_source = 'invoice_pendency'` ao salvar.
+
+## Notificações
+
+- Reusar `notification_queue` com novo `kind = 'director_reapproval'`.
+- Handler novo em `notification-queue-worker/handlers/directorReapproval.ts`.
+- Debounce idêntico ao `director_approval` (60s) — alterações múltiplas no mesmo grupo agregam.
+- E-mail/WhatsApp com diff resumido e botão único de magic link.
+
+## Memória do projeto
+Adicionar `mem://features/reapproval-flow` cobrindo: unidade = grupo, threshold por hospital, versionamento obrigatório, troca de PJ afeta dois grupos, gate de avanço.
+
+## Testes
+- Contract test: alteração de bruto acima do threshold marca pendente; abaixo, não.
+- Contract test: troca de `company_id` em item aprovado marca origem + destino.
+- Contract test: tentativa de avançar para `pedido_nf_enviado` com pendência → erro.
+- E2E magic link: aprovar re-aprovação gera versão N+1, supersede versão anterior, libera avanço.
+
+## Ordem de implementação
+1. Migration: `hospital_settings` + colunas em `payment_company_groups` + tabela `company_group_approvals` + triggers.
+2. Edge functions: `regenerate-de-acordo`, `notify-director-reapproval`, ajustes em `approve-via-magic-link`.
+3. Handler `directorReapproval` no worker.
+4. Frontend: badge, diff, motivo obrigatório, aba de histórico, filtro em Payments.
+5. Atualização do `ApproveMagicLink` para o novo action.
+6. Testes + memória.
+
+## Pontos técnicos (skip se não quiser detalhe)
+- Snapshot de itens em `items_snapshot jsonb` guarda hash + valores por item para auditoria, sem duplicar payment_items.
+- `approval_version` é monotônico por grupo; nunca decrementa mesmo em rejeição (a rejeição cria evento em `payment_observations`, não nova versão).
+- Trigger de detecção compara contra `last_approved_*`, não contra versão anterior em `company_group_approvals`, para evitar lock cross-table em hot path.
