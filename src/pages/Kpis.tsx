@@ -80,7 +80,8 @@ const Kpis = () => {
       supabase.from("payment_status_history").select("payment_id,status_from,status_to,changed_at").gte("changed_at", sincePrev).lt("changed_at", untilPrev).limit(5000),
       supabase.from("invoices").select("id,status,payment_id,created_at,ai_validation").gte("created_at", sinceCurr).limit(1000),
       supabase.from("invoices").select("id,status,payment_id,created_at,ai_validation").gte("created_at", sincePrev).lt("created_at", untilPrev).limit(1000),
-    ]).then(([p, pPrev, o, oPrev, h, hPrev, i, iPrev]) => {
+      (supabase as any).from("v_payments_flow_scope").select("payment_id").eq("is_historical", true).gte("created_at", sincePrev).limit(2000),
+    ]).then(([p, pPrev, o, oPrev, h, hPrev, i, iPrev, hist]) => {
       setPayments((p.data ?? []) as PaymentLite[]);
       setPaymentsPrev((pPrev.data ?? []) as PaymentLite[]);
       setObs((o.data ?? []) as ObsLite[]);
@@ -89,18 +90,23 @@ const Kpis = () => {
       setHistoryPrev((hPrev.data ?? []) as HistoryLite[]);
       setInvoices((i.data ?? []) as InvoiceLite[]);
       setInvoicesPrev((iPrev.data ?? []) as InvoiceLite[]);
+      const ids = new Set<string>(((hist?.data ?? []) as { payment_id: string }[]).map((r) => r.payment_id));
+      setHistoricalIds(ids);
+      setHistoricalCount(ids.size);
       setLoading(false);
     });
   }, [range]);
 
   const filterByRole = (list: PaymentLite[]) => {
-    if (seesAll || isValidador) return list;
-    if (isAnalista && user?.id) return list.filter((p) => p.created_by === user.id);
+    const base = list.filter((p) => !historicalIds.has(p.id));
+    if (seesAll || isValidador) return base;
+    if (isAnalista && user?.id) return base.filter((p) => p.created_by === user.id);
     return [];
   };
 
-  const myPayments = useMemo(() => filterByRole(payments), [payments, seesAll, isValidador, isAnalista, user?.id]);
-  const myPaymentsPrev = useMemo(() => filterByRole(paymentsPrev), [paymentsPrev, seesAll, isValidador, isAnalista, user?.id]);
+  const myPayments = useMemo(() => filterByRole(payments), [payments, historicalIds, seesAll, isValidador, isAnalista, user?.id]);
+  const myPaymentsPrev = useMemo(() => filterByRole(paymentsPrev), [paymentsPrev, historicalIds, seesAll, isValidador, isAnalista, user?.id]);
+
 
   const metrics = useMemo(() => computeMetrics({
     payments: myPayments, observations: obs, history, invoices, rangeDays: range, invoicesUnscoped,
