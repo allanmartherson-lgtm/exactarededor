@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
 import {
   computeDashboardCounts,
@@ -658,6 +659,7 @@ const ChipGroup = <T extends string>({
 
 const Dashboard = () => {
   const { roles, user } = useAuth();
+  const hospitalId = useActiveHospitalId();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [counts, setCounts] = useState<DashboardCounts>(initialDashboardCounts());
@@ -700,16 +702,25 @@ const Dashboard = () => {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }, { data: openQs }] = await Promise.all([
-      supabase
-        .from("payments")
-        .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+      (hospitalId
+        ? supabase
+            .from("payments")
+            .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+            .eq("hospital_id", hospitalId)
+        : supabase
+            .from("payments")
+            .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+      )
         .order("created_at", { ascending: false })
         .limit(20),
       supabase.from("profiles").select("id,full_name,email"),
-      supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at"),
+      (hospitalId
+        ? supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at").eq("hospital_id", hospitalId)
+        : supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at")
+      ),
       supabase
         .from("invoices")
-        .select("id, payment:payments!inner(created_by)")
+        .select("id, payment:payments!inner(created_by,hospital_id)")
         .eq("status", "divergente"),
       Promise.resolve({ data: [] as Array<{ payment: { created_by: string | null } | null }> }),
       supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(2000),
@@ -822,21 +833,23 @@ const Dashboard = () => {
       }>,
       groupsByPayment: gByP,
       companiesByPayment: paymentCompaniesMap,
-      invoiceDivergent: (invDiv ?? []).map((row: any) => ({
-        payment_created_by: row?.payment?.created_by ?? null,
-      })),
+      invoiceDivergent: (invDiv ?? [])
+        .filter((row: any) => !hospitalId || row?.payment?.hospital_id === hospitalId)
+        .map((row: any) => ({
+          payment_created_by: row?.payment?.created_by ?? null,
+        })),
       uid: uid ?? null,
       roles,
     });
     void invQuest;
 
     if (roles.includes("diretor") || roles.includes("admin")) {
-      const { data: aprovPays } = await supabase
+      let q = supabase
         .from("payments")
         .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
-        .eq("status", "aguardando_aprovacao")
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .eq("status", "aguardando_aprovacao");
+      if (hospitalId) q = q.eq("hospital_id", hospitalId);
+      const { data: aprovPays } = await q.order("created_at", { ascending: false }).limit(10);
       setDiretorAprovacaoPayments((aprovPays ?? []) as PaymentRow[]);
     } else {
       setDiretorAprovacaoPayments([]);
@@ -850,17 +863,23 @@ const Dashboard = () => {
       roles.includes("validador") || roles.includes("diretor") || roles.includes("admin");
     if (isElevated) {
       const sinceIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      let qApproved = supabase
+        .from("payments")
+        .select("id,total_amount,liquido_total,approved_at")
+        .not("approved_at", "is", null)
+        .gte("approved_at", sinceIso);
+      let qRejected = supabase
+        .from("payments")
+        .select("id")
+        .eq("status", "rejeitado")
+        .gte("updated_at", sinceIso);
+      if (hospitalId) {
+        qApproved = qApproved.eq("hospital_id", hospitalId);
+        qRejected = qRejected.eq("hospital_id", hospitalId);
+      }
       const [{ data: rApproved }, { data: rRejected }, { data: tQuestions }] = await Promise.all([
-        supabase
-          .from("payments")
-          .select("id,total_amount,liquido_total,approved_at")
-          .not("approved_at", "is", null)
-          .gte("approved_at", sinceIso),
-        supabase
-          .from("payments")
-          .select("id")
-          .eq("status", "rejeitado")
-          .gte("updated_at", sinceIso),
+        qApproved,
+        qRejected,
         supabase
           .from("payment_observations")
           .select("payment_id")
@@ -874,7 +893,7 @@ const Dashboard = () => {
 
     setCounts(c);
     setLoading(false);
-  }, [user?.id, roles]);
+  }, [user?.id, roles, hospitalId]);
 
   useEffect(() => {
     document.title = "Dashboard | Exacta Approval";
@@ -1885,8 +1904,15 @@ const Dashboard = () => {
   // ============================================================
   if (dashboardMode === "diretor") {
     const paymentTotalsById = new Map(payments.map((p: any) => [p.id, Number(p.liquido_total ?? p.total_amount ?? 0)]));
+    // "Em processamento" = lotes que ainda exigem ação de fluxo.
+    // Exclui terminais (arquivado/rejeitado/cancelado) E estados de conclusão
+    // financeira/contábil (aprovado/pago/lancado/nf_*/pedido_nf_enviado).
+    const COMPLETED_FLOW_STATUSES = new Set<PaymentStatus>([
+      "aprovado", "pago", "lancado",
+      "nf_recebida", "nf_conciliada", "pedido_nf_enviado",
+    ]);
     const totalValorEmProcessamento = allPayments
-      .filter((p) => !TERMINAL_STATUSES.has(p.status))
+      .filter((p) => !TERMINAL_STATUSES.has(p.status) && !COMPLETED_FLOW_STATUSES.has(p.status))
       .reduce((sum, p) => sum + (paymentTotalsById.get(p.id) ?? 0), 0);
 
     const totalAprovados30d = recentApprovedData.length;
