@@ -833,21 +833,23 @@ const Dashboard = () => {
       }>,
       groupsByPayment: gByP,
       companiesByPayment: paymentCompaniesMap,
-      invoiceDivergent: (invDiv ?? []).map((row: any) => ({
-        payment_created_by: row?.payment?.created_by ?? null,
-      })),
+      invoiceDivergent: (invDiv ?? [])
+        .filter((row: any) => !hospitalId || row?.payment?.hospital_id === hospitalId)
+        .map((row: any) => ({
+          payment_created_by: row?.payment?.created_by ?? null,
+        })),
       uid: uid ?? null,
       roles,
     });
     void invQuest;
 
     if (roles.includes("diretor") || roles.includes("admin")) {
-      const { data: aprovPays } = await supabase
+      let q = supabase
         .from("payments")
         .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
-        .eq("status", "aguardando_aprovacao")
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .eq("status", "aguardando_aprovacao");
+      if (hospitalId) q = q.eq("hospital_id", hospitalId);
+      const { data: aprovPays } = await q.order("created_at", { ascending: false }).limit(10);
       setDiretorAprovacaoPayments((aprovPays ?? []) as PaymentRow[]);
     } else {
       setDiretorAprovacaoPayments([]);
@@ -861,17 +863,23 @@ const Dashboard = () => {
       roles.includes("validador") || roles.includes("diretor") || roles.includes("admin");
     if (isElevated) {
       const sinceIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      let qApproved = supabase
+        .from("payments")
+        .select("id,total_amount,liquido_total,approved_at")
+        .not("approved_at", "is", null)
+        .gte("approved_at", sinceIso);
+      let qRejected = supabase
+        .from("payments")
+        .select("id")
+        .eq("status", "rejeitado")
+        .gte("updated_at", sinceIso);
+      if (hospitalId) {
+        qApproved = qApproved.eq("hospital_id", hospitalId);
+        qRejected = qRejected.eq("hospital_id", hospitalId);
+      }
       const [{ data: rApproved }, { data: rRejected }, { data: tQuestions }] = await Promise.all([
-        supabase
-          .from("payments")
-          .select("id,total_amount,liquido_total,approved_at")
-          .not("approved_at", "is", null)
-          .gte("approved_at", sinceIso),
-        supabase
-          .from("payments")
-          .select("id")
-          .eq("status", "rejeitado")
-          .gte("updated_at", sinceIso),
+        qApproved,
+        qRejected,
         supabase
           .from("payment_observations")
           .select("payment_id")
@@ -885,7 +893,7 @@ const Dashboard = () => {
 
     setCounts(c);
     setLoading(false);
-  }, [user?.id, roles]);
+  }, [user?.id, roles, hospitalId]);
 
   useEffect(() => {
     document.title = "Dashboard | Exacta Approval";
