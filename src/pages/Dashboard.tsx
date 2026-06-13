@@ -1904,8 +1904,15 @@ const Dashboard = () => {
   // ============================================================
   if (dashboardMode === "diretor") {
     const paymentTotalsById = new Map(payments.map((p: any) => [p.id, Number(p.liquido_total ?? p.total_amount ?? 0)]));
+    // "Em processamento" = lotes que ainda exigem ação de fluxo.
+    // Exclui terminais (arquivado/rejeitado/cancelado) E estados de conclusão
+    // financeira/contábil (aprovado/pago/lancado/nf_*/pedido_nf_enviado).
+    const COMPLETED_FLOW_STATUSES = new Set<PaymentStatus>([
+      "aprovado", "pago", "lancado",
+      "nf_recebida", "nf_conciliada", "pedido_nf_enviado",
+    ]);
     const totalValorEmProcessamento = allPayments
-      .filter((p) => !TERMINAL_STATUSES.has(p.status))
+      .filter((p) => !TERMINAL_STATUSES.has(p.status) && !COMPLETED_FLOW_STATUSES.has(p.status))
       .reduce((sum, p) => sum + (paymentTotalsById.get(p.id) ?? 0), 0);
 
     const totalAprovados30d = recentApprovedData.length;
