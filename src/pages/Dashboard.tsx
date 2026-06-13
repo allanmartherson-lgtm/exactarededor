@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
 import {
   computeDashboardCounts,
