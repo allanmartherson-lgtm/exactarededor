@@ -9655,6 +9655,8 @@ export type Database = {
         | "return_to_analyst"
         | "return_to_validator"
         | "view"
+        | "approve_reapproval"
+        | "reject_reapproval"
       notification_channel: "email" | "whatsapp" | "both" | "off"
       notification_delivery_status:
         | "queued"
@@ -9940,6 +9942,8 @@ export const Constants = {
         "return_to_analyst",
         "return_to_validator",
         "view",
+        "approve_reapproval",
+        "reject_reapproval",
       ],
       notification_channel: ["email", "whatsapp", "both", "off"],
       notification_delivery_status: [
