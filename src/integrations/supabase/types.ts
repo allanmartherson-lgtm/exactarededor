@@ -8529,6 +8529,7 @@ export type Database = {
         }
         Returns: string
       }
+      current_active_hospital: { Args: never; Returns: string }
       delete_payment_batch: { Args: { p_payment_id: string }; Returns: Json }
       enqueue_ai_retry: {
         Args: {

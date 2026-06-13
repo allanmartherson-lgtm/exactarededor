@@ -27,6 +27,32 @@ interface HospitalContextValue {
 }
 
 const STORAGE_KEY = "medpay.active_hospital_id";
+const HOSPITAL_HEADER = "x-active-hospital";
+
+/**
+ * Aplica o header `x-active-hospital` em toda requisição do cliente Supabase
+ * (REST/PostgREST + Edge Functions). É o que ativa a RLS RESTRICTIVE
+ * `active_hospital_scope` no banco — sem esse header, o banco devolveria
+ * dados de qualquer hospital ao qual o usuário tem acesso, voltando ao
+ * vazamento que tínhamos antes. Setar/limpar é idempotente; usar `null`
+ * para remover (ex.: durante a troca, quando ainda não há hospital ativo).
+ */
+const applyHospitalHeader = (hospitalId: string | null) => {
+  const anyClient = supabase as unknown as {
+    rest?: { headers?: Record<string, string> };
+    functions?: { headers?: Record<string, string> };
+    realtime?: { setAuth?: (token: string) => void };
+  };
+  const restHeaders = anyClient.rest?.headers;
+  const fnHeaders = anyClient.functions?.headers;
+  if (hospitalId) {
+    if (restHeaders) restHeaders[HOSPITAL_HEADER] = hospitalId;
+    if (fnHeaders) fnHeaders[HOSPITAL_HEADER] = hospitalId;
+  } else {
+    if (restHeaders) delete restHeaders[HOSPITAL_HEADER];
+    if (fnHeaders) delete fnHeaders[HOSPITAL_HEADER];
+  }
+};
 
 const HospitalContext = createContext<HospitalContextValue | undefined>(undefined);
 
@@ -104,8 +130,16 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     setHospital(active);
     setNeedsSelection(!active && hospitals.length > 1);
     if (active) localStorage.setItem(STORAGE_KEY, active.id);
+    applyHospitalHeader(active?.id ?? null);
     setLoading(false);
   }, [userId]);
+
+  // Garantia extra: aplica o header sempre que o hospital ativo muda — cobre
+  // reidratação após reload, restore de sessão e qualquer atualização externa
+  // do state que não passe por load()/switchHospital().
+  useEffect(() => {
+    applyHospitalHeader(hospital?.id ?? null);
+  }, [hospital?.id]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -124,6 +158,12 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
         setHospital(next);
         setNeedsSelection(false);
         localStorage.setItem(STORAGE_KEY, next.id);
+
+        // CRÍTICO: trocar o header ANTES de limpar o cache. Assim, qualquer
+        // refetch disparado pela invalidação já carrega o hospital novo na
+        // RLS do banco — sem janela em que o cliente pode pedir dados do
+        // hospital anterior.
+        applyHospitalHeader(next.id);
 
         // Limpa cache: nenhum dado do hospital anterior pode aparecer no novo
         queryClient.clear();
