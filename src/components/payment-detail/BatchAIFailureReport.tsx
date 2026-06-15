@@ -286,7 +286,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                       variant="outline"
                       onClick={() => {
                         const q = encodeURIComponent(e.companyName);
-                        window.open(`/empresas?busca=${q}`, "_blank");
+                        navigate(`/empresas?busca=${q}`);
                       }}
                       className="h-7 px-2 text-xs"
                     >
