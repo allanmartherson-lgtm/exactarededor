@@ -374,10 +374,11 @@ export function UnmatchedItemsPanel({
 
       {/* Cadastrar nova empresa */}
       <Dialog open={!!createOpen} onOpenChange={(o) => !o && setCreateOpen(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cadastrar nova empresa</DialogTitle>
+            <DialogTitle className="pr-10 break-words leading-snug">Cadastrar nova empresa</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Nome</Label>
