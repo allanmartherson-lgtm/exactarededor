@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download, Search, Loader2 } from "lucide-react";
+import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download, Search, Loader2, Link2 } from "lucide-react";
+import { learnCompanyAlias } from "@/lib/learnCompanyAlias";
+import { useToast } from "@/hooks/use-toast";
 
 type FailedCompany = { company_name: string; company_id?: string | null; error: string; at?: string };
 
