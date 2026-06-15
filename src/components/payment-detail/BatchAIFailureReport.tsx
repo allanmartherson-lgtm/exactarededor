@@ -374,9 +374,12 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Buscar empresa no cadastro</DialogTitle>
+            <DialogTitle>Vincular empresa ao cadastro</DialogTitle>
             <DialogDescription>
-              Procure pelo nome, CNPJ ou código. Resultado vem do cadastro de empresas.
+              Nome bruto que veio na base:{" "}
+              <span className="font-mono text-foreground">{rawNameToLink || "—"}</span>
+              <br />
+              Selecione a empresa correta para criar o vínculo. Próximas importações vão reconhecer esse nome automaticamente, e a reanálise será disparada agora.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2">
@@ -400,11 +403,29 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
               </div>
             )}
             {searchResults.map((r) => (
-              <div key={r.id} className="p-2.5 text-sm flex flex-col">
-                <span className="font-medium">{r.name}</span>
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  {r.code ?? "—"} · {r.document ?? "sem CNPJ"}
-                </span>
+              <div key={r.id} className="p-2.5 text-sm flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{r.name}</div>
+                  <div className="text-[11px] text-muted-foreground font-mono">
+                    {r.code ?? "—"} · {r.document ?? "sem CNPJ"}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="default"
+                  disabled={linkingId !== null}
+                  onClick={() => void handleLink({ id: r.id, name: r.name })}
+                  className="h-7 px-2 text-xs shrink-0"
+                >
+                  {linkingId === r.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <>
+                      <Link2 className="h-3 w-3 mr-1" />
+                      Vincular
+                    </>
+                  )}
+                </Button>
               </div>
             ))}
           </div>
