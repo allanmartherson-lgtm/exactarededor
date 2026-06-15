@@ -4092,6 +4092,11 @@ export type Database = {
       }
       payment_company_groups: {
         Row: {
+          approval_evidence_path: string | null
+          approval_external_note: string | null
+          approval_on_behalf_of: string | null
+          approval_registered_by: string | null
+          approval_source: string
           approval_version: number
           approved_at: string | null
           approved_by: string | null
@@ -4139,8 +4144,18 @@ export type Database = {
           updated_at: string
           validated_at: string | null
           validated_by: string | null
+          validation_evidence_path: string | null
+          validation_external_note: string | null
+          validation_on_behalf_of: string | null
+          validation_registered_by: string | null
+          validation_source: string
         }
         Insert: {
+          approval_evidence_path?: string | null
+          approval_external_note?: string | null
+          approval_on_behalf_of?: string | null
+          approval_registered_by?: string | null
+          approval_source?: string
           approval_version?: number
           approved_at?: string | null
           approved_by?: string | null
@@ -4188,8 +4203,18 @@ export type Database = {
           updated_at?: string
           validated_at?: string | null
           validated_by?: string | null
+          validation_evidence_path?: string | null
+          validation_external_note?: string | null
+          validation_on_behalf_of?: string | null
+          validation_registered_by?: string | null
+          validation_source?: string
         }
         Update: {
+          approval_evidence_path?: string | null
+          approval_external_note?: string | null
+          approval_on_behalf_of?: string | null
+          approval_registered_by?: string | null
+          approval_source?: string
           approval_version?: number
           approved_at?: string | null
           approved_by?: string | null
@@ -4237,6 +4262,11 @@ export type Database = {
           updated_at?: string
           validated_at?: string | null
           validated_by?: string | null
+          validation_evidence_path?: string | null
+          validation_external_note?: string | null
+          validation_on_behalf_of?: string | null
+          validation_registered_by?: string | null
+          validation_source?: string
         }
         Relationships: [
           {
@@ -6257,19 +6287,14 @@ export type Database = {
           confirmed_by_name: string | null
           created_at: string
           expires_at: string
-          external_evidence_path: string | null
-          external_note: string | null
           hospital_id: string | null
           id: string
           notes: string | null
           payment_id: string
-          registered_by: string | null
           sent_at: string
           sent_by: string | null
           status: string
           token: string
-          validated_on_behalf_of: string | null
-          validation_source: string
         }
         Insert: {
           company_id: string
@@ -6278,19 +6303,14 @@ export type Database = {
           confirmed_by_name?: string | null
           created_at?: string
           expires_at?: string
-          external_evidence_path?: string | null
-          external_note?: string | null
           hospital_id?: string | null
           id?: string
           notes?: string | null
           payment_id: string
-          registered_by?: string | null
           sent_at?: string
           sent_by?: string | null
           status?: string
           token?: string
-          validated_on_behalf_of?: string | null
-          validation_source?: string
         }
         Update: {
           company_id?: string
@@ -6299,19 +6319,14 @@ export type Database = {
           confirmed_by_name?: string | null
           created_at?: string
           expires_at?: string
-          external_evidence_path?: string | null
-          external_note?: string | null
           hospital_id?: string | null
           id?: string
           notes?: string | null
           payment_id?: string
-          registered_by?: string | null
           sent_at?: string
           sent_by?: string | null
           status?: string
           token?: string
-          validated_on_behalf_of?: string | null
-          validation_source?: string
         }
         Relationships: [
           {
@@ -9527,6 +9542,30 @@ export type Database = {
           _status_to: Database["public"]["Enums"]["payment_status"]
         }
         Returns: string
+      }
+      register_external_approval: {
+        Args: {
+          p_director_name: string
+          p_evidence_path?: string
+          p_group_ids: string[]
+          p_note?: string
+          p_payment_id: string
+          p_registered_by: string
+          p_source: string
+        }
+        Returns: undefined
+      }
+      register_external_validation: {
+        Args: {
+          p_evidence_path?: string
+          p_group_ids: string[]
+          p_note?: string
+          p_payment_id: string
+          p_registered_by: string
+          p_source: string
+          p_supervisor_name: string
+        }
+        Returns: undefined
       }
       reject_campaign: {
         Args: { _campaign_id: string; _reason: string }

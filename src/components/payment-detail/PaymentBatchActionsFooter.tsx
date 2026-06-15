@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, Undo2, CheckCircle2 } from "lucide-react";
+import { MessageCircle, Undo2, CheckCircle2, MailCheck } from "lucide-react";
+import { RegisterExternalApprovalDialog } from "@/components/payment-detail/RegisterExternalApprovalDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -53,6 +54,7 @@ export function PaymentBatchActionsFooter({
   const [returnOpen, setReturnOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
+  const [externalOpen, setExternalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const pendencias = useMemo(() => {
@@ -254,9 +256,32 @@ export function PaymentBatchActionsFooter({
               <CheckCircle2 className="h-4 w-4 mr-2" />
               {actorRole === "diretor" ? "Aprovar" : "Enviar p/ aprovação do diretor"}
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExternalOpen(true)}
+              disabled={busy}
+              className="w-full md:w-auto min-h-[44px] md:min-h-0 text-xs text-muted-foreground hover:text-foreground col-span-2 md:col-span-1"
+              title={`Use quando a ${actorRole === "diretor" ? "aprovação" : "validação"} aconteceu fora do sistema (e-mail, WhatsApp).`}
+            >
+              <MailCheck className="h-4 w-4 mr-2" />
+              Registrar {actorRole === "diretor" ? "aprovação" : "validação"} externa
+            </Button>
           </div>
         </CardContent>
       </Card>
+
+      <RegisterExternalApprovalDialog
+        open={externalOpen}
+        onOpenChange={setExternalOpen}
+        paymentId={paymentId}
+        groups={groups}
+        stage={actorRole === "diretor" ? "approval" : "validation"}
+        registeredById={currentUserId}
+        onDone={onDone}
+      />
+
+      {/* sentinel-removed-card-close-was-here */}
 
       {/* ============== Questionar ============== */}
       <Dialog open={questionOpen} onOpenChange={setQuestionOpen}>

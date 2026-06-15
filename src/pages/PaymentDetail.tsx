@@ -41,6 +41,7 @@ import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculation
 import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
 import { PhaseSummary, resolvePhase } from "@/components/payment-detail/PhaseSummary";
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
+import { RegisterExternalApprovalDialog } from "@/components/payment-detail/RegisterExternalApprovalDialog";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -78,7 +79,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, ChevronRight, Download, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, ChevronRight, Download, FileDown, GitCompare, History, Mail, MailCheck, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx";
 
@@ -219,6 +220,7 @@ const PaymentDetail = () => {
   const [editMetaOpen, setEditMetaOpen] = useState(false);
   const [metaDraft, setMetaDraft] = useState<{ reference: string; description: string; payment_due_date: string }>({ reference: "", description: "", payment_due_date: "" });
   const [savingMeta, setSavingMeta] = useState(false);
+  const [externalRegistrationOpen, setExternalRegistrationOpen] = useState<"validation" | "approval" | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
   const [reimporting, setReimporting] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
@@ -2997,6 +2999,49 @@ const PaymentDetail = () => {
                 onDone={load}
               />
             )}
+
+          {/* Registro de validação/aprovação externa — disponível para analista/admin
+              durante a transição ou como backup quando a decisão acontece fora do
+              sistema (e-mail/WhatsApp). O caminho primário continua sendo a ação
+              direta do supervisor/diretor no app. */}
+          {id && (isAnalista || isAdmin) && !canUseBatchActions && (
+            (() => {
+              const stage: "validation" | "approval" | null =
+                groups.some((g) => g.status === "aguardando_aprovacao") ? "approval"
+                : groups.some((g) => g.status === "aguardando_validacao") ? "validation"
+                : null;
+              if (!stage) return null;
+              return (
+                <Card className="shadow-card border-dashed border-muted-foreground/30 bg-muted/20">
+                  <CardContent className="p-3 flex flex-col md:flex-row md:items-center gap-2 text-xs">
+                    <span className="text-muted-foreground md:mr-auto">
+                      <strong>Backup:</strong> houve {stage === "approval" ? "aprovação" : "validação"} fora do sistema (e-mail/WhatsApp)?
+                      Registre aqui para refletir no fluxo. Caminho primário continua sendo a ação direta no app pelo {stage === "approval" ? "diretor" : "supervisor"}.
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setExternalRegistrationOpen(stage)}
+                    >
+                      <MailCheck className="h-4 w-4 mr-2" />
+                      Registrar {stage === "approval" ? "aprovação" : "validação"} externa
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })()
+          )}
+          {id && externalRegistrationOpen && (
+            <RegisterExternalApprovalDialog
+              open={!!externalRegistrationOpen}
+              onOpenChange={(v) => setExternalRegistrationOpen(v ? externalRegistrationOpen : null)}
+              paymentId={id}
+              groups={groups}
+              stage={externalRegistrationOpen}
+              registeredById={user!.id}
+              onDone={load}
+            />
+          )}
 
         {/* Busca dentro do detalhe — filtra grupos/itens por PJ, médico,
             atendimento, centro de custos, especialidade ou descrição.
