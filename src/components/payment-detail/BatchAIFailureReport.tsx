@@ -165,8 +165,18 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
         toast({ title: "Falha ao vincular", description: res.error ?? "Erro desconhecido", variant: "destructive" });
         return;
       }
+      // Atualiza os itens deste pagamento que vieram com o nome bruto para apontar para a empresa cadastrada
+      const { error: updErr } = await supabase
+        .from("payment_items")
+        .update({ company_id: company.id, company_name: company.name })
+        .eq("payment_id", paymentId)
+        .eq("company_name", raw);
+      if (updErr) {
+        console.warn("[BatchAIFailureReport] falha ao reapontar payment_items", updErr);
+      }
+
       const { error: dispatchErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: paymentId, mode: "full" },
+        body: { payment_id: paymentId, only_companies: [company.name] },
       });
       setLinkingId(null);
       setSearchOpen(false);
