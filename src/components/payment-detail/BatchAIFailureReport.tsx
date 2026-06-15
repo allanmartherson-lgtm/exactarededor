@@ -83,6 +83,7 @@ function resolveMatch(
 }
 
 export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
+  const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryRow[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
