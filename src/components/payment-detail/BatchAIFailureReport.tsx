@@ -289,8 +289,9 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const q = encodeURIComponent(e.companyName);
-                        navigate(`/empresas?busca=${q}`);
+                        setSearchTerm(e.companyName);
+                        setSearchOpen(true);
+                        void runSearch(e.companyName);
                       }}
                       className="h-7 px-2 text-xs"
                     >
