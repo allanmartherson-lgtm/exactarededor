@@ -4,6 +4,7 @@
 //  - Se já não há mais páginas mas processed < total → workers morreram em
 //    silêncio; finaliza como `parcial`, marcando empresas pendentes como falhas.
 //  - Se idle > IDLE_FAIL_MINUTES → declara `parcial` como rede de segurança.
+//  - Se um pagamento ficou `em_analise_ia` sem job, re-dispara o dispatcher.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -149,6 +150,73 @@ Deno.serve(async (req) => {
         page_index: nextPage,
         http_status: resp.status,
         age_seconds: Math.round(ageMs / 1000),
+      });
+    }
+
+    // CASO D: pagamento preso em `em_analise_ia` sem job criado.
+    // É o cenário mais perigoso: visualmente parece rodando, mas não existe
+    // `payment_processing_jobs` para o watchdog acompanhar. Pode acontecer se
+    // o navegador cair depois de criar o pagamento/itens e antes de chamar o
+    // dispatcher, ou se a chamada client-side for abortada silenciosamente.
+    const { data: stuckPayments, error: stuckErr } = await supabase
+      .from("payments")
+      .select("id, reference, updated_at, processing_diagnostics")
+      .eq("status", "em_analise_ia")
+      .lt("updated_at", cutoffStuck)
+      .order("updated_at", { ascending: true })
+      .limit(20);
+
+    if (stuckErr) throw stuckErr;
+
+    for (const payment of stuckPayments ?? []) {
+      const { data: latestJobs } = await supabase
+        .from("payment_processing_jobs")
+        .select("id, status, processed_companies, total_companies, created_at")
+        .eq("payment_id", payment.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const latestJob = latestJobs?.[0];
+      if (latestJob?.status === "em_andamento") continue;
+
+      if (latestJob && ["concluido", "parcial", "cancelado"].includes(latestJob.status as string)) {
+        try {
+          await supabase.rpc("recompute_payment_status_from_groups", { _payment_id: payment.id });
+          actions.push({ payment_id: payment.id, action: "recomputed_stuck_payment", latest_job_status: latestJob.status });
+          continue;
+        } catch (e) {
+          console.error("[analysis-watchdog] recompute de pagamento sem job ativo falhou", e);
+        }
+      }
+
+      const prevDiag = (payment.processing_diagnostics ?? {}) as Record<string, unknown>;
+      await supabase
+        .from("payments")
+        .update({
+          processing_diagnostics: {
+            ...prevDiag,
+            watchdog_orphan_analysis: {
+              last_attempt_at: new Date().toISOString(),
+              reason: "em_analise_ia_sem_job_ativo",
+            },
+          },
+        })
+        .eq("id", payment.id);
+
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/dispatch-payment-analysis`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SERVICE_KEY}`,
+        },
+        body: JSON.stringify({ payment_id: payment.id, _watchdog_orphan: true }),
+      });
+
+      actions.push({
+        payment_id: payment.id,
+        action: "dispatched_orphan_payment",
+        latest_job_status: latestJob?.status ?? "sem_job",
+        http_status: resp.status,
       });
     }
 
