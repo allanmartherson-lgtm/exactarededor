@@ -4,17 +4,42 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, XCircle, Clock, ShieldAlert } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ShieldAlert, AlertTriangle, ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 
 const FUNCTIONS_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/approve-via-magic-link`;
 
+type GroupDiff = {
+  id: string;
+  company_name: string | null;
+  company_id: string | null;
+  approval_version: number;
+  reapproval_pending: boolean;
+  reapproval_reason: string | null;
+  reapproval_trigger_source: string | null;
+  bruto_total: number | null;
+  liquido_total: number | null;
+  last_approved_bruto: number | null;
+  last_approved_liquido: number | null;
+  last_approved_company_id: string | null;
+  last_approved_company_name: string | null;
+};
+
 type Preview = {
   preview: true;
-  action: "approve" | "reject" | "return_to_analyst" | "return_to_validator" | "view";
+  action:
+    | "approve"
+    | "reject"
+    | "return_to_analyst"
+    | "return_to_validator"
+    | "view"
+    | "approve_reapproval"
+    | "reject_reapproval";
   payment: { id: string; status: string; competence_month: string; total_amount: number; batch_number?: string };
   issued_to_email: string;
   expires_at: string;
+  group_diff?: GroupDiff | null;
 };
 
 const ACTION_LABEL: Record<string, { label: string; tone: string; icon: any }> = {
@@ -23,6 +48,15 @@ const ACTION_LABEL: Record<string, { label: string; tone: string; icon: any }> =
   return_to_analyst: { label: "Devolver ao analista", tone: "text-amber-600", icon: Clock },
   return_to_validator: { label: "Devolver ao validador", tone: "text-amber-600", icon: Clock },
   view: { label: "Visualizar lote", tone: "text-muted-foreground", icon: ShieldAlert },
+  approve_reapproval: { label: "Re-aprovar grupo", tone: "text-amber-700", icon: AlertTriangle },
+  reject_reapproval: { label: "Rejeitar re-aprovação", tone: "text-destructive", icon: XCircle },
+};
+
+const TRIGGER_LABEL: Record<string, string> = {
+  analyst_edit: "Ajuste do analista",
+  invoice_pendency: "Pendência sinalizada pela empresa",
+  company_change_source: "Troca de empresa (origem)",
+  company_change_destination: "Troca de empresa (destino)",
 };
 
 export default function ApproveMagicLink() {
