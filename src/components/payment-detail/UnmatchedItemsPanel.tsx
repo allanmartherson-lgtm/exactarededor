@@ -342,11 +342,12 @@ export function UnmatchedItemsPanel({
 
       {/* Vincular a empresa existente */}
       <Dialog open={!!linkOpen} onOpenChange={(o) => !o && setLinkOpen(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="pr-10 break-words leading-snug">Vincular "{linkOpen?.raw_company_name}" a empresa</DialogTitle>
           </DialogHeader>
-          <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." />
+          <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." className="w-full" />
+
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <input
               type="checkbox"
