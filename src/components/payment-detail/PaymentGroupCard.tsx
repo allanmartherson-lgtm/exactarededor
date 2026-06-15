@@ -18,6 +18,7 @@ import {
   Receipt,
   Sparkles,
 } from "lucide-react";
+import { GroupReapprovalBadge } from "@/components/GroupReapprovalBadge";
 import {
   formatCurrency,
   PAYMENT_STATUS_LABELS,
