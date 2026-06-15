@@ -29,6 +29,7 @@ import CancelPaymentDialog from "@/components/payment-detail/CancelPaymentDialog
 import { CancelledGroupBanner } from "@/components/payment-detail/CancelledGroupBanner";
 import { CancelledItemsBanner } from "@/components/payment-detail/CancelledItemsBanner";
 import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2, CheckCircle2, GitCompareArrows, Calculator } from "lucide-react";
+import { GroupReapprovalBadge } from "@/components/GroupReapprovalBadge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -288,6 +289,7 @@ export default function CompanyAnalysis() {
   const [changeCompanyOpen, setChangeCompanyOpen] = useState(false);
   const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
   const [changingCompany, setChangingCompany] = useState(false);
+  const [changeCompanyReason, setChangeCompanyReason] = useState("");
   const [isQuestion, setIsQuestion] = useState(false);
   const [groupCommentType, setGroupCommentType] = useState<ObservationType>("informativo");
   const [itemCommentType, setItemCommentType] = useState<Record<string, ObservationType>>({});
@@ -821,9 +823,19 @@ export default function CompanyAnalysis() {
       toast.info("Esta já é a empresa do grupo.");
       return;
     }
+    // Se grupo já foi aprovado uma vez, exige motivo (vai para re-aprovação).
+    const wasApproved = (group as any).approval_version > 0 || !!(group as any).approved_at;
+    const reason = changeCompanyReason.trim();
+    if (wasApproved && reason.length < 4) {
+      toast.error("Informe um motivo para a troca de PJ (mínimo 4 caracteres).", {
+        description: "Esta alteração gera nova aprovação do diretor.",
+      });
+      return;
+    }
     setChangingCompany(true);
     try {
       const oldName = group.company_name;
+      const sourceGroupId = group.id;
       const itemIds = items.map((it) => it.id);
 
       // 1) reatribui itens
@@ -869,8 +881,15 @@ export default function CompanyAnalysis() {
         destGroupId = created.id;
       }
 
-      // 3) remove grupo antigo (ficou vazio)
-      await supabase.from("payment_company_groups").delete().eq("id", group.id);
+      // 3) Se grupo de origem não esvaziar (caso de troca parcial via UI futura),
+      //    a deleção abaixo só ocorre quando vazio. Hoje a troca é total → apaga.
+      let sourceDeleted = false;
+      if (!wasApproved) {
+        await supabase.from("payment_company_groups").delete().eq("id", sourceGroupId);
+        sourceDeleted = true;
+      }
+      // Se grupo origem foi aprovado, mantemos ele vivo (com itens=0) para
+      // o fluxo de re-aprovação enxergar a versão anterior e o diretor decidir.
 
       // 4) aprendizado de alias
       const { data: comp } = await supabase
@@ -885,16 +904,63 @@ export default function CompanyAnalysis() {
         .update({ aliases: Array.from(aliases) })
         .eq("id", newCompany.id);
 
+      // 5) Re-aprovação: grava motivo nos dois grupos (origem se ainda existir + destino).
+      //    Triggers do banco já marcam reapproval_pending quando company_id muda em
+      //    item de grupo com approval_version>0.
+      if (wasApproved) {
+        const updates: Promise<unknown>[] = [];
+        if (!sourceDeleted) {
+          updates.push(
+            Promise.resolve(
+              supabase
+                .from("payment_company_groups")
+                .update({ reapproval_reason: reason })
+                .eq("id", sourceGroupId),
+            ),
+          );
+        }
+        if (destGroupId) {
+          updates.push(
+            Promise.resolve(
+              supabase
+                .from("payment_company_groups")
+                .update({ reapproval_reason: reason })
+                .eq("id", destGroupId),
+            ),
+          );
+        }
+        await Promise.all(updates);
+
+        // dispara notificação para diretor em cada grupo afetado
+        const notifyTargets = [
+          !sourceDeleted ? sourceGroupId : null,
+          destGroupId,
+        ].filter(Boolean) as string[];
+        await Promise.all(
+          notifyTargets.map((gid) =>
+            supabase.functions
+              .invoke("notify-director-reapproval", {
+                body: { paymentId: id, companyGroupId: gid },
+              })
+              .catch((e) => console.warn("notify-director-reapproval falhou:", e)),
+          ),
+        );
+      }
+
       await recordObservation({
         payment_id: id,
         author_type: "analista",
         author_id: user.id,
-        message: `[${oldName}] Empresa do grupo alterada para "${newCompany.name}" pelo analista. Apelido aprendido para futuras correspondências.`,
+        message:
+          `[${oldName}] Empresa do grupo alterada para "${newCompany.name}" pelo analista. ` +
+          (wasApproved
+            ? `Motivo: ${reason}. Grupo(s) em re-aprovação pelo diretor.`
+            : "Apelido aprendido para futuras correspondências."),
         status_from: group.status,
         status_to: group.status,
       });
 
-      // 5) reanálise da IA para a empresa nova
+      // 6) reanálise da IA para a empresa nova
       try {
         await supabase.functions.invoke("analyze-payment", {
           body: { payment_id: id, company_name: newCompany.name },
@@ -903,10 +969,14 @@ export default function CompanyAnalysis() {
         console.warn("Reanálise pós-troca falhou (silencioso):", e);
       }
 
-      toast.success("Empresa do grupo atualizada");
+      toast.success(
+        wasApproved
+          ? "Empresa trocada — re-aprovação enviada ao diretor"
+          : "Empresa do grupo atualizada",
+      );
       setChangeCompanyOpen(false);
       setNewCompany(null);
-      // Navega para o grupo destino — o antigo deixou de existir.
+      setChangeCompanyReason("");
       navigate(`/pagamentos/${id}/empresa/${destGroupId}`);
     } catch (e) {
       toast.error("Falha ao trocar empresa", {
@@ -1754,10 +1824,33 @@ export default function CompanyAnalysis() {
                           Reatribui todos os {items.length} itens deste grupo à empresa selecionada.
                           O nome atual <strong className="break-words">{group.company_name}</strong> será aprendido como apelido
                           para futuras correspondências automáticas. As regras serão reaplicadas em seguida.
+                          {((group as any).approval_version > 0 || (group as any).approved_at) && (
+                            <span className="block mt-2 text-amber-700 text-xs">
+                              ⚠ Este grupo já foi aprovado. A troca de PJ marca origem e destino como
+                              <strong> re-aprovação pendente</strong> e envia novo magic link ao diretor.
+                            </span>
+                          )}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="py-2 min-w-0">
+                      <div className="py-2 min-w-0 space-y-3">
                         <CompanyCombobox value={newCompany} onChange={setNewCompany} className="w-full min-w-0 max-w-full" />
+                        {((group as any).approval_version > 0 || (group as any).approved_at) && (
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-foreground">
+                              Motivo da troca <span className="text-destructive">*</span>
+                            </label>
+                            <Textarea
+                              value={changeCompanyReason}
+                              onChange={(e) => setChangeCompanyReason(e.target.value)}
+                              placeholder="Ex.: Médico alterou a PJ — produção deve ir para DLM SERVICOS MEDICOS LTDA."
+                              rows={3}
+                              className="text-sm"
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                              Será exibido ao diretor no e-mail/WhatsApp de re-aprovação.
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setChangeCompanyOpen(false)} disabled={changingCompany}>
@@ -1774,6 +1867,11 @@ export default function CompanyAnalysis() {
               <p className="text-xs text-muted-foreground mt-0.5">
                 Lote: <span className="font-medium text-foreground">{payment.reference}</span>
               </p>
+              {group?.id && (
+                <div className="mt-3">
+                  <GroupReapprovalBadge companyGroupId={group.id} />
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">

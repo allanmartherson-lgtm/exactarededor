@@ -57,14 +57,41 @@ Deno.serve(async (req) => {
 
   if (!payment) return json({ error: "payment_not_found" }, 404);
 
-  // PREVIEW mode: return data without executing
+  // PREVIEW mode: return data without executing.
+  // Para ações de re-aprovação, carrega o grupo + diff antes/depois para a UI.
   if (!confirm) {
+    let group_diff: unknown = null;
+    if (
+      (row.action === "approve_reapproval" || row.action === "reject_reapproval") &&
+      row.company_group_id
+    ) {
+      const { data: g } = await admin
+        .from("payment_company_groups")
+        .select(
+          "id, company_name, company_id, approval_version, reapproval_pending, reapproval_reason, reapproval_trigger_source, bruto_total, liquido_total, last_approved_bruto, last_approved_liquido, last_approved_company_id",
+        )
+        .eq("id", row.company_group_id)
+        .maybeSingle();
+
+      let last_approved_company_name: string | null = null;
+      if (g?.last_approved_company_id && g.last_approved_company_id !== g.company_id) {
+        const { data: oldComp } = await admin
+          .from("companies")
+          .select("name")
+          .eq("id", g.last_approved_company_id)
+          .maybeSingle();
+        last_approved_company_name = oldComp?.name ?? null;
+      }
+      group_diff = g ? { ...g, last_approved_company_name } : null;
+    }
+
     return json({
       preview: true,
       action: row.action,
       payment: payment,
       issued_to_email: row.issued_to_email,
       expires_at: row.expires_at,
+      group_diff,
     }, 200);
   }
 

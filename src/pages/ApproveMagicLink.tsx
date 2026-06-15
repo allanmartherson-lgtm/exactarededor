@@ -4,17 +4,42 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, XCircle, Clock, ShieldAlert } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ShieldAlert, AlertTriangle, ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 
 const FUNCTIONS_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/approve-via-magic-link`;
 
+type GroupDiff = {
+  id: string;
+  company_name: string | null;
+  company_id: string | null;
+  approval_version: number;
+  reapproval_pending: boolean;
+  reapproval_reason: string | null;
+  reapproval_trigger_source: string | null;
+  bruto_total: number | null;
+  liquido_total: number | null;
+  last_approved_bruto: number | null;
+  last_approved_liquido: number | null;
+  last_approved_company_id: string | null;
+  last_approved_company_name: string | null;
+};
+
 type Preview = {
   preview: true;
-  action: "approve" | "reject" | "return_to_analyst" | "return_to_validator" | "view";
+  action:
+    | "approve"
+    | "reject"
+    | "return_to_analyst"
+    | "return_to_validator"
+    | "view"
+    | "approve_reapproval"
+    | "reject_reapproval";
   payment: { id: string; status: string; competence_month: string; total_amount: number; batch_number?: string };
   issued_to_email: string;
   expires_at: string;
+  group_diff?: GroupDiff | null;
 };
 
 const ACTION_LABEL: Record<string, { label: string; tone: string; icon: any }> = {
@@ -23,6 +48,15 @@ const ACTION_LABEL: Record<string, { label: string; tone: string; icon: any }> =
   return_to_analyst: { label: "Devolver ao analista", tone: "text-amber-600", icon: Clock },
   return_to_validator: { label: "Devolver ao validador", tone: "text-amber-600", icon: Clock },
   view: { label: "Visualizar lote", tone: "text-muted-foreground", icon: ShieldAlert },
+  approve_reapproval: { label: "Re-aprovar grupo", tone: "text-amber-700", icon: AlertTriangle },
+  reject_reapproval: { label: "Rejeitar re-aprovação", tone: "text-destructive", icon: XCircle },
+};
+
+const TRIGGER_LABEL: Record<string, string> = {
+  analyst_edit: "Ajuste do analista",
+  invoice_pendency: "Pendência sinalizada pela empresa",
+  company_change_source: "Troca de empresa (origem)",
+  company_change_destination: "Troca de empresa (destino)",
 };
 
 export default function ApproveMagicLink() {
@@ -156,9 +190,17 @@ export default function ApproveMagicLink() {
             </div>
           </div>
 
+          {preview.group_diff && (
+            <ReapprovalDiffPanel diff={preview.group_diff} />
+          )}
+
           {preview.action !== "view" && preview.action !== "approve" && (
             <Textarea
-              placeholder="Comentário (opcional)"
+              placeholder={
+                preview.action === "reject_reapproval"
+                  ? "Motivo da rejeição (será registrado e visível ao analista)"
+                  : "Comentário (opcional)"
+              }
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={4}
@@ -166,13 +208,99 @@ export default function ApproveMagicLink() {
           )}
 
           <div className="flex gap-2">
-            <Button onClick={confirm} disabled={submitting} className={preview.action === "reject" ? "bg-destructive hover:bg-destructive/90" : ""}>
+            <Button
+              onClick={confirm}
+              disabled={
+                submitting ||
+                (preview.action === "reject_reapproval" && comment.trim().length < 4)
+              }
+              className={
+                preview.action === "reject" || preview.action === "reject_reapproval"
+                  ? "bg-destructive hover:bg-destructive/90"
+                  : ""
+              }
+            >
               {submitting ? "Processando..." : `Confirmar ${meta.label.toLowerCase()}`}
             </Button>
             <Button variant="outline" onClick={() => navigate("/")}>Cancelar</Button>
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function ReapprovalDiffPanel({ diff }: { diff: GroupDiff }) {
+  const beforeBruto = Number(diff.last_approved_bruto ?? 0);
+  const afterBruto = Number(diff.bruto_total ?? 0);
+  const beforeLiq = Number(diff.last_approved_liquido ?? 0);
+  const afterLiq = Number(diff.liquido_total ?? 0);
+  const deltaBruto = afterBruto - beforeBruto;
+  const deltaLiq = afterLiq - beforeLiq;
+  const companyChanged =
+    !!diff.last_approved_company_id && diff.last_approved_company_id !== diff.company_id;
+
+  return (
+    <div className="rounded-lg border border-amber-500/60 bg-amber-500/5 p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <div>
+            <div className="text-sm font-semibold text-amber-700">Re-aprovação pendente</div>
+            <div className="text-xs text-muted-foreground">
+              {TRIGGER_LABEL[diff.reapproval_trigger_source ?? ""] ?? "Alteração após aprovação"}
+              {diff.reapproval_reason ? ` — ${diff.reapproval_reason}` : ""}
+            </div>
+          </div>
+        </div>
+        <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+          v{diff.approval_version} → v{diff.approval_version + 1}
+        </Badge>
+      </div>
+
+      {companyChanged && (
+        <div className="flex items-center gap-2 text-xs rounded-md border border-amber-500/30 bg-background px-3 py-2">
+          <span className="text-muted-foreground">PJ:</span>
+          <span className="font-medium line-through text-muted-foreground">
+            {diff.last_approved_company_name ?? "—"}
+          </span>
+          <ArrowRight className="h-3 w-3 text-amber-600" />
+          <span className="font-semibold">{diff.company_name ?? "—"}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-3 text-xs">
+        <div />
+        <div className="text-muted-foreground uppercase tracking-wide">Antes</div>
+        <div className="text-muted-foreground uppercase tracking-wide">Depois</div>
+
+        <div className="text-muted-foreground">Bruto</div>
+        <div className="font-mono">{formatBRL(beforeBruto)}</div>
+        <div className="font-mono font-semibold">{formatBRL(afterBruto)}</div>
+
+        <div className="text-muted-foreground">Líquido</div>
+        <div className="font-mono">{formatBRL(beforeLiq)}</div>
+        <div className="font-mono font-semibold">{formatBRL(afterLiq)}</div>
+
+        <div className="text-muted-foreground border-t border-amber-500/20 pt-2">Δ Bruto</div>
+        <div
+          className={`col-span-2 font-mono font-semibold border-t border-amber-500/20 pt-2 ${
+            deltaBruto >= 0 ? "text-amber-700" : "text-emerald-700"
+          }`}
+        >
+          {deltaBruto >= 0 ? "+" : ""}
+          {formatBRL(deltaBruto)}
+          <span className="ml-2 text-muted-foreground font-normal">
+            (líquido: {deltaLiq >= 0 ? "+" : ""}
+            {formatBRL(deltaLiq)})
+          </span>
+        </div>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground">
+        Apenas este grupo retorna para aprovação. Outros grupos do lote seguem inalterados.
+        Avanço para NF, lançamento e pagamento bloqueado até decisão.
+      </p>
     </div>
   );
 }
