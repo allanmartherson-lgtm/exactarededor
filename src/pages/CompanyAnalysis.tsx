@@ -910,18 +910,22 @@ export default function CompanyAnalysis() {
         const updates: Promise<unknown>[] = [];
         if (!sourceDeleted) {
           updates.push(
-            supabase
-              .from("payment_company_groups")
-              .update({ reapproval_reason: reason })
-              .eq("id", sourceGroupId),
+            Promise.resolve(
+              supabase
+                .from("payment_company_groups")
+                .update({ reapproval_reason: reason })
+                .eq("id", sourceGroupId),
+            ),
           );
         }
         if (destGroupId) {
           updates.push(
-            supabase
-              .from("payment_company_groups")
-              .update({ reapproval_reason: reason })
-              .eq("id", destGroupId),
+            Promise.resolve(
+              supabase
+                .from("payment_company_groups")
+                .update({ reapproval_reason: reason })
+                .eq("id", destGroupId),
+            ),
           );
         }
         await Promise.all(updates);
