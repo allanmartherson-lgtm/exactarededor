@@ -29,6 +29,7 @@ import CancelPaymentDialog from "@/components/payment-detail/CancelPaymentDialog
 import { CancelledGroupBanner } from "@/components/payment-detail/CancelledGroupBanner";
 import { CancelledItemsBanner } from "@/components/payment-detail/CancelledItemsBanner";
 import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2, CheckCircle2, GitCompareArrows, Calculator } from "lucide-react";
+import { GroupReapprovalBadge } from "@/components/GroupReapprovalBadge";
 import {
   AlertDialog,
   AlertDialogAction,
