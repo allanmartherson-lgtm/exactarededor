@@ -41,6 +41,7 @@ import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculation
 import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
 import { PhaseSummary, resolvePhase } from "@/components/payment-detail/PhaseSummary";
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
+import { RegisterExternalApprovalDialog } from "@/components/payment-detail/RegisterExternalApprovalDialog";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
