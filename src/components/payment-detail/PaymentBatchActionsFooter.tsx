@@ -54,6 +54,7 @@ export function PaymentBatchActionsFooter({
   const [returnOpen, setReturnOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
+  const [externalOpen, setExternalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const pendencias = useMemo(() => {
