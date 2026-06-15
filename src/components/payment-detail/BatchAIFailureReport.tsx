@@ -146,9 +146,6 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
     setSearching(false);
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
 
   if (loading) return null;
   if (!job) return null;
