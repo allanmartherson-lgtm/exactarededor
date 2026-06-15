@@ -20,12 +20,14 @@ Object.defineProperty(window, "matchMedia", {
 // Testes que precisam de hospital específico podem sobrescrever com vi.mock próprio.
 vi.mock("@/contexts/HospitalContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/contexts/HospitalContext")>();
-  const fakeHospital = { id: "test-hospital", name: "Hospital Teste", code: "TST", state: "DF" };
+  const fakeHospital = { id: "test-hospital", name: "Hospital Teste", code: "TST", state_uf: "DF" } as any;
   return {
     ...actual,
     useHospital: () => ({
       hospital: fakeHospital,
+      availableHospitals: [fakeHospital],
       hospitals: [fakeHospital],
+      primaryHospitalId: fakeHospital.id,
       loading: false,
       switching: false,
       needsSelection: false,
@@ -37,3 +39,4 @@ vi.mock("@/contexts/HospitalContext", async (importOriginal) => {
     HospitalProvider: ({ children }: { children: React.ReactNode }) => children,
   };
 });
+
