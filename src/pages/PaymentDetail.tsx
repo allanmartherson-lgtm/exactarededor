@@ -2998,6 +2998,49 @@ const PaymentDetail = () => {
               />
             )}
 
+          {/* Registro de validação/aprovação externa — disponível para analista/admin
+              durante a transição ou como backup quando a decisão acontece fora do
+              sistema (e-mail/WhatsApp). O caminho primário continua sendo a ação
+              direta do supervisor/diretor no app. */}
+          {id && (isAnalista || isAdmin) && !canUseBatchActions && (
+            (() => {
+              const stage: "validation" | "approval" | null =
+                groups.some((g) => g.status === "aguardando_aprovacao") ? "approval"
+                : groups.some((g) => g.status === "aguardando_validacao") ? "validation"
+                : null;
+              if (!stage) return null;
+              return (
+                <Card className="shadow-card border-dashed border-muted-foreground/30 bg-muted/20">
+                  <CardContent className="p-3 flex flex-col md:flex-row md:items-center gap-2 text-xs">
+                    <span className="text-muted-foreground md:mr-auto">
+                      <strong>Backup:</strong> houve {stage === "approval" ? "aprovação" : "validação"} fora do sistema (e-mail/WhatsApp)?
+                      Registre aqui para refletir no fluxo. Caminho primário continua sendo a ação direta no app pelo {stage === "approval" ? "diretor" : "supervisor"}.
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setExternalRegistrationOpen(stage)}
+                    >
+                      <MailCheck className="h-4 w-4 mr-2" />
+                      Registrar {stage === "approval" ? "aprovação" : "validação"} externa
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })()
+          )}
+          {id && externalRegistrationOpen && (
+            <RegisterExternalApprovalDialog
+              open={!!externalRegistrationOpen}
+              onOpenChange={(v) => setExternalRegistrationOpen(v ? externalRegistrationOpen : null)}
+              paymentId={id}
+              groups={groups}
+              stage={externalRegistrationOpen}
+              registeredById={user!.id}
+              onDone={load}
+            />
+          )}
+
         {/* Busca dentro do detalhe — filtra grupos/itens por PJ, médico,
             atendimento, centro de custos, especialidade ou descrição.
             Ocultado na visão Executivo (diretor) — esta visão prioriza
