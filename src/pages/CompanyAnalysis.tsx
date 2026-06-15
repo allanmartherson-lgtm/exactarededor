@@ -1823,10 +1823,33 @@ export default function CompanyAnalysis() {
                           Reatribui todos os {items.length} itens deste grupo à empresa selecionada.
                           O nome atual <strong className="break-words">{group.company_name}</strong> será aprendido como apelido
                           para futuras correspondências automáticas. As regras serão reaplicadas em seguida.
+                          {((group as any).approval_version > 0 || (group as any).approved_at) && (
+                            <span className="block mt-2 text-amber-700 text-xs">
+                              ⚠ Este grupo já foi aprovado. A troca de PJ marca origem e destino como
+                              <strong> re-aprovação pendente</strong> e envia novo magic link ao diretor.
+                            </span>
+                          )}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="py-2 min-w-0">
+                      <div className="py-2 min-w-0 space-y-3">
                         <CompanyCombobox value={newCompany} onChange={setNewCompany} className="w-full min-w-0 max-w-full" />
+                        {((group as any).approval_version > 0 || (group as any).approved_at) && (
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-foreground">
+                              Motivo da troca <span className="text-destructive">*</span>
+                            </label>
+                            <Textarea
+                              value={changeCompanyReason}
+                              onChange={(e) => setChangeCompanyReason(e.target.value)}
+                              placeholder="Ex.: Médico alterou a PJ — produção deve ir para DLM SERVICOS MEDICOS LTDA."
+                              rows={3}
+                              className="text-sm"
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                              Será exibido ao diretor no e-mail/WhatsApp de re-aprovação.
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setChangeCompanyOpen(false)} disabled={changingCompany}>
@@ -1843,6 +1866,11 @@ export default function CompanyAnalysis() {
               <p className="text-xs text-muted-foreground mt-0.5">
                 Lote: <span className="font-medium text-foreground">{payment.reference}</span>
               </p>
+              {group?.id && (
+                <div className="mt-3">
+                  <GroupReapprovalBadge companyGroupId={group.id} />
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
