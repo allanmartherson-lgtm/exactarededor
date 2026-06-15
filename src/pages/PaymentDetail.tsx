@@ -1249,6 +1249,7 @@ const PaymentDetail = () => {
       }
 
       const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
+      const previousStatus = payment.status;
       await supabase.from("payments").update({
         total_amount: total,
         items_count: allRows.length,
@@ -1258,11 +1259,28 @@ const PaymentDetail = () => {
       await recordObservation({
         payment_id: id, author_type: "analista", author_id: user.id,
         message: `Base reimportada pelo analista (${allRows.length} itens, total ${total.toFixed(2)}). Arquivos: ${fileNames.join(", ")}.`,
-        status_from: payment.status, status_to: "em_analise_ia",
+        status_from: previousStatus, status_to: "em_analise_ia",
       });
 
-      supabase.functions.invoke("dispatch-payment-analysis", { body: { payment_id: id } });
-      toast({ title: "Base reimportada", description: "Análise iniciada por empresa em background." });
+      // Aguarda confirmação do dispatcher; se falhar, reverte o status para
+      // não deixar o lote travado em 'em_analise_ia'.
+      try {
+        const { error: dispatchErr } = await supabase.functions.invoke(
+          "dispatch-payment-analysis",
+          { body: { payment_id: id } }
+        );
+        if (dispatchErr) throw dispatchErr;
+        toast({ title: "Base reimportada", description: "Análise iniciada por empresa em background." });
+      } catch (dispatchErr) {
+        const msg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
+        console.error("[dispatch-payment-analysis] falhou no reimport", dispatchErr);
+        await supabase.from("payments").update({ status: previousStatus as any }).eq("id", id);
+        toast({
+          title: "Base importada, mas análise não iniciou",
+          description: `${msg}. Use "Reanalisar lote" para tentar novamente.`,
+          variant: "destructive",
+        });
+      }
       load();
     } catch (e) {
       toast({ title: "Erro ao reimportar", description: String(e), variant: "destructive" });
