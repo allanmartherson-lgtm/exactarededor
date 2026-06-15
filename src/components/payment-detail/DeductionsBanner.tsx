@@ -67,16 +67,27 @@ export function DeductionsBanner({
 
 
 
-  const runAuto = useCallback(async () => {
+  const runAuto = useCallback(async (opts?: { silent?: boolean }) => {
     setRunning(true);
+    const invokeOnce = () => supabase.functions.invoke("apply-company-deductions", {
+      body: { payment_id: paymentId, company_id: companyId },
+    });
     try {
-      const { error } = await supabase.functions.invoke("apply-company-deductions", {
-        body: { payment_id: paymentId, company_id: companyId },
-      });
+      let { error } = await invokeOnce();
+      if (error) {
+        // Retry once after short delay — cold starts / transient FunctionsFetchError
+        await new Promise(r => setTimeout(r, 800));
+        const retry = await invokeOnce();
+        error = retry.error;
+      }
       if (error) throw error;
       await load();
     } catch (e: any) {
-      toast.error("Falha ao aplicar deduções", { description: e?.message });
+      if (!opts?.silent) {
+        toast.error("Falha ao aplicar deduções", { description: e?.message });
+      } else {
+        console.warn("[DeductionsBanner] auto-apply falhou silenciosamente:", e?.message);
+      }
     } finally { setRunning(false); }
   }, [paymentId, companyId, load]);
 
@@ -90,10 +101,11 @@ export function DeductionsBanner({
 
   useEffect(() => {
     if (!loading && caa.length === 0 && gpa.length === 0 && !running) {
-      runAuto();
+      runAuto({ silent: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
+
 
   const totalDebitos = caa.reduce((s, x) => s + Number(x.valor_aplicado || 0), 0);
   const totalGlosas = gpa.filter(g => g.status !== "pending_manual_resolution")
@@ -152,7 +164,7 @@ export function DeductionsBanner({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={runAuto} disabled={running} className="h-7 text-xs">
+            <Button size="sm" variant="outline" onClick={() => runAuto()} disabled={running} className="h-7 text-xs">
               <RefreshCw className={`h-3 w-3 mr-1 ${running ? "animate-spin" : ""}`} /> Reaplicar
             </Button>
             <Button size="sm" onClick={() => setOpen(true)} className="h-7 text-xs">Revisar</Button>
