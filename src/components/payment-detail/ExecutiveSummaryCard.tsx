@@ -60,21 +60,31 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(async (opts?: { silent?: boolean }) => {
     setLoading(true);
-    try {
+    const invokeOnce = async () => {
       const { data, error } = await supabase.functions.invoke("summarize-payment", {
         body: { payment_id: paymentId },
       });
       if (error) throw error;
-      if (data?.summary) {
-        setSummary(data.summary);
-      } else if (data?.error) {
-        throw new Error(data.error);
+      if (data?.error) throw new Error(data.error);
+      return data;
+    };
+    try {
+      let data;
+      try {
+        data = await invokeOnce();
+      } catch (firstErr) {
+        // 1 retry silencioso para erros de rede transitórios (FunctionsFetchError)
+        await new Promise((r) => setTimeout(r, 800));
+        data = await invokeOnce();
       }
+      if (data?.summary) setSummary(data.summary);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Erro ao gerar resumo";
-      toast({ title: "Resumo IA", description: msg, variant: "destructive" });
+      if (!opts?.silent) {
+        const msg = e instanceof Error ? e.message : "Erro ao gerar resumo";
+        toast({ title: "Resumo IA", description: msg, variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
@@ -82,10 +92,11 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
 
   useEffect(() => {
     if (!summary && !loading) {
-      generate();
+      generate({ silent: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentId]);
+
 
   const canToggle = !!summary && (summary.bullets?.length > 0 || !!summary.recommended_action);
 
@@ -123,7 +134,7 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={generate}
+            onClick={() => generate()}
             disabled={loading}
             className="h-7 px-2 shrink-0"
             aria-label="Regenerar resumo"
