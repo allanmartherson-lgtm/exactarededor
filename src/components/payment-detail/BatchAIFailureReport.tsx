@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,6 +83,7 @@ function resolveMatch(
 }
 
 export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
+  const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryRow[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
@@ -284,7 +286,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                       variant="outline"
                       onClick={() => {
                         const q = encodeURIComponent(e.companyName);
-                        window.open(`/empresas?busca=${q}`, "_blank");
+                        navigate(`/empresas?busca=${q}`);
                       }}
                       className="h-7 px-2 text-xs"
                     >
