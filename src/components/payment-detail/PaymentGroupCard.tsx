@@ -243,6 +243,7 @@ export const PaymentGroupCard = ({
               cancelledAt={(g as unknown as { cancelled_at?: string | null }).cancelled_at ?? null}
             />
           )}
+          <GroupReapprovalBadge companyGroupId={g.id} compact />
           {["aguardando_validacao", "aguardando_aprovacao", "aprovado_em_revisao"].includes(g.status) && (
             <CompanyRiskBadge companyName={g.company_name} />
           )}
