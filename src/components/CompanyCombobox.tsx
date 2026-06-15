@@ -144,9 +144,9 @@ export function CompanyCombobox({
             type="button"
             variant="outline"
             role="combobox"
-            className={cn("justify-between font-normal", !value && "text-muted-foreground", className)}
+            className={cn("w-full min-w-0 justify-between font-normal", !value && "text-muted-foreground", className)}
           >
-            <span className="truncate text-left" title={value ? (showDocumentInTrigger && value.document ? `${value.name} · ${formatCNPJ(value.document)}` : value.name) : placeholder}>
+            <span className="truncate text-left flex-1 min-w-0" title={value ? (showDocumentInTrigger && value.document ? `${value.name} · ${formatCNPJ(value.document)}` : value.name) : placeholder}>
               {value
                 ? showDocumentInTrigger && value.document
                   ? `${value.name} · ${formatCNPJ(value.document)}`
