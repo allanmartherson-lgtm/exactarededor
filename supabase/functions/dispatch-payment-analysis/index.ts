@@ -7,7 +7,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-active-hospital",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const PAGE_SIZE = 2; // [Sprint 1 - Tier 2.D] reduzido de 4→2 para aliviar pool Postgres enquanto regras não são cacheadas (Tier 1.B). Throughput cai ~30%, taxa de falha tende a 0.
