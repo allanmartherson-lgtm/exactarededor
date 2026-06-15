@@ -151,6 +151,42 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
     setSearching(false);
   }, []);
 
+  const handleLink = useCallback(
+    async (company: { id: string; name: string }) => {
+      const raw = rawNameToLink.trim();
+      if (!raw) {
+        toast({ title: "Nome bruto vazio", variant: "destructive" });
+        return;
+      }
+      setLinkingId(company.id);
+      const res = await learnCompanyAlias(supabase, { companyId: company.id, rawName: raw });
+      if (!res.ok) {
+        setLinkingId(null);
+        toast({ title: "Falha ao vincular", description: res.error ?? "Erro desconhecido", variant: "destructive" });
+        return;
+      }
+      const { error: dispatchErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
+        body: { payment_id: paymentId, mode: "full" },
+      });
+      setLinkingId(null);
+      setSearchOpen(false);
+      if (dispatchErr) {
+        toast({
+          title: "Vínculo criado, mas falha ao reanalisar",
+          description: `Alias salvo em "${company.name}". Clique em "Reanalisar lote" manualmente. (${dispatchErr.message})`,
+        });
+      } else {
+        toast({
+          title: "Empresa vinculada",
+          description: `"${raw}" agora aponta para "${company.name}". Reanálise disparada.`,
+        });
+      }
+      await load();
+    },
+    [rawNameToLink, paymentId, load, toast],
+  );
+
+
 
   if (loading) return null;
   if (!job) return null;
