@@ -406,10 +406,11 @@ export function UnmatchedItemsPanel({
 
       {/* Descartar */}
       <Dialog open={!!ignoreOpen} onOpenChange={(o) => !o && setIgnoreOpen(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="pr-10 break-words leading-snug">Descartar "{ignoreOpen?.raw_company_name}"</DialogTitle>
           </DialogHeader>
+
           <p className="text-sm text-muted-foreground">
             {ignoreOpen?.items_count} item(ns) ·{" "}
             {ignoreOpen ? formatCurrency(ignoreOpen.gross_total) : ""} serão marcados como
