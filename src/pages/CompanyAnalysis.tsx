@@ -288,6 +288,7 @@ export default function CompanyAnalysis() {
   const [changeCompanyOpen, setChangeCompanyOpen] = useState(false);
   const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
   const [changingCompany, setChangingCompany] = useState(false);
+  const [changeCompanyReason, setChangeCompanyReason] = useState("");
   const [isQuestion, setIsQuestion] = useState(false);
   const [groupCommentType, setGroupCommentType] = useState<ObservationType>("informativo");
   const [itemCommentType, setItemCommentType] = useState<Record<string, ObservationType>>({});
