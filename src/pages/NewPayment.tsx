@@ -62,6 +62,7 @@ import {
 } from "@/lib/columnMapping";
 import { useSheetColumnTemplates } from "@/hooks/useSheetColumnTemplates";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
+import { confirmDialog } from "@/lib/confirm";
 
 interface ParsedRow {
   doctor_name: string;
@@ -1658,13 +1659,17 @@ const NewPayment = () => {
         });
         return;
       }
-      const ok = confirm(
-        "ATENÇÃO: este lote será marcado como HISTÓRICO.\n\n" +
-        "• O motor vai rodar (regras, repasses, aliases, KPIs).\n" +
-        "• NÃO passará por validação, aprovação ou NF.\n" +
-        "• Será gravado direto com status PAGO.\n\n" +
-        "Confirma?",
-      );
+      const ok = await confirmDialog({
+        title: "Marcar lote como HISTÓRICO",
+        description: "Esta importação será gravada diretamente como paga e não passará pelo fluxo de validação.",
+        details:
+          "• O motor vai rodar (regras, repasses, aliases, KPIs).\n" +
+          "• NÃO passará por validação, aprovação ou NF.\n" +
+          "• Será gravado direto com status PAGO.",
+        confirmText: "Sim, gravar como histórico",
+        cancelText: "Cancelar",
+        tone: "warning",
+      });
       if (!ok) return;
     }
     setSubmitting(true);
