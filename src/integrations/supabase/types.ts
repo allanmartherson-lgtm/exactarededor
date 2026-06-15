@@ -889,11 +889,15 @@ export type Database = {
       }
       company_group_approvals: {
         Row: {
+          approval_source: string
           approved_at: string
           approved_by: string | null
+          approved_on_behalf_of: string | null
           bruto_total: number
           company_id: string | null
           created_at: string
+          external_evidence_path: string | null
+          external_note: string | null
           hospital_id: string | null
           id: string
           items_snapshot: Json | null
@@ -902,16 +906,21 @@ export type Database = {
           payment_company_group_id: string
           pdf_url: string | null
           reason: string | null
+          registered_by: string | null
           superseded_at: string | null
           superseded_by_version: number | null
           version: number
         }
         Insert: {
+          approval_source?: string
           approved_at?: string
           approved_by?: string | null
+          approved_on_behalf_of?: string | null
           bruto_total?: number
           company_id?: string | null
           created_at?: string
+          external_evidence_path?: string | null
+          external_note?: string | null
           hospital_id?: string | null
           id?: string
           items_snapshot?: Json | null
@@ -920,16 +929,21 @@ export type Database = {
           payment_company_group_id: string
           pdf_url?: string | null
           reason?: string | null
+          registered_by?: string | null
           superseded_at?: string | null
           superseded_by_version?: number | null
           version: number
         }
         Update: {
+          approval_source?: string
           approved_at?: string
           approved_by?: string | null
+          approved_on_behalf_of?: string | null
           bruto_total?: number
           company_id?: string | null
           created_at?: string
+          external_evidence_path?: string | null
+          external_note?: string | null
           hospital_id?: string | null
           id?: string
           items_snapshot?: Json | null
@@ -938,6 +952,7 @@ export type Database = {
           payment_company_group_id?: string
           pdf_url?: string | null
           reason?: string | null
+          registered_by?: string | null
           superseded_at?: string | null
           superseded_by_version?: number | null
           version?: number
@@ -6242,14 +6257,19 @@ export type Database = {
           confirmed_by_name: string | null
           created_at: string
           expires_at: string
+          external_evidence_path: string | null
+          external_note: string | null
           hospital_id: string | null
           id: string
           notes: string | null
           payment_id: string
+          registered_by: string | null
           sent_at: string
           sent_by: string | null
           status: string
           token: string
+          validated_on_behalf_of: string | null
+          validation_source: string
         }
         Insert: {
           company_id: string
@@ -6258,14 +6278,19 @@ export type Database = {
           confirmed_by_name?: string | null
           created_at?: string
           expires_at?: string
+          external_evidence_path?: string | null
+          external_note?: string | null
           hospital_id?: string | null
           id?: string
           notes?: string | null
           payment_id: string
+          registered_by?: string | null
           sent_at?: string
           sent_by?: string | null
           status?: string
           token?: string
+          validated_on_behalf_of?: string | null
+          validation_source?: string
         }
         Update: {
           company_id?: string
@@ -6274,14 +6299,19 @@ export type Database = {
           confirmed_by_name?: string | null
           created_at?: string
           expires_at?: string
+          external_evidence_path?: string | null
+          external_note?: string | null
           hospital_id?: string | null
           id?: string
           notes?: string | null
           payment_id?: string
+          registered_by?: string | null
           sent_at?: string
           sent_by?: string | null
           status?: string
           token?: string
+          validated_on_behalf_of?: string | null
+          validation_source?: string
         }
         Relationships: [
           {
