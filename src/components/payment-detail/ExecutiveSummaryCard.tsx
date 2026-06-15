@@ -134,7 +134,7 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={generate}
+            onClick={() => generate()}
             disabled={loading}
             className="h-7 px-2 shrink-0"
             aria-label="Regenerar resumo"
