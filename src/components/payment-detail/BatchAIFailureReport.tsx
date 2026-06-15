@@ -86,14 +86,17 @@ function resolveMatch(
 }
 
 export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
+  const { toast } = useToast();
   const [job, setJob] = useState<Job | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryRow[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [rawNameToLink, setRawNameToLink] = useState<string>("");
   const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; document: string | null; code: string | null }>>([]);
   const [searching, setSearching] = useState(false);
+  const [linkingId, setLinkingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
