@@ -226,19 +226,19 @@ export function UnregisteredCompaniesPanel({
         {items.map((it) => (
           <div
             key={it.company_name}
-            className="flex items-center justify-between gap-3 p-3 rounded-md border border-border/50 bg-card"
+            className="flex items-center justify-between gap-3 p-3 rounded-md border border-border/50 bg-card flex-wrap"
           >
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 basis-full sm:basis-0">
               <div className="flex items-center gap-2 min-w-0">
                 <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="font-medium truncate">{it.company_name}</span>
+                <span className="font-medium truncate min-w-0">{it.company_name}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
                 {it.items_count} item(ns) · {formatCurrency(it.gross_total)}
                 {it.sample_doctor && ` · ex.: ${it.sample_doctor}`}
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => setLinkOpen(it.company_name)}>
                 <Link2 className="h-3.5 w-3.5 mr-1" /> Vincular
               </Button>
@@ -254,14 +254,16 @@ export function UnregisteredCompaniesPanel({
             </div>
           </div>
         ))}
+
       </CardContent>
 
       <Dialog open={!!linkOpen} onOpenChange={(o) => !o && setLinkOpen(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="pr-10 break-words leading-snug">Vincular "{linkOpen}" a uma empresa existente</DialogTitle>
           </DialogHeader>
           <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." />
+
           <p className="text-xs text-muted-foreground">
             O nome do arquivo será salvo como apelido para reconhecer automaticamente em próximos
             uploads.
@@ -279,10 +281,11 @@ export function UnregisteredCompaniesPanel({
       </Dialog>
 
       <Dialog open={!!createOpen} onOpenChange={(o) => !o && setCreateOpen(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cadastrar nova empresa</DialogTitle>
+            <DialogTitle className="pr-10 break-words leading-snug">Cadastrar nova empresa</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Nome</Label>

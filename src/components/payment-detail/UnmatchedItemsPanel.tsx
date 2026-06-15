@@ -269,16 +269,16 @@ export function UnmatchedItemsPanel({
           return (
             <div
               key={g.raw_company_name}
-              className="flex items-center justify-between gap-3 p-3 rounded-md border border-border/50 bg-card"
+              className="flex items-center justify-between gap-3 p-3 rounded-md border border-border/50 bg-card flex-wrap"
             >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 min-w-0">
+              <div className="min-w-0 flex-1 basis-full sm:basis-0">
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="font-medium truncate">{g.raw_company_name}</span>
+                  <span className="font-medium truncate min-w-0 max-w-full">{g.raw_company_name}</span>
                   {g.suggestion_name && (
-                    <Badge variant="secondary" className="gap-1 shrink-0">
-                      <Sparkles className="h-3 w-3" />
-                      sugestão: {g.suggestion_name} · {(g.best_score * 100).toFixed(0)}% ({conf})
+                    <Badge variant="secondary" className="gap-1 min-w-0 max-w-full">
+                      <Sparkles className="h-3 w-3 shrink-0" />
+                      <span className="truncate">sugestão: {g.suggestion_name} · {(g.best_score * 100).toFixed(0)}% ({conf})</span>
                     </Badge>
                   )}
                 </div>
@@ -288,7 +288,8 @@ export function UnmatchedItemsPanel({
                   {g.source_files.length > 0 && ` · arquivo: ${g.source_files.join(", ")}`}
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+
                 {g.suggestion_id && g.suggestion_name && (
                   <Button
                     size="sm"
@@ -341,11 +342,12 @@ export function UnmatchedItemsPanel({
 
       {/* Vincular a empresa existente */}
       <Dialog open={!!linkOpen} onOpenChange={(o) => !o && setLinkOpen(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="pr-10 break-words leading-snug">Vincular "{linkOpen?.raw_company_name}" a empresa</DialogTitle>
           </DialogHeader>
           <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." />
+
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <input
               type="checkbox"
@@ -372,10 +374,11 @@ export function UnmatchedItemsPanel({
 
       {/* Cadastrar nova empresa */}
       <Dialog open={!!createOpen} onOpenChange={(o) => !o && setCreateOpen(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cadastrar nova empresa</DialogTitle>
+            <DialogTitle className="pr-10 break-words leading-snug">Cadastrar nova empresa</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Nome</Label>
@@ -403,10 +406,11 @@ export function UnmatchedItemsPanel({
 
       {/* Descartar */}
       <Dialog open={!!ignoreOpen} onOpenChange={(o) => !o && setIgnoreOpen(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="pr-10 break-words leading-snug">Descartar "{ignoreOpen?.raw_company_name}"</DialogTitle>
           </DialogHeader>
+
           <p className="text-sm text-muted-foreground">
             {ignoreOpen?.items_count} item(ns) ·{" "}
             {ignoreOpen ? formatCurrency(ignoreOpen.gross_total) : ""} serão marcados como
