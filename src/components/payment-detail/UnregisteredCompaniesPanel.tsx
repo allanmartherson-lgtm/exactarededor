@@ -262,7 +262,7 @@ export function UnregisteredCompaniesPanel({
           <DialogHeader>
             <DialogTitle className="pr-10 break-words leading-snug">Vincular "{linkOpen}" a uma empresa existente</DialogTitle>
           </DialogHeader>
-          <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." className="w-full" />
+          <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." />
 
           <p className="text-xs text-muted-foreground">
             O nome do arquivo será salvo como apelido para reconhecer automaticamente em próximos

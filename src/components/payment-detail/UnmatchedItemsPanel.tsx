@@ -346,7 +346,7 @@ export function UnmatchedItemsPanel({
           <DialogHeader>
             <DialogTitle className="pr-10 break-words leading-snug">Vincular "{linkOpen?.raw_company_name}" a empresa</DialogTitle>
           </DialogHeader>
-          <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." className="w-full" />
+          <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." />
 
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <input
