@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download, Search, Loader2 } from "lucide-react";
+import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download, Search, Loader2, Link2 } from "lucide-react";
+import { learnCompanyAlias } from "@/lib/learnCompanyAlias";
+import { useToast } from "@/hooks/use-toast";
 
 type FailedCompany = { company_name: string; company_id?: string | null; error: string; at?: string };
 
@@ -84,14 +86,17 @@ function resolveMatch(
 }
 
 export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
+  const { toast } = useToast();
   const [job, setJob] = useState<Job | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryRow[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [rawNameToLink, setRawNameToLink] = useState<string>("");
   const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; document: string | null; code: string | null }>>([]);
   const [searching, setSearching] = useState(false);
+  const [linkingId, setLinkingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -145,6 +150,42 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
     setSearchResults((data as Array<{ id: string; name: string; document: string | null; code: string | null }>) ?? []);
     setSearching(false);
   }, []);
+
+  const handleLink = useCallback(
+    async (company: { id: string; name: string }) => {
+      const raw = rawNameToLink.trim();
+      if (!raw) {
+        toast({ title: "Nome bruto vazio", variant: "destructive" });
+        return;
+      }
+      setLinkingId(company.id);
+      const res = await learnCompanyAlias(supabase, { companyId: company.id, rawName: raw });
+      if (!res.ok) {
+        setLinkingId(null);
+        toast({ title: "Falha ao vincular", description: res.error ?? "Erro desconhecido", variant: "destructive" });
+        return;
+      }
+      const { error: dispatchErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
+        body: { payment_id: paymentId, mode: "full" },
+      });
+      setLinkingId(null);
+      setSearchOpen(false);
+      if (dispatchErr) {
+        toast({
+          title: "Vínculo criado, mas falha ao reanalisar",
+          description: `Alias salvo em "${company.name}". Clique em "Reanalisar lote" manualmente. (${dispatchErr.message})`,
+        });
+      } else {
+        toast({
+          title: "Empresa vinculada",
+          description: `"${raw}" agora aponta para "${company.name}". Reanálise disparada.`,
+        });
+      }
+      await load();
+    },
+    [rawNameToLink, paymentId, load, toast],
+  );
+
 
 
   if (loading) return null;
@@ -308,14 +349,16 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                       size="sm"
                       variant="outline"
                       onClick={() => {
+                        setRawNameToLink(e.companyName);
                         setSearchTerm(e.companyName);
+                        setSearchResults([]);
                         setSearchOpen(true);
                         void runSearch(e.companyName);
                       }}
                       className="h-7 px-2 text-xs"
                     >
                       <Search className="h-3 w-3 mr-1" />
-                      Buscar empresa
+                      Vincular ao cadastro
                     </Button>
                     <span className="text-[10px] text-muted-foreground italic max-w-[160px] text-right">
                       Não vinculada a nenhum grupo deste pagamento
@@ -331,9 +374,12 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Buscar empresa no cadastro</DialogTitle>
+            <DialogTitle>Vincular empresa ao cadastro</DialogTitle>
             <DialogDescription>
-              Procure pelo nome, CNPJ ou código. Resultado vem do cadastro de empresas.
+              Nome bruto que veio na base:{" "}
+              <span className="font-mono text-foreground">{rawNameToLink || "—"}</span>
+              <br />
+              Selecione a empresa correta para criar o vínculo. Próximas importações vão reconhecer esse nome automaticamente, e a reanálise será disparada agora.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2">
@@ -357,11 +403,29 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
               </div>
             )}
             {searchResults.map((r) => (
-              <div key={r.id} className="p-2.5 text-sm flex flex-col">
-                <span className="font-medium">{r.name}</span>
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  {r.code ?? "—"} · {r.document ?? "sem CNPJ"}
-                </span>
+              <div key={r.id} className="p-2.5 text-sm flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{r.name}</div>
+                  <div className="text-[11px] text-muted-foreground font-mono">
+                    {r.code ?? "—"} · {r.document ?? "sem CNPJ"}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="default"
+                  disabled={linkingId !== null}
+                  onClick={() => void handleLink({ id: r.id, name: r.name })}
+                  className="h-7 px-2 text-xs shrink-0"
+                >
+                  {linkingId === r.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <>
+                      <Link2 className="h-3 w-3 mr-1" />
+                      Vincular
+                    </>
+                  )}
+                </Button>
               </div>
             ))}
           </div>
