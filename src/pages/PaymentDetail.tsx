@@ -220,6 +220,7 @@ const PaymentDetail = () => {
   const [editMetaOpen, setEditMetaOpen] = useState(false);
   const [metaDraft, setMetaDraft] = useState<{ reference: string; description: string; payment_due_date: string }>({ reference: "", description: "", payment_due_date: "" });
   const [savingMeta, setSavingMeta] = useState(false);
+  const [externalRegistrationOpen, setExternalRegistrationOpen] = useState<"validation" | "approval" | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
   const [reimporting, setReimporting] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
