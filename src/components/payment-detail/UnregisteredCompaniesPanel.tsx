@@ -258,11 +258,12 @@ export function UnregisteredCompaniesPanel({
       </CardContent>
 
       <Dialog open={!!linkOpen} onOpenChange={(o) => !o && setLinkOpen(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="pr-10 break-words leading-snug">Vincular "{linkOpen}" a uma empresa existente</DialogTitle>
           </DialogHeader>
-          <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." />
+          <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." className="w-full" />
+
           <p className="text-xs text-muted-foreground">
             O nome do arquivo será salvo como apelido para reconhecer automaticamente em próximos
             uploads.
