@@ -349,14 +349,16 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                       size="sm"
                       variant="outline"
                       onClick={() => {
+                        setRawNameToLink(e.companyName);
                         setSearchTerm(e.companyName);
+                        setSearchResults([]);
                         setSearchOpen(true);
                         void runSearch(e.companyName);
                       }}
                       className="h-7 px-2 text-xs"
                     >
                       <Search className="h-3 w-3 mr-1" />
-                      Buscar empresa
+                      Vincular ao cadastro
                     </Button>
                     <span className="text-[10px] text-muted-foreground italic max-w-[160px] text-right">
                       Não vinculada a nenhum grupo deste pagamento
