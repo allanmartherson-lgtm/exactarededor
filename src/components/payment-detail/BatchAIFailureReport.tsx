@@ -128,6 +128,28 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
     load();
   }, [load]);
 
+  const runSearch = useCallback(async (term: string) => {
+    const q = term.trim();
+    if (!q) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    const { data } = await supabase
+      .from("companies")
+      .select("id, name, document, code")
+      .or(`name.ilike.%${q}%,document.ilike.%${q}%,code.ilike.%${q}%`)
+      .eq("active", true)
+      .order("name")
+      .limit(20);
+    setSearchResults((data as Array<{ id: string; name: string; document: string | null; code: string | null }>) ?? []);
+    setSearching(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
   if (loading) return null;
   if (!job) return null;
 
