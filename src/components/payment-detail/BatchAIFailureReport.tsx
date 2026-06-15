@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download, Search } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { AlertTriangle, ExternalLink, RefreshCw, FileWarning, Download, Search, Loader2 } from "lucide-react";
 
 type FailedCompany = { company_name: string; company_id?: string | null; error: string; at?: string };
 
@@ -83,11 +84,14 @@ function resolveMatch(
 }
 
 export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
-  const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryRow[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; document: string | null; code: string | null }>>([]);
+  const [searching, setSearching] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -123,6 +127,25 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  const runSearch = useCallback(async (term: string) => {
+    const q = term.trim();
+    if (!q) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    const { data } = await supabase
+      .from("companies")
+      .select("id, name, document, code")
+      .or(`name.ilike.%${q}%,document.ilike.%${q}%,code.ilike.%${q}%`)
+      .eq("active", true)
+      .order("name")
+      .limit(20);
+    setSearchResults((data as Array<{ id: string; name: string; document: string | null; code: string | null }>) ?? []);
+    setSearching(false);
+  }, []);
+
 
   if (loading) return null;
   if (!job) return null;
@@ -285,8 +308,9 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const q = encodeURIComponent(e.companyName);
-                        navigate(`/empresas?busca=${q}`);
+                        setSearchTerm(e.companyName);
+                        setSearchOpen(true);
+                        void runSearch(e.companyName);
                       }}
                       className="h-7 px-2 text-xs"
                     >
@@ -303,6 +327,46 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
           ))}
         </ul>
       </CardContent>
+
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Buscar empresa no cadastro</DialogTitle>
+            <DialogDescription>
+              Procure pelo nome, CNPJ ou código. Resultado vem do cadastro de empresas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2">
+            <Input
+              autoFocus
+              value={searchTerm}
+              onChange={(ev) => setSearchTerm(ev.target.value)}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter") void runSearch(searchTerm);
+              }}
+              placeholder="Nome, CNPJ ou código"
+            />
+            <Button size="sm" onClick={() => void runSearch(searchTerm)} disabled={searching}>
+              {searching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+            </Button>
+          </div>
+          <div className="max-h-80 overflow-auto divide-y divide-border/60 rounded border">
+            {searchResults.length === 0 && !searching && (
+              <div className="p-4 text-xs text-muted-foreground text-center">
+                Nenhum resultado. Tente outra parte do nome ou o CNPJ.
+              </div>
+            )}
+            {searchResults.map((r) => (
+              <div key={r.id} className="p-2.5 text-sm flex flex-col">
+                <span className="font-medium">{r.name}</span>
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  {r.code ?? "—"} · {r.document ?? "sem CNPJ"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
