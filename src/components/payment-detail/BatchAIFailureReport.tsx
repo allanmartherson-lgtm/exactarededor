@@ -327,6 +327,46 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
           ))}
         </ul>
       </CardContent>
+
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Buscar empresa no cadastro</DialogTitle>
+            <DialogDescription>
+              Procure pelo nome, CNPJ ou código. Resultado vem do cadastro de empresas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2">
+            <Input
+              autoFocus
+              value={searchTerm}
+              onChange={(ev) => setSearchTerm(ev.target.value)}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter") void runSearch(searchTerm);
+              }}
+              placeholder="Nome, CNPJ ou código"
+            />
+            <Button size="sm" onClick={() => void runSearch(searchTerm)} disabled={searching}>
+              {searching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+            </Button>
+          </div>
+          <div className="max-h-80 overflow-auto divide-y divide-border/60 rounded border">
+            {searchResults.length === 0 && !searching && (
+              <div className="p-4 text-xs text-muted-foreground text-center">
+                Nenhum resultado. Tente outra parte do nome ou o CNPJ.
+              </div>
+            )}
+            {searchResults.map((r) => (
+              <div key={r.id} className="p-2.5 text-sm flex flex-col">
+                <span className="font-medium">{r.name}</span>
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  {r.code ?? "—"} · {r.document ?? "sem CNPJ"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
