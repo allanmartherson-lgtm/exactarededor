@@ -164,7 +164,7 @@ export function DeductionsBanner({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={runAuto} disabled={running} className="h-7 text-xs">
+            <Button size="sm" variant="outline" onClick={() => runAuto()} disabled={running} className="h-7 text-xs">
               <RefreshCw className={`h-3 w-3 mr-1 ${running ? "animate-spin" : ""}`} /> Reaplicar
             </Button>
             <Button size="sm" onClick={() => setOpen(true)} className="h-7 text-xs">Revisar</Button>
