@@ -2048,7 +2048,26 @@ const NewPayment = () => {
     }
 
     toast({ title: "Lote criado", description: "Iniciando análise por IA..." });
-    supabase.functions.invoke("dispatch-payment-analysis", { body: { payment_id: payment.id } });
+    // Aguarda confirmação do dispatcher. Se falhar (timeout, boot error), reverte
+    // status para 'rascunho' para não deixar o lote travado em 'em_analise_ia'.
+    try {
+      const { error: dispatchErr } = await supabase.functions.invoke(
+        "dispatch-payment-analysis",
+        { body: { payment_id: payment.id } }
+      );
+      if (dispatchErr) throw dispatchErr;
+    } catch (dispatchErr) {
+      const msg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
+      console.error("[dispatch-payment-analysis] falhou ao iniciar", dispatchErr);
+      if (analysisMode !== "confeccao") {
+        await supabase.from("payments").update({ status: "rascunho" as any }).eq("id", payment.id);
+      }
+      toast({
+        title: "Falha ao iniciar análise",
+        description: `${msg}. O lote ficou em rascunho — use "Reanalisar lote" no detalhe para tentar novamente.`,
+        variant: "destructive",
+      });
+    }
 
     // Substitui a entrada "/pagamentos/novo" no histórico para que o botão Voltar
     // do detalhe leve à lista de pagamentos, e não de volta ao formulário de criação.
