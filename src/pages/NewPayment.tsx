@@ -62,6 +62,7 @@ import {
 } from "@/lib/columnMapping";
 import { useSheetColumnTemplates } from "@/hooks/useSheetColumnTemplates";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
+import { confirmDialog } from "@/lib/confirm";
 
 interface ParsedRow {
   doctor_name: string;
