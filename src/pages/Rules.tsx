@@ -44,6 +44,7 @@ import { RuleFormStepper } from "@/components/rules/RuleFormStepper";
 import { History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanyCombobox } from "@/components/CompanyCombobox";
+import { confirmDialog } from "@/lib/confirm";
 import {
   RuleCalculationsEditor,
   makeEmptyCalc,
@@ -1030,11 +1031,31 @@ const Rules = () => {
         .order("sort_order");
       prevCalcs = pc ?? [];
     }
+
+    // BLINDAGEM camada 3: guard contra perda silenciosa de cálculos.
+    // Se a edição vai reduzir a quantidade de cálculos, exigir confirmação explícita.
+    let allowCalcReduction = false;
+    if (meta.wasEditing && prevCalcs && prevCalcs.length > 0 && calcs.length < prevCalcs.length) {
+      const diff = prevCalcs.length - calcs.length;
+      const ok = await confirmDialog({
+        title: "Remover cálculos da regra?",
+        description: `Esta edição vai remover ${diff} cálculo(s) (de ${prevCalcs.length} para ${calcs.length}). A versão atual será preservada como snapshot para restauração. Confirma?`,
+        confirmText: "Sim, remover",
+        cancelText: "Cancelar",
+        tone: "danger",
+      });
+      if (!ok) {
+        throw new Error("Operação cancelada pelo usuário.");
+      }
+      allowCalcReduction = true;
+    }
+
     const { data, error } = await supabase.rpc("apply_rule_save_with_corrections", {
       _rule_data: ruleData as any,
       _calculations: calcs as any,
       _corrections: corrections as any,
-    });
+      _allow_calc_reduction: allowCalcReduction,
+    } as any);
     if (error) {
       throw new Error(error.message);
     }
