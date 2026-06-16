@@ -1266,7 +1266,7 @@ const Rules = () => {
       },
     );
     if (valErr) {
-      toast({ title: "Erro na validação", description: valErr.message, variant: "destructive" });
+      toast({ title: "Erro na validação", description: await getEdgeFunctionErrorMessage(valErr), variant: "destructive" });
       return;
     }
     const allProblems = (validation?.problems ?? []) as Array<ConflictProblem | { type: string; doctor_label?: string; rule_names?: string[]; message?: string }>;
@@ -1497,7 +1497,7 @@ const Rules = () => {
         },
       );
       if (valErr) {
-        skipped.push({ name: d.name || "(sem nome)", reasons: [valErr.message] });
+        skipped.push({ name: d.name || "(sem nome)", reasons: [await getEdgeFunctionErrorMessage(valErr)] });
         continue;
       }
       const probs = (validation?.problems ?? []) as ConflictProblem[];
