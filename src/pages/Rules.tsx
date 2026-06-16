@@ -836,6 +836,7 @@ const Rules = () => {
   const [saving, setSaving] = useState(false);
   const resetForm = () => {
     setEditingId(null);
+    setEditingHospitalId(null);
     setFActive(true);
     setFName(""); setFDescription(""); setFRuleText("");
     setFSeverity("aviso");
