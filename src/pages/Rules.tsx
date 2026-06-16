@@ -44,6 +44,7 @@ import { RuleFormStepper } from "@/components/rules/RuleFormStepper";
 import { History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanyCombobox } from "@/components/CompanyCombobox";
+import { confirmDialog } from "@/lib/confirm";
 import {
   RuleCalculationsEditor,
   makeEmptyCalc,
