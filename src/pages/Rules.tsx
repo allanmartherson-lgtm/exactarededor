@@ -1448,7 +1448,7 @@ const Rules = () => {
       }));
       setDrafts(ds); setImportOpen(false); setReviewOpen(true); setImportText(""); setImportFile(null);
     } catch (e: any) {
-      toast({ title: "Erro", description: e?.message ?? "Falha", variant: "destructive" });
+      toast({ title: "Erro", description: await getEdgeFunctionErrorMessage(e), variant: "destructive" });
     } finally { setImporting(false); }
   };
 
