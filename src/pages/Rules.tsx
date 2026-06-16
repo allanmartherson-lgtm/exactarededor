@@ -191,6 +191,7 @@ const Rules = () => {
   const [globalThresholds, setGlobalThresholds] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingHospitalId, setEditingHospitalId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [globalConfigOpen, setGlobalConfigOpen] = useState(false);
