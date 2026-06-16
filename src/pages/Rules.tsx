@@ -59,17 +59,28 @@ import { CloneRuleToHospitalDialog } from "@/components/rules/CloneRuleToHospita
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
 async function getEdgeFunctionErrorMessage(error: unknown): Promise<string> {
-  const err = error as { message?: string; context?: Response } | null;
+  const err = error as { name?: string; message?: string; context?: Response } | null;
   const response = err?.context;
   if (response && typeof response.clone === "function") {
+    const status = response.status;
     try {
-      const payload = await response.clone().json() as { error?: string; detail?: string; message?: string };
-      return payload.detail || payload.error || payload.message || err?.message || "Falha ao validar regra";
+      const payload = await response.clone().json() as { error?: string; detail?: string; message?: string; hint?: string };
+      const msg = payload.detail || payload.error || payload.message || payload.hint;
+      if (msg) return status ? `[HTTP ${status}] ${msg}` : msg;
     } catch {
-      // Mantém fallback abaixo quando a resposta não é JSON.
+      // não era JSON — tenta texto puro
     }
+    try {
+      const text = (await response.clone().text())?.trim();
+      if (text) return status ? `[HTTP ${status}] ${text.slice(0, 500)}` : text.slice(0, 500);
+    } catch {
+      // ignora
+    }
+    if (status) return `Edge Function retornou HTTP ${status} sem corpo`;
   }
-  return err?.message || "Falha ao validar regra";
+  // Erros sem response (CORS, rede, função não publicada, etc.)
+  const name = err?.name ? `${err.name}: ` : "";
+  return `${name}${err?.message || "Falha ao validar regra"}`;
 }
 
 function OndeSummaryBanner({ ondeShort, ondeFull, calc, canCollapse }: { ondeShort: string; ondeFull: string; calc: string; canCollapse: boolean }) {
@@ -1296,7 +1307,7 @@ const Rules = () => {
     setConflictProblems(problems);
     setConflictOpen(true);
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      toast({ title: "Erro", description: await getEdgeFunctionErrorMessage(e), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -1417,7 +1428,7 @@ const Rules = () => {
         }
       }
       const { data, error } = await supabase.functions.invoke("convert-rules", { body });
-      if (error || !data?.rules) return toast({ title: "Erro", description: error?.message ?? data?.error ?? "Falha", variant: "destructive" });
+      if (error || !data?.rules) return toast({ title: "Erro", description: error ? await getEdgeFunctionErrorMessage(error) : (data?.error ?? "Falha"), variant: "destructive" });
       const ds: DraftRule[] = data.rules.map((r: any) => ({
         active: true,
         name: r.name ?? "", description: r.description ?? "", rule_text: r.rule_text ?? "",
@@ -1437,7 +1448,7 @@ const Rules = () => {
       }));
       setDrafts(ds); setImportOpen(false); setReviewOpen(true); setImportText(""); setImportFile(null);
     } catch (e: any) {
-      toast({ title: "Erro", description: e?.message ?? "Falha", variant: "destructive" });
+      toast({ title: "Erro", description: await getEdgeFunctionErrorMessage(e), variant: "destructive" });
     } finally { setImporting(false); }
   };
 
