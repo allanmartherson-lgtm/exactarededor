@@ -58,6 +58,20 @@ import { CloneRuleToHospitalDialog } from "@/components/rules/CloneRuleToHospita
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
+async function getEdgeFunctionErrorMessage(error: unknown): Promise<string> {
+  const err = error as { message?: string; context?: Response } | null;
+  const response = err?.context;
+  if (response && typeof response.clone === "function") {
+    try {
+      const payload = await response.clone().json() as { error?: string; detail?: string; message?: string };
+      return payload.detail || payload.error || payload.message || err?.message || "Falha ao validar regra";
+    } catch {
+      // Mantém fallback abaixo quando a resposta não é JSON.
+    }
+  }
+  return err?.message || "Falha ao validar regra";
+}
+
 function OndeSummaryBanner({ ondeShort, ondeFull, calc, canCollapse }: { ondeShort: string; ondeFull: string; calc: string; canCollapse: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const showFull = !canCollapse || expanded;
@@ -1252,7 +1266,7 @@ const Rules = () => {
       },
     );
     if (valErr) {
-      toast({ title: "Erro na validação", description: valErr.message, variant: "destructive" });
+      toast({ title: "Erro na validação", description: await getEdgeFunctionErrorMessage(valErr), variant: "destructive" });
       return;
     }
     const allProblems = (validation?.problems ?? []) as Array<ConflictProblem | { type: string; doctor_label?: string; rule_names?: string[]; message?: string }>;
@@ -1483,7 +1497,7 @@ const Rules = () => {
         },
       );
       if (valErr) {
-        skipped.push({ name: d.name || "(sem nome)", reasons: [valErr.message] });
+        skipped.push({ name: d.name || "(sem nome)", reasons: [await getEdgeFunctionErrorMessage(valErr)] });
         continue;
       }
       const probs = (validation?.problems ?? []) as ConflictProblem[];
