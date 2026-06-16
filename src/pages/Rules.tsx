@@ -1245,15 +1245,18 @@ const Rules = () => {
     // Antes da RPC, chamamos a edge function `validate-rule-save` para
     // detectar conflitos. Se houver, abrimos o modal e o save real só
     // acontece quando o usuário clica "Aplicar correções e salvar".
-    const ruleData: Record<string, unknown> = {
-      ...payload,
-      hospital_id: activeHospitalId,
-      ...(editingId ? { id: editingId } : {}),
-    };
-    if (!activeHospitalId) {
-      toast({ title: "Selecione um hospital", description: "Não é possível criar regras sem um hospital ativo.", variant: "destructive" });
+    // Quando editando, preferimos o hospital_id da regra existente (vínculo
+    // imutável). Só caímos para o activeHospitalId em criação.
+    const resolvedHospitalId = editingId ? (editingHospitalId ?? activeHospitalId) : activeHospitalId;
+    if (!resolvedHospitalId) {
+      toast({ title: "Selecione um hospital", description: "Não é possível salvar regras sem um hospital ativo.", variant: "destructive" });
       return;
     }
+    const ruleData: Record<string, unknown> = {
+      ...payload,
+      hospital_id: resolvedHospitalId,
+      ...(editingId ? { id: editingId } : {}),
+    };
     const calcsForRpc: Record<string, unknown>[] =
       fNature === "calculavel"
         ? fCalculations.map((c, i) => {
