@@ -1307,7 +1307,7 @@ const Rules = () => {
     setConflictProblems(problems);
     setConflictOpen(true);
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      toast({ title: "Erro", description: await getEdgeFunctionErrorMessage(e), variant: "destructive" });
     } finally {
       setSaving(false);
     }
