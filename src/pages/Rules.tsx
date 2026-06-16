@@ -59,17 +59,28 @@ import { CloneRuleToHospitalDialog } from "@/components/rules/CloneRuleToHospita
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
 async function getEdgeFunctionErrorMessage(error: unknown): Promise<string> {
-  const err = error as { message?: string; context?: Response } | null;
+  const err = error as { name?: string; message?: string; context?: Response } | null;
   const response = err?.context;
   if (response && typeof response.clone === "function") {
+    const status = response.status;
     try {
-      const payload = await response.clone().json() as { error?: string; detail?: string; message?: string };
-      return payload.detail || payload.error || payload.message || err?.message || "Falha ao validar regra";
+      const payload = await response.clone().json() as { error?: string; detail?: string; message?: string; hint?: string };
+      const msg = payload.detail || payload.error || payload.message || payload.hint;
+      if (msg) return status ? `[HTTP ${status}] ${msg}` : msg;
     } catch {
-      // Mantém fallback abaixo quando a resposta não é JSON.
+      // não era JSON — tenta texto puro
     }
+    try {
+      const text = (await response.clone().text())?.trim();
+      if (text) return status ? `[HTTP ${status}] ${text.slice(0, 500)}` : text.slice(0, 500);
+    } catch {
+      // ignora
+    }
+    if (status) return `Edge Function retornou HTTP ${status} sem corpo`;
   }
-  return err?.message || "Falha ao validar regra";
+  // Erros sem response (CORS, rede, função não publicada, etc.)
+  const name = err?.name ? `${err.name}: ` : "";
+  return `${name}${err?.message || "Falha ao validar regra"}`;
 }
 
 function OndeSummaryBanner({ ondeShort, ondeFull, calc, canCollapse }: { ondeShort: string; ondeFull: string; calc: string; canCollapse: boolean }) {
