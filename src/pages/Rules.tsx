@@ -1282,7 +1282,7 @@ const Rules = () => {
           valid_from: payload.valid_from,
           valid_until: payload.valid_until,
           calculations: calcsForRpc,
-          hospital_id: activeHospitalId,
+          hospital_id: resolvedHospitalId,
         },
       },
     );
