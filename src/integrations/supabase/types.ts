@@ -7382,6 +7382,39 @@ export type Database = {
           },
         ]
       }
+      rule_snapshots: {
+        Row: {
+          actor_id: string | null
+          calc_count: number
+          created_at: string
+          hospital_id: string | null
+          id: string
+          payload: Json
+          reason: string
+          rule_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          calc_count?: number
+          created_at?: string
+          hospital_id?: string | null
+          id?: string
+          payload: Json
+          reason: string
+          rule_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          calc_count?: number
+          created_at?: string
+          hospital_id?: string | null
+          id?: string
+          payload?: Json
+          reason?: string
+          rule_id?: string
+        }
+        Relationships: []
+      }
       rules: {
         Row: {
           active: boolean
@@ -8559,10 +8592,20 @@ export type Database = {
         Args: { _payment_id: string }
         Returns: number
       }
-      apply_rule_save_with_corrections: {
-        Args: { _calculations: Json; _corrections: Json; _rule_data: Json }
-        Returns: Json
-      }
+      apply_rule_save_with_corrections:
+        | {
+            Args: { _calculations: Json; _corrections: Json; _rule_data: Json }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _allow_calc_reduction?: boolean
+              _calculations: Json
+              _corrections: Json
+              _rule_data: Json
+            }
+            Returns: Json
+          }
       approve_campaign: { Args: { _campaign_id: string }; Returns: undefined }
       approve_payment: {
         Args: {
@@ -8586,6 +8629,7 @@ export type Database = {
         Args: { _dry_run?: boolean }
         Returns: Json
       }
+      build_rule_snapshot_payload: { Args: { _rule_id: string }; Returns: Json }
       bulk_conclude_analyst_groups: {
         Args: { _group_ids: string[]; _payment_id: string }
         Returns: {
@@ -9585,6 +9629,10 @@ export type Database = {
       resolve_glosa_to_company: {
         Args: { _debt_id: string }
         Returns: undefined
+      }
+      restore_rule_from_snapshot: {
+        Args: { _snapshot_id: string }
+        Returns: Json
       }
       retry_payment_recompute_failures: {
         Args: { _limit?: number }
