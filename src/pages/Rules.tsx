@@ -1011,6 +1011,9 @@ const Rules = () => {
     corrections: ConflictCorrection[],
     meta: { wasEditing: boolean; auditCompany: { id: string | null; name: string | null; document: string | null } | null },
   ) => {
+    if (!ruleData.hospital_id) {
+      throw new Error("Unidade vinculada é obrigatória para salvar regra.");
+    }
     const before = meta.wasEditing && ruleData.id
       ? rules.find((r) => r.id === ruleData.id) ?? null
       : null;
@@ -1241,9 +1244,10 @@ const Rules = () => {
     // acontece quando o usuário clica "Aplicar correções e salvar".
     const ruleData: Record<string, unknown> = {
       ...payload,
-      ...(editingId ? { id: editingId } : { hospital_id: activeHospitalId }),
+      hospital_id: activeHospitalId,
+      ...(editingId ? { id: editingId } : {}),
     };
-    if (!editingId && !activeHospitalId) {
+    if (!activeHospitalId) {
       toast({ title: "Selecione um hospital", description: "Não é possível criar regras sem um hospital ativo.", variant: "destructive" });
       return;
     }
