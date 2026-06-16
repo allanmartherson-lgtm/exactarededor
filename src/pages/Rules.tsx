@@ -1428,7 +1428,7 @@ const Rules = () => {
         }
       }
       const { data, error } = await supabase.functions.invoke("convert-rules", { body });
-      if (error || !data?.rules) return toast({ title: "Erro", description: error?.message ?? data?.error ?? "Falha", variant: "destructive" });
+      if (error || !data?.rules) return toast({ title: "Erro", description: error ? await getEdgeFunctionErrorMessage(error) : (data?.error ?? "Falha"), variant: "destructive" });
       const ds: DraftRule[] = data.rules.map((r: any) => ({
         active: true,
         name: r.name ?? "", description: r.description ?? "", rule_text: r.rule_text ?? "",
