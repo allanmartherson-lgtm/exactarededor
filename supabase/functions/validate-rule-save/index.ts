@@ -24,7 +24,7 @@ import {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, x-supabase-api-version, apikey, content-type, prefer",
+    "authorization, x-client-info, x-supabase-api-version, apikey, content-type, prefer, x-active-hospital",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -61,10 +61,16 @@ Deno.serve(async (req) => {
     });
   }
 
+  const activeHospitalHeader = req.headers.get("x-active-hospital");
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
+    global: {
+      headers: {
+        Authorization: authHeader,
+        ...(activeHospitalHeader ? { "x-active-hospital": activeHospitalHeader } : {}),
+      },
+    },
   });
 
   const token = authHeader.replace("Bearer ", "");
@@ -110,6 +116,18 @@ Deno.serve(async (req) => {
   }
   if (!body || typeof body !== "object" || !body.scope) {
     return new Response(JSON.stringify({ error: "Body inválido: scope é obrigatório" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  if (!body.hospital_id) {
+    return new Response(JSON.stringify({ error: "hospital_id é obrigatório para validar/salvar regra" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  if (activeHospitalHeader && activeHospitalHeader !== body.hospital_id) {
+    return new Response(JSON.stringify({ error: "Unidade ativa divergente da unidade enviada na regra" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -207,6 +225,7 @@ Deno.serve(async (req) => {
         .select("id, name, active, scope, target_type, target_identifier, group_doctors, group_company_links")
         .eq("active", true);
       if (body.rule_id) query.neq("id", body.rule_id);
+      if (body.hospital_id) query.eq("hospital_id", body.hospital_id);
       const { data: peerRules, error: peerErr } = await query;
       if (peerErr || !peerRules) return [];
 
