@@ -191,6 +191,7 @@ const Rules = () => {
   const [globalThresholds, setGlobalThresholds] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingHospitalId, setEditingHospitalId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [globalConfigOpen, setGlobalConfigOpen] = useState(false);
@@ -835,6 +836,7 @@ const Rules = () => {
   const [saving, setSaving] = useState(false);
   const resetForm = () => {
     setEditingId(null);
+    setEditingHospitalId(null);
     setFActive(true);
     setFName(""); setFDescription(""); setFRuleText("");
     setFSeverity("aviso");
@@ -872,6 +874,7 @@ const Rules = () => {
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
     setEditingId(isDuplicate ? null : r.id);
     setEditingRuleId(isDuplicate ? null : r.id);
+    setEditingHospitalId(isDuplicate ? null : ((r as any).hospital_id ?? null));
     // Busca médicos novos pendentes desta regra (só quando editando, não duplicando).
     if (!isDuplicate && r.id) {
       (supabase as any).rpc("rule_pending_doctors", { p_rule_id: r.id }).then(({ data }: any) => {
@@ -1242,15 +1245,18 @@ const Rules = () => {
     // Antes da RPC, chamamos a edge function `validate-rule-save` para
     // detectar conflitos. Se houver, abrimos o modal e o save real só
     // acontece quando o usuário clica "Aplicar correções e salvar".
-    const ruleData: Record<string, unknown> = {
-      ...payload,
-      hospital_id: activeHospitalId,
-      ...(editingId ? { id: editingId } : {}),
-    };
-    if (!activeHospitalId) {
-      toast({ title: "Selecione um hospital", description: "Não é possível criar regras sem um hospital ativo.", variant: "destructive" });
+    // Quando editando, preferimos o hospital_id da regra existente (vínculo
+    // imutável). Só caímos para o activeHospitalId em criação.
+    const resolvedHospitalId = editingId ? (editingHospitalId ?? activeHospitalId) : activeHospitalId;
+    if (!resolvedHospitalId) {
+      toast({ title: "Selecione um hospital", description: "Não é possível salvar regras sem um hospital ativo.", variant: "destructive" });
       return;
     }
+    const ruleData: Record<string, unknown> = {
+      ...payload,
+      hospital_id: resolvedHospitalId,
+      ...(editingId ? { id: editingId } : {}),
+    };
     const calcsForRpc: Record<string, unknown>[] =
       fNature === "calculavel"
         ? fCalculations.map((c, i) => {
@@ -1276,7 +1282,7 @@ const Rules = () => {
           valid_from: payload.valid_from,
           valid_until: payload.valid_until,
           calculations: calcsForRpc,
-          hospital_id: activeHospitalId,
+          hospital_id: resolvedHospitalId,
         },
       },
     );
