@@ -70,33 +70,35 @@ export function GroupReconciliationGate({ groupId, hospitalId, compact }: Props)
                 Tolerância: {thresholds.block_pct}% ou {fmt(thresholds.block_abs)}
               </span>
             </div>
-            {status === "divergente" && (
+            <div className="flex items-center gap-2">
+              {status === "divergente" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setOpenDialog(true)}
+                  disabled={!canRelease}
+                  title={!canRelease ? "Apenas diretor ou admin podem liberar" : undefined}
+                  className="gap-1"
+                >
+                  <Unlock className="h-3 w-3" /> Liberar com justificativa
+                </Button>
+              )}
               <Button
                 size="sm"
-                variant="outline"
-                onClick={() => setOpenDialog(true)}
-                disabled={!canRelease}
-                title={!canRelease ? "Apenas diretor ou admin podem liberar" : undefined}
+                variant="ghost"
                 className="gap-1"
+                onClick={async () => {
+                  try {
+                    const pdf = await generateGroupValidationPdf(groupId);
+                    pdf.save(`validacao-conciliacao-${groupId.slice(0, 8)}.pdf`);
+                  } catch (e: any) {
+                    toast.error("Falha ao gerar PDF", { description: e?.message });
+                  }
+                }}
               >
-                <Unlock className="h-3 w-3" /> Liberar com justificativa
+                <FileDown className="h-3 w-3" /> PDF
               </Button>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1"
-              onClick={async () => {
-                try {
-                  const pdf = await generateGroupValidationPdf(groupId);
-                  pdf.save(`validacao-conciliacao-${groupId.slice(0, 8)}.pdf`);
-                } catch (e: any) {
-                  toast.error("Falha ao gerar PDF", { description: e?.message });
-                }
-              }}
-            >
-              <FileDown className="h-3 w-3" /> PDF
-            </Button>
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
