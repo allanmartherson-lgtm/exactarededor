@@ -281,8 +281,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  const candidateLinks: Array<Record<string, unknown>> = Array.isArray(body.group_company_links)
-    ? (body.group_company_links as Array<Record<string, unknown>>)
+  const candidateLinks: LinkLike[] = Array.isArray(body.group_company_links)
+    ? (body.group_company_links as LinkLike[])
     : [];
 
   const sqlProblems = sqlProblemsRaw.filter((p) => {
