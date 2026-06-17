@@ -40,6 +40,7 @@ import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
 import { RuleHistoryTab } from "@/components/rules/RuleHistoryTab";
+import { RuleSnapshotsTab } from "@/components/rules/RuleSnapshotsTab";
 import { RuleFormStepper } from "@/components/rules/RuleFormStepper";
 import { History } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -1832,14 +1833,20 @@ const Rules = () => {
             <Tabs defaultValue="form" className="w-full">
               {editingId && (
                 <>
-                  <TabsList className="grid w-full grid-cols-2 mb-3">
+                  <TabsList className="grid w-full grid-cols-3 mb-3">
                     <TabsTrigger value="form">Formulário</TabsTrigger>
                     <TabsTrigger value="history">
                       <History className="h-4 w-4 mr-1.5" /> Histórico
                     </TabsTrigger>
+                    <TabsTrigger value="snapshots">
+                      <Camera className="h-4 w-4 mr-1.5" /> Snapshots
+                    </TabsTrigger>
                   </TabsList>
                   <TabsContent value="history" className="mt-0">
                     <RuleHistoryTab ruleId={editingId} />
+                  </TabsContent>
+                  <TabsContent value="snapshots" className="mt-0">
+                    <RuleSnapshotsTab ruleId={editingId} onRestored={() => { setOpen(false); fetchRules(); }} />
                   </TabsContent>
                 </>
               )}
