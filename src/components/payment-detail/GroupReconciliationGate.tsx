@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, ShieldCheck, Unlock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileDown, ShieldCheck, Unlock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { useGroupReconciliation } from "@/hooks/useGroupReconciliation";
 import { ReleaseDivergenceDialog } from "./ReleaseDivergenceDialog";
+import { generateGroupValidationPdf } from "@/lib/groupValidationPdf";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Props = {
@@ -68,18 +70,35 @@ export function GroupReconciliationGate({ groupId, hospitalId, compact }: Props)
                 Tolerância: {thresholds.block_pct}% ou {fmt(thresholds.block_abs)}
               </span>
             </div>
-            {status === "divergente" && (
+            <div className="flex items-center gap-2">
+              {status === "divergente" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setOpenDialog(true)}
+                  disabled={!canRelease}
+                  title={!canRelease ? "Apenas diretor ou admin podem liberar" : undefined}
+                  className="gap-1"
+                >
+                  <Unlock className="h-3 w-3" /> Liberar com justificativa
+                </Button>
+              )}
               <Button
                 size="sm"
-                variant="outline"
-                onClick={() => setOpenDialog(true)}
-                disabled={!canRelease}
-                title={!canRelease ? "Apenas diretor ou admin podem liberar" : undefined}
+                variant="ghost"
                 className="gap-1"
+                onClick={async () => {
+                  try {
+                    const pdf = await generateGroupValidationPdf(groupId);
+                    pdf.save(`validacao-conciliacao-${groupId.slice(0, 8)}.pdf`);
+                  } catch (e: any) {
+                    toast.error("Falha ao gerar PDF", { description: e?.message });
+                  }
+                }}
               >
-                <Unlock className="h-3 w-3" /> Liberar com justificativa
+                <FileDown className="h-3 w-3" /> PDF
               </Button>
-            )}
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
