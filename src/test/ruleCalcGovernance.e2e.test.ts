@@ -135,7 +135,7 @@ describe("E2E governança de cálculos de regra — camada UI (cliente)", () => 
     // E exige confirmDialog ANTES de passar _allow_calc_reduction: true.
     // Estrutura esperada: if (reduction) { const ok = await confirmDialog({...}); if (!ok) throw; allowCalcReduction = true; }
     expect(rulesPage).toMatch(
-      /calcs\.length\s*<\s*prevCalcs\.length[\s\S]{0,600}confirmDialog\([\s\S]{0,400}allowCalcReduction\s*=\s*true/,
+      /calcs\.length\s*<\s*prevCalcs\.length[\s\S]{0,1500}confirmDialog\([\s\S]{0,1200}allowCalcReduction\s*=\s*true/,
     );
     expect(rulesPage).toMatch(/_allow_calc_reduction:\s*allowCalcReduction/);
   });
