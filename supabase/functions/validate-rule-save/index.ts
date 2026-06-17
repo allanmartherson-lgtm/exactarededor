@@ -35,6 +35,8 @@ type LinkLike = Record<string, unknown> & {
   auto_include_new_doctors?: unknown;
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function findCompanyLink(links: LinkLike[], companyKey: string): LinkLike | null {
   if (!companyKey) return null;
   for (const l of links) {
@@ -50,25 +52,44 @@ function normName(s: unknown): string {
 function onlyDigits(s: unknown): string {
   return String(s ?? "").replace(/\D+/g, "");
 }
-function docKey(d: unknown): string | null {
-  if (!d || typeof d !== "object") return null;
+function docKeys(d: unknown): string[] {
+  if (!d || typeof d !== "object") return [];
   const rec = d as Record<string, unknown>;
+  const out = new Set<string>();
+  const id = typeof rec.id === "string" ? rec.id.trim() : "";
+  if (id) out.add(`id:${id}`);
   const crm = onlyDigits(rec.crm);
   if (crm) {
-    const uf = normName(rec.uf);
-    return uf ? `crm:${crm}/${uf}` : `crm:${crm}`;
+    const rawCrm = String(rec.crm ?? "");
+    const ufFromCrm = rawCrm.includes("/") ? rawCrm.split("/").pop() : "";
+    const uf = normName(rec.uf) || normName(ufFromCrm);
+    out.add(`crm:${crm}`);
+    if (uf) out.add(`crm:${crm}/${uf}`);
   }
-  const nm = normName(rec.name);
-  return nm ? `name:${nm}` : null;
+  const nm = normName(rec.name ?? rec.full_name ?? rec.doctor_name);
+  if (nm) out.add(`name:${nm}`);
+  return [...out];
+}
+function docKey(d: unknown): string | null {
+  return docKeys(d)[0] ?? null;
 }
 function doctorKeySet(arr: unknown): Set<string> {
   const out = new Set<string>();
   if (!Array.isArray(arr)) return out;
   for (const d of arr) {
-    const k = docKey(d);
-    if (k) out.add(k);
+    for (const k of docKeys(d)) out.add(k);
   }
   return out;
+}
+function doctorKeyGroups(arr: unknown): Set<string>[] {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((d) => new Set(docKeys(d)))
+    .filter((keys) => keys.size > 0);
+}
+function hasAnyKey(keys: Set<string>, lookup: Set<string>): boolean {
+  for (const k of keys) if (lookup.has(k)) return true;
+  return false;
 }
 function isAutoInclude(link: LinkLike): boolean {
   return link.auto_include_new_doctors !== false;
@@ -78,11 +99,14 @@ function isAutoInclude(link: LinkLike): boolean {
  * Conjunto de médicos habilitados de duas linhas (mesma empresa) tem interseção?
  * - explicit × explicit: interseção das listas `doctors`.
  * - autoInc × explicit: outro lado tem ao menos 1 médico que NÃO está em excluded.
- * - autoInc × autoInc: presumimos overlap (universo amplo, raramente disjunto).
+ * - autoInc × autoInc: cruza os médicos reais da PJ; só conflita se alguém
+ *   estiver habilitado nos dois lados. Sem cadastro carregável, mantém fallback conservador.
  */
-function enabledDoctorsOverlap(a: LinkLike, b: LinkLike): boolean {
+function enabledDoctorsOverlap(a: LinkLike, b: LinkLike, companyDoctors: Set<string>[] = []): boolean {
   const aAuto = isAutoInclude(a);
   const bAuto = isAutoInclude(b);
+  const aDocGroups = doctorKeyGroups(a.doctors);
+  const bDocGroups = doctorKeyGroups(b.doctors);
   const aDocs = doctorKeySet(a.doctors);
   const bDocs = doctorKeySet(b.doctors);
   const aExcl = doctorKeySet(a.excluded_doctors);
@@ -95,13 +119,19 @@ function enabledDoctorsOverlap(a: LinkLike, b: LinkLike): boolean {
     return false;
   }
   if (!aAuto && bAuto) {
-    if (aDocs.size === 0) return false;
-    for (const k of aDocs) if (!bExcl.has(k)) return true;
+    if (aDocGroups.length === 0) return false;
+    for (const keys of aDocGroups) if (!hasAnyKey(keys, bExcl)) return true;
     return false;
   }
   if (aAuto && !bAuto) {
-    if (bDocs.size === 0) return false;
-    for (const k of bDocs) if (!aExcl.has(k)) return true;
+    if (bDocGroups.length === 0) return false;
+    for (const keys of bDocGroups) if (!hasAnyKey(keys, aExcl)) return true;
+    return false;
+  }
+  if (companyDoctors.length > 0) {
+    for (const keys of companyDoctors) {
+      if (!hasAnyKey(keys, aExcl) && !hasAnyKey(keys, bExcl)) return true;
+    }
     return false;
   }
   return true;
@@ -251,6 +281,7 @@ Deno.serve(async (req) => {
   }
   const overlapByPeer = new Map<string, boolean>();
   const linksByPeer = new Map<string, LinkLike[]>();
+  const companyDoctorKeys = new Map<string, Set<string>[]>();
   if (cabIds.size > 0) {
     const [peerCalcsRes, peerRulesRes] = await Promise.all([
       supabase.from("rule_calculations").select("*").in("rule_id", Array.from(cabIds)),
@@ -279,6 +310,40 @@ Deno.serve(async (req) => {
         Array.isArray(r.group_company_links) ? (r.group_company_links as LinkLike[]) : [],
       );
     }
+
+    const companyIds = new Set<string>();
+    for (const p of sqlProblemsRaw) {
+      if (typeof p.company_key === "string" && UUID_RE.test(p.company_key)) {
+        companyIds.add(p.company_key);
+      }
+    }
+    if (companyIds.size > 0) {
+      const { data: doctorCompanyRows, error: doctorCompanyErr } = await supabase
+        .from("doctor_companies")
+        .select("company_id, doctor_id, doctors(id, full_name, crm, crm_uf, active)")
+        .in("company_id", Array.from(companyIds));
+      if (doctorCompanyErr) {
+        return new Response(
+          JSON.stringify({ error: "Falha ao carregar médicos das empresas", detail: doctorCompanyErr.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      for (const row of (doctorCompanyRows ?? []) as Array<Record<string, unknown>>) {
+        const companyId = typeof row.company_id === "string" ? row.company_id : "";
+        const d = row.doctors as Record<string, unknown> | null;
+        if (!companyId || !d || d.active === false) continue;
+        const keys = new Set(docKeys({
+          id: typeof row.doctor_id === "string" ? row.doctor_id : d.id,
+          name: d.full_name,
+          crm: d.crm,
+          uf: d.crm_uf,
+        }));
+        if (keys.size === 0) continue;
+        const list = companyDoctorKeys.get(companyId) ?? [];
+        list.push(keys);
+        companyDoctorKeys.set(companyId, list);
+      }
+    }
   }
 
   const candidateLinks: LinkLike[] = Array.isArray(body.group_company_links)
@@ -298,7 +363,7 @@ Deno.serve(async (req) => {
     if (overlapByPeer.get(peerId) !== true) return false;
     const candLink = findCompanyLink(candidateLinks, companyKey);
     const peerLink = findCompanyLink(linksByPeer.get(peerId) ?? [], companyKey);
-    if (candLink && peerLink && !enabledDoctorsOverlap(candLink, peerLink)) {
+    if (candLink && peerLink && !enabledDoctorsOverlap(candLink, peerLink, companyDoctorKeys.get(companyKey) ?? [])) {
       keep = false;
     }
     companyProblemKeep.set(cacheKey, keep);
