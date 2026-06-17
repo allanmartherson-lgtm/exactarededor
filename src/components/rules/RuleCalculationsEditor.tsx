@@ -584,8 +584,14 @@ function PackageRolesEditor({
                 {ROLE_OPTIONS.map((o) => (
                   <SelectItem key={o.key} value={o.key} className="text-xs">{o.label}</SelectItem>
                 ))}
+                {selectedRoleKey === "__custom" && role.label && (
+                  <SelectItem value="__custom" className="text-xs italic text-muted-foreground">
+                    {role.label} (legado)
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
+
 
             {/* Toggle % / R$ */}
             <div className="flex border border-border rounded-md overflow-hidden h-7">
