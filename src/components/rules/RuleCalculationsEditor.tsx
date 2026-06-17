@@ -720,10 +720,11 @@ function WhenApplySection({
   const hasCodesFilter = c.code_match_mode !== "any" && c.procedure_codes.length > 0;
   const hasConvenioFilter = c.agreement_aliases.length > 0;
   const hasFuncaoFilter = c.doctor_roles.length > 0;
-  const hasPeriodoFilter = c.has_conditions && (
+  const hasTemporalSurcharge = !!(c.adicional_fds_pct || c.adicional_feriado_pct || c.adicional_noturno_pct || c.noturno_inicio || c.noturno_fim);
+  const hasPeriodoFilter = (c.has_conditions && (
     c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays ||
     c.allowed_access_routes.length > 0 || c.sectors.length > 0 || c.specialties.length > 0
-  );
+  )) || hasTemporalSurcharge;
 
   const [openSection, setOpenSection] = useState<string | null>(null);
 
