@@ -123,6 +123,13 @@ export const BulkReleaseInvoiceRequestDialog = ({
       toast({ title: "Selecione ao menos uma empresa", variant: "destructive" });
       return;
     }
+    // Resolve hospital_id do pagamento (NOT NULL em invoices; trigger valida divergência)
+    const { data: pay } = await supabase.from("payments").select("hospital_id").eq("id", paymentId).single();
+    const hospitalId = pay?.hospital_id;
+    if (!hospitalId) {
+      toast({ title: "Pagamento sem unidade vinculada", variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
     setProgress({ done: 0, total: targets.length });
     let ok = 0;
@@ -137,6 +144,7 @@ export const BulkReleaseInvoiceRequestDialog = ({
       }
       try {
         const { error: invErr } = await supabase.from("invoices").insert({
+          hospital_id: hospitalId,
           payment_id: paymentId,
           company_group_id: g.id,
           company_id: g.company_id ?? null,

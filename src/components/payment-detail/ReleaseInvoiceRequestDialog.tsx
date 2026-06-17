@@ -80,12 +80,21 @@ export const ReleaseInvoiceRequestDialog = ({ open, onOpenChange, paymentId, gro
     }
     setSubmitting(true);
     try {
+      // hospital_id obrigatório em invoices (trigger valida contra o pagamento)
+      const { data: pay } = await supabase.from("payments").select("hospital_id").eq("id", paymentId).single();
+      const hospitalId = pay?.hospital_id;
+      if (!hospitalId) {
+        toast({ title: "Pagamento sem unidade vinculada", variant: "destructive" });
+        setSubmitting(false);
+        return;
+      }
       if (group.company_id) {
         await supabase.from("companies").update({ invoice_emails: emails }).eq("id", group.company_id);
       }
 
       const valorPedido = Number(group.liquido_total ?? group.total_amount) || 0;
       const { error: invErr } = await supabase.from("invoices").insert({
+        hospital_id: hospitalId,
         payment_id: paymentId,
         company_group_id: group.id,
         company_id: group.company_id ?? null,

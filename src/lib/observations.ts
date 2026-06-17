@@ -123,7 +123,20 @@ export type RecordObservationResult = {
 export async function recordObservation(
   input: RecordObservationInput,
 ): Promise<RecordObservationResult> {
+  // hospital_id é NOT NULL em payment_observations; o trigger valida contra o pagamento,
+  // mas o tipo gerado exige o campo no payload. Resolvemos a partir do payment_id.
+  const { data: payRow } = await supabase
+    .from("payments")
+    .select("hospital_id")
+    .eq("id", input.payment_id)
+    .maybeSingle();
+  const hospitalId = payRow?.hospital_id;
+  if (!hospitalId) {
+    return { ok: false, error: "Pagamento sem unidade vinculada.", data: null };
+  }
+
   const payload = {
+    hospital_id: hospitalId,
     payment_id: input.payment_id,
     author_type: input.author_type,
     author_id: input.author_id,

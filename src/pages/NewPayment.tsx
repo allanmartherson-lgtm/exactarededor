@@ -1804,6 +1804,7 @@ const NewPayment = () => {
       const sRawForLookup = r.sector || currentBucket?.sectorMapping || null;
       const sRes = sectorReg ? resolveSector(sRawForLookup, sectorReg) : { sector: null, matched_by: null as any };
       return ({
+        hospital_id: (payment as any).hospital_id ?? hospital?.id,
         payment_id: payment.id,
         doctor_name: r.doctor_name,
         doctor_document: r.doctor_document,
@@ -1847,6 +1848,7 @@ const NewPayment = () => {
       match_score: b.matchScore || 0,
       match_suggestion_id: b.matchedCompany?.id ?? null,
       match_suggestion_name: b.matchedCompany?.name ?? null,
+      hospital_id: hospital?.id,
       doctor_name: r.doctor_name,
       doctor_document: r.doctor_document,
       doctor_email: r.doctor_email,

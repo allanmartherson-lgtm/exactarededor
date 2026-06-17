@@ -58,7 +58,10 @@ const DED_LABELS: Record<string, string> = {
   valor_referencia_externa: "Valor referência externa",
 };
 
+import { useHospital } from "@/contexts/HospitalContext";
+
 export default function Pools({ embedded = false }: { embedded?: boolean } = {}) {
+  const { hospital } = useHospital();
   const [pools, setPools] = useState<Pool[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,10 +114,13 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
     if (!editing) return;
     if (!editing.nome.trim()) { toast.error("Nome obrigatório"); return; }
     if (Math.round(sumPct * 100) !== 10000) { toast.error("Soma dos percentuais deve ser 100"); return; }
+    if (!hospital?.id) { toast.error("Selecione uma unidade hospitalar antes de criar um pool."); return; }
+    const hospitalId = hospital.id;
 
     let poolId = editing.id;
     if (!poolId) {
       const { data, error } = await supabase.from("pools").insert({
+        hospital_id: hospitalId,
         nome: editing.nome, descricao: editing.descricao, base_calculo: editing.base_calculo,
         ativo: editing.ativo, vigencia_inicio: editing.vigencia_inicio, vigencia_fim: editing.vigencia_fim,
       }).select().single();
