@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
@@ -20,6 +20,21 @@ import { resolve } from "node:path";
 const root = resolve(__dirname, "../..");
 const paymentDetail = readFileSync(resolve(root, "pages/PaymentDetail.tsx"), "utf8");
 const companyAnalysis = readFileSync(resolve(root, "pages/CompanyAnalysis.tsx"), "utf8");
+const paymentsPage = readFileSync(resolve(root, "pages/Payments.tsx"), "utf8");
+
+const collectClientFiles = (dir: string): string[] => {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+    const full = resolve(dir, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...collectClientFiles(full));
+    } else if (/\.(ts|tsx)$/.test(entry.name) && !/\.test\.(ts|tsx)$/.test(entry.name)) {
+      out.push(full);
+    }
+  }
+  return out;
+};
 
 /** Acha o índice da linha que contém o botão (label legível). */
 const findLine = (src: string, marker: string): number => {
@@ -140,5 +155,26 @@ describe("Imports — páginas usam helpers do paymentFlow", () => {
   it("CompanyAnalysis importa canEditBatch e canActAsValidatorOrDirector", () => {
     expect(companyAnalysis).toMatch(/canEditBatch/);
     expect(companyAnalysis).toMatch(/canActAsValidatorOrDirector/);
+  });
+});
+
+describe("Reanálise — sempre passa pelo orquestrador", () => {
+  it("PaymentDetail, CompanyAnalysis e Payments disparam dispatch-payment-analysis", () => {
+    expect(paymentDetail).toMatch(/functions\.invoke\(\s*["']dispatch-payment-analysis["']/);
+    expect(companyAnalysis).toMatch(/functions\.invoke\(\s*["']dispatch-payment-analysis["']/);
+    expect(paymentsPage).toMatch(/functions\.invoke\(\s*["']dispatch-payment-analysis["']/);
+  });
+
+  it("nenhuma UI persistente chama analyze-payment direto (exceto simulação dry-run)", () => {
+    const offenders: string[] = [];
+    for (const file of collectClientFiles(root)) {
+      const src = readFileSync(file, "utf8");
+      const re = /functions\.invoke\(\s*["']analyze-payment["'][\s\S]{0,300}\)/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(src)) !== null) {
+        if (!/is_dry_run\s*:\s*true/.test(m[0])) offenders.push(file.replace(root, "src"));
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });
