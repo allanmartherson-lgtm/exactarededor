@@ -112,9 +112,21 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
     if (!editing.nome.trim()) { toast.error("Nome obrigatório"); return; }
     if (Math.round(sumPct * 100) !== 10000) { toast.error("Soma dos percentuais deve ser 100"); return; }
 
+    // hospital_id é NOT NULL em pools — pega da unidade ativa
+    const { useHospital } = await import("@/contexts/HospitalContext");
+    void useHospital; // tipo
+    const { data: userResp } = await supabase.auth.getUser();
+    const userId = userResp?.user?.id;
+    const { data: uh } = userId
+      ? await supabase.from("user_hospitals").select("hospital_id").eq("user_id", userId).limit(1).maybeSingle()
+      : { data: null as any };
+    const hospitalId = uh?.hospital_id;
+    if (!hospitalId) { toast.error("Selecione uma unidade hospitalar antes de criar um pool."); return; }
+
     let poolId = editing.id;
     if (!poolId) {
       const { data, error } = await supabase.from("pools").insert({
+        hospital_id: hospitalId,
         nome: editing.nome, descricao: editing.descricao, base_calculo: editing.base_calculo,
         ativo: editing.ativo, vigencia_inicio: editing.vigencia_inicio, vigencia_fim: editing.vigencia_fim,
       }).select().single();
