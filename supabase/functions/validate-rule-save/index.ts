@@ -28,6 +28,85 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+type LinkLike = Record<string, unknown> & {
+  company_id?: unknown;
+  doctors?: unknown;
+  excluded_doctors?: unknown;
+  auto_include_new_doctors?: unknown;
+};
+
+function findCompanyLink(links: LinkLike[], companyKey: string): LinkLike | null {
+  if (!companyKey) return null;
+  for (const l of links) {
+    const cid = typeof l?.company_id === "string" ? l.company_id : "";
+    if (cid && cid === companyKey) return l;
+  }
+  return null;
+}
+
+function normName(s: unknown): string {
+  return String(s ?? "").trim().toLowerCase();
+}
+function onlyDigits(s: unknown): string {
+  return String(s ?? "").replace(/\D+/g, "");
+}
+function docKey(d: unknown): string | null {
+  if (!d || typeof d !== "object") return null;
+  const rec = d as Record<string, unknown>;
+  const crm = onlyDigits(rec.crm);
+  if (crm) {
+    const uf = normName(rec.uf);
+    return uf ? `crm:${crm}/${uf}` : `crm:${crm}`;
+  }
+  const nm = normName(rec.name);
+  return nm ? `name:${nm}` : null;
+}
+function doctorKeySet(arr: unknown): Set<string> {
+  const out = new Set<string>();
+  if (!Array.isArray(arr)) return out;
+  for (const d of arr) {
+    const k = docKey(d);
+    if (k) out.add(k);
+  }
+  return out;
+}
+function isAutoInclude(link: LinkLike): boolean {
+  return link.auto_include_new_doctors !== false;
+}
+
+/**
+ * Conjunto de médicos habilitados de duas linhas (mesma empresa) tem interseção?
+ * - explicit × explicit: interseção das listas `doctors`.
+ * - autoInc × explicit: outro lado tem ao menos 1 médico que NÃO está em excluded.
+ * - autoInc × autoInc: presumimos overlap (universo amplo, raramente disjunto).
+ */
+function enabledDoctorsOverlap(a: LinkLike, b: LinkLike): boolean {
+  const aAuto = isAutoInclude(a);
+  const bAuto = isAutoInclude(b);
+  const aDocs = doctorKeySet(a.doctors);
+  const bDocs = doctorKeySet(b.doctors);
+  const aExcl = doctorKeySet(a.excluded_doctors);
+  const bExcl = doctorKeySet(b.excluded_doctors);
+
+  if (!aAuto && !bAuto) {
+    // Sem lista de nenhum lado = ninguém habilitado explicitamente.
+    if (aDocs.size === 0 || bDocs.size === 0) return false;
+    for (const k of aDocs) if (bDocs.has(k)) return true;
+    return false;
+  }
+  if (!aAuto && bAuto) {
+    if (aDocs.size === 0) return false;
+    for (const k of aDocs) if (!bExcl.has(k)) return true;
+    return false;
+  }
+  if (aAuto && !bAuto) {
+    if (bDocs.size === 0) return false;
+    for (const k of bDocs) if (!aExcl.has(k)) return true;
+    return false;
+  }
+  return true;
+}
+
 interface ValidateRuleSaveRequest {
   rule_id?: string | null;
   scope: "master" | "especifica" | "grupo";
@@ -158,9 +237,11 @@ Deno.serve(async (req) => {
       ? ((sqlOut as { problems: Array<Record<string, unknown>> }).problems)
       : [];
 
-  // 2) Refina `company_already_bound`: confirma com detectCrossRuleOverlap.
-  // Se os cálculos da regra nova e da regra peer NÃO se sobrepõem em nenhum
-  // par, não há disputa real em runtime → o conflito de empresa é descartado.
+  // 2) Refina `company_already_bound`:
+  //    (a) só mantém se houver overlap real de cálculos com a regra peer; e
+  //    (b) para a empresa em disputa, exige interseção de médicos habilitados
+  //        nos dois lados. Se as listas (apenas/exceto/auto-incluir) deixam
+  //        conjuntos disjuntos, não há conflito real em runtime.
   const newCalcs: RuleCalculationItem[] = body.calculations ?? [];
   const cabIds = new Set<string>();
   for (const p of sqlProblemsRaw) {
@@ -169,19 +250,20 @@ Deno.serve(async (req) => {
     }
   }
   const overlapByPeer = new Map<string, boolean>();
+  const linksByPeer = new Map<string, LinkLike[]>();
   if (cabIds.size > 0) {
-    const { data: peerCalcs, error: peerErr } = await supabase
-      .from("rule_calculations")
-      .select("*")
-      .in("rule_id", Array.from(cabIds));
-    if (peerErr) {
+    const [peerCalcsRes, peerRulesRes] = await Promise.all([
+      supabase.from("rule_calculations").select("*").in("rule_id", Array.from(cabIds)),
+      supabase.from("rules").select("id, group_company_links").in("id", Array.from(cabIds)),
+    ]);
+    if (peerCalcsRes.error || peerRulesRes.error) {
       return new Response(
-        JSON.stringify({ error: "Falha ao carregar cálculos das regras peers", detail: peerErr.message }),
+        JSON.stringify({ error: "Falha ao carregar regras peers", detail: (peerCalcsRes.error ?? peerRulesRes.error)?.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
     const byRule = new Map<string, RuleCalculationItem[]>();
-    for (const row of (peerCalcs ?? []) as Array<RuleCalculationItem & { rule_id: string }>) {
+    for (const row of (peerCalcsRes.data ?? []) as Array<RuleCalculationItem & { rule_id: string }>) {
       const list = byRule.get(row.rule_id) ?? [];
       list.push(row);
       byRule.set(row.rule_id, list);
@@ -191,13 +273,29 @@ Deno.serve(async (req) => {
       const cross = detectCrossRuleOverlap(newCalcs, peerList);
       overlapByPeer.set(peerId, cross.length > 0);
     }
+    for (const r of (peerRulesRes.data ?? []) as Array<{ id: string; group_company_links: unknown }>) {
+      linksByPeer.set(
+        r.id,
+        Array.isArray(r.group_company_links) ? (r.group_company_links as LinkLike[]) : [],
+      );
+    }
   }
+
+  const candidateLinks: LinkLike[] = Array.isArray(body.group_company_links)
+    ? (body.group_company_links as LinkLike[])
+    : [];
 
   const sqlProblems = sqlProblemsRaw.filter((p) => {
     if (p.type !== "company_already_bound") return true;
     const peerId = typeof p.existing_rule_id === "string" ? p.existing_rule_id : "";
-    // Mantém o problema apenas se houver overlap real de cálculos.
-    return overlapByPeer.get(peerId) === true;
+    if (overlapByPeer.get(peerId) !== true) return false;
+    const companyKey = typeof p.company_key === "string" ? p.company_key : "";
+    const candLink = findCompanyLink(candidateLinks, companyKey);
+    const peerLink = findCompanyLink(linksByPeer.get(peerId) ?? [], companyKey);
+    if (candLink && peerLink && !enabledDoctorsOverlap(candLink, peerLink)) {
+      return false;
+    }
+    return true;
   });
 
   // 3) Helper TS — Verificação D (calc_overlap intra-regra)
