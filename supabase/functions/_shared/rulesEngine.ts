@@ -2918,8 +2918,9 @@ export function analyzePaymentItems(
     if (aa !== 0) return aa;
     const isPkgAtt = (r: RuleInput) =>
       r.calculation_type === "pacote_por_atendimento" || r.calculation_type === "pacote";
-    const aMain = filtered.some((r) => isPkgAtt(r) && r.package_main_code && a.procedure_code === r.package_main_code) ? -1 : 0;
-    const bMain = filtered.some((r) => isPkgAtt(r) && r.package_main_code && b.procedure_code === r.package_main_code) ? -1 : 0;
+    const aMain = filtered.some((r) => isPkgAtt(r) && splitMainCodes(r.package_main_code).includes(a.procedure_code ?? "")) ? -1 : 0;
+    const bMain = filtered.some((r) => isPkgAtt(r) && splitMainCodes(r.package_main_code).includes(b.procedure_code ?? "")) ? -1 : 0;
+
     if (aMain !== bMain) return aMain - bMain;
     return (a.procedure_code ?? "").localeCompare(b.procedure_code ?? "");
   });
