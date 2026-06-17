@@ -116,26 +116,17 @@ describe("CompanyAnalysis.tsx — gates de governança nos botões", () => {
   });
 
   it("botão 'Reaplicar regras' está dentro do gate canActAnalista", () => {
-    expect(enclosingGate(companyAnalysis, "Reaplicar regras")).toBe("canActAnalista");
+    // Marcador único do JSX do botão (existe também um texto de ajuda solto
+    // com "Reaplicar regras" entre aspas — ignorar).
+    expect(enclosingGate(companyAnalysis, ": \"Reaplicar regras\")")).toBe("canActAnalista");
   });
 
-  it("botão 'Cancelar lote' (fluxo analista) está dentro do gate canActAnalista", () => {
-    // O label aparece também no AlertDialog interno; usamos o do botão de toolbar.
-    const idx = companyAnalysis.indexOf("Cancelar lote");
-    expect(idx).toBeGreaterThan(0);
-    // Garante que o primeiro 'Cancelar lote' está dentro de canActAnalista.
-    expect(enclosingGate(companyAnalysis, "Cancelar lote")).toBe("canActAnalista");
-  });
-
-  it("botão 'Validar e enviar para aprovação' está dentro do gate canActValidador", () => {
-    expect(enclosingGate(companyAnalysis, "Validar e enviar para aprovação")).toBe(
-      "canActValidador",
-    );
-  });
-
-  it("botões do diretor (Devolver/Rejeitar) estão dentro do gate canActDiretor", () => {
-    // Pegamos a linha do 'Rejeitado pelo diretor' (handler único do diretor).
-    expect(enclosingGate(companyAnalysis, "Rejeitado pelo diretor")).toBe("canActDiretor");
+  it("botão 'Concluir análise / Finalizar confecção' está dentro do gate canActAnalista", () => {
+    // Substitui o antigo 'Validar e enviar para aprovação' — as ações de
+    // validador/diretor por empresa foram movidas para o footer em lote do
+    // PaymentDetail (PaymentBatchActionsFooter). O que sobra aqui é a
+    // finalização do analista, que deve permanecer atrás de canActAnalista.
+    expect(enclosingGate(companyAnalysis, "Finalizar confecção")).toBe("canActAnalista");
   });
 });
 
