@@ -84,6 +84,8 @@ interface ParsedRow {
   procedure_amount: number | null;
   quantity: number | null;
   procedure_date: string | null;
+  /** true se a hora foi extraída da base; usado pelo motor para aplicar (ou não) adicional noturno. */
+  procedure_date_has_time: boolean;
   patient_name: string | null;
   sector: string | null;
   attendance_character: string | null;
@@ -378,11 +380,21 @@ const toStr = (v: unknown): string | null => {
   return s.length ? s : null;
 };
 
-const excelDateToISO = (v: unknown): string | null => {
-  if (v == null || v === "") return null;
+/**
+ * Converte data crua da base hospitalar para ISO. Retorna também
+ * `hasTime` indicando se a HORA do atendimento veio explícita na origem
+ * (necessário para o motor decidir se aplica adicional noturno — sem
+ * hora real, noturno NÃO é aplicado).
+ */
+const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTime: boolean } => {
+  if (v == null || v === "") return { iso: null, hasTime: false };
   if (typeof v === "number") {
     const d = XLSX.SSF.parse_date_code(v);
-    if (d) return new Date(Date.UTC(d.y, d.m - 1, d.d, d.H || 0, d.M || 0, Math.floor(d.S || 0))).toISOString();
+    if (d) {
+      const hasTime = !!(d.H || d.M || d.S);
+      const iso = new Date(Date.UTC(d.y, d.m - 1, d.d, d.H || 0, d.M || 0, Math.floor(d.S || 0))).toISOString();
+      return { iso, hasTime };
+    }
   }
   const s = String(v).trim();
   // dd/mm/yyyy [hh:mm]
@@ -390,11 +402,18 @@ const excelDateToISO = (v: unknown): string | null => {
   if (m) {
     const [, dd, mm, yy, hh, mi] = m;
     const year = yy.length === 2 ? 2000 + Number(yy) : Number(yy);
-    return new Date(Date.UTC(year, Number(mm) - 1, Number(dd), Number(hh || 0), Number(mi || 0))).toISOString();
+    const hasTime = hh !== undefined;
+    const iso = new Date(Date.UTC(year, Number(mm) - 1, Number(dd), Number(hh || 0), Number(mi || 0))).toISOString();
+    return { iso, hasTime };
   }
   const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d.toISOString();
+  if (isNaN(d.getTime())) return { iso: null, hasTime: false };
+  // Heurística para strings ISO/livres: se mencionar 'T' com hora ≠ 00:00, considera com hora.
+  const hasTime = /T\d{2}:\d{2}/.test(s) && !/T00:00(?::00)?(?:\.000)?Z?$/.test(s);
+  return { iso: d.toISOString(), hasTime };
 };
+
+const excelDateToISO = (v: unknown): string | null => excelDateToISOWithFlag(v).iso;
 
 // Matching de empresa centralizado em src/lib/parsePaymentFile.ts (ver imports no topo).
 
@@ -641,6 +660,7 @@ const NewPayment = () => {
               procedure_amount: Number(raw["Valor Procedimento"] ?? 0),
               quantity: Number(raw["Qtd"] ?? 1) || 1,
               procedure_date: String(raw["Data"] ?? "") || null,
+              procedure_date_has_time: false,
               patient_name: String(raw["Paciente"] ?? ""),
               sector: String(raw["Setor"] ?? "") || null,
               attendance_character: String(paid?.attendance_character ?? ""),
@@ -861,11 +881,14 @@ const NewPayment = () => {
         ])) || null,
         procedure_amount: procedureAmountFinal,
         quantity: quantity,
-        procedure_date: excelDateToISO(pick(row, [
-          "data procedimento", "data atendimento", "data dmy", "data",
-          "dt resposta", "dt. resp", "dt resp", "data resposta",
-          "dt solic", "dt. solic", "data solicitacao", "data solicitação",
-        ])),
+        ...(() => {
+          const parsed = excelDateToISOWithFlag(pick(row, [
+            "data procedimento", "data atendimento", "data dmy", "data",
+            "dt resposta", "dt. resp", "dt resp", "data resposta",
+            "dt solic", "dt. solic", "data solicitacao", "data solicitação",
+          ]));
+          return { procedure_date: parsed.iso, procedure_date_has_time: parsed.hasTime };
+        })(),
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         sector: rawSector,
         attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
@@ -1823,6 +1846,7 @@ const NewPayment = () => {
         procedure_amount: r.procedure_amount,
         quantity: r.quantity,
         procedure_date: r.procedure_date,
+        procedure_date_has_time: r.procedure_date_has_time,
         patient_name: r.patient_name,
         sector: sRes.sector?.slug ?? normalizeSector(sRawForLookup),
         attendance_character: r.attendance_character,
@@ -1864,6 +1888,7 @@ const NewPayment = () => {
       procedure_amount: r.procedure_amount,
       quantity: r.quantity,
       procedure_date: r.procedure_date,
+      procedure_date_has_time: r.procedure_date_has_time,
       patient_name: r.patient_name,
       sector: normalizeSector(r.sector || b.sectorMapping || null),
       attendance_character: r.attendance_character,

@@ -279,6 +279,8 @@ export interface ItemInput {
   attendance_number: string | null;
   patient_name: string | null;
   procedure_date: string | null;
+  /** true se a hora veio explícita na base hospitalar. Sem hora real, adicional noturno NÃO é aplicado. */
+  procedure_date_has_time?: boolean | null;
   quantity?: number | null;
   // Exceção autorizada (marcada pelo analista)
   authorized_exception?: boolean | null;
@@ -2743,6 +2745,7 @@ export function analyzeItem(
 export function pickTemporalSurcharge(
   cfg: NonNullable<ExpectedCalc["temporal_surcharge_config"]>,
   procedureDateIso: string,
+  procedureDateHasTime: boolean = false,
 ): { pct: number; reason: "fim de semana" | "feriado" | "noturno" } | null {
   if (!cfg || !procedureDateIso) return null;
 
@@ -2768,9 +2771,10 @@ export function pickTemporalSurcharge(
     candidates.push({ pct: fdsPct, reason: "fim de semana" });
   }
 
-  // Noturno — só faz sentido se houver hora real no procedure_date.
+  // Noturno — só aplica quando a hora foi extraída explicitamente da base hospitalar.
+  // Sem hora real (procedureDateHasTime === false), NUNCA aplica adicional noturno.
   const noturnoPct = Number(cfg.noturno_pct ?? 0);
-  if (noturnoPct > 0 && cfg.noturno_inicio && cfg.noturno_fim && hasTime) {
+  if (noturnoPct > 0 && cfg.noturno_inicio && cfg.noturno_fim && hasTime && procedureDateHasTime) {
     const ini = parseHHMM(cfg.noturno_inicio);
     const fim = parseHHMM(cfg.noturno_fim);
     if (ini != null && fim != null && ini !== fim) {
@@ -2893,7 +2897,7 @@ function finalizeAnalysis(
   // % incide sobre o valor calculado (expected) — para regras percentuais isso é
   // matematicamente equivalente a aplicar sobre a tabela base.
   if (calc.expected != null && calc.expected > 0 && calc.temporal_surcharge_config && item.procedure_date) {
-    const sur = pickTemporalSurcharge(calc.temporal_surcharge_config, item.procedure_date);
+    const sur = pickTemporalSurcharge(calc.temporal_surcharge_config, item.procedure_date, item.procedure_date_has_time === true);
     if (sur && sur.pct > 0) {
       const base = calc.expected;
       const addValue = round2(base * (sur.pct / 100));

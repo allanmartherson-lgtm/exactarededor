@@ -44,6 +44,8 @@ export interface ParsedRow {
   procedure_amount: number | null;
   quantity: number | null;
   procedure_date: string | null;
+  /** true se a hora foi extraída explicitamente da base hospitalar. */
+  procedure_date_has_time?: boolean;
   patient_name: string | null;
   sector: string | null;
   /** Caráter do atendimento (ELETIVO / URGENCIA / EMERGENCIA) — usado pelo motor para filtros de bônus. */
@@ -227,17 +229,20 @@ const toStr = (v: unknown): string | null => {
   const s = String(v).trim();
   return s.length ? s : null;
 };
-const excelDateToISO = (v: unknown): string | null => {
-  if (v == null || v === "") return null;
+const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTime: boolean } => {
+  if (v == null || v === "") return { iso: null, hasTime: false };
   if (typeof v === "number") {
     const d = XLSX.SSF.parse_date_code(v);
     if (d) {
-      const hasTime = d.H || d.M || d.S;
+      const hasTime = !!(d.H || d.M || d.S);
       if (hasTime) {
-        return new Date(Date.UTC(d.y, d.m - 1, d.d, d.H || 0, d.M || 0, Math.floor(d.S || 0))).toISOString();
+        return {
+          iso: new Date(Date.UTC(d.y, d.m - 1, d.d, d.H || 0, d.M || 0, Math.floor(d.S || 0))).toISOString(),
+          hasTime: true,
+        };
       }
       // Data sem hora: usar 15:00 UTC (= meio-dia em UTC-3) para evitar rollback em Brasília
-      return new Date(Date.UTC(d.y, d.m - 1, d.d, 15, 0, 0)).toISOString();
+      return { iso: new Date(Date.UTC(d.y, d.m - 1, d.d, 15, 0, 0)).toISOString(), hasTime: false };
     }
   }
   const s = String(v).trim();
@@ -247,16 +252,20 @@ const excelDateToISO = (v: unknown): string | null => {
     const year = yy.length === 2 ? 2000 + Number(yy) : Number(yy);
     const hasTime = hh !== undefined;
     if (hasTime) {
-      return new Date(Date.UTC(year, Number(mm) - 1, Number(dd), Number(hh), Number(mi || 0))).toISOString();
+      return { iso: new Date(Date.UTC(year, Number(mm) - 1, Number(dd), Number(hh), Number(mi || 0))).toISOString(), hasTime: true };
     }
-    return new Date(Date.UTC(year, Number(mm) - 1, Number(dd), 15, 0, 0)).toISOString();
+    return { iso: new Date(Date.UTC(year, Number(mm) - 1, Number(dd), 15, 0, 0)).toISOString(), hasTime: false };
   }
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    return `${s}T15:00:00.000Z`;
+    return { iso: `${s}T15:00:00.000Z`, hasTime: false };
   }
   const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d.toISOString();
+  if (isNaN(d.getTime())) return { iso: null, hasTime: false };
+  const hasTime = /T\d{2}:\d{2}/.test(s) && !/T00:00(?::00)?(?:\.000)?Z?$/.test(s);
+  return { iso: d.toISOString(), hasTime };
 };
+
+const excelDateToISO = (v: unknown): string | null => excelDateToISOWithFlag(v).iso;
 
 // ===== Levenshtein normalizado =====
 const lev = (a: string, b: string): number => {
@@ -562,7 +571,10 @@ export const parsePaymentFile = async (
       specialty: toStr(pickField(row, "specialty", manualMapping)) || null,
       procedure_amount: procedureAmountFinal,
       quantity: toNumber(pickField(row, "quantity", manualMapping)) || null,
-      procedure_date: excelDateToISO(pickField(row, "procedure_date", manualMapping)),
+      ...(() => {
+        const p = excelDateToISOWithFlag(pickField(row, "procedure_date", manualMapping));
+        return { procedure_date: p.iso, procedure_date_has_time: p.hasTime };
+      })(),
       patient_name: toStr(pickField(row, "patient_name", manualMapping)),
       sector: toStr(pickField(row, "sector", manualMapping)),
       attendance_character: toStr(pickField(row, "attendance_character", manualMapping)),
