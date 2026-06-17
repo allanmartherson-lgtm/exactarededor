@@ -979,6 +979,13 @@ export type Database = {
             referencedRelation: "payment_company_groups"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "company_group_approvals_payment_company_group_id_fkey"
+            columns: ["payment_company_group_id"]
+            isOneToOne: false
+            referencedRelation: "vw_group_rule_totals"
+            referencedColumns: ["group_id"]
+          },
         ]
       }
       company_hospital_overrides: {
@@ -3420,6 +3427,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoices_company_group_id_fkey"
+            columns: ["company_group_id"]
+            isOneToOne: false
+            referencedRelation: "vw_group_rule_totals"
+            referencedColumns: ["group_id"]
+          },
+          {
             foreignKeyName: "invoices_hospital_id_fkey"
             columns: ["hospital_id"]
             isOneToOne: false
@@ -4369,6 +4383,57 @@ export type Database = {
           },
         ]
       }
+      payment_group_reconciliation_overrides: {
+        Row: {
+          approved_by: string
+          bruto_pedido_snapshot: number
+          bruto_regra_snapshot: number
+          created_at: string
+          diferenca_snapshot: number
+          group_id: string
+          hospital_id: string
+          id: string
+          justification: string
+        }
+        Insert: {
+          approved_by: string
+          bruto_pedido_snapshot: number
+          bruto_regra_snapshot: number
+          created_at?: string
+          diferenca_snapshot: number
+          group_id: string
+          hospital_id: string
+          id?: string
+          justification: string
+        }
+        Update: {
+          approved_by?: string
+          bruto_pedido_snapshot?: number
+          bruto_regra_snapshot?: number
+          created_at?: string
+          diferenca_snapshot?: number
+          group_id?: string
+          hospital_id?: string
+          id?: string
+          justification?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_group_reconciliation_overrides_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "payment_company_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_group_reconciliation_overrides_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "vw_group_rule_totals"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
       payment_item_hints: {
         Row: {
           confidence: number
@@ -5191,6 +5256,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payment_company_groups"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_questions_company_group_id_fkey"
+            columns: ["company_group_id"]
+            isOneToOne: false
+            referencedRelation: "vw_group_rule_totals"
+            referencedColumns: ["group_id"]
           },
           {
             foreignKeyName: "payment_questions_hospital_id_fkey"
@@ -8154,6 +8226,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "user_company_notes_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "vw_group_rule_totals"
+            referencedColumns: ["group_id"]
+          },
+          {
             foreignKeyName: "user_company_notes_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
@@ -8556,6 +8635,59 @@ export type Database = {
           transitions_count: number | null
         }
         Relationships: []
+      }
+      vw_group_rule_totals: {
+        Row: {
+          bruto_pedido_total: number | null
+          bruto_regra_total: number | null
+          company_id: string | null
+          diferenca: number | null
+          diferenca_pct: number | null
+          group_id: string | null
+          hospital_id: string | null
+          itens_divergentes: number | null
+          itens_sem_regra: number | null
+          itens_total: number | null
+          payment_id: string | null
+          status: Database["public"]["Enums"]["payment_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_company_groups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_company_groups_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_company_groups_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_company_groups_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_company_groups_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
+          },
+        ]
       }
     }
     Functions: {
@@ -9017,6 +9149,13 @@ export type Database = {
               status: string
             }[]
           }
+      get_group_block_thresholds: {
+        Args: { _hospital_id: string }
+        Returns: {
+          block_abs: number
+          block_pct: number
+        }[]
+      }
       get_intervention_savings: {
         Args: { p_end?: string; p_hospital_id?: string; p_start?: string }
         Returns: Json
