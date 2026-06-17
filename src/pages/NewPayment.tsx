@@ -660,6 +660,7 @@ const NewPayment = () => {
               procedure_amount: Number(raw["Valor Procedimento"] ?? 0),
               quantity: Number(raw["Qtd"] ?? 1) || 1,
               procedure_date: String(raw["Data"] ?? "") || null,
+              procedure_date_has_time: false,
               patient_name: String(raw["Paciente"] ?? ""),
               sector: String(raw["Setor"] ?? "") || null,
               attendance_character: String(paid?.attendance_character ?? ""),
