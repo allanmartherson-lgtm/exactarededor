@@ -725,6 +725,7 @@ function WhenApplySection({
     c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays ||
     c.allowed_access_routes.length > 0 || c.sectors.length > 0 || c.specialties.length > 0
   )) || hasTemporalSurcharge;
+  const hasNoturnoPct = Number(c.adicional_noturno_pct || 0) > 0;
 
   const [openSection, setOpenSection] = useState<string | null>(null);
 
@@ -893,17 +894,18 @@ function WhenApplySection({
                     onChange={e => onChange({ adicional_noturno_pct: sanitizeDecimalDraft(e.target.value) })} />
                 </div>
               </div>
-              {Number(c.adicional_noturno_pct || 0) > 0 && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8, opacity: hasNoturnoPct ? 1 : 0.65 }}>
                   <div>
                     <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Início janela noturna</Label>
                     <Input type="text" inputMode="numeric" placeholder="19:00" value={c.noturno_inicio}
+                      disabled={!hasNoturnoPct}
                       onKeyDown={preventEnterSubmit}
                       onChange={e => onChange({ noturno_inicio: sanitizeTimeDraft(e.target.value) })} />
                   </div>
                   <div>
                     <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Fim janela noturna</Label>
                     <Input type="text" inputMode="numeric" placeholder="07:00" value={c.noturno_fim}
+                      disabled={!hasNoturnoPct}
                       onKeyDown={preventEnterSubmit}
                       onChange={e => onChange({ noturno_fim: sanitizeTimeDraft(e.target.value) })} />
                   </div>
@@ -911,7 +913,6 @@ function WhenApplySection({
                     Pode cruzar meia-noite (ex: 19:00 → 07:00). Requer que a base tenha hora do atendimento.
                   </p>
                 </div>
-              )}
             </div>
 
             <div>
