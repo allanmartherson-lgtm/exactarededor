@@ -8,6 +8,7 @@ import {
   type FieldMappingHit,
   type ManualMapping,
 } from "@/lib/columnMapping";
+import { normalizeAccessRouteForImport } from "@/lib/normAccessRoute";
 export type { ManualMapping, FieldMappingHit } from "@/lib/columnMapping";
 
 export type LineType =
@@ -554,6 +555,9 @@ export const parsePaymentFile = async (
       if (s && isNaN(Number(s.replace(/[\sR$.,]/g, "")))) doctorNameRaw = s;
     }
 
+    const rawAccessRoute = toStr(pickField(row, "access_route", manualMapping));
+    const accessRouteNorm = normalizeAccessRouteForImport(rawAccessRoute);
+
     const base = {
       doctor_name: doctorNameRaw ?? "",
       doctor_document: toStr(pickField(row, "doctor_document", manualMapping)) ?? "",
@@ -565,7 +569,7 @@ export const parsePaymentFile = async (
       attendance_number: toStr(pickField(row, "attendance_number", manualMapping)),
       procedure_code: toStr(pickField(row, "procedure_code", manualMapping)),
       procedure_name: toStr(pickField(row, "procedure_name", manualMapping)),
-      access_route: toStr(pickField(row, "access_route", manualMapping)),
+      access_route: accessRouteNorm.canonical,
       doctor_role: role,
       agreement_text: toStr(pickField(row, "agreement_text", manualMapping)),
       specialty: toStr(pickField(row, "specialty", manualMapping)) || null,
@@ -578,11 +582,21 @@ export const parsePaymentFile = async (
       patient_name: toStr(pickField(row, "patient_name", manualMapping)),
       sector: toStr(pickField(row, "sector", manualMapping)),
       attendance_character: toStr(pickField(row, "attendance_character", manualMapping)),
-      raw_data: row,
+      raw_data: {
+        ...row,
+        ...(accessRouteNorm.raw ? { __via_acesso_original: accessRouteNorm.raw } : {}),
+      },
     };
     const tipo_linha = classifyLine(base, paymentKind || null);
     const withType = { ...base, tipo_linha };
     const line_issues = validateLine(withType);
+    if (accessRouteNorm.fallback && accessRouteNorm.raw) {
+      line_issues.push({
+        severity: "alerta",
+        field: "access_route",
+        message: `Via de acesso "${accessRouteNorm.raw}" não corresponde às 4 canônicas — convertida para "Sem via". Revise se o motor deve cruzar como outra via.`,
+      });
+    }
     return { ...withType, line_issues } as ParsedRow;
   }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
 

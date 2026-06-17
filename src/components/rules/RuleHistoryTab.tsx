@@ -61,6 +61,12 @@ const FIELD_LABELS: Record<string, string> = {
   target_amount: "Valor-alvo (R$)",
   reference_table_id: "Tabela de referência",
   sort_order: "Ordem",
+  apply_access_route: "Aplicar regra de via de acesso",
+  allowed_access_routes: "Vias de acesso permitidas",
+  include_auxiliaries: "Considerar auxiliares",
+  aux_first_pct: "1º auxiliar (%)",
+  aux_second_pct: "2º auxiliar+ (%)",
+  instrumentador_pct: "Instrumentador (%)",
 };
 
 const stringify = (v: unknown): string => {
