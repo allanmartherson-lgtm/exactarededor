@@ -279,6 +279,8 @@ export interface ItemInput {
   attendance_number: string | null;
   patient_name: string | null;
   procedure_date: string | null;
+  /** true se a hora veio explícita na base hospitalar. Sem hora real, adicional noturno NÃO é aplicado. */
+  procedure_date_has_time?: boolean | null;
   quantity?: number | null;
   // Exceção autorizada (marcada pelo analista)
   authorized_exception?: boolean | null;
