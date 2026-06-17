@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, ChevronDown, ChevronRight, Package, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
@@ -182,6 +182,22 @@ const CALCULABLE_METHODS: RuleCalculationType[] = [
   "percentual_sobre_convenio", "regra_vias", "pacote",
   "valor_fixo", "tabela_diferenciada", "bonus", "complemento", "exclusao",
 ];
+
+const sanitizeDecimalDraft = (value: string) => value.replace(/[^\d.,]/g, "").replace(",", ".");
+
+const sanitizeTimeDraft = (value: string) => {
+  const clean = value.replace(/[^\d:]/g, "").slice(0, 5);
+  if (clean.includes(":")) {
+    const [hh = "", mm = ""] = clean.split(":");
+    return `${hh.slice(0, 2)}${clean.includes(":") ? ":" : ""}${mm.slice(0, 2)}`;
+  }
+  const digits = clean.replace(/\D/g, "").slice(0, 4);
+  return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+};
+
+const preventEnterSubmit = (e: KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === "Enter") e.preventDefault();
+};
 
 type RefTable = { id: string; name: string; purpose?: string };
 
@@ -704,10 +720,12 @@ function WhenApplySection({
   const hasCodesFilter = c.code_match_mode !== "any" && c.procedure_codes.length > 0;
   const hasConvenioFilter = c.agreement_aliases.length > 0;
   const hasFuncaoFilter = c.doctor_roles.length > 0;
-  const hasPeriodoFilter = c.has_conditions && (
+  const hasTemporalSurcharge = !!(c.adicional_fds_pct || c.adicional_feriado_pct || c.adicional_noturno_pct || c.noturno_inicio || c.noturno_fim);
+  const hasPeriodoFilter = (c.has_conditions && (
     c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays ||
     c.allowed_access_routes.length > 0 || c.sectors.length > 0 || c.specialties.length > 0
-  );
+  )) || hasTemporalSurcharge;
+  const hasNoturnoPct = Number(c.adicional_noturno_pct || 0) > 0;
 
   const [openSection, setOpenSection] = useState<string | null>(null);
 
@@ -860,36 +878,41 @@ function WhenApplySection({
                 <div>
                   <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Fim de semana (%)</Label>
                   <Input type="text" inputMode="decimal" placeholder="ex: 30" value={c.adicional_fds_pct}
-                    onChange={e => onChange({ adicional_fds_pct: e.target.value.replace(/[^\d.,]/g, "").replace(",", ".") })} />
+                    onKeyDown={preventEnterSubmit}
+                    onChange={e => onChange({ adicional_fds_pct: sanitizeDecimalDraft(e.target.value) })} />
                 </div>
                 <div>
                   <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Feriado nacional (%)</Label>
                   <Input type="text" inputMode="decimal" placeholder="ex: 30" value={c.adicional_feriado_pct}
-                    onChange={e => onChange({ adicional_feriado_pct: e.target.value.replace(/[^\d.,]/g, "").replace(",", ".") })} />
+                    onKeyDown={preventEnterSubmit}
+                    onChange={e => onChange({ adicional_feriado_pct: sanitizeDecimalDraft(e.target.value) })} />
                 </div>
                 <div>
                   <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Noturno (%)</Label>
                   <Input type="text" inputMode="decimal" placeholder="ex: 30" value={c.adicional_noturno_pct}
-                    onChange={e => onChange({ adicional_noturno_pct: e.target.value.replace(/[^\d.,]/g, "").replace(",", ".") })} />
+                    onKeyDown={preventEnterSubmit}
+                    onChange={e => onChange({ adicional_noturno_pct: sanitizeDecimalDraft(e.target.value) })} />
                 </div>
               </div>
-              {Number(c.adicional_noturno_pct || 0) > 0 && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8, opacity: hasNoturnoPct ? 1 : 0.65 }}>
                   <div>
                     <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Início janela noturna</Label>
-                    <Input type="time" value={c.noturno_inicio}
-                      onChange={e => onChange({ noturno_inicio: e.target.value })} />
+                    <Input type="text" inputMode="numeric" placeholder="19:00" value={c.noturno_inicio}
+                      disabled={!hasNoturnoPct}
+                      onKeyDown={preventEnterSubmit}
+                      onChange={e => onChange({ noturno_inicio: sanitizeTimeDraft(e.target.value) })} />
                   </div>
                   <div>
                     <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Fim janela noturna</Label>
-                    <Input type="time" value={c.noturno_fim}
-                      onChange={e => onChange({ noturno_fim: e.target.value })} />
+                    <Input type="text" inputMode="numeric" placeholder="07:00" value={c.noturno_fim}
+                      disabled={!hasNoturnoPct}
+                      onKeyDown={preventEnterSubmit}
+                      onChange={e => onChange({ noturno_fim: sanitizeTimeDraft(e.target.value) })} />
                   </div>
                   <p style={{ gridColumn: "1 / -1", fontSize: 10, color: "hsl(var(--muted-foreground))", margin: 0 }}>
                     Pode cruzar meia-noite (ex: 19:00 → 07:00). Requer que a base tenha hora do atendimento.
                   </p>
                 </div>
-              )}
             </div>
 
             <div>
