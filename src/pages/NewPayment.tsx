@@ -84,6 +84,8 @@ interface ParsedRow {
   procedure_amount: number | null;
   quantity: number | null;
   procedure_date: string | null;
+  /** true se a hora foi extraída da base; usado pelo motor para aplicar (ou não) adicional noturno. */
+  procedure_date_has_time: boolean;
   patient_name: string | null;
   sector: string | null;
   attendance_character: string | null;
