@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, ShieldCheck, Unlock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileDown, ShieldCheck, Unlock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { useGroupReconciliation } from "@/hooks/useGroupReconciliation";
 import { ReleaseDivergenceDialog } from "./ReleaseDivergenceDialog";
+import { generateGroupValidationPdf } from "@/lib/groupValidationPdf";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Props = {
@@ -80,6 +82,21 @@ export function GroupReconciliationGate({ groupId, hospitalId, compact }: Props)
                 <Unlock className="h-3 w-3" /> Liberar com justificativa
               </Button>
             )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1"
+              onClick={async () => {
+                try {
+                  const pdf = await generateGroupValidationPdf(groupId);
+                  pdf.save(`validacao-conciliacao-${groupId.slice(0, 8)}.pdf`);
+                } catch (e: any) {
+                  toast.error("Falha ao gerar PDF", { description: e?.message });
+                }
+              }}
+            >
+              <FileDown className="h-3 w-3" /> PDF
+            </Button>
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
