@@ -711,6 +711,39 @@ const FieldGroup = ({ children, style }: { children: React.ReactNode; style?: Re
   </div>
 );
 
+type FilterBtnProps = {
+  id: string;
+  label: string;
+  active: boolean;
+  openSection: string | null;
+  onToggle: (key: string) => void;
+  children: React.ReactNode;
+};
+
+function FilterBtn({ id, label, active, openSection, onToggle, children }: FilterBtnProps) {
+  const isOpen = openSection === id;
+
+  return (
+    <div style={{ border: "1px solid hsl(var(--border))", borderRadius: 8, overflow: "hidden" }}>
+      <button type="button" onClick={() => onToggle(id)} style={{
+        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "9px 14px", background: active ? "hsl(var(--accent))" : "hsl(var(--card))",
+        border: "none", cursor: "pointer", fontFamily: "inherit",
+        borderBottom: isOpen ? "1px solid hsl(var(--border))" : "none",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>{label}</span>
+          {active && <span style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))", borderRadius: 20, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>ativo</span>}
+        </div>
+        <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", display: "inline-block", transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
+      </button>
+      {isOpen && (
+        <div style={{ padding: "12px 14px", background: "hsl(var(--card))" }}>{children}</div>
+      )}
+    </div>
+  );
+}
+
 /* ============================================================
  *  WhenApplySection — progressive disclosure dos filtros por cálculo
  * ============================================================ */
