@@ -1617,7 +1617,7 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
     c.calculation_type === "pacote_fechado" ||
     c.calculation_type === "pacote_com_extras";
   if (isPackageCalc) {
-    const mainCode = String((c as any).package_main_code ?? "").trim();
+    const mainCodes = splitMainCodes((c as any).package_main_code);
     const included = (Array.isArray((c as any).package_included_codes)
       ? (c as any).package_included_codes
       : []
@@ -1627,10 +1627,11 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
       : []
     ).map((x: any) => String(x).trim()).filter(Boolean);
     const conjunto = new Set<string>([
-      ...(mainCode ? [mainCode] : []),
+      ...mainCodes,
       ...included,
       ...extras,
     ]);
+
     if (conjunto.size > 0) {
       const ic = String(item.procedure_code ?? "").trim();
       const matchesViaCode = !!ic && conjunto.has(ic);
