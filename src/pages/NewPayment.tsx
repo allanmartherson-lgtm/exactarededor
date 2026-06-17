@@ -1847,6 +1847,7 @@ const NewPayment = () => {
       match_score: b.matchScore || 0,
       match_suggestion_id: b.matchedCompany?.id ?? null,
       match_suggestion_name: b.matchedCompany?.name ?? null,
+      hospital_id: hospital?.id,
       doctor_name: r.doctor_name,
       doctor_document: r.doctor_document,
       doctor_email: r.doctor_email,

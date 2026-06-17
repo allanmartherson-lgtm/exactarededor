@@ -868,6 +868,7 @@ export default function CompanyAnalysis() {
         const { data: created, error: cErr } = await supabase
           .from("payment_company_groups")
           .insert({
+            hospital_id: (payment as any).hospital_id,
             payment_id: id,
             company_id: newCompany.id,
             company_name: newCompany.name,
@@ -1100,6 +1101,7 @@ export default function CompanyAnalysis() {
       await supabase.from("payment_company_groups").delete().eq("id", group.id);
 
       const newItems = companyRows.map((r) => ({
+        hospital_id: (payment as any).hospital_id,
         payment_id: id,
         doctor_name: r.doctor_name,
         doctor_document: r.doctor_document,

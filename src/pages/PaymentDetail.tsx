@@ -1207,6 +1207,7 @@ const PaymentDetail = () => {
             .eq("id", existing.id);
         } else {
           await supabase.from("payment_company_groups").insert({
+            hospital_id: (payment as any).hospital_id,
             payment_id: id,
             company_name: g.company_name,
             company_id: g.company_id,
@@ -1218,6 +1219,7 @@ const PaymentDetail = () => {
       }
 
       const itemsToInsert = allRows.map((r) => ({
+        hospital_id: (payment as any).hospital_id,
         payment_id: id,
         doctor_name: r.doctor_name,
         doctor_document: r.doctor_document,
