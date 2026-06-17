@@ -582,49 +582,41 @@ export default function CompanyAnalysis() {
     if (!guardEditable()) return;
     await autoClaim();
     setReanalyzing(true);
-    const startedAt = Date.now();
     try {
-      const { error } = await supabase.functions.invoke("analyze-payment", {
-        body: { payment_id: id, company_name: group.company_name },
+      const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", {
+        body: { payment_id: id, only_companies: [group.company_name] },
       });
       if (error) throw error;
+
+      const dispatched = Number((data as any)?.total_companies ?? 0);
+      const alreadyRunning = (data as any)?.already_running === true;
+      if (!alreadyRunning && dispatched === 0) {
+        const skipped = Array.isArray((data as any)?.skipped_companies) ? (data as any).skipped_companies : [];
+        const sample = skipped.length
+          ? ` Status: ${Array.from(new Set(skipped.map((s: any) => s.status))).slice(0, 3).join(", ")}.`
+          : "";
+        toast.error("Empresa não foi reanalisada", {
+          description: ((data as any)?.message ?? "A empresa não está em estado editável para reanálise.") + sample,
+        });
+        return;
+      }
+
       await recordObservation({
         payment_id: id,
         author_type: myAuthorType,
         author_id: user!.id,
-        message: `[${group.company_name}] Regras reaplicadas pelo analista (reanálise da IA).`,
+        message: `[${group.company_name}] Reanálise solicitada pelo analista. Job: ${(data as any)?.job_id ?? (alreadyRunning ? "já em andamento" : "—")}.`,
         status_from: group.status,
         status_to: group.status,
       });
-      toast.success("Regras reaplicadas");
+      toast.success(alreadyRunning ? "Reanálise já está em andamento" : "Reanálise iniciada", {
+        description: "O motor vai reprocessar esta empresa e atualizar a tela ao concluir.",
+      });
       load();
     } catch (e) {
-      // O cliente Supabase pode encerrar a conexão antes da função terminar
-      // (timeout em pagamentos grandes com IA). Verificamos no banco se o
-      // processamento concluiu mesmo assim antes de mostrar erro.
-      const completed = await waitForProcessingCompletion(id, startedAt);
-      if (completed) {
-        await recordObservation({
-          payment_id: id,
-          author_type: myAuthorType,
-          author_id: user!.id,
-          message: `[${group.company_name}] Regras reaplicadas pelo analista (reanálise da IA).`,
-          status_from: group.status,
-          status_to: group.status,
-        });
-        toast.success("Regras reaplicadas");
-        load();
-      } else {
-        const { data: finalCheck } = await supabase.from("payments").select("processing_timeout_occurred").eq("id", id).maybeSingle();
-        if (finalCheck?.processing_timeout_occurred) {
-          toast.warning("Análise parcial", { description: "O motor processou tudo, mas a IA excedeu o tempo limite." });
-          load();
-        } else {
-          toast.error("Falha ao reaplicar regras", {
-            description: e instanceof Error ? e.message : String(e),
-          });
-        }
-      }
+      toast.error("Falha ao iniciar reanálise", {
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setReanalyzing(false);
     }
