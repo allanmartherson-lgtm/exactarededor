@@ -1311,43 +1311,45 @@ function CalcCard({
                 </>
               )}
               
-              <div className="space-y-2 border-t border-border/40 pt-3">
-                <Label className="text-xs font-semibold">Configuração de Vias de Acesso</Label>
-                <p className="text-[11px] text-muted-foreground">
-                  Selecione as vias de acesso aceitas para este cálculo. Deixe vazio para aceitar qualquer via.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                  {[
-                    { value: "Única ou principal", help: "1ª via, principal, única" },
-                    { value: "Mesma via", help: "Mesma via de acesso, repetida" },
-                    { value: "Outra via", help: "Via diferente, 2ª via, segunda via" },
-                    { value: "Sem via", help: "Bônus, complemento, n/a" },
-                  ].map(opt => {
-                    const checked = c.allowed_access_routes.includes(opt.value);
-                    return (
-                      <label
-                        key={opt.value}
-                        data-checkbox-wrapper
-                        style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: checked ? "hsl(var(--accent))" : "transparent" }}
-                      >
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(v) => {
-                            const next = v
-                              ? [...c.allowed_access_routes, opt.value]
-                              : c.allowed_access_routes.filter(x => x !== opt.value);
-                            onChange({ allowed_access_routes: next });
-                          }}
-                        />
-                        <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-                          <span style={{ fontSize: 12, fontWeight: 500 }}>{opt.value}</span>
-                          <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>{opt.help}</span>
-                        </span>
-                      </label>
-                    );
-                  })}
+              {c.apply_access_route && (
+                <div className="space-y-2 border-t border-border/40 pt-3">
+                  <Label className="text-xs font-semibold">Configuração de Vias de Acesso</Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Selecione as vias de acesso aceitas para este cálculo. Deixe vazio para aceitar qualquer via.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {[
+                      { value: "Única ou principal", help: "1ª via, principal, única" },
+                      { value: "Mesma via", help: "Mesma via de acesso, repetida" },
+                      { value: "Outra via", help: "Via diferente, 2ª via, segunda via" },
+                      { value: "Sem via", help: "Bônus, complemento, n/a" },
+                    ].map(opt => {
+                      const checked = c.allowed_access_routes.includes(opt.value);
+                      return (
+                        <label
+                          key={opt.value}
+                          data-checkbox-wrapper
+                          style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: checked ? "hsl(var(--accent))" : "transparent" }}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              const next = v
+                                ? [...c.allowed_access_routes, opt.value]
+                                : c.allowed_access_routes.filter(x => x !== opt.value);
+                              onChange({ allowed_access_routes: next });
+                            }}
+                          />
+                          <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+                            <span style={{ fontSize: 12, fontWeight: 500 }}>{opt.value}</span>
+                            <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>{opt.help}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
             </div>
           )}
