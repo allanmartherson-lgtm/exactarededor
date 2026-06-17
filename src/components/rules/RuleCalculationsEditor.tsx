@@ -882,7 +882,7 @@ function CalcCard({
   }, []); // só no mount
 
   return (
-    <div ref={cardRef} style={{
+    <div ref={cardRef} data-calc-error={hasErrors ? "true" : undefined} style={{
       borderRadius: 10,
       border: hasErrors ? "1px solid hsl(var(--destructive))" : "1px solid hsl(var(--border))",
       background: "hsl(var(--card))",
