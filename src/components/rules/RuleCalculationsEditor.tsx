@@ -856,9 +856,25 @@ function CalcCard({
     || c.calculation_type === "pacote_com_extras"
     || c.calculation_type === "pacote_por_atendimento";
   const isPacoteComExtras = isPacote && c.package_subtype === "com_extras";
+  const errorMessages = calcItemErrorMessages(c);
+  const hasErrors = errorMessages.length > 0;
+
+  // Auto-abre o card quando há erro, para o usuário enxergar imediatamente
+  // qual campo está faltando — sem precisar clicar em cada cálculo.
+  useEffect(() => {
+    if (hasErrors) setOpen(true);
+  }, [hasErrors]);
 
   return (
-    <div style={{ borderRadius: 10, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", boxShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px hsl(var(--border) / 0.4)", overflow: "hidden" }}>
+    <div style={{
+      borderRadius: 10,
+      border: hasErrors ? "1px solid hsl(var(--destructive))" : "1px solid hsl(var(--border))",
+      background: "hsl(var(--card))",
+      boxShadow: hasErrors
+        ? "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px hsl(var(--destructive) / 0.5)"
+        : "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px hsl(var(--border) / 0.4)",
+      overflow: "hidden",
+    }}>
       {/* Header copper */}
       <div style={{ background: "hsl(var(--accent))", borderBottom: "1px solid hsl(var(--border))", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
         <Button type="button" variant="ghost" size="sm" className="h-7 px-1" onClick={() => setOpen((o) => !o)}>
@@ -873,6 +889,14 @@ function CalcCard({
           onChange={(e) => onChange({ label: e.target.value })}
           className="h-7 text-xs flex-1"
         />
+        {hasErrors && (
+          <span
+            className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-0.5 text-[10.5px] font-semibold text-destructive border border-destructive/30"
+            title={errorMessages.join("\n")}
+          >
+            ! {errorMessages.length} {errorMessages.length === 1 ? "erro" : "erros"}
+          </span>
+        )}
         <span className="ml-auto text-[10.5px] text-muted-foreground">
           {RULE_CALCULATION_TYPE_LABELS[c.calculation_type]}
         </span>
@@ -893,6 +917,18 @@ function CalcCard({
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Bloco de ERROS — sempre visível, mesmo com o card recolhido */}
+      {hasErrors && (
+        <div className="border-b border-destructive/30 bg-destructive/5 px-3 py-2 space-y-1">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-destructive">
+            ! Campo(s) obrigatório(s) faltando neste cálculo
+          </div>
+          <ul className="text-[11px] text-destructive/90 list-disc list-inside space-y-0.5">
+            {errorMessages.map((m, i) => (<li key={i}>{m}</li>))}
+          </ul>
+        </div>
+      )}
 
       {(() => {
         const warnings = calcItemWarnings(c);
