@@ -14,14 +14,14 @@ export function useRequireHospital() {
   const hospitalId = hospital?.id ?? null;
   const hospitalName = hospital?.name ?? null;
 
-  const ensure = (acao = "executar esta ação"): hospitalId is string => {
+  const ensure = (acao = "executar esta ação"): boolean => {
     if (!hospitalId) {
       toast.error("Selecione uma unidade hospitalar", {
         description: `Necessário escolher a unidade antes de ${acao}. Use o seletor no topo.`,
       });
-      return false as unknown as hospitalId is string;
+      return false;
     }
-    return true as unknown as hospitalId is string;
+    return true;
   };
 
   return { hospitalId, hospitalName, ensure };
