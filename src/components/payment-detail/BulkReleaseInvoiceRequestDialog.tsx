@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
 import { dedupEmails } from "@/lib/email";
+import { ActiveHospitalBadge } from "@/components/ActiveHospitalBadge";
 import type { GroupRow } from "@/hooks/usePaymentDetailData";
 
 interface Props {
@@ -188,9 +189,12 @@ export const BulkReleaseInvoiceRequestDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-3 shrink-0 border-b">
-          <DialogTitle className="flex items-center gap-2">
-            <Mail className="h-4 w-4" /> Liberar pedidos de NF em massa
-          </DialogTitle>
+          <div className="flex items-start justify-between gap-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-4 w-4" /> Liberar pedidos de NF em massa
+            </DialogTitle>
+            <ActiveHospitalBadge />
+          </div>
           <DialogDescription>
             Selecione as empresas aprovadas pelo diretor para enviar o pedido de NF de uma vez.
             Apenas empresas com e-mail cadastrado podem ser selecionadas.
