@@ -93,6 +93,13 @@ export type CalcItem = {
   /** Para bônus: define se aplica por linha, por atendimento ou por paciente+dia (fallback). */
   application_unit: "por_item" | "por_atendimento" | "por_paciente_dia";
 
+  // ---- Adicionais temporais (aplicados após o cálculo base) ----
+  adicional_fds_pct: string;
+  adicional_feriado_pct: string;
+  adicional_noturno_pct: string;
+  noturno_inicio: string;   // 'HH:MM'
+  noturno_fim: string;      // 'HH:MM'
+
   // ---- Filtros restritivos por cálculo (refactor: tudo no cálculo) ----
   /** Códigos TUSS aos quais este cálculo se aplica. Vazio = qualquer código. */
   procedure_codes: string[];
