@@ -36,6 +36,7 @@ const loadRules = () => import("./pages/Rules.tsx");
 const loadValidationRules = () => import("./pages/ValidationRules.tsx");
 const loadReferenceTables = () => import("./pages/ReferenceTables.tsx");
 const loadRuleSimulator = () => import("./pages/RuleSimulator.tsx");
+const loadRuleSimulatorBatch = () => import("./pages/RuleSimulatorBatch.tsx");
 const loadUsers = () => import("./pages/Users.tsx");
 const loadInvoices = () => import("./pages/Invoices.tsx");
 const loadInvoicePortal = () => import("./pages/InvoicePortal.tsx");
@@ -111,6 +112,7 @@ const Rules = lazy(loadRules);
 const ValidationRules = lazy(loadValidationRules);
 const ReferenceTables = lazy(loadReferenceTables);
 const RuleSimulator = lazy(loadRuleSimulator);
+const RuleSimulatorBatch = lazy(loadRuleSimulatorBatch);
 const Users = lazy(loadUsers);
 const Invoices = lazy(loadInvoices);
 const InvoicePortal = lazy(loadInvoicePortal);
@@ -300,6 +302,7 @@ const App = () => (
                   <Route path="/regras/pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
                   <Route path="/regras/validacao" element={<ProtectedRoute roles={["diretor", "admin"]}><ValidationRules /></ProtectedRoute>} />
                   <Route path="/regras/simulador" element={<ProtectedRoute roles={["diretor", "admin"]}><RuleSimulator /></ProtectedRoute>} />
+                  <Route path="/regras/simulador-lote" element={<ProtectedRoute roles={["diretor", "admin"]}><RuleSimulatorBatch /></ProtectedRoute>} />
                   <Route path="/tabelas" element={<ProtectedRoute roles={["diretor", "admin"]}><ReferenceTables /></ProtectedRoute>} />
                   
                   <Route path="/empresas" element={<ProtectedRoute roles={["diretor", "admin"]}><Companies /></ProtectedRoute>} />
