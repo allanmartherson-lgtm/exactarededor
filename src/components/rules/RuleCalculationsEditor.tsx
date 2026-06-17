@@ -183,6 +183,22 @@ const CALCULABLE_METHODS: RuleCalculationType[] = [
   "valor_fixo", "tabela_diferenciada", "bonus", "complemento", "exclusao",
 ];
 
+const sanitizeDecimalDraft = (value: string) => value.replace(/[^\d.,]/g, "").replace(",", ".");
+
+const sanitizeTimeDraft = (value: string) => {
+  const clean = value.replace(/[^\d:]/g, "").slice(0, 5);
+  if (clean.includes(":")) {
+    const [hh = "", mm = ""] = clean.split(":");
+    return `${hh.slice(0, 2)}${clean.includes(":") ? ":" : ""}${mm.slice(0, 2)}`;
+  }
+  const digits = clean.replace(/\D/g, "").slice(0, 4);
+  return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+};
+
+const preventEnterSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === "Enter") e.preventDefault();
+};
+
 type RefTable = { id: string; name: string; purpose?: string };
 
 export type RuleCalculationsEditorProps = {
