@@ -7270,6 +7270,9 @@ export type Database = {
       rule_calculations: {
         Row: {
           acrescimo_pct: number | null
+          adicional_fds_pct: number | null
+          adicional_feriado_pct: number | null
+          adicional_noturno_pct: number | null
           agreement_aliases: string[] | null
           agreement_match_mode: string | null
           allowed_access_routes: string[] | null
@@ -7299,6 +7302,8 @@ export type Database = {
           instrumentador_pct: number | null
           label: string | null
           multiplier: number | null
+          noturno_fim: string | null
+          noturno_inicio: string | null
           package_amount: number | null
           package_auxiliaries_included: boolean
           package_included_codes: string[] | null
@@ -7324,6 +7329,9 @@ export type Database = {
         }
         Insert: {
           acrescimo_pct?: number | null
+          adicional_fds_pct?: number | null
+          adicional_feriado_pct?: number | null
+          adicional_noturno_pct?: number | null
           agreement_aliases?: string[] | null
           agreement_match_mode?: string | null
           allowed_access_routes?: string[] | null
@@ -7353,6 +7361,8 @@ export type Database = {
           instrumentador_pct?: number | null
           label?: string | null
           multiplier?: number | null
+          noturno_fim?: string | null
+          noturno_inicio?: string | null
           package_amount?: number | null
           package_auxiliaries_included?: boolean
           package_included_codes?: string[] | null
@@ -7378,6 +7388,9 @@ export type Database = {
         }
         Update: {
           acrescimo_pct?: number | null
+          adicional_fds_pct?: number | null
+          adicional_feriado_pct?: number | null
+          adicional_noturno_pct?: number | null
           agreement_aliases?: string[] | null
           agreement_match_mode?: string | null
           allowed_access_routes?: string[] | null
@@ -7407,6 +7420,8 @@ export type Database = {
           instrumentador_pct?: number | null
           label?: string | null
           multiplier?: number | null
+          noturno_fim?: string | null
+          noturno_inicio?: string | null
           package_amount?: number | null
           package_auxiliaries_included?: boolean
           package_included_codes?: string[] | null
