@@ -80,8 +80,8 @@ export default function BlockingDivergencesTab() {
           ? supabase.from("payments").select("id,reference").in("id", paymentIds)
           : Promise.resolve({ data: [] as { id: string; reference: string | null }[] }),
         companyIds.length
-          ? supabase.from("companies").select("id,nome").in("id", companyIds)
-          : Promise.resolve({ data: [] as { id: string; nome: string | null }[] }),
+          ? supabase.from("companies").select("id,name").in("id", companyIds)
+          : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
         groupIds.length
           ? supabase
               .from("payment_group_reconciliation_overrides")
@@ -91,7 +91,7 @@ export default function BlockingDivergencesTab() {
       ]);
 
       const refMap = new Map<string, string | null>((payments ?? []).map((p: { id: string; reference: string | null }) => [p.id, p.reference] as const));
-      const nameMap = new Map<string, string | null>((companies ?? []).map((c: { id: string; nome: string | null }) => [c.id, c.nome] as const));
+      const nameMap = new Map<string, string | null>((companies ?? []).map((c: { id: string; name: string | null }) => [c.id, c.name] as const));
       const ovMap = new Map<string, Array<{ r: number; p: number }>>();
       for (const o of (overrides ?? []) as { group_id: string; bruto_regra_snapshot: number; bruto_pedido_snapshot: number }[]) {
         const arr = ovMap.get(o.group_id) ?? [];
