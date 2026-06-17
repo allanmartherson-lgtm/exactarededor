@@ -965,13 +965,15 @@ serve(async (req) => {
           // Encontra todos os pacotes que batem neste atendimento
           const matches: Array<{
             calc: PkgCalc;
+            triggerCode: string;
             coverageCount: number;
             includedFound: string[];
           }> = [];
 
           for (const calc of packageCalcs) {
-            // O main_code deve estar presente
-            if (!codeSet.has(calc.package_main_code)) continue;
+            // Basta qualquer um dos main_codes estar presente
+            const triggerCode = calc.package_main_codes.find((c) => codeSet.has(c));
+            if (!triggerCode) continue;
 
             // Verifica se a regra se aplica à empresa dos itens deste atendimento
             if (calc.rule_scope === "grupo" && calc.rule_company_ids.size > 0) {
@@ -981,7 +983,7 @@ serve(async (req) => {
             }
 
             const includedFound = calc.package_included_codes.filter(c => codeSet.has(c));
-            matches.push({ calc, coverageCount: includedFound.length, includedFound });
+            matches.push({ calc, triggerCode, coverageCount: includedFound.length, includedFound });
           }
 
           if (matches.length === 0) continue;
@@ -993,10 +995,11 @@ serve(async (req) => {
           });
 
           const winner = matches[0];
-          const { calc, includedFound } = winner;
+          const { calc, includedFound, triggerCode } = winner;
 
-          // Conjunto de códigos absorvidos por este pacote
-          const absorbedCodes = new Set([calc.package_main_code, ...includedFound]);
+          // Conjunto de códigos absorvidos por este pacote (apenas o trigger que casou + included encontrados)
+          const absorbedCodes = new Set([triggerCode, ...includedFound]);
+
 
           // Para pacotes, a distribuição por função é o valor TOTAL do atendimento
           // (não por código). Identifica o item âncora de cada função:
