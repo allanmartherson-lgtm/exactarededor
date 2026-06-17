@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, ChevronDown, ChevronRight, Package, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
@@ -177,6 +177,8 @@ export type RuleCalculationsEditorProps = {
  * janela temporal pertence ao cálculo, não à regra.
  */
 export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: RuleCalculationsEditorProps) {
+  const crossErrorsByIndex = useMemo(() => calcCrossItemErrorMessages(value), [value]);
+
   const update = (i: number, patch: Partial<CalcItem>) => {
     const next = value.slice();
     next[i] = { ...next[i], ...patch };
@@ -221,6 +223,7 @@ export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: 
           total={value.length}
           item={c}
           refTables={refTables}
+          extraErrorMessages={crossErrorsByIndex.get(i) ?? []}
           onChange={(patch) => update(i, patch)}
           onRemove={() => remove(i)}
           onDuplicate={() => duplicate(i)}
@@ -844,9 +847,10 @@ function WhenApplySection({
  *  Card de UM cálculo (método + parâmetros + condições)
  * ============================================================ */
 function CalcCard({
-  index, total, item, refTables, onChange, onRemove, onDuplicate,
+  index, total, item, refTables, extraErrorMessages, onChange, onRemove, onDuplicate,
 }: {
   index: number; total: number; item: CalcItem; refTables: RefTable[];
+  extraErrorMessages: string[];
   onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void; onDuplicate: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -857,7 +861,7 @@ function CalcCard({
     || c.calculation_type === "pacote_com_extras"
     || c.calculation_type === "pacote_por_atendimento";
   const isPacoteComExtras = isPacote && c.package_subtype === "com_extras";
-  const errorMessages = calcItemErrorMessages(c);
+  const errorMessages = [...calcItemErrorMessages(c), ...extraErrorMessages];
   const hasErrors = errorMessages.length > 0;
 
   // Auto-abre o card quando há erro, para o usuário enxergar imediatamente
