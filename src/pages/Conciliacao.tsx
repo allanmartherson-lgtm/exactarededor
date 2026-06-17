@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { GitCompareIcon } from "@/config/icons/navIcons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, Database, History } from "lucide-react";
+import { Wallet, Database, History, ShieldAlert } from "lucide-react";
+import BlockingDivergencesTab from "@/components/conciliacao/BlockingDivergencesTab";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +41,7 @@ type PaymentLite = {
   status: string;
 };
 
-const TAB_VALUES = ["pagamento", "bases", "retroativa"] as const;
+const TAB_VALUES = ["pagamento", "bloqueios", "bases", "retroativa"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 export default function Conciliacao() {
@@ -119,6 +120,10 @@ export default function Conciliacao() {
                 {runs.length}
               </span>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="bloqueios">
+            <ShieldAlert className="h-[18px] w-[18px] opacity-60 transition-transform group-hover:scale-110 group-data-[state=active]:opacity-100" />
+            <span>Divergências bloqueantes</span>
           </TabsTrigger>
           <TabsTrigger value="bases">
             <Database className="h-[18px] w-[18px] opacity-60 transition-transform group-hover:scale-110 group-data-[state=active]:opacity-100" />
@@ -204,6 +209,10 @@ export default function Conciliacao() {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="bloqueios" className="mt-4">
+          <BlockingDivergencesTab />
         </TabsContent>
 
         <TabsContent value="bases" className="mt-4">

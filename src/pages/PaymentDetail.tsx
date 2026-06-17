@@ -28,6 +28,7 @@ import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { ReleaseInvoiceRequestDialog } from "@/components/payment-detail/ReleaseInvoiceRequestDialog";
 import { BulkReleaseInvoiceRequestDialog } from "@/components/payment-detail/BulkReleaseInvoiceRequestDialog";
+import { GroupReconciliationGate } from "@/components/payment-detail/GroupReconciliationGate";
 import { CompanyListLegend } from "@/components/payment-detail/CompanyListLegend";
 import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
 import { BatchAIFailureReport } from "@/components/payment-detail/BatchAIFailureReport";
@@ -3604,19 +3605,28 @@ const PaymentDetail = () => {
                   />
 
                   {expandedGroups.has(g.id) && (
-                    <PrivateCompanyNote
-                      note={privateNotes[g.id]?.note ?? ""}
-                      marker={privateNotes[g.id]?.marker ?? null}
-                      waitingInfo={privateNotes[g.id]?.waiting_info ?? ""}
-                      attachments={privateAttachments[g.id] ?? []}
-                      saveStatus={privateSaveStatus[g.id] ?? "idle"}
-                      onNoteChange={(v) => setPrivateNote(g.id, v)}
-                      onMarkerChange={(m) => setPrivateMarker(g.id, m)}
-                      onWaitingInfoChange={(v) => setPrivateWaitingInfo(g.id, v)}
-                      onUploadAttachment={(file) => uploadPrivateAttachment(g.id, file)}
-                      onDeleteAttachment={(attId) => deletePrivateAttachment(g.id, attId)}
-                      onDownloadAttachment={(att) => downloadPrivateAttachment(att)}
-                    />
+                    <>
+                      {(payment as any)?.hospital_id && (
+                        <GroupReconciliationGate
+                          groupId={g.id}
+                          hospitalId={(payment as any).hospital_id}
+                          compact
+                        />
+                      )}
+                      <PrivateCompanyNote
+                        note={privateNotes[g.id]?.note ?? ""}
+                        marker={privateNotes[g.id]?.marker ?? null}
+                        waitingInfo={privateNotes[g.id]?.waiting_info ?? ""}
+                        attachments={privateAttachments[g.id] ?? []}
+                        saveStatus={privateSaveStatus[g.id] ?? "idle"}
+                        onNoteChange={(v) => setPrivateNote(g.id, v)}
+                        onMarkerChange={(m) => setPrivateMarker(g.id, m)}
+                        onWaitingInfoChange={(v) => setPrivateWaitingInfo(g.id, v)}
+                        onUploadAttachment={(file) => uploadPrivateAttachment(g.id, file)}
+                        onDeleteAttachment={(attId) => deletePrivateAttachment(g.id, attId)}
+                        onDownloadAttachment={(att) => downloadPrivateAttachment(att)}
+                      />
+                    </>
                   )}
                 </div>
               );
