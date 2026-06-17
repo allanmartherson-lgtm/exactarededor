@@ -1223,12 +1223,19 @@ const isVisita  = (it: ItemInput) => /visita/.test(normName(`${it.procedure_name
 const isParecer = (it: ItemInput) => /parecer/.test(normName(`${it.procedure_name ?? ""} ${it.description ?? ""}`));
 const isAuxiliar = (it: ItemInput) => /auxili|instrumentador/.test(normName(it.doctor_role ?? ""));
 
+/** Aceita main_code como string única OU lista separada por vírgula/espaço/ponto-e-vírgula. */
+function splitMainCodes(raw: string | null | undefined): string[] {
+  return String(raw ?? "").split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean);
+}
+
 function isMainPackageCode(rule: RuleInput, item: ItemInput): boolean {
   if (!item.procedure_code) return false;
-  if (rule.package_main_code && item.procedure_code === rule.package_main_code) return true;
+  const codes = splitMainCodes(rule.package_main_code);
+  if (codes.length > 0) return codes.includes(item.procedure_code);
   // fallback: se não houver main_code definido, qualquer item é considerado principal
-  return !rule.package_main_code;
+  return true;
 }
+
 
 function isIncludedInPackage(rule: RuleInput, item: ItemInput): boolean {
   const inc = rule.package_included_codes ?? [];
@@ -1610,7 +1617,7 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
     c.calculation_type === "pacote_fechado" ||
     c.calculation_type === "pacote_com_extras";
   if (isPackageCalc) {
-    const mainCode = String((c as any).package_main_code ?? "").trim();
+    const mainCodes = splitMainCodes((c as any).package_main_code);
     const included = (Array.isArray((c as any).package_included_codes)
       ? (c as any).package_included_codes
       : []
@@ -1620,10 +1627,11 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
       : []
     ).map((x: any) => String(x).trim()).filter(Boolean);
     const conjunto = new Set<string>([
-      ...(mainCode ? [mainCode] : []),
+      ...mainCodes,
       ...included,
       ...extras,
     ]);
+
     if (conjunto.size > 0) {
       const ic = String(item.procedure_code ?? "").trim();
       const matchesViaCode = !!ic && conjunto.has(ic);
@@ -2863,15 +2871,16 @@ function preComputePackageWinners(
       const scored: Scored[] = [];
 
       for (const c of pacoteCalcs) {
-        const main = String(c.package_main_code ?? "").trim();
-        if (main && !siblingsOfAtt.has(main)) continue;
+        const mainCodes = splitMainCodes(c.package_main_code as any);
+        if (mainCodes.length > 0 && !mainCodes.some((m) => siblingsOfAtt.has(m))) continue;
 
         const included = (Array.isArray(c.package_included_codes) ? c.package_included_codes : [])
           .map((x) => String(x).trim()).filter(Boolean);
         const extras = (Array.isArray(c.extras_codes) ? c.extras_codes : [])
           .map((x) => String(x).trim()).filter(Boolean);
 
-        const universo = new Set<string>([...(main ? [main] : []), ...included, ...extras]);
+        const universo = new Set<string>([...mainCodes, ...included, ...extras]);
+
         let cobertura = 0;
         for (const code of siblingsOfAtt) {
           if (universo.has(code)) cobertura += 1;
@@ -2910,8 +2919,9 @@ export function analyzePaymentItems(
     if (aa !== 0) return aa;
     const isPkgAtt = (r: RuleInput) =>
       r.calculation_type === "pacote_por_atendimento" || r.calculation_type === "pacote";
-    const aMain = filtered.some((r) => isPkgAtt(r) && r.package_main_code && a.procedure_code === r.package_main_code) ? -1 : 0;
-    const bMain = filtered.some((r) => isPkgAtt(r) && r.package_main_code && b.procedure_code === r.package_main_code) ? -1 : 0;
+    const aMain = filtered.some((r) => isPkgAtt(r) && splitMainCodes(r.package_main_code).includes(a.procedure_code ?? "")) ? -1 : 0;
+    const bMain = filtered.some((r) => isPkgAtt(r) && splitMainCodes(r.package_main_code).includes(b.procedure_code ?? "")) ? -1 : 0;
+
     if (aMain !== bMain) return aMain - bMain;
     return (a.procedure_code ?? "").localeCompare(b.procedure_code ?? "");
   });
@@ -3125,13 +3135,13 @@ export function selectMainProcedures(
   }
 
   // Conjunto de códigos principais de pacote vindos das regras.
-  const packageMainCodes = new Set(
+  const packageMainCodes = new Set<string>(
     rules
       .filter((r) => {
         const ct = r.calculation_type;
         return (ct === "pacote" || ct === "pacote_fechado" || ct === "pacote_com_extras" || ct === "pacote_por_atendimento") && !!r.package_main_code;
       })
-      .map((r) => r.package_main_code as string),
+      .flatMap((r) => splitMainCodes(r.package_main_code)),
   );
 
   for (const [groupKey, members] of groups) {

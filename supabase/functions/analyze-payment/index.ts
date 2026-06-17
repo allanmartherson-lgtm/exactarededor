@@ -851,7 +851,8 @@ serve(async (req) => {
         rule_id: string;
         rule_name: string;
         calc_id: string;
-        package_main_code: string;
+        // Lista de códigos que disparam o pacote (qualquer um deles ativa).
+        package_main_codes: string[];
         package_included_codes: string[];
         package_amount: number;
         package_roles_distribution: Array<{
@@ -874,12 +875,18 @@ serve(async (req) => {
             calc.calculation_type === "pacote_com_extras" ||
             calc.calculation_type === "pacote_por_atendimento";
           if (!isPkg || !calc.package_main_code) continue;
+          const mainCodes = String(calc.package_main_code)
+
+            .split(/[,;\s]+/)
+            .map((c) => c.trim())
+            .filter(Boolean);
+          if (mainCodes.length === 0) continue;
           const links = Array.isArray(rule.group_company_links) ? rule.group_company_links : [];
           packageCalcs.push({
             rule_id: rule.id,
             rule_name: rule.name,
             calc_id: calc.id,
-            package_main_code: String(calc.package_main_code).trim(),
+            package_main_codes: mainCodes,
             package_included_codes: Array.isArray(calc.package_included_codes)
               ? calc.package_included_codes.map((c: string) => String(c).trim()).filter(Boolean)
               : [],
@@ -892,6 +899,7 @@ serve(async (req) => {
           });
         }
       }
+
 
       if (packageCalcs.length > 0) {
         // Helper: normaliza texto removendo acentos e caixa
@@ -958,13 +966,15 @@ serve(async (req) => {
           // Encontra todos os pacotes que batem neste atendimento
           const matches: Array<{
             calc: PkgCalc;
+            triggerCode: string;
             coverageCount: number;
             includedFound: string[];
           }> = [];
 
           for (const calc of packageCalcs) {
-            // O main_code deve estar presente
-            if (!codeSet.has(calc.package_main_code)) continue;
+            // Basta qualquer um dos main_codes estar presente
+            const triggerCode = calc.package_main_codes.find((c) => codeSet.has(c));
+            if (!triggerCode) continue;
 
             // Verifica se a regra se aplica à empresa dos itens deste atendimento
             if (calc.rule_scope === "grupo" && calc.rule_company_ids.size > 0) {
@@ -974,7 +984,7 @@ serve(async (req) => {
             }
 
             const includedFound = calc.package_included_codes.filter(c => codeSet.has(c));
-            matches.push({ calc, coverageCount: includedFound.length, includedFound });
+            matches.push({ calc, triggerCode, coverageCount: includedFound.length, includedFound });
           }
 
           if (matches.length === 0) continue;
@@ -986,10 +996,11 @@ serve(async (req) => {
           });
 
           const winner = matches[0];
-          const { calc, includedFound } = winner;
+          const { calc, includedFound, triggerCode } = winner;
 
-          // Conjunto de códigos absorvidos por este pacote
-          const absorbedCodes = new Set([calc.package_main_code, ...includedFound]);
+          // Conjunto de códigos absorvidos por este pacote (apenas o trigger que casou + included encontrados)
+          const absorbedCodes = new Set([triggerCode, ...includedFound]);
+
 
           // Para pacotes, a distribuição por função é o valor TOTAL do atendimento
           // (não por código). Identifica o item âncora de cada função:
@@ -997,7 +1008,7 @@ serve(async (req) => {
           //   • fallback: primeiro item da função encontrado em attItems
           // Itens secundários (mesma função, outros códigos absorvidos) recebem
           // expected = 0 e status = aprovado ("absorvido pelo pacote").
-          const primaryItemByRole = buildPrimaryItemByRole(attItems as any, absorbedCodes, calc.package_main_code);
+          const primaryItemByRole = buildPrimaryItemByRole(attItems as any, absorbedCodes, triggerCode);
 
           // Aplica resultado de pacote em cada item absorvido
           for (const it of attItems) {
@@ -1027,7 +1038,7 @@ serve(async (req) => {
               );
               r.calculation_explanation =
                 `Atendimento ${att}: código ${code} manualmente absorvido pelo analista ` +
-                `no pacote ${calc.package_main_code} (${calc.rule_name}).`;
+                `no pacote ${triggerCode} (${calc.rule_name}).`;
               continue;
             }
 
@@ -1053,7 +1064,7 @@ serve(async (req) => {
                 !a.toLowerCase().includes("sem regra") && !a.toLowerCase().includes("no rule"),
               );
               r.calculation_explanation =
-                `Atendimento ${att}: código ${code} absorvido pelo pacote ${calc.package_main_code} ` +
+                `Atendimento ${att}: código ${code} absorvido pelo pacote ${triggerCode} ` +
                 `(${calc.rule_name}). O repasse desta função está consolidado no código âncora.`;
               continue;
             }
@@ -1088,7 +1099,7 @@ serve(async (req) => {
                 r.needs_ai_review = true;
                 const diff = it.gross_amount - expectedAmt;
                 r.alerts = [
-                  `Pacote (${calc.package_main_code}): esperado R$ ${expectedAmt.toFixed(2)}, pago R$ ${it.gross_amount.toFixed(2)} (${diff > 0 ? "+" : ""}${diff.toFixed(2)}).`,
+                  `Pacote (${triggerCode}): esperado R$ ${expectedAmt.toFixed(2)}, pago R$ ${it.gross_amount.toFixed(2)} (${diff > 0 ? "+" : ""}${diff.toFixed(2)}).`,
                   ...r.alerts.filter(a => !a.toLowerCase().includes("sem regra")),
                 ];
               }
@@ -1096,13 +1107,13 @@ serve(async (req) => {
               r.status = "alerta" as any;
               r.needs_ai_review = true;
               r.alerts = [
-                `Pacote detectado (${calc.package_main_code}), mas sem distribuição configurada para a função "${it.doctor_role ?? "—"}". Configure package_roles_distribution nesta regra.`,
+                `Pacote detectado (${triggerCode}), mas sem distribuição configurada para a função "${it.doctor_role ?? "—"}". Configure package_roles_distribution nesta regra.`,
                 ...r.alerts.filter(a => !a.toLowerCase().includes("sem regra")),
               ];
             }
 
             r.calculation_explanation =
-              `Atendimento ${att}: pacote identificado pelo código ${calc.package_main_code}. ` +
+              `Atendimento ${att}: pacote identificado pelo código ${triggerCode}. ` +
               `Códigos absorvidos: ${Array.from(absorbedCodes).join(", ")}. ` +
               `Valor total do pacote: R$ ${calc.package_amount.toFixed(2)}.` +
               (expectedAmt !== null ? ` Esperado para "${it.doctor_role}": R$ ${expectedAmt.toFixed(2)}.` : " Função sem distribuição cadastrada.");

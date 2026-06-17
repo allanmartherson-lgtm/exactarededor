@@ -21,7 +21,13 @@ export type PkgCalc = {
   rule_id: string;
   rule_name: string;
   calc_id: string;
-  package_main_code: string;
+  /**
+   * Lista de códigos que disparam o pacote. Qualquer um deles presente
+   * no atendimento ativa o pacote (operador OU, não E).
+   * Aceita também o formato antigo (`package_main_code` string única) — o
+   * loader deve converter para array antes de chamar `pickPackageForAttendance`.
+   */
+  package_main_codes: string[];
   package_included_codes: string[];
   package_amount: number;
   package_roles_distribution: PackageRoleDist[] | null;
@@ -31,6 +37,8 @@ export type PkgCalc = {
 
 export type PkgMatch = {
   calc: PkgCalc;
+  /** Código que efetivamente disparou o pacote neste atendimento. */
+  triggerCode: string;
   coverageCount: number;
   includedFound: string[];
   absorbedCodes: Set<string>;
@@ -41,10 +49,11 @@ export function pickPackageForAttendance(
   codeSet: Set<string>,
   attCompanyIds: Set<string>,
 ): PkgMatch | null {
-  const matches: Array<{ calc: PkgCalc; coverageCount: number; includedFound: string[] }> = [];
+  const matches: Array<{ calc: PkgCalc; triggerCode: string; coverageCount: number; includedFound: string[] }> = [];
 
   for (const calc of packageCalcs) {
-    if (!codeSet.has(calc.package_main_code)) continue;
+    const triggerCode = calc.package_main_codes.find((c) => codeSet.has(c));
+    if (!triggerCode) continue;
 
     if (calc.rule_scope === "grupo" && calc.rule_company_ids.size > 0) {
       const appliesToCompany = [...attCompanyIds].some((cid) => calc.rule_company_ids.has(cid));
@@ -52,7 +61,7 @@ export function pickPackageForAttendance(
     }
 
     const includedFound = calc.package_included_codes.filter((c) => codeSet.has(c));
-    matches.push({ calc, coverageCount: includedFound.length, includedFound });
+    matches.push({ calc, triggerCode, coverageCount: includedFound.length, includedFound });
   }
 
   if (matches.length === 0) return null;
@@ -66,11 +75,13 @@ export function pickPackageForAttendance(
   const winner = matches[0];
   return {
     calc: winner.calc,
+    triggerCode: winner.triggerCode,
     coverageCount: winner.coverageCount,
     includedFound: winner.includedFound,
-    absorbedCodes: new Set([winner.calc.package_main_code, ...winner.includedFound]),
+    absorbedCodes: new Set([winner.triggerCode, ...winner.includedFound]),
   };
 }
+
 
 /**
  * Constrói o codeSet expandido cross-PJ a partir de linhas (attendance_number, procedure_code)

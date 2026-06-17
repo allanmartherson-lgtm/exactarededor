@@ -24,6 +24,16 @@ import {
 export type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
 export type ElectiveMode = "qualquer" | "eletiva" | "urgencia";
 
+/* Catálogo fixo de funções médicas — espelha classifyDoctorRole no motor. */
+const ROLE_OPTIONS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: "cirurgiao", label: "Cirurgião Principal" },
+  { key: "aux1", label: "1º Auxiliar" },
+  { key: "aux2", label: "2º Auxiliar" },
+  { key: "aux3", label: "3º Auxiliar" },
+  { key: "instrumentador", label: "Instrumentador" },
+];
+
+
 export type PackageRoleDistribution = {
   role_key: string;
   label: string;
@@ -558,15 +568,31 @@ function PackageRolesEditor({
       {/* Linhas por função */}
       {roles.map((role, i) => {
         const computed = calcValue(role);
+        const selectedRoleKey = ROLE_OPTIONS.find((o) => o.label === role.label)?.key ?? "__custom";
         return (
           <div key={i} className="grid gap-2 px-3 py-2 border-b border-border items-center"
             style={{ gridTemplateColumns: "1fr 84px 100px 90px 28px" }}>
-            <Input
-              className="h-7 text-xs"
-              placeholder="Ex.: Cirurgião Principal"
-              value={role.label}
-              onChange={(e) => updateRole(i, { label: e.target.value })}
-            />
+            <Select
+              value={selectedRoleKey}
+              onValueChange={(v) => {
+                const opt = ROLE_OPTIONS.find((o) => o.key === v);
+                if (opt) updateRole(i, { label: opt.label, role_key: opt.key });
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecione a função" /></SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((o) => (
+                  <SelectItem key={o.key} value={o.key} className="text-xs">{o.label}</SelectItem>
+                ))}
+                {selectedRoleKey === "__custom" && role.label && (
+                  <SelectItem value="__custom" className="text-xs italic text-muted-foreground">
+                    {role.label} (legado)
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+
+
             {/* Toggle % / R$ */}
             <div className="flex border border-border rounded-md overflow-hidden h-7">
               <button type="button" className="flex-1 text-[11px] font-medium transition-colors"
@@ -1089,15 +1115,15 @@ function CalcCard({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Código principal — dispara o pacote *</Label>
+                  <Label className="text-xs">Códigos principais — disparam o pacote *</Label>
                   <PackageCodeChips
                     value={c.package_main_code}
                     onChange={(v) => onChange({ package_main_code: v })}
-                    placeholder="Digite o código TUSS e pressione Enter"
-                    single
+                    placeholder="Digite código TUSS + Enter (aceita mais de um)"
                   />
-                  <p className="text-[10px] text-muted-foreground">Um único código. Quando presente no atendimento, este pacote é ativado.</p>
+                  <p className="text-[10px] text-muted-foreground">Um ou mais códigos. <strong>Basta qualquer um deles</strong> estar presente no atendimento para ativar o pacote (operador OU, não E).</p>
                 </div>
+
 
                 <div className="space-y-1.5">
                   <Label className="text-xs">Códigos incluídos — absorvidos pelo pacote</Label>
