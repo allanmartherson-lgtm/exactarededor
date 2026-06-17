@@ -1,7 +1,24 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type ErrorDetail = { id: string; title: string; messages: string[] };
+
+function scanCalcErrors(): ErrorDetail[] {
+  const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-calc-error="true"]'));
+  return cards.map((el, i) => {
+    // Título: tenta "Cálculo #N" + tipo/label do header
+    const calcLabel = el.querySelector<HTMLElement>('[data-calc-header-label]')?.innerText?.trim();
+    const headerSpan = el.querySelector<HTMLElement>('span.uppercase')?.innerText?.trim();
+    const typeSpan = el.querySelector<HTMLElement>('.ml-auto.text-\\[10\\.5px\\]')?.innerText?.trim();
+    const title = [headerSpan, calcLabel || typeSpan].filter(Boolean).join(" — ") || `Cálculo #${i + 1}`;
+    const messages = Array.from(el.querySelectorAll<HTMLElement>('ul li')).map((li) => li.innerText.trim()).filter(Boolean);
+    if (!el.id) el.id = `calc-err-${i}`;
+    return { id: el.id, title, messages };
+  });
+}
+
 
 export type StepperStep = {
   key: string;
