@@ -1483,6 +1483,40 @@ export function calcItemErrorMessages(c: CalcItem): string[] {
   return msgs;
 }
 
+function agreementScopesOverlap(a: CalcItem, b: CalcItem): boolean {
+  const aTags = new Set((a.agreement_aliases ?? []).filter(Boolean));
+  const bTags = new Set((b.agreement_aliases ?? []).filter(Boolean));
+  if (aTags.size === 0 || bTags.size === 0) return true;
+  const aMode = a.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
+  const bMode = b.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
+  const intersects = [...aTags].some((tag) => bTags.has(tag));
+  if (aMode === "whitelist" && bMode === "whitelist") return intersects;
+  if (aMode === "blacklist" && bMode === "blacklist") return true;
+  const whitelist = aMode === "whitelist" ? aTags : bTags;
+  const blacklist = aMode === "blacklist" ? aTags : bTags;
+  return [...whitelist].some((tag) => !blacklist.has(tag));
+}
+
+/** Erros que dependem da relação entre cálculos da mesma regra. */
+export function calcCrossItemErrorMessages(items: CalcItem[]): Map<number, string[]> {
+  const errors = new Map<number, string[]>();
+  const byReferenceTable = new Map<string, number[]>();
+  items.forEach((c, idx) => {
+    if (c.calculation_type !== "tabela_diferenciada" || !c.reference_table_id) return;
+    const indices = byReferenceTable.get(c.reference_table_id) ?? [];
+    const isCatchAllByCode = c.code_match_mode === "any" && (c.procedure_codes?.length ?? 0) === 0;
+    const overlapsEarlier = indices.some((prevIdx) => agreementScopesOverlap(items[prevIdx], c));
+    if (indices.length > 0 && isCatchAllByCode && overlapsEarlier) {
+      const list = errors.get(idx) ?? [];
+      list.push("Este cálculo usa a mesma tabela de outro cálculo e não tem filtro de código TUSS. Se for um caso único por convênio, confirme que o 'apenas' e o 'exceto' são listas complementares; caso contrário, informe códigos ou separe a regra.");
+      errors.set(idx, list);
+    }
+    indices.push(idx);
+    byReferenceTable.set(c.reference_table_id, indices);
+  });
+  return errors;
+}
+
 /**
  * Sanity checks financeiros — retornam alertas visuais (warnings) sem bloquear
  * o salvamento. Valores fora dos ranges típicos podem indicar erro de digitação
