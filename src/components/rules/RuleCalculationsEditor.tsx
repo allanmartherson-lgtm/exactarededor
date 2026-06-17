@@ -93,6 +93,13 @@ export type CalcItem = {
   /** Para bônus: define se aplica por linha, por atendimento ou por paciente+dia (fallback). */
   application_unit: "por_item" | "por_atendimento" | "por_paciente_dia";
 
+  // ---- Adicionais temporais (aplicados após o cálculo base) ----
+  adicional_fds_pct: string;
+  adicional_feriado_pct: string;
+  adicional_noturno_pct: string;
+  noturno_inicio: string;   // 'HH:MM'
+  noturno_fim: string;      // 'HH:MM'
+
   // ---- Filtros restritivos por cálculo (refactor: tudo no cálculo) ----
   /** Códigos TUSS aos quais este cálculo se aplica. Vazio = qualquer código. */
   procedure_codes: string[];
@@ -145,6 +152,11 @@ export function makeEmptyCalc(): CalcItem {
     agreement_match_mode: "whitelist",
     doctor_roles: [],
     context_conditions: [],
+    adicional_fds_pct: "",
+    adicional_feriado_pct: "",
+    adicional_noturno_pct: "",
+    noturno_inicio: "",
+    noturno_fim: "",
   };
 }
 
@@ -837,6 +849,49 @@ function WhenApplySection({
               <Checkbox checked={c.includes_holidays} onCheckedChange={v => onChange({ includes_holidays: !!v, has_conditions: c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || !!v || c.allowed_access_routes.length > 0 })} />
               <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Incluir feriados</span>
             </label>
+
+            {/* ============ Adicionais temporais (independentes do filtro de horário) ============ */}
+            <div style={{ marginTop: 4, padding: 10, border: "1px dashed hsl(var(--border))", borderRadius: 6, background: "hsl(var(--muted) / 0.3)" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Adicionais sobre o valor calculado</div>
+              <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginBottom: 8 }}>
+                Acrescenta % ao valor calculado quando o atendimento ocorrer nessas condições. <strong>Aplica-se apenas o maior</strong> dos adicionais elegíveis (ex: noturno em feriado = só o maior dos dois). Deixe vazio = sem adicional.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                <div>
+                  <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Fim de semana (%)</Label>
+                  <Input type="number" min={0} max={200} step="0.01" placeholder="ex: 30" value={c.adicional_fds_pct}
+                    onChange={e => onChange({ adicional_fds_pct: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Feriado nacional (%)</Label>
+                  <Input type="number" min={0} max={200} step="0.01" placeholder="ex: 30" value={c.adicional_feriado_pct}
+                    onChange={e => onChange({ adicional_feriado_pct: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Noturno (%)</Label>
+                  <Input type="number" min={0} max={200} step="0.01" placeholder="ex: 30" value={c.adicional_noturno_pct}
+                    onChange={e => onChange({ adicional_noturno_pct: e.target.value })} />
+                </div>
+              </div>
+              {Number(c.adicional_noturno_pct || 0) > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+                  <div>
+                    <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Início janela noturna</Label>
+                    <Input type="time" value={c.noturno_inicio}
+                      onChange={e => onChange({ noturno_inicio: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Fim janela noturna</Label>
+                    <Input type="time" value={c.noturno_fim}
+                      onChange={e => onChange({ noturno_fim: e.target.value })} />
+                  </div>
+                  <p style={{ gridColumn: "1 / -1", fontSize: 10, color: "hsl(var(--muted-foreground))", margin: 0 }}>
+                    Pode cruzar meia-noite (ex: 19:00 → 07:00). Requer que a base tenha hora do atendimento.
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div>
               <Label className="text-xs" style={{ marginBottom: 6, display: "block" }}>Vias de acesso permitidas</Label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -1357,6 +1412,11 @@ export function calcFromDb(r: any): CalcItem {
           complement_value: cc?.complement_value != null ? String(cc.complement_value) : "0",
         }))
       : [],
+    adicional_fds_pct: r.adicional_fds_pct != null ? String(r.adicional_fds_pct) : "",
+    adicional_feriado_pct: r.adicional_feriado_pct != null ? String(r.adicional_feriado_pct) : "",
+    adicional_noturno_pct: r.adicional_noturno_pct != null ? String(r.adicional_noturno_pct) : "",
+    noturno_inicio: r.noturno_inicio ? String(r.noturno_inicio).slice(0, 5) : "",
+    noturno_fim: r.noturno_fim ? String(r.noturno_fim).slice(0, 5) : "",
   };
 }
 
@@ -1446,6 +1506,12 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
             complement_value: numOrNull(cc.complement_value) ?? 0,
           }))
       : [],
+    // ---- Adicionais temporais ----
+    adicional_fds_pct: numOrNull(c.adicional_fds_pct),
+    adicional_feriado_pct: numOrNull(c.adicional_feriado_pct),
+    adicional_noturno_pct: numOrNull(c.adicional_noturno_pct),
+    noturno_inicio: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_inicio || null) : null,
+    noturno_fim: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_fim || null) : null,
   };
 }
 

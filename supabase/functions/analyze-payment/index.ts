@@ -264,7 +264,8 @@ serve(async (req) => {
       force_totalized,application_unit,sectors,specialties,
       procedure_codes,code_match_mode,doctor_roles,
       agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
-      package_roles_distribution
+      package_roles_distribution,
+      adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim
     `;
 
     // [Sprint 3 - Tier 1.B] Cache de contexto compartilhado por job:

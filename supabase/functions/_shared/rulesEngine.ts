@@ -208,6 +208,17 @@ export interface RuleCalculationItem {
   bonus_amount?: number | null;
   bonus_pct?: number | null;
   target_amount?: number | null;
+  // ---- Adicionais temporais (aplicados após o cálculo base) ----
+  /** % adicional sobre o valor calculado se atendimento for sábado/domingo. */
+  adicional_fds_pct?: number | null;
+  /** % adicional se data for feriado nacional (brHolidays). */
+  adicional_feriado_pct?: number | null;
+  /** % adicional se hora cair na janela noturna. */
+  adicional_noturno_pct?: number | null;
+  /** Início janela noturna (HH:MM). */
+  noturno_inicio?: string | null;
+  /** Fim janela noturna (HH:MM). Cruza meia-noite quando fim < início. */
+  noturno_fim?: string | null;
   /** Se verdadeiro, ignora a quantidade para este item de cálculo específico. */
   force_totalized?: boolean | null;
   /**
@@ -1751,7 +1762,16 @@ export interface ExpectedCalc {
   /** Sub-Onda 2C — 2+ cálculos da mesma regra retornaram VÁLIDO. Bloqueia o item. */
   calc_duplicity?: CalcDuplicityInfo;
   inferred_sector?: string | null;
+  /** Configuração de adicional temporal do cálculo vencedor — aplicado em finalizeAnalysis. */
+  temporal_surcharge_config?: {
+    fds_pct: number | null;
+    feriado_pct: number | null;
+    noturno_pct: number | null;
+    noturno_inicio: string | null;
+    noturno_fim: string | null;
+  } | null;
 }
+
 
 /**
  * Sub-Onda 2C — Rodada 3 (revisão final, Opção A uniforme).
@@ -1876,6 +1896,7 @@ export function applyCalculation(
       sort_order: number;
       restrictive: boolean;
       inferred_sector: string;
+      temporal_surcharge_config?: ExpectedCalc["temporal_surcharge_config"];
     };
     const validCalcs: ValidCalc[] = [];
     let anyMatched = false;
@@ -1911,6 +1932,13 @@ export function applyCalculation(
           sort_order: c.sort_order ?? Number.MAX_SAFE_INTEGER,
           restrictive: isRestrictiveCalculation(c, list),
           inferred_sector: inferItemSector(item, ctx as any),
+          temporal_surcharge_config: {
+            fds_pct: c.adicional_fds_pct ?? null,
+            feriado_pct: c.adicional_feriado_pct ?? null,
+            noturno_pct: c.adicional_noturno_pct ?? null,
+            noturno_inicio: c.noturno_inicio ?? null,
+            noturno_fim: c.noturno_fim ?? null,
+          },
         });
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
@@ -2053,6 +2081,7 @@ export function applyCalculation(
       qty_already_applied: winnerCalc.qty_already_applied,
       steps: winnerCalc.steps,
       inferred_sector: (winnerCalc as any).inferred_sector,
+      temporal_surcharge_config: winnerCalc.temporal_surcharge_config ?? null,
       ...(resolutionStale ? {
         calc_duplicity: {
           rule_id: rule.id, rule_name: rule.name,
@@ -2703,6 +2732,74 @@ export function analyzeItem(
 
 
 
+/**
+ * Decide qual adicional temporal aplicar (FDS / feriado / noturno) com base na
+ * data/hora do atendimento. Regra: aplica APENAS O MAIOR % entre os elegíveis.
+ * Retorna `null` quando nenhum adicional cabe ou está cadastrado.
+ *
+ * Janela noturna pode cruzar meia-noite (ex: 19:00 → 07:00 = noturno entre
+ * 19:00 e 23:59 OU entre 00:00 e 06:59).
+ */
+export function pickTemporalSurcharge(
+  cfg: NonNullable<ExpectedCalc["temporal_surcharge_config"]>,
+  procedureDateIso: string,
+): { pct: number; reason: "fim de semana" | "feriado" | "noturno" } | null {
+  if (!cfg || !procedureDateIso) return null;
+
+  // Mantém o dia exato registrado (igual à lógica de calcItemMatches).
+  const hasTime = procedureDateIso.includes("T");
+  const dParts = hasTime
+    ? new Date(procedureDateIso)
+    : new Date(procedureDateIso + "T12:00:00");
+  if (isNaN(dParts.getTime())) return null;
+  const dayOfWeek = dParts.getDay(); // 0=Dom, 6=Sáb
+
+  const candidates: Array<{ pct: number; reason: "fim de semana" | "feriado" | "noturno" }> = [];
+
+  // Feriado (nacional BR)
+  const feriadoPct = Number(cfg.feriado_pct ?? 0);
+  if (feriadoPct > 0 && isBrazilianNationalHoliday(procedureDateIso)) {
+    candidates.push({ pct: feriadoPct, reason: "feriado" });
+  }
+
+  // Fim de semana (Sáb=6, Dom=0)
+  const fdsPct = Number(cfg.fds_pct ?? 0);
+  if (fdsPct > 0 && (dayOfWeek === 0 || dayOfWeek === 6)) {
+    candidates.push({ pct: fdsPct, reason: "fim de semana" });
+  }
+
+  // Noturno — só faz sentido se houver hora real no procedure_date.
+  const noturnoPct = Number(cfg.noturno_pct ?? 0);
+  if (noturnoPct > 0 && cfg.noturno_inicio && cfg.noturno_fim && hasTime) {
+    const ini = parseHHMM(cfg.noturno_inicio);
+    const fim = parseHHMM(cfg.noturno_fim);
+    if (ini != null && fim != null && ini !== fim) {
+      const mins = dParts.getHours() * 60 + dParts.getMinutes();
+      // Janela que cruza meia-noite: fim < ini → [ini, 24h) ∪ [0, fim)
+      const inside = ini < fim
+        ? (mins >= ini && mins < fim)
+        : (mins >= ini || mins < fim);
+      if (inside) candidates.push({ pct: noturnoPct, reason: "noturno" });
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  // "Só o maior" — empate desempata pela ordem (feriado > fds > noturno) por ser estabilidade visual.
+  candidates.sort((a, b) => b.pct - a.pct);
+  return candidates[0];
+}
+
+function parseHHMM(s: string | null | undefined): number | null {
+  if (!s) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(s));
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mi = Number(m[2]);
+  if (!isFinite(h) || !isFinite(mi)) return null;
+  if (h < 0 || h > 23 || mi < 0 || mi > 59) return null;
+  return h * 60 + mi;
+}
+
 
 
 function finalizeAnalysis(
@@ -2791,6 +2888,19 @@ function finalizeAnalysis(
     calc.explanation = `${calc.explanation} × qtd ${qtyValid} = R$ ${calc.expected.toFixed(2)}`;
   }
 
+  // ─── Adicional temporal (FDS / feriado / noturno) ───
+  // Aplica APÓS multiplicação por qty. Apenas o MAIOR % entre os elegíveis é aplicado.
+  // % incide sobre o valor calculado (expected) — para regras percentuais isso é
+  // matematicamente equivalente a aplicar sobre a tabela base.
+  if (calc.expected != null && calc.expected > 0 && calc.temporal_surcharge_config && item.procedure_date) {
+    const sur = pickTemporalSurcharge(calc.temporal_surcharge_config, item.procedure_date);
+    if (sur && sur.pct > 0) {
+      const base = calc.expected;
+      const addValue = round2(base * (sur.pct / 100));
+      calc.expected = round2(base + addValue);
+      calc.explanation = `${calc.explanation} + ${sur.pct}% adicional ${sur.reason} (R$ ${addValue.toFixed(2)}) = R$ ${calc.expected.toFixed(2)}`;
+    }
+  }
 
   let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount, rule, ctx);
   if (priority === "conflito") status = "alerta";
