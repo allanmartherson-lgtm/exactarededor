@@ -874,8 +874,9 @@ serve(async (req) => {
             calc.calculation_type === "pacote_fechado" ||
             calc.calculation_type === "pacote_com_extras" ||
             calc.calculation_type === "pacote_por_atendimento";
-          if (!isPkg || !triggerCode) continue;
-          const mainCodes = String(triggerCode)
+          if (!isPkg || !calc.package_main_code) continue;
+          const mainCodes = String(calc.package_main_code)
+
             .split(/[,;\s]+/)
             .map((c) => c.trim())
             .filter(Boolean);
