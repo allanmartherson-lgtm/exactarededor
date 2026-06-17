@@ -2745,6 +2745,7 @@ export function analyzeItem(
 export function pickTemporalSurcharge(
   cfg: NonNullable<ExpectedCalc["temporal_surcharge_config"]>,
   procedureDateIso: string,
+  procedureDateHasTime: boolean = false,
 ): { pct: number; reason: "fim de semana" | "feriado" | "noturno" } | null {
   if (!cfg || !procedureDateIso) return null;
 
