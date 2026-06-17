@@ -32,7 +32,7 @@ import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
   type RuleCalculationType,
 } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown, CheckCheck, Copy, MoreHorizontal } from "lucide-react";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, BadgeDollarSign, FileDown, CheckCheck, Copy, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx";
 import { DoctorsEditor, MultiSelectChips } from "@/components/MultiSelectChips";
@@ -319,19 +319,6 @@ const Rules = () => {
   const [fGlobalAlertThresholdValue, setFGlobalAlertThresholdValue] = useState<string>("1.0");
   const [fGlobalBlockThresholdType, setFGlobalBlockThresholdType] = useState<"percentual" | "absoluto">("percentual");
   const [fGlobalBlockThresholdValue, setFGlobalBlockThresholdValue] = useState<string>("5.0");
-  type CalcSyncError = {
-    step: "delete-calculavel" | "insert-calculavel" | "delete-informativo";
-    message: string;
-    code?: string | null;
-    details?: string | null;
-    hint?: string | null;
-    rowsAttempted?: number;
-  };
-  const [calcSyncErrors, setCalcSyncErrors] = useState<CalcSyncError[]>([]);
-  const [calcSyncRuleId, setCalcSyncRuleId] = useState<string | null>(null);
-  const [calcSyncAttempt, setCalcSyncAttempt] = useState(0);
-  const [calcSyncRetrying, setCalcSyncRetrying] = useState(false);
-
   // Sub-Onda 2D / Rodada 3 — modal de conflitos (validate-rule-save)
   const [conflictOpen, setConflictOpen] = useState(false);
   const [conflictProblems, setConflictProblems] = useState<ConflictProblem[]>([]);
@@ -341,12 +328,6 @@ const Rules = () => {
   const [pendingIsUpdate, setPendingIsUpdate] = useState(false);
   // Clone-to-hospital dialog
   const [cloneTarget, setCloneTarget] = useState<RuleRow | null>(null);
-  const STEP_LABELS: Record<CalcSyncError["step"], string> = {
-    "delete-calculavel": "Remover cálculos antigos (regra calculável)",
-    "insert-calculavel": "Inserir novos cálculos",
-    "delete-informativo": "Limpar cálculos (regra informativa)",
-  };
-
   // Accordion: por padrão todas as seções começam FECHADAS ao abrir o modal —
   // facilita a navegação/busca. O usuário expande conforme precisa.
   const [accordionValue, setAccordionValue] = useState<string[]>([]);
@@ -854,10 +835,6 @@ const Rules = () => {
     setFCalculations([makeEmptyCalc()]);
     setFAlertThresholdType("percentual"); setFAlertThresholdValue(""); setFAlertInherit(true);
     setFBlockThresholdType("percentual"); setFBlockThresholdValue(""); setFBlockInherit(true);
-    setCalcSyncErrors([]);
-    setCalcSyncRuleId(null);
-    setCalcSyncAttempt(0);
-    setCalcSyncRetrying(false);
   };
 
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
