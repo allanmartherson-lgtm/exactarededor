@@ -83,7 +83,8 @@ const CALC_SELECT = `
   bonus_amount,bonus_pct,target_amount,allowed_access_routes,
   force_totalized,application_unit,sectors,specialties,
   procedure_codes,code_match_mode,doctor_roles,
-  agreement_match_mode,agreement_aliases,context_conditions
+  agreement_match_mode,agreement_aliases,context_conditions,
+  adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim
 `;
 
 async function attachCalcs(supabase: any, rules: RuleInput[]) {
