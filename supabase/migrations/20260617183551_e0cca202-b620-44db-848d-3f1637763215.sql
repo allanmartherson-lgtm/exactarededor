@@ -1,0 +1,3 @@
+alter table public.payment_items add column if not exists procedure_date_has_time boolean not null default false;
+alter table public.payment_unmatched_items add column if not exists procedure_date_has_time boolean not null default false;
+comment on column public.payment_items.procedure_date_has_time is 'true quando a hora foi extraída explicitamente da base hospitalar; false quando a hora foi sintetizada (default 12h). Usado pelo motor para decidir se adicional noturno pode ser aplicado.';

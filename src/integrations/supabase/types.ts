@@ -4567,6 +4567,7 @@ export type Database = {
           procedure_amount: number | null
           procedure_code: string | null
           procedure_date: string | null
+          procedure_date_has_time: boolean
           procedure_name: string | null
           quantity: number | null
           rateio: Json | null
@@ -4659,6 +4660,7 @@ export type Database = {
           procedure_amount?: number | null
           procedure_code?: string | null
           procedure_date?: string | null
+          procedure_date_has_time?: boolean
           procedure_name?: string | null
           quantity?: number | null
           rateio?: Json | null
@@ -4751,6 +4753,7 @@ export type Database = {
           procedure_amount?: number | null
           procedure_code?: string | null
           procedure_date?: string | null
+          procedure_date_has_time?: boolean
           procedure_name?: string | null
           quantity?: number | null
           rateio?: Json | null
@@ -5485,6 +5488,7 @@ export type Database = {
           procedure_amount: number | null
           procedure_code: string | null
           procedure_date: string | null
+          procedure_date_has_time: boolean
           procedure_name: string | null
           quantity: number | null
           raw_company_name: string
@@ -5523,6 +5527,7 @@ export type Database = {
           procedure_amount?: number | null
           procedure_code?: string | null
           procedure_date?: string | null
+          procedure_date_has_time?: boolean
           procedure_name?: string | null
           quantity?: number | null
           raw_company_name: string
@@ -5561,6 +5566,7 @@ export type Database = {
           procedure_amount?: number | null
           procedure_code?: string | null
           procedure_date?: string | null
+          procedure_date_has_time?: boolean
           procedure_name?: string | null
           quantity?: number | null
           raw_company_name?: string
