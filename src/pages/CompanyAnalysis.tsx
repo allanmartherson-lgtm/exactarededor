@@ -953,10 +953,10 @@ export default function CompanyAnalysis() {
         status_to: group.status,
       });
 
-      // 6) reanálise da IA para a empresa nova
+      // 6) reanálise da IA para a empresa nova via orquestrador
       try {
-        await supabase.functions.invoke("analyze-payment", {
-          body: { payment_id: id, company_name: newCompany.name },
+        await supabase.functions.invoke("dispatch-payment-analysis", {
+          body: { payment_id: id, only_companies: [newCompany.name] },
         });
       } catch (e) {
         console.warn("Reanálise pós-troca falhou (silencioso):", e);
@@ -1146,8 +1146,8 @@ export default function CompanyAnalysis() {
         status_from: payment.status, status_to: payment.status,
       });
 
-      supabase.functions.invoke("analyze-payment", {
-        body: { payment_id: id, company_name: group.company_name },
+      supabase.functions.invoke("dispatch-payment-analysis", {
+        body: { payment_id: id, only_companies: [group.company_name] },
       });
       toast.success("Base da empresa reimportada", {
         description: ignoredCount > 0
@@ -1221,8 +1221,8 @@ export default function CompanyAnalysis() {
         message: `Item editado pelo analista (valor: ${oldGross} → ${newGross}).`,
       });
       try {
-        await supabase.functions.invoke("analyze-payment", {
-          body: { payment_id: id, company_name: group.company_name },
+        await supabase.functions.invoke("dispatch-payment-analysis", {
+          body: { payment_id: id, only_companies: [group.company_name] },
         });
       } catch (e) { console.warn("Reanálise pós-edição falhou:", e); }
       toast.success("Item atualizado");

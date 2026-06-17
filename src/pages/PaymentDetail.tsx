@@ -641,29 +641,8 @@ const PaymentDetail = () => {
     setReanalyzingGroupId(g.id);
     await autoClaim();
     try {
-      // Cria um job de processamento para essa empresa única para que a barra de status funcione
-      const { data: job, error: jobErr } = await supabase
-        .from("payment_processing_jobs")
-        .insert({
-          payment_id: id,
-          total_companies: 1,
-          processed_companies: 0,
-          status: "em_andamento",
-          company_list: [g.company_name],
-          total_items: g.items_count || 0,
-        })
-        .select()
-        .single();
-      
-      if (jobErr) throw jobErr;
-
-      const { error } = await supabase.functions.invoke("analyze-payment", {
-        body: { 
-          payment_id: id, 
-          company_name: g.company_name,
-          _job_id: job.id,
-          _company_label: g.company_name
-        },
+      const { error } = await supabase.functions.invoke("dispatch-payment-analysis", {
+        body: { payment_id: id, only_companies: [g.company_name] },
       });
       if (error) throw error;
       const obsRes = await recordObservation({

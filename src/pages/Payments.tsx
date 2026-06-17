@@ -343,7 +343,7 @@ const Payments = () => {
     let ok = 0; let fail = 0;
     for (let i = 0; i < ids.length; i++) {
       try {
-        const { error } = await supabase.functions.invoke("analyze-payment", { body: { payment_id: ids[i] } });
+        const { error } = await supabase.functions.invoke("dispatch-payment-analysis", { body: { payment_id: ids[i] } });
         if (error) throw error;
         ok++;
       } catch (e) {
