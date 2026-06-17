@@ -250,7 +250,7 @@ Deno.serve(async (req) => {
     }
   }
   const overlapByPeer = new Map<string, boolean>();
-  const linksByPeer = new Map<string, Array<Record<string, unknown>>>();
+  const linksByPeer = new Map<string, LinkLike[]>();
   if (cabIds.size > 0) {
     const [peerCalcsRes, peerRulesRes] = await Promise.all([
       supabase.from("rule_calculations").select("*").in("rule_id", Array.from(cabIds)),
@@ -276,7 +276,7 @@ Deno.serve(async (req) => {
     for (const r of (peerRulesRes.data ?? []) as Array<{ id: string; group_company_links: unknown }>) {
       linksByPeer.set(
         r.id,
-        Array.isArray(r.group_company_links) ? (r.group_company_links as Array<Record<string, unknown>>) : [],
+        Array.isArray(r.group_company_links) ? (r.group_company_links as LinkLike[]) : [],
       );
     }
   }
