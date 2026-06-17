@@ -1846,6 +1846,7 @@ const NewPayment = () => {
         procedure_amount: r.procedure_amount,
         quantity: r.quantity,
         procedure_date: r.procedure_date,
+        procedure_date_has_time: r.procedure_date_has_time,
         patient_name: r.patient_name,
         sector: sRes.sector?.slug ?? normalizeSector(sRawForLookup),
         attendance_character: r.attendance_character,
