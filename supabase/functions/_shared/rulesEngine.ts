@@ -1762,7 +1762,16 @@ export interface ExpectedCalc {
   /** Sub-Onda 2C — 2+ cálculos da mesma regra retornaram VÁLIDO. Bloqueia o item. */
   calc_duplicity?: CalcDuplicityInfo;
   inferred_sector?: string | null;
+  /** Configuração de adicional temporal do cálculo vencedor — aplicado em finalizeAnalysis. */
+  temporal_surcharge_config?: {
+    fds_pct: number | null;
+    feriado_pct: number | null;
+    noturno_pct: number | null;
+    noturno_inicio: string | null;
+    noturno_fim: string | null;
+  } | null;
 }
+
 
 /**
  * Sub-Onda 2C — Rodada 3 (revisão final, Opção A uniforme).
