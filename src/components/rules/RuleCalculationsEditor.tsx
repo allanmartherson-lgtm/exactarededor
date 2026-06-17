@@ -1386,17 +1386,45 @@ export function calcItemHasWhitelistWithoutCodes(c: CalcItem): boolean {
 
 /** Erros por item para feedback visual no formulário (apenas validações fortes). */
 export function calcItemErrors(c: CalcItem): number {
-  let n = 0;
-  if (c.calculation_type === "percentual_sobre_convenio" && !c.convenio_percentage) n++;
-  if (c.calculation_type === "valor_fixo" && !c.fixed_amount) n++;
-  if (c.calculation_type === "complemento" && !c.target_amount) n++;
-  if (c.calculation_type === "tabela_diferenciada" && !c.reference_table_id) n++;
-  if ((c.calculation_type === "pacote" || c.calculation_type === "pacote_fechado"
-    || c.calculation_type === "pacote_com_extras" || c.calculation_type === "pacote_por_atendimento") && !c.package_amount) n++;
-  if (c.calculation_type === "bonus" && !c.bonus_amount && !c.bonus_pct) n++;
-  if (c.has_conditions && c.time_start && c.time_end && c.time_start === c.time_end) n++;
-  if (calcItemHasWhitelistWithoutCodes(c)) n++;
-  return n;
+  return calcItemErrorMessages(c).length;
+}
+
+/**
+ * Mesma checagem de `calcItemErrors`, mas retorna mensagens descritivas para
+ * que a UI consiga apontar EXATAMENTE qual campo está faltando em qual cálculo
+ * (em vez de mostrar apenas a contagem agregada no passo).
+ */
+export function calcItemErrorMessages(c: CalcItem): string[] {
+  const msgs: string[] = [];
+  if (c.calculation_type === "percentual_sobre_convenio" && !c.convenio_percentage) {
+    msgs.push("Informe o percentual sobre o convênio.");
+  }
+  if (c.calculation_type === "valor_fixo" && !c.fixed_amount) {
+    msgs.push("Informe o valor fixo do repasse.");
+  }
+  if (c.calculation_type === "complemento" && !c.target_amount) {
+    msgs.push("Informe o valor-alvo do complemento.");
+  }
+  if (c.calculation_type === "tabela_diferenciada" && !c.reference_table_id) {
+    msgs.push("Selecione a tabela de referência.");
+  }
+  if (
+    (c.calculation_type === "pacote" || c.calculation_type === "pacote_fechado"
+      || c.calculation_type === "pacote_com_extras" || c.calculation_type === "pacote_por_atendimento")
+    && !c.package_amount
+  ) {
+    msgs.push("Informe o valor do pacote.");
+  }
+  if (c.calculation_type === "bonus" && !c.bonus_amount && !c.bonus_pct) {
+    msgs.push("Informe o valor ou o percentual do bônus.");
+  }
+  if (c.has_conditions && c.time_start && c.time_end && c.time_start === c.time_end) {
+    msgs.push("Janela de horário inválida: início e fim são iguais.");
+  }
+  if (calcItemHasWhitelistWithoutCodes(c)) {
+    msgs.push("Modo \"apenas estes códigos\" exige ao menos 1 código de procedimento.");
+  }
+  return msgs;
 }
 
 /**
