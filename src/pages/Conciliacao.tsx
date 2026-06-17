@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { GitCompareIcon } from "@/config/icons/navIcons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, Database, History } from "lucide-react";
+import { Wallet, Database, History, ShieldAlert } from "lucide-react";
+import BlockingDivergencesTab from "@/components/conciliacao/BlockingDivergencesTab";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +41,7 @@ type PaymentLite = {
   status: string;
 };
 
-const TAB_VALUES = ["pagamento", "bases", "retroativa"] as const;
+const TAB_VALUES = ["pagamento", "bloqueios", "bases", "retroativa"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 export default function Conciliacao() {
