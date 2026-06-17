@@ -3134,13 +3134,13 @@ export function selectMainProcedures(
   }
 
   // Conjunto de códigos principais de pacote vindos das regras.
-  const packageMainCodes = new Set(
+  const packageMainCodes = new Set<string>(
     rules
       .filter((r) => {
         const ct = r.calculation_type;
         return (ct === "pacote" || ct === "pacote_fechado" || ct === "pacote_com_extras" || ct === "pacote_por_atendimento") && !!r.package_main_code;
       })
-      .map((r) => r.package_main_code as string),
+      .flatMap((r) => splitMainCodes(r.package_main_code)),
   );
 
   for (const [groupKey, members] of groups) {
