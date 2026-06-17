@@ -2771,9 +2771,10 @@ export function pickTemporalSurcharge(
     candidates.push({ pct: fdsPct, reason: "fim de semana" });
   }
 
-  // Noturno — só faz sentido se houver hora real no procedure_date.
+  // Noturno — só aplica quando a hora foi extraída explicitamente da base hospitalar.
+  // Sem hora real (procedureDateHasTime === false), NUNCA aplica adicional noturno.
   const noturnoPct = Number(cfg.noturno_pct ?? 0);
-  if (noturnoPct > 0 && cfg.noturno_inicio && cfg.noturno_fim && hasTime) {
+  if (noturnoPct > 0 && cfg.noturno_inicio && cfg.noturno_fim && hasTime && procedureDateHasTime) {
     const ini = parseHHMM(cfg.noturno_inicio);
     const fim = parseHHMM(cfg.noturno_fim);
     if (ini != null && fim != null && ini !== fim) {
