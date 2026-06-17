@@ -2732,6 +2732,74 @@ export function analyzeItem(
 
 
 
+/**
+ * Decide qual adicional temporal aplicar (FDS / feriado / noturno) com base na
+ * data/hora do atendimento. Regra: aplica APENAS O MAIOR % entre os elegíveis.
+ * Retorna `null` quando nenhum adicional cabe ou está cadastrado.
+ *
+ * Janela noturna pode cruzar meia-noite (ex: 19:00 → 07:00 = noturno entre
+ * 19:00 e 23:59 OU entre 00:00 e 06:59).
+ */
+export function pickTemporalSurcharge(
+  cfg: NonNullable<ExpectedCalc["temporal_surcharge_config"]>,
+  procedureDateIso: string,
+): { pct: number; reason: "fim de semana" | "feriado" | "noturno" } | null {
+  if (!cfg || !procedureDateIso) return null;
+
+  // Mantém o dia exato registrado (igual à lógica de calcItemMatches).
+  const hasTime = procedureDateIso.includes("T");
+  const dParts = hasTime
+    ? new Date(procedureDateIso)
+    : new Date(procedureDateIso + "T12:00:00");
+  if (isNaN(dParts.getTime())) return null;
+  const dayOfWeek = dParts.getDay(); // 0=Dom, 6=Sáb
+
+  const candidates: Array<{ pct: number; reason: "fim de semana" | "feriado" | "noturno" }> = [];
+
+  // Feriado (nacional BR)
+  const feriadoPct = Number(cfg.feriado_pct ?? 0);
+  if (feriadoPct > 0 && isBrazilianNationalHoliday(procedureDateIso)) {
+    candidates.push({ pct: feriadoPct, reason: "feriado" });
+  }
+
+  // Fim de semana (Sáb=6, Dom=0)
+  const fdsPct = Number(cfg.fds_pct ?? 0);
+  if (fdsPct > 0 && (dayOfWeek === 0 || dayOfWeek === 6)) {
+    candidates.push({ pct: fdsPct, reason: "fim de semana" });
+  }
+
+  // Noturno — só faz sentido se houver hora real no procedure_date.
+  const noturnoPct = Number(cfg.noturno_pct ?? 0);
+  if (noturnoPct > 0 && cfg.noturno_inicio && cfg.noturno_fim && hasTime) {
+    const ini = parseHHMM(cfg.noturno_inicio);
+    const fim = parseHHMM(cfg.noturno_fim);
+    if (ini != null && fim != null && ini !== fim) {
+      const mins = dParts.getHours() * 60 + dParts.getMinutes();
+      // Janela que cruza meia-noite: fim < ini → [ini, 24h) ∪ [0, fim)
+      const inside = ini < fim
+        ? (mins >= ini && mins < fim)
+        : (mins >= ini || mins < fim);
+      if (inside) candidates.push({ pct: noturnoPct, reason: "noturno" });
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  // "Só o maior" — empate desempata pela ordem (feriado > fds > noturno) por ser estabilidade visual.
+  candidates.sort((a, b) => b.pct - a.pct);
+  return candidates[0];
+}
+
+function parseHHMM(s: string | null | undefined): number | null {
+  if (!s) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(s));
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mi = Number(m[2]);
+  if (!isFinite(h) || !isFinite(mi)) return null;
+  if (h < 0 || h > 23 || mi < 0 || mi > 59) return null;
+  return h * 60 + mi;
+}
+
 
 
 function finalizeAnalysis(
