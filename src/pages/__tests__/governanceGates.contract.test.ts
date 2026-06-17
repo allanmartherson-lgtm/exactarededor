@@ -70,13 +70,28 @@ describe("PaymentDetail.tsx — gates de governança nos botões", () => {
   });
 
   it("botão 'Reimportar base' está dentro do gate canReimport", () => {
-    expect(enclosingGate(paymentDetail, "Reimportando…\" : \"Reimportar base\"")).toBe(
-      "canReimport",
-    );
+    // O label exato aparece duas vezes (DropdownMenuItem e AlertDialogTitle);
+    // usamos a marcação JSX única do item de menu.
+    expect(enclosingGate(paymentDetail, "/> Reimportar base")).toBe("canReimport");
   });
 
   it("AssignmentCard recebe canAssume={canAssumeNow} (botão Assumir governado)", () => {
     expect(paymentDetail).toMatch(/canAssume=\{canAssumeNow\}/);
+  });
+
+  it("PaymentBatchActionsFooter (Questionar/Devolver/Aprovar) está dentro do gate canUseBatchActions", () => {
+    // As ações de validador/diretor foram movidas de CompanyAnalysis para o
+    // footer global em PaymentDetail. O gate canUseBatchActions combina
+    // status + papel (validador/diretor), garantindo segregação de funções.
+    expect(paymentDetail).toMatch(
+      /\{\s*id\s*&&\s*canUseBatchActions\s*&&\s*\(\s*[\r\n][\s\S]{0,200}PaymentBatchActionsFooter/,
+    );
+  });
+
+  it("canUseBatchActions exige status válido E papel (validador OU diretor)", () => {
+    expect(paymentDetail).toMatch(
+      /canUseBatchActions\s*=[\s\S]{0,300}batchActionStatuses\.includes[\s\S]{0,200}isDiretor[\s\S]{0,40}isValidador/,
+    );
   });
 });
 
