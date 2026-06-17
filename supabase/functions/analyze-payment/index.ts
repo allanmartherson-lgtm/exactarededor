@@ -851,7 +851,8 @@ serve(async (req) => {
         rule_id: string;
         rule_name: string;
         calc_id: string;
-        package_main_code: string;
+        // Lista de códigos que disparam o pacote (qualquer um deles ativa).
+        package_main_codes: string[];
         package_included_codes: string[];
         package_amount: number;
         package_roles_distribution: Array<{
@@ -874,12 +875,17 @@ serve(async (req) => {
             calc.calculation_type === "pacote_com_extras" ||
             calc.calculation_type === "pacote_por_atendimento";
           if (!isPkg || !calc.package_main_code) continue;
+          const mainCodes = String(calc.package_main_code)
+            .split(/[,;\s]+/)
+            .map((c) => c.trim())
+            .filter(Boolean);
+          if (mainCodes.length === 0) continue;
           const links = Array.isArray(rule.group_company_links) ? rule.group_company_links : [];
           packageCalcs.push({
             rule_id: rule.id,
             rule_name: rule.name,
             calc_id: calc.id,
-            package_main_code: String(calc.package_main_code).trim(),
+            package_main_codes: mainCodes,
             package_included_codes: Array.isArray(calc.package_included_codes)
               ? calc.package_included_codes.map((c: string) => String(c).trim()).filter(Boolean)
               : [],
@@ -892,6 +898,7 @@ serve(async (req) => {
           });
         }
       }
+
 
       if (packageCalcs.length > 0) {
         // Helper: normaliza texto removendo acentos e caixa
