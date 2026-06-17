@@ -1109,15 +1109,15 @@ function CalcCard({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Código principal — dispara o pacote *</Label>
+                  <Label className="text-xs">Códigos principais — disparam o pacote *</Label>
                   <PackageCodeChips
                     value={c.package_main_code}
                     onChange={(v) => onChange({ package_main_code: v })}
-                    placeholder="Digite o código TUSS e pressione Enter"
-                    single
+                    placeholder="Digite código TUSS + Enter (aceita mais de um)"
                   />
-                  <p className="text-[10px] text-muted-foreground">Um único código. Quando presente no atendimento, este pacote é ativado.</p>
+                  <p className="text-[10px] text-muted-foreground">Um ou mais códigos. <strong>Basta qualquer um deles</strong> estar presente no atendimento para ativar o pacote (operador OU, não E).</p>
                 </div>
+
 
                 <div className="space-y-1.5">
                   <Label className="text-xs">Códigos incluídos — absorvidos pelo pacote</Label>
