@@ -2820,6 +2820,19 @@ function finalizeAnalysis(
     calc.explanation = `${calc.explanation} × qtd ${qtyValid} = R$ ${calc.expected.toFixed(2)}`;
   }
 
+  // ─── Adicional temporal (FDS / feriado / noturno) ───
+  // Aplica APÓS multiplicação por qty. Apenas o MAIOR % entre os elegíveis é aplicado.
+  // % incide sobre o valor calculado (expected) — para regras percentuais isso é
+  // matematicamente equivalente a aplicar sobre a tabela base.
+  if (calc.expected != null && calc.expected > 0 && calc.temporal_surcharge_config && item.procedure_date) {
+    const sur = pickTemporalSurcharge(calc.temporal_surcharge_config, item.procedure_date);
+    if (sur && sur.pct > 0) {
+      const base = calc.expected;
+      const addValue = round2(base * (sur.pct / 100));
+      calc.expected = round2(base + addValue);
+      calc.explanation = `${calc.explanation} + ${sur.pct}% adicional ${sur.reason} (R$ ${addValue.toFixed(2)}) = R$ ${calc.expected.toFixed(2)}`;
+    }
+  }
 
   let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount, rule, ctx);
   if (priority === "conflito") status = "alerta";
