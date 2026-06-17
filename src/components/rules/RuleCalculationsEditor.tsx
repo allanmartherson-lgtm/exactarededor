@@ -24,6 +24,16 @@ import {
 export type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
 export type ElectiveMode = "qualquer" | "eletiva" | "urgencia";
 
+/* Catálogo fixo de funções médicas — espelha classifyDoctorRole no motor. */
+const ROLE_OPTIONS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: "cirurgiao", label: "Cirurgião Principal" },
+  { key: "aux1", label: "1º Auxiliar" },
+  { key: "aux2", label: "2º Auxiliar" },
+  { key: "aux3", label: "3º Auxiliar" },
+  { key: "instrumentador", label: "Instrumentador" },
+];
+
+
 export type PackageRoleDistribution = {
   role_key: string;
   label: string;
