@@ -973,7 +973,7 @@ serve(async (req) => {
 
           for (const calc of packageCalcs) {
             // Basta qualquer um dos main_codes estar presente
-            const triggerCode = triggerCodes.find((c) => codeSet.has(c));
+            const triggerCode = calc.package_main_codes.find((c) => codeSet.has(c));
             if (!triggerCode) continue;
 
             // Verifica se a regra se aplica à empresa dos itens deste atendimento
