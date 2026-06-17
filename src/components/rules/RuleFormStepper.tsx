@@ -138,29 +138,9 @@ export function RuleFormStepper({
         </div>
 
         {totalErrors > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              // Procura o primeiro card de cálculo com erro e rola até ele.
-              // Funciona para qualquer seção que marque [data-calc-error="true"].
-              const el = document.querySelector<HTMLElement>('[data-calc-error="true"]');
-              if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-                el.animate(
-                  [
-                    { boxShadow: "0 0 0 0 hsl(var(--destructive) / 0.6)" },
-                    { boxShadow: "0 0 0 6px hsl(var(--destructive) / 0)" },
-                  ],
-                  { duration: 900, iterations: 2 }
-                );
-              }
-            }}
-            title="Ir para o cálculo com erro"
-            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "hsl(var(--destructive))", background: "hsl(var(--destructive) / 0.08)", borderRadius: 6, padding: "5px 10px", fontWeight: 600, border: "1px solid hsl(var(--destructive) / 0.3)", cursor: "pointer" }}
-          >
-            <AlertCircle size={13} /> {totalErrors} campo{totalErrors > 1 ? "s" : ""} com erro · ver
-          </button>
+          <ErrorDetailsButton totalErrors={totalErrors} />
         )}
+
 
         <div style={{ display: "flex", gap: 6 }}>
           {!isLastStep && (
