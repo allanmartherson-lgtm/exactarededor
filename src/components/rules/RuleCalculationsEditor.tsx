@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, ChevronDown, ChevronRight, Package, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
@@ -856,9 +856,25 @@ function CalcCard({
     || c.calculation_type === "pacote_com_extras"
     || c.calculation_type === "pacote_por_atendimento";
   const isPacoteComExtras = isPacote && c.package_subtype === "com_extras";
+  const errorMessages = calcItemErrorMessages(c);
+  const hasErrors = errorMessages.length > 0;
+
+  // Auto-abre o card quando há erro, para o usuário enxergar imediatamente
+  // qual campo está faltando — sem precisar clicar em cada cálculo.
+  useEffect(() => {
+    if (hasErrors) setOpen(true);
+  }, [hasErrors]);
 
   return (
-    <div style={{ borderRadius: 10, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", boxShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px hsl(var(--border) / 0.4)", overflow: "hidden" }}>
+    <div style={{
+      borderRadius: 10,
+      border: hasErrors ? "1px solid hsl(var(--destructive))" : "1px solid hsl(var(--border))",
+      background: "hsl(var(--card))",
+      boxShadow: hasErrors
+        ? "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px hsl(var(--destructive) / 0.5)"
+        : "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px hsl(var(--border) / 0.4)",
+      overflow: "hidden",
+    }}>
       {/* Header copper */}
       <div style={{ background: "hsl(var(--accent))", borderBottom: "1px solid hsl(var(--border))", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
         <Button type="button" variant="ghost" size="sm" className="h-7 px-1" onClick={() => setOpen((o) => !o)}>
@@ -873,6 +889,14 @@ function CalcCard({
           onChange={(e) => onChange({ label: e.target.value })}
           className="h-7 text-xs flex-1"
         />
+        {hasErrors && (
+          <span
+            className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-0.5 text-[10.5px] font-semibold text-destructive border border-destructive/30"
+            title={errorMessages.join("\n")}
+          >
+            ! {errorMessages.length} {errorMessages.length === 1 ? "erro" : "erros"}
+          </span>
+        )}
         <span className="ml-auto text-[10.5px] text-muted-foreground">
           {RULE_CALCULATION_TYPE_LABELS[c.calculation_type]}
         </span>
@@ -893,6 +917,18 @@ function CalcCard({
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Bloco de ERROS — sempre visível, mesmo com o card recolhido */}
+      {hasErrors && (
+        <div className="border-b border-destructive/30 bg-destructive/5 px-3 py-2 space-y-1">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-destructive">
+            ! Campo(s) obrigatório(s) faltando neste cálculo
+          </div>
+          <ul className="text-[11px] text-destructive/90 list-disc list-inside space-y-0.5">
+            {errorMessages.map((m, i) => (<li key={i}>{m}</li>))}
+          </ul>
+        </div>
+      )}
 
       {(() => {
         const warnings = calcItemWarnings(c);
@@ -1386,17 +1422,45 @@ export function calcItemHasWhitelistWithoutCodes(c: CalcItem): boolean {
 
 /** Erros por item para feedback visual no formulário (apenas validações fortes). */
 export function calcItemErrors(c: CalcItem): number {
-  let n = 0;
-  if (c.calculation_type === "percentual_sobre_convenio" && !c.convenio_percentage) n++;
-  if (c.calculation_type === "valor_fixo" && !c.fixed_amount) n++;
-  if (c.calculation_type === "complemento" && !c.target_amount) n++;
-  if (c.calculation_type === "tabela_diferenciada" && !c.reference_table_id) n++;
-  if ((c.calculation_type === "pacote" || c.calculation_type === "pacote_fechado"
-    || c.calculation_type === "pacote_com_extras" || c.calculation_type === "pacote_por_atendimento") && !c.package_amount) n++;
-  if (c.calculation_type === "bonus" && !c.bonus_amount && !c.bonus_pct) n++;
-  if (c.has_conditions && c.time_start && c.time_end && c.time_start === c.time_end) n++;
-  if (calcItemHasWhitelistWithoutCodes(c)) n++;
-  return n;
+  return calcItemErrorMessages(c).length;
+}
+
+/**
+ * Mesma checagem de `calcItemErrors`, mas retorna mensagens descritivas para
+ * que a UI consiga apontar EXATAMENTE qual campo está faltando em qual cálculo
+ * (em vez de mostrar apenas a contagem agregada no passo).
+ */
+export function calcItemErrorMessages(c: CalcItem): string[] {
+  const msgs: string[] = [];
+  if (c.calculation_type === "percentual_sobre_convenio" && !c.convenio_percentage) {
+    msgs.push("Informe o percentual sobre o convênio.");
+  }
+  if (c.calculation_type === "valor_fixo" && !c.fixed_amount) {
+    msgs.push("Informe o valor fixo do repasse.");
+  }
+  if (c.calculation_type === "complemento" && !c.target_amount) {
+    msgs.push("Informe o valor-alvo do complemento.");
+  }
+  if (c.calculation_type === "tabela_diferenciada" && !c.reference_table_id) {
+    msgs.push("Selecione a tabela de referência.");
+  }
+  if (
+    (c.calculation_type === "pacote" || c.calculation_type === "pacote_fechado"
+      || c.calculation_type === "pacote_com_extras" || c.calculation_type === "pacote_por_atendimento")
+    && !c.package_amount
+  ) {
+    msgs.push("Informe o valor do pacote.");
+  }
+  if (c.calculation_type === "bonus" && !c.bonus_amount && !c.bonus_pct) {
+    msgs.push("Informe o valor ou o percentual do bônus.");
+  }
+  if (c.has_conditions && c.time_start && c.time_end && c.time_start === c.time_end) {
+    msgs.push("Janela de horário inválida: início e fim são iguais.");
+  }
+  if (calcItemHasWhitelistWithoutCodes(c)) {
+    msgs.push("Modo \"apenas estes códigos\" exige ao menos 1 código de procedimento.");
+  }
+  return msgs;
 }
 
 /**
