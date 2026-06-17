@@ -2081,6 +2081,7 @@ export function applyCalculation(
       qty_already_applied: winnerCalc.qty_already_applied,
       steps: winnerCalc.steps,
       inferred_sector: (winnerCalc as any).inferred_sector,
+      temporal_surcharge_config: winnerCalc.temporal_surcharge_config ?? null,
       ...(resolutionStale ? {
         calc_duplicity: {
           rule_id: rule.id, rule_name: rule.name,
