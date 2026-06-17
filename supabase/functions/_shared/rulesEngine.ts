@@ -1223,12 +1223,19 @@ const isVisita  = (it: ItemInput) => /visita/.test(normName(`${it.procedure_name
 const isParecer = (it: ItemInput) => /parecer/.test(normName(`${it.procedure_name ?? ""} ${it.description ?? ""}`));
 const isAuxiliar = (it: ItemInput) => /auxili|instrumentador/.test(normName(it.doctor_role ?? ""));
 
+/** Aceita main_code como string única OU lista separada por vírgula/espaço/ponto-e-vírgula. */
+function splitMainCodes(raw: string | null | undefined): string[] {
+  return String(raw ?? "").split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean);
+}
+
 function isMainPackageCode(rule: RuleInput, item: ItemInput): boolean {
   if (!item.procedure_code) return false;
-  if (rule.package_main_code && item.procedure_code === rule.package_main_code) return true;
+  const codes = splitMainCodes(rule.package_main_code);
+  if (codes.length > 0) return codes.includes(item.procedure_code);
   // fallback: se não houver main_code definido, qualquer item é considerado principal
-  return !rule.package_main_code;
+  return true;
 }
+
 
 function isIncludedInPackage(rule: RuleInput, item: ItemInput): boolean {
   const inc = rule.package_included_codes ?? [];
