@@ -928,19 +928,7 @@ function WhenApplySection({
                 </div>
             </div>
 
-            <div>
-              <Label className="text-xs" style={{ marginBottom: 6, display: "block" }}>Vias de acesso permitidas</Label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                {["Única ou Principal", "Mesma Via", "Outra Via", "Sem Via (Bônus/Complemento)"].map(route => {
-                  const sel = c.allowed_access_routes.includes(route);
-                  return <button key={route} type="button" onClick={() => { const next = sel ? c.allowed_access_routes.filter(r => r !== route) : [...c.allowed_access_routes, route]; onChange({ allowed_access_routes: next, has_conditions: next.length > 0 || c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays }); }}
-                    style={{ padding: "5px 10px", borderRadius: 20, fontSize: 11, border: `1px solid ${sel ? "hsl(var(--primary))" : "hsl(var(--border))"}`, background: sel ? "hsl(var(--accent))" : "hsl(var(--card))", color: sel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
-                    {route}{sel && " ✕"}
-                  </button>;
-                })}
-              </div>
-              <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Vazio = qualquer via.</p>
-            </div>
+            {/* Vias de acesso permitidas — configuradas no bloco "Aplicar regra de via de acesso" acima. */}
             <div>
               <Label className="text-xs" style={{ marginBottom: 6, display: "block" }}>Setores aplicáveis</Label>
               <SectorMultiSelect
