@@ -8724,20 +8724,15 @@ export type Database = {
         Args: { _payment_id: string }
         Returns: number
       }
-      apply_rule_save_with_corrections:
-        | {
-            Args: { _calculations: Json; _corrections: Json; _rule_data: Json }
-            Returns: Json
-          }
-        | {
-            Args: {
-              _allow_calc_reduction?: boolean
-              _calculations: Json
-              _corrections: Json
-              _rule_data: Json
-            }
-            Returns: Json
-          }
+      apply_rule_save_with_corrections: {
+        Args: {
+          _allow_calc_reduction?: boolean
+          _calculations: Json
+          _corrections: Json
+          _rule_data: Json
+        }
+        Returns: Json
+      }
       approve_campaign: { Args: { _campaign_id: string }; Returns: undefined }
       approve_payment: {
         Args: {
