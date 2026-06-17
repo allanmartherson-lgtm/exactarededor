@@ -13,7 +13,7 @@ function makeCalc(over: Partial<PkgCalc> & { main: string; included?: string[]; 
     rule_id: over.rule_id ?? `rule-${over.id ?? over.main}`,
     rule_name: over.rule_name ?? `Rule ${over.main}`,
     calc_id: over.calc_id ?? `calc-${over.id ?? over.main}`,
-    package_main_code: over.main,
+    package_main_codes: [over.main],
     package_included_codes: over.included ?? [],
     package_amount: over.package_amount ?? 10000,
     package_roles_distribution: over.package_roles_distribution ?? null,
@@ -44,7 +44,7 @@ Deno.test("cross-PJ: pacote casa quando main_code está em PJ diferente da atual
 
   const crossMatch = pickPackageForAttendance([calc], crossPj["ATD-1"], new Set(["thorax-id"]));
   assert(crossMatch, "com codeSet expandido cross-PJ o pacote deve casar");
-  assertEquals(crossMatch!.calc.package_main_code, "30803217");
+  assertEquals(crossMatch!.triggerCode, "30803217");
   assertEquals(crossMatch!.includedFound, ["30803225"]);
   assert(crossMatch!.absorbedCodes.has("30803217"));
   assert(crossMatch!.absorbedCodes.has("30803225"));
@@ -88,7 +88,7 @@ Deno.test("cross-PJ: rule_scope='grupo' filtra por company_ids do atendimento", 
   // Atendimento envolve SALUTAIRE também (cross-PJ) → regra se aplica.
   const applied = pickPackageForAttendance([calc], codeSet, new Set(["THORAX", "SALUTAIRE"]));
   assert(applied);
-  assertEquals(applied!.calc.package_main_code, "M1");
+  assertEquals(applied!.triggerCode, "M1");
 });
 
 Deno.test("cross-PJ: sem main_code no codeSet, nada casa", () => {
