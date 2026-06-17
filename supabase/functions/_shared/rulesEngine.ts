@@ -208,6 +208,17 @@ export interface RuleCalculationItem {
   bonus_amount?: number | null;
   bonus_pct?: number | null;
   target_amount?: number | null;
+  // ---- Adicionais temporais (aplicados após o cálculo base) ----
+  /** % adicional sobre o valor calculado se atendimento for sábado/domingo. */
+  adicional_fds_pct?: number | null;
+  /** % adicional se data for feriado nacional (brHolidays). */
+  adicional_feriado_pct?: number | null;
+  /** % adicional se hora cair na janela noturna. */
+  adicional_noturno_pct?: number | null;
+  /** Início janela noturna (HH:MM). */
+  noturno_inicio?: string | null;
+  /** Fim janela noturna (HH:MM). Cruza meia-noite quando fim < início. */
+  noturno_fim?: string | null;
   /** Se verdadeiro, ignora a quantidade para este item de cálculo específico. */
   force_totalized?: boolean | null;
   /**
