@@ -1932,6 +1932,13 @@ export function applyCalculation(
           sort_order: c.sort_order ?? Number.MAX_SAFE_INTEGER,
           restrictive: isRestrictiveCalculation(c, list),
           inferred_sector: inferItemSector(item, ctx as any),
+          temporal_surcharge_config: {
+            fds_pct: c.adicional_fds_pct ?? null,
+            feriado_pct: c.adicional_feriado_pct ?? null,
+            noturno_pct: c.adicional_noturno_pct ?? null,
+            noturno_inicio: c.noturno_inicio ?? null,
+            noturno_fim: c.noturno_fim ?? null,
+          },
         });
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
