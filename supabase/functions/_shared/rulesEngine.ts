@@ -1896,6 +1896,7 @@ export function applyCalculation(
       sort_order: number;
       restrictive: boolean;
       inferred_sector: string;
+      temporal_surcharge_config?: ExpectedCalc["temporal_surcharge_config"];
     };
     const validCalcs: ValidCalc[] = [];
     let anyMatched = false;
