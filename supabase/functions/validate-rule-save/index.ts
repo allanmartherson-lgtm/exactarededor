@@ -281,6 +281,7 @@ Deno.serve(async (req) => {
   }
   const overlapByPeer = new Map<string, boolean>();
   const linksByPeer = new Map<string, LinkLike[]>();
+  const companyDoctorKeys = new Map<string, Set<string>[]>();
   if (cabIds.size > 0) {
     const [peerCalcsRes, peerRulesRes] = await Promise.all([
       supabase.from("rule_calculations").select("*").in("rule_id", Array.from(cabIds)),
@@ -309,6 +310,40 @@ Deno.serve(async (req) => {
         Array.isArray(r.group_company_links) ? (r.group_company_links as LinkLike[]) : [],
       );
     }
+
+    const companyIds = new Set<string>();
+    for (const p of sqlProblemsRaw) {
+      if (typeof p.company_key === "string" && UUID_RE.test(p.company_key)) {
+        companyIds.add(p.company_key);
+      }
+    }
+    if (companyIds.size > 0) {
+      const { data: doctorCompanyRows, error: doctorCompanyErr } = await supabase
+        .from("doctor_companies")
+        .select("company_id, doctor_id, doctors(id, full_name, crm, crm_uf, active)")
+        .in("company_id", Array.from(companyIds));
+      if (doctorCompanyErr) {
+        return new Response(
+          JSON.stringify({ error: "Falha ao carregar médicos das empresas", detail: doctorCompanyErr.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      for (const row of (doctorCompanyRows ?? []) as Array<Record<string, unknown>>) {
+        const companyId = typeof row.company_id === "string" ? row.company_id : "";
+        const d = row.doctors as Record<string, unknown> | null;
+        if (!companyId || !d || d.active === false) continue;
+        const keys = new Set(docKeys({
+          id: typeof row.doctor_id === "string" ? row.doctor_id : d.id,
+          name: d.full_name,
+          crm: d.crm,
+          uf: d.crm_uf,
+        }));
+        if (keys.size === 0) continue;
+        const list = companyDoctorKeys.get(companyId) ?? [];
+        list.push(keys);
+        companyDoctorKeys.set(companyId, list);
+      }
+    }
   }
 
   const candidateLinks: LinkLike[] = Array.isArray(body.group_company_links)
@@ -328,7 +363,7 @@ Deno.serve(async (req) => {
     if (overlapByPeer.get(peerId) !== true) return false;
     const candLink = findCompanyLink(candidateLinks, companyKey);
     const peerLink = findCompanyLink(linksByPeer.get(peerId) ?? [], companyKey);
-    if (candLink && peerLink && !enabledDoctorsOverlap(candLink, peerLink)) {
+    if (candLink && peerLink && !enabledDoctorsOverlap(candLink, peerLink, companyDoctorKeys.get(companyKey) ?? [])) {
       keep = false;
     }
     companyProblemKeep.set(cacheKey, keep);
