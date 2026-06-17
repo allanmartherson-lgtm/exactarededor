@@ -285,15 +285,34 @@ Deno.serve(async (req) => {
     ? (body.group_company_links as LinkLike[])
     : [];
 
-  const sqlProblems = sqlProblemsRaw.filter((p) => {
-    if (p.type !== "company_already_bound") return true;
+  const companyProblemKeep = new Map<string, boolean>();
+  const companyProblemKey = (peerId: string, companyKey: string) => `${peerId}::${companyKey}`;
+  const shouldKeepCompanyProblem = (p: Record<string, unknown>): boolean => {
     const peerId = typeof p.existing_rule_id === "string" ? p.existing_rule_id : "";
-    if (overlapByPeer.get(peerId) !== true) return false;
     const companyKey = typeof p.company_key === "string" ? p.company_key : "";
+    const cacheKey = companyProblemKey(peerId, companyKey);
+    const cached = companyProblemKeep.get(cacheKey);
+    if (cached !== undefined) return cached;
+
+    let keep = true;
+    if (overlapByPeer.get(peerId) !== true) return false;
     const candLink = findCompanyLink(candidateLinks, companyKey);
     const peerLink = findCompanyLink(linksByPeer.get(peerId) ?? [], companyKey);
     if (candLink && peerLink && !enabledDoctorsOverlap(candLink, peerLink)) {
-      return false;
+      keep = false;
+    }
+    companyProblemKeep.set(cacheKey, keep);
+    return keep;
+  };
+
+  const sqlProblems = sqlProblemsRaw.filter((p) => {
+    if (p.type === "company_already_bound") return shouldKeepCompanyProblem(p);
+    if (p.type === "validity_overlap" && typeof p.company_key === "string") {
+      // A RPC emite `validity_overlap` pareado ao conflito de empresa. Se a
+      // empresa compartilhada foi liberada por médicos disjuntos (ex.: DF Neuro
+      // com Victor só na neurovascular e excluído na regra geral), a vigência
+      // também não pode bloquear o salvamento.
+      return shouldKeepCompanyProblem(p);
     }
     return true;
   });
