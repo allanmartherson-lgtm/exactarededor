@@ -35,6 +35,8 @@ type LinkLike = Record<string, unknown> & {
   auto_include_new_doctors?: unknown;
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function findCompanyLink(links: LinkLike[], companyKey: string): LinkLike | null {
   if (!companyKey) return null;
   for (const l of links) {
@@ -50,25 +52,44 @@ function normName(s: unknown): string {
 function onlyDigits(s: unknown): string {
   return String(s ?? "").replace(/\D+/g, "");
 }
-function docKey(d: unknown): string | null {
+function docKeys(d: unknown): string[] {
   if (!d || typeof d !== "object") return null;
   const rec = d as Record<string, unknown>;
+  const out = new Set<string>();
+  const id = typeof rec.id === "string" ? rec.id.trim() : "";
+  if (id) out.add(`id:${id}`);
   const crm = onlyDigits(rec.crm);
   if (crm) {
-    const uf = normName(rec.uf);
-    return uf ? `crm:${crm}/${uf}` : `crm:${crm}`;
+    const rawCrm = String(rec.crm ?? "");
+    const ufFromCrm = rawCrm.includes("/") ? rawCrm.split("/").pop() : "";
+    const uf = normName(rec.uf) || normName(ufFromCrm);
+    out.add(`crm:${crm}`);
+    if (uf) out.add(`crm:${crm}/${uf}`);
   }
-  const nm = normName(rec.name);
-  return nm ? `name:${nm}` : null;
+  const nm = normName(rec.name ?? rec.full_name ?? rec.doctor_name);
+  if (nm) out.add(`name:${nm}`);
+  return [...out];
+}
+function docKey(d: unknown): string | null {
+  return docKeys(d)[0] ?? null;
 }
 function doctorKeySet(arr: unknown): Set<string> {
   const out = new Set<string>();
   if (!Array.isArray(arr)) return out;
   for (const d of arr) {
-    const k = docKey(d);
-    if (k) out.add(k);
+    for (const k of docKeys(d)) out.add(k);
   }
   return out;
+}
+function doctorKeyGroups(arr: unknown): Set<string>[] {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((d) => new Set(docKeys(d)))
+    .filter((keys) => keys.size > 0);
+}
+function hasAnyKey(keys: Set<string>, lookup: Set<string>): boolean {
+  for (const k of keys) if (lookup.has(k)) return true;
+  return false;
 }
 function isAutoInclude(link: LinkLike): boolean {
   return link.auto_include_new_doctors !== false;
@@ -80,9 +101,11 @@ function isAutoInclude(link: LinkLike): boolean {
  * - autoInc × explicit: outro lado tem ao menos 1 médico que NÃO está em excluded.
  * - autoInc × autoInc: presumimos overlap (universo amplo, raramente disjunto).
  */
-function enabledDoctorsOverlap(a: LinkLike, b: LinkLike): boolean {
+function enabledDoctorsOverlap(a: LinkLike, b: LinkLike, companyDoctors: Set<string>[] = []): boolean {
   const aAuto = isAutoInclude(a);
   const bAuto = isAutoInclude(b);
+  const aDocGroups = doctorKeyGroups(a.doctors);
+  const bDocGroups = doctorKeyGroups(b.doctors);
   const aDocs = doctorKeySet(a.doctors);
   const bDocs = doctorKeySet(b.doctors);
   const aExcl = doctorKeySet(a.excluded_doctors);
@@ -95,13 +118,19 @@ function enabledDoctorsOverlap(a: LinkLike, b: LinkLike): boolean {
     return false;
   }
   if (!aAuto && bAuto) {
-    if (aDocs.size === 0) return false;
-    for (const k of aDocs) if (!bExcl.has(k)) return true;
+    if (aDocGroups.length === 0) return false;
+    for (const keys of aDocGroups) if (!hasAnyKey(keys, bExcl)) return true;
     return false;
   }
   if (aAuto && !bAuto) {
-    if (bDocs.size === 0) return false;
-    for (const k of bDocs) if (!aExcl.has(k)) return true;
+    if (bDocGroups.length === 0) return false;
+    for (const keys of bDocGroups) if (!hasAnyKey(keys, aExcl)) return true;
+    return false;
+  }
+  if (companyDoctors.length > 0) {
+    for (const keys of companyDoctors) {
+      if (!hasAnyKey(keys, aExcl) && !hasAnyKey(keys, bExcl)) return true;
+    }
     return false;
   }
   return true;
