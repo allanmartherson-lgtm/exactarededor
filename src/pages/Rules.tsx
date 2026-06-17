@@ -42,7 +42,7 @@ import { recordAudit, buildDiff } from "@/lib/audit";
 import { RuleHistoryTab } from "@/components/rules/RuleHistoryTab";
 import { RuleSnapshotsTab } from "@/components/rules/RuleSnapshotsTab";
 import { RuleFormStepper } from "@/components/rules/RuleFormStepper";
-import { History } from "lucide-react";
+import { History, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanyCombobox } from "@/components/CompanyCombobox";
 import { confirmDialog } from "@/lib/confirm";
@@ -1846,7 +1846,7 @@ const Rules = () => {
                     <RuleHistoryTab ruleId={editingId} />
                   </TabsContent>
                   <TabsContent value="snapshots" className="mt-0">
-                    <RuleSnapshotsTab ruleId={editingId} onRestored={() => { setOpen(false); fetchRules(); }} />
+                    <RuleSnapshotsTab ruleId={editingId} onRestored={() => { setOpen(false); load(); }} />
                   </TabsContent>
                 </>
               )}
