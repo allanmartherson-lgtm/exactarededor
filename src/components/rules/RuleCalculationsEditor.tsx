@@ -1369,6 +1369,11 @@ export function calcFromDb(r: any): CalcItem {
           complement_value: cc?.complement_value != null ? String(cc.complement_value) : "0",
         }))
       : [],
+    adicional_fds_pct: r.adicional_fds_pct != null ? String(r.adicional_fds_pct) : "",
+    adicional_feriado_pct: r.adicional_feriado_pct != null ? String(r.adicional_feriado_pct) : "",
+    adicional_noturno_pct: r.adicional_noturno_pct != null ? String(r.adicional_noturno_pct) : "",
+    noturno_inicio: r.noturno_inicio ? String(r.noturno_inicio).slice(0, 5) : "",
+    noturno_fim: r.noturno_fim ? String(r.noturno_fim).slice(0, 5) : "",
   };
 }
 
