@@ -53,7 +53,7 @@ function onlyDigits(s: unknown): string {
   return String(s ?? "").replace(/\D+/g, "");
 }
 function docKeys(d: unknown): string[] {
-  if (!d || typeof d !== "object") return null;
+  if (!d || typeof d !== "object") return [];
   const rec = d as Record<string, unknown>;
   const out = new Set<string>();
   const id = typeof rec.id === "string" ? rec.id.trim() : "";
@@ -99,7 +99,8 @@ function isAutoInclude(link: LinkLike): boolean {
  * Conjunto de médicos habilitados de duas linhas (mesma empresa) tem interseção?
  * - explicit × explicit: interseção das listas `doctors`.
  * - autoInc × explicit: outro lado tem ao menos 1 médico que NÃO está em excluded.
- * - autoInc × autoInc: presumimos overlap (universo amplo, raramente disjunto).
+ * - autoInc × autoInc: cruza os médicos reais da PJ; só conflita se alguém
+ *   estiver habilitado nos dois lados. Sem cadastro carregável, mantém fallback conservador.
  */
 function enabledDoctorsOverlap(a: LinkLike, b: LinkLike, companyDoctors: Set<string>[] = []): boolean {
   const aAuto = isAutoInclude(a);
