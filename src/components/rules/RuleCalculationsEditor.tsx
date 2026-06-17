@@ -1288,7 +1288,11 @@ function CalcCard({
                     </div>
                   </div>
                   <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                    <Checkbox checked={c.apply_access_route} onCheckedChange={(v) => onChange({ apply_access_route: !!v })} />
+                    <Checkbox checked={c.apply_access_route} onCheckedChange={(v) => onChange({
+                      apply_access_route: !!v,
+                      // Ao desmarcar, limpar as vias para o motor não considerar fantasmas.
+                      ...(!v ? { allowed_access_routes: [] } : {}),
+                    })} />
                     <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Aplicar regra de via de acesso</span>
                   </label>
                   <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
