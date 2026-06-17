@@ -1463,6 +1463,12 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
             complement_value: numOrNull(cc.complement_value) ?? 0,
           }))
       : [],
+    // ---- Adicionais temporais ----
+    adicional_fds_pct: numOrNull(c.adicional_fds_pct),
+    adicional_feriado_pct: numOrNull(c.adicional_feriado_pct),
+    adicional_noturno_pct: numOrNull(c.adicional_noturno_pct),
+    noturno_inicio: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_inicio || null) : null,
+    noturno_fim: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_fim || null) : null,
   };
 }
 
