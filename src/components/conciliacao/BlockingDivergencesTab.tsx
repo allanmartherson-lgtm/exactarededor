@@ -37,7 +37,7 @@ const fmt = (n: number) =>
 
 export default function BlockingDivergencesTab() {
   const navigate = useNavigate();
-  const { currentHospital } = useHospital();
+  const { hospital } = useHospital();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -63,7 +63,7 @@ export default function BlockingDivergencesTab() {
         .from("vw_group_rule_totals")
         .select("*")
         .limit(500);
-      if (currentHospital?.id) q = q.eq("hospital_id", currentHospital.id);
+      if (currentHospital?.id) q = q.eq("hospital_id", hospital.id);
       const { data } = await q;
       const all = ((data ?? []) as Row[]).filter((r) => {
         const diff = Math.abs(Number(r.diferenca ?? 0));
