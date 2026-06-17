@@ -764,10 +764,6 @@ function WhenApplySection({
 
   const toggle = (key: string) => setOpenSection(prev => prev === key ? null : key);
 
-  const Section = (props: Omit<FilterBtnProps, "openSection" | "onToggle">) => (
-    <FilterBtn {...props} openSection={openSection} onToggle={toggle} />
-  );
-
   return (
     <div style={{ borderRadius: 8, border: "1px solid hsl(var(--border) / 0.6)", overflow: "hidden" }}>
       <div style={{ padding: "9px 14px", background: "hsl(var(--muted) / 0.4)", borderBottom: "1px solid hsl(var(--border))" }}>
@@ -777,7 +773,7 @@ function WhenApplySection({
       <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6, background: "hsl(var(--card))" }}>
 
         {!isPacote && (
-          <Section id="codigos" label="Códigos TUSS / CBHPM" active={hasCodesFilter}>
+          <FilterBtn id="codigos" label="Códigos TUSS / CBHPM" active={hasCodesFilter} openSection={openSection} onToggle={toggle}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
               <Label className="text-xs">Modo</Label>
               <Select value={c.code_match_mode} onValueChange={(v) => onChange({ code_match_mode: v as CalcItem["code_match_mode"] })}>
@@ -814,20 +810,20 @@ function WhenApplySection({
                 )}
               </>
             )}
-          </Section>
+          </FilterBtn>
         )}
 
-        <Section id="convenio" label="Convênio" active={hasConvenioFilter}>
+        <FilterBtn id="convenio" label="Convênio" active={hasConvenioFilter} openSection={openSection} onToggle={toggle}>
           <ConvenioMultiSelect
             values={c.agreement_aliases}
             onChange={(next) => onChange({ agreement_aliases: next })}
             matchMode={c.agreement_match_mode}
             onMatchModeChange={(v) => onChange({ agreement_match_mode: v })}
           />
-        </Section>
+        </FilterBtn>
 
 
-        <Section id="funcao" label="Função do médico" active={hasFuncaoFilter}>
+        <FilterBtn id="funcao" label="Função do médico" active={hasFuncaoFilter} openSection={openSection} onToggle={toggle}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {[{ v: "cirurgiao", label: "Cirurgião principal" }, { v: "primeiro_aux", label: "1º auxiliar" }, { v: "demais_aux", label: "Demais auxiliares" }, { v: "instrumentador", label: "Instrumentador" }].map(opt => {
               const sel = c.doctor_roles.includes(opt.v);
@@ -840,9 +836,9 @@ function WhenApplySection({
             })}
           </div>
           <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 6 }}>Vazio = qualquer função.</p>
-        </Section>
+        </FilterBtn>
 
-        <Section id="periodo" label="Período, horário, via de acesso e setor" active={hasPeriodoFilter}>
+        <FilterBtn id="periodo" label="Período, horário, via de acesso e setor" active={hasPeriodoFilter} openSection={openSection} onToggle={toggle}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
@@ -957,7 +953,7 @@ function WhenApplySection({
               <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Vazio = qualquer setor. Use os setores oficiais do Tasy (código).</p>
             </div>
           </div>
-        </Section>
+        </FilterBtn>
 
       </div>
     </div>
