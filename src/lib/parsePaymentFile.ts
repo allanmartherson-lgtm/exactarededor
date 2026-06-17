@@ -44,6 +44,8 @@ export interface ParsedRow {
   procedure_amount: number | null;
   quantity: number | null;
   procedure_date: string | null;
+  /** true se a hora foi extraída explicitamente da base hospitalar. */
+  procedure_date_has_time?: boolean;
   patient_name: string | null;
   sector: string | null;
   /** Caráter do atendimento (ELETIVO / URGENCIA / EMERGENCIA) — usado pelo motor para filtros de bônus. */
