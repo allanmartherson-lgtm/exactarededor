@@ -32,7 +32,7 @@ import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
   type RuleCalculationType,
 } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown, CheckCheck, Copy, MoreHorizontal } from "lucide-react";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, BadgeDollarSign, FileDown, CheckCheck, Copy, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx";
 import { DoctorsEditor, MultiSelectChips } from "@/components/MultiSelectChips";
@@ -319,19 +319,6 @@ const Rules = () => {
   const [fGlobalAlertThresholdValue, setFGlobalAlertThresholdValue] = useState<string>("1.0");
   const [fGlobalBlockThresholdType, setFGlobalBlockThresholdType] = useState<"percentual" | "absoluto">("percentual");
   const [fGlobalBlockThresholdValue, setFGlobalBlockThresholdValue] = useState<string>("5.0");
-  type CalcSyncError = {
-    step: "delete-calculavel" | "insert-calculavel" | "delete-informativo";
-    message: string;
-    code?: string | null;
-    details?: string | null;
-    hint?: string | null;
-    rowsAttempted?: number;
-  };
-  const [calcSyncErrors, setCalcSyncErrors] = useState<CalcSyncError[]>([]);
-  const [calcSyncRuleId, setCalcSyncRuleId] = useState<string | null>(null);
-  const [calcSyncAttempt, setCalcSyncAttempt] = useState(0);
-  const [calcSyncRetrying, setCalcSyncRetrying] = useState(false);
-
   // Sub-Onda 2D / Rodada 3 — modal de conflitos (validate-rule-save)
   const [conflictOpen, setConflictOpen] = useState(false);
   const [conflictProblems, setConflictProblems] = useState<ConflictProblem[]>([]);
@@ -341,12 +328,6 @@ const Rules = () => {
   const [pendingIsUpdate, setPendingIsUpdate] = useState(false);
   // Clone-to-hospital dialog
   const [cloneTarget, setCloneTarget] = useState<RuleRow | null>(null);
-  const STEP_LABELS: Record<CalcSyncError["step"], string> = {
-    "delete-calculavel": "Remover cálculos antigos (regra calculável)",
-    "insert-calculavel": "Inserir novos cálculos",
-    "delete-informativo": "Limpar cálculos (regra informativa)",
-  };
-
   // Accordion: por padrão todas as seções começam FECHADAS ao abrir o modal —
   // facilita a navegação/busca. O usuário expande conforme precisa.
   const [accordionValue, setAccordionValue] = useState<string[]>([]);
@@ -854,10 +835,6 @@ const Rules = () => {
     setFCalculations([makeEmptyCalc()]);
     setFAlertThresholdType("percentual"); setFAlertThresholdValue(""); setFAlertInherit(true);
     setFBlockThresholdType("percentual"); setFBlockThresholdValue(""); setFBlockInherit(true);
-    setCalcSyncErrors([]);
-    setCalcSyncRuleId(null);
-    setCalcSyncAttempt(0);
-    setCalcSyncRetrying(false);
   };
 
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
@@ -1331,93 +1308,6 @@ const Rules = () => {
       setSaving(false);
     }
   };
-
-  /** Executa o delete + insert dos rule_calculations e devolve a lista de erros. */
-  const runCalcSync = async (
-    ruleId: string,
-    nature: typeof fNature,
-    calcs: CalcItem[],
-    attempt: number,
-  ): Promise<CalcSyncError[]> => {
-    const errors: CalcSyncError[] = [];
-    if (nature === "calculavel") {
-      const { error: delErr } = await supabase
-        .from("rule_calculations")
-        .delete()
-        .eq("rule_id", ruleId);
-      if (delErr) {
-        errors.push({
-          step: "delete-calculavel",
-          message: delErr.message,
-          code: (delErr as any).code ?? null,
-          details: (delErr as any).details ?? null,
-          hint: (delErr as any).hint ?? null,
-        });
-      } else {
-        const rows = calcs.map((c, i) => calcToDbPayload(c, ruleId, i));
-        if (rows.length > 0) {
-          const { error: insErr } = await supabase
-            .from("rule_calculations")
-            .insert(rows as any);
-          if (insErr) {
-            errors.push({
-              step: "insert-calculavel",
-              message: insErr.message,
-              code: (insErr as any).code ?? null,
-              details: (insErr as any).details ?? null,
-              hint: (insErr as any).hint ?? null,
-              rowsAttempted: rows.length,
-            });
-          } else if (attempt > 1) {
-            toast({ title: `${rows.length} cálculo(s) sincronizado(s) (tentativa ${attempt})` });
-          } else {
-            toast({ title: `${rows.length} cálculo(s) sincronizado(s)` });
-          }
-        }
-      }
-    } else if (nature === "informativo") {
-      const { error: delErr } = await supabase
-        .from("rule_calculations")
-        .delete()
-        .eq("rule_id", ruleId);
-      if (delErr) {
-        errors.push({
-          step: "delete-informativo",
-          message: delErr.message,
-          code: (delErr as any).code ?? null,
-          details: (delErr as any).details ?? null,
-          hint: (delErr as any).hint ?? null,
-        });
-      }
-    }
-    return errors;
-  };
-
-  /** Refaz a sincronização sem precisar reenviar o formulário. */
-  const retryCalcSync = async () => {
-    if (!calcSyncRuleId || calcSyncRetrying) return;
-    const nextAttempt = calcSyncAttempt + 1;
-    setCalcSyncRetrying(true);
-    setCalcSyncAttempt(nextAttempt);
-    try {
-      const errors = await runCalcSync(calcSyncRuleId, fNature, fCalculations, nextAttempt);
-      setCalcSyncErrors(errors);
-      if (errors.length === 0) {
-        toast({ title: "Cálculos sincronizados com sucesso" });
-        setOpen(false);
-        resetForm();
-        load();
-      } else {
-        toast({
-          title: `Tentativa ${nextAttempt}: ${errors.length} etapa(s) ainda falham`,
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setCalcSyncRetrying(false);
-    }
-  };
-
 
   const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -1940,50 +1830,7 @@ const Rules = () => {
                         />
                       );
                     })()}
-                    syncErrorBanner={calcSyncErrors.length > 0 ? (
-                      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 font-semibold text-destructive">
-                            <AlertTriangle className="h-4 w-4" />
-                            Falha ao sincronizar cálculos ({calcSyncErrors.length} etapa{calcSyncErrors.length > 1 ? "s" : ""})
-                            {calcSyncAttempt > 0 && (
-                              <span className="text-muted-foreground font-normal">· tentativa {calcSyncAttempt}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-7"
-                              onClick={retryCalcSync}
-                              disabled={calcSyncRetrying || !calcSyncRuleId}
-                            >
-                              {calcSyncRetrying
-                                ? `Tentando… (${calcSyncAttempt})`
-                                : `Tentar novamente (próxima: ${calcSyncAttempt + 1})`}
-                            </Button>
-                            <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => setCalcSyncErrors([])} disabled={calcSyncRetrying}>
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        <ul className="space-y-2">
-                          {calcSyncErrors.map((err, i) => (
-                            <li key={i} className="rounded border border-destructive/30 bg-background p-2 space-y-1">
-                              <div className="font-semibold">{STEP_LABELS[err.step]}</div>
-                              <div className="font-mono break-all whitespace-pre-wrap text-destructive">{err.message}</div>
-                              {err.code && <div><span className="font-semibold">Código:</span> <span className="font-mono">{err.code}</span></div>}
-                              {err.details && <div><span className="font-semibold">Detalhes:</span> <span className="font-mono break-all whitespace-pre-wrap">{err.details}</span></div>}
-                              {err.hint && <div><span className="font-semibold">Dica:</span> {err.hint}</div>}
-                              {typeof err.rowsAttempted === "number" && (
-                                <div><span className="font-semibold">Linhas tentadas:</span> {err.rowsAttempted}</div>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
+                    syncErrorBanner={null}
                     steps={[
                       {
                         key: "identificacao",
