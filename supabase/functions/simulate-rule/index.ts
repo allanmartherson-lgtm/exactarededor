@@ -126,7 +126,15 @@ serve(async (req) => {
         force_totalized
       `)
       .eq("active", true);
-    if (body.hospital_id) rulesQuery = rulesQuery.eq("hospital_id", body.hospital_id);
+    // Multi-tenant: hospital_id é OBRIGATÓRIO. Sem ele, a simulação carregaria regras
+    // de TODAS as unidades e exibiria efeitos cruzados (leakage).
+    if (!body.hospital_id) {
+      return new Response(
+        JSON.stringify({ error: "hospital_id é obrigatório para simular regras" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    rulesQuery = rulesQuery.eq("hospital_id", body.hospital_id);
     const { data: rulesRaw, error: rulesErr } = await rulesQuery;
 
     if (rulesErr) {

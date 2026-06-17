@@ -593,6 +593,17 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+    // Multi-tenant: lê primeiro o hospital_id do pagamento para filtrar validation_rules
+    // pela mesma unidade. Sem esse filtro, regras de outras unidades vazariam.
+    const { data: paymentMeta, error: payMetaErr } = await supabase
+      .from("payments")
+      .select("hospital_id")
+      .eq("id", payment_id)
+      .single();
+    if (payMetaErr || !paymentMeta) throw payMetaErr ?? new Error("payment not found");
+    const paymentHospitalId = (paymentMeta as any).hospital_id as string | null;
+    if (!paymentHospitalId) throw new Error("payment sem hospital_id — não é possível validar com segurança multi-tenant");
+
     // 1. Carrega lote (para filtros de escopo), itens, regras, médicos e grupos
     const [
       { data: payment, error: payErr },
@@ -607,7 +618,7 @@ Deno.serve(async (req) => {
         .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, doctor_document, patient_name, gross_amount, sector, company_id, company_name, doctor_role, access_route, raw_data")
         .eq("payment_id", payment_id)
         .limit(20000),
-      supabase.from("validation_rules").select("*").eq("active", true),
+      supabase.from("validation_rules").select("*").eq("active", true).eq("hospital_id", paymentHospitalId),
       (async () => {
         const all: Doctor[] = [];
         const PAGE = 1000;
