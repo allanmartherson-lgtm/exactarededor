@@ -859,18 +859,18 @@ function WhenApplySection({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                 <div>
                   <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Fim de semana (%)</Label>
-                  <Input type="number" min={0} max={200} step="0.01" placeholder="ex: 30" value={c.adicional_fds_pct}
-                    onChange={e => onChange({ adicional_fds_pct: e.target.value })} />
+                  <Input type="text" inputMode="decimal" placeholder="ex: 30" value={c.adicional_fds_pct}
+                    onChange={e => onChange({ adicional_fds_pct: e.target.value.replace(/[^\d.,]/g, "").replace(",", ".") })} />
                 </div>
                 <div>
                   <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Feriado nacional (%)</Label>
-                  <Input type="number" min={0} max={200} step="0.01" placeholder="ex: 30" value={c.adicional_feriado_pct}
-                    onChange={e => onChange({ adicional_feriado_pct: e.target.value })} />
+                  <Input type="text" inputMode="decimal" placeholder="ex: 30" value={c.adicional_feriado_pct}
+                    onChange={e => onChange({ adicional_feriado_pct: e.target.value.replace(/[^\d.,]/g, "").replace(",", ".") })} />
                 </div>
                 <div>
                   <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Noturno (%)</Label>
-                  <Input type="number" min={0} max={200} step="0.01" placeholder="ex: 30" value={c.adicional_noturno_pct}
-                    onChange={e => onChange({ adicional_noturno_pct: e.target.value })} />
+                  <Input type="text" inputMode="decimal" placeholder="ex: 30" value={c.adicional_noturno_pct}
+                    onChange={e => onChange({ adicional_noturno_pct: e.target.value.replace(/[^\d.,]/g, "").replace(",", ".") })} />
                 </div>
               </div>
               {Number(c.adicional_noturno_pct || 0) > 0 && (
