@@ -2870,15 +2870,16 @@ function preComputePackageWinners(
       const scored: Scored[] = [];
 
       for (const c of pacoteCalcs) {
-        const main = String(c.package_main_code ?? "").trim();
-        if (main && !siblingsOfAtt.has(main)) continue;
+        const mainCodes = splitMainCodes(c.package_main_code as any);
+        if (mainCodes.length > 0 && !mainCodes.some((m) => siblingsOfAtt.has(m))) continue;
 
         const included = (Array.isArray(c.package_included_codes) ? c.package_included_codes : [])
           .map((x) => String(x).trim()).filter(Boolean);
         const extras = (Array.isArray(c.extras_codes) ? c.extras_codes : [])
           .map((x) => String(x).trim()).filter(Boolean);
 
-        const universo = new Set<string>([...(main ? [main] : []), ...included, ...extras]);
+        const universo = new Set<string>([...mainCodes, ...included, ...extras]);
+
         let cobertura = 0;
         for (const code of siblingsOfAtt) {
           if (universo.has(code)) cobertura += 1;
