@@ -33,6 +33,7 @@ const ACTION_LABELS: Record<string, string> = {
   create: "Criação",
   update: "Alteração",
   auto_set_valid_until: "Encerramento automático",
+  calc_reduction_confirmed: "Remoção de cálculos confirmada",
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -67,6 +68,11 @@ const FIELD_LABELS: Record<string, string> = {
   aux_first_pct: "1º auxiliar (%)",
   aux_second_pct: "2º auxiliar+ (%)",
   instrumentador_pct: "Instrumentador (%)",
+  from_count: "Qtd. anterior de cálculos",
+  to_count: "Qtd. nova de cálculos",
+  removed_count: "Cálculos removidos",
+  previous_calculations: "Cálculos anteriores preservados",
+  reason: "Motivo técnico",
 };
 
 const stringify = (v: unknown): string => {
