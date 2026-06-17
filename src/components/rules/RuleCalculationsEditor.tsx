@@ -764,24 +764,8 @@ function WhenApplySection({
 
   const toggle = (key: string) => setOpenSection(prev => prev === key ? null : key);
 
-  const FilterBtn = ({ id, label, active, children }: { id: string; label: string; active: boolean; children: React.ReactNode }) => (
-    <div style={{ border: "1px solid hsl(var(--border))", borderRadius: 8, overflow: "hidden" }}>
-      <button type="button" onClick={() => toggle(id)} style={{
-        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "9px 14px", background: active ? "hsl(var(--accent))" : "hsl(var(--card))",
-        border: "none", cursor: "pointer", fontFamily: "inherit",
-        borderBottom: openSection === id ? "1px solid hsl(var(--border))" : "none",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>{label}</span>
-          {active && <span style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))", borderRadius: 20, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>ativo</span>}
-        </div>
-        <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", display: "inline-block", transform: openSection === id ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
-      </button>
-      {openSection === id && (
-        <div style={{ padding: "12px 14px", background: "hsl(var(--card))" }}>{children}</div>
-      )}
-    </div>
+  const Section = (props: Omit<FilterBtnProps, "openSection" | "onToggle">) => (
+    <FilterBtn {...props} openSection={openSection} onToggle={toggle} />
   );
 
   return (
@@ -793,7 +777,7 @@ function WhenApplySection({
       <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6, background: "hsl(var(--card))" }}>
 
         {!isPacote && (
-          <FilterBtn id="codigos" label="Códigos TUSS / CBHPM" active={hasCodesFilter}>
+          <Section id="codigos" label="Códigos TUSS / CBHPM" active={hasCodesFilter}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
               <Label className="text-xs">Modo</Label>
               <Select value={c.code_match_mode} onValueChange={(v) => onChange({ code_match_mode: v as CalcItem["code_match_mode"] })}>
@@ -830,20 +814,20 @@ function WhenApplySection({
                 )}
               </>
             )}
-          </FilterBtn>
+          </Section>
         )}
 
-        <FilterBtn id="convenio" label="Convênio" active={hasConvenioFilter}>
+        <Section id="convenio" label="Convênio" active={hasConvenioFilter}>
           <ConvenioMultiSelect
             values={c.agreement_aliases}
             onChange={(next) => onChange({ agreement_aliases: next })}
             matchMode={c.agreement_match_mode}
             onMatchModeChange={(v) => onChange({ agreement_match_mode: v })}
           />
-        </FilterBtn>
+        </Section>
 
 
-        <FilterBtn id="funcao" label="Função do médico" active={hasFuncaoFilter}>
+        <Section id="funcao" label="Função do médico" active={hasFuncaoFilter}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {[{ v: "cirurgiao", label: "Cirurgião principal" }, { v: "primeiro_aux", label: "1º auxiliar" }, { v: "demais_aux", label: "Demais auxiliares" }, { v: "instrumentador", label: "Instrumentador" }].map(opt => {
               const sel = c.doctor_roles.includes(opt.v);
@@ -856,9 +840,9 @@ function WhenApplySection({
             })}
           </div>
           <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 6 }}>Vazio = qualquer função.</p>
-        </FilterBtn>
+        </Section>
 
-        <FilterBtn id="periodo" label="Período, horário, via de acesso e setor" active={hasPeriodoFilter}>
+        <Section id="periodo" label="Período, horário, via de acesso e setor" active={hasPeriodoFilter}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
@@ -973,7 +957,7 @@ function WhenApplySection({
               <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Vazio = qualquer setor. Use os setores oficiais do Tasy (código).</p>
             </div>
           </div>
-        </FilterBtn>
+        </Section>
 
       </div>
     </div>
