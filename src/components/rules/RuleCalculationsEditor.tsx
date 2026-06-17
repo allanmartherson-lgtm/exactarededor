@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, ChevronDown, ChevronRight, Package, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
@@ -177,6 +177,8 @@ export type RuleCalculationsEditorProps = {
  * janela temporal pertence ao cálculo, não à regra.
  */
 export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: RuleCalculationsEditorProps) {
+  const crossErrorsByIndex = useMemo(() => calcCrossItemErrorMessages(value), [value]);
+
   const update = (i: number, patch: Partial<CalcItem>) => {
     const next = value.slice();
     next[i] = { ...next[i], ...patch };
@@ -221,6 +223,7 @@ export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: 
           total={value.length}
           item={c}
           refTables={refTables}
+          extraErrorMessages={crossErrorsByIndex.get(i) ?? []}
           onChange={(patch) => update(i, patch)}
           onRemove={() => remove(i)}
           onDuplicate={() => duplicate(i)}
@@ -844,9 +847,10 @@ function WhenApplySection({
  *  Card de UM cálculo (método + parâmetros + condições)
  * ============================================================ */
 function CalcCard({
-  index, total, item, refTables, onChange, onRemove, onDuplicate,
+  index, total, item, refTables, extraErrorMessages, onChange, onRemove, onDuplicate,
 }: {
   index: number; total: number; item: CalcItem; refTables: RefTable[];
+  extraErrorMessages: string[];
   onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void; onDuplicate: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -857,7 +861,7 @@ function CalcCard({
     || c.calculation_type === "pacote_com_extras"
     || c.calculation_type === "pacote_por_atendimento";
   const isPacoteComExtras = isPacote && c.package_subtype === "com_extras";
-  const errorMessages = calcItemErrorMessages(c);
+  const errorMessages = [...calcItemErrorMessages(c), ...extraErrorMessages];
   const hasErrors = errorMessages.length > 0;
 
   // Auto-abre o card quando há erro, para o usuário enxergar imediatamente
@@ -1477,6 +1481,40 @@ export function calcItemErrorMessages(c: CalcItem): string[] {
     msgs.push("Modo \"apenas estes códigos\" exige ao menos 1 código de procedimento.");
   }
   return msgs;
+}
+
+function agreementScopesOverlap(a: CalcItem, b: CalcItem): boolean {
+  const aTags = new Set((a.agreement_aliases ?? []).filter(Boolean));
+  const bTags = new Set((b.agreement_aliases ?? []).filter(Boolean));
+  if (aTags.size === 0 || bTags.size === 0) return true;
+  const aMode = a.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
+  const bMode = b.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
+  const intersects = [...aTags].some((tag) => bTags.has(tag));
+  if (aMode === "whitelist" && bMode === "whitelist") return intersects;
+  if (aMode === "blacklist" && bMode === "blacklist") return true;
+  const whitelist = aMode === "whitelist" ? aTags : bTags;
+  const blacklist = aMode === "blacklist" ? aTags : bTags;
+  return [...whitelist].some((tag) => !blacklist.has(tag));
+}
+
+/** Erros que dependem da relação entre cálculos da mesma regra. */
+export function calcCrossItemErrorMessages(items: CalcItem[]): Map<number, string[]> {
+  const errors = new Map<number, string[]>();
+  const byReferenceTable = new Map<string, number[]>();
+  items.forEach((c, idx) => {
+    if (c.calculation_type !== "tabela_diferenciada" || !c.reference_table_id) return;
+    const indices = byReferenceTable.get(c.reference_table_id) ?? [];
+    const isCatchAllByCode = c.code_match_mode === "any" && (c.procedure_codes?.length ?? 0) === 0;
+    const overlapsEarlier = indices.some((prevIdx) => agreementScopesOverlap(items[prevIdx], c));
+    if (indices.length > 0 && isCatchAllByCode && overlapsEarlier) {
+      const list = errors.get(idx) ?? [];
+      list.push("Este cálculo usa a mesma tabela de outro cálculo e não tem filtro de código TUSS. Se for um caso único por convênio, confirme que o 'apenas' e o 'exceto' são listas complementares; caso contrário, informe códigos ou separe a regra.");
+      errors.set(idx, list);
+    }
+    indices.push(idx);
+    byReferenceTable.set(c.reference_table_id, indices);
+  });
+  return errors;
 }
 
 /**
