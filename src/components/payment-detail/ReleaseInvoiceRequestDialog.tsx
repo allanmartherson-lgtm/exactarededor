@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
 import { tryAddEmail, dedupEmails, parseEmailList } from "@/lib/email";
+import { ActiveHospitalBadge } from "@/components/ActiveHospitalBadge";
 import type { GroupRow } from "@/hooks/usePaymentDetailData";
 
 interface Props {
@@ -132,9 +133,12 @@ export const ReleaseInvoiceRequestDialog = ({ open, onOpenChange, paymentId, gro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Mail className="h-4 w-4" /> Liberar pedido de NF
-          </DialogTitle>
+          <div className="flex items-start justify-between gap-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-4 w-4" /> Liberar pedido de NF
+            </DialogTitle>
+            <ActiveHospitalBadge />
+          </div>
           {group && (
             <DialogDescription>
               <span className="font-medium text-foreground">{group.company_name}</span>

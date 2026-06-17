@@ -126,6 +126,35 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
       const next = availableHospitals.find((h) => h.id === hospitalId);
       if (!next || next.id === hospital?.id) return;
       const previousId = hospital?.id ?? null;
+      const previousName = hospital?.name ?? null;
+
+      // Conta pagamentos abertos na unidade atual ANTES de trocar.
+      // Status considerados "em andamento" — qualquer um que não seja terminal.
+      let openCount = 0;
+      if (previousId) {
+        const { count } = await supabase
+          .from("payments")
+          .select("id", { count: "exact", head: true })
+          .eq("hospital_id", previousId)
+          .in("status", [
+            "em_analise_ia",
+            "revisao_analista",
+            "aguardando_aprovacao",
+            "aprovado_parcial",
+            "revisao_pos_aprovacao",
+          ] as never);
+        openCount = count ?? 0;
+      }
+
+      // Se houver pagamentos abertos, confirma antes de trocar.
+      if (openCount > 0 && typeof window !== "undefined") {
+        const ok = window.confirm(
+          `Você tem ${openCount} pagamento(s) em andamento em ${previousName ?? "esta unidade"}.\n\n` +
+          `Eles continuam nessa unidade — você só os verá novamente ao voltar para ela.\n\n` +
+          `Deseja realmente trocar para ${next.name}?`,
+        );
+        if (!ok) return;
+      }
 
       // Bloqueio temporário de ações + overlay visual
       setSwitching(true);
@@ -143,12 +172,15 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
         // Limpa cache: nenhum dado do hospital anterior pode aparecer no novo
         queryClient.clear();
 
-        // Auditoria + persistência server-side (não bloqueia se falhar)
+        // Auditoria + persistência server-side (não bloqueia se falhar).
+        // Inclui contagem de pagamentos abertos para auditoria/forense.
         await supabase
           .rpc("log_hospital_switch", {
             p_new_hospital_id: next.id,
             p_old_hospital_id: previousId,
-            p_user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+            p_user_agent: typeof navigator !== "undefined"
+              ? `${navigator.userAgent} | open_payments_left=${openCount}`
+              : `open_payments_left=${openCount}`,
           })
           .then(({ error }) => {
             if (error) console.warn("[hospital-switch] log falhou:", error.message);
