@@ -28,6 +28,85 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+type LinkLike = Record<string, unknown> & {
+  company_id?: unknown;
+  doctors?: unknown;
+  excluded_doctors?: unknown;
+  auto_include_new_doctors?: unknown;
+};
+
+function findCompanyLink(links: LinkLike[], companyKey: string): LinkLike | null {
+  if (!companyKey) return null;
+  for (const l of links) {
+    const cid = typeof l?.company_id === "string" ? l.company_id : "";
+    if (cid && cid === companyKey) return l;
+  }
+  return null;
+}
+
+function normName(s: unknown): string {
+  return String(s ?? "").trim().toLowerCase();
+}
+function onlyDigits(s: unknown): string {
+  return String(s ?? "").replace(/\D+/g, "");
+}
+function docKey(d: unknown): string | null {
+  if (!d || typeof d !== "object") return null;
+  const rec = d as Record<string, unknown>;
+  const crm = onlyDigits(rec.crm);
+  if (crm) {
+    const uf = normName(rec.uf);
+    return uf ? `crm:${crm}/${uf}` : `crm:${crm}`;
+  }
+  const nm = normName(rec.name);
+  return nm ? `name:${nm}` : null;
+}
+function doctorKeySet(arr: unknown): Set<string> {
+  const out = new Set<string>();
+  if (!Array.isArray(arr)) return out;
+  for (const d of arr) {
+    const k = docKey(d);
+    if (k) out.add(k);
+  }
+  return out;
+}
+function isAutoInclude(link: LinkLike): boolean {
+  return link.auto_include_new_doctors !== false;
+}
+
+/**
+ * Conjunto de médicos habilitados de duas linhas (mesma empresa) tem interseção?
+ * - explicit × explicit: interseção das listas `doctors`.
+ * - autoInc × explicit: outro lado tem ao menos 1 médico que NÃO está em excluded.
+ * - autoInc × autoInc: presumimos overlap (universo amplo, raramente disjunto).
+ */
+function enabledDoctorsOverlap(a: LinkLike, b: LinkLike): boolean {
+  const aAuto = isAutoInclude(a);
+  const bAuto = isAutoInclude(b);
+  const aDocs = doctorKeySet(a.doctors);
+  const bDocs = doctorKeySet(b.doctors);
+  const aExcl = doctorKeySet(a.excluded_doctors);
+  const bExcl = doctorKeySet(b.excluded_doctors);
+
+  if (!aAuto && !bAuto) {
+    // Sem lista de nenhum lado = ninguém habilitado explicitamente.
+    if (aDocs.size === 0 || bDocs.size === 0) return false;
+    for (const k of aDocs) if (bDocs.has(k)) return true;
+    return false;
+  }
+  if (!aAuto && bAuto) {
+    if (aDocs.size === 0) return false;
+    for (const k of aDocs) if (!bExcl.has(k)) return true;
+    return false;
+  }
+  if (aAuto && !bAuto) {
+    if (bDocs.size === 0) return false;
+    for (const k of bDocs) if (!aExcl.has(k)) return true;
+    return false;
+  }
+  return true;
+}
+
 interface ValidateRuleSaveRequest {
   rule_id?: string | null;
   scope: "master" | "especifica" | "grupo";
