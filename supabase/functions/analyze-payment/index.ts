@@ -449,7 +449,7 @@ serve(async (req) => {
       .select(`
         id,doctor_name,doctor_document,doctor_id,company_name,company_id,
         procedure_code,procedure_name,description,access_route,doctor_role,
-        procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity,
+        procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,procedure_date_has_time,quantity,
         authorized_exception,exception_reason,exception_authorizer,exception_note,
         tipo_linha,complement_reason,
         agreement_text,specialty,tipo_item,sector,attendance_character,
