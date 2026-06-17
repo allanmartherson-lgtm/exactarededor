@@ -571,7 +571,10 @@ export const parsePaymentFile = async (
       specialty: toStr(pickField(row, "specialty", manualMapping)) || null,
       procedure_amount: procedureAmountFinal,
       quantity: toNumber(pickField(row, "quantity", manualMapping)) || null,
-      procedure_date: excelDateToISO(pickField(row, "procedure_date", manualMapping)),
+      ...(() => {
+        const p = excelDateToISOWithFlag(pickField(row, "procedure_date", manualMapping));
+        return { procedure_date: p.iso, procedure_date_has_time: p.hasTime };
+      })(),
       patient_name: toStr(pickField(row, "patient_name", manualMapping)),
       sector: toStr(pickField(row, "sector", manualMapping)),
       attendance_character: toStr(pickField(row, "attendance_character", manualMapping)),
