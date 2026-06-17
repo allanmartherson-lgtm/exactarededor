@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, ChevronDown, ChevronRight, Package, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
@@ -195,7 +195,7 @@ const sanitizeTimeDraft = (value: string) => {
   return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
 };
 
-const preventEnterSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+const preventEnterSubmit = (e: KeyboardEvent<HTMLInputElement>) => {
   if (e.key === "Enter") e.preventDefault();
 };
 
