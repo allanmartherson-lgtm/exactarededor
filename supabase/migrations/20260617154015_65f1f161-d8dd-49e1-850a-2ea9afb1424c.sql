@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.apply_rule_save_with_corrections(jsonb, jsonb, jsonb);
