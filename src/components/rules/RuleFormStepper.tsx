@@ -159,3 +159,89 @@ export function RuleFormStepper({
     </div>
   );
 }
+
+function ErrorDetailsButton({ totalErrors }: { totalErrors: number }) {
+  const [open, setOpen] = useState(false);
+  const [details, setDetails] = useState<ErrorDetail[]>([]);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setDetails(scanCalcErrors());
+    const onDocClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  const jumpTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.animate(
+      [
+        { boxShadow: "0 0 0 0 hsl(var(--destructive) / 0.6)" },
+        { boxShadow: "0 0 0 6px hsl(var(--destructive) / 0)" },
+      ],
+      { duration: 900, iterations: 2 }
+    );
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        title="Ver detalhes dos erros"
+        style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "hsl(var(--destructive))", background: "hsl(var(--destructive) / 0.08)", borderRadius: 6, padding: "5px 10px", fontWeight: 600, border: "1px solid hsl(var(--destructive) / 0.3)", cursor: "pointer" }}
+      >
+        <AlertCircle size={13} /> {totalErrors} campo{totalErrors > 1 ? "s" : ""} com erro · {open ? "ocultar" : "ver detalhes"}
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)",
+            background: "hsl(var(--popover))", color: "hsl(var(--popover-foreground))",
+            border: "1px solid hsl(var(--border))", borderRadius: 10,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.18)", padding: 12,
+            width: 400, maxHeight: 340, overflowY: "auto", zIndex: 50,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <strong style={{ fontSize: 12, color: "hsl(var(--destructive))" }}>Campos obrigatórios faltando</strong>
+            <button type="button" onClick={() => setOpen(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "hsl(var(--muted-foreground))" }}>
+              <X size={14} />
+            </button>
+          </div>
+          {details.length === 0 ? (
+            <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+              Os erros estão em outra etapa. Clique no cabeçalho destacado em vermelho acima para abri-la.
+            </p>
+          ) : (
+            <ul style={{ display: "flex", flexDirection: "column", gap: 8, listStyle: "none", padding: 0, margin: 0 }}>
+              {details.map((d) => (
+                <li key={d.id} style={{ border: "1px solid hsl(var(--destructive) / 0.25)", borderRadius: 8, padding: 8, background: "hsl(var(--destructive) / 0.05)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--destructive))" }}>{d.title}</span>
+                    <button
+                      type="button" onClick={() => jumpTo(d.id)}
+                      style={{ fontSize: 10, padding: "2px 8px", borderRadius: 12, border: "1px solid hsl(var(--destructive) / 0.4)", background: "transparent", color: "hsl(var(--destructive))", cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Ir
+                    </button>
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "hsl(var(--destructive))" }}>
+                    {d.messages.map((m, i) => (<li key={i}>{m}</li>))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
