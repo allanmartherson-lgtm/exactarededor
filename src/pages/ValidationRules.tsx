@@ -262,6 +262,7 @@ export default function ValidationRules() {
   const [historyEntries, setHistoryEntries] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const { user } = useAuth();
+  const { hospital } = useHospital();
 
   const load = async () => {
     setLoading(true);
@@ -338,8 +339,10 @@ export default function ValidationRules() {
 
   const save = async () => {
     if (!form.name.trim()) { toast.error("Informe o nome da validação"); return; }
+    if (!hospital?.id) { toast.error("Selecione uma unidade hospitalar antes de salvar."); return; }
     const originalRule = form.id ? rules.find(r => r.id === form.id) ?? null : null;
     const payload = {
+      hospital_id: hospital.id,
       name: form.name.trim(),
       description: form.description.trim() || null,
       active: form.active,
