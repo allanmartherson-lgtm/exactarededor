@@ -2897,7 +2897,7 @@ function finalizeAnalysis(
   // % incide sobre o valor calculado (expected) — para regras percentuais isso é
   // matematicamente equivalente a aplicar sobre a tabela base.
   if (calc.expected != null && calc.expected > 0 && calc.temporal_surcharge_config && item.procedure_date) {
-    const sur = pickTemporalSurcharge(calc.temporal_surcharge_config, item.procedure_date);
+    const sur = pickTemporalSurcharge(calc.temporal_surcharge_config, item.procedure_date, item.procedure_date_has_time === true);
     if (sur && sur.pct > 0) {
       const base = calc.expected;
       const addValue = round2(base * (sur.pct / 100));
