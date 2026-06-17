@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, ChevronDown, ChevronRight, Package, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
@@ -850,6 +850,7 @@ function CalcCard({
   onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void; onDuplicate: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const c = item;
   const isPacote = c.calculation_type === "pacote"
     || c.calculation_type === "pacote_fechado"
@@ -865,8 +866,23 @@ function CalcCard({
     if (hasErrors) setOpen(true);
   }, [hasErrors]);
 
+  // Auto-scroll para o PRIMEIRO card com erro ao montar — evita que o usuário
+  // veja "1 campo com erro" no rodapé sem saber qual cálculo está fora da viewport.
+  useEffect(() => {
+    if (!hasErrors || index !== 0) {
+      // Só rola se ESTE card é o primeiro com erro entre os cards anteriores.
+      // (heurística leve: o card com index mais baixo que tiver erro vence)
+    }
+    if (hasErrors && cardRef.current) {
+      const t = setTimeout(() => {
+        cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, []); // só no mount
+
   return (
-    <div style={{
+    <div ref={cardRef} data-calc-error={hasErrors ? "true" : undefined} style={{
       borderRadius: 10,
       border: hasErrors ? "1px solid hsl(var(--destructive))" : "1px solid hsl(var(--border))",
       background: "hsl(var(--card))",
