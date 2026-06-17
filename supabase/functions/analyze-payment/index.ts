@@ -658,6 +658,7 @@ serve(async (req) => {
       attendance_number: it.attendance_number,
       patient_name: it.patient_name,
       procedure_date: it.procedure_date,
+      procedure_date_has_time: it.procedure_date_has_time ?? false,
       quantity: it.quantity != null ? Number(it.quantity) : null,
       authorized_exception: it.authorized_exception ?? false,
       exception_reason: it.exception_reason ?? null,
