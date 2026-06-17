@@ -21,6 +21,7 @@ import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobo
 import { RULE_SECTOR_LABELS, type RuleSector, PAYMENT_TYPE_LABELS, type PaymentType, formatCurrency } from "@/lib/status";
 import { formatDateTimeBR, formatDateBR } from "@/lib/dateUtils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { recordAudit, buildDiff } from "@/lib/audit";
 import type { Database } from "@/integrations/supabase/types";
 
