@@ -121,6 +121,10 @@ export default function Conciliacao() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="bloqueios">
+            <ShieldAlert className="h-[18px] w-[18px] opacity-60 transition-transform group-hover:scale-110 group-data-[state=active]:opacity-100" />
+            <span>Divergências bloqueantes</span>
+          </TabsTrigger>
           <TabsTrigger value="bases">
             <Database className="h-[18px] w-[18px] opacity-60 transition-transform group-hover:scale-110 group-data-[state=active]:opacity-100" />
             <span>Bases hospitalares</span>
@@ -205,6 +209,10 @@ export default function Conciliacao() {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="bloqueios" className="mt-4">
+          <BlockingDivergencesTab />
         </TabsContent>
 
         <TabsContent value="bases" className="mt-4">
