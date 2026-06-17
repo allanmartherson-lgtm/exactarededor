@@ -152,6 +152,11 @@ export function makeEmptyCalc(): CalcItem {
     agreement_match_mode: "whitelist",
     doctor_roles: [],
     context_conditions: [],
+    adicional_fds_pct: "",
+    adicional_feriado_pct: "",
+    adicional_noturno_pct: "",
+    noturno_inicio: "",
+    noturno_fim: "",
   };
 }
 
