@@ -141,7 +141,7 @@ export default function RuleSimulatorBatch() {
   };
 
   const run = async () => {
-    if (!currentHospital) { toast({ title: "Selecione um hospital", variant: "destructive" }); return; }
+    if (!hospital) { toast({ title: "Selecione um hospital", variant: "destructive" }); return; }
     if (items.length === 0) { toast({ title: "Carregue uma planilha primeiro", variant: "destructive" }); return; }
     setRunning(true);
     try {
@@ -153,7 +153,7 @@ export default function RuleSimulatorBatch() {
         const { data, error } = await supabase.functions.invoke("simulate-rule-batch", {
           body: {
             items: chunk,
-            hospital_id: currentHospital.id,
+            hospital_id: hospital.id,
             tolerance_pct: tolPct,
             tolerance_abs: tolAbs,
           },
