@@ -63,7 +63,7 @@ export default function BlockingDivergencesTab() {
         .from("vw_group_rule_totals")
         .select("*")
         .limit(500);
-      if (currentHospital?.id) q = q.eq("hospital_id", hospital.id);
+      if (hospital?.id) q = q.eq("hospital_id", hospital.id);
       const { data } = await q;
       const all = ((data ?? []) as Row[]).filter((r) => {
         const diff = Math.abs(Number(r.diferenca ?? 0));
@@ -90,8 +90,8 @@ export default function BlockingDivergencesTab() {
           : Promise.resolve({ data: [] as { group_id: string; bruto_regra_snapshot: number; bruto_pedido_snapshot: number }[] }),
       ]);
 
-      const refMap = new Map((payments ?? []).map((p) => [p.id, p.reference]));
-      const nameMap = new Map((companies ?? []).map((c) => [c.id, c.nome]));
+      const refMap = new Map<string, string | null>((payments ?? []).map((p: { id: string; reference: string | null }) => [p.id, p.reference] as const));
+      const nameMap = new Map<string, string | null>((companies ?? []).map((c: { id: string; nome: string | null }) => [c.id, c.nome] as const));
       const ovMap = new Map<string, Array<{ r: number; p: number }>>();
       for (const o of (overrides ?? []) as { group_id: string; bruto_regra_snapshot: number; bruto_pedido_snapshot: number }[]) {
         const arr = ovMap.get(o.group_id) ?? [];
@@ -99,7 +99,7 @@ export default function BlockingDivergencesTab() {
         ovMap.set(o.group_id, arr);
       }
 
-      const enriched = all.map((r) => ({
+      const enriched: Row[] = all.map((r) => ({
         ...r,
         payment_reference: r.payment_id ? refMap.get(r.payment_id) ?? null : null,
         company_name: r.company_id ? nameMap.get(r.company_id) ?? null : null,
@@ -118,7 +118,7 @@ export default function BlockingDivergencesTab() {
     return () => {
       cancelled = true;
     };
-  }, [currentHospital?.id]);
+  }, [hospital?.id]);
 
   const filtered = rows.filter((r) => {
     if (!search.trim()) return true;
