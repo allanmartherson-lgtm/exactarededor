@@ -78,7 +78,7 @@ export function RuleSnapshotsTab({ ruleId, onRestored }: Props) {
       title: "Restaurar este snapshot?",
       description: `Esta ação substitui a regra atual e seus ${snap.calc_count ?? 0} cálculo(s) pelo estado salvo em ${formatDateTimeBR(snap.created_at)}. Um snapshot de segurança do estado atual será criado automaticamente antes de aplicar.`,
       confirmText: "Restaurar",
-      variant: "destructive",
+      tone: "danger",
     });
     if (!ok) return;
     setRestoringId(snap.id);
