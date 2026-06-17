@@ -881,11 +881,14 @@ const NewPayment = () => {
         ])) || null,
         procedure_amount: procedureAmountFinal,
         quantity: quantity,
-        procedure_date: excelDateToISO(pick(row, [
-          "data procedimento", "data atendimento", "data dmy", "data",
-          "dt resposta", "dt. resp", "dt resp", "data resposta",
-          "dt solic", "dt. solic", "data solicitacao", "data solicitação",
-        ])),
+        ...(() => {
+          const parsed = excelDateToISOWithFlag(pick(row, [
+            "data procedimento", "data atendimento", "data dmy", "data",
+            "dt resposta", "dt. resp", "dt resp", "data resposta",
+            "dt solic", "dt. solic", "data solicitacao", "data solicitação",
+          ]));
+          return { procedure_date: parsed.iso, procedure_date_has_time: parsed.hasTime };
+        })(),
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         sector: rawSector,
         attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
