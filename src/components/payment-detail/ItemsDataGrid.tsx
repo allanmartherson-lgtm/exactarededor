@@ -3037,6 +3037,7 @@ function ItemDetailsRow({
                       </p>
                     </div>
                   )}
+                  <CalcFormulaBlock item={it} />
                 </SafeCard>
               ) : (
                 <SafeCard className="text-muted-foreground italic">Nenhuma regra específica casou.</SafeCard>
