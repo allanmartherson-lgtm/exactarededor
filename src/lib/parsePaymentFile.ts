@@ -73,7 +73,11 @@ export interface FileBucket {
   mappingHits: FieldMappingHit[];
 }
 
-const COMPLEMENTO_TERMS = ["bonus","bônus","complemento","adicional","diferenca","diferença","ajuste de valor","complemento pacote","complemento cirurg","produtividade","incentivo","valor complementar"];
+// Termos de classificação por palavra-chave. Cada um deve ser matchável como
+// PALAVRA INTEIRA (\b) no texto da coluna correta — substring solta gera
+// falso-positivo (ex.: nome TUSS "Costectomia ... Cada Arco Adicional" não é
+// "complemento_bonus").
+const COMPLEMENTO_TERMS = ["bonus","bônus","complemento","adicional","diferenca","diferença","produtividade","incentivo","valor complementar","ajuste de valor","complemento pacote","complemento cirurgico","complemento cirúrgico"];
 const GLOSA_TERMS = ["glosa","desconto","abatimento","devolução","devolucao","estorno","ajuste negativo"];
 const REPROC_TERMS = ["retroativo","pendência","pendencia","competência anterior","competencia anterior","ajuste mês anterior","ajuste mes anterior"];
 const PACOTE_TERMS = ["pacote"];
@@ -81,18 +85,49 @@ const VISITA_TERMS = ["visita"];
 const PARECER_TERMS = ["parecer"];
 const CIRURGIA_TERMS = ["cirurgia","cirurg","procedimento"];
 
-const containsAny = (txt: string, terms: string[]) => {
-  const t = txt.toLowerCase();
-  return terms.some((w) => t.includes(w.toLowerCase()));
+const stripDiacriticsLower = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+/** Match por palavra inteira (fronteira \b), case/acento-insensível. */
+const containsWord = (txt: string, terms: string[]) => {
+  const t = stripDiacriticsLower(txt);
+  return terms.some((w) => {
+    const norm = stripDiacriticsLower(w);
+    // \b não funciona para "ç"/acentos, mas como já stripamos, vale.
+    const re = new RegExp(`(^|[^a-z0-9])${norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`);
+    return re.test(t);
+  });
 };
 
+/** Match por substring solta (mantido para termos curtos como "pacote"/"visita"). */
+const containsAny = (txt: string, terms: string[]) => {
+  const t = stripDiacriticsLower(txt);
+  return terms.some((w) => t.includes(stripDiacriticsLower(w)));
+};
+
+/**
+ * Classifica o tipo de linha da planilha. Ordem de precedência:
+ *  1. glosa_desconto: valor negativo OU termo de glosa.
+ *  2. complemento_bonus: termo de complemento APENAS quando:
+ *      - NÃO há `procedure_code` (TUSS) válido — procedimento real não é bônus, E
+ *      - o termo aparece em `description` ou `doctor_role` (colunas livres) —
+ *        NUNCA no `procedure_name` (nome TUSS oficial pode conter "adicional",
+ *        "complemento", etc.).
+ *  3. reprocessamento: pendência declarada ou termo retroativo.
+ *  4. pacote / visita / parecer / procedimento / outro.
+ */
 export const classifyLine = (
   r: Omit<ParsedRow, "tipo_linha" | "line_issues">,
   paymentKind?: string | null,
 ): LineType => {
   const blob = `${r.description ?? ""} ${r.procedure_name ?? ""} ${r.doctor_role ?? ""}`;
   if (containsAny(blob, GLOSA_TERMS) || (r.gross_amount ?? 0) < 0) return "glosa_desconto";
-  if (containsAny(blob, COMPLEMENTO_TERMS)) return "complemento_bonus";
+
+  // Complemento/bônus exige (a) ausência de TUSS E (b) termo fora do nome TUSS.
+  const hasTuss = !!(r.procedure_code && String(r.procedure_code).trim());
+  const freeText = `${r.description ?? ""} ${r.doctor_role ?? ""}`;
+  if (!hasTuss && containsWord(freeText, COMPLEMENTO_TERMS)) return "complemento_bonus";
+
   if (paymentKind === "pendencia" || containsAny(blob, REPROC_TERMS)) return "reprocessamento";
   if (containsAny(blob, PACOTE_TERMS)) return "pacote";
   if (containsAny(blob, VISITA_TERMS)) return "visita";
