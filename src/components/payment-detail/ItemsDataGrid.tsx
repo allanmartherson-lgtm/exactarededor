@@ -2919,6 +2919,15 @@ function ItemDetailsRow({
                   {matchedRules[0].rule_text && (
                     <p className="mt-1 text-muted-foreground break-words whitespace-normal">{matchedRules[0].rule_text}</p>
                   )}
+                  {it.applied_calc_method && (
+                    <div className="mt-2 pt-2 border-t border-border/60">
+                      <Label>Cálculo utilizado</Label>
+                      <p className="mt-1 text-[13px] font-medium flex items-center gap-1.5">
+                        <span aria-hidden>{(CALC_METHOD_LABELS[it.applied_calc_method] ?? { emoji: "•" }).emoji}</span>
+                        <span>{(CALC_METHOD_LABELS[it.applied_calc_method] ?? { label: it.applied_calc_method }).label}</span>
+                      </p>
+                    </div>
+                  )}
                   {matchedRules.length > 1 && (
                     <p className={cn("mt-1 italic", TEXT_META)}>
                       + {matchedRules.length - 1} regra(s) também casaram
@@ -2929,6 +2938,15 @@ function ItemDetailsRow({
                 <SafeCard>
                   <Label>Regra aplicada</Label>
                   <p className="font-medium mt-1">{matchedNames[0]}</p>
+                  {it.applied_calc_method && (
+                    <div className="mt-2 pt-2 border-t border-border/60">
+                      <Label>Cálculo utilizado</Label>
+                      <p className="mt-1 text-[13px] font-medium flex items-center gap-1.5">
+                        <span aria-hidden>{(CALC_METHOD_LABELS[it.applied_calc_method] ?? { emoji: "•" }).emoji}</span>
+                        <span>{(CALC_METHOD_LABELS[it.applied_calc_method] ?? { label: it.applied_calc_method }).label}</span>
+                      </p>
+                    </div>
+                  )}
                 </SafeCard>
               ) : (
                 <SafeCard className="text-muted-foreground italic">Nenhuma regra específica casou.</SafeCard>
