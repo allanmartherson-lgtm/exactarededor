@@ -63,6 +63,8 @@ export interface RuleInput {
   calculation_type: CalculationType;
   convenio_percentage: number | null;
   fixed_amount: number | null;
+  /** Valor fixo por função médica — usado por calcValorFixo via ruleFromCalcItem. */
+  fixed_amount_by_role?: Record<string, number | null> | null;
   package_amount: number | null;
   extras_codes: string[] | null;
   /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
