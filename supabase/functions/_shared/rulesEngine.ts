@@ -2011,10 +2011,16 @@ export function applyCalculation(
   const rawList = Array.isArray(rule.calculations) ? rule.calculations : [];
   // Defensivo: garante a sequência (sort_order ASC) mesmo que a fonte tenha
   // entregue fora de ordem. Itens sem sort_order vão para o fim, preservando
-  // a ordem original entre si (sort estável).
+  // a ordem original entre si (sort estável). Catch-all explícito vai SEMPRE
+  // para o fim — é o "piso" da regra, avaliado depois de todos os demais.
   const list = rawList
-    .map((c, i) => ({ c, i, so: c.sort_order ?? Number.MAX_SAFE_INTEGER }))
-    .sort((a, b) => a.so - b.so || a.i - b.i)
+    .map((c, i) => ({
+      c,
+      i,
+      so: c.sort_order ?? Number.MAX_SAFE_INTEGER,
+      ca: c.is_catch_all === true ? 1 : 0,
+    }))
+    .sort((a, b) => a.ca - b.ca || a.so - b.so || a.i - b.i)
     .map((x) => x.c);
   if (list.length > 0) {
     const breakdown: CalculationBreakdownEntry[] = [];
