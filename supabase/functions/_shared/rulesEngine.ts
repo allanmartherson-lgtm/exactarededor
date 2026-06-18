@@ -1780,6 +1780,7 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     calculation_type: c.calculation_type,
     convenio_percentage: c.convenio_percentage ?? rule.convenio_percentage,
     fixed_amount: c.fixed_amount ?? rule.fixed_amount,
+    fixed_amount_by_role: (c as any).fixed_amount_by_role ?? (rule as any).fixed_amount_by_role ?? null,
     package_amount: c.package_amount ?? rule.package_amount,
     package_main_code: c.package_main_code ?? rule.package_main_code,
     package_included_codes: c.package_included_codes ?? rule.package_included_codes,
