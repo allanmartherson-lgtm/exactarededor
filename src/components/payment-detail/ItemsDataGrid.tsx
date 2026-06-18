@@ -545,11 +545,11 @@ export function ItemsDataGrid({
     return result;
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, groupStatus, sortKey, sortDir]);
 
-  // Detecta grupos de pacote e reordena a lista exibida (`displayRows`) para
-  // que TODOS os membros do pacote (regra + absorvidos manualmente) apareçam
-  // agrupados visualmente logo após a âncora, sob o banner — em vez de
-  // espalhados pela tabela. Não altera dados nem totais — só a ordem de render.
-  const { packageGroups, displayRows } = useMemo(() => {
+  // Reagrupa por atendimento: TODOS os itens do mesmo atendimento ficam
+  // contíguos (não só os do pacote). Itens sem atendimento mantêm a ordem
+  // original. Para cada atendimento calcula metadados para o header-card
+  // (paciente, totais, pior status, presença de pacote).
+  const { packageGroups, displayRows, attendanceMeta, attendanceFirstIdxByAtt } = useMemo(() => {
     type PkgGroup = {
       firstItemIdx: number;
       items: PaymentItemRowData[];
@@ -558,8 +558,16 @@ export function ItemsDataGrid({
       totalExpected: number | null;
       worstStatus: "reprovado" | "alerta" | "aprovado";
     };
+    type AttMeta = {
+      paciente: string;
+      count: number;
+      totalGross: number;
+      totalExpected: number | null;
+      worstStatus: "reprovado" | "alerta" | "aprovado" | "cancelado";
+      hasPackage: boolean;
+    };
 
-    // 1) Descobrir quais atendimentos formam pacote.
+    // 1) Descobrir atendimentos com pacote (para sinalizar o header).
     const pkgAtts = new Set<string>();
     for (const it of filtered) {
       if ((it as any).applied_calc_method !== "pacote") continue;
@@ -567,28 +575,60 @@ export function ItemsDataGrid({
       if (att) pkgAtts.add(att);
     }
 
-    // 2) Reordenar: na 1ª ocorrência de um membro do pacote, despejar em
-    //    sequência todos os membros daquele atendimento (regra + absorvidos).
-    const isMember = (it: PaymentItemRowData) =>
-      (it as any).applied_calc_method === "pacote" || (it as any).package_absorbed === true;
+    // 2) Reordenar: para CADA atendimento, despejar todos os seus itens em
+    //    sequência na primeira ocorrência. Itens sem atendimento mantêm
+    //    ordem original individual.
     const handledAtt = new Set<string>();
     const display: PaymentItemRowData[] = [];
     for (const it of filtered) {
       const att = (it.attendance_number ?? "").toString().trim();
-      const inPkg = !!att && pkgAtts.has(att) && isMember(it);
-      if (inPkg) {
+      if (att) {
         if (handledAtt.has(att)) continue;
         handledAtt.add(att);
         for (const m of filtered) {
           const mAtt = (m.attendance_number ?? "").toString().trim();
-          if (mAtt === att && isMember(m)) display.push(m);
+          if (mAtt === att) display.push(m);
         }
       } else {
         display.push(it);
       }
     }
 
-    // 3) Recomputar groups a partir do displayRows (firstItemIdx correto).
+    // 3) Metadados por atendimento + índice da primeira ocorrência.
+    const meta = new Map<string, AttMeta>();
+    const firstIdx = new Map<string, number>();
+    display.forEach((it, idx) => {
+      const att = (it.attendance_number ?? "").toString().trim();
+      if (!att) return;
+      if (!firstIdx.has(att)) firstIdx.set(att, idx);
+      let m = meta.get(att);
+      if (!m) {
+        m = {
+          paciente: getPatient(it) || "—",
+          count: 0,
+          totalGross: 0,
+          totalExpected: null,
+          worstStatus: "aprovado",
+          hasPackage: pkgAtts.has(att),
+        };
+        meta.set(att, m);
+      }
+      if ((it as any).is_cancelled) {
+        if (m.worstStatus === "aprovado") m.worstStatus = "cancelado";
+      } else if (!(it as any).package_absorbed) {
+        m.count += 1;
+        m.totalGross += Number(it.gross_amount ?? 0);
+        const exp = (it.ai_findings?.expected_amount as number | undefined) ??
+          ((it as any).expected_amount as number | undefined);
+        if (exp != null) m.totalExpected = (m.totalExpected ?? 0) + Number(exp);
+      }
+      if (it.ai_status === "reprovado") m.worstStatus = "reprovado";
+      else if (it.ai_status === "alerta" && m.worstStatus !== "reprovado") m.worstStatus = "alerta";
+    });
+
+    // 4) Recomputar packageGroups a partir do displayRows.
+    const isMember = (it: PaymentItemRowData) =>
+      (it as any).applied_calc_method === "pacote" || (it as any).package_absorbed === true;
     const groups = new Map<string, PkgGroup>();
     display.forEach((it, idx) => {
       const att = (it.attendance_number ?? "").toString().trim();
@@ -623,7 +663,7 @@ export function ItemsDataGrid({
         g.worstStatus = "alerta";
     });
 
-    return { packageGroups: groups, displayRows: display };
+    return { packageGroups: groups, displayRows: display, attendanceMeta: meta, attendanceFirstIdxByAtt: firstIdx };
   }, [filtered]);
 
 
