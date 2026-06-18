@@ -1904,7 +1904,10 @@ export function ItemsDataGrid({
 //  AttendanceHeaderRow — header-card colapsável por atendimento
 // ============================================================
 const CALC_METHOD_LABELS: Record<string, { label: string; emoji: string }> = {
-  pacote: { label: "Pacote", emoji: "📦" },
+  // 📦 fica reservado para o PackageBannerRow (pacote REAL com itens absorvidos).
+  // Na banda fina por método usamos um ícone neutro para não criar a impressão
+  // visual de que todo item "pacote" cataloga um pacote consolidado.
+  pacote: { label: "Pacote", emoji: "🧮" },
   tabela_diferenciada: { label: "Tabela diferenciada", emoji: "📊" },
   percentual_convenio: { label: "% do convênio", emoji: "%" },
   percentual_sobre_convenio: { label: "% sobre convênio", emoji: "%" },
