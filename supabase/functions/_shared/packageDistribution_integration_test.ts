@@ -111,8 +111,7 @@ function makeRule(): RuleInput {
 }
 
 function makeItem(over: Partial<ItemInput> & { id: string }): ItemInput {
-  return {
-    id: over.id,
+  const base = {
     doctor_name: "Médico",
     doctor_document: "1",
     company_name: "ACME",
@@ -131,9 +130,10 @@ function makeItem(over: Partial<ItemInput> & { id: string }): ItemInput {
     quantity: 1,
     agreement_name: "Unafisco",
     specialty: null,
-    ...over,
-  } as ItemInput;
+  };
+  return { ...base, ...over } as ItemInput;
 }
+
 
 const ctx: PaymentContext = {
   sectors: ["outro"],
