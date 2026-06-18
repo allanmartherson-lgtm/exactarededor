@@ -1617,7 +1617,7 @@ export function ItemsDataGrid({
                         </td>
                       </tr>
                     )}
-                    {isFirstPkgItem && pkgGroup && (
+                    {isFirstPkgItem && pkgGroup && !hideInnerBands && (
                       <>
                         <PackageBannerRow
                           group={pkgGroup}
