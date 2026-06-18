@@ -254,6 +254,13 @@ export interface RuleCalculationItem {
   procedure_keywords?: string[] | null;
   /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
   context_conditions?: ContextCondition[] | null;
+  /**
+   * Cálculo "piso" da regra: avaliado por último, ignora whitelist/blacklist
+   * de `procedure_codes` e `procedure_keywords`. Demais filtros (convênio,
+   * setor, função, via de acesso, horário, etc.) continuam valendo. Máximo
+   * 1 por regra (garantido por índice único parcial em rule_calculations).
+   */
+  is_catch_all?: boolean | null;
 }
 
 /** Condição de contexto: substitui o valor padrão quando outros itens do
