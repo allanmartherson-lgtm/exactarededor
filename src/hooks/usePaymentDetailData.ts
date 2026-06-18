@@ -92,6 +92,13 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
 
   const loadTokenRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  // Lock + trailing-only queue: enquanto um load() paginado está em voo,
+  // novos pedidos não disparam um load() concorrente — apenas marcam que
+  // há trabalho pendente. Ao terminar, se houver pendência, dispara UM
+  // único refetch. Isso elimina o race em que vários loads paralelos se
+  // sobrescrevem pelo loadTokenRef e deixam itens=[] na UI.
+  const loadInFlightRef = useRef(false);
+  const loadPendingRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!id) return;
