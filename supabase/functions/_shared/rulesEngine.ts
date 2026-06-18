@@ -1817,11 +1817,54 @@ function _arrSig(a: unknown): string {
   if (!Array.isArray(a) || a.length === 0) return "[]";
   return JSON.stringify([...a].map((x) => String(x)).sort());
 }
+/**
+ * Para cálculos do tipo pacote, o "filtro de código" do eixo 1 inclui
+ * `package_main_code`, `package_included_codes` e `extras_codes` — não
+ * só `procedure_codes`. Isso garante que um pacote que lista
+ * explicitamente o código do item seja tratado como RESTRITIVO no
+ * desempate contra cálculos catch-all (ex.: tabela CBHPM x2+20% que
+ * pega tudo).
+ */
+function _isPackageCalc(c: RuleCalculationItem): boolean {
+  const t = (c as any).calculation_type;
+  return t === "pacote" || t === "pacote_por_atendimento" ||
+    t === "pacote_fechado" || t === "pacote_com_extras";
+}
+function _packageCodeSet(c: RuleCalculationItem): string[] {
+  if (!_isPackageCalc(c)) return [];
+  const out: string[] = [];
+  const main = (c as any).package_main_code;
+  if (typeof main === "string" && main.trim()) {
+    for (const p of String(main).split(/[\s,;]+/)) {
+      const v = p.trim();
+      if (v) out.push(v);
+    }
+  } else if (Array.isArray(main)) {
+    for (const p of main) {
+      const v = String(p ?? "").trim();
+      if (v) out.push(v);
+    }
+  }
+  const included = (c as any).package_included_codes;
+  if (Array.isArray(included)) for (const p of included) {
+    const v = String(p ?? "").trim();
+    if (v) out.push(v);
+  }
+  const extras = (c as any).extras_codes;
+  if (Array.isArray(extras)) for (const p of extras) {
+    const v = String(p ?? "").trim();
+    if (v) out.push(v);
+  }
+  return out;
+}
 function _axisHasFilter(c: RuleCalculationItem, axis: number): boolean {
   switch (axis) {
-    case 1:
-      return (Array.isArray(c.procedure_codes) && c.procedure_codes.length > 0) ||
+    case 1: {
+      const hasProcCodes = (Array.isArray(c.procedure_codes) && c.procedure_codes.length > 0) ||
         (c.code_match_mode != null && c.code_match_mode !== "any");
+      if (hasProcCodes) return true;
+      return _packageCodeSet(c).length > 0;
+    }
     case 2: return Array.isArray(c.extras_codes) && c.extras_codes.length > 0;
     case 3: return Array.isArray(c.agreement_aliases) && c.agreement_aliases.length > 0;
     case 4: return Array.isArray(c.doctor_roles) && c.doctor_roles.length > 0;
@@ -1841,7 +1884,10 @@ function _axisHasFilter(c: RuleCalculationItem, axis: number): boolean {
 }
 function _axisSig(c: RuleCalculationItem, axis: number): string {
   switch (axis) {
-    case 1: return `${_arrSig(c.procedure_codes)}|${c.code_match_mode ?? "any"}`;
+    case 1: {
+      const pkg = _packageCodeSet(c);
+      return `${_arrSig(c.procedure_codes)}|${c.code_match_mode ?? "any"}|pkg:${_arrSig(pkg)}`;
+    }
     case 2: return _arrSig(c.extras_codes);
     case 3: return `${_arrSig(c.agreement_aliases)}|${c.agreement_match_mode ?? "any"}`;
     case 4: return _arrSig(c.doctor_roles);
@@ -2012,6 +2058,59 @@ export function applyCalculation(
           ) {
             b.matched = false;
             b.skip_reason = "pacote_perdeu_desempate_score";
+          }
+        }
+      }
+    }
+
+    // ---- Precedência por código EXPLÍCITO ----
+    // Se algum cálculo válido lista explicitamente o código do item
+    // (procedure_codes whitelist OU package_main_code/included/extras),
+    // ele tem prioridade absoluta sobre cálculos catch-all que pegam o
+    // código por inferência (ex.: tabela CBHPM sem procedure_codes).
+    // Isso reflete a regra de negócio: ao vincular um código a um
+    // pacote/valor_fixo/linha específica, o analista está dizendo
+    // "para este código, aplique ESTE cálculo".
+    {
+      const itemCode = String(item.procedure_code ?? "").trim();
+      if (itemCode && validCalcs.length > 1) {
+        const explicitlyListsCode = (v: ValidCalc): boolean => {
+          const cItem = list.find((c) => (c.id ?? null) === v.id);
+          if (!cItem) return false;
+          // Whitelist procedure_codes (modo whitelist e código presente).
+          const procCodes = Array.isArray(cItem.procedure_codes)
+            ? cItem.procedure_codes.map((x) => String(x).trim()).filter(Boolean)
+            : [];
+          const codeMode = (cItem.code_match_mode ?? "any") as string;
+          if (codeMode === "whitelist" && procCodes.length > 0) {
+            const matches = procCodes.some((p) =>
+              p.endsWith("*") ? itemCode.startsWith(p.slice(0, -1)) : itemCode === p
+            );
+            if (matches) return true;
+          }
+          // Pacote/valor_fixo com código no conjunto (main/included/extras).
+          const pkg = _packageCodeSet(cItem);
+          if (pkg.includes(itemCode)) return true;
+          const extras = Array.isArray((cItem as any).extras_codes)
+            ? (cItem as any).extras_codes.map((x: any) => String(x).trim())
+            : [];
+          if (extras.includes(itemCode)) return true;
+          return false;
+        };
+        const explicit = validCalcs.filter(explicitlyListsCode);
+        if (explicit.length > 0 && explicit.length < validCalcs.length) {
+          const winnerIds = new Set(explicit.map((v) => v.id));
+          for (let i = validCalcs.length - 1; i >= 0; i--) {
+            if (!winnerIds.has(validCalcs[i].id)) {
+              const dropped = validCalcs[i];
+              validCalcs.splice(i, 1);
+              for (const b of breakdown) {
+                if (b.matched && b.calc_id === dropped.id) {
+                  b.matched = false;
+                  b.skip_reason = "preterido_por_codigo_explicito";
+                }
+              }
+            }
           }
         }
       }
