@@ -186,7 +186,7 @@ export async function resolveOverride(
   userId: string | null,
   justification: string,
 ) {
-  return supabase.from("tuss_audit_overrides" as never).upsert(
+  return (supabase.from("tuss_audit_overrides" as never) as any).upsert(
     {
       payment_item_id: paymentItemId,
       resolved_by: userId,
