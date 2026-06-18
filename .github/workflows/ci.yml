@@ -146,3 +146,30 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: bun run scripts/audit-hospital-scope.ts
+
+  # Job 7: Testes de integração do motor de distribuição de pacotes (obrigatório — bloqueia merge)
+  # Garante que o fluxo fim-a-fim (regras → matching → distribuição cirurgião/auxiliares
+  # → fallback CBHPM → pacotes legados) não regrida silenciosamente. Cobre
+  # packageRolesDistribution + packageDistribution_integration + analyze-payment.
+  package-distribution-integration:
+    name: Package Distribution Integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Run package distribution integration tests
+        run: |
+          deno test --allow-net --allow-env --allow-read \
+            supabase/functions/_shared/packageRolesDistribution_test.ts \
+            supabase/functions/_shared/packageDistribution_integration_test.ts \
+            supabase/functions/_shared/rulesEngine_test.ts \
+            supabase/functions/analyze-payment/bonus_confeccao_test.ts \
+            supabase/functions/analyze-payment/bonus_per_attendance_test.ts \
+            supabase/functions/analyze-payment/mixed_logic_test.ts \
+            supabase/functions/analyze-payment/sector_reapply_recovery_test.ts \
+            supabase/functions/analyze-payment/no_status_writeback_test.ts
