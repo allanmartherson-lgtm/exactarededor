@@ -64,6 +64,7 @@ import { AttendanceCoherencePanel } from "./AttendanceCoherencePanel";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { formatSectorName } from "@/lib/sectorDisplay";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole, rawPick } from "@/lib/itemFields";
+import { detectTussMismatch, REASON_LABELS as TUSS_REASON_LABELS } from "@/lib/tussPrincipalAudit";
 import { useSectorAliases } from "@/hooks/useSectorAliases";
 
 const SECTOR_RAW_KEYS = ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"] as const;
@@ -1971,12 +1972,22 @@ function buildCalcFormula(it: {
 function CalcFormulaBlock({
   item,
 }: {
-  item: Parameters<typeof buildCalcFormula>[0] & { applied_calc_id?: string | null };
+  item: Parameters<typeof buildCalcFormula>[0] & {
+    applied_calc_id?: string | null;
+    applied_rule_id?: string | null;
+    procedure_code?: string | null;
+    doctor_role?: string | null;
+    package_absorbed?: boolean | null;
+  };
 }) {
   const lines = buildCalcFormula(item);
   const [calcMeta, setCalcMeta] = useState<{
+    id: string;
     label: string | null;
     package_main_code: string | null;
+    rule_id: string | null;
+    calculation_type: string | null;
+    rule_name?: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -1988,14 +1999,22 @@ function CalcFormulaBlock({
     let cancelled = false;
     supabase
       .from("rule_calculations")
-      .select("label,package_main_code")
+      .select("id,label,package_main_code,rule_id,calculation_type,rules(name)")
       .eq("id", calcId)
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return;
+        const d = data as any;
         setCalcMeta(
-          data
-            ? { label: (data as any).label ?? null, package_main_code: (data as any).package_main_code ?? null }
+          d
+            ? {
+                id: d.id,
+                label: d.label ?? null,
+                package_main_code: d.package_main_code ?? null,
+                rule_id: d.rule_id ?? null,
+                calculation_type: d.calculation_type ?? null,
+                rule_name: d.rules?.name ?? null,
+              }
             : null,
         );
       });
@@ -2004,11 +2023,32 @@ function CalcFormulaBlock({
     };
   }, [item.applied_calc_id]);
 
-  if (lines.length === 0 && !calcMeta?.label) return null;
+  // Trilha de decisão (puramente derivada — sem mexer no motor)
+  const mismatch = detectTussMismatch(
+    {
+      procedure_code: item.procedure_code ?? null,
+      applied_calc_method: item.applied_calc_method ?? null,
+      applied_calc_id: item.applied_calc_id ?? null,
+      applied_rule_id: item.applied_rule_id ?? null,
+      package_absorbed: item.package_absorbed ?? null,
+      ai_findings: (item.ai_findings as any) ?? null,
+    },
+    calcMeta,
+  );
+  const tussItemNorm = (item.procedure_code ?? "").toString().replace(/\D/g, "").slice(0, 8) || null;
+  const ruleName = calcMeta?.rule_name ?? null;
+  const calcLabel = calcMeta?.label ?? null;
+  const calcMethodLabel = item.applied_calc_method
+    ? (CALC_METHOD_LABELS[item.applied_calc_method] ?? { label: item.applied_calc_method }).label
+    : null;
+  const doctorRole = (item.doctor_role ?? "").toString().trim() || null;
+  const aiPriority = (item.ai_findings as any)?.engine?.matched_priority ?? null;
+
+  if (lines.length === 0 && !calcMeta?.label && !mismatch) return null;
   return (
-    <div className="mt-2 pt-2 border-t border-border/60">
+    <div className="mt-2 pt-2 border-t border-border/60 space-y-3">
       {calcMeta?.label && (
-        <div className="mb-2">
+        <div>
           <Label>Linha de cálculo</Label>
           <p className="mt-0.5 text-[13px] font-medium break-words">
             {calcMeta.label}
@@ -2020,8 +2060,84 @@ function CalcFormulaBlock({
           </p>
         </div>
       )}
+
+      {/* Trilha de decisão */}
+      <div>
+        <Label>Trilha de decisão</Label>
+        <ol className="mt-1 space-y-1 text-[12px]">
+          <li className="flex gap-2">
+            <span aria-hidden>✅</span>
+            <span>
+              <span className="text-muted-foreground">TUSS principal do item:</span>{" "}
+              <span className="font-mono">{tussItemNorm ?? "—"}</span>
+            </span>
+          </li>
+          <li className="flex gap-2">
+            <span aria-hidden>{doctorRole ? "✅" : "⚠️"}</span>
+            <span>
+              <span className="text-muted-foreground">Função do profissional:</span>{" "}
+              <span>{doctorRole ?? "não informada"}</span>
+            </span>
+          </li>
+          <li className="flex gap-2">
+            <span aria-hidden>{ruleName ? "✅" : "⚠️"}</span>
+            <span>
+              <span className="text-muted-foreground">Regra avaliada:</span>{" "}
+              <span>{ruleName ?? "—"}</span>
+              {aiPriority && (
+                <span className="ml-1 text-[11px] text-muted-foreground">
+                  (prioridade: {aiPriority})
+                </span>
+              )}
+            </span>
+          </li>
+          <li className="flex gap-2">
+            <span aria-hidden>{calcLabel ? "✅" : "⚠️"}</span>
+            <span>
+              <span className="text-muted-foreground">Cálculo aplicado:</span>{" "}
+              <span>{calcLabel ?? calcMethodLabel ?? "—"}</span>
+              {calcMethodLabel && calcLabel && (
+                <span className="ml-1 text-[11px] text-muted-foreground">
+                  ({calcMethodLabel})
+                </span>
+              )}
+            </span>
+          </li>
+          <li className="flex gap-2">
+            <span aria-hidden>{mismatch ? "⛔" : "✅"}</span>
+            <span>
+              <span className="text-muted-foreground">Match de chave:</span>{" "}
+              {mismatch ? (
+                <span className="text-destructive font-medium">
+                  {TUSS_REASON_LABELS[mismatch.reason]}
+                </span>
+              ) : (
+                <span>TUSS do item coerente com o cálculo aplicado</span>
+              )}
+            </span>
+          </li>
+        </ol>
+
+        {mismatch && (
+          <div className="mt-2 rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1.5 text-[12px] text-destructive">
+            <div className="font-semibold">
+              TUSS principal não usado como chave
+            </div>
+            <div className="text-[11px] mt-0.5 text-destructive/90">
+              {mismatch.detalhe}
+            </div>
+            {mismatch.tuss_regra && (
+              <div className="text-[11px] mt-0.5 font-mono">
+                item TUSS {mismatch.tuss_item ?? "—"} · cálculo TUSS{" "}
+                {mismatch.tuss_regra}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {lines.length > 0 && (
-        <>
+        <div>
           <Label>Fórmula aplicada</Label>
           <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
             {lines.map((l, i) => (
@@ -2031,7 +2147,7 @@ function CalcFormulaBlock({
               </Fragment>
             ))}
           </dl>
-        </>
+        </div>
       )}
     </div>
   );

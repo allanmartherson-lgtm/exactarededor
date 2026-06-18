@@ -60,6 +60,7 @@ import { ProductionValidationPanel } from "@/components/payment-detail/Productio
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
+import { TussPrincipalAuditPanel, useTussAuditOpenCount } from "@/components/payment-detail/TussPrincipalAuditPanel";
 import type {
   PaymentItemRow as PaymentItemRowType,
   GroupRow,
@@ -300,6 +301,7 @@ const PaymentDetail = () => {
   const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "validation" | "approved" | "approved_strict">("all");
   const [onlyRegIssues, setOnlyRegIssues] = useState(false);
   const [regIssueItemIds, setRegIssueItemIds] = useState<Set<string>>(new Set());
+  const tussAuditOpenCount = useTussAuditOpenCount(id);
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -2294,6 +2296,7 @@ const PaymentDetail = () => {
           </Alert>
         )}
         {id && <BatchAIFailureReport paymentId={id} />}
+        {id && <TussPrincipalAuditPanel paymentId={id} />}
         {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
         {!isNfPhase && (
         <div className="md:hidden">
@@ -2318,6 +2321,7 @@ const PaymentDetail = () => {
                 payment={payment}
                 roles={roles}
                 onApprove={isDiretor ? async () => {
+                  if (tussAuditOpenCount > 0) { toast({ title: "Aprovação bloqueada", description: `${tussAuditOpenCount} item(ns) com TUSS principal não usado como chave. Resolva na auditoria antes de aprovar.`, variant: "destructive" }); return; }
                   const approvable = groups.filter(g => String(g.status) === "aguardando_aprovacao");
                   if (approvable.length === 0) { toast({ title: "Nenhuma empresa aguardando aprovação", variant: "destructive" }); return; }
                   setApprovalBusy(true);
@@ -2547,6 +2551,7 @@ const PaymentDetail = () => {
                     payment={payment}
                     roles={roles}
                     onApprove={isDiretor ? async () => {
+                      if (tussAuditOpenCount > 0) { toast({ title: "Aprovação bloqueada", description: `${tussAuditOpenCount} item(ns) com TUSS principal não usado como chave. Resolva na auditoria antes de aprovar.`, variant: "destructive" }); return; }
                       const approvable = groups.filter(g => String(g.status) === "aguardando_aprovacao");
                       if (approvable.length === 0) { toast({ title: "Nenhuma empresa aguardando aprovação", variant: "destructive" }); return; }
                       setApprovalBusy(true);

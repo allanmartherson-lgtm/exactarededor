@@ -8168,6 +8168,48 @@ export type Database = {
           },
         ]
       }
+      tuss_audit_overrides: {
+        Row: {
+          created_at: string
+          id: string
+          justification: string | null
+          payment_item_id: string
+          resolved_at: string
+          resolved_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          justification?: string | null
+          payment_item_id: string
+          resolved_at?: string
+          resolved_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          justification?: string | null
+          payment_item_id?: string
+          resolved_at?: string
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tuss_audit_overrides_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: true
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tuss_audit_overrides_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
+          },
+        ]
+      }
       user_company_note_attachments: {
         Row: {
           created_at: string
