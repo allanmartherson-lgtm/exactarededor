@@ -1033,6 +1033,17 @@ const Rules = () => {
     }
     const result = data as { rule_id?: string; is_update?: boolean; corrections_applied?: number } | null;
     const savedId = (result?.rule_id as string | undefined) ?? (ruleData.id as string | undefined) ?? null;
+    // Persiste flags que a RPC `apply_rule_save_with_corrections` ainda não
+    // mapeia explicitamente (a RPC só lista um subset de colunas no UPDATE/INSERT).
+    if (savedId && typeof (ruleData as any).prevent_external_fallback === "boolean") {
+      const { error: flagErr } = await supabase
+        .from("rules")
+        .update({ prevent_external_fallback: (ruleData as any).prevent_external_fallback })
+        .eq("id", savedId);
+      if (flagErr) {
+        console.warn("[Rules] Falha ao persistir prevent_external_fallback:", flagErr.message);
+      }
+    }
     if (savedId) {
       await recordAudit({
         entityType: "rule", entityId: savedId, action: meta.wasEditing ? "update" : "create",
