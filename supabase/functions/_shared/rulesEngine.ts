@@ -1985,6 +1985,10 @@ export function isRestrictiveCalculation(
   c: RuleCalculationItem,
   peers: RuleCalculationItem[],
 ): boolean {
+  // Catch-all explícito declarado pelo analista → nunca é restritivo.
+  // Garante que ele atue como piso da regra (avaliado por último,
+  // sem competir por duplicidade com cálculos restritivos).
+  if (c.is_catch_all === true) return false;
   // Único cálculo da regra → sem diferenciação possível → catch-all.
   if (!Array.isArray(peers) || peers.length <= 1) return false;
   for (let axis = 1; axis <= 9; axis++) {
