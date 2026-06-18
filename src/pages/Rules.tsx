@@ -313,6 +313,10 @@ const Rules = () => {
   const [fBlockThresholdType, setFBlockThresholdType] = useState<"percentual" | "absoluto">("percentual");
   const [fBlockThresholdValue, setFBlockThresholdValue] = useState<string>("");
   const [fBlockInherit, setFBlockInherit] = useState(true);
+  // Bloqueia fallback para a regra geral master quando a regra venceu mas nenhum cálculo bateu.
+  // Default true para regras específicas/grupo; false para master.
+  const [fPreventExternalFallback, setFPreventExternalFallback] = useState(false);
+  
   
   // Global Thresholds Form
   const [fGlobalAlertThresholdType, setFGlobalAlertThresholdType] = useState<"percentual" | "absoluto">("percentual");
