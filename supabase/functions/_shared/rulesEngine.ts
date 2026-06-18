@@ -2141,7 +2141,7 @@ export function applyCalculation(
     // tem maior sobreposição com o atendimento. Cálculos não-pacote
     // permanecem disputando normalmente.
     const isPacoteType = (t: CalculationType) =>
-      t === "pacote" || t === "pacote_por_atendimento";
+      t === "pacote" || t === "pacote_por_atendimento" || t === "pacote_fechado" || t === "pacote_com_extras";
     const pacoteCalcs = validCalcs.filter((v) => isPacoteType(v.calculation_type));
     if (pacoteCalcs.length >= 2) {
       const scored = pacoteCalcs.map((v) => {
@@ -2175,6 +2175,48 @@ export function applyCalculation(
           ) {
             b.matched = false;
             b.skip_reason = "pacote_perdeu_desempate_score";
+          }
+        }
+      }
+    }
+
+    // ---- Precedência contextual: pacote absorve valor_fixo/tabela do mesmo código ----
+    // Regra de negócio: se o atendimento contém o código principal do pacote,
+    // todo código listado dentro desse pacote segue o pacote. Valor fixo só vale
+    // quando o código aparece fora do contexto do pacote; catch-all/tabela fica
+    // por último. Sem este corte, um item incluído no pacote (ex.: 30804132)
+    // também bateria no valor_fixo migrado como "Excedente" e geraria duplicidade.
+    {
+      const itemCode = String(item.procedure_code ?? "").trim();
+      const attKey = (item as any).attendance_group_key ?? item.attendance_number ?? "";
+      const siblings = ctx?.attendanceSiblingCodes?.get(attKey) ?? new Set<string>(itemCode ? [itemCode] : []);
+      const packageIdsInContext = new Set<string | null>();
+      for (const v of validCalcs) {
+        if (!isPacoteType(v.calculation_type)) continue;
+        const cItem = list.find((c) => (c.id ?? null) === v.id);
+        if (!cItem || !itemCode) continue;
+        const mainCodes = splitMainCodes(cItem.package_main_code as any);
+        if (mainCodes.length === 0 || !mainCodes.some((m) => siblings.has(m))) continue;
+        const included = Array.isArray(cItem.package_included_codes)
+          ? cItem.package_included_codes.map((x) => String(x).trim()).filter(Boolean)
+          : [];
+        const extras = Array.isArray((cItem as any).extras_codes)
+          ? (cItem as any).extras_codes.map((x: any) => String(x).trim()).filter(Boolean)
+          : [];
+        const packageCodes = new Set([...mainCodes, ...included, ...extras]);
+        if (packageCodes.has(itemCode)) packageIdsInContext.add(v.id);
+      }
+      if (packageIdsInContext.size > 0) {
+        for (let i = validCalcs.length - 1; i >= 0; i--) {
+          const v = validCalcs[i];
+          if (packageIdsInContext.has(v.id)) continue;
+          const dropped = validCalcs[i];
+          validCalcs.splice(i, 1);
+          for (const b of breakdown) {
+            if (b.matched && b.calc_id === dropped.id) {
+              b.matched = false;
+              b.skip_reason = "preterido_por_pacote_no_atendimento";
+            }
           }
         }
       }
