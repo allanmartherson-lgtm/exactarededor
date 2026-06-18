@@ -21,6 +21,14 @@ import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ConversationsSheet } from "@/components/payment-detail/conversations/ConversationsSheet";
 import { DeductionsBanner } from "@/components/payment-detail/DeductionsBanner";
 import { FinancialCompositionStrip } from "@/components/payment-detail/FinancialCompositionStrip";
+import {
+  ReapplyRulesProgressDialog,
+  type ReapplyPhase,
+  type ReapplySnapshot,
+  type ReapplyDiff,
+  takeSnapshot,
+  diffSnapshots,
+} from "@/components/payment-detail/ReapplyRulesProgressDialog";
 import { MinimumGuaranteeCard } from "@/components/payment-detail/MinimumGuaranteeCard";
 import { useFinancialComposition } from "@/hooks/useFinancialComposition";
 import { PageHeader } from "@/components/PageHeader";
