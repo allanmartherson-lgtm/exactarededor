@@ -92,6 +92,13 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
 
   const loadTokenRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  // Lock + trailing-only queue: enquanto um load() paginado está em voo,
+  // novos pedidos não disparam um load() concorrente — apenas marcam que
+  // há trabalho pendente. Ao terminar, se houver pendência, dispara UM
+  // único refetch. Isso elimina o race em que vários loads paralelos se
+  // sobrescrevem pelo loadTokenRef e deixam itens=[] na UI.
+  const loadInFlightRef = useRef(false);
+  const loadPendingRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -249,16 +256,31 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     setRulesByName(nameIdx);
   }, [id]);
 
+  // Wrapper com lock + trailing single-flight (ver loadInFlightRef acima).
+  const loadGuarded = useCallback(async () => {
+    if (loadInFlightRef.current) {
+      loadPendingRef.current = true;
+      return;
+    }
+    loadInFlightRef.current = true;
+    try {
+      do {
+        loadPendingRef.current = false;
+        await load();
+      } while (loadPendingRef.current);
+    } finally {
+      loadInFlightRef.current = false;
+    }
+  }, [load]);
+
   useEffect(() => {
-    load();
-    // Cleanup: aborta o request HTTP em voo + invalida o token (defesa em
-    // profundidade) ao trocar :id ou desmontar.
+    loadGuarded();
     return () => {
       loadTokenRef.current++;
       abortRef.current?.abort();
       abortRef.current = null;
     };
-  }, [load]);
+  }, [loadGuarded]);
 
   /**
    * Realtime: assina mudanças em payment_observations e invoice_questions
@@ -278,7 +300,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
-        load();
+        loadGuarded();
       }, 600);
     };
 
@@ -347,7 +369,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
       if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
-  }, [id, load]);
+  }, [id, loadGuarded]);
 
   /**
    * Polling de segurança (backup do Realtime): a cada 20s busca apenas a
