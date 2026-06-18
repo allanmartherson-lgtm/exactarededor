@@ -961,6 +961,8 @@ const Rules = () => {
     setFBlockThresholdType(r.limiar_bloqueio_tipo || "percentual");
     setFBlockThresholdValue(r.limiar_bloqueio_valor != null ? String(r.limiar_bloqueio_valor) : "");
     setFBlockInherit(r.limiar_bloqueio_valor == null);
+    setFPreventExternalFallback(!!(r as any).prevent_external_fallback);
+
 
     // Todas as seções iniciam fechadas ao abrir uma regra para edição.
     setAccordionValue([]);
