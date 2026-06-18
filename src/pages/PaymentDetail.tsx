@@ -2321,6 +2321,7 @@ const PaymentDetail = () => {
                 payment={payment}
                 roles={roles}
                 onApprove={isDiretor ? async () => {
+                  if (tussAuditOpenCount > 0) { toast({ title: "Aprovação bloqueada", description: `${tussAuditOpenCount} item(ns) com TUSS principal não usado como chave. Resolva na auditoria antes de aprovar.`, variant: "destructive" }); return; }
                   const approvable = groups.filter(g => String(g.status) === "aguardando_aprovacao");
                   if (approvable.length === 0) { toast({ title: "Nenhuma empresa aguardando aprovação", variant: "destructive" }); return; }
                   setApprovalBusy(true);
