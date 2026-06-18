@@ -1556,6 +1556,13 @@ export interface EngineCtx extends PaymentContext {
  * configurada (modo "qualquer"/vazio), ela é considerada satisfeita.
  */
 export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: true } | { ok: false; reason: string } {
+  // ---- Catch-all flag ----
+  // Quando `is_catch_all = true`, este cálculo é o "piso" da regra: ignora
+  // qualquer whitelist/blacklist de procedure_codes e procedure_keywords.
+  // Todos os demais filtros (convênio, setor, função, via, horário, etc.)
+  // continuam aplicáveis — catch-all só relaxa a dimensão de código.
+  const isCatchAll = c.is_catch_all === true;
+
   // ---- Filtros restritivos por cálculo ----
   // Códigos de procedimento (whitelist/blacklist/any)
   // Convenção pós-refactor: lista vazia = sem filtro de código (fallback).
@@ -1563,7 +1570,7 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
     ? c.procedure_codes.map(c => String(c).trim()).filter(Boolean) 
     : [];
   const codeMode = (c.code_match_mode ?? "any") as "whitelist" | "blacklist" | "any";
-  if (codeMode !== "any" && codes.length > 0) {
+  if (!isCatchAll && codeMode !== "any" && codes.length > 0) {
     const ic = (item.procedure_code ?? "").trim();
     const match = !!ic && codes.some(pattern => {
       if (pattern.endsWith("*")) {
@@ -1580,7 +1587,7 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   const keywords: string[] = Array.isArray((c as any).procedure_keywords) 
     ? (c as any).procedure_keywords.filter(Boolean).map(String) 
     : [];
-  if (keywords.length > 0) {
+  if (!isCatchAll && keywords.length > 0) {
     const itemText = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
     const match = keywords.some(kw => itemText.includes(normName(kw)));
     if (!match) return { ok: false, reason: "palavra_chave" };
