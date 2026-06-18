@@ -1601,6 +1601,14 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     label: c.label?.trim() || null,
     calculation_type: c.calculation_type,
     fixed_amount: c.calculation_type === "valor_fixo" ? numOrNull(c.fixed_amount) : null,
+    fixed_amount_by_role: c.calculation_type === "valor_fixo"
+      ? (() => {
+          const entries = Object.entries(c.fixed_amount_by_role ?? {})
+            .map(([k, v]) => [k, numOrNull(v)] as const)
+            .filter(([, v]) => v != null);
+          return entries.length > 0 ? Object.fromEntries(entries) : null;
+        })()
+      : null,
     target_amount: c.calculation_type === "complemento" ? numOrNull(c.target_amount) : null,
     multiplier: isTabela ? numOrNull(c.multiplier) : null,
     deflator_pct: isTabela ? numOrNull(c.deflator_pct) : null,
