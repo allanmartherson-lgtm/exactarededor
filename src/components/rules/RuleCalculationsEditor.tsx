@@ -112,6 +112,13 @@ export type CalcItem = {
 
   /** Condições de contexto (somente para valor_fixo). */
   context_conditions: ContextConditionItem[];
+
+  /**
+   * Cálculo "piso" da regra: avaliado por último, ignora filtros de código
+   * (whitelist/blacklist de procedure_codes e procedure_keywords). Demais
+   * filtros continuam valendo. Máximo 1 por regra.
+   */
+  is_catch_all: boolean;
 };
 
 /** Condição de contexto editável (strings nos inputs, convertidas no salvar). */
@@ -157,6 +164,7 @@ export function makeEmptyCalc(): CalcItem {
     adicional_noturno_pct: "",
     noturno_inicio: "",
     noturno_fim: "",
+    is_catch_all: false,
   };
 }
 
@@ -770,6 +778,34 @@ function WhenApplySection({
         <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "hsl(var(--muted-foreground))" }}>Quando aplicar este cálculo</span>
         <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Deixe todos fechados para aplicar a qualquer item. Expanda apenas o que precisar restringir.</p>
       </div>
+
+      {/* Catch-all (piso da regra) — relaxa filtros de código */}
+      <div style={{
+        padding: "10px 14px",
+        background: c.is_catch_all ? "hsl(var(--primary) / 0.06)" : "hsl(var(--card))",
+        borderBottom: "1px solid hsl(var(--border) / 0.6)",
+      }}>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+          <Checkbox
+            checked={c.is_catch_all}
+            onCheckedChange={(v) => onChange({ is_catch_all: !!v })}
+          />
+          <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>Cálculo padrão da regra (catch-all)</span>
+            <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+              Avaliado por último; cobre qualquer código que não tenha batido nos cálculos anteriores.
+              Demais filtros (convênio, setor, função, via, horário) continuam valendo.
+              <strong> Máximo 1 por regra.</strong>
+            </span>
+          </span>
+        </label>
+        {c.is_catch_all && (
+          <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 6, marginLeft: 26 }}>
+            ⚠️ Filtros de código TUSS e palavras-chave deste cálculo serão <strong>ignorados</strong> pelo motor.
+          </p>
+        )}
+      </div>
+
       <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6, background: "hsl(var(--card))" }}>
 
         {!isPacote && (
@@ -1450,6 +1486,7 @@ export function calcFromDb(r: any): CalcItem {
     adicional_noturno_pct: r.adicional_noturno_pct != null ? String(r.adicional_noturno_pct) : "",
     noturno_inicio: r.noturno_inicio ? String(r.noturno_inicio).slice(0, 5) : "",
     noturno_fim: r.noturno_fim ? String(r.noturno_fim).slice(0, 5) : "",
+    is_catch_all: !!r.is_catch_all,
   };
 }
 
@@ -1545,6 +1582,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     adicional_noturno_pct: numOrNull(c.adicional_noturno_pct),
     noturno_inicio: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_inicio || null) : null,
     noturno_fim: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_fim || null) : null,
+    is_catch_all: !!c.is_catch_all,
   };
 }
 
@@ -1553,6 +1591,8 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
  * Permitido apenas em `tabela_diferenciada`, onde a própria tabela define o universo de códigos.
  */
 export function calcItemHasWhitelistWithoutCodes(c: CalcItem): boolean {
+  // Catch-all explícito ignora filtros de código por definição — não conta como anti-padrão.
+  if (c.is_catch_all) return false;
   const isPkg = c.calculation_type === "pacote"
     || c.calculation_type === "pacote_fechado"
     || c.calculation_type === "pacote_com_extras"
@@ -1642,6 +1682,17 @@ export function calcCrossItemErrorMessages(items: CalcItem[]): Map<number, strin
     indices.push(idx);
     byReferenceTable.set(c.reference_table_id, indices);
   });
+
+  // Catch-all: no máximo 1 por regra (espelha o índice único parcial no DB).
+  const catchAllIdxs: number[] = [];
+  items.forEach((c, idx) => { if (c.is_catch_all) catchAllIdxs.push(idx); });
+  if (catchAllIdxs.length > 1) {
+    for (const idx of catchAllIdxs) {
+      const list = errors.get(idx) ?? [];
+      list.push(`Apenas um cálculo da regra pode ser marcado como "piso (catch-all)". Há ${catchAllIdxs.length} marcados — desmarque os excedentes.`);
+      errors.set(idx, list);
+    }
+  }
   return errors;
 }
 

@@ -313,6 +313,10 @@ const Rules = () => {
   const [fBlockThresholdType, setFBlockThresholdType] = useState<"percentual" | "absoluto">("percentual");
   const [fBlockThresholdValue, setFBlockThresholdValue] = useState<string>("");
   const [fBlockInherit, setFBlockInherit] = useState(true);
+  // Bloqueia fallback para a regra geral master quando a regra venceu mas nenhum cálculo bateu.
+  // Default true para regras específicas/grupo; false para master.
+  const [fPreventExternalFallback, setFPreventExternalFallback] = useState(false);
+  
   
   // Global Thresholds Form
   const [fGlobalAlertThresholdType, setFGlobalAlertThresholdType] = useState<"percentual" | "absoluto">("percentual");
@@ -835,6 +839,7 @@ const Rules = () => {
     setFCalculations([makeEmptyCalc()]);
     setFAlertThresholdType("percentual"); setFAlertThresholdValue(""); setFAlertInherit(true);
     setFBlockThresholdType("percentual"); setFBlockThresholdValue(""); setFBlockInherit(true);
+    setFPreventExternalFallback(false);
   };
 
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
@@ -956,6 +961,8 @@ const Rules = () => {
     setFBlockThresholdType(r.limiar_bloqueio_tipo || "percentual");
     setFBlockThresholdValue(r.limiar_bloqueio_valor != null ? String(r.limiar_bloqueio_valor) : "");
     setFBlockInherit(r.limiar_bloqueio_valor == null);
+    setFPreventExternalFallback(!!(r as any).prevent_external_fallback);
+
 
     // Todas as seções iniciam fechadas ao abrir uma regra para edição.
     setAccordionValue([]);
@@ -1026,6 +1033,17 @@ const Rules = () => {
     }
     const result = data as { rule_id?: string; is_update?: boolean; corrections_applied?: number } | null;
     const savedId = (result?.rule_id as string | undefined) ?? (ruleData.id as string | undefined) ?? null;
+    // Persiste flags que a RPC `apply_rule_save_with_corrections` ainda não
+    // mapeia explicitamente (a RPC só lista um subset de colunas no UPDATE/INSERT).
+    if (savedId && typeof (ruleData as any).prevent_external_fallback === "boolean") {
+      const { error: flagErr } = await supabase
+        .from("rules")
+        .update({ prevent_external_fallback: (ruleData as any).prevent_external_fallback })
+        .eq("id", savedId);
+      if (flagErr) {
+        console.warn("[Rules] Falha ao persistir prevent_external_fallback:", flagErr.message);
+      }
+    }
     if (savedId) {
       await recordAudit({
         entityType: "rule", entityId: savedId, action: meta.wasEditing ? "update" : "create",
@@ -1183,6 +1201,7 @@ const Rules = () => {
       limiar_alerta_valor: fAlertInherit ? null : num(fAlertThresholdValue),
       limiar_bloqueio_tipo: fBlockInherit ? null : fBlockThresholdType,
       limiar_bloqueio_valor: fBlockInherit ? null : num(fBlockThresholdValue),
+      prevent_external_fallback: fPreventExternalFallback,
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
@@ -2542,6 +2561,29 @@ const Rules = () => {
                         errorCount: 0,
                         content: (
                           <div className="space-y-6 max-w-full overflow-hidden p-1 pt-1">
+                            {/* Fallback para regra geral */}
+                            <div className="rounded-md border border-border bg-card p-3 space-y-2">
+                              <label className="flex items-start gap-2 cursor-pointer">
+                                <Checkbox
+                                  checked={fPreventExternalFallback}
+                                  onCheckedChange={(v) => setFPreventExternalFallback(!!v)}
+                                />
+                                <div className="space-y-1">
+                                  <div className="text-sm font-semibold leading-tight">
+                                    Não permitir fallback para a regra geral
+                                  </div>
+                                  <p className="text-xs text-muted-foreground leading-snug">
+                                    Quando ligado, se esta regra vence a seleção mas nenhum cálculo bate,
+                                    o item vai para <strong>sem regra</strong> com alerta — em vez de cair
+                                    silenciosamente na regra geral master. Recomendado para regras específicas
+                                    (com setor/convênio/empresa/médico). Combine com um cálculo marcado como
+                                    <strong> piso (catch-all)</strong> para criar uma "última barreira"
+                                    interna da regra.
+                                  </p>
+                                </div>
+                              </label>
+                            </div>
+
                             <div>
                               <div className="flex items-center text-sm font-semibold mb-3">
                                 Limiares de divergência

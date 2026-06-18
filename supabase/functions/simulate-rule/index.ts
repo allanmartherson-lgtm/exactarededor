@@ -123,7 +123,8 @@ serve(async (req) => {
         group_company_links,group_doctors,
         bonus_amount,bonus_pct,target_amount,
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor,
-        force_totalized
+        force_totalized,
+        prevent_external_fallback
       `)
       .eq("active", true);
     // Multi-tenant: hospital_id é OBRIGATÓRIO. Sem ele, a simulação carregaria regras
@@ -161,7 +162,8 @@ serve(async (req) => {
           force_totalized,application_unit,sectors,specialties,
           procedure_codes,code_match_mode,doctor_roles,
           agreement_match_mode,agreement_aliases,context_conditions,
-          adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim
+          adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim,
+          is_catch_all
         `)
         .in("rule_id", ruleIds)
         .order("sort_order", { ascending: true });

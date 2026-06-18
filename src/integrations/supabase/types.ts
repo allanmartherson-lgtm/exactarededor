@@ -7306,6 +7306,7 @@ export type Database = {
           include_auxiliaries: boolean
           includes_holidays: boolean
           instrumentador_pct: number | null
+          is_catch_all: boolean
           label: string | null
           multiplier: number | null
           noturno_fim: string | null
@@ -7365,6 +7366,7 @@ export type Database = {
           include_auxiliaries?: boolean
           includes_holidays?: boolean
           instrumentador_pct?: number | null
+          is_catch_all?: boolean
           label?: string | null
           multiplier?: number | null
           noturno_fim?: string | null
@@ -7424,6 +7426,7 @@ export type Database = {
           include_auxiliaries?: boolean
           includes_holidays?: boolean
           instrumentador_pct?: number | null
+          is_catch_all?: boolean
           label?: string | null
           multiplier?: number | null
           noturno_fim?: string | null
@@ -7563,6 +7566,7 @@ export type Database = {
           package_opinions_count: boolean
           package_subtype: string | null
           package_visits_count: boolean
+          prevent_external_fallback: boolean
           reference_table_id: string | null
           repasse_pct: number | null
           rule_text: string
@@ -7636,6 +7640,7 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
+          prevent_external_fallback?: boolean
           reference_table_id?: string | null
           repasse_pct?: number | null
           rule_text: string
@@ -7709,6 +7714,7 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
+          prevent_external_fallback?: boolean
           reference_table_id?: string | null
           repasse_pct?: number | null
           rule_text?: string
