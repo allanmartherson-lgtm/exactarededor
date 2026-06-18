@@ -1,9 +1,11 @@
 import { assert, assertEquals, assertStrictEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import {
   buildCrossPjCodeSet,
+  pickAllPackagesForAttendance,
   pickPackageForAttendance,
   type PkgCalc,
 } from "./packagePicker.ts";
+
 
 /**
  * Helpers
