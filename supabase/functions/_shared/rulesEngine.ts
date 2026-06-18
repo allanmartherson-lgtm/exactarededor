@@ -163,6 +163,13 @@ export interface RuleInput {
   limiar_alerta_valor?: number | null;
   limiar_bloqueio_tipo?: "percentual" | "absoluto" | null;
   limiar_bloqueio_valor?: number | null;
+  /**
+   * Quando true, se esta regra vence a seleção mas nenhum dos seus cálculos
+   * (incluindo catch-all) bater, o item vai para `sem_regra` com alerta —
+   * NÃO cai para a regra geral master. Recomendado: true para regras
+   * específicas (com setor/convênio/empresa/médico/grupo); false para a master.
+   */
+  prevent_external_fallback?: boolean | null;
 }
 
 export interface RuleCalculationItem {
