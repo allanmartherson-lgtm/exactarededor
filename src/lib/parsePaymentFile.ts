@@ -90,9 +90,9 @@ const stripDiacriticsLower = (s: string) =>
 
 /** Match por palavra inteira (fronteira \b), case/acento-insensível. */
 const containsWord = (txt: string, terms: string[]) => {
-  const t = stripDiacritics(txt);
+  const t = stripDiacriticsLower(txt);
   return terms.some((w) => {
-    const norm = stripDiacritics(w);
+    const norm = stripDiacriticsLower(w);
     // \b não funciona para "ç"/acentos, mas como já stripamos, vale.
     const re = new RegExp(`(^|[^a-z0-9])${norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`);
     return re.test(t);
@@ -101,8 +101,8 @@ const containsWord = (txt: string, terms: string[]) => {
 
 /** Match por substring solta (mantido para termos curtos como "pacote"/"visita"). */
 const containsAny = (txt: string, terms: string[]) => {
-  const t = stripDiacritics(txt);
-  return terms.some((w) => t.includes(stripDiacritics(w)));
+  const t = stripDiacriticsLower(txt);
+  return terms.some((w) => t.includes(stripDiacriticsLower(w)));
 };
 
 /**
