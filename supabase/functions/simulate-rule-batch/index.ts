@@ -68,7 +68,8 @@ const RULE_SELECT = `
   group_company_links,group_doctors,
   bonus_amount,bonus_pct,target_amount,
   limiar_alerta_tipo,limiar_alerta_valor,limiar_bloqueio_tipo,limiar_bloqueio_valor,
-  force_totalized
+  force_totalized,
+  prevent_external_fallback
 `;
 
 const CALC_SELECT = `
@@ -84,7 +85,8 @@ const CALC_SELECT = `
   force_totalized,application_unit,sectors,specialties,
   procedure_codes,code_match_mode,doctor_roles,
   agreement_match_mode,agreement_aliases,context_conditions,
-  adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim
+  adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim,
+  is_catch_all
 `;
 
 async function attachCalcs(supabase: any, rules: RuleInput[]) {
