@@ -1530,11 +1530,17 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
       if (itemAg && norm.includes(itemAg)) return { ok: false, reason: "convenio_bloqueado" };
     }
   }
-  // Função do médico
+  // Função do médico — normaliza ambos os lados via classifyDoctorRole para
+  // tolerar aliases (ex.: regra cadastrada como "primeiro_auxiliar" ou "aux1"
+  // bate com item classificado como "primeiro_aux"). Sem essa normalização,
+  // linhas de cálculo válidas eram descartadas e o motor caía em fallback.
   const roles = Array.isArray(c.doctor_roles) ? c.doctor_roles.filter(Boolean) : [];
   if (roles.length > 0) {
     const itemRole = classifyDoctorRole(item.doctor_role);
-    if (!roles.includes(itemRole)) return { ok: false, reason: `funcao_medico (item: ${itemRole}, esperado: ${roles.join(", ")})` };
+    const normalizedRoles = roles.map((r) => classifyDoctorRole(String(r)));
+    if (!normalizedRoles.includes(itemRole)) {
+      return { ok: false, reason: `funcao_medico (item: ${itemRole}, esperado: ${roles.join(", ")})` };
+    }
   }
   // Setores
   const cSectors = Array.isArray(c.sectors) ? c.sectors.filter(Boolean) : [];
