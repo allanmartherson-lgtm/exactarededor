@@ -108,11 +108,18 @@ serve(async (req) => {
       .eq("payment_id", payment_id);
 
     // 3b. Composição financeira agregada do lote (pool, glosa, conciliação separados)
+    // Só usamos se TODOS os snapshots estiverem computados — caso contrário a soma
+    // fica parcial e a IA alucina "divergência bruto vs líquido" comparando o líquido
+    // total do lote (completo) contra um bruto agregado incompleto.
     const { data: pcf } = await supabase
       .from("payment_company_financials")
-      .select("bruto, debitos, creditos, glosas, pool, conciliacao, liquido")
+      .select("bruto, debitos, creditos, glosas, pool, conciliacao, liquido, computed_at, company_id")
       .eq("payment_id", payment_id);
-    const composicao = (pcf ?? []).reduce(
+    const totalGroups = (groups ?? []).length;
+    const pcfRows = pcf ?? [];
+    const computedRows = pcfRows.filter((r: any) => r.computed_at != null);
+    const composicaoCompleta = totalGroups > 0 && computedRows.length === totalGroups;
+    const composicao = computedRows.reduce(
       (acc, r: any) => ({
         bruto: acc.bruto + Number(r.bruto || 0),
         debitos: acc.debitos + Number(r.debitos || 0),
@@ -130,13 +137,20 @@ serve(async (req) => {
 
 
     // 4. Últimas observações (analista/validador/diretor)
-    const { data: observations } = await supabase
+    // Filtra observações automáticas (reanálise, recálculo, reprocessamento, auditoria do motor)
+    // — são operação rotineira de ajuste, não achado financeiro. Sem isso a IA passa a citar
+    // "regras reaplicadas N vezes" como sinal de risco.
+    const AUTO_OBS_PATTERNS = /reanális|reanalis|reaplic|reprocess|recálcul|recalcul|motor:|auditoria do motor|divergência pós-split|pós-split|pos-split/i;
+    const { data: observationsRaw } = await supabase
       .from("payment_observations")
       .select("observation_type, message, created_at, author_type")
       .eq("payment_id", payment_id)
       .in("author_type", ["analista", "validador", "diretor"])
       .order("created_at", { ascending: false })
-      .limit(5);
+      .limit(20);
+    const observations = (observationsRaw ?? [])
+      .filter((o) => !AUTO_OBS_PATTERNS.test(String(o.message ?? "")))
+      .slice(0, 5);
 
     const contexto = {
       lote: {
@@ -179,21 +193,26 @@ serve(async (req) => {
         impacto_total: excecoesImpacto,
         amostra: excecoesAmostra,
       },
-      composicao_financeira: {
-        bruto: Math.round(composicao.bruto * 100) / 100,
-        liquido: Math.round(composicao.liquido * 100) / 100,
-        reducao_total: Math.round(reducaoTotal * 100) / 100,
-        // Pool/rateio = modelo de negociação contratual entre médicos/empresa (neutro, NÃO é risco)
-        pool_rateio: Math.round(composicao.pool * 100) / 100,
-        // Débitos contratuais aplicados (fixos, plantões etc.) — neutro
-        debitos_contratuais: Math.round(composicao.debitos * 100) / 100,
-        creditos: Math.round(composicao.creditos * 100) / 100,
-        // Glosas = perda financeira real (risco)
-        glosas: Math.round(composicao.glosas * 100) / 100,
-        // Conciliação ≠ 0 = divergência NF vs base (risco)
-        conciliacao: Math.round(composicao.conciliacao * 100) / 100,
-        reducao_nao_explicada: reducaoNaoExplicada,
-      },
+      composicao_financeira: composicaoCompleta
+        ? {
+            bruto: Math.round(composicao.bruto * 100) / 100,
+            liquido: Math.round(composicao.liquido * 100) / 100,
+            reducao_total: Math.round(reducaoTotal * 100) / 100,
+            // Pool/rateio = modelo de negociação contratual entre médicos/empresa (neutro, NÃO é risco)
+            pool_rateio: Math.round(composicao.pool * 100) / 100,
+            // Débitos contratuais aplicados (fixos, plantões etc.) — neutro
+            debitos_contratuais: Math.round(composicao.debitos * 100) / 100,
+            creditos: Math.round(composicao.creditos * 100) / 100,
+            // Glosas = perda financeira real (risco)
+            glosas: Math.round(composicao.glosas * 100) / 100,
+            // Conciliação ≠ 0 = divergência NF vs base (risco)
+            conciliacao: Math.round(composicao.conciliacao * 100) / 100,
+            reducao_nao_explicada: reducaoNaoExplicada,
+          }
+        : {
+            indisponivel: true,
+            motivo: `Snapshots financeiros incompletos (${computedRows.length}/${totalGroups} empresas) — recompute em andamento.`,
+          },
     };
 
     const generalPrompt = `Você é um auditor sênior de pagamentos médicos. Gere um RESUMO EXECUTIVO objetivo e direto sobre um lote de pagamento, em português do Brasil.
@@ -202,6 +221,8 @@ REGRAS:
 - Seja conciso, técnico e prático. Nada de jargão vago.
 - Use somente fatos presentes no contexto JSON. Nunca invente números, regras ou empresas.
 - O resumo deve ajudar analista, validador e diretor a entender o lote em <30s.
+- Operação de processo (reanálises, recálculos, reprocessamentos do motor) NÃO é achado financeiro: NÃO mencione "regras reaplicadas N vezes", "ajustes em andamento" nem coisas do tipo. Foque exclusivamente em conteúdo financeiro do lote.
+- Se composicao_financeira.indisponivel === true, NÃO cite bruto da composição, "redução não explicada", nem compare líquido vs bruto da composição. Use apenas lote.valor_liquido e lote.valor_bruto para qualquer menção a bruto/líquido.
 
 CLASSIFICAÇÃO DA DIFERENÇA BRUTO → LÍQUIDO (composicao_financeira):
 - NEUTRO (NÃO é risco, não eleva risk_level, não alarmar): pool_rateio, debitos_contratuais, creditos.
