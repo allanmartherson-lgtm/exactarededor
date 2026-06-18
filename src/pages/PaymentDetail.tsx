@@ -301,6 +301,7 @@ const PaymentDetail = () => {
   const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "validation" | "approved" | "approved_strict">("all");
   const [onlyRegIssues, setOnlyRegIssues] = useState(false);
   const [regIssueItemIds, setRegIssueItemIds] = useState<Set<string>>(new Set());
+  const tussAuditOpenCount = useTussAuditOpenCount(id);
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
