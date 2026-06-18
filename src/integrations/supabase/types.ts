@@ -7299,6 +7299,7 @@ export type Database = {
           elective_mode: string
           extras_codes: string[] | null
           fixed_amount: number | null
+          fixed_amount_by_role: Json | null
           force_totalized: boolean | null
           has_conditions: boolean | null
           hospital_id: string
@@ -7359,6 +7360,7 @@ export type Database = {
           elective_mode?: string
           extras_codes?: string[] | null
           fixed_amount?: number | null
+          fixed_amount_by_role?: Json | null
           force_totalized?: boolean | null
           has_conditions?: boolean | null
           hospital_id: string
@@ -7419,6 +7421,7 @@ export type Database = {
           elective_mode?: string
           extras_codes?: string[] | null
           fixed_amount?: number | null
+          fixed_amount_by_role?: Json | null
           force_totalized?: boolean | null
           has_conditions?: boolean | null
           hospital_id?: string
