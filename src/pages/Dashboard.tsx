@@ -1408,6 +1408,8 @@ const Dashboard = () => {
 
   const slaForPayment = (p: { id: string; status: PaymentStatus; created_at: string }): { level: SlaLevel; ms: number } | null => {
     if (TERMINAL_STATUSES.has(p.status)) return null;
+    // `pago` e `lancado` são efetivamente terminais para SLA — o lote já saiu do fluxo operacional.
+    if (p.status === "pago" || p.status === "lancado") return null;
     const enteredAt = new Date(statusEnteredAt[p.id] ?? p.created_at);
     const setting = slaSettings[p.status] ?? null;
     const compId = companyByPayment[p.id] ?? null;
