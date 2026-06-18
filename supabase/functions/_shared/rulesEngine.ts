@@ -2988,7 +2988,7 @@ export function analyzeItem(
           calc.breakdown = [...oldBreakdown, ...(calc.breakdown ?? [])];
         }
         priority = fPriority;
-        calculation_type_used = fRule.calculation_type;
+        calculation_type_used = (fCalc?.winner_calc_type as any) ?? fRule.calculation_type;
         matched_rule_id = fRule.id;
         matched_rule_name = fRule.name;
 
