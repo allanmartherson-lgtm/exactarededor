@@ -61,6 +61,7 @@ export function pickPackageForAttendance(
     }
 
     const includedFound = calc.package_included_codes.filter((c) => codeSet.has(c));
+    if (calc.package_included_codes.length > 0 && includedFound.length === 0) continue;
     matches.push({ calc, triggerCode, coverageCount: includedFound.length, includedFound });
   }
 

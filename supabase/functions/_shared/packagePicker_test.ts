@@ -97,6 +97,16 @@ Deno.test("cross-PJ: sem main_code no codeSet, nada casa", () => {
   assertStrictEquals(m, null);
 });
 
+Deno.test("pacote com inclusos declarados não casa se só o main_code apareceu", () => {
+  const combo = makeCalc({ id: "combo", main: "30804132", included: ["30804086"] });
+  const excedente = makeCalc({ id: "excedente", main: "30804132", included: [] });
+
+  const m = pickPackageForAttendance([combo, excedente], new Set(["30804132"]), new Set(["c"]));
+  assert(m);
+  assertEquals(m!.calc.rule_id, "rule-excedente");
+  assertEquals(m!.includedFound, []);
+});
+
 Deno.test("buildCrossPjCodeSet agrupa por attendance e ignora linhas inválidas", () => {
   const out = buildCrossPjCodeSet([
     { attendance_number: " ATD-1 ", procedure_code: " 111 " },

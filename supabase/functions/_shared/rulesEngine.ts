@@ -1342,7 +1342,7 @@ function calcPacotePorAtendimento(
     const myCalcId = (rule as any).__calc_id ?? null;
     if (winnerCalcId !== undefined && winnerCalcId !== null && myCalcId !== null && winnerCalcId !== myCalcId) {
       return {
-        expected: 0,
+        expected: null,
         explanation: `Pacote não vencedor para o atendimento ${attKey} (vencedor: ${winnerCalcId}).`,
         alerts: [],
       };
@@ -3006,6 +3006,10 @@ function preComputePackageWinners(
           if (universo.has(code)) cobertura += 1;
         }
         const inclusosHit = included.filter((code) => siblingsOfAtt.has(code)).length;
+        // Pacote que declara inclusos só é elegível como combinação quando ao
+        // menos um incluso apareceu no atendimento. Sem isso, ele não pode
+        // vencer um pacote/excedente simples do mesmo main_code.
+        if (included.length > 0 && inclusosHit === 0) continue;
         const inclusosRatio = included.length > 0 ? inclusosHit / included.length : 1.0;
 
         scored.push({ calc: c, cobertura, inclusosRatio });
