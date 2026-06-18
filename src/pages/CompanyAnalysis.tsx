@@ -294,6 +294,34 @@ export default function CompanyAnalysis() {
   const [itemDraft, setItemDraft] = useState<Record<string, string>>({});
   const [groupDraft, setGroupDraft] = useState("");
   const [reanalyzing, setReanalyzing] = useState(false);
+
+  // ---- Reaplicar regras: progresso + diff antes/depois ----
+  const [reapplyOpen, setReapplyOpen] = useState(false);
+  const [reapplyPhase, setReapplyPhase] = useState<ReapplyPhase>("iniciando");
+  const [reapplyError, setReapplyError] = useState<string | null>(null);
+  const [reapplyDiff, setReapplyDiff] = useState<ReapplyDiff | null>(null);
+  const [reapplyElapsed, setReapplyElapsed] = useState(0);
+  const reapplySnapshotRef = useRef<ReapplySnapshot>({});
+  const reapplyTimerRef = useRef<number | null>(null);
+
+  // Timer de tempo decorrido enquanto a reanálise roda.
+  useEffect(() => {
+    if (reapplyPhase === "iniciando" || reapplyPhase === "processando") {
+      reapplyTimerRef.current = window.setInterval(() => {
+        setReapplyElapsed((s) => s + 1);
+      }, 1000) as unknown as number;
+    } else if (reapplyTimerRef.current != null) {
+      clearInterval(reapplyTimerRef.current);
+      reapplyTimerRef.current = null;
+    }
+    return () => {
+      if (reapplyTimerRef.current != null) {
+        clearInterval(reapplyTimerRef.current);
+        reapplyTimerRef.current = null;
+      }
+    };
+  }, [reapplyPhase]);
+
   const [changeCompanyOpen, setChangeCompanyOpen] = useState(false);
   const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
   const [changingCompany, setChangingCompany] = useState(false);
