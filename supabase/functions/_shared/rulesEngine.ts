@@ -2863,14 +2863,18 @@ export function analyzeItem(
   // 1. Nenhuma regra (medico/empresa/grupo/master) deu match
   // 2. OU se a regra vencedora acima não resultou em cálculo válido (calc.expected === null)
   //    APÓS percorrer todos os seus itens de cálculo internos.
+  //
+  // EXCEÇÃO — `prevent_external_fallback`:
+  // Se a regra vencedora declarar `prevent_external_fallback = true`, o motor
+  // NÃO procura fallback externo. O item vai para `sem_regra` com alerta
+  // explícito, expondo a lacuna de cadastro em vez de mascarar com a master.
   const needsFallback = !winner || (calc && calc.expected === null);
+  const fallbackBlocked = !!(winner && winner.prevent_external_fallback === true && calc && calc.expected === null);
 
-  if (needsFallback) {
+  if (needsFallback && !fallbackBlocked) {
     // NOTE: A antiga "Camada 3 Global" (varredura de tabelas sem_acordo/exclusao
     // não vinculadas à regra) foi removida. Tabelas de exceção só atuam quando
     // explicitamente vinculadas a uma regra via exception_table_ids (Camada 2).
-
-
 
     // --- Camada 4: Fallback Determinístico para Regra Geral ---
     const fallbackResult = findFallbackGeneralRule(item, preFilteredRules, ctx);
@@ -2908,16 +2912,28 @@ export function analyzeItem(
   if (!calc || calc.expected === null) {
     // Sem regra cadastrada (nem específica, nem geral por setor)
     const triedRule = winner?.name ? ` A regra "${winner.name}" foi avaliada, mas nenhum cálculo aplicável retornou valor.` : "";
+    const blockedNote = fallbackBlocked
+      ? ` A regra "${winner!.name}" está marcada como "não permitir fallback para a regra geral" — revise os filtros operacionais (código TUSS, função, convênio, via de acesso) ou marque um cálculo como catch-all (piso da regra).`
+      : "";
     calc = {
       expected: null,
-      explanation: `Sem regra calculável para este item.${triedRule} Revise os filtros operacionais da regra (código TUSS, função, convênio, via de acesso ou tabela vinculada).`,
-      alerts: ["Sem regra calculável para este item — revise os filtros operacionais da regra, não o setor."],
+      explanation: `Sem regra calculável para este item.${triedRule}${blockedNote}${blockedNote ? "" : " Revise os filtros operacionais da regra (código TUSS, função, convênio, via de acesso ou tabela vinculada)."}`,
+      alerts: fallbackBlocked
+        ? [
+            `Regra específica "${winner!.name}" venceu a seleção mas nenhum cálculo bateu, e o fallback para a regra geral está bloqueado por esta regra. Revise o cadastro: filtros operacionais dos cálculos ou marque um cálculo como catch-all.`,
+          ]
+        : ["Sem regra calculável para este item — revise os filtros operacionais da regra, não o setor."],
+      breakdown: calc?.breakdown,
     };
     priority = "sem_regra";
     calculation_type_used = "informativo";
-    winner = null;
-    matched_rule_id = null;
-    matched_rule_name = null;
+    // Mantém matched_rule_id/name quando o fallback foi bloqueado, para
+    // rastreabilidade no detalhe do item ("foi essa regra que bloqueou").
+    if (!fallbackBlocked) {
+      winner = null;
+      matched_rule_id = null;
+      matched_rule_name = null;
+    }
   }
 
   const res = finalizeAnalysis(item, calc, winner, priority, ctx, conflict);
