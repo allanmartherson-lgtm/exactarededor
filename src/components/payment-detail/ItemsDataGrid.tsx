@@ -64,6 +64,7 @@ import { AttendanceCoherencePanel } from "./AttendanceCoherencePanel";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { formatSectorName } from "@/lib/sectorDisplay";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole, rawPick } from "@/lib/itemFields";
+import { detectTussMismatch, REASON_LABELS as TUSS_REASON_LABELS } from "@/lib/tussPrincipalAudit";
 import { useSectorAliases } from "@/hooks/useSectorAliases";
 
 const SECTOR_RAW_KEYS = ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"] as const;
@@ -2023,9 +2024,6 @@ function CalcFormulaBlock({
   }, [item.applied_calc_id]);
 
   // Trilha de decisão (puramente derivada — sem mexer no motor)
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { detectTussMismatch, REASON_LABELS } = require("@/lib/tussPrincipalAudit") as
-    typeof import("@/lib/tussPrincipalAudit");
   const mismatch = detectTussMismatch(
     {
       procedure_code: item.procedure_code ?? null,
