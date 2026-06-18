@@ -21,6 +21,14 @@ import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ConversationsSheet } from "@/components/payment-detail/conversations/ConversationsSheet";
 import { DeductionsBanner } from "@/components/payment-detail/DeductionsBanner";
 import { FinancialCompositionStrip } from "@/components/payment-detail/FinancialCompositionStrip";
+import {
+  ReapplyRulesProgressDialog,
+  type ReapplyPhase,
+  type ReapplySnapshot,
+  type ReapplyDiff,
+  takeSnapshot,
+  diffSnapshots,
+} from "@/components/payment-detail/ReapplyRulesProgressDialog";
 import { MinimumGuaranteeCard } from "@/components/payment-detail/MinimumGuaranteeCard";
 import { useFinancialComposition } from "@/hooks/useFinancialComposition";
 import { PageHeader } from "@/components/PageHeader";
@@ -286,6 +294,34 @@ export default function CompanyAnalysis() {
   const [itemDraft, setItemDraft] = useState<Record<string, string>>({});
   const [groupDraft, setGroupDraft] = useState("");
   const [reanalyzing, setReanalyzing] = useState(false);
+
+  // ---- Reaplicar regras: progresso + diff antes/depois ----
+  const [reapplyOpen, setReapplyOpen] = useState(false);
+  const [reapplyPhase, setReapplyPhase] = useState<ReapplyPhase>("iniciando");
+  const [reapplyError, setReapplyError] = useState<string | null>(null);
+  const [reapplyDiff, setReapplyDiff] = useState<ReapplyDiff | null>(null);
+  const [reapplyElapsed, setReapplyElapsed] = useState(0);
+  const reapplySnapshotRef = useRef<ReapplySnapshot>({});
+  const reapplyTimerRef = useRef<number | null>(null);
+
+  // Timer de tempo decorrido enquanto a reanálise roda.
+  useEffect(() => {
+    if (reapplyPhase === "iniciando" || reapplyPhase === "processando") {
+      reapplyTimerRef.current = window.setInterval(() => {
+        setReapplyElapsed((s) => s + 1);
+      }, 1000) as unknown as number;
+    } else if (reapplyTimerRef.current != null) {
+      clearInterval(reapplyTimerRef.current);
+      reapplyTimerRef.current = null;
+    }
+    return () => {
+      if (reapplyTimerRef.current != null) {
+        clearInterval(reapplyTimerRef.current);
+        reapplyTimerRef.current = null;
+      }
+    };
+  }, [reapplyPhase]);
+
   const [changeCompanyOpen, setChangeCompanyOpen] = useState(false);
   const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
   const [changingCompany, setChangingCompany] = useState(false);
@@ -581,7 +617,20 @@ export default function CompanyAnalysis() {
     if (!id || !group) return;
     if (!guardEditable()) return;
     await autoClaim();
+
+    // Snapshot ANTES — usado para calcular o diff (o que passou, o que continuou
+    // reprovado, regra que trocou) assim que a reanálise terminar.
+    const snapshot = takeSnapshot(items);
+    const itemIds = Object.keys(snapshot);
+    reapplySnapshotRef.current = snapshot;
+    setReapplyDiff(null);
+    setReapplyError(null);
+    setReapplyElapsed(0);
+    setReapplyPhase("iniciando");
+    setReapplyOpen(true);
     setReanalyzing(true);
+
+    const startedAt = Date.now();
     try {
       const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", {
         body: { payment_id: id, only_companies: [group.company_name] },
@@ -595,9 +644,10 @@ export default function CompanyAnalysis() {
         const sample = skipped.length
           ? ` Status: ${Array.from(new Set(skipped.map((s: any) => s.status))).slice(0, 3).join(", ")}.`
           : "";
-        toast.error("Empresa não foi reanalisada", {
-          description: ((data as any)?.message ?? "A empresa não está em estado editável para reanálise.") + sample,
-        });
+        const msg = ((data as any)?.message ?? "A empresa não está em estado editável para reanálise.") + sample;
+        setReapplyError(msg);
+        setReapplyPhase("erro");
+        toast.error("Empresa não foi reanalisada", { description: msg });
         return;
       }
 
@@ -609,18 +659,52 @@ export default function CompanyAnalysis() {
         status_from: group.status,
         status_to: group.status,
       });
-      toast.success(alreadyRunning ? "Reanálise já está em andamento" : "Reanálise iniciada", {
-        description: "O motor vai reprocessar esta empresa e atualizar a tela ao concluir.",
-      });
+
+      setReapplyPhase("processando");
+
+      // Aguarda o motor finalizar antes de calcular o diff. Sem polling, o
+      // "concluído" apareceria com snapshot antigo e o diff seria zero.
+      const done = await waitForProcessingCompletion(id, startedAt, 120_000);
+
+      // Releitura direta dos itens da empresa para garantir o estado pós-motor
+      // (independente da atualização do hook usePaymentDetailData).
+      let after: PaymentItemRow[] = [];
+      if (itemIds.length > 0) {
+        const { data: fresh } = await supabase
+          .from("payment_items")
+          .select("id, ai_status, applied_rule_id, expected_amount")
+          .in("id", itemIds);
+        after = (fresh ?? []) as unknown as PaymentItemRow[];
+      }
+
+      const diff = diffSnapshots(reapplySnapshotRef.current, after);
+      setReapplyDiff(diff);
+      setReapplyPhase("concluido");
+
+      if (!done) {
+        // Motor não confirmou conclusão no tempo — ainda assim mostramos o diff
+        // com o estado atual; o usuário pode reaplicar de novo se necessário.
+        toast.warning("Reanálise concluída sem confirmação do motor", {
+          description: "Exibindo o estado atual dos itens. Se algo não mudou, tente novamente em alguns segundos.",
+        });
+      } else {
+        toast.success("Reanálise concluída", {
+          description: `${diff.becameApproved} passaram a aprovado · ${diff.stayedReproved} continuam reprovados.`,
+        });
+      }
+
+      // Recarrega o detalhe da empresa para que a tabela reflita o novo estado.
       load();
     } catch (e) {
-      toast.error("Falha ao iniciar reanálise", {
-        description: e instanceof Error ? e.message : String(e),
-      });
+      const msg = e instanceof Error ? e.message : String(e);
+      setReapplyError(msg);
+      setReapplyPhase("erro");
+      toast.error("Falha ao iniciar reanálise", { description: msg });
     } finally {
       setReanalyzing(false);
     }
   };
+
 
   /**
    * Faz polling em `payments.processing_diagnostics` para detectar conclusão
@@ -2383,6 +2467,18 @@ export default function CompanyAnalysis() {
           }}
         />
       )}
+
+      <ReapplyRulesProgressDialog
+        open={reapplyOpen}
+        onOpenChange={setReapplyOpen}
+        phase={reapplyPhase}
+        elapsedSec={reapplyElapsed}
+        totalItems={items.length}
+        errorMessage={reapplyError}
+        diff={reapplyDiff}
+        companyLabel={group?.company_name}
+      />
+
       <AlertDialog open={postConcluirOpen} onOpenChange={setPostConcluirOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
