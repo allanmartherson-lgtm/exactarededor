@@ -281,16 +281,21 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
   const loadGuarded = useCallback(async () => {
     if (loadInFlightRef.current) {
       loadPendingRef.current = true;
-      return;
+      return loadInFlightPromiseRef.current ?? Promise.resolve();
     }
     loadInFlightRef.current = true;
-    try {
+    const promise = (async () => {
       do {
         loadPendingRef.current = false;
         await load();
       } while (loadPendingRef.current);
+    })();
+    loadInFlightPromiseRef.current = promise;
+    try {
+      await promise;
     } finally {
       loadInFlightRef.current = false;
+      loadInFlightPromiseRef.current = null;
     }
   }, [load]);
 
@@ -448,6 +453,6 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     setQuestions,
     setExpandedGroups,
     // actions
-    load,
+    load: loadGuarded,
   };
 }
