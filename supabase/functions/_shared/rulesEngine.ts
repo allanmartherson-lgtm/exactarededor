@@ -1024,6 +1024,7 @@ export function selectWinningRule(
   opts?: { collectTrace?: boolean },
 ): SelectionOutcome | null {
   const itemSector = inferItemSector(item, ctx);
+  const itemSectorNorm = SECTOR_MAP[normName(itemSector)] || normName(itemSector);
   const isHemo = itemSector === "hemodinamica";
   const trace: SelectionTrace | undefined = opts?.collectTrace
     ? { item_sector: itemSector, is_hemo: isHemo, levels: [], winner_rule_id: null, winner_priority: "sem_regra" }
