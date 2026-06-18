@@ -248,7 +248,8 @@ serve(async (req) => {
         group_company_links,group_doctors,
         bonus_amount,bonus_pct,target_amount,
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor,
-        force_totalized
+        force_totalized,
+        prevent_external_fallback
     `;
 
     const RULE_CALCS_SELECT = `
@@ -265,7 +266,8 @@ serve(async (req) => {
       procedure_codes,code_match_mode,doctor_roles,
       agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
       package_roles_distribution,
-      adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim
+      adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim,
+      is_catch_all
     `;
 
     // [Sprint 3 - Tier 1.B] Cache de contexto compartilhado por job:
