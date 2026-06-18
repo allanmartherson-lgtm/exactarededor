@@ -661,20 +661,45 @@ type DoctorRole = "cirurgiao" | "primeiro_aux" | "demais_aux" | "instrumentador"
 function classifyDoctorRole(role: string | null | undefined): DoctorRole {
   const s = (role ?? "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (!s) return "outro";
+
+  // 0) Chaves canônicas usadas internamente (rule_calculations.doctor_roles, configs).
+  //    Aceita formas curtas/canonical para que normalizar("demais_aux") → "demais_aux"
+  //    em vez de cair no fallback de includes("aux") → "primeiro_aux".
+  //    BUG histórico: "demais_aux" caía em "primeiro_aux" porque o regex de
+  //    2º/segundo não cobre "demais", e o fallback abaixo trata qualquer "aux"
+  //    como 1º. Isso fazia regras com doctor_roles=["...","demais_aux"]
+  //    rejeitarem itens classificados como demais_aux.
+  if (s === "cirurgiao" || s === "cirurgiao_principal" || s === "principal" || s === "operador") return "cirurgiao";
+  if (s === "instrumentador") return "instrumentador";
+  if (
+    s === "demais_aux" || s === "demais_auxiliares" || s === "demais" ||
+    s === "aux2" || s === "segundo_aux" || s === "segundo_auxiliar" ||
+    s === "aux3" || s === "terceiro_aux" || s === "terceiro_auxiliar"
+  ) return "demais_aux";
+  if (
+    s === "primeiro_aux" || s === "primeiro_auxiliar" || s === "aux1" ||
+    s === "auxiliar" || s === "aux"
+  ) return "primeiro_aux";
+
   if (s.includes("instrument")) return "instrumentador";
   if (s.includes("cirurgi") || s.includes("operador")) return "cirurgiao";
-  
+
+  // "demais auxiliares" em texto livre → 2º+
+  if (s.includes("demais") && (s.includes("aux") || s.includes("ajudante"))) {
+    return "demais_aux";
+  }
+
   // 2º / 3º / segundo / terceiro / etc + aux (deve vir ANTES do match de 1º)
   // Ordem importa: 2º casa com /2/ mas não com /^1/
   if (/(2[ºo]|2\b|segund|3[ºo]|3\b|terceir|quart|quint)/.test(s) && (s.includes("aux") || s.includes("ajudante"))) {
     return "demais_aux";
   }
-  
+
   // 1º / primeiro / 1
   if (/(^|\b)(1[ºo]|1\b|primeir)/.test(s) && (s.includes("aux") || s.includes("ajudante"))) {
     return "primeiro_aux";
   }
-  
+
   if (s.includes("aux") || s.includes("ajudante")) return "primeiro_aux"; // sem ordinal explícito → trata como 1º
   return "outro";
 }
