@@ -83,6 +83,41 @@ export function pickPackageForAttendance(
   };
 }
 
+/**
+ * Multi-pacote por atendimento: aplica `pickPackageForAttendance` em loop,
+ * removendo do codeSet os códigos já absorvidos a cada rodada e excluindo
+ * os calcs já usados. Permite que um mesmo atendimento receba múltiplos
+ * pacotes/excedentes independentes (ex.: pacote principal + linhas de
+ * excedente para códigos avulsos).
+ *
+ * Não muta as entradas. Retorna as escolhas na ordem em que foram aplicadas.
+ */
+export function pickAllPackagesForAttendance(
+  packageCalcs: PkgCalc[],
+  codeSet: Set<string>,
+  attCompanyIds: Set<string>,
+  maxIterations = 20,
+): PkgMatch[] {
+  const picks: PkgMatch[] = [];
+  const globallyAbsorbed = new Set<string>();
+  const usedCalcIds = new Set<string>();
+
+  for (let i = 0; i < maxIterations; i++) {
+    const remaining = new Set<string>([...codeSet].filter((c) => !globallyAbsorbed.has(c)));
+    if (remaining.size === 0) break;
+
+    const eligible = packageCalcs.filter((c) => !usedCalcIds.has(c.calc_id));
+    const winner = pickPackageForAttendance(eligible, remaining, attCompanyIds);
+    if (!winner) break;
+
+    picks.push(winner);
+    usedCalcIds.add(winner.calc.calc_id);
+    for (const c of winner.absorbedCodes) globallyAbsorbed.add(c);
+  }
+  return picks;
+}
+
+
 
 /**
  * Constrói o codeSet expandido cross-PJ a partir de linhas (attendance_number, procedure_code)
