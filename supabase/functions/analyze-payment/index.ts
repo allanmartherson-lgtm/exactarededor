@@ -2121,7 +2121,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           patch.gross_amount = u.expected_amount ?? null;
         }
       }
-      await supabase.from("payment_items").update(patch).eq("id", u.id);
+      const { error: updateErr } = await supabase.from("payment_items").update(patch).eq("id", u.id);
+      if (updateErr) {
+        throw new Error(`Falha ao atualizar item ${u.id}: ${updateErr.message}`);
+      }
     });
     console.timeEnd(`${__t} writes_payment_items`);
 
