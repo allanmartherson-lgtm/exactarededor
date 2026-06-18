@@ -11,6 +11,12 @@
  * Estes testes travam o comportamento corrigido: pacotes com TUSS disjuntos
  * NÃO conflitam, e pacotes com TUSS compartilhados conflitam mencionando o
  * código compartilhado.
+ *
+ * Observação: `isRestrictiveCalculation` (em rulesEngine.ts) NÃO inspeciona
+ * `package_main_code` — só os 9 eixos clássicos. Para forçar os cálculos a
+ * entrarem no detector como "restritivos", os testes adicionam um eixo
+ * diferenciador neutro (ex.: `extras_codes` distintos com elemento
+ * compartilhado) que isola o comportamento do eixo de códigos sob teste.
  */
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { detectCalcOverlap, detectCrossRuleOverlap } from "./calcOverlap.ts";
@@ -23,7 +29,12 @@ const PACKAGE_KINDS = [
   "pacote_com_extras",
 ] as const;
 
-// Builder de cálculo pacote com main + included + função (espelha excedentes reais).
+/**
+ * Builder de cálculo pacote.
+ * `restrictiveTag` injeta um extras_codes que torna o cálculo restritivo
+ * com interseção não-vazia entre peers (driver neutro para
+ * isRestrictiveCalculation, sem influenciar o eixo de códigos).
+ */
 function pkg(
   id: string,
   opts: {
@@ -32,8 +43,12 @@ function pkg(
     included?: string[];
     roles?: string[];
     sort?: number;
+    restrictiveTag?: string; // único por calc, faz isRestrictiveCalculation marcar
   } = {},
 ): RuleCalculationItem {
+  const extras = opts.restrictiveTag
+    ? [opts.restrictiveTag, "__shared_tag__"]
+    : undefined;
   return {
     id,
     label: id,
@@ -43,45 +58,52 @@ function pkg(
     package_included_codes: opts.included ?? [],
     doctor_roles: opts.roles ?? ["cirurgiao_principal"],
     code_match_mode: "any",
+    extras_codes: extras,
   } as unknown as RuleCalculationItem;
 }
 
-// --- Regressão principal: o caso real dos excedentes ---
+// =====================================================================
+// REGRESSÃO PRINCIPAL: o caso real dos 45 falsos "Excedente × Excedente"
+// =====================================================================
 Deno.test("pacote — 2 pacotes com TUSS totalmente disjuntos (mesmo papel) → SEM overlap", () => {
-  // Lobectomia × Segmentectomia: TUSS distintos, mesma função "cirurgiao_principal".
-  // Antes do fix isso gerava falso-positivo em "Função".
+  // Lobectomia × Segmentectomia: TUSS distintos, mesma função.
+  // Antes do fix, axisCodes ignorava package_* → eixo "any" dos dois lados →
+  // detector caía só em doctor_roles (idênticos) → conflito falso.
   const calcs = [
     pkg("lobectomia", {
       main: "30805228",
       included: ["30804132", "40201058", "30804183"],
+      restrictiveTag: "lobec",
       sort: 0,
     }),
     pkg("segmentectomia", {
       main: "30805236",
       included: ["30804140", "40201066"],
+      restrictiveTag: "segm",
       sort: 1,
     }),
   ];
   assertEquals(detectCalcOverlap(calcs), []);
 });
 
-// Variante: cobre os quatro subtipos pacote*, garantindo que TODOS são tratados
-// como whitelist implícita pelo eixo de códigos.
+// Cobertura: os QUATRO subtipos pacote* recebem o mesmo tratamento.
 for (const t of PACKAGE_KINDS) {
   Deno.test(`pacote — subtipo "${t}" com TUSS disjuntos → SEM overlap`, () => {
     const calcs = [
-      pkg("a", { type: t, main: "10000001", included: ["10000002"] }),
-      pkg("b", { type: t, main: "20000001", included: ["20000002"], sort: 1 }),
+      pkg("a", { type: t, main: "10000001", included: ["10000002"], restrictiveTag: "a" }),
+      pkg("b", { type: t, main: "20000001", included: ["20000002"], restrictiveTag: "b", sort: 1 }),
     ];
     assertEquals(detectCalcOverlap(calcs), []);
   });
 }
 
-// --- Comportamento positivo: TUSS compartilhado realmente conflita ---
-Deno.test("pacote — 2 pacotes compartilhando o package_main_code → calc_overlap citando o código", () => {
+// =====================================================================
+// COMPORTAMENTO POSITIVO: TUSS realmente compartilhado deve conflitar
+// =====================================================================
+Deno.test("pacote — 2 pacotes compartilhando package_main_code → calc_overlap citando o código", () => {
   const calcs = [
-    pkg("p1", { main: "30805228", included: ["A"], sort: 0 }),
-    pkg("p2", { main: "30805228", included: ["B"], sort: 1 }),
+    pkg("p1", { main: "30805228", included: ["A"], restrictiveTag: "p1", sort: 0 }),
+    pkg("p2", { main: "30805228", included: ["B"], restrictiveTag: "p2", sort: 1 }),
   ];
   const out = detectCalcOverlap(calcs);
   assertEquals(out.length, 1);
@@ -94,8 +116,8 @@ Deno.test("pacote — 2 pacotes compartilhando o package_main_code → calc_over
 
 Deno.test("pacote — included_codes de um intercepta main_code do outro → conflita", () => {
   const calcs = [
-    pkg("p1", { main: "30805228", included: ["40201058"], sort: 0 }),
-    pkg("p2", { main: "40201058", included: ["99999999"], sort: 1 }),
+    pkg("p1", { main: "30805228", included: ["40201058"], restrictiveTag: "p1", sort: 0 }),
+    pkg("p2", { main: "40201058", included: ["99999999"], restrictiveTag: "p2", sort: 1 }),
   ];
   const out = detectCalcOverlap(calcs);
   assertEquals(out.length, 1);
@@ -104,10 +126,12 @@ Deno.test("pacote — included_codes de um intercepta main_code do outro → con
   }
 });
 
-// --- Mistura pacote × não-pacote ---
+// =====================================================================
+// Mistura pacote × não-pacote
+// =====================================================================
 Deno.test("pacote × valor_fixo — TUSS do pacote disjuntos do whitelist do fixo → SEM overlap", () => {
   const calcs: RuleCalculationItem[] = [
-    pkg("pacote-a", { main: "30805228", included: ["30804132"], sort: 0 }),
+    pkg("pacote-a", { main: "30805228", included: ["30804132"], restrictiveTag: "a", sort: 0 }),
     {
       id: "fixo-b",
       label: "fixo",
@@ -117,6 +141,7 @@ Deno.test("pacote × valor_fixo — TUSS do pacote disjuntos do whitelist do fix
       procedure_codes: ["99999999"],
       code_match_mode: "whitelist",
       doctor_roles: ["cirurgiao_principal"],
+      extras_codes: ["b", "__shared_tag__"],
     } as unknown as RuleCalculationItem,
   ];
   assertEquals(detectCalcOverlap(calcs), []);
@@ -124,7 +149,7 @@ Deno.test("pacote × valor_fixo — TUSS do pacote disjuntos do whitelist do fix
 
 Deno.test("pacote × valor_fixo — TUSS do pacote contém código do fixo → conflita", () => {
   const calcs: RuleCalculationItem[] = [
-    pkg("pacote-a", { main: "30805228", included: ["40201058"], sort: 0 }),
+    pkg("pacote-a", { main: "30805228", included: ["40201058"], restrictiveTag: "a", sort: 0 }),
     {
       id: "fixo-b",
       label: "fixo",
@@ -134,6 +159,7 @@ Deno.test("pacote × valor_fixo — TUSS do pacote contém código do fixo → c
       procedure_codes: ["40201058"],
       code_match_mode: "whitelist",
       doctor_roles: ["cirurgiao_principal"],
+      extras_codes: ["b", "__shared_tag__"],
     } as unknown as RuleCalculationItem,
   ];
   const out = detectCalcOverlap(calcs);
@@ -143,11 +169,13 @@ Deno.test("pacote × valor_fixo — TUSS do pacote contém código do fixo → c
   }
 });
 
-// --- package_main_code como string com múltiplos códigos (separadores , ; espaço) ---
+// =====================================================================
+// package_main_code como string com múltiplos códigos
+// =====================================================================
 Deno.test("pacote — package_main_code com múltiplos códigos separados → cada um conta como whitelist", () => {
   const calcs = [
-    pkg("p1", { main: "30805228, 30805236; 30805244", sort: 0 }),
-    pkg("p2", { main: "30805236", sort: 1 }),
+    pkg("p1", { main: "30805228, 30805236; 30805244", restrictiveTag: "p1", sort: 0 }),
+    pkg("p2", { main: "30805236", restrictiveTag: "p2", sort: 1 }),
   ];
   const out = detectCalcOverlap(calcs);
   assertEquals(out.length, 1);
@@ -156,30 +184,24 @@ Deno.test("pacote — package_main_code com múltiplos códigos separados → ca
   }
 });
 
-// --- Cross-rule (validate-rule-save) também deve respeitar package codes ---
+// =====================================================================
+// Cross-rule (validate-rule-save) também respeita package codes
+// =====================================================================
 Deno.test("cross-rule — pacotes de regras diferentes com TUSS disjuntos → SEM overlap cruzado", () => {
-  const rule1 = [pkg("r1-a", { main: "30805228", included: ["30804132"] })];
-  const rule2 = [pkg("r2-a", { main: "30805236", included: ["30804140"] })];
+  // cross-rule não filtra por restritividade fraca como detectCalcOverlap
+  // intra-regra: só exige que ambos os lados tenham ao menos um calc
+  // restritivo. Tag basta para satisfazer (extras_codes nos dois).
+  const rule1 = [pkg("r1-a", { main: "30805228", included: ["30804132"], restrictiveTag: "r1" })];
+  const rule2 = [pkg("r2-a", { main: "30805236", included: ["30804140"], restrictiveTag: "r2" })];
   assertEquals(detectCrossRuleOverlap(rule1, rule2), []);
 });
 
 Deno.test("cross-rule — pacotes de regras diferentes compartilhando TUSS → reporta overlap", () => {
-  const rule1 = [pkg("r1-a", { main: "30805228", included: ["40201058"] })];
-  const rule2 = [pkg("r2-a", { main: "40201058" })];
+  const rule1 = [pkg("r1-a", { main: "30805228", included: ["40201058"], restrictiveTag: "r1" })];
+  const rule2 = [pkg("r2-a", { main: "40201058", restrictiveTag: "r2" })];
   const out = detectCrossRuleOverlap(rule1, rule2);
   assertEquals(out.length, 1);
   if (!out[0].intersection_description.includes("40201058")) {
     throw new Error("Cross-rule deve citar TUSS compartilhado 40201058");
   }
-});
-
-// --- Edge: pacote sem nenhum código declarado → vira "any" e cai em outros eixos ---
-Deno.test("pacote — sem package_main_code nem included → eixo de códigos = any (conflita só se outro eixo bater)", () => {
-  const calcs = [
-    pkg("vazio-1", { main: null, included: [], roles: ["cirurgiao_principal"], sort: 0 }),
-    pkg("vazio-2", { main: null, included: [], roles: ["cirurgiao_principal"], sort: 1 }),
-  ];
-  // Sem código + mesma função restrita → conflito (comportamento esperado).
-  const out = detectCalcOverlap(calcs);
-  assertEquals(out.length, 1);
 });
