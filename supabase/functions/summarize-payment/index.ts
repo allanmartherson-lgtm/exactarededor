@@ -108,11 +108,18 @@ serve(async (req) => {
       .eq("payment_id", payment_id);
 
     // 3b. Composição financeira agregada do lote (pool, glosa, conciliação separados)
+    // Só usamos se TODOS os snapshots estiverem computados — caso contrário a soma
+    // fica parcial e a IA alucina "divergência bruto vs líquido" comparando o líquido
+    // total do lote (completo) contra um bruto agregado incompleto.
     const { data: pcf } = await supabase
       .from("payment_company_financials")
-      .select("bruto, debitos, creditos, glosas, pool, conciliacao, liquido")
+      .select("bruto, debitos, creditos, glosas, pool, conciliacao, liquido, computed_at, company_id")
       .eq("payment_id", payment_id);
-    const composicao = (pcf ?? []).reduce(
+    const totalGroups = (groups ?? []).length;
+    const pcfRows = pcf ?? [];
+    const computedRows = pcfRows.filter((r: any) => r.computed_at != null);
+    const composicaoCompleta = totalGroups > 0 && computedRows.length === totalGroups;
+    const composicao = computedRows.reduce(
       (acc, r: any) => ({
         bruto: acc.bruto + Number(r.bruto || 0),
         debitos: acc.debitos + Number(r.debitos || 0),
@@ -130,13 +137,20 @@ serve(async (req) => {
 
 
     // 4. Últimas observações (analista/validador/diretor)
-    const { data: observations } = await supabase
+    // Filtra observações automáticas (reanálise, recálculo, reprocessamento, auditoria do motor)
+    // — são operação rotineira de ajuste, não achado financeiro. Sem isso a IA passa a citar
+    // "regras reaplicadas N vezes" como sinal de risco.
+    const AUTO_OBS_PATTERNS = /reanális|reanalis|reaplic|reprocess|recálcul|recalcul|motor:|auditoria do motor|divergência pós-split|pós-split|pos-split/i;
+    const { data: observationsRaw } = await supabase
       .from("payment_observations")
       .select("observation_type, message, created_at, author_type")
       .eq("payment_id", payment_id)
       .in("author_type", ["analista", "validador", "diretor"])
       .order("created_at", { ascending: false })
-      .limit(5);
+      .limit(20);
+    const observations = (observationsRaw ?? [])
+      .filter((o) => !AUTO_OBS_PATTERNS.test(String(o.message ?? "")))
+      .slice(0, 5);
 
     const contexto = {
       lote: {
