@@ -568,12 +568,28 @@ export function ItemsDataGrid({
       hasPackage: boolean;
     };
 
-    // 1) Descobrir atendimentos com pacote (para sinalizar o header).
+    // 1) Descobrir atendimentos com pacote REAL para sinalizar o header.
+    //    Pacote real = atendimento tem ao menos um item absorvido pelo pacote
+    //    (package_absorbed=true). Cálculos cadastrados como "pacote" mas que
+    //    rodam para um único código solto NÃO contam — esse é o caso de
+    //    "valor fixo por função" mal-catalogado que poluía a tela com 📦.
     const pkgAtts = new Set<string>();
+    const absorbedAtts = new Set<string>();
+    for (const it of filtered) {
+      const att = (it.attendance_number ?? "").toString().trim();
+      if (!att) continue;
+      if ((it as any).package_absorbed === true) {
+        absorbedAtts.add(att);
+        pkgAtts.add(att);
+      }
+    }
+    // Para o reagrupamento visual, ainda precisamos saber quem usa o método
+    // "pacote" (clusterKey separa o pacote dos demais métodos do atendimento).
+    const pkgMethodAtts = new Set<string>();
     for (const it of filtered) {
       if ((it as any).applied_calc_method !== "pacote") continue;
       const att = (it.attendance_number ?? "").toString().trim();
-      if (att) pkgAtts.add(att);
+      if (att) pkgMethodAtts.add(att);
     }
 
     // 2) Reordenar: para CADA atendimento, despejar todos os seus itens em
