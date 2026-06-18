@@ -1091,7 +1091,6 @@ export function selectWinningRule(
   };
 
   const bucketProcessed = new Set<string>();
-  const itemSectorNorm = SECTOR_MAP[normName(itemSector)] || normName(itemSector);
 
   for (const lvl of levels) {
     if (lvl.enabled === false) continue;
