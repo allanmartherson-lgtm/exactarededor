@@ -1784,7 +1784,7 @@ export function ItemsDataGrid({
                       </>
                     )}
 
-                    {showItemRow && (
+                    {showItemRow && !(attKey && isAttCollapsed) && (
                       <RowMain
                         key={it.id}
                         it={it}
