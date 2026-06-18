@@ -255,7 +255,7 @@ serve(async (req) => {
     const RULE_CALCS_SELECT = `
       id,rule_id,label,sort_order,calculation_type,
       time_mode,time_start,time_end,weekdays,includes_holidays,elective_mode,
-      convenio_percentage,fixed_amount,
+      convenio_percentage,fixed_amount,fixed_amount_by_role,
       package_amount,package_main_code,package_included_codes,package_visits_count,
       package_opinions_count,package_auxiliaries_included,package_subtype,extras_codes,
       reference_table_id,multiplier,deflator_pct,repasse_pct,acrescimo_pct,

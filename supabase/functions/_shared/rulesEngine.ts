@@ -1903,6 +1903,10 @@ export interface ExpectedCalc {
     noturno_inicio: string | null;
     noturno_fim: string | null;
   } | null;
+  /** Tipo de cálculo do filho vencedor (calculations[]). Quando presente,
+   *  tem precedência sobre rule.calculation_type para carimbar
+   *  applied_calc_method — evita herdar o tipo "pai" da regra. */
+  winner_calc_type?: CalculationType | null;
 }
 
 
@@ -2366,6 +2370,7 @@ export function applyCalculation(
       steps: winnerCalc.steps,
       inferred_sector: (winnerCalc as any).inferred_sector,
       temporal_surcharge_config: winnerCalc.temporal_surcharge_config ?? null,
+      winner_calc_type: (winnerCalc.calculation_type as CalculationType) ?? null,
       ...(resolutionStale ? {
         calc_duplicity: {
           rule_id: rule.id, rule_name: rule.name,
@@ -2929,7 +2934,7 @@ export function analyzeItem(
       }
     }
     priority = winnerPriority;
-    calculation_type_used = winner.calculation_type;
+    calculation_type_used = (calc?.winner_calc_type as any) ?? winner.calculation_type;
     matched_rule_id = winner.id;
     matched_rule_name = winner.name;
 
@@ -2983,7 +2988,7 @@ export function analyzeItem(
           calc.breakdown = [...oldBreakdown, ...(calc.breakdown ?? [])];
         }
         priority = fPriority;
-        calculation_type_used = fRule.calculation_type;
+        calculation_type_used = (fCalc?.winner_calc_type as any) ?? fRule.calculation_type;
         matched_rule_id = fRule.id;
         matched_rule_name = fRule.name;
 
