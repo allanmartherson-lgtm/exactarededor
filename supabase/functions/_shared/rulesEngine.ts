@@ -1502,6 +1502,26 @@ function calcValorFixo(rule: RuleInput, item?: ItemInput, ctx?: EngineCtx): Expe
       };
     }
   }
+  // Valor por função (override) — vence sobre o valor global se a função do item
+  // estiver mapeada e tiver um valor numérico explícito.
+  const byRole = rule.fixed_amount_by_role ?? null;
+  if (byRole && item) {
+    const roleKey = classifyDoctorRole(item.doctor_role);
+    const raw = byRole[roleKey];
+    if (raw != null && isFinite(Number(raw))) {
+      const v = Number(raw);
+      const roleLabel = roleKey === "cirurgiao" ? "Cirurgião Principal"
+        : roleKey === "primeiro_aux" ? "1º Auxiliar"
+        : roleKey === "demais_aux" ? "Demais Auxiliares"
+        : roleKey === "instrumentador" ? "Instrumentador"
+        : item.doctor_role ?? "função";
+      return {
+        expected: Number(v.toFixed(2)),
+        explanation: `Valor fixo por função "${roleLabel}": R$ ${v.toFixed(2)}`,
+        alerts: [],
+      };
+    }
+  }
   if (rule.fixed_amount == null) return { expected: null, explanation: "valor_fixo sem fixed_amount.", alerts: ["Valor fixo não configurado."] };
   return { expected: Number(rule.fixed_amount), explanation: `Valor fixo: R$ ${rule.fixed_amount.toFixed(2)}`, alerts: [] };
 }
