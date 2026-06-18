@@ -1968,20 +1968,71 @@ function buildCalcFormula(it: {
   return lines;
 }
 
-function CalcFormulaBlock({ item }: { item: Parameters<typeof buildCalcFormula>[0] }) {
+function CalcFormulaBlock({
+  item,
+}: {
+  item: Parameters<typeof buildCalcFormula>[0] & { applied_calc_id?: string | null };
+}) {
   const lines = buildCalcFormula(item);
-  if (lines.length === 0) return null;
+  const [calcMeta, setCalcMeta] = useState<{
+    label: string | null;
+    package_main_code: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    const calcId = item.applied_calc_id;
+    if (!calcId) {
+      setCalcMeta(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("rule_calculations")
+      .select("label,package_main_code")
+      .eq("id", calcId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setCalcMeta(
+          data
+            ? { label: (data as any).label ?? null, package_main_code: (data as any).package_main_code ?? null }
+            : null,
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [item.applied_calc_id]);
+
+  if (lines.length === 0 && !calcMeta?.label) return null;
   return (
     <div className="mt-2 pt-2 border-t border-border/60">
-      <Label>Fórmula aplicada</Label>
-      <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
-        {lines.map((l, i) => (
-          <Fragment key={i}>
-            <dt className="text-muted-foreground">{l.label}</dt>
-            <dd className={cn("break-words", l.mono && "tabular-nums font-mono")}>{l.value}</dd>
-          </Fragment>
-        ))}
-      </dl>
+      {calcMeta?.label && (
+        <div className="mb-2">
+          <Label>Linha de cálculo</Label>
+          <p className="mt-0.5 text-[13px] font-medium break-words">
+            {calcMeta.label}
+            {calcMeta.package_main_code && (
+              <span className="ml-2 text-[11px] font-mono text-muted-foreground">
+                · TUSS {calcMeta.package_main_code}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+      {lines.length > 0 && (
+        <>
+          <Label>Fórmula aplicada</Label>
+          <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
+            {lines.map((l, i) => (
+              <Fragment key={i}>
+                <dt className="text-muted-foreground">{l.label}</dt>
+                <dd className={cn("break-words", l.mono && "tabular-nums font-mono")}>{l.value}</dd>
+              </Fragment>
+            ))}
+          </dl>
+        </>
+      )}
     </div>
   );
 }
