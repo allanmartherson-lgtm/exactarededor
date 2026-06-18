@@ -256,16 +256,31 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     setRulesByName(nameIdx);
   }, [id]);
 
+  // Wrapper com lock + trailing single-flight (ver loadInFlightRef acima).
+  const loadGuarded = useCallback(async () => {
+    if (loadInFlightRef.current) {
+      loadPendingRef.current = true;
+      return;
+    }
+    loadInFlightRef.current = true;
+    try {
+      do {
+        loadPendingRef.current = false;
+        await load();
+      } while (loadPendingRef.current);
+    } finally {
+      loadInFlightRef.current = false;
+    }
+  }, [load]);
+
   useEffect(() => {
-    load();
-    // Cleanup: aborta o request HTTP em voo + invalida o token (defesa em
-    // profundidade) ao trocar :id ou desmontar.
+    loadGuarded();
     return () => {
       loadTokenRef.current++;
       abortRef.current?.abort();
       abortRef.current = null;
     };
-  }, [load]);
+  }, [loadGuarded]);
 
   /**
    * Realtime: assina mudanças em payment_observations e invoice_questions
