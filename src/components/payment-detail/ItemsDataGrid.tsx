@@ -1976,10 +1976,10 @@ function CalcFormulaBlock({ item }: { item: Parameters<typeof buildCalcFormula>[
       <Label>Fórmula aplicada</Label>
       <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
         {lines.map((l, i) => (
-          <React.Fragment key={i}>
+          <Fragment key={i}>
             <dt className="text-muted-foreground">{l.label}</dt>
             <dd className={cn("break-words", l.mono && "tabular-nums font-mono")}>{l.value}</dd>
-          </React.Fragment>
+          </Fragment>
         ))}
       </dl>
     </div>
