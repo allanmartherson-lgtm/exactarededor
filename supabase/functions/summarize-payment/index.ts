@@ -193,21 +193,26 @@ serve(async (req) => {
         impacto_total: excecoesImpacto,
         amostra: excecoesAmostra,
       },
-      composicao_financeira: {
-        bruto: Math.round(composicao.bruto * 100) / 100,
-        liquido: Math.round(composicao.liquido * 100) / 100,
-        reducao_total: Math.round(reducaoTotal * 100) / 100,
-        // Pool/rateio = modelo de negociação contratual entre médicos/empresa (neutro, NÃO é risco)
-        pool_rateio: Math.round(composicao.pool * 100) / 100,
-        // Débitos contratuais aplicados (fixos, plantões etc.) — neutro
-        debitos_contratuais: Math.round(composicao.debitos * 100) / 100,
-        creditos: Math.round(composicao.creditos * 100) / 100,
-        // Glosas = perda financeira real (risco)
-        glosas: Math.round(composicao.glosas * 100) / 100,
-        // Conciliação ≠ 0 = divergência NF vs base (risco)
-        conciliacao: Math.round(composicao.conciliacao * 100) / 100,
-        reducao_nao_explicada: reducaoNaoExplicada,
-      },
+      composicao_financeira: composicaoCompleta
+        ? {
+            bruto: Math.round(composicao.bruto * 100) / 100,
+            liquido: Math.round(composicao.liquido * 100) / 100,
+            reducao_total: Math.round(reducaoTotal * 100) / 100,
+            // Pool/rateio = modelo de negociação contratual entre médicos/empresa (neutro, NÃO é risco)
+            pool_rateio: Math.round(composicao.pool * 100) / 100,
+            // Débitos contratuais aplicados (fixos, plantões etc.) — neutro
+            debitos_contratuais: Math.round(composicao.debitos * 100) / 100,
+            creditos: Math.round(composicao.creditos * 100) / 100,
+            // Glosas = perda financeira real (risco)
+            glosas: Math.round(composicao.glosas * 100) / 100,
+            // Conciliação ≠ 0 = divergência NF vs base (risco)
+            conciliacao: Math.round(composicao.conciliacao * 100) / 100,
+            reducao_nao_explicada: reducaoNaoExplicada,
+          }
+        : {
+            indisponivel: true,
+            motivo: `Snapshots financeiros incompletos (${computedRows.length}/${totalGroups} empresas) — recompute em andamento.`,
+          },
     };
 
     const generalPrompt = `Você é um auditor sênior de pagamentos médicos. Gere um RESUMO EXECUTIVO objetivo e direto sobre um lote de pagamento, em português do Brasil.
@@ -216,6 +221,8 @@ REGRAS:
 - Seja conciso, técnico e prático. Nada de jargão vago.
 - Use somente fatos presentes no contexto JSON. Nunca invente números, regras ou empresas.
 - O resumo deve ajudar analista, validador e diretor a entender o lote em <30s.
+- Operação de processo (reanálises, recálculos, reprocessamentos do motor) NÃO é achado financeiro: NÃO mencione "regras reaplicadas N vezes", "ajustes em andamento" nem coisas do tipo. Foque exclusivamente em conteúdo financeiro do lote.
+- Se composicao_financeira.indisponivel === true, NÃO cite bruto da composição, "redução não explicada", nem compare líquido vs bruto da composição. Use apenas lote.valor_liquido e lote.valor_bruto para qualquer menção a bruto/líquido.
 
 CLASSIFICAÇÃO DA DIFERENÇA BRUTO → LÍQUIDO (composicao_financeira):
 - NEUTRO (NÃO é risco, não eleva risk_level, não alarmar): pool_rateio, debitos_contratuais, creditos.
