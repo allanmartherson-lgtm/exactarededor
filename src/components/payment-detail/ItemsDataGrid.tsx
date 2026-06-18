@@ -205,6 +205,7 @@ export function ItemsDataGrid({
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
   const [onlyAdjusted, setOnlyAdjusted] = useState(false);
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
+  const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
   // Painel de absorção manual de códigos no pacote (analista).
   const [absorcoesOpenAtt, setAbsorcoesOpenAtt] = useState<string | null>(null);
