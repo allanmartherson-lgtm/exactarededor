@@ -340,10 +340,13 @@ serve(async (req) => {
         rulesQuery = rulesQuery.eq("hospital_id", paymentHospitalId);
       }
       if (scopedCompanyId) {
-        // Carrega master + especifica da PJ + TODAS as regras de grupo (o motor decide
-        // via targetsGroup; group_doctors seguem o médico em qualquer PJ).
+        // Carrega master + TODAS as regras de grupo (o motor decide via targetsGroup;
+        // group_doctors seguem o médico em qualquer PJ) + especifica da PJ +
+        // TODAS as especifica de médico (o motor decide via targetsDoctor; uma
+        // regra específica de médico vale independentemente da PJ pela qual ele
+        // esteja faturando — ex.: "Repasse Dra Joana" não tem target_company_id).
         rulesQuery = rulesQuery.or(
-          `scope.eq.master,scope.eq.grupo,and(scope.eq.especifica,target_company_id.eq.${scopedCompanyId})`
+          `scope.eq.master,scope.eq.grupo,and(scope.eq.especifica,target_type.eq.medico),and(scope.eq.especifica,target_company_id.eq.${scopedCompanyId})`
         );
       }
 
