@@ -1423,6 +1423,13 @@ export function calcFromDb(r: any): CalcItem {
     label: r.label,
     calculation_type: r.calculation_type as RuleCalculationType,
     fixed_amount: r.fixed_amount != null ? String(r.fixed_amount) : "",
+    fixed_amount_by_role: (r.fixed_amount_by_role && typeof r.fixed_amount_by_role === "object")
+      ? Object.fromEntries(
+          Object.entries(r.fixed_amount_by_role as Record<string, unknown>)
+            .filter(([, v]) => v != null && v !== "")
+            .map(([k, v]) => [k, String(v)]),
+        )
+      : {},
     target_amount: r.target_amount != null ? String(r.target_amount) : "",
     multiplier: r.multiplier != null ? String(r.multiplier) : "",
     deflator_pct: r.deflator_pct != null ? String(r.deflator_pct) : "",
