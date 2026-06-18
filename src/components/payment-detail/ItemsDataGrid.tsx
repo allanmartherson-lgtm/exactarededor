@@ -1545,6 +1545,28 @@ export function ItemsDataGrid({
                 if (isPackageItem && isPackageCollapsed && !isFirstPkgItem) return null;
                 const showItemRow = !isPackageItem || !isPackageCollapsed;
 
+                // === Agrupamento por atendimento (card) ===
+                const attKey = (it.attendance_number ?? "").toString().trim();
+                const attMeta = attKey ? attendanceMeta.get(attKey) : undefined;
+                const isFirstAtt = !!attKey && attendanceFirstIdxByAtt.get(attKey) === idx;
+                const isAttCollapsed = !!attKey && collapsedAttendances.has(attKey);
+                // Quando atendimento colapsado: esconder TODAS as linhas (header substitui).
+                if (attKey && isAttCollapsed && !isFirstAtt) return null;
+                // Pula também banners/sub-bandas internos se colapsado.
+                const hideInnerBands = attKey && isAttCollapsed;
+
+                // Sub-banda por método de cálculo (dentro do mesmo atendimento)
+                // — não emite banda para pacote (PackageBannerRow já cobre) nem
+                //   para bonus/ajustes (já têm separadores próprios).
+                const calcMethod = (it as any).applied_calc_method as string | null | undefined;
+                const prevAttKey = prev ? (prev.attendance_number ?? "").toString().trim() : "";
+                const prevCalcMethod = prev ? ((prev as any).applied_calc_method as string | null | undefined) : null;
+                const sameAtt = !!attKey && prevAttKey === attKey;
+                const calcChanged = sameAtt && calcMethod !== prevCalcMethod;
+                const isPacoteBand = calcMethod === "pacote" || (it as any).package_absorbed === true;
+                const shouldEmitRuleBand =
+                  !isFirstAtt && sameAtt && calcChanged && !isPacoteBand && !isAdjust && !isBonus && !!calcMethod;
+
 
                 return (
                   <Fragment key={it.id}>
