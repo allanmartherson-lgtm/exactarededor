@@ -341,14 +341,9 @@ serve(async (req) => {
         rulesQuery = rulesQuery.eq("hospital_id", paymentHospitalId);
       }
       if (scopedCompanyId) {
-        // Carrega master + TODAS as regras de grupo (o motor decide via targetsGroup;
-        // group_doctors seguem o médico em qualquer PJ) + especifica da PJ +
-        // TODAS as especifica de médico (o motor decide via targetsDoctor; uma
-        // regra específica de médico vale independentemente da PJ pela qual ele
-        // esteja faturando — ex.: "Repasse Dra Joana" não tem target_company_id).
-        rulesQuery = rulesQuery.or(
-          `scope.eq.master,scope.eq.grupo,and(scope.eq.especifica,target_type.eq.medico),and(scope.eq.especifica,target_company_id.eq.${scopedCompanyId})`
-        );
+        // Filtro canônico — ver `_shared/scopedRulesFilter.ts` + teste de
+        // contrato `scopedRulesFilter_test.ts`. NÃO duplicar o OR à mão.
+        rulesQuery = rulesQuery.or(buildScopedRulesOr(scopedCompanyId));
       }
 
       const [configRes, rulesRes] = await Promise.all([
