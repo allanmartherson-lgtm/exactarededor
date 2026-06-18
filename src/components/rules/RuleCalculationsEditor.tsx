@@ -112,6 +112,13 @@ export type CalcItem = {
 
   /** Condições de contexto (somente para valor_fixo). */
   context_conditions: ContextConditionItem[];
+
+  /**
+   * Cálculo "piso" da regra: avaliado por último, ignora filtros de código
+   * (whitelist/blacklist de procedure_codes e procedure_keywords). Demais
+   * filtros continuam valendo. Máximo 1 por regra.
+   */
+  is_catch_all: boolean;
 };
 
 /** Condição de contexto editável (strings nos inputs, convertidas no salvar). */
