@@ -178,6 +178,8 @@ const PaymentDetail = () => {
   const {
     payment,
     items,
+    itemsLoading,
+    itemsLoadIssue,
     obs,
     profiles,
     aiVersions,
@@ -1934,7 +1936,9 @@ const PaymentDetail = () => {
         title={isConfeccao ? `🛠  ${payment.reference}` : payment.reference}
         description={payment.description ?? (() => {
           const liq = Number((payment as any).liquido_total ?? payment.total_amount ?? 0);
-          return `${items.length} itens · ${formatCurrency(liq)}`;
+          const persistedCount = Number((payment as any).items_count ?? 0);
+          const displayCount = items.length > 0 ? items.length : persistedCount;
+          return `${displayCount} itens · ${formatCurrency(liq)}`;
         })()}
         sticky
         actions={
@@ -2275,6 +2279,20 @@ const PaymentDetail = () => {
         })()}
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
+        {itemsLoadIssue && (
+          <Alert className="border-warning/40 bg-warning-soft/70 text-warning-text">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            <AlertTitle>Atualizando itens do lote</AlertTitle>
+            <AlertDescription>{itemsLoadIssue}</AlertDescription>
+          </Alert>
+        )}
+        {itemsLoading && !itemsLoadIssue && items.length === 0 && Number((payment as any).items_count ?? 0) > 0 && (
+          <Alert className="border-primary/30 bg-primary/5">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            <AlertTitle>Carregando itens do lote</AlertTitle>
+            <AlertDescription>A lista está sendo carregada sem zerar os dados persistidos.</AlertDescription>
+          </Alert>
+        )}
         {id && <BatchAIFailureReport paymentId={id} />}
         {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
         {!isNfPhase && (

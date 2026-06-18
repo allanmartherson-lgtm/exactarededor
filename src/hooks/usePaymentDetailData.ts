@@ -79,6 +79,8 @@ export type RuleLite = {
 export function usePaymentDetailData(id: string | undefined, options?: { groupId?: string }) {
   const [payment, setPayment] = useState<PaymentRow | null>(null);
   const [items, setItems] = useState<PaymentItemRow[]>([]);
+  const [itemsLoading, setItemsLoading] = useState(true);
+  const [itemsLoadIssue, setItemsLoadIssue] = useState<string | null>(null);
   const [obs, setObs] = useState<ObservationRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
@@ -98,10 +100,12 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
   // único refetch. Isso elimina o race em que vários loads paralelos se
   // sobrescrevem pelo loadTokenRef e deixam itens=[] na UI.
   const loadInFlightRef = useRef(false);
+  const loadInFlightPromiseRef = useRef<Promise<void> | null>(null);
   const loadPendingRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!id) return;
+    setItemsLoading(true);
     // NÃO abortamos o request anterior aqui. Durante a análise por IA, o
     // realtime dispara muitos refetches em sequência; abortar o anterior
     // faz a UI nunca terminar de carregar e ficar vazia até o usuário dar
@@ -110,15 +114,15 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     abortRef.current = ac;
     const myToken = ++loadTokenRef.current;
     const [
-      { data: p },
-      { data: it },
-      { data: o },
-      { data: pr },
-      { data: vs },
-      { data: gs },
-      { data: inv },
-      { data: qs },
-      { data: as },
+      paymentRes,
+      itemsRes,
+      obsRes,
+      profilesRes,
+      aiVersionsRes,
+      groupsRes,
+      invoicesRes,
+      questionsRes,
+      assignmentsRes,
     ] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).abortSignal(ac.signal).maybeSingle(),
       (async () => {
@@ -187,12 +191,34 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
 
     ]);
     if (myToken !== loadTokenRef.current || ac.signal.aborted) return;
+    const p = paymentRes.data;
+    const it = itemsRes.data;
+    const o = obsRes.data;
+    const pr = profilesRes.data;
+    const vs = aiVersionsRes.data;
+    const gs = groupsRes.data;
+    const inv = invoicesRes.data;
+    const qs = questionsRes.data;
+    const as = assignmentsRes.data;
     setPayment(p);
+    if (itemsRes.error) {
+      console.error("[PaymentDetail] Falha ao carregar itens; mantendo estado anterior", itemsRes.error);
+      setItemsLoadIssue("Falha temporária ao carregar itens. Recarregando…");
+      loadPendingRef.current = true;
+      return;
+    }
     // Itens cancelados: suprime todos os ai_findings, alerts e validation_findings
     // antes de qualquer consumidor (badges, contagens, alertas, tooltips).
     // Item cancelado não deve mais "gritar" como alerta/validação em nenhuma tela
     // de análise — espelha a decisão do analista de descontinuá-lo.
     const rawItems = (it ?? []) as unknown as PaymentItemRow[];
+    const expectedItems = Number((p as { items_count?: number | null } | null)?.items_count ?? 0);
+    if (expectedItems > 0 && rawItems.length === 0) {
+      console.warn("[PaymentDetail] Fetch retornou 0 itens para lote com items_count > 0; reagendando sem limpar a UI", { expectedItems });
+      setItemsLoadIssue("Itens temporariamente indisponíveis. Recarregando…");
+      loadPendingRef.current = true;
+      return;
+    }
     const sanitizedItems = rawItems.map((row) => {
       if (!(row as any).is_cancelled) return row;
       return {
@@ -204,6 +230,8 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
       } as PaymentItemRow;
     });
     setItems(sanitizedItems);
+    setItemsLoading(false);
+    setItemsLoadIssue(null);
     setObs(o ?? []);
     setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
     setGroups(gs ?? []);
@@ -260,16 +288,30 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
   const loadGuarded = useCallback(async () => {
     if (loadInFlightRef.current) {
       loadPendingRef.current = true;
-      return;
+      return loadInFlightPromiseRef.current ?? Promise.resolve();
     }
     loadInFlightRef.current = true;
-    try {
+    const promise = (async () => {
       do {
         loadPendingRef.current = false;
-        await load();
+        try {
+          await load();
+        } catch (e) {
+          const aborted = e instanceof DOMException && e.name === "AbortError";
+          if (!aborted) {
+            console.error("[PaymentDetail] Falha no recarregamento", e);
+            setItemsLoadIssue("Falha temporária ao atualizar dados. Recarregando…");
+          }
+        }
+        if (loadPendingRef.current) await new Promise((resolve) => setTimeout(resolve, 800));
       } while (loadPendingRef.current);
+    })();
+    loadInFlightPromiseRef.current = promise;
+    try {
+      await promise;
     } finally {
       loadInFlightRef.current = false;
+      loadInFlightPromiseRef.current = null;
     }
   }, [load]);
 
@@ -407,6 +449,8 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     // state
     payment,
     items,
+    itemsLoading,
+    itemsLoadIssue,
     obs,
     profiles,
     aiVersions,
@@ -427,6 +471,6 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     setQuestions,
     setExpandedGroups,
     // actions
-    load,
+    load: loadGuarded,
   };
 }
