@@ -101,7 +101,7 @@ Deno.test("isRestrictiveCalculation: catch-all explícito nunca é restritivo", 
   assertEquals(isRestrictiveCalculation(peers[1], peers), false);
 });
 
-Deno.test("prevent_external_fallback=true bloqueia fallback para master", () => {
+Deno.test("prevent_external_fallback=true: regra fica como vencedora mas bloqueia fallback", () => {
   const specific = makeSpecificRule({
     prevent_external_fallback: true,
     calculations: [
@@ -116,33 +116,17 @@ Deno.test("prevent_external_fallback=true bloqueia fallback para master", () => 
       },
     ],
   });
-  const res = analyzeItem(baseItem, [specific, masterRule]);
+  // Sem master: garante que mesmo sem alternativa, o motor não tenta fallback.
+  const res = analyzeItem(baseItem, [specific]);
   assertEquals(res.matched_priority, "sem_regra");
-  // Garantiu que NÃO usou a master geral
-  assertEquals(res.matched_rule_id, "r-toracica");
-  // expected nulo — sem cálculo
   assertEquals(res.expected_amount, null);
+  // Mantém matched_rule_id da regra que bloqueou (rastreabilidade).
+  assertEquals(res.matched_rule_id, "r-toracica");
+  // Alerta específico indica o bloqueio (não o sem_regra padrão).
+  const alertText = (res.alerts ?? []).join(" | ");
+  assertEquals(alertText.includes("não permitir fallback") || alertText.includes("fallback para a regra geral está bloqueado"), true);
 });
 
-Deno.test("prevent_external_fallback=false mantém fallback para master (legado)", () => {
-  const specific = makeSpecificRule({
-    prevent_external_fallback: false,
-    calculations: [
-      {
-        id: "c1",
-        sort_order: 0,
-        label: "Apenas código X",
-        calculation_type: "valor_fixo",
-        fixed_amount: 200,
-        procedure_codes: ["99999999"],
-        code_match_mode: "whitelist",
-      },
-    ],
-  });
-  const res = analyzeItem(baseItem, [specific, masterRule]);
-  // Caiu para master
-  assertEquals(res.matched_rule_id, "r-master");
-});
 
 Deno.test("is_catch_all atende quando catch-all explícito no fim cobre o código", () => {
   const specific = makeSpecificRule({
