@@ -2401,7 +2401,7 @@ function applyCalculationSingle(
     case "percentual_sobre_convenio": return calcPercentual(rule, item);
     case "regra_vias":                return calcRegraVias(rule, item);
     case "pacote_fechado":            return calcPacoteFechado(rule, item, ctx);
-    case "pacote_com_extras":         return calcPacoteExtras(rule, item);
+    case "pacote_com_extras":         return calcPacoteExtras(rule, item, ctx);
     case "pacote_por_atendimento": {
       const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
       let set = map.get(rule.id);
