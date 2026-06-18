@@ -51,6 +51,8 @@ export type CalcItem = {
 
   // parâmetros financeiros (todos opcionais — dependem do método)
   fixed_amount: string;
+  /** Valor fixo por função médica (cirurgiao | primeiro_aux | demais_aux | instrumentador). Vazio = usa fixed_amount global. */
+  fixed_amount_by_role: Record<string, string>;
   target_amount: string;
   multiplier: string;
   deflator_pct: string;
