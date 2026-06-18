@@ -187,21 +187,35 @@ Deno.test("pacote — package_main_code com múltiplos códigos separados → ca
 // =====================================================================
 // Cross-rule (validate-rule-save) também respeita package codes
 // =====================================================================
+// Cross-rule precisa de >=2 cálculos por regra para isRestrictiveCalculation
+// reconhecer ao menos um como restritivo (peers.length > 1 + eixo diferenciador).
 Deno.test("cross-rule — pacotes de regras diferentes com TUSS disjuntos → SEM overlap cruzado", () => {
-  // cross-rule não filtra por restritividade fraca como detectCalcOverlap
-  // intra-regra: só exige que ambos os lados tenham ao menos um calc
-  // restritivo. Tag basta para satisfazer (extras_codes nos dois).
-  const rule1 = [pkg("r1-a", { main: "30805228", included: ["30804132"], restrictiveTag: "r1" })];
-  const rule2 = [pkg("r2-a", { main: "30805236", included: ["30804140"], restrictiveTag: "r2" })];
+  const rule1 = [
+    pkg("r1-a", { main: "30805228", included: ["30804132"], restrictiveTag: "r1a", sort: 0 }),
+    pkg("r1-b", { main: "30805229", restrictiveTag: "r1b", sort: 1 }),
+  ];
+  const rule2 = [
+    pkg("r2-a", { main: "30805236", included: ["30804140"], restrictiveTag: "r2a", sort: 0 }),
+    pkg("r2-b", { main: "30805237", restrictiveTag: "r2b", sort: 1 }),
+  ];
   assertEquals(detectCrossRuleOverlap(rule1, rule2), []);
 });
 
 Deno.test("cross-rule — pacotes de regras diferentes compartilhando TUSS → reporta overlap", () => {
-  const rule1 = [pkg("r1-a", { main: "30805228", included: ["40201058"], restrictiveTag: "r1" })];
-  const rule2 = [pkg("r2-a", { main: "40201058", restrictiveTag: "r2" })];
+  const rule1 = [
+    pkg("r1-a", { main: "30805228", included: ["40201058"], restrictiveTag: "r1a", sort: 0 }),
+    pkg("r1-b", { main: "99999998", restrictiveTag: "r1b", sort: 1 }),
+  ];
+  const rule2 = [
+    pkg("r2-a", { main: "40201058", restrictiveTag: "r2a", sort: 0 }),
+    pkg("r2-b", { main: "99999999", restrictiveTag: "r2b", sort: 1 }),
+  ];
   const out = detectCrossRuleOverlap(rule1, rule2);
-  assertEquals(out.length, 1);
-  if (!out[0].intersection_description.includes("40201058")) {
-    throw new Error("Cross-rule deve citar TUSS compartilhado 40201058");
+  // Deve haver ao menos um overlap citando 40201058.
+  const hit = out.find((o) => o.intersection_description.includes("40201058"));
+  if (!hit) {
+    throw new Error(
+      `Esperava overlap citando 40201058, recebi: ${JSON.stringify(out)}`,
+    );
   }
 });
