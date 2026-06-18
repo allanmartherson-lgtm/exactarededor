@@ -2467,6 +2467,18 @@ export default function CompanyAnalysis() {
           }}
         />
       )}
+
+      <ReapplyRulesProgressDialog
+        open={reapplyOpen}
+        onOpenChange={setReapplyOpen}
+        phase={reapplyPhase}
+        elapsedSec={reapplyElapsed}
+        totalItems={items.length}
+        errorMessage={reapplyError}
+        diff={reapplyDiff}
+        companyLabel={group?.company_name}
+      />
+
       <AlertDialog open={postConcluirOpen} onOpenChange={setPostConcluirOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
