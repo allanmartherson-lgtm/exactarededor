@@ -369,7 +369,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
       if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
-  }, [id, load]);
+  }, [id, loadGuarded]);
 
   /**
    * Polling de segurança (backup do Realtime): a cada 20s busca apenas a
