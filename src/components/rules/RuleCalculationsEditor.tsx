@@ -1458,6 +1458,7 @@ export function calcFromDb(r: any): CalcItem {
     adicional_noturno_pct: r.adicional_noturno_pct != null ? String(r.adicional_noturno_pct) : "",
     noturno_inicio: r.noturno_inicio ? String(r.noturno_inicio).slice(0, 5) : "",
     noturno_fim: r.noturno_fim ? String(r.noturno_fim).slice(0, 5) : "",
+    is_catch_all: !!r.is_catch_all,
   };
 }
 
