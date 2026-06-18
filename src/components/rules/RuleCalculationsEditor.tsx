@@ -778,6 +778,34 @@ function WhenApplySection({
         <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "hsl(var(--muted-foreground))" }}>Quando aplicar este cálculo</span>
         <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Deixe todos fechados para aplicar a qualquer item. Expanda apenas o que precisar restringir.</p>
       </div>
+
+      {/* Catch-all (piso da regra) — relaxa filtros de código */}
+      <div style={{
+        padding: "10px 14px",
+        background: c.is_catch_all ? "hsl(var(--primary) / 0.06)" : "hsl(var(--card))",
+        borderBottom: "1px solid hsl(var(--border) / 0.6)",
+      }}>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+          <Checkbox
+            checked={c.is_catch_all}
+            onCheckedChange={(v) => onChange({ is_catch_all: !!v })}
+          />
+          <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>Cálculo padrão da regra (catch-all)</span>
+            <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+              Avaliado por último; cobre qualquer código que não tenha batido nos cálculos anteriores.
+              Demais filtros (convênio, setor, função, via, horário) continuam valendo.
+              <strong> Máximo 1 por regra.</strong>
+            </span>
+          </span>
+        </label>
+        {c.is_catch_all && (
+          <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 6, marginLeft: 26 }}>
+            ⚠️ Filtros de código TUSS e palavras-chave deste cálculo serão <strong>ignorados</strong> pelo motor.
+          </p>
+        )}
+      </div>
+
       <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6, background: "hsl(var(--card))" }}>
 
         {!isPacote && (
