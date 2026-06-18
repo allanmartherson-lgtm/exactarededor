@@ -177,6 +177,7 @@ const CommunicationSupervision = lazy(loadCommunicationSupervision);
 const ProcessHealth = lazy(loadProcessHealth);
 const ReportsCentral = lazy(loadReportsCentral);
 const ExportAudit = lazy(loadExportAudit);
+const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal.tsx"));
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -327,6 +328,7 @@ const App = () => (
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><AuditLog /></ProtectedRoute>} />
                   <Route path="/auditoria/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><HospitalSwitchLog /></ProtectedRoute>} />
+                  <Route path="/auditoria/tuss-principal" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><AuditoriaTussPrincipal /></ProtectedRoute>} />
                   <Route path="/anomalias-status" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><StatusAnomalies /></ProtectedRoute>} />
                   <Route path="/insights-observacoes" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><ObservationInsights /></ProtectedRoute>} />
                   <Route path="/sobre" element={<About />} />
