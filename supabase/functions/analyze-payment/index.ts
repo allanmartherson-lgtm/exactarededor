@@ -920,6 +920,14 @@ serve(async (req) => {
           return r.includes(k);
         };
 
+        const packageCoverageFor = (calc: PkgCalc, codeSet: Set<string>) => {
+          const triggerCode = calc.package_main_codes.find((c) => codeSet.has(c));
+          if (!triggerCode) return null;
+          const includedFound = calc.package_included_codes.filter(c => codeSet.has(c));
+          if (calc.package_included_codes.length > 0 && includedFound.length === 0) return null;
+          return { triggerCode, includedFound };
+        };
+
         // Agrupa itens por attendance_number (sem attendance não participa de pacote)
         const byAttendance: Record<string, typeof items> = {};
         for (const it of items) {
@@ -975,8 +983,8 @@ serve(async (req) => {
 
           for (const calc of packageCalcs) {
             // Basta qualquer um dos main_codes estar presente
-            const triggerCode = calc.package_main_codes.find((c) => codeSet.has(c));
-            if (!triggerCode) continue;
+            const coverage = packageCoverageFor(calc, codeSet);
+            if (!coverage) continue;
 
             // Verifica se a regra se aplica à empresa dos itens deste atendimento
             if (calc.rule_scope === "grupo" && calc.rule_company_ids.size > 0) {
@@ -985,7 +993,7 @@ serve(async (req) => {
               if (!appliesToCompany) continue;
             }
 
-            const includedFound = calc.package_included_codes.filter(c => codeSet.has(c));
+            const { triggerCode, includedFound } = coverage;
             matches.push({ calc, triggerCode, coverageCount: includedFound.length, includedFound });
           }
 
@@ -2113,7 +2121,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           patch.gross_amount = u.expected_amount ?? null;
         }
       }
-      await supabase.from("payment_items").update(patch).eq("id", u.id);
+      const { error: updateErr } = await supabase.from("payment_items").update(patch).eq("id", u.id);
+      if (updateErr) {
+        throw new Error(`Falha ao atualizar item ${u.id}: ${updateErr.message}`);
+      }
     });
     console.timeEnd(`${__t} writes_payment_items`);
 
