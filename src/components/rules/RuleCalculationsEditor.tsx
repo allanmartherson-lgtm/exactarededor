@@ -1576,6 +1576,9 @@ export function calcItemErrors(c: CalcItem): number {
  */
 export function calcItemErrorMessages(c: CalcItem): string[] {
   const msgs: string[] = [];
+  if (!c.label || !c.label.trim()) {
+    msgs.push("Informe um nome para a linha de cálculo (ajuda na auditoria do item).");
+  }
   if (c.calculation_type === "percentual_sobre_convenio" && !c.convenio_percentage) {
     msgs.push("Informe o percentual sobre o convênio.");
   }
