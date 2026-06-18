@@ -79,6 +79,8 @@ export type RuleLite = {
 export function usePaymentDetailData(id: string | undefined, options?: { groupId?: string }) {
   const [payment, setPayment] = useState<PaymentRow | null>(null);
   const [items, setItems] = useState<PaymentItemRow[]>([]);
+  const [itemsLoading, setItemsLoading] = useState(true);
+  const [itemsLoadIssue, setItemsLoadIssue] = useState<string | null>(null);
   const [obs, setObs] = useState<ObservationRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
@@ -103,6 +105,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
 
   const load = useCallback(async () => {
     if (!id) return;
+    setItemsLoading(true);
     // NÃO abortamos o request anterior aqui. Durante a análise por IA, o
     // realtime dispara muitos refetches em sequência; abortar o anterior
     // faz a UI nunca terminar de carregar e ficar vazia até o usuário dar
@@ -200,6 +203,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     setPayment(p);
     if (itemsRes.error) {
       console.error("[PaymentDetail] Falha ao carregar itens; mantendo estado anterior", itemsRes.error);
+      setItemsLoadIssue("Falha temporária ao carregar itens. Recarregando…");
       loadPendingRef.current = true;
       return;
     }
@@ -211,6 +215,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     const expectedItems = Number((p as { items_count?: number | null } | null)?.items_count ?? 0);
     if (expectedItems > 0 && rawItems.length === 0) {
       console.warn("[PaymentDetail] Fetch retornou 0 itens para lote com items_count > 0; reagendando sem limpar a UI", { expectedItems });
+      setItemsLoadIssue("Itens temporariamente indisponíveis. Recarregando…");
       loadPendingRef.current = true;
       return;
     }
@@ -225,6 +230,8 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
       } as PaymentItemRow;
     });
     setItems(sanitizedItems);
+    setItemsLoading(false);
+    setItemsLoadIssue(null);
     setObs(o ?? []);
     setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
     setGroups(gs ?? []);
@@ -287,7 +294,16 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     const promise = (async () => {
       do {
         loadPendingRef.current = false;
-        await load();
+        try {
+          await load();
+        } catch (e) {
+          const aborted = e instanceof DOMException && e.name === "AbortError";
+          if (!aborted) {
+            console.error("[PaymentDetail] Falha no recarregamento", e);
+            setItemsLoadIssue("Falha temporária ao atualizar dados. Recarregando…");
+          }
+        }
+        if (loadPendingRef.current) await new Promise((resolve) => setTimeout(resolve, 800));
       } while (loadPendingRef.current);
     })();
     loadInFlightPromiseRef.current = promise;
@@ -433,6 +449,8 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     // state
     payment,
     items,
+    itemsLoading,
+    itemsLoadIssue,
     obs,
     profiles,
     aiVersions,
