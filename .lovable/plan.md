@@ -1,86 +1,77 @@
-# Plano — Testes de integração do fluxo de pacote com distribuição por função
-
 ## Objetivo
-Garantir, com teste automatizado contra o banco real (Lovable Cloud), que o caminho **base importada → motor (analyze-payment) → distribuição cirurgião/1º aux/2º aux** continua funcionando em cenários fim-a-fim — não só na lógica isolada do `rulesEngine.ts` (que já está coberta nos unit tests).
+Eliminar o fallback silencioso da regra geral quando uma regra específica vence a seleção mas nenhum cálculo bate, e dar ao analista uma "última barreira" explícita dentro da própria regra.
 
-## Escopo (o que entra)
-- Carga de dados sintéticos em `payments` + `payment_items` em uma empresa/hospital de teste isolado.
-- Cadastro de uma regra de pacote com `package_roles_distribution` (cirurgião + aux1 + aux2) via `rules` + `rule_calculations`.
-- Cadastro de regra catch-all (CBHPM x2 + 20%) para validar precedência por código explícito.
-- Disparo do edge function `analyze-payment` com `skip_ai:true` (foco no motor, não na IA).
-- Asserts no estado final de `payment_items` (`expected_amount`, `applied_calc_id`, `applied_calc_method`, `status`).
-- Cleanup: deletar tudo que o teste criou (rollback transacional não funciona via edge function, então cleanup explícito).
+---
 
-## Fora de escopo
-- Upload real de XLSX (parseamento de planilha já tem testes próprios em `parse-base/`).
-- Camada de IA (modelos LLM) — `skip_ai:true` evita custo/latência/flakiness.
-- UI / interação humana (absorção manual, aprovação).
+## Fase 1 — Destrava imediato (cadastro, sem deploy)
 
-## Cenários cobertos
+Marcar o cálculo **"CBHPM 2018 × 2 + 20%"** da regra **Cirurgia Torácica (DF Star)** como cálculo-piso:
+- Remover a whitelist de `procedure_codes` desse cálculo (ou deixá-la ignorada via flag `is_catch_all` quando a Fase 2 estiver disponível).
+- Garantir que ele tenha a **maior `priority`** (avaliado por último) entre os 22 cálculos da regra.
+- Reprocessar o pagamento da pleuroscopia (30804183) e confirmar que sai com `valor_regra = CBHPM × 2 × 1.20`.
 
-| # | Cenário | Resultado esperado |
-|---|---|---|
-| 1 | Atendimento com cirurgião + 1º aux + 2º aux, mesmo código âncora do pacote | Cada médico recebe `expected_amount` da sua função |
-| 2 | Atendimento só com cirurgião | Cirurgião recebe valor do pacote; aux1/aux2 ausentes não geram linhas órfãs |
-| 3 | Atendimento com função fora da distribuição (instrumentador) | Instrumentador cai em CBHPM (fallback), pacote não trava |
-| 4 | Dois atendimentos no mesmo job | Cada atendimento distribui independentemente (dedup não vaza) |
-| 5 | Mesma função 2× no mesmo atendimento (duas vias) | 1º item leva valor, 2º absorvido (expected=0) |
-| 6 | Código fora de qualquer pacote | Cai em CBHPM catch-all |
-| 7 | Pacote sem distribuição (legado) | Comportamento antigo intacto: valor cheio em 1 item, 0 nos demais |
+Entregável: pleuroscopia conciliada sem mudança de código.
 
-## Arquivos a criar
+---
 
-```
-supabase/functions/analyze-payment/integration_test.ts   ← arquivo principal
-supabase/functions/analyze-payment/_integration_setup.ts ← helpers (insert/cleanup)
-```
+## Fase 2 — Flags no motor
 
-## Detalhes técnicos
+### 2.1 Schema (migration)
 
-### Estratégia de isolamento
-Cada teste cria seu próprio `hospital_id` sintético (`it-test-` + uuid) e usa esse como escopo. Cleanup no `finally` apaga: `payment_items`, `payments`, `rule_calculations`, `rules`, `reference_table_items`, `reference_tables`, `doctors`, `companies` que o teste criou (via prefixo de id).
+**`rule_calculations`**
+- `is_catch_all boolean not null default false`
+- Quando `true`: ignora `procedure_codes` e `procedure_keywords`; é sempre avaliado por último dentro da regra (após ordenação por `priority`).
+- Constraint: no máximo **um** `is_catch_all = true` por `rule_id` (índice único parcial).
 
-### Helper `setupFixture(hospitalId)`
-Cria:
-- 1 hospital, 1 empresa PJ, 3 médicos (cirurgião + 2 aux) com `doctor_companies`.
-- 1 reference_table CBHPM 2018 com 1 item (código 30803217, valor base).
-- 1 rule "Pacote Lobectomia c/ distribuição" com 2 calculations:
-  - calc-pacote: `calculation_type=pacote`, `package_main_code=30803217`, `package_amount=29321.93`, `package_roles_distribution=[cirurgiao 19547.95, aux1 5864.39, aux2 3909.59]`
-  - calc-cbhpm: `tabela_diferenciada`, `multiplier=2`, `acrescimo_pct=20`, `reference_table_id=<cbhpm>`
+**`rules`**
+- `prevent_external_fallback boolean not null default false`
+- Quando `true`: se a regra vence a seleção mas nenhum cálculo (incluindo catch-all) satisfaz, o item vai para `sem_regra` com alerta — **não** cai para a regra geral mestre.
 
-### Helper `insertPayment(hospitalId, items)`
-Insere `payments` + N `payment_items` com `attendance_number`, `procedure_code`, `doctor_role`, `doctor_id`, `company_id`, `gross_amount`.
+### 2.2 Motor (`supabase/functions/_shared/rulesEngine.ts`)
 
-### Disparo do motor
-```ts
-const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-payment`, {
-  method: "POST",
-  headers: { apikey: ANON_KEY, "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE_KEY}` },
-  body: JSON.stringify({ payment_id, skip_ai: true }),
-});
-```
+- Ordenação dos cálculos: `priority ASC, is_catch_all ASC` (catch-all sempre último).
+- Avaliação do catch-all: pula filtros de `procedure_codes`/`procedure_keywords`; demais filtros (convênio, setor, função, via de acesso, etc.) continuam valendo.
+- Após o loop de cálculos, se nada matchou:
+  - Se `rule.prevent_external_fallback === true` → emite `applied_calc_method = 'sem_regra'`, `skip_reason = 'specific_rule_no_calc_matched'`, e **não** chama o fallback para a master rule.
+  - Caso contrário → comportamento atual (cai na geral).
+- Telemetria: log de `catch_all_used: true|false` e `fallback_blocked: true|false` em `analysis_telemetry`.
 
-Service role key não está acessível em Lovable Cloud — uso ANON + RLS permissiva, ou faço o teste rodar como `authenticated` via JWT de teste. Validar isso na implementação; se bloquear, alternativa é chamar diretamente o handler importando `index.ts` e mockando `createClient` (teste unitário do handler em vez de E2E real).
+### 2.3 UI
 
-### Asserts
-```ts
-const items = await supabase.from("payment_items")
-  .select("doctor_role, expected_amount, applied_calc_method")
-  .eq("payment_id", paymentId).order("doctor_role");
-assertEquals(items.find(i => i.doctor_role === "Cirurgião Principal")?.expected_amount, 19547.95);
-assertEquals(items.find(i => i.doctor_role === "Primeiro Aux")?.expected_amount, 5864.39);
-assertEquals(items.find(i => i.doctor_role === "Segundo Aux")?.expected_amount, 3909.59);
-```
+**Editor de regra (`src/pages/ValidationRules.tsx` ou componente equivalente)**
+- Checkbox na regra: **"Não permitir fallback para a regra geral"** (default `true` para regras com setor/convênio/empresa específicos; `false` para a master).
+- Checkbox no cálculo: **"Cálculo padrão da regra (catch-all)"** — desabilita os campos de whitelist de códigos e mostra aviso "Este cálculo será avaliado por último e cobre todos os códigos que não bateram nos anteriores".
+- Validação ao salvar: bloqueia se houver 2+ catch-all na mesma regra.
 
-### Como rodar
-`supabase--test_edge_functions` com `pattern: "Integração"`. Os testes usam `Deno.test` normalmente e leem `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` via `dotenv/load.ts`.
+**Detalhe do item (PaymentDetail)**
+- Quando `applied_calc_method = 'sem_regra'` com `skip_reason = 'specific_rule_no_calc_matched'`: badge laranja "Regra específica venceu mas nenhum cálculo bateu — revisar cadastro da regra X".
 
-## Riscos / pontos abertos
+### 2.4 Backfill
 
-1. **Service role indisponível**: se RLS bloquear inserts via anon, o teste vira "handler-level" (importa `index.ts` e injeta supabase client mockado). Decido na implementação após primeiro try.
-2. **Latência**: cada `analyze-payment` leva 10-30s mesmo com `skip_ai`. Com 7 cenários, ~3min total. Aceitável para CI manual; não roda em cada push.
-3. **Flakiness por estado compartilhado**: prefixar todos os ids com `it-<uuid>-` garante isolamento; cleanup roda mesmo em falha (`try/finally`).
-4. **Schema drift**: se colunas críticas mudarem (`package_roles_distribution`, `applied_calc_id`), o teste quebra de forma óbvia — isso é desejável.
+Migration de dados (via insert tool, após approval do schema):
+- `UPDATE rules SET prevent_external_fallback = true` para todas as regras **não-master** (que têm `sectors`, `convenios` ou `companies` específicos).
+- Manter a master rule com `prevent_external_fallback = false`.
 
-## Entrega
-Arquivos novos + 1 rodada de execução verde dos 7 cenários. Sem alterações no motor — só cobertura. Se algum cenário falhar, corrijo o motor antes de fechar.
+### 2.5 Testes
+
+Adicionar a `supabase/functions/_shared/rulesEngine.test.ts`:
+- Regra específica com catch-all → item com código fora da whitelist usa o catch-all.
+- Regra específica com `prevent_external_fallback=true` e nenhum cálculo bate → `sem_regra`, **não** master.
+- Regra específica sem flag → mantém comportamento legado (cai na master).
+- Constraint: tentativa de marcar 2 catch-all na mesma regra falha.
+
+---
+
+## Ordem de execução
+
+1. Fase 1 manual (você, no cadastro) — desbloqueia produção hoje.
+2. Migration Fase 2.1 (schema dos dois flags + constraint).
+3. Motor 2.2 + testes 2.5.
+4. UI 2.3.
+5. Backfill 2.4.
+6. Comunicação no `system_releases`.
+
+## Riscos
+
+- **Backfill agressivo**: marcar todas as regras não-master como `prevent_external_fallback=true` pode gerar pico de `sem_regra` se houver cadastros incompletos hoje mascarados pela master. Mitigação: rodar `simulate-rule-batch` antes do backfill em produção e listar itens que mudariam de status.
+- **Catch-all mal configurado**: se o analista marcar o cálculo errado como catch-all, todos os códigos caem nele. Mitigação: badge + aviso na UI, e log de telemetria mostra quantos itens usaram o catch-all por análise.
