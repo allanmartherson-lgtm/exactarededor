@@ -1190,6 +1190,7 @@ const Rules = () => {
       limiar_alerta_valor: fAlertInherit ? null : num(fAlertThresholdValue),
       limiar_bloqueio_tipo: fBlockInherit ? null : fBlockThresholdType,
       limiar_bloqueio_valor: fBlockInherit ? null : num(fBlockThresholdValue),
+      prevent_external_fallback: fPreventExternalFallback,
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
