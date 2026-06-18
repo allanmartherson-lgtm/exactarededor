@@ -1,0 +1,327 @@
+import { useMemo } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import {
+  CheckCircle2,
+  RefreshCcw,
+  AlertTriangle,
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+} from "lucide-react";
+import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
+import { cn } from "@/lib/utils";
+
+export type ReapplyPhase = "iniciando" | "processando" | "concluido" | "erro";
+
+export type ReapplySnapshot = Record<
+  string,
+  {
+    ai_status: string | null;
+    applied_rule_id: string | null;
+    expected_amount: number | null;
+  }
+>;
+
+export type ReapplyDiff = {
+  totalItems: number;
+  reanalyzedItems: number;
+  becameApproved: number; // antes !aprovado → aprovado
+  stayedReproved: number; // antes reprovado → continua reprovado
+  newlyReproved: number;  // antes aprovado/pendente → reprovado
+  ruleChanged: number;    // applied_rule_id mudou
+  unchanged: number;      // nada mudou
+  approvedTotal: number;  // total final aprovados
+  reprovedTotal: number;  // total final reprovados
+  pendingTotal: number;   // total final pendentes/outros
+};
+
+export function takeSnapshot(items: PaymentItemRow[]): ReapplySnapshot {
+  const snap: ReapplySnapshot = {};
+  for (const it of items) {
+    snap[it.id] = {
+      ai_status: (it as any).ai_status ?? null,
+      applied_rule_id: (it as any).applied_rule_id ?? null,
+      expected_amount: (it as any).expected_amount ?? null,
+    };
+  }
+  return snap;
+}
+
+export function diffSnapshots(
+  before: ReapplySnapshot,
+  after: PaymentItemRow[],
+): ReapplyDiff {
+  let becameApproved = 0;
+  let stayedReproved = 0;
+  let newlyReproved = 0;
+  let ruleChanged = 0;
+  let unchanged = 0;
+  let approvedTotal = 0;
+  let reprovedTotal = 0;
+  let pendingTotal = 0;
+
+  for (const it of after) {
+    const cur = (it as any).ai_status ?? null;
+    const prev = before[it.id]?.ai_status ?? null;
+    const prevRule = before[it.id]?.applied_rule_id ?? null;
+    const curRule = (it as any).applied_rule_id ?? null;
+
+    if (cur === "aprovado") approvedTotal++;
+    else if (cur === "reprovado") reprovedTotal++;
+    else pendingTotal++;
+
+    const wasReproved = prev === "reprovado";
+    const wasApproved = prev === "aprovado";
+    const isReproved = cur === "reprovado";
+    const isApproved = cur === "aprovado";
+
+    if (!wasApproved && isApproved) becameApproved++;
+    else if (wasReproved && isReproved) stayedReproved++;
+    else if (!wasReproved && isReproved) newlyReproved++;
+
+    const ruleDelta = prevRule !== curRule;
+    if (ruleDelta && cur === prev) ruleChanged++;
+    if (cur === prev && !ruleDelta) unchanged++;
+  }
+
+  return {
+    totalItems: after.length,
+    reanalyzedItems: after.filter((it) => {
+      const prev = before[it.id];
+      if (!prev) return true;
+      return (
+        prev.ai_status !== ((it as any).ai_status ?? null) ||
+        prev.applied_rule_id !== ((it as any).applied_rule_id ?? null) ||
+        Number(prev.expected_amount ?? 0) !== Number((it as any).expected_amount ?? 0)
+      );
+    }).length,
+    becameApproved,
+    stayedReproved,
+    newlyReproved,
+    ruleChanged,
+    unchanged,
+    approvedTotal,
+    reprovedTotal,
+    pendingTotal,
+  };
+}
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  phase: ReapplyPhase;
+  /** segundos decorridos (para feedback visual) */
+  elapsedSec: number;
+  /** total de itens da empresa, mostrado durante o processamento */
+  totalItems: number;
+  /** mensagem de erro, quando phase === "erro" */
+  errorMessage?: string | null;
+  /** diff calculado quando phase === "concluido" */
+  diff?: ReapplyDiff | null;
+  /** label opcional, ex. nome da empresa */
+  companyLabel?: string;
+}
+
+/**
+ * Diálogo de progresso e resumo do "Reaplicar regras".
+ *
+ * - Mostra status em tempo real: iniciando → processando → concluído/erro.
+ * - Ao final, exibe contagem do que melhorou (passou a aprovado), do que
+ *   continuou reprovado, do que piorou (novo reprovado), regras alteradas
+ *   sem mudança de status, e totais finais.
+ * - Não fecha sozinho — o usuário fecha após ler o resumo.
+ */
+export function ReapplyRulesProgressDialog({
+  open,
+  onOpenChange,
+  phase,
+  elapsedSec,
+  totalItems,
+  errorMessage,
+  diff,
+  companyLabel,
+}: Props) {
+  const running = phase === "iniciando" || phase === "processando";
+
+  // Progress “fictício” baseado em tempo (motor não envia % real). Cap em 95%
+  // até o callback de conclusão chegar. Concluído → 100%.
+  const progressValue = useMemo(() => {
+    if (phase === "concluido") return 100;
+    if (phase === "erro") return 100;
+    // ~95% em ~60s
+    const pct = Math.min(95, Math.round((elapsedSec / 60) * 95));
+    return Math.max(5, pct);
+  }, [phase, elapsedSec]);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        // Bloqueia fechar enquanto está rodando.
+        if (running) return;
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent className="sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {phase === "concluido" ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            ) : phase === "erro" ? (
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            ) : (
+              <RefreshCcw className="h-5 w-5 text-primary animate-spin" />
+            )}
+            {phase === "concluido"
+              ? "Reaplicação concluída"
+              : phase === "erro"
+              ? "Falha ao reaplicar regras"
+              : "Reaplicando regras…"}
+          </DialogTitle>
+          <DialogDescription>
+            {companyLabel ? <span className="font-medium">{companyLabel}</span> : null}
+            {companyLabel ? " · " : null}
+            {phase === "iniciando" && "Preparando o motor de cálculo…"}
+            {phase === "processando" &&
+              `Reanalisando ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`}
+            {phase === "concluido" &&
+              "O motor terminou. Veja abaixo o que mudou em relação ao estado anterior."}
+            {phase === "erro" && (errorMessage ?? "Não foi possível concluir a reanálise.")}
+          </DialogDescription>
+        </DialogHeader>
+
+        {running && (
+          <div className="space-y-3 py-2">
+            <Progress value={progressValue} />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Aguarde — o motor recarrega regras, recalcula valores esperados e regrava o status de cada item.
+            </div>
+          </div>
+        )}
+
+        {phase === "concluido" && diff && (
+          <div className="space-y-4 py-2">
+            {/* Cards de transições */}
+            <div className="grid grid-cols-2 gap-2">
+              <StatCard
+                tone="success"
+                icon={<TrendingUp className="h-4 w-4" />}
+                label="Passaram a aprovado"
+                value={diff.becameApproved}
+                hint="Estavam reprovados/pendentes e agora estão aprovados"
+              />
+              <StatCard
+                tone="danger"
+                icon={<RefreshCcw className="h-4 w-4" />}
+                label="Continuam reprovados"
+                value={diff.stayedReproved}
+                hint="Estavam reprovados antes e seguem reprovados"
+              />
+              <StatCard
+                tone="warning"
+                icon={<TrendingDown className="h-4 w-4" />}
+                label="Novos reprovados"
+                value={diff.newlyReproved}
+                hint="Estavam aprovados/pendentes e agora ficaram reprovados"
+              />
+              <StatCard
+                tone="info"
+                icon={<RefreshCcw className="h-4 w-4" />}
+                label="Regra trocou (mesmo status)"
+                value={diff.ruleChanged}
+                hint="Outra regra passou a vencer, mas o status final é o mesmo"
+              />
+            </div>
+
+            {/* Totais finais */}
+            <div className="rounded-md border bg-muted/30 p-3 space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground">
+                Estado atual da empresa
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
+                  {diff.approvedTotal} aprovados
+                </Badge>
+                <Badge variant="outline" className="border-destructive/40 text-destructive">
+                  {diff.reprovedTotal} reprovados
+                </Badge>
+                <Badge variant="outline" className="text-muted-foreground">
+                  {diff.pendingTotal} pendentes/outros
+                </Badge>
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {diff.reanalyzedItems} de {diff.totalItems} itens recalculados
+                </span>
+              </div>
+            </div>
+
+            {diff.stayedReproved > 0 && (
+              <div className="text-xs text-muted-foreground flex items-start gap-1.5">
+                <Minus className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  Os <strong>{diff.stayedReproved}</strong> itens que continuam reprovados aparecem com o badge
+                  vermelho na tabela — verifique se falta cadastrar regra, se o convênio/setor está bloqueado
+                  pela regra vencedora, ou se há divergência real de valor.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button
+            variant={phase === "concluido" ? "default" : "outline"}
+            onClick={() => onOpenChange(false)}
+            disabled={running}
+          >
+            {running ? "Aguarde…" : "Fechar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function StatCard({
+  tone,
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  tone: "success" | "danger" | "warning" | "info";
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  hint: string;
+}) {
+  const toneClass =
+    tone === "success"
+      ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+      : tone === "danger"
+      ? "border-destructive/40 bg-destructive/5 text-destructive"
+      : tone === "warning"
+      ? "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300"
+      : "border-sky-500/40 bg-sky-500/5 text-sky-700 dark:text-sky-300";
+  return (
+    <div className={cn("rounded-md border p-3", toneClass)}>
+      <div className="flex items-center gap-1.5 text-xs font-medium">
+        {icon}
+        {label}
+      </div>
+      <div className="text-2xl font-semibold mt-1 tabular-nums">{value}</div>
+      <div className="text-[11px] opacity-80 mt-0.5 leading-snug">{hint}</div>
+    </div>
+  );
+}
