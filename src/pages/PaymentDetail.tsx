@@ -60,6 +60,7 @@ import { ProductionValidationPanel } from "@/components/payment-detail/Productio
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
+import { TussPrincipalAuditPanel, useTussAuditOpenCount } from "@/components/payment-detail/TussPrincipalAuditPanel";
 import type {
   PaymentItemRow as PaymentItemRowType,
   GroupRow,
@@ -2294,6 +2295,7 @@ const PaymentDetail = () => {
           </Alert>
         )}
         {id && <BatchAIFailureReport paymentId={id} />}
+        {id && <TussPrincipalAuditPanel paymentId={id} />}
         {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
         {!isNfPhase && (
         <div className="md:hidden">
