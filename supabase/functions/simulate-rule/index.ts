@@ -123,7 +123,8 @@ serve(async (req) => {
         group_company_links,group_doctors,
         bonus_amount,bonus_pct,target_amount,
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor,
-        force_totalized
+        force_totalized,
+        prevent_external_fallback
       `)
       .eq("active", true);
     // Multi-tenant: hospital_id é OBRIGATÓRIO. Sem ele, a simulação carregaria regras
