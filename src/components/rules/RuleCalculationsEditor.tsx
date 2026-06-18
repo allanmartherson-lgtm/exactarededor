@@ -1654,6 +1654,17 @@ export function calcCrossItemErrorMessages(items: CalcItem[]): Map<number, strin
     indices.push(idx);
     byReferenceTable.set(c.reference_table_id, indices);
   });
+
+  // Catch-all: no máximo 1 por regra (espelha o índice único parcial no DB).
+  const catchAllIdxs: number[] = [];
+  items.forEach((c, idx) => { if (c.is_catch_all) catchAllIdxs.push(idx); });
+  if (catchAllIdxs.length > 1) {
+    for (const idx of catchAllIdxs) {
+      const list = errors.get(idx) ?? [];
+      list.push(`Apenas um cálculo da regra pode ser marcado como "piso (catch-all)". Há ${catchAllIdxs.length} marcados — desmarque os excedentes.`);
+      errors.set(idx, list);
+    }
+  }
   return errors;
 }
 
