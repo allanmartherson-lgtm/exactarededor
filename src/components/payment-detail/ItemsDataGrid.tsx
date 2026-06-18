@@ -1571,6 +1571,34 @@ export function ItemsDataGrid({
                 return (
                   <Fragment key={it.id}>
 
+                    {isFirstAtt && attMeta && (
+                      <AttendanceHeaderRow
+                        att={attKey}
+                        meta={attMeta}
+                        isCollapsed={isAttCollapsed}
+                        onToggle={() =>
+                          setCollapsedAttendances((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(attKey)) next.delete(attKey);
+                            else next.add(attKey);
+                            return next;
+                          })
+                        }
+                        totalCols={totalCols}
+                        isCompact={isCompact}
+                        showGrossColumn={showGrossColumn}
+                      />
+                    )}
+
+                    {shouldEmitRuleBand && !hideInnerBands && (
+                      <RuleBandRow
+                        calcMethod={calcMethod!}
+                        ruleLabel={(it as any).applied_rule_label ?? null}
+                        totalCols={totalCols}
+                      />
+                    )}
+
+
                     {isFirstAdjust && (
                       <tr key={`adj-sep-${it.id}`}>
                         <td
