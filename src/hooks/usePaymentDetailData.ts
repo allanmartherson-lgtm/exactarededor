@@ -98,6 +98,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
   // único refetch. Isso elimina o race em que vários loads paralelos se
   // sobrescrevem pelo loadTokenRef e deixam itens=[] na UI.
   const loadInFlightRef = useRef(false);
+  const loadInFlightPromiseRef = useRef<Promise<void> | null>(null);
   const loadPendingRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -110,15 +111,15 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     abortRef.current = ac;
     const myToken = ++loadTokenRef.current;
     const [
-      { data: p },
-      { data: it },
-      { data: o },
-      { data: pr },
-      { data: vs },
-      { data: gs },
-      { data: inv },
-      { data: qs },
-      { data: as },
+      paymentRes,
+      itemsRes,
+      obsRes,
+      profilesRes,
+      aiVersionsRes,
+      groupsRes,
+      invoicesRes,
+      questionsRes,
+      assignmentsRes,
     ] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).abortSignal(ac.signal).maybeSingle(),
       (async () => {
@@ -187,12 +188,32 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
 
     ]);
     if (myToken !== loadTokenRef.current || ac.signal.aborted) return;
+    const p = paymentRes.data;
+    const it = itemsRes.data;
+    const o = obsRes.data;
+    const pr = profilesRes.data;
+    const vs = aiVersionsRes.data;
+    const gs = groupsRes.data;
+    const inv = invoicesRes.data;
+    const qs = questionsRes.data;
+    const as = assignmentsRes.data;
     setPayment(p);
+    if (itemsRes.error) {
+      console.error("[PaymentDetail] Falha ao carregar itens; mantendo estado anterior", itemsRes.error);
+      loadPendingRef.current = true;
+      return;
+    }
     // Itens cancelados: suprime todos os ai_findings, alerts e validation_findings
     // antes de qualquer consumidor (badges, contagens, alertas, tooltips).
     // Item cancelado não deve mais "gritar" como alerta/validação em nenhuma tela
     // de análise — espelha a decisão do analista de descontinuá-lo.
     const rawItems = (it ?? []) as unknown as PaymentItemRow[];
+    const expectedItems = Number((p as { items_count?: number | null } | null)?.items_count ?? 0);
+    if (expectedItems > 0 && rawItems.length === 0) {
+      console.warn("[PaymentDetail] Fetch retornou 0 itens para lote com items_count > 0; reagendando sem limpar a UI", { expectedItems });
+      loadPendingRef.current = true;
+      return;
+    }
     const sanitizedItems = rawItems.map((row) => {
       if (!(row as any).is_cancelled) return row;
       return {
