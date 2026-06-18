@@ -85,7 +85,7 @@ const VISITA_TERMS = ["visita"];
 const PARECER_TERMS = ["parecer"];
 const CIRURGIA_TERMS = ["cirurgia","cirurg","procedimento"];
 
-const stripDiacritics = (s: string) =>
+const stripDiacriticsLower = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 /** Match por palavra inteira (fronteira \b), case/acento-insensível. */
