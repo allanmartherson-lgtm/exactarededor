@@ -1325,6 +1325,18 @@ function calcPacoteExtras(rule: RuleInput, item: ItemInput): ExpectedCalc {
  * extras permitidos. A flag `__appliedAttendances` é usada apenas para
  * decidir, em runtime, qual item leva o valor do pacote.
  */
+function _matchRoleKey(doctorRole: string | null | undefined, roleKey: string): boolean {
+  const r = (doctorRole ?? "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const k = (roleKey ?? "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  if (!k) return false;
+  if (k === "cirurgiao") return r.includes("cirurgi") || r.includes("principal") || r.includes("operador");
+  if (k === "aux1" || k === "primeiro_aux" || k === "primeiro_auxiliar") return r.includes("primeiro") || /\b1\b/.test(r) || /1[ºo]/.test(r);
+  if (k === "aux2" || k === "segundo_aux" || k === "segundo_auxiliar" || k === "demais_aux") return r.includes("segundo") || /\b2\b/.test(r) || /2[ºo]/.test(r);
+  if (k === "aux3" || k === "terceiro_aux" || k === "terceiro_auxiliar") return r.includes("terceiro") || /\b3\b/.test(r) || /3[ºo]/.test(r);
+  if (k === "instrumentador") return r.includes("instrument");
+  return r.includes(k);
+}
+
 function calcPacotePorAtendimento(
   rule: RuleInput,
   item: ItemInput,
@@ -1361,6 +1373,47 @@ function calcPacotePorAtendimento(
     const base = item.procedure_amount ?? 0;
     return { expected: Number(base.toFixed(2)), explanation: `Extra permitido no atendimento ${att}: R$ ${base.toFixed(2)}`, alerts: [] };
   }
+
+  // ---- Distribuição por função (package_roles_distribution) ----
+  // Quando a regra/calc declara uma distribuição por função, cada item
+  // recebe o valor da SUA função (não o pacote cheio). Isso permite que
+  // cirurgião, 1º aux e 2º aux do mesmo atendimento cada um receba o
+  // que lhe cabe. Para evitar duplicidade quando dois itens da mesma
+  // função entram no pacote (raro: duas vias de acesso), só o primeiro
+  // (att|role) carrega o valor; os demais ficam absorvidos (expected=0).
+  const dist = (rule as any).package_roles_distribution as
+    | Array<{ role_key: string; dist_type: "fixo" | "pct"; value: number; label?: string }>
+    | null
+    | undefined;
+  if (Array.isArray(dist) && dist.length > 0 && item.doctor_role) {
+    const match = dist.find((d) => _matchRoleKey(item.doctor_role, d.role_key));
+    if (match) {
+      const value = match.dist_type === "fixo"
+        ? Number(match.value)
+        : (Number(match.value) / 100) * Number(rule.package_amount);
+      const roleKey = `${att}|${(item.doctor_role ?? "").toString().toLowerCase().trim()}`;
+      if (!applied.has(roleKey)) {
+        applied.add(roleKey);
+        return {
+          expected: Number(value.toFixed(2)),
+          explanation: `Pacote ${att} — distribuição "${match.label ?? match.role_key}" para "${item.doctor_role}": R$ ${value.toFixed(2)}`,
+          alerts: [],
+        };
+      }
+      return {
+        expected: 0,
+        explanation: `Item adicional da função "${item.doctor_role}" no pacote ${att} — absorvido (valor já alocado a outro item da mesma função).`,
+        alerts: [],
+      };
+    }
+    // Função não consta na distribuição → item fora do pacote (cai em outro cálculo).
+    return {
+      expected: null,
+      explanation: `Pacote ${att} — função "${item.doctor_role}" não está na distribuição configurada.`,
+      alerts: [`Função "${item.doctor_role}" sem entrada em package_roles_distribution.`],
+    };
+  }
+
   // Decide qual item leva o pacote: o "principal" se houver, senão o primeiro processado
   const isMain = isMainPackageCode(rule, item);
   const score = packageMatchScore(rule, item, ctx);
@@ -1685,6 +1738,10 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     package_opinions_count: c.package_opinions_count ?? rule.package_opinions_count,
     package_auxiliaries_included: c.package_auxiliaries_included ?? rule.package_auxiliaries_included,
     package_subtype: c.package_subtype ?? rule.package_subtype,
+    // Distribuição por função (cirurgião / aux1 / aux2) específica do calc.
+    package_roles_distribution: (c as any).package_roles_distribution
+      ?? (rule as any).package_roles_distribution
+      ?? null,
     extras_codes: c.extras_codes ?? rule.extras_codes,
     reference_table_id: c.reference_table_id ?? rule.reference_table_id,
     multiplier: c.multiplier ?? rule.multiplier,
