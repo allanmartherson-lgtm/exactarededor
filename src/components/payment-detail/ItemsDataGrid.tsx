@@ -576,19 +576,36 @@ export function ItemsDataGrid({
     }
 
     // 2) Reordenar: para CADA atendimento, despejar todos os seus itens em
-    //    sequência na primeira ocorrência. Itens sem atendimento mantêm
-    //    ordem original individual.
+    //    sequência na primeira ocorrência. Dentro do atendimento, agrupa
+    //    por método de cálculo — pacote (e absorvidos) PRIMEIRO, depois os
+    //    demais métodos agrupados — para evitar "quebra" visual entre a
+    //    banda do pacote e itens de outras regras do mesmo paciente.
+    //    Bônus segue seu pai (já reordenado em passada posterior).
     const handledAtt = new Set<string>();
     const display: PaymentItemRowData[] = [];
+    const clusterKey = (it: PaymentItemRowData): string => {
+      const isPkg =
+        (it as any).applied_calc_method === "pacote" ||
+        (it as any).package_absorbed === true;
+      if (isPkg) return "0_pacote";
+      const m = ((it as any).applied_calc_method ?? "zz_none") as string;
+      return `1_${m}`;
+    };
     for (const it of filtered) {
       const att = (it.attendance_number ?? "").toString().trim();
       if (att) {
         if (handledAtt.has(att)) continue;
         handledAtt.add(att);
-        for (const m of filtered) {
-          const mAtt = (m.attendance_number ?? "").toString().trim();
-          if (mAtt === att) display.push(m);
-        }
+        const ofAtt = filtered.filter(
+          (m) => (m.attendance_number ?? "").toString().trim() === att,
+        );
+        // Estável: preserva ordem original dentro de cada cluster.
+        const indexed = ofAtt.map((m, i) => ({ m, i, k: clusterKey(m) }));
+        indexed.sort((a, b) => {
+          if (a.k !== b.k) return a.k < b.k ? -1 : 1;
+          return a.i - b.i;
+        });
+        for (const { m } of indexed) display.push(m);
       } else {
         display.push(it);
       }
