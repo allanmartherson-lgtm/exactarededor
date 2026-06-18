@@ -1271,6 +1271,15 @@ function isMainPackageCode(rule: RuleInput, item: ItemInput): boolean {
   return true;
 }
 
+function packageMainPresentInAttendance(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): boolean {
+  const mainCodes = splitMainCodes(rule.package_main_code);
+  if (mainCodes.length === 0) return true;
+  const key = (item as any).attendance_group_key ?? item.attendance_number ?? "";
+  const siblings = ctx?.attendanceSiblingCodes?.get(key) ?? new Set<string>();
+  const currentCode = String(item.procedure_code ?? "").trim();
+  return mainCodes.some((c) => siblings.has(c) || currentCode === c);
+}
+
 
 function isIncludedInPackage(rule: RuleInput, item: ItemInput): boolean {
   const inc = rule.package_included_codes ?? [];
@@ -1304,6 +1313,9 @@ function calcPacoteFechado(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): E
   if (rule.package_amount == null) {
     return { expected: null, explanation: "pacote_fechado sem package_amount.", alerts: ["Pacote sem valor."] };
   }
+  if (!packageMainPresentInAttendance(rule, item, ctx)) {
+    return { expected: null, explanation: `Pacote sem código principal presente no atendimento — segue próximo cálculo.`, alerts: [] };
+  }
   if (isMainPackageCode(rule, item)) {
     return { expected: Number(rule.package_amount), explanation: `Pacote fechado (principal ${item.procedure_code ?? "—"}): R$ ${rule.package_amount.toFixed(2)}`, alerts: [] };
   }
@@ -1318,8 +1330,11 @@ function calcPacoteFechado(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): E
   };
 }
 
-function calcPacoteExtras(rule: RuleInput, item: ItemInput): ExpectedCalc {
+function calcPacoteExtras(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): ExpectedCalc {
   const pkg = rule.package_amount ?? 0;
+  if (!packageMainPresentInAttendance(rule, item, ctx)) {
+    return { expected: null, explanation: `Pacote sem código principal presente no atendimento — segue próximo cálculo.`, alerts: [] };
+  }
   const extras = rule.extras_codes ?? [];
   const isExtra = item.procedure_code != null && extras.includes(item.procedure_code);
   if (isExtra) {
@@ -1367,6 +1382,9 @@ function calcPacotePorAtendimento(
 ): ExpectedCalc {
   if (rule.package_amount == null) {
     return { expected: null, explanation: "pacote_por_atendimento sem package_amount.", alerts: ["Pacote sem valor."] };
+  }
+  if (!packageMainPresentInAttendance(rule, item, ctx)) {
+    return { expected: null, explanation: `Pacote sem código principal presente no atendimento — segue próximo cálculo.`, alerts: [] };
   }
   // Lock pré-passe (Correção C) — só o calc vencedor do atendimento aplica.
   {
