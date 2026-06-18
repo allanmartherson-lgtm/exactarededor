@@ -1,77 +1,55 @@
-## Objetivo
-Eliminar o fallback silencioso da regra geral quando uma regra específica vence a seleção mas nenhum cálculo bate, e dar ao analista uma "última barreira" explícita dentro da própria regra.
+## Problema
 
----
+1. Códigos como Toracostomia (30804132) e Pleuroscopia estão sendo tratados como "pacote excedente" só porque o motor reaproveitou o método `pacote*` para casos com valor fixo por função. Isso polui visualmente a tela (toda linha vira PACOTE 📦) e bagunça o conceito.
+2. Conceitualmente:
+   - **Pacote** = vários códigos pagos com um único valor.
+   - **Valor fixo** = valor por código, independente do convênio, podendo variar por função (Cirurgião, 1º Aux, 2º Aux, Anestesista...).
+3. A regra precisa esgotar internamente: **pacote → valor fixo → CBHPM 2018 × 2 + 20% (catch-all)**, sem fallback silencioso para a regra geral.
 
-## Fase 1 — Destrava imediato (cadastro, sem deploy)
+## Mudanças
 
-Marcar o cálculo **"CBHPM 2018 × 2 + 20%"** da regra **Cirurgia Torácica (DF Star)** como cálculo-piso:
-- Remover a whitelist de `procedure_codes` desse cálculo (ou deixá-la ignorada via flag `is_catch_all` quando a Fase 2 estiver disponível).
-- Garantir que ele tenha a **maior `priority`** (avaliado por último) entre os 22 cálculos da regra.
-- Reprocessar o pagamento da pleuroscopia (30804183) e confirmar que sai com `valor_regra = CBHPM × 2 × 1.20`.
+### 1. Backend — `valor_fixo` ganha "valores por função" (igual ao pacote)
+- Schema `rule_calculations.config`:
+  - `valor_fixo`: `{ valor: number, valores_por_funcao?: { cirurgiao_principal?, primeiro_auxiliar?, segundo_auxiliar?, terceiro_auxiliar?, anestesista?, instrumentador?, ... }, procedure_codes?, procedure_keywords?, is_catch_all? }`
+  - Resolução do valor: `valores_por_funcao[funcao_normalizada] ?? valor` (fallback global).
+- `rulesEngine.applyCalculation`:
+  - Cadeia explícita de tentativas dentro da regra: ordenar por `priority ASC, is_catch_all ASC`, percorrer e usar a primeira que casa (código/keyword OU catch-all).
+  - Para `valor_fixo`, ler valor por função do item antes do `valor` global.
+  - Se nenhum cálculo bate e `prevent_external_fallback=true` → `sem_regra` com alerta atual.
 
-Entregável: pleuroscopia conciliada sem mudança de código.
+### 2. Migrar dados existentes
+- Migration: para todo `rule_calculations` com método `pacote_excedente` / `pacote_fora` cujo único papel era "valor fixo por função sem código principal", **converter para `valor_fixo`** preservando `valores_por_funcao`. Critério: pacote sem `codigo_principal` configurado OU criados como workaround. Listar e confirmar antes de aplicar — gerar relatório `SELECT` primeiro, só converter após aprovação manual via UI/CSV.
+- Não mexer em pacotes legítimos (com código principal + códigos absorvidos).
 
----
+### 3. UI — Editor de cálculo (`RuleCalculationsEditor.tsx`)
+- No tipo `valor_fixo`, adicionar seção "Valores por função (opcional)" com inputs por função (mesmo componente já usado em pacote). Se preenchido, sobrepõe `valor` global.
+- Mensagem: "Use quando o pagamento muda por função (ex: principal R$ 2.000 / 1º aux R$ 600)."
 
-## Fase 2 — Flags no motor
+### 4. UI — Sinalização visual de pacote no PaymentConciliationModal
+- **Remover** o badge 📦 PACOTE de TODO atendimento que tenha qualquer item com método pacote. Mostrar somente quando o atendimento é de fato um pacote consolidado (>1 código vinculado ao mesmo `package_group_id` ou bloco de regra pacote real).
+- Linha de cabeçalho do grupo de regra: trocar ícone 📦 por ícone neutro (🧮) quando for valor fixo/catch-all. 📦 reservado para pacote real.
+- Badge "PACOTE" no nível do atendimento só aparece se `items.some(i => i.applied_calc_method?.startsWith('pacote') && i.package_group_id)`.
+- Limpar `COM ALERTAS` duplicado e reduzir altura visual da faixa âmbar (padding compacto).
 
-### 2.1 Schema (migration)
-
-**`rule_calculations`**
-- `is_catch_all boolean not null default false`
-- Quando `true`: ignora `procedure_codes` e `procedure_keywords`; é sempre avaliado por último dentro da regra (após ordenação por `priority`).
-- Constraint: no máximo **um** `is_catch_all = true` por `rule_id` (índice único parcial).
-
-**`rules`**
-- `prevent_external_fallback boolean not null default false`
-- Quando `true`: se a regra vence a seleção mas nenhum cálculo (incluindo catch-all) satisfaz, o item vai para `sem_regra` com alerta — **não** cai para a regra geral mestre.
-
-### 2.2 Motor (`supabase/functions/_shared/rulesEngine.ts`)
-
-- Ordenação dos cálculos: `priority ASC, is_catch_all ASC` (catch-all sempre último).
-- Avaliação do catch-all: pula filtros de `procedure_codes`/`procedure_keywords`; demais filtros (convênio, setor, função, via de acesso, etc.) continuam valendo.
-- Após o loop de cálculos, se nada matchou:
-  - Se `rule.prevent_external_fallback === true` → emite `applied_calc_method = 'sem_regra'`, `skip_reason = 'specific_rule_no_calc_matched'`, e **não** chama o fallback para a master rule.
-  - Caso contrário → comportamento atual (cai na geral).
-- Telemetria: log de `catch_all_used: true|false` e `fallback_blocked: true|false` em `analysis_telemetry`.
-
-### 2.3 UI
-
-**Editor de regra (`src/pages/ValidationRules.tsx` ou componente equivalente)**
-- Checkbox na regra: **"Não permitir fallback para a regra geral"** (default `true` para regras com setor/convênio/empresa específicos; `false` para a master).
-- Checkbox no cálculo: **"Cálculo padrão da regra (catch-all)"** — desabilita os campos de whitelist de códigos e mostra aviso "Este cálculo será avaliado por último e cobre todos os códigos que não bateram nos anteriores".
-- Validação ao salvar: bloqueia se houver 2+ catch-all na mesma regra.
-
-**Detalhe do item (PaymentDetail)**
-- Quando `applied_calc_method = 'sem_regra'` com `skip_reason = 'specific_rule_no_calc_matched'`: badge laranja "Regra específica venceu mas nenhum cálculo bateu — revisar cadastro da regra X".
-
-### 2.4 Backfill
-
-Migration de dados (via insert tool, após approval do schema):
-- `UPDATE rules SET prevent_external_fallback = true` para todas as regras **não-master** (que têm `sectors`, `convenios` ou `companies` específicos).
-- Manter a master rule com `prevent_external_fallback = false`.
-
-### 2.5 Testes
-
-Adicionar a `supabase/functions/_shared/rulesEngine.test.ts`:
-- Regra específica com catch-all → item com código fora da whitelist usa o catch-all.
-- Regra específica com `prevent_external_fallback=true` e nenhum cálculo bate → `sem_regra`, **não** master.
-- Regra específica sem flag → mantém comportamento legado (cai na master).
-- Constraint: tentativa de marcar 2 catch-all na mesma regra falha.
-
----
+### 5. Catch-all CBHPM continua funcionando
+- Já implementado (`is_catch_all`). Após a conversão, a regra Cirurgia Torácica fica: `[valor_fixo Toracostomia/Pleuroscopia por função] → [catch-all CBHPM 2018 × 2 + 20%]`.
 
 ## Ordem de execução
 
-1. Fase 1 manual (você, no cadastro) — desbloqueia produção hoje.
-2. Migration Fase 2.1 (schema dos dois flags + constraint).
-3. Motor 2.2 + testes 2.5.
-4. UI 2.3.
-5. Backfill 2.4.
-6. Comunicação no `system_releases`.
+1. Migration: adicionar suporte a `valores_por_funcao` em `valor_fixo` (apenas docs/comment — config é JSONB, não muda schema). Script de auditoria SQL listando `pacote_*` candidatos a conversão.
+2. Motor: `rulesEngine.ts` lê `valores_por_funcao` no `valor_fixo`.
+3. UI editor: novos campos por função em valor_fixo.
+4. UI modal: badge PACOTE só para pacote real + ícone neutro p/ regras não-pacote + faixa mais compacta.
+5. Testes: novo caso `valorFixoPorFuncao_test.ts` + atualizar `catchAllAndFallbackBlock_test.ts` para cobrir cadeia pacote→fixo→catch-all.
+6. Após aprovação, rodar conversão dos cálculos atuais via UI (não em migration automática) — listar via SQL e usuário decide.
+
+## Detalhes técnicos
+
+- Funções normalizadas: reutilizar util já existente em `_shared/functionNormalize` (se não existir, criar — extrair do `packagePicker.ts`).
+- `valor_fixo` mantém compat: `valor` continua sendo o default quando `valores_por_funcao` vazio.
+- Display: tag de método na linha do item passa a mostrar "Valor fixo (por função)" quando `valores_por_funcao` não vazio.
+- Nada muda em `payment_items.applied_calc_method` ='valor_fixo' (já existente).
 
 ## Riscos
-
-- **Backfill agressivo**: marcar todas as regras não-master como `prevent_external_fallback=true` pode gerar pico de `sem_regra` se houver cadastros incompletos hoje mascarados pela master. Mitigação: rodar `simulate-rule-batch` antes do backfill em produção e listar itens que mudariam de status.
-- **Catch-all mal configurado**: se o analista marcar o cálculo errado como catch-all, todos os códigos caem nele. Mitigação: badge + aviso na UI, e log de telemetria mostra quantos itens usaram o catch-all por análise.
+- Conversão automática de pacotes para valor_fixo pode quebrar pacotes legítimos. Mitigação: NÃO automatizar — só listar candidatos e converter manualmente após revisão.
+- Mudança visual no badge PACOTE pode esconder pacote real se a heurística de `package_group_id` estiver ausente em dados antigos. Mitigação: fallback — se `applied_calc_method` contém 'pacote' e tem >1 item no mesmo atendimento+regra, ainda mostra badge.

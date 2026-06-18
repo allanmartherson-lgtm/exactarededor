@@ -51,6 +51,8 @@ export type CalcItem = {
 
   // parâmetros financeiros (todos opcionais — dependem do método)
   fixed_amount: string;
+  /** Valor fixo por função médica (cirurgiao | primeiro_aux | demais_aux | instrumentador). Vazio = usa fixed_amount global. */
+  fixed_amount_by_role: Record<string, string>;
   target_amount: string;
   multiplier: string;
   deflator_pct: string;
@@ -133,7 +135,7 @@ export type ContextConditionItem = {
 export function makeEmptyCalc(): CalcItem {
   return {
     calculation_type: "informativo",
-    fixed_amount: "", target_amount: "", multiplier: "", deflator_pct: "",
+    fixed_amount: "", fixed_amount_by_role: {}, target_amount: "", multiplier: "", deflator_pct: "",
     bonus_amount: "", bonus_pct: "", reference_table_id: "", repasse_pct: "", acrescimo_pct: "",
     convenio_percentage: "", auxiliary_pct: "",
     aux_first_pct: "30", aux_second_pct: "20", instrumentador_pct: "10",
@@ -295,10 +297,90 @@ export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: 
 function ValorFixoBlock({
   c, onChange,
 }: { c: CalcItem; onChange: (patch: Partial<CalcItem>) => void }) {
+  const [byRoleOpen, setByRoleOpen] = useState<boolean>(
+    Object.keys(c.fixed_amount_by_role ?? {}).length > 0,
+  );
+
+  const updateRole = (key: string, value: string) => {
+    const next = { ...(c.fixed_amount_by_role ?? {}) };
+    if (value.trim() === "") delete next[key];
+    else next[key] = value;
+    onChange({ fixed_amount_by_role: next });
+  };
+
+  const toggleByRole = (open: boolean) => {
+    if (!open && Object.keys(c.fixed_amount_by_role ?? {}).length > 0) {
+      const ok = window.confirm("Remover todos os valores por função e voltar ao valor único?");
+      if (!ok) return;
+      onChange({ fixed_amount_by_role: {} });
+    }
+    setByRoleOpen(open);
+  };
+
   return (
-    <div className="space-y-1">
-      <Label className="text-xs">Valor fixo (R$)</Label>
-      <Input type="number" step="0.01" value={c.fixed_amount} onChange={(e) => onChange({ fixed_amount: e.target.value })} />
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <Label className="text-xs">Valor fixo padrão (R$)</Label>
+        <Input
+          type="number" step="0.01"
+          value={c.fixed_amount}
+          onChange={(e) => onChange({ fixed_amount: e.target.value })}
+          placeholder="Ex.: 611,88"
+        />
+        <p className="text-[10px] text-muted-foreground leading-snug">
+          Valor pago por código, independente do convênio. Use os campos por função abaixo
+          quando o valor mudar conforme a função do médico (ex.: principal R$ 2.000 / 1º aux R$ 600).
+        </p>
+      </div>
+
+      <label data-checkbox-wrapper style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+        <Checkbox
+          checked={byRoleOpen}
+          onCheckedChange={(v) => toggleByRole(!!v)}
+          style={{ marginTop: 2, flexShrink: 0 }}
+        />
+        <span className="text-xs">
+          Definir valor diferente por função médica
+          <span className="block text-[10px] text-muted-foreground">
+            Quando preenchido, sobrescreve o valor padrão para a função correspondente.
+          </span>
+        </span>
+      </label>
+
+      {byRoleOpen && (
+        <div className="rounded-md border border-border bg-muted/40 overflow-hidden">
+          <div className="px-3 py-2 bg-muted/60 border-b border-border">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Valor por função
+            </span>
+          </div>
+          {ROLE_OPTIONS.map((opt) => {
+            const key = opt.key === "aux1" ? "primeiro_aux"
+              : opt.key === "aux2" ? "demais_aux"
+              : opt.key === "aux3" ? "demais_aux"
+              : opt.key;
+            const current = c.fixed_amount_by_role?.[key] ?? "";
+            return (
+              <div key={opt.key}
+                className="grid items-center gap-2 px-3 py-1.5 border-b border-border last:border-b-0"
+                style={{ gridTemplateColumns: "1fr 140px" }}>
+                <Label className="text-xs">{opt.label}</Label>
+                <Input
+                  type="number" step="0.01"
+                  className="h-7 text-xs text-right font-mono"
+                  placeholder="usa valor padrão"
+                  value={current}
+                  onChange={(e) => updateRole(key, e.target.value)}
+                />
+              </div>
+            );
+          })}
+          <p className="px-3 py-2 text-[10px] text-muted-foreground italic">
+            Funções vazias caem no valor padrão acima. 1º, 2º e 3º auxiliares compartilham
+            a chave "primeiro_aux"/"demais_aux" do motor.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1421,6 +1503,13 @@ export function calcFromDb(r: any): CalcItem {
     label: r.label,
     calculation_type: r.calculation_type as RuleCalculationType,
     fixed_amount: r.fixed_amount != null ? String(r.fixed_amount) : "",
+    fixed_amount_by_role: (r.fixed_amount_by_role && typeof r.fixed_amount_by_role === "object")
+      ? Object.fromEntries(
+          Object.entries(r.fixed_amount_by_role as Record<string, unknown>)
+            .filter(([, v]) => v != null && v !== "")
+            .map(([k, v]) => [k, String(v)]),
+        )
+      : {},
     target_amount: r.target_amount != null ? String(r.target_amount) : "",
     multiplier: r.multiplier != null ? String(r.multiplier) : "",
     deflator_pct: r.deflator_pct != null ? String(r.deflator_pct) : "",
@@ -1512,6 +1601,14 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     label: c.label?.trim() || null,
     calculation_type: c.calculation_type,
     fixed_amount: c.calculation_type === "valor_fixo" ? numOrNull(c.fixed_amount) : null,
+    fixed_amount_by_role: c.calculation_type === "valor_fixo"
+      ? (() => {
+          const entries = Object.entries(c.fixed_amount_by_role ?? {})
+            .map(([k, v]) => [k, numOrNull(v)] as const)
+            .filter(([, v]) => v != null);
+          return entries.length > 0 ? Object.fromEntries(entries) : null;
+        })()
+      : null,
     target_amount: c.calculation_type === "complemento" ? numOrNull(c.target_amount) : null,
     multiplier: isTabela ? numOrNull(c.multiplier) : null,
     deflator_pct: isTabela ? numOrNull(c.deflator_pct) : null,

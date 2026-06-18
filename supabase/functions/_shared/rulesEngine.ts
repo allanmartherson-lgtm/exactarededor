@@ -63,6 +63,8 @@ export interface RuleInput {
   calculation_type: CalculationType;
   convenio_percentage: number | null;
   fixed_amount: number | null;
+  /** Valor fixo por função médica — usado por calcValorFixo via ruleFromCalcItem. */
+  fixed_amount_by_role?: Record<string, number | null> | null;
   package_amount: number | null;
   extras_codes: string[] | null;
   /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
@@ -192,6 +194,12 @@ export interface RuleCalculationItem {
   // ---- parâmetros de cálculo (espelham os da regra) ----
   convenio_percentage?: number | null;
   fixed_amount?: number | null;
+  /**
+   * Valor fixo por função médica. Chaves: cirurgiao | primeiro_aux | demais_aux | instrumentador | outro.
+   * Quando a função do item bate uma chave preenchida, esse valor sobrescreve `fixed_amount`.
+   * Vazio/nulo = usa `fixed_amount` global.
+   */
+  fixed_amount_by_role?: Record<string, number | null> | null;
   package_amount?: number | null;
   package_main_code?: string | null;
   package_included_codes?: string[] | null;
@@ -1494,6 +1502,26 @@ function calcValorFixo(rule: RuleInput, item?: ItemInput, ctx?: EngineCtx): Expe
       };
     }
   }
+  // Valor por função (override) — vence sobre o valor global se a função do item
+  // estiver mapeada e tiver um valor numérico explícito.
+  const byRole = rule.fixed_amount_by_role ?? null;
+  if (byRole && item) {
+    const roleKey = classifyDoctorRole(item.doctor_role);
+    const raw = byRole[roleKey];
+    if (raw != null && isFinite(Number(raw))) {
+      const v = Number(raw);
+      const roleLabel = roleKey === "cirurgiao" ? "Cirurgião Principal"
+        : roleKey === "primeiro_aux" ? "1º Auxiliar"
+        : roleKey === "demais_aux" ? "Demais Auxiliares"
+        : roleKey === "instrumentador" ? "Instrumentador"
+        : item.doctor_role ?? "função";
+      return {
+        expected: Number(v.toFixed(2)),
+        explanation: `Valor fixo por função "${roleLabel}": R$ ${v.toFixed(2)}`,
+        alerts: [],
+      };
+    }
+  }
   if (rule.fixed_amount == null) return { expected: null, explanation: "valor_fixo sem fixed_amount.", alerts: ["Valor fixo não configurado."] };
   return { expected: Number(rule.fixed_amount), explanation: `Valor fixo: R$ ${rule.fixed_amount.toFixed(2)}`, alerts: [] };
 }
@@ -1752,6 +1780,7 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     calculation_type: c.calculation_type,
     convenio_percentage: c.convenio_percentage ?? rule.convenio_percentage,
     fixed_amount: c.fixed_amount ?? rule.fixed_amount,
+    fixed_amount_by_role: (c as any).fixed_amount_by_role ?? (rule as any).fixed_amount_by_role ?? null,
     package_amount: c.package_amount ?? rule.package_amount,
     package_main_code: c.package_main_code ?? rule.package_main_code,
     package_included_codes: c.package_included_codes ?? rule.package_included_codes,

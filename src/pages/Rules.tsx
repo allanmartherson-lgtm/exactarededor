@@ -1068,6 +1068,28 @@ const Rules = () => {
         .eq("rule_id", savedId)
         .order("sort_order");
 
+      // Persiste fixed_amount_by_role (ainda não mapeado pela RPC). Match por sort_order.
+      const calcsByOrder = new Map<number, any>();
+      (calcs ?? []).forEach((c: any) => {
+        const so = typeof c?.sort_order === "number" ? c.sort_order : null;
+        if (so != null) calcsByOrder.set(so, c);
+      });
+      for (const sc of (savedCalcs as any[]) ?? []) {
+        const src = calcsByOrder.get(sc.sort_order);
+        if (!src) continue;
+        const has = Object.prototype.hasOwnProperty.call(src, "fixed_amount_by_role");
+        if (!has) continue;
+        const next = src.fixed_amount_by_role ?? null;
+        const prev = sc.fixed_amount_by_role ?? null;
+        if (JSON.stringify(next) === JSON.stringify(prev)) continue;
+        const { error: fxErr } = await supabase
+          .from("rule_calculations")
+          .update({ fixed_amount_by_role: next })
+          .eq("id", sc.id);
+        if (fxErr) console.warn("[Rules] Falha ao persistir fixed_amount_by_role:", fxErr.message);
+        else (sc as any).fixed_amount_by_role = next;
+      }
+
       const prevByKey = new Map<string, any>();
       (prevCalcs ?? []).forEach((p: any, idx: number) => {
         prevByKey.set(p.id, p);
