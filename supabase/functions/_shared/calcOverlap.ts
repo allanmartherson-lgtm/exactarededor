@@ -78,19 +78,35 @@ function _splitMain(v: unknown): string[] {
   if (v == null) return [];
   return String(v).split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
 }
-function _calcCodes(c: RuleCalculationItem): { mode: "whitelist" | "blacklist" | "any"; set: Set<string> } {
+function _packageMainCodes(c: RuleCalculationItem): Set<string> {
+  return _setOf(_splitMain((c as any).package_main_code));
+}
+function _calcCodes(c: RuleCalculationItem): { mode: "whitelist" | "blacklist" | "any"; set: Set<string>; isPackage: boolean; mainSet: Set<string> } {
   if (_isPackage(c)) {
     const main = _splitMain((c as any).package_main_code);
     const inc = Array.isArray((c as any).package_included_codes) ? (c as any).package_included_codes : [];
     const set = _setOf([...main, ...inc]);
-    return { mode: set.size > 0 ? "whitelist" : "any", set };
+    return { mode: set.size > 0 ? "whitelist" : "any", set, isPackage: true, mainSet: _packageMainCodes(c) };
   }
   const mode = (c.code_match_mode ?? "any") as "whitelist" | "blacklist" | "any";
-  return { mode, set: _setOf(c.procedure_codes) };
+  return { mode, set: _setOf(c.procedure_codes), isPackage: false, mainSet: new Set<string>() };
 }
 function axisCodes(a: RuleCalculationItem, b: RuleCalculationItem): AxisResult {
   const aC = _calcCodes(a);
   const bC = _calcCodes(b);
+  // Pacote tem precedência contextual por atendimento: códigos incluídos só
+  // entram no pacote quando o código principal do pacote está presente; caso
+  // contrário, caem para valor_fixo/tabela. Portanto package×não-package não é
+  // ambiguidade de cadastro. Entre dois pacotes, o gatilho que define disputa é
+  // o package_main_code, não os acessórios compartilhados.
+  if (aC.isPackage || bC.isPackage) {
+    if (aC.isPackage && bC.isPackage) {
+      const interMain = _interSet(aC.mainSet, bC.mainSet);
+      if (interMain.size === 0) return { empty: true };
+      return { empty: false, shared: true, description: `Códigos principais de pacote {${[...interMain].sort().join(", ")}}` };
+    }
+    return { empty: true };
+  }
   const A = aC.set, B = bC.set;
   const modeA = aC.mode, modeB = bC.mode;
   const aRestricts = modeA !== "any" && A.size > 0;

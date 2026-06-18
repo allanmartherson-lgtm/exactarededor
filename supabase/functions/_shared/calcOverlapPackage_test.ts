@@ -9,8 +9,8 @@
  * "Excedente × Excedente" falsos.
  *
  * Estes testes travam o comportamento corrigido: pacotes com TUSS disjuntos
- * NÃO conflitam, e pacotes com TUSS compartilhados conflitam mencionando o
- * código compartilhado.
+ * NÃO conflitam; entre pacote e valor_fixo/tabela, o pacote tem precedência
+ * contextual por atendimento e não deve bloquear o salvamento.
  *
  * Observação: `isRestrictiveCalculation` (em rulesEngine.ts) NÃO inspeciona
  * `package_main_code` — só os 9 eixos clássicos. Para forçar os cálculos a
@@ -114,16 +114,12 @@ Deno.test("pacote — 2 pacotes compartilhando package_main_code → calc_overla
   }
 });
 
-Deno.test("pacote — included_codes de um intercepta main_code do outro → conflita", () => {
+Deno.test("pacote — included_code de um intercepta main_code do outro → SEM overlap; pacote absorve por contexto", () => {
   const calcs = [
     pkg("p1", { main: "30805228", included: ["40201058"], restrictiveTag: "p1", sort: 0 }),
     pkg("p2", { main: "40201058", included: ["99999999"], restrictiveTag: "p2", sort: 1 }),
   ];
-  const out = detectCalcOverlap(calcs);
-  assertEquals(out.length, 1);
-  if (!out[0].intersection_description.includes("40201058")) {
-    throw new Error("Descrição deve citar TUSS compartilhado 40201058");
-  }
+  assertEquals(detectCalcOverlap(calcs), []);
 });
 
 // =====================================================================
@@ -147,7 +143,7 @@ Deno.test("pacote × valor_fixo — TUSS do pacote disjuntos do whitelist do fix
   assertEquals(detectCalcOverlap(calcs), []);
 });
 
-Deno.test("pacote × valor_fixo — TUSS do pacote contém código do fixo → conflita", () => {
+Deno.test("pacote × valor_fixo — TUSS incluído no pacote também tem valor fixo → SEM overlap; pacote vence quando main presente", () => {
   const calcs: RuleCalculationItem[] = [
     pkg("pacote-a", { main: "30805228", included: ["40201058"], restrictiveTag: "a", sort: 0 }),
     {
@@ -162,11 +158,7 @@ Deno.test("pacote × valor_fixo — TUSS do pacote contém código do fixo → c
       extras_codes: ["b", "__shared_tag__"],
     } as unknown as RuleCalculationItem,
   ];
-  const out = detectCalcOverlap(calcs);
-  assertEquals(out.length, 1);
-  if (!out[0].intersection_description.includes("40201058")) {
-    throw new Error("Descrição deve citar TUSS compartilhado 40201058");
-  }
+  assertEquals(detectCalcOverlap(calcs), []);
 });
 
 // =====================================================================

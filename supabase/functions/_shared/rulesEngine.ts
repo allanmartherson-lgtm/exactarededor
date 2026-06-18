@@ -1271,6 +1271,15 @@ function isMainPackageCode(rule: RuleInput, item: ItemInput): boolean {
   return true;
 }
 
+function packageMainPresentInAttendance(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): boolean {
+  const mainCodes = splitMainCodes(rule.package_main_code);
+  if (mainCodes.length === 0) return true;
+  const key = (item as any).attendance_group_key ?? item.attendance_number ?? "";
+  const siblings = ctx?.attendanceSiblingCodes?.get(key) ?? new Set<string>();
+  const currentCode = String(item.procedure_code ?? "").trim();
+  return mainCodes.some((c) => siblings.has(c) || currentCode === c);
+}
+
 
 function isIncludedInPackage(rule: RuleInput, item: ItemInput): boolean {
   const inc = rule.package_included_codes ?? [];
@@ -1304,6 +1313,9 @@ function calcPacoteFechado(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): E
   if (rule.package_amount == null) {
     return { expected: null, explanation: "pacote_fechado sem package_amount.", alerts: ["Pacote sem valor."] };
   }
+  if (!packageMainPresentInAttendance(rule, item, ctx)) {
+    return { expected: null, explanation: `Pacote sem código principal presente no atendimento — segue próximo cálculo.`, alerts: [] };
+  }
   if (isMainPackageCode(rule, item)) {
     return { expected: Number(rule.package_amount), explanation: `Pacote fechado (principal ${item.procedure_code ?? "—"}): R$ ${rule.package_amount.toFixed(2)}`, alerts: [] };
   }
@@ -1318,8 +1330,11 @@ function calcPacoteFechado(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): E
   };
 }
 
-function calcPacoteExtras(rule: RuleInput, item: ItemInput): ExpectedCalc {
+function calcPacoteExtras(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): ExpectedCalc {
   const pkg = rule.package_amount ?? 0;
+  if (!packageMainPresentInAttendance(rule, item, ctx)) {
+    return { expected: null, explanation: `Pacote sem código principal presente no atendimento — segue próximo cálculo.`, alerts: [] };
+  }
   const extras = rule.extras_codes ?? [];
   const isExtra = item.procedure_code != null && extras.includes(item.procedure_code);
   if (isExtra) {
@@ -1367,6 +1382,9 @@ function calcPacotePorAtendimento(
 ): ExpectedCalc {
   if (rule.package_amount == null) {
     return { expected: null, explanation: "pacote_por_atendimento sem package_amount.", alerts: ["Pacote sem valor."] };
+  }
+  if (!packageMainPresentInAttendance(rule, item, ctx)) {
+    return { expected: null, explanation: `Pacote sem código principal presente no atendimento — segue próximo cálculo.`, alerts: [] };
   }
   // Lock pré-passe (Correção C) — só o calc vencedor do atendimento aplica.
   {
@@ -2141,7 +2159,7 @@ export function applyCalculation(
     // tem maior sobreposição com o atendimento. Cálculos não-pacote
     // permanecem disputando normalmente.
     const isPacoteType = (t: CalculationType) =>
-      t === "pacote" || t === "pacote_por_atendimento";
+      t === "pacote" || t === "pacote_por_atendimento" || t === "pacote_fechado" || t === "pacote_com_extras";
     const pacoteCalcs = validCalcs.filter((v) => isPacoteType(v.calculation_type));
     if (pacoteCalcs.length >= 2) {
       const scored = pacoteCalcs.map((v) => {
@@ -2175,6 +2193,48 @@ export function applyCalculation(
           ) {
             b.matched = false;
             b.skip_reason = "pacote_perdeu_desempate_score";
+          }
+        }
+      }
+    }
+
+    // ---- Precedência contextual: pacote absorve valor_fixo/tabela do mesmo código ----
+    // Regra de negócio: se o atendimento contém o código principal do pacote,
+    // todo código listado dentro desse pacote segue o pacote. Valor fixo só vale
+    // quando o código aparece fora do contexto do pacote; catch-all/tabela fica
+    // por último. Sem este corte, um item incluído no pacote (ex.: 30804132)
+    // também bateria no valor_fixo migrado como "Excedente" e geraria duplicidade.
+    {
+      const itemCode = String(item.procedure_code ?? "").trim();
+      const attKey = (item as any).attendance_group_key ?? item.attendance_number ?? "";
+      const siblings = ctx?.attendanceSiblingCodes?.get(attKey) ?? new Set<string>(itemCode ? [itemCode] : []);
+      const packageIdsInContext = new Set<string | null>();
+      for (const v of validCalcs) {
+        if (!isPacoteType(v.calculation_type)) continue;
+        const cItem = list.find((c) => (c.id ?? null) === v.id);
+        if (!cItem || !itemCode) continue;
+        const mainCodes = splitMainCodes(cItem.package_main_code as any);
+        if (mainCodes.length === 0 || !mainCodes.some((m) => siblings.has(m))) continue;
+        const included = Array.isArray(cItem.package_included_codes)
+          ? cItem.package_included_codes.map((x) => String(x).trim()).filter(Boolean)
+          : [];
+        const extras = Array.isArray((cItem as any).extras_codes)
+          ? (cItem as any).extras_codes.map((x: any) => String(x).trim()).filter(Boolean)
+          : [];
+        const packageCodes = new Set([...mainCodes, ...included, ...extras]);
+        if (packageCodes.has(itemCode)) packageIdsInContext.add(v.id);
+      }
+      if (packageIdsInContext.size > 0) {
+        for (let i = validCalcs.length - 1; i >= 0; i--) {
+          const v = validCalcs[i];
+          if (packageIdsInContext.has(v.id)) continue;
+          const dropped = validCalcs[i];
+          validCalcs.splice(i, 1);
+          for (const b of breakdown) {
+            if (b.matched && b.calc_id === dropped.id) {
+              b.matched = false;
+              b.skip_reason = "preterido_por_pacote_no_atendimento";
+            }
           }
         }
       }
@@ -2341,7 +2401,7 @@ function applyCalculationSingle(
     case "percentual_sobre_convenio": return calcPercentual(rule, item);
     case "regra_vias":                return calcRegraVias(rule, item);
     case "pacote_fechado":            return calcPacoteFechado(rule, item, ctx);
-    case "pacote_com_extras":         return calcPacoteExtras(rule, item);
+    case "pacote_com_extras":         return calcPacoteExtras(rule, item, ctx);
     case "pacote_por_atendimento": {
       const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
       let set = map.get(rule.id);

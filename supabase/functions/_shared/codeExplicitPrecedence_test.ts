@@ -12,7 +12,7 @@
  *   listar 30803217 explicitamente.
  */
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { applyCalculation, type ItemInput, type RuleInput } from "./rulesEngine.ts";
+import { applyCalculation, type EngineCtx, type ItemInput, type RuleInput } from "./rulesEngine.ts";
 
 function makeRule(): RuleInput {
   return {
@@ -57,6 +57,17 @@ function makeRule(): RuleInput {
         acrescimo_pct: 20,
         doctor_roles: ["cirurgiao_principal", "primeiro_auxiliar", "segundo_auxiliar"],
         reference_table_id: "ref-cbhpm-2018",
+      },
+      {
+        id: "calc-excedente-drenagem",
+        sort_order: 22,
+        label: "Excedente – Drenagem Pleural / Toracostomia / Toracotomia Bilateral",
+        calculation_type: "valor_fixo",
+        fixed_amount: 2039.60,
+        fixed_amount_by_role: { cirurgiao: 2039.60, primeiro_aux: 611.88, demais_aux: 407.92 },
+        procedure_codes: ["30804132"],
+        code_match_mode: "whitelist",
+        doctor_roles: ["cirurgiao_principal", "primeiro_auxiliar", "segundo_auxiliar"],
       },
     ],
   } as unknown as RuleInput;
@@ -112,5 +123,47 @@ Deno.test("Item de código FORA do pacote ainda cai no CBHPM catch-all", () => {
   const expl = (out.explanation || "").toLowerCase();
   if (!expl.includes("cbhpm")) {
     throw new Error(`Esperava CBHPM, veio: ${out.explanation}`);
+  }
+});
+
+Deno.test("Código incluído no pacote não conflita com valor_fixo quando o código principal está no atendimento", () => {
+  const ctx = {
+    appliedAttendancesByRule: new Map<string, Set<string>>(),
+    attendanceSiblingCodes: new Map([["8952448", new Set(["30803217", "30804132"])]]),
+  } as EngineCtx;
+  const out = applyCalculation(
+    makeRule(),
+    makeItem({
+      id: "it-incluso-com-fixo",
+      procedure_code: "30804132",
+      procedure_name: "Drenagem Pleural / Toracostomia",
+    }),
+    ctx,
+  );
+  assertEquals(out.calc_duplicity, undefined, "pacote deve absorver o valor_fixo, sem bloquear por duplicidade");
+  const expl = (out.explanation || "").toLowerCase();
+  if (!expl.includes("pacote") && !expl.includes("lobectomia")) {
+    throw new Error(`Esperava pacote vencedor, veio: ${out.explanation}`);
+  }
+});
+
+Deno.test("Mesmo código fora do contexto de pacote usa valor_fixo antes do CBHPM", () => {
+  const ctx = {
+    appliedAttendancesByRule: new Map<string, Set<string>>(),
+    attendanceSiblingCodes: new Map([["8952448", new Set(["30804132"])]]),
+  } as EngineCtx;
+  const out = applyCalculation(
+    makeRule(),
+    makeItem({
+      id: "it-incluso-sem-main",
+      procedure_code: "30804132",
+      procedure_name: "Drenagem Pleural / Toracostomia",
+    }),
+    ctx,
+  );
+  assertEquals(out.calc_duplicity, undefined);
+  const expl = (out.explanation || "").toLowerCase();
+  if (!expl.includes("valor fixo") && !expl.includes("excedente")) {
+    throw new Error(`Esperava valor_fixo vencedor fora do pacote, veio: ${out.explanation}`);
   }
 });
