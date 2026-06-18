@@ -107,6 +107,60 @@ Deno.test("pacote com inclusos declarados não casa se só o main_code apareceu"
   assertEquals(m!.includedFound, []);
 });
 
+// Regression — Cirurgia Torácica DF Star / TUSS 30804132:
+// Existem dois cálculos com o MESMO package_main_code:
+//   (a) "Pacote Drenagem Torácica" — combo com vários included_codes
+//   (b) "Excedente – Drenagem Pleural / Toracostomia / Toracotomia Bilateral" — sem included
+// Quando NENHUM dos included do combo aparece no atendimento, o motor DEVE escolher
+// a linha de excedente, não o pacote combo (que antes vencia por "mais específico").
+// Bug reproduzido em payment 9147596 / item c3aa9687-d766-48c5-9a8b-7b7c1fe0996d.
+Deno.test("regressão: pacote combo sem inclusos cede para linha de excedente (TUSS 30804132)", () => {
+  const combo = makeCalc({
+    id: "combo-drenagem",
+    main: "30804132",
+    included: ["30804086", "30804094", "30804108"],
+    rule_name: "Pacote Drenagem Torácica",
+  });
+  const excedente = makeCalc({
+    id: "excedente-drenagem",
+    main: "30804132",
+    included: [],
+    rule_name: "Excedente – Drenagem Pleural / Toracostomia / Toracotomia Bilateral",
+  });
+
+  // Atendimento só tem o main_code, nenhum included do combo.
+  const codeSet = new Set(["30804132"]);
+
+  // Testa as duas ordens para garantir determinismo da seleção.
+  const m1 = pickPackageForAttendance([combo, excedente], codeSet, new Set(["c"]));
+  assert(m1, "deve casar com a linha de excedente");
+  assertEquals(m1!.calc.rule_id, "rule-excedente-drenagem");
+
+  const m2 = pickPackageForAttendance([excedente, combo], codeSet, new Set(["c"]));
+  assert(m2);
+  assertEquals(m2!.calc.rule_id, "rule-excedente-drenagem", "ordem não pode mudar resultado");
+});
+
+// Sanity check oposto: quando os inclusos do combo APARECEM, o combo deve vencer.
+Deno.test("regressão: pacote combo vence quando seus inclusos estão presentes", () => {
+  const combo = makeCalc({
+    id: "combo-drenagem",
+    main: "30804132",
+    included: ["30804086", "30804094"],
+  });
+  const excedente = makeCalc({
+    id: "excedente-drenagem",
+    main: "30804132",
+    included: [],
+  });
+
+  const codeSet = new Set(["30804132", "30804086"]);
+  const m = pickPackageForAttendance([combo, excedente], codeSet, new Set(["c"]));
+  assert(m);
+  assertEquals(m!.calc.rule_id, "rule-combo-drenagem");
+  assertEquals(m!.includedFound, ["30804086"]);
+});
+
 Deno.test("buildCrossPjCodeSet agrupa por attendance e ignora linhas inválidas", () => {
   const out = buildCrossPjCodeSet([
     { attendance_number: " ATD-1 ", procedure_code: " 111 " },
