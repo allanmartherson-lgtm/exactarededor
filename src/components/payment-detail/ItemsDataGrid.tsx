@@ -1577,7 +1577,7 @@ export function ItemsDataGrid({
                 const isFirstPkgItem = !!(pkgGroup && pkgGroup.firstItemIdx === idx);
                 const isPackageCollapsed = isPackageItem && pkgAtt ? collapsedPackages.has(pkgAtt) : false;
                 if (isPackageItem && isPackageCollapsed && !isFirstPkgItem) return null;
-                const showItemRow = !isPackageItem || !isPackageCollapsed;
+                const showItemRow = (!isPackageItem || !isPackageCollapsed);
 
                 // === Agrupamento por atendimento (card) ===
                 const attKey = (it.attendance_number ?? "").toString().trim();
@@ -1784,7 +1784,7 @@ export function ItemsDataGrid({
                       </>
                     )}
 
-                    {showItemRow && (
+                    {showItemRow && !(attKey && isAttCollapsed) && (
                       <RowMain
                         key={it.id}
                         it={it}
