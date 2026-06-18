@@ -1009,10 +1009,11 @@ function CalcCard({
           Cálculo #{index + 1}
         </span>
         <Input
-          placeholder="Rótulo opcional (ex.: Bônus fim de semana)"
+          placeholder="Nome da linha (obrigatório, ex.: Excedente — Toracostomia)"
           value={c.label ?? ""}
           onChange={(e) => onChange({ label: e.target.value })}
           className="h-7 text-xs flex-1"
+          aria-required
         />
         {hasErrors && (
           <span
