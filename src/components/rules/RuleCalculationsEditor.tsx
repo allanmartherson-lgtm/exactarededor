@@ -164,6 +164,7 @@ export function makeEmptyCalc(): CalcItem {
     adicional_noturno_pct: "",
     noturno_inicio: "",
     noturno_fim: "",
+    is_catch_all: false,
   };
 }
 
