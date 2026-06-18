@@ -192,6 +192,12 @@ export interface RuleCalculationItem {
   // ---- parâmetros de cálculo (espelham os da regra) ----
   convenio_percentage?: number | null;
   fixed_amount?: number | null;
+  /**
+   * Valor fixo por função médica. Chaves: cirurgiao | primeiro_aux | demais_aux | instrumentador | outro.
+   * Quando a função do item bate uma chave preenchida, esse valor sobrescreve `fixed_amount`.
+   * Vazio/nulo = usa `fixed_amount` global.
+   */
+  fixed_amount_by_role?: Record<string, number | null> | null;
   package_amount?: number | null;
   package_main_code?: string | null;
   package_included_codes?: string[] | null;
