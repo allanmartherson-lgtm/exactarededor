@@ -1563,6 +1563,8 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
  * Permitido apenas em `tabela_diferenciada`, onde a própria tabela define o universo de códigos.
  */
 export function calcItemHasWhitelistWithoutCodes(c: CalcItem): boolean {
+  // Catch-all explícito ignora filtros de código por definição — não conta como anti-padrão.
+  if (c.is_catch_all) return false;
   const isPkg = c.calculation_type === "pacote"
     || c.calculation_type === "pacote_fechado"
     || c.calculation_type === "pacote_com_extras"
