@@ -2370,6 +2370,7 @@ export function applyCalculation(
       steps: winnerCalc.steps,
       inferred_sector: (winnerCalc as any).inferred_sector,
       temporal_surcharge_config: winnerCalc.temporal_surcharge_config ?? null,
+      winner_calc_type: (winnerCalc.calculation_type as CalculationType) ?? null,
       ...(resolutionStale ? {
         calc_duplicity: {
           rule_id: rule.id, rule_name: rule.name,
