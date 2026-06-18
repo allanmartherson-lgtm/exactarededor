@@ -300,7 +300,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
-        load();
+        loadGuarded();
       }, 600);
     };
 
