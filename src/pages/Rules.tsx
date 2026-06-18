@@ -2561,6 +2561,29 @@ const Rules = () => {
                         errorCount: 0,
                         content: (
                           <div className="space-y-6 max-w-full overflow-hidden p-1 pt-1">
+                            {/* Fallback para regra geral */}
+                            <div className="rounded-md border border-border bg-card p-3 space-y-2">
+                              <label className="flex items-start gap-2 cursor-pointer">
+                                <Checkbox
+                                  checked={fPreventExternalFallback}
+                                  onCheckedChange={(v) => setFPreventExternalFallback(!!v)}
+                                />
+                                <div className="space-y-1">
+                                  <div className="text-sm font-semibold leading-tight">
+                                    Não permitir fallback para a regra geral
+                                  </div>
+                                  <p className="text-xs text-muted-foreground leading-snug">
+                                    Quando ligado, se esta regra vence a seleção mas nenhum cálculo bate,
+                                    o item vai para <strong>sem regra</strong> com alerta — em vez de cair
+                                    silenciosamente na regra geral master. Recomendado para regras específicas
+                                    (com setor/convênio/empresa/médico). Combine com um cálculo marcado como
+                                    <strong> piso (catch-all)</strong> para criar uma "última barreira"
+                                    interna da regra.
+                                  </p>
+                                </div>
+                              </label>
+                            </div>
+
                             <div>
                               <div className="flex items-center text-sm font-semibold mb-3">
                                 Limiares de divergência
