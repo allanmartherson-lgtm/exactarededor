@@ -1,9 +1,11 @@
 import { assert, assertEquals, assertStrictEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import {
   buildCrossPjCodeSet,
+  pickAllPackagesForAttendance,
   pickPackageForAttendance,
   type PkgCalc,
 } from "./packagePicker.ts";
+
 
 /**
  * Helpers
@@ -173,4 +175,65 @@ Deno.test("buildCrossPjCodeSet agrupa por attendance e ignora linhas inválidas"
   assertEquals([...out["ATD-2"]], ["333"]);
   assertEquals(out["ATD-3"], undefined);
   assertEquals(out[""], undefined);
+});
+
+// Regressão multi-pacote — atendimento 9147596 (Cirurgia Torácica DF Star):
+// O atendimento tinha 3 grupos distintos:
+//   • TUSS 30804132 (2 itens) → "Pacote Drenagem Torácica" (combo com included 30804086)
+//   • TUSS 30804183 (2 itens) → absorvido pelo combo
+//   • TUSS 31403379 (1 item)  → "Excedente – Simpatectomia por Videotoracoscopia" (sem included)
+// Antes do fix, o motor escolhia UM pacote por atendimento e o 31403379 caía em fallback
+// ("Regra Geral – Repasse 100% Convênio"). Agora deve aplicar AMBOS no mesmo atendimento.
+Deno.test("multi-pacote: atendimento com pacote combo + excedente independente aplica os dois", () => {
+  const combo = makeCalc({
+    id: "combo-drenagem",
+    main: "30804132",
+    included: ["30804086"],
+    rule_name: "Pacote Drenagem Torácica",
+  });
+  const excedenteSimpatectomia = makeCalc({
+    id: "excedente-simpatectomia",
+    main: "31403379",
+    included: [],
+    rule_name: "Excedente – Simpatectomia por Videotoracoscopia",
+  });
+  const excedenteDrenagem = makeCalc({
+    id: "excedente-drenagem",
+    main: "30804132",
+    included: [],
+    rule_name: "Excedente – Drenagem Pleural",
+  });
+
+  // codeSet do atendimento real: trigger do combo + included do combo + código avulso
+  const codeSet = new Set(["30804132", "30804086", "31403379"]);
+  const picks = pickAllPackagesForAttendance(
+    [combo, excedenteSimpatectomia, excedenteDrenagem],
+    codeSet,
+    new Set(["c"]),
+  );
+
+  assertEquals(picks.length, 2, "deve aplicar dois pacotes no mesmo atendimento");
+  // Primeira escolha: combo (maior cobertura). Segunda: excedente do código sobrando.
+  assertEquals(picks[0].calc.rule_id, "rule-combo-drenagem");
+  assert(picks[0].absorbedCodes.has("30804132"));
+  assert(picks[0].absorbedCodes.has("30804086"));
+  assertEquals(picks[1].calc.rule_id, "rule-excedente-simpatectomia");
+  assertEquals(picks[1].triggerCode, "31403379");
+});
+
+Deno.test("multi-pacote: sem códigos remanescentes para após o primeiro pacote, para o loop", () => {
+  const combo = makeCalc({ id: "combo", main: "M1", included: ["X1", "X2"] });
+  const outro = makeCalc({ id: "outro", main: "M2" });
+
+  // Só os códigos do combo aparecem; M2 não está no atendimento.
+  const picks = pickAllPackagesForAttendance([combo, outro], new Set(["M1", "X1", "X2"]), new Set(["c"]));
+  assertEquals(picks.length, 1);
+  assertEquals(picks[0].calc.rule_id, "rule-combo");
+});
+
+Deno.test("multi-pacote: o mesmo calc nunca é aplicado duas vezes", () => {
+  const exc = makeCalc({ id: "exc", main: "MAIN" });
+  // Apenas um trigger no codeSet → não deve duplicar mesmo com 20 iterações disponíveis.
+  const picks = pickAllPackagesForAttendance([exc], new Set(["MAIN"]), new Set(["c"]));
+  assertEquals(picks.length, 1);
 });
