@@ -1903,6 +1903,10 @@ export interface ExpectedCalc {
     noturno_inicio: string | null;
     noturno_fim: string | null;
   } | null;
+  /** Tipo de cálculo do filho vencedor (calculations[]). Quando presente,
+   *  tem precedência sobre rule.calculation_type para carimbar
+   *  applied_calc_method — evita herdar o tipo "pai" da regra. */
+  winner_calc_type?: CalculationType | null;
 }
 
 
