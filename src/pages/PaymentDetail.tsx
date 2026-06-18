@@ -2286,6 +2286,13 @@ const PaymentDetail = () => {
             <AlertDescription>{itemsLoadIssue}</AlertDescription>
           </Alert>
         )}
+        {itemsLoading && !itemsLoadIssue && items.length === 0 && Number((payment as any).items_count ?? 0) > 0 && (
+          <Alert className="border-primary/30 bg-primary/5">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            <AlertTitle>Carregando itens do lote</AlertTitle>
+            <AlertDescription>A lista está sendo carregada sem zerar os dados persistidos.</AlertDescription>
+          </Alert>
+        )}
         {id && <BatchAIFailureReport paymentId={id} />}
         {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
         {!isNfPhase && (
