@@ -3007,8 +3007,11 @@ function preComputePackageWinners(
 
       if (scored.length === 0) continue;
       scored.sort((a, b) => {
-        if (b.cobertura !== a.cobertura) return b.cobertura - a.cobertura;
+        // Desempate alinhado com packageMatchScore: especificidade (ratio de inclusos
+        // cadastrados que estão no atendimento) tem prioridade — pacote menor com
+        // todos os inclusos presentes vence pacote maior com cobertura parcial.
         if (b.inclusosRatio !== a.inclusosRatio) return b.inclusosRatio - a.inclusosRatio;
+        if (b.cobertura !== a.cobertura) return b.cobertura - a.cobertura;
         return (a.calc.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.calc.sort_order ?? Number.MAX_SAFE_INTEGER);
       });
       const winner = scored[0];
