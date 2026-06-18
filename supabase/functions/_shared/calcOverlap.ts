@@ -62,11 +62,37 @@ type AxisResult =
   | { empty: false; shared: false }; // pelo menos um eixo é "any" → universo
 
 // ===== Eixo 1: procedure_codes + code_match_mode =====
+// Para cálculos do tipo "pacote*", os códigos TUSS que diferenciam o cálculo
+// vivem em `package_main_code` (+ `package_included_codes`), não em
+// `procedure_codes`. Tratamos esse conjunto como whitelist implícita.
+const _PACKAGE_KINDS = new Set([
+  "pacote",
+  "pacote_por_atendimento",
+  "pacote_fechado",
+  "pacote_com_extras",
+]);
+function _isPackage(c: RuleCalculationItem): boolean {
+  return _PACKAGE_KINDS.has(String((c as any).calculation_type ?? ""));
+}
+function _splitMain(v: unknown): string[] {
+  if (v == null) return [];
+  return String(v).split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
+}
+function _calcCodes(c: RuleCalculationItem): { mode: "whitelist" | "blacklist" | "any"; set: Set<string> } {
+  if (_isPackage(c)) {
+    const main = _splitMain((c as any).package_main_code);
+    const inc = Array.isArray((c as any).package_included_codes) ? (c as any).package_included_codes : [];
+    const set = _setOf([...main, ...inc]);
+    return { mode: set.size > 0 ? "whitelist" : "any", set };
+  }
+  const mode = (c.code_match_mode ?? "any") as "whitelist" | "blacklist" | "any";
+  return { mode, set: _setOf(c.procedure_codes) };
+}
 function axisCodes(a: RuleCalculationItem, b: RuleCalculationItem): AxisResult {
-  const modeA = a.code_match_mode ?? "any";
-  const modeB = b.code_match_mode ?? "any";
-  const A = _setOf(a.procedure_codes);
-  const B = _setOf(b.procedure_codes);
+  const aC = _calcCodes(a);
+  const bC = _calcCodes(b);
+  const A = aC.set, B = bC.set;
+  const modeA = aC.mode, modeB = bC.mode;
   const aRestricts = modeA !== "any" && A.size > 0;
   const bRestricts = modeB !== "any" && B.size > 0;
   if (!aRestricts && !bRestricts) return { empty: false, shared: false };
@@ -91,6 +117,7 @@ function axisCodes(a: RuleCalculationItem, b: RuleCalculationItem): AxisResult {
   // blacklist + blacklist → universo \ (A ∪ B): sempre não-vazio em domínio aberto.
   return { empty: false, shared: true, description: "Códigos (qualquer fora das exclusões)" };
 }
+
 
 // Helper genérico para arrays simples (sem mode): empty = "any".
 function axisSimpleArray(
