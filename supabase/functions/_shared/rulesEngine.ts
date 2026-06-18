@@ -2934,7 +2934,7 @@ export function analyzeItem(
       }
     }
     priority = winnerPriority;
-    calculation_type_used = winner.calculation_type;
+    calculation_type_used = (calc?.winner_calc_type as any) ?? winner.calculation_type;
     matched_rule_id = winner.id;
     matched_rule_name = winner.name;
 
