@@ -1554,6 +1554,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     adicional_noturno_pct: numOrNull(c.adicional_noturno_pct),
     noturno_inicio: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_inicio || null) : null,
     noturno_fim: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_fim || null) : null,
+    is_catch_all: !!c.is_catch_all,
   };
 }
 
