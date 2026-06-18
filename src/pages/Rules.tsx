@@ -839,6 +839,7 @@ const Rules = () => {
     setFCalculations([makeEmptyCalc()]);
     setFAlertThresholdType("percentual"); setFAlertThresholdValue(""); setFAlertInherit(true);
     setFBlockThresholdType("percentual"); setFBlockThresholdValue(""); setFBlockInherit(true);
+    setFPreventExternalFallback(false);
   };
 
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
