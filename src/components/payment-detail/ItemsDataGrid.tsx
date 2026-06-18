@@ -2109,7 +2109,7 @@ function CalcFormulaBlock({
               <span className="text-muted-foreground">Match de chave:</span>{" "}
               {mismatch ? (
                 <span className="text-destructive font-medium">
-                  {REASON_LABELS[mismatch.reason]}
+                  {TUSS_REASON_LABELS[mismatch.reason]}
                 </span>
               ) : (
                 <span>TUSS do item coerente com o cálculo aplicado</span>
