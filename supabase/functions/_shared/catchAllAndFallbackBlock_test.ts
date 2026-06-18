@@ -11,7 +11,7 @@ const baseItem = {
   doctor_name: "Dr. Teste",
   doctor_document: null,
   company_name: "CIRURGIA TORACICA LTDA",
-  company_id: null,
+  company_id: "co-1",
   company_document: null,
   procedure_code: "30804183", // pleuroscopia
   procedure_name: "Pleuroscopia",
