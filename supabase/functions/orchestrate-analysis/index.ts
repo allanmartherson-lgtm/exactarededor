@@ -326,6 +326,50 @@ Deno.serve(async (req) => {
           "falha ao marcar payment_job_context como snapshot",
         );
 
+        // [Fix snapshot stale] Após reanálise, recomputa payment_company_financials
+        // para todas as empresas impactadas — evita UI mostrar R$ 0,00 ou valores
+        // antigos enquanto ninguém abre cada página de empresa.
+        runInBackground((async () => {
+          const companySet = new Set<string>();
+          const pageSize = 1000;
+          for (let from = 0; ; from += pageSize) {
+            const { data: page, error } = await supabase
+              .from("payment_items")
+              .select("company_id")
+              .eq("payment_id", payment_id)
+              .not("company_id", "is", null)
+              .range(from, from + pageSize - 1);
+            if (error) { console.error("[orchestrate] falha lendo company_ids para snapshot", error); break; }
+            for (const r of page ?? []) {
+              if ((r as any).company_id) companySet.add((r as any).company_id as string);
+            }
+            if (!page || page.length < pageSize) break;
+          }
+          const ids = [...companySet];
+          console.log(`[orchestrate] disparando recompute snapshots para ${ids.length} empresa(s)`);
+          // Invalida em massa (computed_at=null) — assim qualquer UI que abra
+          // antes do recompute ver o stale como missing e força recompute.
+          if (ids.length > 0) {
+            await supabase
+              .from("payment_company_financials")
+              .update({ computed_at: null })
+              .eq("payment_id", payment_id)
+              .in("company_id", ids);
+          }
+          const computeUrl = `${SUPABASE_URL}/functions/v1/compute-company-financials`;
+          // Sequencial em chunks pequenos para não saturar o pool — best-effort.
+          const CONCURRENCY = 4;
+          for (let i = 0; i < ids.length; i += CONCURRENCY) {
+            const batch = ids.slice(i, i + CONCURRENCY);
+            await Promise.all(batch.map((cid) => fetch(computeUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_KEY}` },
+              body: JSON.stringify({ payment_id, company_id: cid }),
+            }).then(async (r) => { await r.text(); if (!r.ok) console.error("[orchestrate] compute snapshot falhou", cid, r.status); })
+              .catch((e) => console.error("[orchestrate] compute snapshot exception", cid, e))));
+          }
+        })(), "falha ao recomputar snapshots financeiros");
+
         // Aprendizado: aplica hints de padrões aprendidos (validações aceitas)
         // aos itens deste pagamento. Soft — só gera badge na UI.
         runInBackground(
