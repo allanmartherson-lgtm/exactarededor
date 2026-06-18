@@ -1897,6 +1897,95 @@ const CALC_METHOD_LABELS: Record<string, { label: string; emoji: string }> = {
   sem_regra: { label: "Sem regra", emoji: "⚠" },
 };
 
+// ============================================================
+//  buildCalcFormula — deriva fórmula auditável a partir do item
+//  Retorna lista de linhas {label, value} para exibir no expand.
+//  Usa apenas dados já presentes no payment_item — sem fetch extra.
+// ============================================================
+function buildCalcFormula(it: {
+  applied_calc_method?: string | null;
+  procedure_amount?: number | null;
+  expected_amount?: number | null;
+  gross_amount?: number | null;
+  quantity?: number | null;
+  convenio_basis_detected?: string | null;
+  ai_findings?: { calculation_explanation?: string } | null;
+}): Array<{ label: string; value: string; mono?: boolean }> {
+  const method = it.applied_calc_method ?? "";
+  const proc = Number(it.procedure_amount ?? 0);
+  const exp = Number(it.expected_amount ?? 0);
+  const qty = Number(it.quantity ?? 1) || 1;
+  const fmt = (n: number) =>
+    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmtPct = (n: number) =>
+    `${n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`;
+  const lines: Array<{ label: string; value: string; mono?: boolean }> = [];
+
+  if (method === "percentual_convenio" || method === "percentual_sobre_convenio") {
+    const pct = proc > 0 ? (exp / proc) * 100 : null;
+    if (it.convenio_basis_detected) lines.push({ label: "Base", value: it.convenio_basis_detected });
+    lines.push({ label: "Tabela do convênio", value: fmt(proc), mono: true });
+    if (pct != null && isFinite(pct)) {
+      lines.push({ label: "Percentual aplicado", value: fmtPct(pct), mono: true });
+      lines.push({
+        label: "Fórmula",
+        value: `${fmt(proc)} × ${fmtPct(pct)} = ${fmt(exp)}`,
+        mono: true,
+      });
+    } else {
+      lines.push({ label: "Esperado", value: fmt(exp), mono: true });
+    }
+  } else if (method === "tabela_diferenciada") {
+    const mult = proc > 0 ? exp / proc : null;
+    lines.push({ label: "Base (tabela)", value: fmt(proc), mono: true });
+    if (mult != null && isFinite(mult)) {
+      lines.push({ label: "Multiplicador", value: `× ${mult.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`, mono: true });
+      lines.push({ label: "Fórmula", value: `${fmt(proc)} × ${mult.toFixed(2)} = ${fmt(exp)}`, mono: true });
+    } else {
+      lines.push({ label: "Esperado", value: fmt(exp), mono: true });
+    }
+  } else if (method === "valor_fixo") {
+    lines.push({ label: "Valor fixo por item", value: fmt(qty > 0 ? exp / qty : exp), mono: true });
+    if (qty > 1) lines.push({ label: "Quantidade", value: `× ${qty}`, mono: true });
+    lines.push({ label: "Esperado", value: fmt(exp), mono: true });
+  } else if (method === "pacote") {
+    lines.push({ label: "Valor do pacote", value: fmt(exp), mono: true });
+    lines.push({ label: "Tipo", value: "Fechado (não soma por item)" });
+  } else if (method === "bonus") {
+    lines.push({ label: "Bônus", value: fmt(exp || Number(it.gross_amount ?? 0)), mono: true });
+  } else if (method === "sem_acordo") {
+    lines.push({ label: "Sem tabela cadastrada", value: "verifica presença + quantidade" });
+    if (proc > 0) lines.push({ label: "Valor da base", value: fmt(proc), mono: true });
+  } else if (method === "sem_regra") {
+    lines.push({ label: "Sem regra cadastrada", value: "item não foi calculado" });
+  } else if (exp > 0 || proc > 0) {
+    lines.push({ label: "Base", value: fmt(proc), mono: true });
+    lines.push({ label: "Esperado", value: fmt(exp), mono: true });
+  }
+
+  const ai = it.ai_findings?.calculation_explanation;
+  if (ai && lines.length > 0) lines.push({ label: "Explicação", value: ai });
+  return lines;
+}
+
+function CalcFormulaBlock({ item }: { item: Parameters<typeof buildCalcFormula>[0] }) {
+  const lines = buildCalcFormula(item);
+  if (lines.length === 0) return null;
+  return (
+    <div className="mt-2 pt-2 border-t border-border/60">
+      <Label>Fórmula aplicada</Label>
+      <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
+        {lines.map((l, i) => (
+          <Fragment key={i}>
+            <dt className="text-muted-foreground">{l.label}</dt>
+            <dd className={cn("break-words", l.mono && "tabular-nums font-mono")}>{l.value}</dd>
+          </Fragment>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 function AttendanceHeaderRow({
   att,
   meta,
@@ -2928,6 +3017,7 @@ function ItemDetailsRow({
                       </p>
                     </div>
                   )}
+                  <CalcFormulaBlock item={it} />
                   {matchedRules.length > 1 && (
                     <p className={cn("mt-1 italic", TEXT_META)}>
                       + {matchedRules.length - 1} regra(s) também casaram
@@ -2947,6 +3037,7 @@ function ItemDetailsRow({
                       </p>
                     </div>
                   )}
+                  <CalcFormulaBlock item={it} />
                 </SafeCard>
               ) : (
                 <SafeCard className="text-muted-foreground italic">Nenhuma regra específica casou.</SafeCard>
