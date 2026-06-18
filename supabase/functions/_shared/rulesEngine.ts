@@ -2063,6 +2063,59 @@ export function applyCalculation(
       }
     }
 
+    // ---- Precedência por código EXPLÍCITO ----
+    // Se algum cálculo válido lista explicitamente o código do item
+    // (procedure_codes whitelist OU package_main_code/included/extras),
+    // ele tem prioridade absoluta sobre cálculos catch-all que pegam o
+    // código por inferência (ex.: tabela CBHPM sem procedure_codes).
+    // Isso reflete a regra de negócio: ao vincular um código a um
+    // pacote/valor_fixo/linha específica, o analista está dizendo
+    // "para este código, aplique ESTE cálculo".
+    {
+      const itemCode = String(item.procedure_code ?? "").trim();
+      if (itemCode && validCalcs.length > 1) {
+        const explicitlyListsCode = (v: ValidCalc): boolean => {
+          const cItem = list.find((c) => (c.id ?? null) === v.id);
+          if (!cItem) return false;
+          // Whitelist procedure_codes (modo whitelist e código presente).
+          const procCodes = Array.isArray(cItem.procedure_codes)
+            ? cItem.procedure_codes.map((x) => String(x).trim()).filter(Boolean)
+            : [];
+          const codeMode = (cItem.code_match_mode ?? "any") as string;
+          if (codeMode === "whitelist" && procCodes.length > 0) {
+            const matches = procCodes.some((p) =>
+              p.endsWith("*") ? itemCode.startsWith(p.slice(0, -1)) : itemCode === p
+            );
+            if (matches) return true;
+          }
+          // Pacote/valor_fixo com código no conjunto (main/included/extras).
+          const pkg = _packageCodeSet(cItem);
+          if (pkg.includes(itemCode)) return true;
+          const extras = Array.isArray((cItem as any).extras_codes)
+            ? (cItem as any).extras_codes.map((x: any) => String(x).trim())
+            : [];
+          if (extras.includes(itemCode)) return true;
+          return false;
+        };
+        const explicit = validCalcs.filter(explicitlyListsCode);
+        if (explicit.length > 0 && explicit.length < validCalcs.length) {
+          const winnerIds = new Set(explicit.map((v) => v.id));
+          for (let i = validCalcs.length - 1; i >= 0; i--) {
+            if (!winnerIds.has(validCalcs[i].id)) {
+              const dropped = validCalcs[i];
+              validCalcs.splice(i, 1);
+              for (const b of breakdown) {
+                if (b.matched && b.calc_id === dropped.id) {
+                  b.matched = false;
+                  b.skip_reason = "preterido_por_codigo_explicito";
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     // Sub-Onda 2C — resolução prévia escolhe um cálculo entre TODOS os válidos
     // (restritivos ou catch-all — analista pode ter escolhido qualquer um).
     const resolutionId = item.calc_duplicity_resolution?.chosen_calc_id ?? null;
