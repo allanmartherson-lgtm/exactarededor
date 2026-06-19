@@ -24,6 +24,7 @@ import { FinancialCompositionStrip } from "@/components/payment-detail/Financial
 import {
   ReapplyRulesProgressDialog,
   type ReapplyPhase,
+  type ReapplyStep,
   type ReapplySnapshot,
   type ReapplyDiff,
   takeSnapshot,
