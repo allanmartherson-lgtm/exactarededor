@@ -1162,7 +1162,7 @@ export default function CompanyAnalysis() {
     setReimporting(true);
     try {
       const { parsePaymentFile, similarity, inspectFileHeaders } = await import("@/lib/parsePaymentFile");
-      const { computeHeaderSignature, summarizeMissing, inspectColumnMapping, FIELD_BY_KEY } = await import("@/lib/columnMapping");
+      const { computeHeaderSignature, summarizeMissing, inspectColumnMapping } = await import("@/lib/columnMapping");
       const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
       const companiesData = await fetchAllPaginated<any>((from, to) =>
         supabase.from("companies").select("id,name,aliases").range(from, to),
