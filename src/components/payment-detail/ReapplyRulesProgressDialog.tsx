@@ -18,11 +18,44 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Circle,
 } from "lucide-react";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
 
 export type ReapplyPhase = "iniciando" | "processando" | "concluido" | "erro";
+
+export type ReapplyStep =
+  | "ler_regras"
+  | "rodar_motor"
+  | "persistir_itens"
+  | "carregar_ui";
+
+const STEP_ORDER: ReapplyStep[] = [
+  "ler_regras",
+  "rodar_motor",
+  "persistir_itens",
+  "carregar_ui",
+];
+
+const STEP_LABELS: Record<ReapplyStep, { title: string; hint: string }> = {
+  ler_regras: {
+    title: "Lendo regras e cadastros",
+    hint: "Snapshot do estado atual e carregamento das regras vigentes",
+  },
+  rodar_motor: {
+    title: "Rodando motor de cálculo",
+    hint: "Recalculando valor esperado e regra vencedora de cada item",
+  },
+  persistir_itens: {
+    title: "Persistindo itens",
+    hint: "Gravando novo status, regra aplicada e cálculo no banco",
+  },
+  carregar_ui: {
+    title: "Atualizando a tela",
+    hint: "Relendo os itens da empresa para refletir o resultado",
+  },
+};
 
 export type ReapplySnapshot = Record<
   string,
@@ -121,6 +154,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   phase: ReapplyPhase;
+  /** etapa atual do pipeline (somente quando running) */
+  step?: ReapplyStep;
   /** segundos decorridos (para feedback visual) */
   elapsedSec: number;
   /** total de itens da empresa, mostrado durante o processamento */
@@ -134,9 +169,24 @@ interface Props {
 }
 
 /**
+ * Estima o tempo total da reaplicação em segundos.
+ * Baseado em medição empírica: ~0.35s por item no motor + overhead fixo
+ * de leitura de regras (3s), persistência (~0.05s/item) e UI (1s).
+ * Piso de 8s, teto de 180s.
+ */
+function estimateTotalSec(totalItems: number): number {
+  const fixed = 3 + 1; // ler regras + UI
+  const perItem = 0.4; // motor + persistência
+  const raw = fixed + totalItems * perItem;
+  return Math.max(8, Math.min(180, Math.round(raw)));
+}
+
+/**
  * Diálogo de progresso e resumo do "Reaplicar regras".
  *
  * - Mostra status em tempo real: iniciando → processando → concluído/erro.
+ * - Durante a execução exibe checklist de 4 etapas + ETA, reduzindo a
+ *   sensação de lentidão (motor não emite progresso real).
  * - Ao final, exibe contagem do que melhorou (passou a aprovado), do que
  *   continuou reprovado, do que piorou (novo reprovado), regras alteradas
  *   sem mudança de status, e totais finais.
@@ -146,6 +196,7 @@ export function ReapplyRulesProgressDialog({
   open,
   onOpenChange,
   phase,
+  step,
   elapsedSec,
   totalItems,
   errorMessage,
@@ -154,15 +205,20 @@ export function ReapplyRulesProgressDialog({
 }: Props) {
   const running = phase === "iniciando" || phase === "processando";
 
-  // Progress “fictício” baseado em tempo (motor não envia % real). Cap em 95%
-  // até o callback de conclusão chegar. Concluído → 100%.
+  const estimatedTotal = useMemo(() => estimateTotalSec(totalItems), [totalItems]);
+  const etaSec = Math.max(0, estimatedTotal - elapsedSec);
+
+  // Progresso baseado em etapa concluída (25% por etapa) com fração linear
+  // dentro da etapa atual em função do ETA. Cap em 95% até "concluido".
   const progressValue = useMemo(() => {
     if (phase === "concluido") return 100;
     if (phase === "erro") return 100;
-    // ~95% em ~60s
-    const pct = Math.min(95, Math.round((elapsedSec / 60) * 95));
-    return Math.max(5, pct);
-  }, [phase, elapsedSec]);
+    const currentIdx = step ? STEP_ORDER.indexOf(step) : 0;
+    const stepBase = (currentIdx / STEP_ORDER.length) * 100;
+    const intraStep = Math.min(1, elapsedSec / Math.max(1, estimatedTotal)) * (100 / STEP_ORDER.length);
+    return Math.max(5, Math.min(95, Math.round(stepBase + intraStep)));
+  }, [phase, step, elapsedSec, estimatedTotal]);
+
 
   return (
     <Dialog
@@ -202,14 +258,72 @@ export function ReapplyRulesProgressDialog({
         </DialogHeader>
 
         {running && (
-          <div className="space-y-3 py-2">
-            <Progress value={progressValue} />
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Aguarde — o motor recarrega regras, recalcula valores esperados e regrava o status de cada item.
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Progress value={progressValue} />
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+                <span>Decorrido: {elapsedSec}s</span>
+                <span>
+                  {etaSec > 0
+                    ? `Estimativa restante: ~${etaSec}s`
+                    : "Finalizando…"}
+                  {" · "}
+                  total estimado ~{estimatedTotal}s
+                </span>
+              </div>
             </div>
+
+            <ol className="space-y-1.5">
+              {STEP_ORDER.map((s, idx) => {
+                const currentIdx = step ? STEP_ORDER.indexOf(step) : 0;
+                const state: "done" | "current" | "pending" =
+                  idx < currentIdx ? "done" : idx === currentIdx ? "current" : "pending";
+                const meta = STEP_LABELS[s];
+                return (
+                  <li
+                    key={s}
+                    className={cn(
+                      "flex items-start gap-2.5 rounded-md border p-2.5 text-sm transition-colors",
+                      state === "done" && "border-emerald-500/30 bg-emerald-500/5",
+                      state === "current" && "border-primary/40 bg-primary/5",
+                      state === "pending" && "border-border bg-muted/20 opacity-70",
+                    )}
+                  >
+                    <span className="mt-0.5 shrink-0">
+                      {state === "done" ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      ) : state === "current" ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className={cn(
+                        "font-medium leading-tight",
+                        state === "pending" && "text-muted-foreground",
+                      )}>
+                        {meta.title}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground leading-snug">
+                        {meta.hint}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground tabular-nums pt-0.5">
+                      {idx + 1}/{STEP_ORDER.length}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <p className="text-[11px] text-muted-foreground">
+              {totalItems} {totalItems === 1 ? "item" : "itens"} nesta empresa · novos códigos em tabelas
+              de exceção (sem acordo / exclusão) são lidos a cada execução, sem cache.
+            </p>
           </div>
         )}
+
 
         {phase === "concluido" && diff && (
           <div className="space-y-4 py-2">

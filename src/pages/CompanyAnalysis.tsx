@@ -24,6 +24,7 @@ import { FinancialCompositionStrip } from "@/components/payment-detail/Financial
 import {
   ReapplyRulesProgressDialog,
   type ReapplyPhase,
+  type ReapplyStep,
   type ReapplySnapshot,
   type ReapplyDiff,
   takeSnapshot,
@@ -298,11 +299,13 @@ export default function CompanyAnalysis() {
   // ---- Reaplicar regras: progresso + diff antes/depois ----
   const [reapplyOpen, setReapplyOpen] = useState(false);
   const [reapplyPhase, setReapplyPhase] = useState<ReapplyPhase>("iniciando");
+  const [reapplyStep, setReapplyStep] = useState<ReapplyStep>("ler_regras");
   const [reapplyError, setReapplyError] = useState<string | null>(null);
   const [reapplyDiff, setReapplyDiff] = useState<ReapplyDiff | null>(null);
   const [reapplyElapsed, setReapplyElapsed] = useState(0);
   const reapplySnapshotRef = useRef<ReapplySnapshot>({});
   const reapplyTimerRef = useRef<number | null>(null);
+
 
   // Timer de tempo decorrido enquanto a reanálise roda.
   useEffect(() => {
@@ -618,9 +621,18 @@ export default function CompanyAnalysis() {
     if (!guardEditable()) return;
     await autoClaim();
 
-    // Snapshot ANTES — buscado direto do DB (não do state local, que pode estar
+    // Etapa 1 — Ler regras: snapshot ANTES + dispatch.
+    // Snapshot buscado direto do DB (não do state local, que pode estar
     // desatualizado em relação a um job anterior). Isso garante que o diff
     // compare o estado real pré-motor com o estado real pós-motor.
+    setReapplyDiff(null);
+    setReapplyError(null);
+    setReapplyElapsed(0);
+    setReapplyStep("ler_regras");
+    setReapplyPhase("iniciando");
+    setReapplyOpen(true);
+    setReanalyzing(true);
+
     const itemIds = items.map((it) => it.id);
     let snapshot: ReturnType<typeof takeSnapshot> = {};
     if (itemIds.length > 0) {
@@ -631,12 +643,6 @@ export default function CompanyAnalysis() {
       snapshot = takeSnapshot((before ?? []) as unknown as PaymentItemRow[]);
     }
     reapplySnapshotRef.current = snapshot;
-    setReapplyDiff(null);
-    setReapplyError(null);
-    setReapplyElapsed(0);
-    setReapplyPhase("iniciando");
-    setReapplyOpen(true);
-    setReanalyzing(true);
 
     const startedAt = Date.now();
     try {
@@ -668,11 +674,16 @@ export default function CompanyAnalysis() {
         status_to: group.status,
       });
 
+      // Etapa 2 — Motor rodando (recalculando itens).
+      setReapplyStep("rodar_motor");
       setReapplyPhase("processando");
 
       // Aguarda o motor finalizar antes de calcular o diff. Sem polling, o
       // "concluído" apareceria com snapshot antigo e o diff seria zero.
       const done = await waitForProcessingCompletion(id, startedAt, 120_000);
+
+      // Etapa 3 — Persistir/ler de volta os itens.
+      setReapplyStep("persistir_itens");
 
       // Releitura direta dos itens da empresa para garantir o estado pós-motor
       // (independente da atualização do hook usePaymentDetailData).
@@ -687,6 +698,11 @@ export default function CompanyAnalysis() {
 
       const diff = diffSnapshots(reapplySnapshotRef.current, after);
       setReapplyDiff(diff);
+
+      // Etapa 4 — Atualizar a UI (recarrega o detalhe da empresa).
+      setReapplyStep("carregar_ui");
+      await load();
+
       setReapplyPhase("concluido");
 
       if (!done) {
@@ -701,10 +717,6 @@ export default function CompanyAnalysis() {
         });
       }
 
-      // Recarrega o detalhe da empresa para que a tabela reflita o novo estado.
-      // Awaitado para garantir que o state local não fique exibindo dados antigos
-      // depois que o usuário fecha o diálogo.
-      await load();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setReapplyError(msg);
@@ -2483,12 +2495,14 @@ export default function CompanyAnalysis() {
         open={reapplyOpen}
         onOpenChange={setReapplyOpen}
         phase={reapplyPhase}
+        step={reapplyStep}
         elapsedSec={reapplyElapsed}
         totalItems={items.length}
         errorMessage={reapplyError}
         diff={reapplyDiff}
         companyLabel={group?.company_name}
       />
+
 
       <AlertDialog open={postConcluirOpen} onOpenChange={setPostConcluirOpen}>
         <AlertDialogContent>
