@@ -1282,6 +1282,209 @@ const PaymentDetail = () => {
     }
   };
 
+  // ===== Adicionar empresa ao lote =====
+  // Upload de planilha com itens APENAS de uma (ou mais) empresa(s) nova(s)
+  // no lote em tratativa. NÃO toca em itens/grupos já existentes. Empresas
+  // que já têm grupo no lote são puladas (analista deve usar "Reimportar
+  // base" para refazer essas). Mesmas regras de gating do Reimportar.
+  const doAddCompany = async (files: File[]) => {
+    if (!id || !payment || !user) return;
+    setAddingCompany(true);
+    try {
+      const { parsePaymentFile, inspectFileHeaders } = await import("@/lib/parsePaymentFile");
+      const { computeHeaderSignature, summarizeMissing, inspectColumnMapping, FIELD_BY_KEY } = await import("@/lib/columnMapping");
+      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+      const companiesData = await fetchAllPaginated<any>((from, to) =>
+        supabase.from("companies").select("id,name,aliases").range(from, to),
+      );
+      const companies = companiesData.map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
+
+      const norm = (s: string) => (s ?? "").trim().toLowerCase();
+      const { data: existingGroups } = await supabase
+        .from("payment_company_groups")
+        .select("id,company_name")
+        .eq("payment_id", id);
+      const existingKeys = new Set((existingGroups ?? []).map((g: any) => norm(g.company_name)));
+
+      let allRows: any[] = [];
+      const fileNames: string[] = [];
+
+      for (const file of files) {
+        const { headers } = await inspectFileHeaders(file);
+        const sig = await computeHeaderSignature(headers);
+        const hospitalId = (payment as any).hospital_id ?? null;
+        const tplQuery = supabase
+          .from("sheet_column_templates" as never)
+          .select("id,mapping,name")
+          .eq("header_signature", sig)
+          .limit(1);
+        const { data: tplRows } = hospitalId
+          ? await tplQuery.or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
+          : await tplQuery.is("hospital_id", null);
+        const tpl = (tplRows ?? [])[0] as { id: string; mapping: any; name: string } | undefined;
+        const manualMapping = tpl?.mapping;
+        const hits = inspectColumnMapping(headers).map((h) => {
+          const override = manualMapping?.[h.field];
+          if (override && headers.includes(override)) return { ...h, header: override, score: 100, confidence: "high" as const };
+          return h;
+        });
+        const { missingRequired } = summarizeMissing(hits);
+        if (missingRequired.length > 0) {
+          toast({
+            title: `Colunas obrigatórias ausentes em ${file.name}`,
+            description: `Faltam: ${missingRequired.map((m) => FIELD_BY_KEY[m.field].label).join(", ")}.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        const bucket = await parsePaymentFile(file, companies, payment.payment_kind, { manualMapping });
+        if (bucket.rows.length > 0) {
+          allRows = [...allRows, ...bucket.rows];
+          fileNames.push(file.name);
+          const path = `${user.id}/${Date.now()}-${file.name}`;
+          await supabase.storage.from("payment-files").upload(path, file);
+          if (tpl) {
+            await supabase.from("sheet_column_templates" as never).update({ last_used_at: new Date().toISOString() } as never).eq("id", tpl.id);
+          }
+        }
+      }
+
+      if (allRows.length === 0) {
+        toast({ title: "Arquivos vazios", description: "Nenhuma linha válida encontrada.", variant: "destructive" });
+        return;
+      }
+
+      // Filtra linhas: só empresas que NÃO estão no lote ainda.
+      const newRows: any[] = [];
+      const skipped = new Set<string>();
+      for (const r of allRows) {
+        const name = (r.company_name ?? "Sem empresa").trim() || "Sem empresa";
+        if (existingKeys.has(norm(name))) {
+          skipped.add(name);
+        } else {
+          newRows.push({ ...r, company_name: name });
+        }
+      }
+
+      if (newRows.length === 0) {
+        toast({
+          title: "Nada a adicionar",
+          description: `Todas as empresas dos arquivos já existem no lote: ${[...skipped].join(", ")}. Use "Reimportar base" para refazer.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Agrega por empresa para criar grupos skeleton (revisao_analista).
+      const newGroupsMap = new Map<string, { company_name: string; company_id: string | null; items_count: number; total_amount: number }>();
+      for (const r of newRows) {
+        const key = norm(r.company_name);
+        const cur = newGroupsMap.get(key);
+        if (cur) {
+          cur.items_count += 1;
+          cur.total_amount += Number(r.gross_amount) || 0;
+          if (!cur.company_id && r.company_id) cur.company_id = r.company_id;
+        } else {
+          newGroupsMap.set(key, {
+            company_name: r.company_name,
+            company_id: r.company_id ?? null,
+            items_count: 1,
+            total_amount: Number(r.gross_amount) || 0,
+          });
+        }
+      }
+      for (const [, g] of newGroupsMap.entries()) {
+        await supabase.from("payment_company_groups").insert({
+          hospital_id: (payment as any).hospital_id,
+          payment_id: id,
+          company_name: g.company_name,
+          company_id: g.company_id,
+          items_count: g.items_count,
+          total_amount: g.total_amount,
+          status: "revisao_analista",
+        });
+      }
+
+      const itemsToInsert = newRows.map((r) => ({
+        hospital_id: (payment as any).hospital_id,
+        payment_id: id,
+        doctor_name: r.doctor_name,
+        doctor_document: r.doctor_document,
+        doctor_email: r.doctor_email,
+        description: r.description,
+        gross_amount: r.gross_amount,
+        company_name: r.company_name,
+        company_id: r.company_id,
+        attendance_number: r.attendance_number,
+        procedure_code: r.procedure_code,
+        procedure_name: r.procedure_name,
+        access_route: r.access_route,
+        doctor_role: r.doctor_role,
+        agreement_text: r.agreement_text,
+        specialty: r.specialty,
+        procedure_amount: r.procedure_amount,
+        quantity: r.quantity,
+        procedure_date: r.procedure_date,
+        patient_name: r.patient_name,
+        sector: r.sector,
+        attendance_character: r.attendance_character,
+        raw_data: r.raw_data as never,
+        tipo_linha: r.tipo_linha,
+      }));
+      const chunkSize = 1000;
+      for (let i = 0; i < itemsToInsert.length; i += chunkSize) {
+        const chunk = itemsToInsert.slice(i, i + chunkSize);
+        const { error: insErr } = await supabase.from("payment_items").insert(chunk);
+        if (insErr) { toast({ title: "Falha ao inserir itens", description: insErr.message, variant: "destructive" }); return; }
+      }
+
+      // Recalcula totais do lote a partir de TODOS os itens (não troca status).
+      const { data: remaining } = await supabase
+        .from("payment_items").select("gross_amount").eq("payment_id", id);
+      const total = (remaining ?? []).reduce((s: number, r: any) => s + Number(r.gross_amount ?? 0), 0);
+      const itemsCount = (remaining ?? []).length;
+      await supabase.from("payments").update({ total_amount: total, items_count: itemsCount }).eq("id", id);
+
+      const addedCompanies = [...newGroupsMap.values()].map((g) => g.company_name);
+      const addedTotal = newRows.reduce((s, r) => s + Number(r.gross_amount ?? 0), 0);
+      const skippedSuffix = skipped.size > 0 ? ` Puladas (já existiam): ${[...skipped].join(", ")}.` : "";
+      await recordObservation({
+        payment_id: id, author_type: "analista", author_id: user.id,
+        message: `Empresa(s) adicionada(s) ao lote: ${addedCompanies.join(", ")} — ${newRows.length} itens, total ${addedTotal.toFixed(2)}. Arquivos: ${fileNames.join(", ")}.${skippedSuffix}`,
+        status_from: payment.status, status_to: payment.status,
+      });
+
+      // Dispara análise apenas para as empresas adicionadas.
+      try {
+        const { error: dispatchErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
+          body: { payment_id: id, only_companies: addedCompanies },
+        });
+        if (dispatchErr) throw dispatchErr;
+        toast({
+          title: "Empresa(s) adicionada(s)",
+          description: `${addedCompanies.length} empresa(s), ${newRows.length} itens. Análise iniciada.${skippedSuffix}`,
+        });
+      } catch (dispatchErr) {
+        const msg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
+        toast({
+          title: "Itens inseridos, mas análise não iniciou",
+          description: `${msg}. Use "Reanalisar lote" para tentar novamente.`,
+          variant: "destructive",
+        });
+      }
+      load();
+    } catch (e) {
+      const msg = (e as any)?.message || (e as any)?.error?.message || (e as any)?.details || (typeof e === "string" ? e : JSON.stringify(e));
+      toast({ title: "Erro ao adicionar empresa", description: msg, variant: "destructive" });
+      console.error("[add-company]", e);
+    } finally {
+      setAddingCompany(false);
+      setAddCompanyConfirm(null);
+      if (addCompanyInputRef.current) addCompanyInputRef.current.value = "";
+    }
+  };
+
+
   const reprocessAi = async (statuses?: string[]) => {
     if (!id || !user) return;
     setReprocessingAi(true);
