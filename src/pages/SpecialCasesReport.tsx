@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { useHospitalContext } from "@/contexts/HospitalContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { Sparkles, Loader2 } from "lucide-react";
 
 interface MarkRow {
@@ -48,7 +48,7 @@ const ORIGIN_LABEL: Record<string, string> = {
 };
 
 export default function SpecialCasesReport() {
-  const { activeHospitalId } = useHospitalContext();
+  const activeHospitalId = useActiveHospitalId();
   const [loading, setLoading] = useState(false);
   const [marks, setMarks] = useState<MarkRow[]>([]);
   const [types, setTypes] = useState<TypeRow[]>([]);
@@ -73,12 +73,14 @@ export default function SpecialCasesReport() {
           .from("special_case_types")
           .select("code, label")
           .or(`hospital_id.eq.${activeHospitalId},hospital_id.is.null`),
-        supabase.from("doctors").select("id, name").eq("hospital_id", activeHospitalId),
+        supabase.from("doctors").select("id, full_name").eq("active", true).limit(5000),
       ]);
       if (!alive) return;
       setMarks((marksRes.data as MarkRow[]) ?? []);
       setTypes((typesRes.data as TypeRow[]) ?? []);
-      setDoctors((doctorsRes.data as DoctorRow[]) ?? []);
+      const docs = ((doctorsRes.data as Array<{ id: string; full_name: string }> | null) ?? [])
+        .map((d) => ({ id: d.id, name: d.full_name }));
+      setDoctors(docs);
       setLoading(false);
     })();
     return () => { alive = false; };
