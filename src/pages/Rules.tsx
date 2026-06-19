@@ -1054,6 +1054,15 @@ const Rules = () => {
         console.warn("[Rules] Falha ao persistir prevent_external_fallback:", flagErr.message);
       }
     }
+    if (savedId && "special_case_filter" in (ruleData as any)) {
+      const { error: scErr } = await supabase
+        .from("rules")
+        .update({ special_case_filter: (ruleData as any).special_case_filter })
+        .eq("id", savedId);
+      if (scErr) {
+        console.warn("[Rules] Falha ao persistir special_case_filter:", scErr.message);
+      }
+    }
     if (savedId) {
       await recordAudit({
         entityType: "rule", entityId: savedId, action: meta.wasEditing ? "update" : "create",
