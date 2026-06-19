@@ -1,27 +1,19 @@
 /**
- * Singleton do hospital ativo.
+ * DEPRECATED — mantido como no-op para compatibilidade de imports.
  *
- * Guarda o ID do hospital atualmente selecionado em memória de módulo, para que
- * o `fetch` customizado do client Supabase (ver client.ts) possa anexar o header
- * `x-active-hospital` em TODA requisição (REST/PostgREST + Edge Functions).
+ * O hospital ativo agora vive 100% no servidor (tabela `user_active_hospital`,
+ * gravada via RPC `set_active_hospital`). A função `current_active_hospital()`
+ * no banco lê de lá, sem qualquer dependência de header HTTP.
  *
- * Esse header é o que ativa a RLS RESTRICTIVE `active_hospital_scope` no banco.
- * Sem ele, `current_active_hospital()` retorna NULL e o banco devolve dados de
- * qualquer hospital ao qual o usuário tem acesso (vazamento multi-tenant).
- *
- * Importante: o valor mora aqui, fora do React, porque o client Supabase é
- * criado uma única vez na inicialização e o fetch precisa ler o valor MAIS
- * RECENTE a cada request, sem recriar o client ao trocar de hospital.
+ * Estes exports não fazem mais nada — só existem para não quebrar imports
+ * legados durante a transição. Podem ser removidos em uma próxima limpeza.
  */
 
 export const ACTIVE_HOSPITAL_HEADER = "x-active-hospital";
 
-let activeHospitalId: string | null = null;
-
-/** Define o hospital ativo. Passe null para limpar (ex.: durante a troca/logout). */
-export const setActiveHospitalId = (hospitalId: string | null): void => {
-  activeHospitalId = hospitalId;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const setActiveHospitalId = (_hospitalId: string | null): void => {
+  // no-op
 };
 
-/** Lê o hospital ativo atual. Usado pelo fetch customizado do client. */
-export const getActiveHospitalId = (): string | null => activeHospitalId;
+export const getActiveHospitalId = (): string | null => null;
