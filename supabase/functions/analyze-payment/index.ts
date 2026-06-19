@@ -2053,7 +2053,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // toda a reanálise — itens já processados ficavam com applied_at do job atual
     // e os demais retinham ai_findings antigos, dando a sensação de "Reaplicar
     // regras não funciona". Agora cada UPDATE faz até 3 tentativas com backoff
-    // (100ms, 300ms, 900ms) quando o erro é deadlock/serialization.
+    // (250ms, 500ms, 1000ms, 2000ms, 4000ms + jitter) quando o erro é
+    // deadlock/serialization. Chunk reduzido de 10→5 para diminuir contenção
+    // de locks de índice/trigger quando compute-company-financials e
+    // apply-company-deductions rodam concorrentemente sobre o mesmo grupo.
     let __deadlock_retries = 0;
     let __deadlock_retries_succeeded = 0;
     const isTransientDbError = (msg: string) => {
@@ -2064,7 +2067,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     };
     console.time(`${__t} writes_payment_items`);
     const __writesStart = Date.now();
-    await runChunked(itemUpdates, 10, async (u) => {
+    await runChunked(itemUpdates, 5, async (u) => {
       const patch: Record<string, unknown> = {
         ai_status: u.ai_status,
         ai_findings: u.ai_findings,
@@ -2096,7 +2099,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           patch.gross_amount = u.expected_amount ?? null;
         }
       }
-      const delays = [250, 750, 1500];
+      const delays = [250, 500, 1000, 2000, 4000];
       let attempt = 0;
       let lastErr: string | null = null;
       while (attempt <= delays.length) {
