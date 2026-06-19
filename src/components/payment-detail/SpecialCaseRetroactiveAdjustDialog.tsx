@@ -70,14 +70,15 @@ export function SpecialCaseRetroactiveAdjustDialog({
     if (!open) return;
     let alive = true;
     (async () => {
-      const q = supabase.from("companies")
-        .select("id, nome, documento, ativo, hospital_id")
-        .eq("ativo", true)
-        .order("nome");
-      const { data } = hospitalId ? await q.eq("hospital_id", hospitalId) : await q;
+      // Cadastro de empresas é estadual (sem hospital_id na tabela companies — vínculo é via overrides).
+      const { data } = await supabase.from("companies")
+        .select("id, name, document, active")
+        .eq("active", true)
+        .order("name");
       if (!alive) return;
-      const opts = ((data as any[]) ?? []).map((c) => ({ id: c.id, nome: c.nome, documento: c.documento }));
+      const opts = ((data as any[]) ?? []).map((c) => ({ id: c.id, nome: c.name, documento: c.document }));
       setCompanies(opts);
+
 
       const doctorIds = Array.from(new Set(marks.map((m) => m.doctor_id).filter(Boolean) as string[]));
       const suggested: Record<string, string> = {};
