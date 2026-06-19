@@ -705,7 +705,13 @@ export default function CompanyAnalysis() {
 
       // Aguarda o motor finalizar antes de calcular o diff. Sem polling, o
       // "concluído" apareceria com snapshot antigo e o diff seria zero.
-      const done = await waitForProcessingCompletion(id, startedAt, 120_000);
+      // Prioriza polling do JOB específico retornado pelo dispatch — evita
+      // falso positivo quando processing_diagnostics do pagamento já estava
+      // "success" de um job anterior (qualquer worker sobrescreve esse campo).
+      const jobId = (data as any)?.job_id as string | undefined;
+      const done = jobId
+        ? await waitForJobCompletion(jobId, 120_000)
+        : await waitForProcessingCompletion(id, startedAt, 120_000);
 
       // Etapa 3 — Persistir/ler de volta os itens.
       setReapplyStep("persistir_itens");
