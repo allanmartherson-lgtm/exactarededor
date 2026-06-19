@@ -235,12 +235,24 @@ export function resolveConvenio(
   return { convenio: null, matched_by: null };
 }
 
+/**
+ * Tokens proibidos como alias de setor — nomes de hospitais/redes que NUNCA
+ * devem resolver para um setor (ex.: "DFStar" é o hospital, não um setor).
+ * Bloqueio defensivo: mesmo que alguém cadastre um alias errado, o resolver
+ * recusa, evitando contaminar o setor das linhas.
+ */
+const FORBIDDEN_SECTOR_TOKENS = new Set<string>([
+  "dfstar", "df star", "hospital df star", "hdf",
+  "santa luzia", "hospital santa luzia", "hsl",
+]);
+
 export function resolveSector(
   text: string | null | undefined,
   reg: SectorRegistry,
 ): { sector: SectorRegistryEntry | null; matched_by: MatchedBy } {
   const key = normalize(text);
   if (!key) return { sector: null, matched_by: null };
+  if (FORBIDDEN_SECTOR_TOKENS.has(key)) return { sector: null, matched_by: null };
   if (reg.bySlug.has(key)) return { sector: reg.bySlug.get(key)!, matched_by: "slug" };
   const e = reg.byAlias.get(key);
   if (e) {
