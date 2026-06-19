@@ -27,28 +27,34 @@ Patologias/contextos que pedem remuneração diferenciada (oncológico, pediátr
 - TODO Fase 1.5: aplicar filtro no matching — regra com `special_case_filter` não-nulo só casa se item tem `special_case_status='approved'` e código compatível; itens com flag aprovada priorizam essas regras antes da padrão.
 - Sem regra cadastrada para o caso especial = cai na regra padrão + alerta (jamais default hardcoded).
 
-## Fase 3 — Retroativo
-- Aprovação tardia em pagamento já fechado NÃO recalcula automaticamente. Decisão manual do analista via `generate-retroactive-adjustment`.
-
 ## Permissões
-- Marcar: admin, diretor, analista, gestao_medica (médico via portal — Fase 2).
-- Decidir: admin, diretor, gestao_medica.
+- Marcar: admin, diretor, analista, gestao_medica (médico via portal — Fase 2 pendente).
+- Decidir/aplicar ajuste retroativo: admin, diretor, gestao_medica.
 - Tipos: admin, diretor, gestao_medica gerenciam.
 
-## Fase 3 (entregue)
-- Banner `SpecialCaseRetroactiveBanner` em PaymentDetail: aparece se status ∈ {pago, fechado, concluido, aprovado_diretor, aprovado} e existem marks `approved` com approved_at > payment.updated_at. CTA: "Recalcular com casos especiais" (invoca `analyze-payment` modo recompute) ou "Ver marcações".
-- Página `/casos-especiais/relatorio` (`SpecialCasesReport.tsx`): KPIs por status/tipo/origem + tabela filtrável (tipo, status, busca por atendimento/médico), link para o pagamento.
+## Fase 3 — Ajuste retroativo formal (pagamento fechado = imutável)
+- Banner NÃO chama mais `analyze-payment`. Pagamento fechado nunca é recalculado.
+- `SpecialCaseRetroactiveBanner` lista marks `approved` com `approved_at > payment_status_history.changed_at` (cutoff real de fechamento) e SEM `retro_adjustment_id`.
+- CTA "Gerar ajuste retroativo" abre `SpecialCaseRetroactiveAdjustDialog` → edge `special-case-adjust`:
+  1. `preview:true` → summary por PJ (sugere PJ ativa via doctor_companies).
+  2. Gate: dedução (`valor<0`) exige `allow_reduction:true` + checkbox UI; sem flag → 409 `reduction_requires_confirmation`. Equivale ao `_allow_calc_reduction` da governança de regras.
+  3. `preview:false` (só decisor) cria `company_financial_adjustments` (`complemento_retroativo`/`deducao_retroativa`), `origem=special_case:<payment_id>`.
+  4. Vincula marks via `special_case_marks.retro_adjustment_id` + `retro_applied_at/by` (migration 20260619140745).
+  5. `audit_log` registra `special_case_retro_adjust` com summary completo.
+- Bloqueios: `payment_not_closed`, `marks_invalid`, `marks_already_applied`.
 
 ## Admin de tipos
-- Rota `/admin/tipos-caso-especial` (`SpecialCaseTypesAdmin.tsx`): CRUD de `special_case_types`. CRUD via RLS (admin/diretor/gestao_medica).
-- Code é imutável após criação (lowercase + underscore).
-- Toggle ativo/inativo direto pela tabela.
+- Rota `/admin/tipos-caso-especial`. Code imutável.
 
 ## Marcação no PaymentDetail
-- `MarkSpecialCaseDialog` (componente reusável): dispara `mark-special-case` para analista/gestão. Diretor/admin/gestao_medica → status já vira approved; analista → pending.
-- Renderizado no topo do PaymentDetail (apenas para isAnalista/isDiretor). Aceita `defaultAttendance`, `itemId` (para marca por item) e `doctorId`.
+- `MarkSpecialCaseDialog` → `mark-special-case`. Analista=pending; gestao_medica/diretor/admin=approved direto.
+- Pending → `internal_notifications` para todos os `gestao_medica`.
 
-## Ajustes finais
-- Badge inline no `ItemsDataGrid` quando `special_case_status` é approved/pending (mostra code + estado).
-- `mark-special-case` insere `internal_notifications` para todos os `gestao_medica` quando o status inicial é pending.
-- `SpecialCaseRetroactiveBanner` agora usa o `payment_status_history.changed_at` (último evento para um status fechado) como cutoff em vez de `payment.updated_at`, evitando falso-positivo após qualquer update.
+## Grid
+- Badge inline em `ItemsDataGrid` quando `special_case_status` é approved/pending.
+
+## Testes
+- `src/test/specialCases.contract.test.ts` (18 testes): auth, gate de redução, snapshot audit, vínculo mark↔adjustment, imutabilidade do fechado, banner sem `analyze-payment`, schema.
+
+## Pendente — Portal do médico (Fase 2)
+- `/portal/medico` não existe. Quando criado: plugar `MarkSpecialCaseDialog` + estender `issue-magic-link` com action `decide_special_case`.

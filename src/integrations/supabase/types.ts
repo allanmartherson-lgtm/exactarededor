@@ -7986,6 +7986,9 @@ export type Database = {
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
+          retro_adjustment_id: string | null
+          retro_applied_at: string | null
+          retro_applied_by: string | null
           revocation_reason: string | null
           revoked_at: string | null
           revoked_by: string | null
@@ -8012,6 +8015,9 @@ export type Database = {
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
+          retro_adjustment_id?: string | null
+          retro_applied_at?: string | null
+          retro_applied_by?: string | null
           revocation_reason?: string | null
           revoked_at?: string | null
           revoked_by?: string | null
@@ -8038,6 +8044,9 @@ export type Database = {
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
+          retro_adjustment_id?: string | null
+          retro_applied_at?: string | null
+          retro_applied_by?: string | null
           revocation_reason?: string | null
           revoked_at?: string | null
           revoked_by?: string | null
@@ -8101,6 +8110,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "special_case_marks_retro_adjustment_id_fkey"
+            columns: ["retro_adjustment_id"]
+            isOneToOne: false
+            referencedRelation: "company_financial_adjustments"
+            referencedColumns: ["id"]
           },
         ]
       }
