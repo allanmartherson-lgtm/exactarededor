@@ -2093,11 +2093,12 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const isTransientDbError = (msg: string) => {
       const m = (msg || "").toLowerCase();
       return m.includes("deadlock detected") || m.includes("40p01")
-        || m.includes("could not serialize") || m.includes("40001");
+        || m.includes("could not serialize") || m.includes("40001")
+        || m.includes("canceling statement due to statement timeout") || m.includes("statement timeout");
     };
     console.time(`${__t} writes_payment_items`);
     const __writesStart = Date.now();
-    await runChunked(itemUpdates, 50, async (u) => {
+    await runChunked(itemUpdates, 10, async (u) => {
       const patch: Record<string, unknown> = {
         ai_status: u.ai_status,
         ai_findings: u.ai_findings,
@@ -2129,7 +2130,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           patch.gross_amount = u.expected_amount ?? null;
         }
       }
-      const delays = [100, 300, 900];
+      const delays = [250, 750, 1500];
       let attempt = 0;
       let lastErr: string | null = null;
       while (attempt <= delays.length) {

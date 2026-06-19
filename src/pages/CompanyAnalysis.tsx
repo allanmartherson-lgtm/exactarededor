@@ -774,14 +774,19 @@ export default function CompanyAnalysis() {
       try {
         const { data } = await supabase
           .from("payment_processing_jobs")
-          .select("status, processed_companies, total_companies")
+          .select("status, processed_companies, total_companies, failed_companies")
           .eq("id", jobId)
           .maybeSingle();
         const status = (data as any)?.status as string | undefined;
         const processed = Number((data as any)?.processed_companies ?? 0);
         const total = Number((data as any)?.total_companies ?? 0);
-        if (status === "concluido" || status === "parcial" || status === "erro") return status !== "erro";
-        if (total > 0 && processed >= total) return true;
+        const failed = Array.isArray((data as any)?.failed_companies) ? (data as any).failed_companies : [];
+        if (status === "concluido") return true;
+        if (status === "parcial" || status === "erro") {
+          const firstError = failed[0]?.error ? ` ${failed[0].error}` : "";
+          throw new Error(`Reanálise não concluiu para todas as empresas.${firstError}`.trim());
+        }
+        if (total > 0 && processed >= total && failed.length === 0) return true;
       } catch {
         // ignora e tenta novamente
       }
