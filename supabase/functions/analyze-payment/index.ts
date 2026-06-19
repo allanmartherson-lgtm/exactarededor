@@ -2075,6 +2075,20 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
     // Updates por id em paralelo (chunks de 50). Não dá para fazer um único
     // UPDATE porque cada item tem um ai_findings diferente.
+    //
+    // RESILIÊNCIA A DEADLOCK (40P01): updates concorrentes sobre payment_items
+    // podem colidir em locks de índice/trigger. Antes, um único deadlock abortava
+    // toda a reanálise — itens já processados ficavam com applied_at do job atual
+    // e os demais retinham ai_findings antigos, dando a sensação de "Reaplicar
+    // regras não funciona". Agora cada UPDATE faz até 3 tentativas com backoff
+    // (100ms, 300ms, 900ms) quando o erro é deadlock/serialization.
+    let __deadlock_retries = 0;
+    let __deadlock_retries_succeeded = 0;
+    const isTransientDbError = (msg: string) => {
+      const m = (msg || "").toLowerCase();
+      return m.includes("deadlock detected") || m.includes("40p01")
+        || m.includes("could not serialize") || m.includes("40001");
+    };
     console.time(`${__t} writes_payment_items`);
     const __writesStart = Date.now();
     await runChunked(itemUpdates, 50, async (u) => {
@@ -2109,12 +2123,33 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           patch.gross_amount = u.expected_amount ?? null;
         }
       }
-      const { error: updateErr } = await supabase.from("payment_items").update(patch).eq("id", u.id);
-      if (updateErr) {
-        throw new Error(`Falha ao atualizar item ${u.id}: ${updateErr.message}`);
+      const delays = [100, 300, 900];
+      let attempt = 0;
+      let lastErr: string | null = null;
+      while (attempt <= delays.length) {
+        const { error: updateErr } = await supabase.from("payment_items").update(patch).eq("id", u.id);
+        if (!updateErr) {
+          if (attempt > 0) __deadlock_retries_succeeded++;
+          return;
+        }
+        lastErr = updateErr.message;
+        if (!isTransientDbError(updateErr.message) || attempt === delays.length) {
+          throw new Error(`Falha ao atualizar item ${u.id}: ${updateErr.message}`);
+        }
+        __deadlock_retries++;
+        const jitter = Math.floor(Math.random() * 50);
+        await new Promise((r) => setTimeout(r, delays[attempt] + jitter));
+        attempt++;
       }
+      throw new Error(`Falha ao atualizar item ${u.id} após retries: ${lastErr}`);
     });
     console.timeEnd(`${__t} writes_payment_items`);
+    if (__deadlock_retries > 0) {
+      (diagnostics as any).deadlock_retries = __deadlock_retries;
+      (diagnostics as any).deadlock_retries_succeeded = __deadlock_retries_succeeded;
+      (diagnostics as any).status_note = "partial_with_retry";
+      console.warn(`${__t} payment_items_update: ${__deadlock_retries} retries por deadlock (${__deadlock_retries_succeeded} bem-sucedidos)`);
+    }
 
     // ---------- Auditoria: registra mudanças de package_absorbed feitas pelo motor ----------
     // Cada transição (false→true ou true→false) gera uma linha em audit_log com
