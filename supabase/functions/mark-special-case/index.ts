@@ -2,6 +2,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 
+const functionCorsHeaders = {
+  ...corsHeaders,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, x-supabase-api-version, apikey, content-type, prefer, x-active-hospital",
+};
+
 const BodySchema = z.object({
   payment_id: z.string().uuid(),
   attendance_number: z.string().min(1),
@@ -12,14 +17,14 @@ const BodySchema = z.object({
 });
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: functionCorsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace("Bearer ", "");
     if (!token) {
       return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -33,14 +38,14 @@ Deno.serve(async (req) => {
     const { data: { user }, error: uerr } = await userClient.auth.getUser();
     if (uerr || !user) {
       return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: parsed.error.flatten().fieldErrors }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
     const body = parsed.data;
@@ -55,7 +60,7 @@ Deno.serve(async (req) => {
       || roleSet.has("analista") || roleSet.has("gestao_medica");
     if (!isInternal) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -68,12 +73,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!typeRow) {
       return new Response(JSON.stringify({ error: "tipo_invalido" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
     if (typeRow.requires_justification && (!body.justification || body.justification.trim().length < 5)) {
       return new Response(JSON.stringify({ error: "justificativa_obrigatoria" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -108,7 +113,7 @@ Deno.serve(async (req) => {
 
     if (insErr) {
       return new Response(JSON.stringify({ error: insErr.message }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -147,12 +152,12 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ ok: true, mark }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("mark-special-case error", e);
     return new Response(JSON.stringify({ error: String((e as any)?.message ?? e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
     });
   }
 });

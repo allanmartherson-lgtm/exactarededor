@@ -2,6 +2,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 
+const functionCorsHeaders = {
+  ...corsHeaders,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, x-supabase-api-version, apikey, content-type, prefer, x-active-hospital",
+};
+
 const BodySchema = z.object({
   mark_id: z.string().uuid(),
   decision: z.enum(["approve", "reject", "revoke"]),
@@ -9,14 +14,14 @@ const BodySchema = z.object({
 });
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: functionCorsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace("Bearer ", "");
     if (!token) {
       return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -30,14 +35,14 @@ Deno.serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: parsed.error.flatten().fieldErrors }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
     const { mark_id, decision, note } = parsed.data;
@@ -49,7 +54,7 @@ Deno.serve(async (req) => {
     const canDecide = roleSet.has("admin") || roleSet.has("diretor") || roleSet.has("gestao_medica");
     if (!canDecide) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -76,7 +81,7 @@ Deno.serve(async (req) => {
       .from("special_case_marks").update(patch).eq("id", mark_id).select("*").single();
     if (updErr) {
       return new Response(JSON.stringify({ error: updErr.message }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -89,12 +94,12 @@ Deno.serve(async (req) => {
     });
 
     return new Response(JSON.stringify({ ok: true, mark: updated }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("decide-special-case error", e);
     return new Response(JSON.stringify({ error: String((e as any)?.message ?? e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
     });
   }
 });

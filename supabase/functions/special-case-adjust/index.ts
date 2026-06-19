@@ -19,6 +19,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 
+const functionCorsHeaders = {
+  ...corsHeaders,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, x-supabase-api-version, apikey, content-type, prefer, x-active-hospital",
+};
+
 const ItemSchema = z.object({
   company_id: z.string().uuid(),
   valor: z.number(),                 // pode ser negativo (dedução) ou positivo (complemento)
@@ -36,14 +41,14 @@ const BodySchema = z.object({
 const CLOSED = new Set(["pago", "fechado", "concluido", "aprovado_diretor", "aprovado"]);
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: functionCorsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace("Bearer ", "");
     if (!token) {
       return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -57,14 +62,14 @@ Deno.serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: parsed.error.flatten().fieldErrors }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
     const body = parsed.data;
@@ -78,7 +83,7 @@ Deno.serve(async (req) => {
     const canDecide = roleSet.has("admin") || roleSet.has("diretor") || roleSet.has("gestao_medica");
     if (!body.preview && !canDecide) {
       return new Response(JSON.stringify({ error: "forbidden_role" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -89,12 +94,12 @@ Deno.serve(async (req) => {
       .eq("id", body.payment_id).maybeSingle();
     if (!payment) {
       return new Response(JSON.stringify({ error: "payment_not_found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
     if (!CLOSED.has(payment.status)) {
       return new Response(JSON.stringify({ error: "payment_not_closed", status: payment.status }), {
-        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 409, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -108,7 +113,7 @@ Deno.serve(async (req) => {
     );
     if ((marks?.length ?? 0) !== body.mark_ids.length || invalid.length > 0) {
       return new Response(JSON.stringify({ error: "marks_invalid", invalid }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
     const alreadyApplied = (marks ?? []).filter((m: any) => m.retro_adjustment_id);
@@ -116,7 +121,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         error: "marks_already_applied",
         ids: alreadyApplied.map((m: any) => m.id),
-      }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }), { status: 409, headers: { ...functionCorsHeaders, "Content-Type": "application/json" } });
     }
 
     // Agrupa por empresa (várias marcas podem mapear pra mesma PJ).
@@ -142,12 +147,12 @@ Deno.serve(async (req) => {
         error: "reduction_requires_confirmation",
         total_reduction: totalReducao,
         summary,
-      }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }), { status: 409, headers: { ...functionCorsHeaders, "Content-Type": "application/json" } });
     }
 
     if (body.preview) {
       return new Response(JSON.stringify({ ok: true, preview: true, summary }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -176,7 +181,7 @@ Deno.serve(async (req) => {
         .single();
       if (adjErr) {
         return new Response(JSON.stringify({ error: adjErr.message, created_so_far: createdIds }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
         });
       }
       createdIds.push(adj.id);
@@ -212,12 +217,12 @@ Deno.serve(async (req) => {
     });
 
     return new Response(JSON.stringify({ ok: true, adjustments: createdIds, summary }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("special-case-adjust error", e);
     return new Response(JSON.stringify({ error: String((e as any)?.message ?? e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
     });
   }
 });
