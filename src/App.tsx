@@ -84,6 +84,7 @@ const loadBusinessObservability = () => import("./pages/BusinessObservability.ts
 const loadPendencias = () => import("./pages/Pendencias.tsx");
 const loadSpecialCases = () => import("./pages/SpecialCases.tsx");
 const loadSpecialCasesReport = () => import("./pages/SpecialCasesReport.tsx");
+const loadSpecialCaseTypesAdmin = () => import("./pages/SpecialCaseTypesAdmin.tsx");
 const loadConciliacao = () => import("./pages/Conciliacao.tsx");
 const loadPendenciaDetail = () => import("./pages/PendenciaDetail.tsx");
 const loadConversas = () => import("./pages/Conversas.tsx");
@@ -163,6 +164,7 @@ const BusinessObservability = lazy(loadBusinessObservability);
 const Pendencias = lazy(loadPendencias);
 const SpecialCases = lazy(loadSpecialCases);
 const SpecialCasesReport = lazy(loadSpecialCasesReport);
+const SpecialCaseTypesAdmin = lazy(loadSpecialCaseTypesAdmin);
 const Conciliacao = lazy(loadConciliacao);
 const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
