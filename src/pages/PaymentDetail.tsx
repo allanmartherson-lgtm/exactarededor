@@ -2518,10 +2518,20 @@ const PaymentDetail = () => {
           />
         )}
         {id && (isAnalista || isDiretor) && (
-          <div className="flex justify-end">
+          <div className="rounded-md border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-950/20 dark:border-indigo-900/60 px-4 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-start gap-2 min-w-0">
+              <Sparkles className="h-4 w-4 mt-0.5 text-indigo-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-indigo-900 dark:text-indigo-200">Caso especial</p>
+                <p className="text-xs text-indigo-700/80 dark:text-indigo-300/80">
+                  Existe regra cadastrada para casos especiais. Sinalize um atendimento ou item para aplicar a regra correspondente.
+                </p>
+              </div>
+            </div>
             <MarkSpecialCaseDialog paymentId={id} />
           </div>
         )}
+
         {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
         {!isNfPhase && (
         <div className="md:hidden">
