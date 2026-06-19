@@ -106,8 +106,21 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     setNeedsSelection(!active && hospitals.length > 1);
     if (active) localStorage.setItem(STORAGE_KEY, active.id);
     setActiveHospitalId(active?.id ?? null);
+
+    // CRÍTICO (multi-tenant): grava o hospital ativo no servidor para que
+    // `current_active_hospital()` no banco leia daqui — e não mais de um
+    // header HTTP que o cliente controla. Sem este passo, queries operacionais
+    // de usuários com +1 hospital retornam NULL e ficam bloqueadas.
+    if (active) {
+      const { error: setErr } = await supabase.rpc("set_active_hospital", {
+        p_hospital_id: active.id,
+      });
+      if (setErr) console.warn("[hospital] set_active_hospital falhou:", setErr.message);
+    }
+
     setLoading(false);
   }, [userId]);
+
 
   // Garantia extra: aplica o header sempre que o hospital ativo muda — cobre
   // reidratação após reload, restore de sessão e qualquer atualização externa
