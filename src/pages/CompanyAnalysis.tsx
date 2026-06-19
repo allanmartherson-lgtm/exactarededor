@@ -1192,11 +1192,23 @@ export default function CompanyAnalysis() {
       }
 
       // Limpa SOMENTE itens e o grupo desta empresa (não toca nas demais).
-      await supabase
+      // Faz em chunks por id para evitar statement_timeout em DELETE com muitos cascades.
+      const { data: idsToDelete, error: idsErr } = await supabase
         .from("payment_items")
-        .delete()
+        .select("id")
         .eq("payment_id", id)
         .eq("company_name", group.company_name);
+      if (idsErr) throw idsErr;
+      const allIds = (idsToDelete ?? []).map((r: any) => r.id);
+      const delChunk = 25;
+      for (let i = 0; i < allIds.length; i += delChunk) {
+        const part = allIds.slice(i, i + delChunk);
+        const { error: delErr } = await supabase
+          .from("payment_items")
+          .delete()
+          .in("id", part);
+        if (delErr) throw delErr;
+      }
       await supabase.from("payment_company_groups").delete().eq("id", group.id);
 
       const newItems = companyRows.map((r) => ({
@@ -1264,7 +1276,13 @@ export default function CompanyAnalysis() {
 
       navigate(`/pagamentos/${id}`);
     } catch (e) {
-      toast.error("Erro ao reimportar", { description: String(e) });
+      const msg = (e as any)?.message
+        || (e as any)?.error?.message
+        || (e as any)?.details
+        || (e as any)?.hint
+        || (typeof e === "string" ? e : JSON.stringify(e));
+      toast.error("Erro ao reimportar", { description: msg });
+      console.error("[reimport-company]", e);
     } finally {
       setReimporting(false);
       setReimportConfirm(null);
