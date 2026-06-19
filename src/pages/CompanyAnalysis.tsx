@@ -1188,8 +1188,8 @@ export default function CompanyAnalysis() {
       };
 
       for (const file of files) {
-        // Aplica template salvo (se houver) e bloqueia em caso de obrigatório faltando
-        const { headers } = await inspectFileHeaders(file);
+        // Aplica template salvo (se houver) e abre tela de mapeamento se faltar obrigatório
+        const { headers, sampleRow } = await inspectFileHeaders(file);
         const sig = await computeHeaderSignature(headers);
         const hospitalId = (payment as any).hospital_id ?? null;
         const tplQuery = supabase
@@ -1201,17 +1201,20 @@ export default function CompanyAnalysis() {
           ? await tplQuery.or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
           : await tplQuery.is("hospital_id", null);
         const tpl = (tplRows ?? [])[0] as { id: string; mapping: any; name: string } | undefined;
-        const manualMapping = tpl?.mapping;
+        const override = mappingOverrides[file.name];
+        const manualMapping = override ?? tpl?.mapping;
         const hits = inspectColumnMapping(headers).map((h) => {
-          const override = manualMapping?.[h.field];
-          if (override && headers.includes(override)) return { ...h, header: override, score: 100, confidence: "high" as const };
+          const ov = manualMapping?.[h.field];
+          if (ov && headers.includes(ov)) return { ...h, header: ov, score: 100, confidence: "high" as const };
           return h;
         });
         const { missingRequired } = summarizeMissing(hits);
         if (missingRequired.length > 0) {
-          toast.error(
-            `Colunas obrigatórias ausentes em ${file.name}: ${missingRequired.map((m) => FIELD_BY_KEY[m.field].label).join(", ")}. Use /pagamentos/novo para revisar o mapeamento.`,
+          // Abre tela de mapeamento manual em vez de bloquear com erro
+          const initialMapping: Record<string, string> = Object.fromEntries(
+            hits.filter((h) => h.header).map((h) => [h.field, h.header!]),
           );
+          setMappingPrompt({ file, headers, sampleRow, initialMapping });
           setReimporting(false);
           return;
         }
