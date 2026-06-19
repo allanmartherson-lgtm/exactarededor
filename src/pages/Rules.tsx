@@ -1213,6 +1213,7 @@ const Rules = () => {
       exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
       allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
       exception_table_ids: fExceptionTableIds,
+      special_case_filter: fSpecialCaseFilter.length > 0 ? fSpecialCaseFilter : null,
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       minimo_garantido_ativo: fMinGarantidoAtivo,
