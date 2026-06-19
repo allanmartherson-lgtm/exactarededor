@@ -4578,6 +4578,10 @@ export type Database = {
           sector_original: string | null
           sector_slug: string | null
           source: string
+          special_case_code: string | null
+          special_case_status:
+            | Database["public"]["Enums"]["special_case_status"]
+            | null
           specialty: string | null
           tipo_item: string | null
           tipo_linha: string | null
@@ -4671,6 +4675,10 @@ export type Database = {
           sector_original?: string | null
           sector_slug?: string | null
           source?: string
+          special_case_code?: string | null
+          special_case_status?:
+            | Database["public"]["Enums"]["special_case_status"]
+            | null
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
@@ -4764,6 +4772,10 @@ export type Database = {
           sector_original?: string | null
           sector_slug?: string | null
           source?: string
+          special_case_code?: string | null
+          special_case_status?:
+            | Database["public"]["Enums"]["special_case_status"]
+            | null
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
@@ -7575,6 +7587,7 @@ export type Database = {
           rule_text: string
           scope: Database["public"]["Enums"]["rule_scope"]
           severity: Database["public"]["Enums"]["rule_severity"]
+          special_case_filter: string[] | null
           target_amount: number | null
           target_company_id: string | null
           target_doctor_id: string | null
@@ -7649,6 +7662,7 @@ export type Database = {
           rule_text: string
           scope?: Database["public"]["Enums"]["rule_scope"]
           severity?: Database["public"]["Enums"]["rule_severity"]
+          special_case_filter?: string[] | null
           target_amount?: number | null
           target_company_id?: string | null
           target_doctor_id?: string | null
@@ -7723,6 +7737,7 @@ export type Database = {
           rule_text?: string
           scope?: Database["public"]["Enums"]["rule_scope"]
           severity?: Database["public"]["Enums"]["rule_severity"]
+          special_case_filter?: string[] | null
           target_amount?: number | null
           target_company_id?: string | null
           target_doctor_id?: string | null
@@ -7944,6 +7959,191 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sla_settings_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      special_case_marks: {
+        Row: {
+          approval_note: string | null
+          approved_at: string | null
+          approved_by: string | null
+          attendance_number: string
+          created_at: string
+          doctor_id: string | null
+          hospital_id: string | null
+          id: string
+          item_id: string | null
+          justification: string | null
+          marked_at: string
+          marked_by: string | null
+          marked_by_portal_user: string | null
+          origin: Database["public"]["Enums"]["special_case_origin"]
+          payment_id: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          revocation_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          special_case_type_code: string
+          status: Database["public"]["Enums"]["special_case_status"]
+          updated_at: string
+        }
+        Insert: {
+          approval_note?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          attendance_number: string
+          created_at?: string
+          doctor_id?: string | null
+          hospital_id?: string | null
+          id?: string
+          item_id?: string | null
+          justification?: string | null
+          marked_at?: string
+          marked_by?: string | null
+          marked_by_portal_user?: string | null
+          origin: Database["public"]["Enums"]["special_case_origin"]
+          payment_id?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          special_case_type_code: string
+          status?: Database["public"]["Enums"]["special_case_status"]
+          updated_at?: string
+        }
+        Update: {
+          approval_note?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          attendance_number?: string
+          created_at?: string
+          doctor_id?: string | null
+          hospital_id?: string | null
+          id?: string
+          item_id?: string | null
+          justification?: string | null
+          marked_at?: string
+          marked_by?: string | null
+          marked_by_portal_user?: string | null
+          origin?: Database["public"]["Enums"]["special_case_origin"]
+          payment_id?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          special_case_type_code?: string
+          status?: Database["public"]["Enums"]["special_case_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "special_case_marks_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "special_case_marks_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "special_case_marks_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "special_case_marks_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "special_case_marks_marked_by_portal_user_fkey"
+            columns: ["marked_by_portal_user"]
+            isOneToOne: false
+            referencedRelation: "doctor_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "special_case_marks_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "special_case_marks_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "special_case_marks_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
+      special_case_types: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          hospital_id: string | null
+          id: string
+          label: string
+          requires_justification: boolean
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          label: string
+          requires_justification?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          label?: string
+          requires_justification?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "special_case_types_hospital_id_fkey"
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
@@ -8808,6 +9008,10 @@ export type Database = {
           _rule_data: Json
         }
         Returns: Json
+      }
+      apply_special_case_to_items: {
+        Args: { _mark_id: string }
+        Returns: undefined
       }
       approve_campaign: { Args: { _campaign_id: string }; Returns: undefined }
       approve_payment: {
@@ -9961,6 +10165,7 @@ export type Database = {
         | "analista"
         | "empresa"
         | "medico"
+        | "gestao_medica"
       confeccao_status: "em_confeccao" | "confeccao_concluida" | "cancelada"
       invoice_status:
         | "aguardando"
@@ -10092,6 +10297,8 @@ export type Database = {
         | "sadt_endoscopia"
       rule_severity: "info" | "aviso" | "bloqueio"
       rule_target_type: "medico" | "empresa"
+      special_case_origin: "medico_portal" | "analista" | "gestao_medica"
+      special_case_status: "pending" | "approved" | "rejected" | "revoked"
       threshold_type: "percentual" | "absoluto"
       user_company_marker: "pinned" | "waiting" | "reviewed"
       validation_action: "informar" | "alerta" | "alerta_forte" | "bloquear"
@@ -10245,6 +10452,7 @@ export const Constants = {
         "analista",
         "empresa",
         "medico",
+        "gestao_medica",
       ],
       confeccao_status: ["em_confeccao", "confeccao_concluida", "cancelada"],
       invoice_status: [
@@ -10385,6 +10593,8 @@ export const Constants = {
       ],
       rule_severity: ["info", "aviso", "bloqueio"],
       rule_target_type: ["medico", "empresa"],
+      special_case_origin: ["medico_portal", "analista", "gestao_medica"],
+      special_case_status: ["pending", "approved", "rejected", "revoked"],
       threshold_type: ["percentual", "absoluto"],
       user_company_marker: ["pinned", "waiting", "reviewed"],
       validation_action: ["informar", "alerta", "alerta_forte", "bloquear"],

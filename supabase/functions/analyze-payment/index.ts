@@ -268,7 +268,8 @@ serve(async (req) => {
       agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
       package_roles_distribution,
       adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim,
-      is_catch_all
+      is_catch_all,
+      special_case_filter
     `;
 
     // [Sprint 3 - Tier 1.B] Cache de contexto compartilhado por job:
@@ -461,6 +462,8 @@ serve(async (req) => {
         gross_override_at,
         item_hash,
         ai_findings,
+        special_case_code,
+        special_case_status,
         raw_data
       `)
       .eq("payment_id", payment_id);

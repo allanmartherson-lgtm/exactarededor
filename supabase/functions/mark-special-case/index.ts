@@ -1,0 +1,133 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "npm:zod@3";
+
+const BodySchema = z.object({
+  payment_id: z.string().uuid(),
+  attendance_number: z.string().min(1),
+  item_id: z.string().uuid().nullable().optional(),
+  special_case_type_code: z.string().min(1),
+  justification: z.string().optional(),
+  doctor_id: z.string().uuid().nullable().optional(),
+});
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "");
+    if (!token) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { data: { user }, error: uerr } = await userClient.auth.getUser();
+    if (uerr || !user) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const parsed = BodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: parsed.error.flatten().fieldErrors }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const body = parsed.data;
+
+    const admin = createClient(supabaseUrl, serviceKey);
+
+    // Verifica role
+    const { data: roles } = await admin
+      .from("user_roles").select("role").eq("user_id", user.id);
+    const roleSet = new Set((roles ?? []).map((r: any) => r.role));
+    const isInternal = roleSet.has("admin") || roleSet.has("diretor")
+      || roleSet.has("analista") || roleSet.has("gestao_medica");
+    if (!isInternal) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Carrega tipo + valida que existe e está ativo
+    const { data: typeRow } = await admin
+      .from("special_case_types")
+      .select("code, requires_justification, active")
+      .eq("code", body.special_case_type_code)
+      .eq("active", true)
+      .maybeSingle();
+    if (!typeRow) {
+      return new Response(JSON.stringify({ error: "tipo_invalido" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (typeRow.requires_justification && (!body.justification || body.justification.trim().length < 5)) {
+      return new Response(JSON.stringify({ error: "justificativa_obrigatoria" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Carrega payment para hospital_id
+    const { data: payment } = await admin
+      .from("payments").select("hospital_id").eq("id", body.payment_id).maybeSingle();
+
+    // Origem + status inicial
+    const isGestao = roleSet.has("gestao_medica") || roleSet.has("admin") || roleSet.has("diretor");
+    const origin = isGestao ? "gestao_medica" : "analista";
+    const initialStatus = isGestao ? "approved" : "pending";
+
+    const payload: any = {
+      payment_id: body.payment_id,
+      attendance_number: body.attendance_number,
+      item_id: body.item_id ?? null,
+      doctor_id: body.doctor_id ?? null,
+      special_case_type_code: body.special_case_type_code,
+      status: initialStatus,
+      origin,
+      justification: body.justification ?? null,
+      marked_by: user.id,
+      hospital_id: payment?.hospital_id ?? null,
+    };
+    if (initialStatus === "approved") {
+      payload.approved_by = user.id;
+      payload.approved_at = new Date().toISOString();
+    }
+
+    const { data: mark, error: insErr } = await admin
+      .from("special_case_marks").insert(payload).select("*").single();
+
+    if (insErr) {
+      return new Response(JSON.stringify({ error: insErr.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Auditoria
+    await admin.from("audit_log").insert({
+      user_id: user.id,
+      action: "special_case_mark",
+      entity_type: "special_case_marks",
+      entity_id: mark.id,
+      metadata: { payment_id: body.payment_id, attendance_number: body.attendance_number, type: body.special_case_type_code, status: initialStatus, origin },
+    });
+
+    return new Response(JSON.stringify({ ok: true, mark }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("mark-special-case error", e);
+    return new Response(JSON.stringify({ error: String((e as any)?.message ?? e) }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

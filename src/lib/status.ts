@@ -78,6 +78,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   analista: "Analista",
   empresa: "Empresa",
   medico: "Médico",
+  gestao_medica: "Gestão Médica",
 };
 
 export type RuleScope = Database["public"]["Enums"]["rule_scope"];

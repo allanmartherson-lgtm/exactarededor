@@ -82,6 +82,7 @@ const loadDreReport = () => import("./pages/DreReport.tsx");
 const loadMoneyHealth = () => import("./pages/MoneyHealth.tsx");
 const loadBusinessObservability = () => import("./pages/BusinessObservability.tsx");
 const loadPendencias = () => import("./pages/Pendencias.tsx");
+const loadSpecialCases = () => import("./pages/SpecialCases.tsx");
 const loadConciliacao = () => import("./pages/Conciliacao.tsx");
 const loadPendenciaDetail = () => import("./pages/PendenciaDetail.tsx");
 const loadConversas = () => import("./pages/Conversas.tsx");
@@ -159,6 +160,7 @@ const DreReport = lazy(loadDreReport);
 const MoneyHealth = lazy(loadMoneyHealth);
 const BusinessObservability = lazy(loadBusinessObservability);
 const Pendencias = lazy(loadPendencias);
+const SpecialCases = lazy(loadSpecialCases);
 const Conciliacao = lazy(loadConciliacao);
 const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
@@ -292,6 +294,7 @@ const App = () => (
                   <Route path="/financeiro/conciliacao" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><Conciliacao /></ProtectedRoute>} />
                   <Route path="/pendencias" element={<Pendencias />} />
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
+                  <Route path="/casos-especiais" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador", "gestao_medica"]}><SpecialCases /></ProtectedRoute>} />
                   <Route path="/conversas" element={<Conversas />} />
                   <Route path="/comunicacao/massa" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador"]}><MassCommunication /></ProtectedRoute>} />
                   <Route path="/comunicacao/aprovacoes" element={<ProtectedRoute roles={["admin", "diretor", "validador"]}><CampaignApprovalQueue /></ProtectedRoute>} />
