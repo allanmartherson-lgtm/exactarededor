@@ -2495,12 +2495,14 @@ export default function CompanyAnalysis() {
         open={reapplyOpen}
         onOpenChange={setReapplyOpen}
         phase={reapplyPhase}
+        step={reapplyStep}
         elapsedSec={reapplyElapsed}
         totalItems={items.length}
         errorMessage={reapplyError}
         diff={reapplyDiff}
         companyLabel={group?.company_name}
       />
+
 
       <AlertDialog open={postConcluirOpen} onOpenChange={setPostConcluirOpen}>
         <AlertDialogContent>
