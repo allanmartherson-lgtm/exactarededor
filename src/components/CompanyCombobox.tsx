@@ -32,6 +32,9 @@ interface Props {
 
 const PAGE = 20;
 
+const isVisibleCompany = (company: CompanyOption) =>
+  !company.name.trim().toUpperCase().startsWith("__E2E");
+
 /**
  * Combobox de empresas com busca incremental no servidor (debounce),
  * paginação ("Carregar mais") e cache do item selecionado.
@@ -75,7 +78,7 @@ export function CompanyCombobox({
     setLoading(true);
     const from = page * pageSize;
     const to = from + pageSize - 1;
-    let q = supabase.from("companies").select("id,name,document", { count: "exact" });
+    let q = supabase.from("companies").select("id,name,document", { count: "exact" }).eq("active", true);
     const term = debounced.trim();
     if (term) {
       const digits = onlyDigits(term);
@@ -86,7 +89,7 @@ export function CompanyCombobox({
     }
     q.order("name").range(from, to).then(({ data, count }) => {
       if (reqId.current !== myId) return;
-      const next = (data ?? []) as CompanyOption[];
+      const next = ((data ?? []) as CompanyOption[]).filter(isVisibleCompany);
       setItems((prev) => (page === 0 ? next : [...prev, ...next]));
       setHasMore((count ?? 0) > to + 1);
       setLoading(false);
