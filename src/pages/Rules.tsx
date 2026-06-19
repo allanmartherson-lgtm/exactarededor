@@ -825,7 +825,7 @@ const Rules = () => {
     setFSeverity("aviso");
     setScope("master"); setTargetType("medico");
     setFTargetIdentifier(""); setFTargetName("");
-    setRefTableId(""); setFExceptionTableIds([]);
+    setRefTableId(""); setFExceptionTableIds([]); setFSpecialCaseFilter([]);
     setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
     setFNature("informativo");
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
