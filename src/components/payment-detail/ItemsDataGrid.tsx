@@ -72,6 +72,39 @@ import { authorRoleLabel } from "@/lib/observations";
 import { MarkSpecialCaseDialog } from "./MarkSpecialCaseDialog";
 import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
 
+/** Botão "Sinalizar caso especial" para um item específico — só aparece
+ * quando existe ao menos 1 regra ativa do hospital com special_case_filter. */
+function SpecialCaseItemAction({
+  paymentId, itemId, attendance, doctorId,
+}: {
+  paymentId: string;
+  itemId: string;
+  attendance: string | null;
+  doctorId: string | null;
+}) {
+  const hasRules = useHasSpecialCaseRules(paymentId);
+  if (hasRules !== true) return null;
+  return (
+    <div className="rounded-md border border-dashed border-indigo-300/70 bg-indigo-50/40 dark:bg-indigo-950/15 dark:border-indigo-900/60 px-3 py-2 flex items-center justify-between gap-2">
+      <p className="text-xs text-indigo-900/80 dark:text-indigo-200/80">
+        Este item se aplica a um caso especial?
+      </p>
+      <MarkSpecialCaseDialog
+        paymentId={paymentId}
+        itemId={itemId}
+        defaultAttendance={attendance ?? undefined}
+        doctorId={doctorId ?? undefined}
+        trigger={
+          <Button size="sm" variant="outline" className="h-7 text-xs">
+            <Sparkles className="h-3.5 w-3.5 mr-1" /> Sinalizar caso especial
+          </Button>
+        }
+      />
+    </div>
+  );
+}
+
+
 
 // ============ TIPOGRAFIA UNIFICADA (tabela + painel expandido) ============
 // Mesmo set tipográfico usado em AlertBanner, headers, cells e detalhes.
