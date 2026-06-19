@@ -3290,8 +3290,11 @@ function finalizeAnalysis(
   }
   // Sinalização informativa de caso especial — não afeta status nem cálculo,
   // só comunica ao supervisor/diretor que aquele item teve marcação ativa.
-  if (scItemApproved) {
-    alerts.unshift(`ℹ️ Caso especial ativo: ${scItemCode}.`);
+  {
+    const scCode = (item.special_case_code ?? "").trim();
+    if (item.special_case_status === "approved" && scCode) {
+      alerts.unshift(`ℹ️ Caso especial ativo: ${scCode}.`);
+    }
   }
 
   return {
