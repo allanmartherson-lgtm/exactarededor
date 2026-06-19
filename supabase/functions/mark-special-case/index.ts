@@ -108,10 +108,48 @@ Deno.serve(async (req) => {
       payload.approved_at = new Date().toISOString();
     }
 
+    let existingQuery = admin
+      .from("special_case_marks")
+      .select("*")
+      .eq("payment_id", body.payment_id)
+      .eq("attendance_number", body.attendance_number)
+      .eq("special_case_type_code", body.special_case_type_code)
+      .in("status", ["pending", "approved"]);
+    existingQuery = body.item_id ? existingQuery.eq("item_id", body.item_id) : existingQuery.is("item_id", null);
+
+    const { data: existingMark, error: existingErr } = await existingQuery.maybeSingle();
+    if (existingErr) {
+      return new Response(JSON.stringify({ error: existingErr.message }), {
+        status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (existingMark) {
+      return new Response(JSON.stringify({ ok: true, mark: existingMark, already_exists: true }), {
+        headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: mark, error: insErr } = await admin
       .from("special_case_marks").insert(payload).select("*").single();
 
     if (insErr) {
+      if (insErr.code === "23505" || insErr.message.includes("special_case_marks_active_unique")) {
+        let duplicateQuery = admin
+          .from("special_case_marks")
+          .select("*")
+          .eq("payment_id", body.payment_id)
+          .eq("attendance_number", body.attendance_number)
+          .eq("special_case_type_code", body.special_case_type_code)
+          .in("status", ["pending", "approved"]);
+        duplicateQuery = body.item_id ? duplicateQuery.eq("item_id", body.item_id) : duplicateQuery.is("item_id", null);
+        const { data: duplicateMark } = await duplicateQuery.maybeSingle();
+        if (duplicateMark) {
+          return new Response(JSON.stringify({ ok: true, mark: duplicateMark, already_exists: true }), {
+            headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
       return new Response(JSON.stringify({ error: insErr.message }), {
         status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
