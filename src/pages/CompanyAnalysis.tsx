@@ -298,11 +298,13 @@ export default function CompanyAnalysis() {
   // ---- Reaplicar regras: progresso + diff antes/depois ----
   const [reapplyOpen, setReapplyOpen] = useState(false);
   const [reapplyPhase, setReapplyPhase] = useState<ReapplyPhase>("iniciando");
+  const [reapplyStep, setReapplyStep] = useState<ReapplyStep>("ler_regras");
   const [reapplyError, setReapplyError] = useState<string | null>(null);
   const [reapplyDiff, setReapplyDiff] = useState<ReapplyDiff | null>(null);
   const [reapplyElapsed, setReapplyElapsed] = useState(0);
   const reapplySnapshotRef = useRef<ReapplySnapshot>({});
   const reapplyTimerRef = useRef<number | null>(null);
+
 
   // Timer de tempo decorrido enquanto a reanálise roda.
   useEffect(() => {
