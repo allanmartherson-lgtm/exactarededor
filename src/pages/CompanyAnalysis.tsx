@@ -16,8 +16,15 @@ import { useHasSpecialCaseRules } from "@/components/payment-detail/useHasSpecia
 
 /** Banner indigo no topo do grid de itens com botão para marcar caso especial.
  *  Só renderiza se houver ao menos 1 regra ativa com special_case_filter no hospital. */
-function SpecialCaseHeaderBanner({ paymentId, canUse }: { paymentId?: string; canUse: boolean }) {
-  const hasRules = useHasSpecialCaseRules(paymentId);
+function SpecialCaseHeaderBanner({
+  paymentId,
+  companyId,
+  canUse,
+}: { paymentId?: string; companyId?: string | null; canUse: boolean }) {
+  // Passa companyId para o hook: banner só aparece se houver regra de caso
+  // especial REALMENTE vinculada a esta PJ (via target_company_id,
+  // target_doctor_id de médico com itens da PJ, ou regra global).
+  const hasRules = useHasSpecialCaseRules(paymentId, companyId ?? null);
   if (!paymentId || !canUse || hasRules !== true) return null;
   return (
     <div className="mx-4 mt-3 mb-2 rounded-md border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-950/20 dark:border-indigo-900/60 px-4 py-3 flex items-center justify-between gap-3">
@@ -2210,7 +2217,7 @@ export default function CompanyAnalysis() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <SpecialCaseHeaderBanner paymentId={id} canUse={isAnalista || isDiretor} />
+              <SpecialCaseHeaderBanner paymentId={id} companyId={group.company_id ?? null} canUse={isAnalista || isDiretor} />
               <ItemsDataGrid
 
                 items={items}
