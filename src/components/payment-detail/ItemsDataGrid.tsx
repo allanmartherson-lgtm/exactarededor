@@ -69,6 +69,9 @@ import { useSectorAliases } from "@/hooks/useSectorAliases";
 
 const SECTOR_RAW_KEYS = ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"] as const;
 import { authorRoleLabel } from "@/lib/observations";
+import { MarkSpecialCaseDialog } from "./MarkSpecialCaseDialog";
+import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
+
 
 // ============ TIPOGRAFIA UNIFICADA (tabela + painel expandido) ============
 // Mesmo set tipográfico usado em AlertBanner, headers, cells e detalhes.
