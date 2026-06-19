@@ -18,11 +18,44 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Circle,
 } from "lucide-react";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
 
 export type ReapplyPhase = "iniciando" | "processando" | "concluido" | "erro";
+
+export type ReapplyStep =
+  | "ler_regras"
+  | "rodar_motor"
+  | "persistir_itens"
+  | "carregar_ui";
+
+const STEP_ORDER: ReapplyStep[] = [
+  "ler_regras",
+  "rodar_motor",
+  "persistir_itens",
+  "carregar_ui",
+];
+
+const STEP_LABELS: Record<ReapplyStep, { title: string; hint: string }> = {
+  ler_regras: {
+    title: "Lendo regras e cadastros",
+    hint: "Snapshot do estado atual e carregamento das regras vigentes",
+  },
+  rodar_motor: {
+    title: "Rodando motor de cálculo",
+    hint: "Recalculando valor esperado e regra vencedora de cada item",
+  },
+  persistir_itens: {
+    title: "Persistindo itens",
+    hint: "Gravando novo status, regra aplicada e cálculo no banco",
+  },
+  carregar_ui: {
+    title: "Atualizando a tela",
+    hint: "Relendo os itens da empresa para refletir o resultado",
+  },
+};
 
 export type ReapplySnapshot = Record<
   string,
