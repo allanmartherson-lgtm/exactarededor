@@ -446,6 +446,13 @@ const Rules = () => {
     loadGlobalThresholds();
   };
   const loadRefs = () => supabase.from("reference_tables").select("id,name,purpose").order("name").then(({ data }) => setRefTables((data ?? []) as any));
+  const loadSpecialCaseTypes = () =>
+    supabase
+      .from("special_case_types")
+      .select("code,label")
+      .eq("active", true)
+      .order("label")
+      .then(({ data }) => setSpecialCaseTypes((data ?? []) as any));
   const loadCompanies = async () => {
     const PAGE = 1000;
     let all: any[] = [];
@@ -458,7 +465,7 @@ const Rules = () => {
     }
     setCompanies(all as any);
   };
-  useEffect(() => { document.title = "Regras | Exacta"; loadGlobalThresholds(); loadRefs(); loadCompanies(); }, []);
+  useEffect(() => { document.title = "Regras | Exacta"; loadGlobalThresholds(); loadRefs(); loadCompanies(); loadSpecialCaseTypes(); }, []);
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeHospitalId]);
 
   const exportRuleToPDF = (r: RuleRow) => {
