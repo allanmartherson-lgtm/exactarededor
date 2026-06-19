@@ -86,10 +86,13 @@ Deno.serve(async (req) => {
     const { data: payment } = await admin
       .from("payments").select("hospital_id").eq("id", body.payment_id).maybeSingle();
 
-    // Origem + status inicial
+    // Conceito atualizado (jun/2026): analista tem autonomia total.
+    // Marca já entra como `approved` — motor aplica regra de caso especial
+    // imediatamente. Gestão médica/diretor recebe notificação informativa
+    // (não-bloqueante) e pode REVOGAR depois via decide-special-case.
     const isGestao = roleSet.has("gestao_medica") || roleSet.has("admin") || roleSet.has("diretor");
     const origin = isGestao ? "gestao_medica" : "analista";
-    const initialStatus = isGestao ? "approved" : "pending";
+    const initialStatus = "approved";
 
     const payload: any = {
       payment_id: body.payment_id,
@@ -102,11 +105,9 @@ Deno.serve(async (req) => {
       justification: body.justification ?? null,
       marked_by: user.id,
       hospital_id: payment?.hospital_id ?? null,
+      approved_by: user.id,
+      approved_at: new Date().toISOString(),
     };
-    if (initialStatus === "approved") {
-      payload.approved_by = user.id;
-      payload.approved_at = new Date().toISOString();
-    }
 
     let existingQuery = admin
       .from("special_case_marks")
@@ -164,17 +165,19 @@ Deno.serve(async (req) => {
       metadata: { payment_id: body.payment_id, attendance_number: body.attendance_number, type: body.special_case_type_code, status: initialStatus, origin },
     });
 
-    // Inbox interno — notifica gestão médica quando vem como pending
-    if (initialStatus === "pending") {
+    // Inbox interno — notificação INFORMATIVA para gestão médica/diretor.
+    // Não é mais um gate de aprovação; é só visibilidade. Eles podem revogar
+    // se discordarem (decide-special-case com decision='revoke').
+    {
       const { data: gestao } = await admin
         .from("user_roles")
         .select("user_id")
-        .eq("role", "gestao_medica");
+        .in("role", ["gestao_medica", "diretor"]);
       const inbox = (gestao ?? []).map((g: any) => ({
         user_id: g.user_id,
         kind: "info",
-        title: "Novo caso especial aguardando decisão",
-        body: `Atendimento ${body.attendance_number} marcado como "${body.special_case_type_code}". Origem: ${origin}.`,
+        title: "Caso especial marcado",
+        body: `Atendimento ${body.attendance_number} marcado como "${body.special_case_type_code}" por ${origin}. Regra especial aplicada — revogue se necessário.`,
         link: "/casos-especiais",
         payload: {
           mark_id: mark.id,
@@ -187,6 +190,16 @@ Deno.serve(async (req) => {
       if (inbox.length > 0) {
         await admin.from("internal_notifications").insert(inbox);
       }
+    }
+
+    // Dispara reanálise do pagamento — fire-and-forget — para que o motor
+    // recalcule os itens daquele atendimento já considerando a regra especial.
+    try {
+      await admin.functions.invoke("dispatch-payment-analysis", {
+        body: { payment_id: body.payment_id },
+      });
+    } catch (dispatchErr) {
+      console.error("[mark-special-case] falha ao disparar reanálise:", dispatchErr);
     }
 
     return new Response(JSON.stringify({ ok: true, mark }), {

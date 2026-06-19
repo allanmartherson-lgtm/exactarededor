@@ -2622,7 +2622,17 @@ function RowMain({
       >
         {colVis.atendimento && (
           <td className={cn(cell, "font-mono", TEXT_META)} title={it.attendance_number ?? ""}>
-            {it.attendance_number ?? "—"}
+            <div className="flex items-center gap-1">
+              <span>{it.attendance_number ?? "—"}</span>
+              {(it as any).special_case_status === "approved" && (it as any).special_case_code && (
+                <span
+                  className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-amber-100 text-amber-800 border border-amber-300"
+                  title={`Caso especial ativo: ${(it as any).special_case_code}`}
+                >
+                  CE
+                </span>
+              )}
+            </div>
           </td>
         )}
         <td className={cn(stickyCell, TEXT_BODY)} title={paciente}>

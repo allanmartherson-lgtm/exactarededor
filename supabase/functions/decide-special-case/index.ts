@@ -93,6 +93,16 @@ Deno.serve(async (req) => {
       metadata: { payment_id: updated.payment_id, attendance_number: updated.attendance_number, type: updated.special_case_type_code, note },
     });
 
+    // Reanalisa o pagamento — qualquer mudança de status (approve/reject/revoke)
+    // altera quais regras o motor considera para aquele atendimento.
+    try {
+      await admin.functions.invoke("dispatch-payment-analysis", {
+        body: { payment_id: updated.payment_id },
+      });
+    } catch (dispatchErr) {
+      console.error("[decide-special-case] falha ao disparar reanálise:", dispatchErr);
+    }
+
     return new Response(JSON.stringify({ ok: true, mark: updated }), {
       headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
     });

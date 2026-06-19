@@ -3288,6 +3288,14 @@ function finalizeAnalysis(
   } else if (calc.expected != null && status === "alerta" && diff_pct != null && diff_pct > 0.01) {
     alerts.push(`Diferença de ${(diff_pct * 100).toFixed(1)}% entre esperado e pago.`);
   }
+  // Sinalização informativa de caso especial — não afeta status nem cálculo,
+  // só comunica ao supervisor/diretor que aquele item teve marcação ativa.
+  {
+    const scCode = (item.special_case_code ?? "").trim();
+    if (item.special_case_status === "approved" && scCode) {
+      alerts.unshift(`ℹ️ Caso especial ativo: ${scCode}.`);
+    }
+  }
 
   return {
     item_id: item.id,
