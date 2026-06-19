@@ -45,7 +45,7 @@ export function SpecialCaseRetroactiveBanner({ paymentId, paymentStatus, payment
         .from("payment_status_history")
         .select("status_to, changed_at")
         .eq("payment_id", paymentId)
-        .order("created_at", { ascending: false })
+        .order("changed_at", { ascending: false })
         .limit(50);
       const closedEvent = (history ?? []).find((h: any) => CLOSED_STATUSES.has(h.status_to));
       const cutoffStr = closedEvent?.changed_at ?? paymentUpdatedAt ?? null;
