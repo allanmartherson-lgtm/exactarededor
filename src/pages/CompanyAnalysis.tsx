@@ -705,7 +705,13 @@ export default function CompanyAnalysis() {
 
       // Aguarda o motor finalizar antes de calcular o diff. Sem polling, o
       // "concluído" apareceria com snapshot antigo e o diff seria zero.
-      const done = await waitForProcessingCompletion(id, startedAt, 120_000);
+      // Prioriza polling do JOB específico retornado pelo dispatch — evita
+      // falso positivo quando processing_diagnostics do pagamento já estava
+      // "success" de um job anterior (qualquer worker sobrescreve esse campo).
+      const jobId = (data as any)?.job_id as string | undefined;
+      const done = jobId
+        ? await waitForJobCompletion(jobId, 120_000)
+        : await waitForProcessingCompletion(id, startedAt, 120_000);
 
       // Etapa 3 — Persistir/ler de volta os itens.
       setReapplyStep("persistir_itens");
@@ -759,6 +765,31 @@ export default function CompanyAnalysis() {
    * da reanálise quando a conexão HTTP cai antes do response final.
    * Retorna true se diagnostics.status === "success" e foi atualizado após `since`.
    */
+  const waitForJobCompletion = async (
+    jobId: string,
+    timeoutMs = 120_000,
+  ): Promise<boolean> => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        const { data } = await supabase
+          .from("payment_processing_jobs")
+          .select("status, processed_companies, total_companies")
+          .eq("id", jobId)
+          .maybeSingle();
+        const status = (data as any)?.status as string | undefined;
+        const processed = Number((data as any)?.processed_companies ?? 0);
+        const total = Number((data as any)?.total_companies ?? 0);
+        if (status === "concluido" || status === "parcial" || status === "erro") return status !== "erro";
+        if (total > 0 && processed >= total) return true;
+      } catch {
+        // ignora e tenta novamente
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    return false;
+  };
+
   const waitForProcessingCompletion = async (
     paymentId: string,
     since: number,
