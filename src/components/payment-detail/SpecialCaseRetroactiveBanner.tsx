@@ -25,14 +25,13 @@ interface MarkRow {
   attendance_number: string | null;
   item_id: string | null;
   special_case_type_code: string;
-  decided_at: string | null;
+  approved_at: string | null;
   updated_at: string;
 }
 
 export function SpecialCaseRetroactiveBanner({ paymentId, paymentStatus, paymentUpdatedAt }: Props) {
   const { toast } = useToast();
   const [marks, setMarks] = useState<MarkRow[]>([]);
-  const [loading, setLoading] = useState(false);
   const [recomputing, setRecomputing] = useState(false);
 
   const isClosed = CLOSED_STATUSES.has(paymentStatus);
@@ -43,16 +42,16 @@ export function SpecialCaseRetroactiveBanner({ paymentId, paymentStatus, payment
     (async () => {
       const { data } = await supabase
         .from("special_case_marks")
-        .select("id, attendance_number, item_id, special_case_type_code, decided_at, updated_at")
+        .select("id, attendance_number, item_id, special_case_type_code, approved_at, updated_at")
         .eq("payment_id", paymentId)
         .eq("status", "approved");
       if (!alive) return;
       const cutoff = paymentUpdatedAt ? new Date(paymentUpdatedAt).getTime() : 0;
-      const after = (data ?? []).filter((m: any) => {
-        const t = new Date(m.decided_at || m.updated_at).getTime();
+      const after = ((data as MarkRow[] | null) ?? []).filter((m) => {
+        const t = new Date(m.approved_at || m.updated_at).getTime();
         return cutoff === 0 || t > cutoff;
       });
-      setMarks(after as MarkRow[]);
+      setMarks(after);
     })();
     return () => {
       alive = false;
