@@ -258,14 +258,72 @@ export function ReapplyRulesProgressDialog({
         </DialogHeader>
 
         {running && (
-          <div className="space-y-3 py-2">
-            <Progress value={progressValue} />
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Aguarde — o motor recarrega regras, recalcula valores esperados e regrava o status de cada item.
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Progress value={progressValue} />
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+                <span>Decorrido: {elapsedSec}s</span>
+                <span>
+                  {etaSec > 0
+                    ? `Estimativa restante: ~${etaSec}s`
+                    : "Finalizando…"}
+                  {" · "}
+                  total estimado ~{estimatedTotal}s
+                </span>
+              </div>
             </div>
+
+            <ol className="space-y-1.5">
+              {STEP_ORDER.map((s, idx) => {
+                const currentIdx = step ? STEP_ORDER.indexOf(step) : 0;
+                const state: "done" | "current" | "pending" =
+                  idx < currentIdx ? "done" : idx === currentIdx ? "current" : "pending";
+                const meta = STEP_LABELS[s];
+                return (
+                  <li
+                    key={s}
+                    className={cn(
+                      "flex items-start gap-2.5 rounded-md border p-2.5 text-sm transition-colors",
+                      state === "done" && "border-emerald-500/30 bg-emerald-500/5",
+                      state === "current" && "border-primary/40 bg-primary/5",
+                      state === "pending" && "border-border bg-muted/20 opacity-70",
+                    )}
+                  >
+                    <span className="mt-0.5 shrink-0">
+                      {state === "done" ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      ) : state === "current" ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className={cn(
+                        "font-medium leading-tight",
+                        state === "pending" && "text-muted-foreground",
+                      )}>
+                        {meta.title}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground leading-snug">
+                        {meta.hint}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground tabular-nums pt-0.5">
+                      {idx + 1}/{STEP_ORDER.length}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <p className="text-[11px] text-muted-foreground">
+              {totalItems} {totalItems === 1 ? "item" : "itens"} nesta empresa · novos códigos em tabelas
+              de exceção (sem acordo / exclusão) são lidos a cada execução, sem cache.
+            </p>
           </div>
         )}
+
 
         {phase === "concluido" && diff && (
           <div className="space-y-4 py-2">
