@@ -2936,12 +2936,12 @@ function RowMain({
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {!isBonus && onDeleteItem && (
+              {onDeleteItem && (!isBonus || !(it as any).applied_rule_id) && (
                 <Button
                   size="icon"
                   variant="ghost"
                   className="h-6 w-6 text-destructive hover:text-destructive"
-                  title="Excluir item"
+                  title={isBonus ? "Excluir bônus importado da base (o motor já gerou o bônus correspondente)" : "Excluir item"}
                   onClick={() => onDeleteItem(it)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
