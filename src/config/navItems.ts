@@ -98,7 +98,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ALL_ROLES,
     children: [
       { to: "/pendencias", label: "Pendências", icon: ListChecksIcon, iconName: "ListChecksIcon", roles: ALL_ROLES },
-      { to: "/casos-especiais", label: "Casos Especiais", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor", "analista", "validador", "gestao_medica"] as const },
+      { to: "/casos-especiais", label: "Casos Especiais", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor", "analista", "validador"] as const },
       { to: "/conversas", label: "Conversas", icon: ChatsIcon, iconName: "ChatsIcon", roles: ALL_ROLES },
       { to: "/comunicacao/massa", label: "Comunicação em Massa", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor", "analista", "validador"] as const },
       { to: "/comunicacao/aprovacoes", label: "Aprovações de Comunicados", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor", "validador"] as const },
