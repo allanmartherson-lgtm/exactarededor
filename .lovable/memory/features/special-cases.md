@@ -47,3 +47,8 @@ Patologias/contextos que pedem remuneração diferenciada (oncológico, pediátr
 ## Marcação no PaymentDetail
 - `MarkSpecialCaseDialog` (componente reusável): dispara `mark-special-case` para analista/gestão. Diretor/admin/gestao_medica → status já vira approved; analista → pending.
 - Renderizado no topo do PaymentDetail (apenas para isAnalista/isDiretor). Aceita `defaultAttendance`, `itemId` (para marca por item) e `doctorId`.
+
+## Ajustes finais
+- Badge inline no `ItemsDataGrid` quando `special_case_status` é approved/pending (mostra code + estado).
+- `mark-special-case` insere `internal_notifications` para todos os `gestao_medica` quando o status inicial é pending.
+- `SpecialCaseRetroactiveBanner` agora usa o `payment_status_history.changed_at` (último evento para um status fechado) como cutoff em vez de `payment.updated_at`, evitando falso-positivo após qualquer update.

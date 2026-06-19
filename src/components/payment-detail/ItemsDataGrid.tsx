@@ -2975,8 +2975,12 @@ function ItemDetailsRow({
     exception_reason?: string | null;
     exception_authorizer?: string | null;
     exception_note?: string | null;
+    special_case_code?: string | null;
+    special_case_status?: string | null;
   };
   const exceptionMarked = !!itemAny.authorized_exception;
+  const specialCaseApproved = itemAny.special_case_status === "approved" && !!itemAny.special_case_code;
+  const specialCasePending = itemAny.special_case_status === "pending" && !!itemAny.special_case_code;
   const itemObs = observations.filter((o) => o.item_id === it.id);
 
   const rawCharacter = ((it as unknown as { attendance_character?: string | null }).attendance_character ?? "").toString().trim();
@@ -3119,6 +3123,25 @@ function ItemDetailsRow({
                   {itemAny.exception_note && (
                     <p className="mt-1 italic whitespace-pre-wrap">"{itemAny.exception_note}"</p>
                   )}
+                </div>
+              )}
+              {(specialCaseApproved || specialCasePending) && (
+                <div className={cn(
+                  "rounded-md border px-4 py-3 min-w-0 break-words whitespace-normal",
+                  specialCaseApproved
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
+                    : "border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200",
+                  TEXT_BODY,
+                )}>
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                      Caso especial
+                    </Badge>
+                    <span className="font-mono text-xs">{itemAny.special_case_code}</span>
+                    <span className="ml-1 text-xs opacity-80">
+                      {specialCaseApproved ? "aprovado pela gestão médica" : "aguardando aprovação"}
+                    </span>
+                  </div>
                 </div>
               )}
               {(it.ai_status === "reprovado" || it.ai_status === "alerta") && (it.ai_status as string) !== "acatado" && (() => {

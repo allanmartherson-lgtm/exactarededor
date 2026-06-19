@@ -40,13 +40,23 @@ export function SpecialCaseRetroactiveBanner({ paymentId, paymentStatus, payment
     if (!paymentId || !isClosed) return;
     let alive = true;
     (async () => {
+      // Momento real de fechamento: último status_history que entrou em algum CLOSED_STATUSES.
+      const { data: history } = await supabase
+        .from("payment_status_history")
+        .select("status_to, changed_at")
+        .eq("payment_id", paymentId)
+        .order("changed_at", { ascending: false })
+        .limit(50);
+      const closedEvent = (history ?? []).find((h: any) => CLOSED_STATUSES.has(h.status_to));
+      const cutoffStr = closedEvent?.changed_at ?? paymentUpdatedAt ?? null;
+      const cutoff = cutoffStr ? new Date(cutoffStr).getTime() : 0;
+
       const { data } = await supabase
         .from("special_case_marks")
         .select("id, attendance_number, item_id, special_case_type_code, approved_at, updated_at")
         .eq("payment_id", paymentId)
         .eq("status", "approved");
       if (!alive) return;
-      const cutoff = paymentUpdatedAt ? new Date(paymentUpdatedAt).getTime() : 0;
       const after = ((data as MarkRow[] | null) ?? []).filter((m) => {
         const t = new Date(m.approved_at || m.updated_at).getTime();
         return cutoff === 0 || t > cutoff;
