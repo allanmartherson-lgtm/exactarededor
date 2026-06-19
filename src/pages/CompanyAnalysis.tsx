@@ -1276,7 +1276,13 @@ export default function CompanyAnalysis() {
 
       navigate(`/pagamentos/${id}`);
     } catch (e) {
-      toast.error("Erro ao reimportar", { description: String(e) });
+      const msg = (e as any)?.message
+        || (e as any)?.error?.message
+        || (e as any)?.details
+        || (e as any)?.hint
+        || (typeof e === "string" ? e : JSON.stringify(e));
+      toast.error("Erro ao reimportar", { description: msg });
+      console.error("[reimport-company]", e);
     } finally {
       setReimporting(false);
       setReimportConfirm(null);
