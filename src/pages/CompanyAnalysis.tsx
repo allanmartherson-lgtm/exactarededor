@@ -444,6 +444,13 @@ export default function CompanyAnalysis() {
   const [postConcluirOpen, setPostConcluirOpen] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
+  const [mappingPrompt, setMappingPrompt] = useState<{
+    file: File;
+    headers: string[];
+    sampleRow: Record<string, unknown> | null;
+    initialMapping: Record<string, string>;
+  } | null>(null);
+  const [mappingOverrides, setMappingOverrides] = useState<Record<string, Record<string, string>>>({});
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
   const [reopening, setReopening] = useState(false);
