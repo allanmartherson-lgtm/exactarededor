@@ -9961,6 +9961,7 @@ export type Database = {
         | "analista"
         | "empresa"
         | "medico"
+        | "gestao_medica"
       confeccao_status: "em_confeccao" | "confeccao_concluida" | "cancelada"
       invoice_status:
         | "aguardando"
@@ -10245,6 +10246,7 @@ export const Constants = {
         "analista",
         "empresa",
         "medico",
+        "gestao_medica",
       ],
       confeccao_status: ["em_confeccao", "confeccao_concluida", "cancelada"],
       invoice_status: [
