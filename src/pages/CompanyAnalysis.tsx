@@ -11,6 +11,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
+import { MarkSpecialCaseDialog } from "@/components/payment-detail/MarkSpecialCaseDialog";
+import { useHasSpecialCaseRules } from "@/components/payment-detail/useHasSpecialCaseRules";
+
+/** Banner indigo no topo do grid de itens com botão para marcar caso especial.
+ *  Só renderiza se houver ao menos 1 regra ativa com special_case_filter no hospital. */
+function SpecialCaseHeaderBanner({ paymentId, canUse }: { paymentId?: string; canUse: boolean }) {
+  const hasRules = useHasSpecialCaseRules(paymentId);
+  if (!paymentId || !canUse || hasRules !== true) return null;
+  return (
+    <div className="mx-4 mt-3 mb-2 rounded-md border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-950/20 dark:border-indigo-900/60 px-4 py-3 flex items-center justify-between gap-3">
+      <div className="flex items-start gap-2 min-w-0">
+        <Sparkles className="h-4 w-4 mt-0.5 text-indigo-600 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-indigo-900 dark:text-indigo-200">Caso especial</p>
+          <p className="text-xs text-indigo-700/80 dark:text-indigo-300/80">
+            Existe regra cadastrada para casos especiais. Sinalize um atendimento ou item para aplicar a regra correspondente.
+          </p>
+        </div>
+      </div>
+      <MarkSpecialCaseDialog paymentId={paymentId} />
+    </div>
+  );
+}
+
+
 import { AddManualItemDialog } from "@/components/payment-detail/AddManualItemDialog";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { ConfeccaoAuditPanel } from "@/components/payment-detail/ConfeccaoAuditPanel";
@@ -2137,7 +2162,9 @@ export default function CompanyAnalysis() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              <SpecialCaseHeaderBanner paymentId={id} canUse={isAnalista || isDiretor} />
               <ItemsDataGrid
+
                 items={items}
                 groupStatus={gStatus}
                 rulesIndex={rulesIndex}
