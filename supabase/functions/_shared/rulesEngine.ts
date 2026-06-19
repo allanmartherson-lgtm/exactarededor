@@ -338,6 +338,10 @@ export interface ItemInput {
   attendance_character?: string | null;
   /** Sub-Onda 2C — resolução manual de duplicidade entre cálculos da mesma regra (analista escolheu qual cálculo aplicar). */
   calc_duplicity_resolution?: { chosen_calc_id: string } | null;
+  /** Código do caso especial (oncologico, pediatrico, etc.) — preenchido pela marcação. */
+  special_case_code?: string | null;
+  /** Status da marcação: 'pending' | 'approved' | 'rejected' | 'revoked' | null. */
+  special_case_status?: string | null;
 }
 
 export interface PaymentContext {
