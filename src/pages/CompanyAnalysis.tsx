@@ -11,6 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
+import { MarkSpecialCaseDialog } from "@/components/payment-detail/MarkSpecialCaseDialog";
+import { useHasSpecialCaseRules } from "@/components/payment-detail/useHasSpecialCaseRules";
+
 import { AddManualItemDialog } from "@/components/payment-detail/AddManualItemDialog";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { ConfeccaoAuditPanel } from "@/components/payment-detail/ConfeccaoAuditPanel";
