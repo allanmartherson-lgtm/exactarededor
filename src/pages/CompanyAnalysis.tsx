@@ -81,6 +81,7 @@ import { claimPayment } from "@/lib/assignments";
 import { isCompanyGroupEditable, isCompanyGroupReopenable, COMPANY_GROUP_LOCKED_TOOLTIP } from "@/lib/companyGroupGuards";
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
