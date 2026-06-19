@@ -2756,6 +2756,59 @@ const Rules = () => {
                                 );
                               })()}
                             </div>
+
+                            <div>
+                              <div className="flex items-center text-sm font-semibold mb-2">
+                                Caso especial (oncológico, pediátrico…)
+                                {fSpecialCaseFilter.length > 0 && (
+                                  <span className="ml-2 text-xs font-normal text-muted-foreground">({fSpecialCaseFilter.length})</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mb-3">
+                                Por padrão a regra <strong>NÃO</strong> se aplica a itens marcados como caso especial aprovado.
+                                Marque um ou mais tipos para que esta regra atue <strong>apenas</strong> quando o item tiver caso especial aprovado correspondente.
+                                Marque <strong>"Qualquer caso especial"</strong> para aplicar a todos.
+                              </p>
+                              <div className="space-y-1.5">
+                                <label className="flex items-start gap-2 rounded-md border border-border bg-background p-2 cursor-pointer hover:bg-muted/40">
+                                  <Checkbox
+                                    checked={fSpecialCaseFilter.includes("*")}
+                                    onCheckedChange={(v) => {
+                                      setFSpecialCaseFilter((prev) =>
+                                        v ? Array.from(new Set([...prev, "*"])) : prev.filter((c) => c !== "*")
+                                      );
+                                    }}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium leading-tight">Qualquer caso especial aprovado</p>
+                                    <p className="text-xs text-muted-foreground">Aplica a qualquer tipo, desde que aprovado pela gestão médica.</p>
+                                  </div>
+                                </label>
+                                {specialCaseTypes.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground italic">Nenhum tipo cadastrado em Casos Especiais.</p>
+                                ) : (
+                                  specialCaseTypes.map((t) => {
+                                    const checked = fSpecialCaseFilter.includes(t.code);
+                                    return (
+                                      <label key={t.code} className="flex items-start gap-2 rounded-md border border-border bg-background p-2 cursor-pointer hover:bg-muted/40">
+                                        <Checkbox
+                                          checked={checked}
+                                          onCheckedChange={(v) => {
+                                            setFSpecialCaseFilter((prev) =>
+                                              v ? Array.from(new Set([...prev, t.code])) : prev.filter((c) => c !== t.code)
+                                            );
+                                          }}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium leading-tight">{t.label}</p>
+                                          <p className="text-xs text-muted-foreground font-mono">{t.code}</p>
+                                        </div>
+                                      </label>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            </div>
                           </div>
                         ),
                       },
