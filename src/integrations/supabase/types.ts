@@ -2262,33 +2262,6 @@ export type Database = {
         }
         Relationships: []
       }
-      doctors_specialties_backup_20260518: {
-        Row: {
-          active: boolean | null
-          backed_up_at: string | null
-          crm: string | null
-          full_name: string | null
-          id: string | null
-          specialties: string[] | null
-        }
-        Insert: {
-          active?: boolean | null
-          backed_up_at?: string | null
-          crm?: string | null
-          full_name?: string | null
-          id?: string | null
-          specialties?: string[] | null
-        }
-        Update: {
-          active?: boolean | null
-          backed_up_at?: string | null
-          crm?: string | null
-          full_name?: string | null
-          id?: string | null
-          specialties?: string[] | null
-        }
-        Relationships: []
-      }
       export_log: {
         Row: {
           created_at: string
