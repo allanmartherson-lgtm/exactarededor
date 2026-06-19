@@ -172,6 +172,15 @@ export interface RuleInput {
    * específicas (com setor/convênio/empresa/médico/grupo); false para a master.
    */
   prevent_external_fallback?: boolean | null;
+  /**
+   * Filtro de caso especial (oncológico, pediátrico, etc.).
+   * - null/vazio  → regra padrão: só se aplica a itens SEM caso especial aprovado.
+   * - ['*']       → aplica a qualquer caso especial aprovado.
+   * - ['oncologico'] → aplica apenas quando o item tem esse code aprovado.
+   * Itens com caso especial aprovado preferem regras filtradas; quando nenhuma
+   * filtrada se aplica, caem para as regras padrão (null/vazio).
+   */
+  special_case_filter?: string[] | null;
 }
 
 export interface RuleCalculationItem {
