@@ -300,6 +300,7 @@ const App = () => (
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
                   <Route path="/casos-especiais" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador", "gestao_medica"]}><SpecialCases /></ProtectedRoute>} />
                   <Route path="/casos-especiais/relatorio" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador", "gestao_medica"]}><SpecialCasesReport /></ProtectedRoute>} />
+                  <Route path="/admin/tipos-caso-especial" element={<ProtectedRoute roles={["admin", "diretor", "gestao_medica"]}><SpecialCaseTypesAdmin /></ProtectedRoute>} />
                   <Route path="/conversas" element={<Conversas />} />
                   <Route path="/comunicacao/massa" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador"]}><MassCommunication /></ProtectedRoute>} />
                   <Route path="/comunicacao/aprovacoes" element={<ProtectedRoute roles={["admin", "diretor", "validador"]}><CampaignApprovalQueue /></ProtectedRoute>} />
