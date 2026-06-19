@@ -38,3 +38,12 @@ Patologias/contextos que pedem remuneração diferenciada (oncológico, pediátr
 ## Fase 3 (entregue)
 - Banner `SpecialCaseRetroactiveBanner` em PaymentDetail: aparece se status ∈ {pago, fechado, concluido, aprovado_diretor, aprovado} e existem marks `approved` com approved_at > payment.updated_at. CTA: "Recalcular com casos especiais" (invoca `analyze-payment` modo recompute) ou "Ver marcações".
 - Página `/casos-especiais/relatorio` (`SpecialCasesReport.tsx`): KPIs por status/tipo/origem + tabela filtrável (tipo, status, busca por atendimento/médico), link para o pagamento.
+
+## Admin de tipos
+- Rota `/admin/tipos-caso-especial` (`SpecialCaseTypesAdmin.tsx`): CRUD de `special_case_types`. CRUD via RLS (admin/diretor/gestao_medica).
+- Code é imutável após criação (lowercase + underscore).
+- Toggle ativo/inativo direto pela tabela.
+
+## Marcação no PaymentDetail
+- `MarkSpecialCaseDialog` (componente reusável): dispara `mark-special-case` para analista/gestão. Diretor/admin/gestao_medica → status já vira approved; analista → pending.
+- Renderizado no topo do PaymentDetail (apenas para isAnalista/isDiretor). Aceita `defaultAttendance`, `itemId` (para marca por item) e `doctorId`.
