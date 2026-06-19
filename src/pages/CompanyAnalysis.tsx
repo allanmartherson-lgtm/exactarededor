@@ -2140,7 +2140,9 @@ export default function CompanyAnalysis() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              <SpecialCaseHeaderBanner paymentId={id} canUse={isAnalista || isDiretor} />
               <ItemsDataGrid
+
                 items={items}
                 groupStatus={gStatus}
                 rulesIndex={rulesIndex}
