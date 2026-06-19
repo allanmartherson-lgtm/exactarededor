@@ -44,6 +44,7 @@ import { PhaseSummary, resolvePhase } from "@/components/payment-detail/PhaseSum
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
 import { RegisterExternalApprovalDialog } from "@/components/payment-detail/RegisterExternalApprovalDialog";
 import { SpecialCaseRetroactiveBanner } from "@/components/payment-detail/SpecialCaseRetroactiveBanner";
+import { MarkSpecialCaseDialog } from "@/components/payment-detail/MarkSpecialCaseDialog";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -2515,6 +2516,11 @@ const PaymentDetail = () => {
             paymentStatus={payment.status}
             paymentUpdatedAt={(payment as any).updated_at ?? null}
           />
+        )}
+        {id && (isAnalista || isDiretor) && (
+          <div className="flex justify-end">
+            <MarkSpecialCaseDialog paymentId={id} />
+          </div>
         )}
         {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
         {!isNfPhase && (
