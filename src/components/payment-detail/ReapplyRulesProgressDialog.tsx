@@ -154,6 +154,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   phase: ReapplyPhase;
+  /** etapa atual do pipeline (somente quando running) */
+  step?: ReapplyStep;
   /** segundos decorridos (para feedback visual) */
   elapsedSec: number;
   /** total de itens da empresa, mostrado durante o processamento */
@@ -167,9 +169,24 @@ interface Props {
 }
 
 /**
+ * Estima o tempo total da reaplicação em segundos.
+ * Baseado em medição empírica: ~0.35s por item no motor + overhead fixo
+ * de leitura de regras (3s), persistência (~0.05s/item) e UI (1s).
+ * Piso de 8s, teto de 180s.
+ */
+function estimateTotalSec(totalItems: number): number {
+  const fixed = 3 + 1; // ler regras + UI
+  const perItem = 0.4; // motor + persistência
+  const raw = fixed + totalItems * perItem;
+  return Math.max(8, Math.min(180, Math.round(raw)));
+}
+
+/**
  * Diálogo de progresso e resumo do "Reaplicar regras".
  *
  * - Mostra status em tempo real: iniciando → processando → concluído/erro.
+ * - Durante a execução exibe checklist de 4 etapas + ETA, reduzindo a
+ *   sensação de lentidão (motor não emite progresso real).
  * - Ao final, exibe contagem do que melhorou (passou a aprovado), do que
  *   continuou reprovado, do que piorou (novo reprovado), regras alteradas
  *   sem mudança de status, e totais finais.
@@ -179,6 +196,7 @@ export function ReapplyRulesProgressDialog({
   open,
   onOpenChange,
   phase,
+  step,
   elapsedSec,
   totalItems,
   errorMessage,
@@ -187,15 +205,20 @@ export function ReapplyRulesProgressDialog({
 }: Props) {
   const running = phase === "iniciando" || phase === "processando";
 
-  // Progress “fictício” baseado em tempo (motor não envia % real). Cap em 95%
-  // até o callback de conclusão chegar. Concluído → 100%.
+  const estimatedTotal = useMemo(() => estimateTotalSec(totalItems), [totalItems]);
+  const etaSec = Math.max(0, estimatedTotal - elapsedSec);
+
+  // Progresso baseado em etapa concluída (25% por etapa) com fração linear
+  // dentro da etapa atual em função do ETA. Cap em 95% até "concluido".
   const progressValue = useMemo(() => {
     if (phase === "concluido") return 100;
     if (phase === "erro") return 100;
-    // ~95% em ~60s
-    const pct = Math.min(95, Math.round((elapsedSec / 60) * 95));
-    return Math.max(5, pct);
-  }, [phase, elapsedSec]);
+    const currentIdx = step ? STEP_ORDER.indexOf(step) : 0;
+    const stepBase = (currentIdx / STEP_ORDER.length) * 100;
+    const intraStep = Math.min(1, elapsedSec / Math.max(1, estimatedTotal)) * (100 / STEP_ORDER.length);
+    return Math.max(5, Math.min(95, Math.round(stepBase + intraStep)));
+  }, [phase, step, elapsedSec, estimatedTotal]);
+
 
   return (
     <Dialog
