@@ -1191,31 +1191,26 @@ export default function CompanyAnalysis() {
         return;
       }
 
-      // Limpa SOMENTE itens desta empresa (não toca nas demais) e NUNCA apaga o
-      // payment_company_groups: se a reanálise falhar ou demorar, a empresa não
-      // pode sumir da lista. Zeramos totais e deixamos o analyze-payment
-      // reconciliar via UPDATE (linha 2391 do analyze-payment/index.ts).
-      const { data: idsToDelete, error: idsErr } = await supabase
-        .from("payment_items")
-        .select("id")
-        .eq("payment_id", id)
-        .eq("company_name", group.company_name);
-      if (idsErr) throw idsErr;
-      const allIds = (idsToDelete ?? []).map((r: any) => r.id);
-      const delChunk = 25;
-      for (let i = 0; i < allIds.length; i += delChunk) {
-        const part = allIds.slice(i, i + delChunk);
-        const { error: delErr } = await supabase
-          .from("payment_items")
-          .delete()
-          .in("id", part);
-        if (delErr) throw delErr;
+      // Limpa SOMENTE itens desta empresa via edge function (service_role +
+      // statement_timeout=0). O DELETE direto pelo PostgREST estoura o timeout
+      // de ~8s quando há muitos itens + cascades (rule_calculations etc).
+      // NUNCA apagamos o payment_company_groups: se a reanálise falhar, a
+      // empresa não pode sumir da lista. Só zeramos totais e deixamos o
+      // analyze-payment reconciliar via UPDATE.
+      const { data: clearRes, error: clearErr } = await supabase.functions.invoke(
+        "clear-company-items",
+        { body: { payment_id: id, company_name: group.company_name } },
+      );
+      if (clearErr) throw clearErr;
+      if (clearRes && (clearRes as any).error) {
+        throw new Error((clearRes as any).detail || (clearRes as any).error);
       }
       // Reseta totais do grupo (analyze-payment vai recalcular ao reanalisar).
       await supabase
         .from("payment_company_groups")
         .update({ items_count: 0, total_amount: 0 })
         .eq("id", group.id);
+
 
       const newItems = companyRows.map((r) => ({
         hospital_id: (payment as any).hospital_id,
