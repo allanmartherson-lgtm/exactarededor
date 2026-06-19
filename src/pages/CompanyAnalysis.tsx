@@ -618,10 +618,18 @@ export default function CompanyAnalysis() {
     if (!guardEditable()) return;
     await autoClaim();
 
-    // Snapshot ANTES — usado para calcular o diff (o que passou, o que continuou
-    // reprovado, regra que trocou) assim que a reanálise terminar.
-    const snapshot = takeSnapshot(items);
-    const itemIds = Object.keys(snapshot);
+    // Snapshot ANTES — buscado direto do DB (não do state local, que pode estar
+    // desatualizado em relação a um job anterior). Isso garante que o diff
+    // compare o estado real pré-motor com o estado real pós-motor.
+    const itemIds = items.map((it) => it.id);
+    let snapshot: ReturnType<typeof takeSnapshot> = {};
+    if (itemIds.length > 0) {
+      const { data: before } = await supabase
+        .from("payment_items")
+        .select("id, ai_status, applied_rule_id, expected_amount")
+        .in("id", itemIds);
+      snapshot = takeSnapshot((before ?? []) as unknown as PaymentItemRow[]);
+    }
     reapplySnapshotRef.current = snapshot;
     setReapplyDiff(null);
     setReapplyError(null);
@@ -694,7 +702,9 @@ export default function CompanyAnalysis() {
       }
 
       // Recarrega o detalhe da empresa para que a tabela reflita o novo estado.
-      load();
+      // Awaitado para garantir que o state local não fique exibindo dados antigos
+      // depois que o usuário fecha o diálogo.
+      await load();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setReapplyError(msg);
@@ -704,6 +714,7 @@ export default function CompanyAnalysis() {
       setReanalyzing(false);
     }
   };
+
 
 
   /**
