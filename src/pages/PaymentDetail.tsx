@@ -2383,6 +2383,11 @@ const PaymentDetail = () => {
                     <Upload className="h-4 w-4 mr-2" /> Reimportar base
                   </DropdownMenuItem>
                 )}
+                {canReimport && (
+                  <DropdownMenuItem disabled={busy || addingCompany} onSelect={() => addCompanyInputRef.current?.click()}>
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar empresa ao lote
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onSelect={() => setAssignmentsHistoryOpen(true)}>
                   <UserCheck className="h-4 w-4 mr-2" /> Transferir / Histórico
                 </DropdownMenuItem>
