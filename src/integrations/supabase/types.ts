@@ -8408,6 +8408,32 @@ export type Database = {
           },
         ]
       }
+      user_active_hospital: {
+        Row: {
+          hospital_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          hospital_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          hospital_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_active_hospital_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_company_note_attachments: {
         Row: {
           created_at: string
@@ -10092,6 +10118,10 @@ export type Database = {
           scanned: number
           suggestions_created: number
         }[]
+      }
+      set_active_hospital: {
+        Args: { p_hospital_id: string }
+        Returns: undefined
       }
       set_primary_hospital_for_user: {
         Args: {

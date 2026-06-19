@@ -106,8 +106,21 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
     setNeedsSelection(!active && hospitals.length > 1);
     if (active) localStorage.setItem(STORAGE_KEY, active.id);
     setActiveHospitalId(active?.id ?? null);
+
+    // CRÍTICO (multi-tenant): grava o hospital ativo no servidor para que
+    // `current_active_hospital()` no banco leia daqui — e não mais de um
+    // header HTTP que o cliente controla. Sem este passo, queries operacionais
+    // de usuários com +1 hospital retornam NULL e ficam bloqueadas.
+    if (active) {
+      const { error: setErr } = await supabase.rpc("set_active_hospital", {
+        p_hospital_id: active.id,
+      });
+      if (setErr) console.warn("[hospital] set_active_hospital falhou:", setErr.message);
+    }
+
     setLoading(false);
   }, [userId]);
+
 
   // Garantia extra: aplica o header sempre que o hospital ativo muda — cobre
   // reidratação após reload, restore de sessão e qualquer atualização externa
@@ -172,8 +185,22 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
         // Limpa cache: nenhum dado do hospital anterior pode aparecer no novo
         queryClient.clear();
 
-        // Auditoria + persistência server-side (não bloqueia se falhar).
-        // Inclui contagem de pagamentos abertos para auditoria/forense.
+        // CRÍTICO (multi-tenant): grava o hospital ativo no servidor ANTES de
+        // qualquer refetch — current_active_hospital() lê do banco. Bloqueia
+        // a troca se a RPC falhar (ex.: usuário sem acesso ao hospital alvo).
+        const { error: setErr } = await supabase.rpc("set_active_hospital", {
+          p_hospital_id: next.id,
+        });
+        if (setErr) {
+          console.error("[hospital-switch] set_active_hospital falhou:", setErr.message);
+          setSwitching(false);
+          if (typeof window !== "undefined") {
+            window.alert(`Falha ao trocar de hospital: ${setErr.message}`);
+          }
+          return;
+        }
+
+        // Auditoria + persistência server-side adicional (não bloqueia se falhar).
         await supabase
           .rpc("log_hospital_switch", {
             p_new_hospital_id: next.id,
@@ -185,6 +212,7 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
           .then(({ error }) => {
             if (error) console.warn("[hospital-switch] log falhou:", error.message);
           });
+
 
         // Força reload completo da aplicação: garante que TODAS as telas
         // recarreguem com o novo hospital ativo — inclusive as que buscam

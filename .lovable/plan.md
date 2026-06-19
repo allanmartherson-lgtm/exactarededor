@@ -1,100 +1,79 @@
 
 ## Objetivo
-Permitir que casos com viés assistencial (oncológico, pediátrico, etc.) recebam remuneração diferenciada, mantendo o motor determinístico: o sistema só aplica a regra especial quando um humano marca + gestão médica aprova.
 
-## Princípios
-- Motor nunca infere "é oncológico" sozinho — depende de flag explícita.
-- Sem regra cadastrada para o tipo especial = cai na regra padrão (não inventa default).
-- Toda marcação é auditada (quem marcou, quando, justificativa, quem aprovou).
-- Reaplicação retroativa é sempre decisão manual do analista.
+Hoje a função `current_active_hospital()` lê o hospital ativo de um header HTTP (`x-active-hospital`) que o cliente controla. Um usuário com acesso a 2+ hospitais pode simplesmente omitir o header e a RLS permite acesso a todos. Vamos mover essa informação para uma tabela no banco, onde o cliente não tem como mentir.
 
-## Modelo de dados
+---
 
-**`special_case_types`** (admin gerencia)
-- `code` (oncologico, pediatrico, urgencia_alta…), `label`, `description`, `active`, `hospital_id`, `requires_justification` (default true)
+## Mudanças
 
-**`special_case_marks`** (uma marca = atendimento OU item específico)
-- `payment_id`, `attendance_number`, `item_id` (nullable — null = vale pra todo o atendimento)
-- `special_case_type_code`
-- `status`: `pending` | `approved` | `rejected` | `revoked`
-- `origin`: `medico_portal` | `analista` | `gestao_medica`
-- `marked_by`, `marked_at`, `justification`
-- `approved_by`, `approved_at`, `approval_note`
-- `rejected_by`, `rejected_at`, `rejection_reason`
-- Único parcial: um marca ativa por (attendance + item_id + type_code)
+### 1. Nova tabela `public.user_active_hospital`
 
-**`payment_items`** (campos derivados, mantidos por trigger)
-- `special_case_code` (resolvido), `special_case_status`
+Guarda o hospital ativo de cada usuário interno, gravado pelo servidor.
 
-**`rules`** (novo campo)
-- `special_case_filter` text[] nullable
-  - `null` → regra padrão (casa qualquer item; itens com flag aprovada ainda preferem regra especial)
-  - `['*']` → casa qualquer caso especial aprovado
-  - `['oncologico']` → casa só esse código
+- `user_id` (PK, FK auth.users)
+- `hospital_id` (FK hospitals)
+- `updated_at`
 
-## Fluxos
+Acesso: usuário lê só a própria linha; escrita só via RPC (não direto).
 
-**Marcar (3 origens)**
-- Médico (portal): marca atendimento → status `pending` → notifica gestão médica
-- Analista (PaymentDetail / detalhe do item): marca → status `pending` → notifica gestão médica
-- Gestão médica (role `gestao_medica`): marca → já entra `approved`
+### 2. Nova RPC `set_active_hospital(uuid)` — SECURITY DEFINER
 
-**Aprovar/Rejeitar**
-- Tela `/casos-especiais` com fila de pendentes (gestão médica)
-- Magic link no e-mail/whatsapp pra aprovar sem login (mesmo padrão do approve-via-magic-link)
-- Aprovação dispara recálculo do(s) item(s) afetado(s)
-- Rejeição mantém regra padrão
+- Valida que o usuário realmente tem acesso ao hospital (via `my_accessible_hospitals`).
+- Faz upsert em `user_active_hospital`.
+- Atualiza `profiles.last_active_hospital_id`.
+- Reaproveita auditoria do `log_hospital_switch`.
 
-**Granularidade "ambos"**
-- UI default: marca por atendimento (herda em todas as linhas)
-- "Marcar apenas estes itens" abre seleção de linhas específicas
-- Resolução: item_id específico > attendance > nenhuma
+### 3. Reescreve `current_active_hospital()`
 
-**Reaplicação retroativa (decisão manual)**
-- Se aprovação chega com pagamento já `pago`/`fechado`, sistema NÃO recalcula automaticamente
-- Mostra banner no PaymentDetail: "X casos especiais aprovados após fechamento — gerar ajuste retroativo?"
-- Botão dispara `generate-retroactive-adjustment` (função já existente) — mesma esteira de retroativo.
+Nova lógica, **sem fallback para header**:
 
-## Motor (analyze-payment / validate-payment)
-Ordem de match de regra para cada item:
-1. Se item tem `special_case_status='approved'` com `code=X`:
-   - Procura regra ativa com `special_case_filter` contendo `X` ou `*`
-   - Se achar → aplica
-   - Se NÃO achar → cai na regra padrão (mesmo fluxo de hoje) + alerta "caso especial sem regra cadastrada"
-2. Item sem flag aprovada → ignora regras com `special_case_filter` não-nulo → segue padrão.
+```text
+1. Lê hospital_id de user_active_hospital WHERE user_id = auth.uid()
+2. Se NULL e usuário tem apenas 1 hospital acessível → retorna esse 1
+3. Caso contrário → NULL (bloqueia acesso cross-hospital)
+```
 
-## UI
+Portal users (empresa/médico) seguem sendo isentos via `hospital_scope_allows`.
 
-**PaymentDetail / item**
-- Badge "Caso especial: Oncológico (aprovado)" ou "(pendente)" ao lado do item
-- Ação "Marcar caso especial" no menu do item e do atendimento
-- Card no topo: "N casos especiais (M pendentes)"
+### 4. Frontend (`HospitalContext.tsx`)
 
-**Portal do médico**
-- Botão "Sinalizar caso especial" no atendimento, com tipo + justificativa obrigatória
+- Em `load()`: assim que resolver o `active`, chama `set_active_hospital(active.id)` **antes** de qualquer outra query.
+- Em `switchHospital()`: substitui `log_hospital_switch` por `set_active_hospital` (já loga + persiste + define ativo num único call).
+- Mantém o header `x-active-hospital` por enquanto (não atrapalha, apenas vira inerte).
 
-**`/casos-especiais`** (gestão médica + admin)
-- Tabela: pendentes / aprovados / rejeitados, com filtros (hospital, tipo, médico, data)
-- Ações em lote: aprovar/rejeitar com nota
+### 5. Deprecar o header (follow-up futuro)
 
-**`/admin/tipos-caso-especial`**
-- CRUD de `special_case_types`
+Após confirmar em telemetria que todos os usuários ativos passaram a chamar `set_active_hospital`, remove o `fetch` custom que injeta o header. Não é parte desta entrega para evitar quebrar sessões ativas.
 
-**`/regras` (ValidationRules)**
-- Novo campo opcional "Caso especial" (multi-select dos tipos ativos + opção "Qualquer caso especial")
+---
 
-## Auditoria
-- Cada transição → `audit_log` (mark / approve / reject / revoke / retroactive_generated)
-- Mudança de status que altera cálculo já existente passa pelo gate de governança de `rule_calculations` (snapshot + confirmação)
+## Compatibilidade durante o deploy
 
-## Notificações
-- Marcação por médico/analista → `notify-internal-question` adaptado ou novo handler `notify-special-case-pending` para gestão médica
-- Aprovação/rejeição → notifica quem marcou (analista e/ou médico)
-- Canais: e-mail + WhatsApp + portal (padrão atual)
+- Sessões antigas (frontend velho) param de funcionar para multi-hospital — passam a ver NULL e queries operacionais bloqueiam. **Mitigação:** a chamada de `set_active_hospital` é disparada no primeiro `load()` do novo frontend, antes de qualquer fetch. Usuário com 1 hospital só continua funcionando via auto-resolve.
+- Portal users: zero impacto (já isentos da RLS de hospital).
 
-## Entrega faseada
-**Fase 1 (MVP)**: tabelas, motor, marcação por analista, fila de aprovação, campo na regra
-**Fase 2**: marcação pelo médico no portal + magic link de aprovação
-**Fase 3**: relatório agregado + banner de retroativo no PaymentDetail
+## Riscos
 
-Confirma que sigo nessa direção e começo pela Fase 1?
+| Risco | Mitigação |
+|---|---|
+| Usuário sem hospital ativo definido após deploy → telas em branco | `current_active_hospital()` auto-resolve quando há só 1 hospital acessível; multi precisa abrir o app uma vez (load() chama set_active_hospital) |
+| `set_active_hospital` falha → usuário trava | RPC retorna erro claro; frontend mostra toast e mantém fluxo de seleção |
+| RLS de `user_active_hospital` em recursão | Tabela sem cross-reference; políticas simples `auth.uid() = user_id` |
+
+## Validação
+
+- Teste manual: usuário com 2 hospitais — verificar que omitir o header via DevTools **não vaza mais dados** do hospital não-ativo.
+- CI guard existente (`audit-hospital-scope`) segue válido — `current_active_hospital()` continua sendo a função canônica.
+- Smoke test: login + troca de hospital + listagem de pagamentos em cada um.
+
+## Arquivos afetados
+
+- `supabase/migrations/<nova>.sql` — tabela, RPC, reescrita de `current_active_hospital()`.
+- `src/contexts/HospitalContext.tsx` — chamadas de `set_active_hospital` no load e switch.
+
+## Fora de escopo
+
+- Remover header `x-active-hospital` do fetch custom (follow-up após período de observação).
+- RLS no `realtime.messages` (próxima entrega, depende deste).
+- Hardening dos warnings do linter Supabase.
