@@ -32,6 +32,31 @@ export function MarkSpecialCaseDialog({
   const [attendance, setAttendance] = useState(defaultAttendance ?? "");
   const [justification, setJustification] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [hasMatchingRule, setHasMatchingRule] = useState<boolean | null>(null);
+
+  // Gate: só renderiza se existir ao menos 1 regra ativa do hospital
+  // com special_case_filter preenchido (evita poluir UI quando nenhum
+  // tipo de caso especial está em uso pelas regras).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: pay } = await supabase
+        .from("payments")
+        .select("hospital_id")
+        .eq("id", paymentId)
+        .maybeSingle();
+      const hospitalId = (pay as any)?.hospital_id ?? null;
+      let q = supabase
+        .from("rules")
+        .select("id", { count: "exact", head: true })
+        .eq("active", true)
+        .not("special_case_filter", "is", null);
+      if (hospitalId) q = q.eq("hospital_id", hospitalId);
+      const { count } = await q;
+      if (!cancelled) setHasMatchingRule((count ?? 0) > 0);
+    })();
+    return () => { cancelled = true; };
+  }, [paymentId]);
 
   useEffect(() => {
     if (!open) return;
@@ -44,6 +69,7 @@ export function MarkSpecialCaseDialog({
       setTypes((data as TypeRow[]) ?? []);
     })();
   }, [open]);
+
 
   useEffect(() => {
     if (defaultAttendance) setAttendance(defaultAttendance);
