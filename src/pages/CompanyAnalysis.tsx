@@ -734,15 +734,15 @@ export default function CompanyAnalysis() {
       setReapplyStep("carregar_ui");
       await load();
 
-      setReapplyPhase("concluido");
-
       if (!done) {
         // Motor não confirmou conclusão no tempo — ainda assim mostramos o diff
         // com o estado atual; o usuário pode reaplicar de novo se necessário.
+        setReapplyPhase("erro");
         toast.warning("Reanálise concluída sem confirmação do motor", {
-          description: "Exibindo o estado atual dos itens. Se algo não mudou, tente novamente em alguns segundos.",
+          description: reapplyError ?? "Exibindo o estado atual dos itens. Se algo não mudou, tente novamente em alguns segundos.",
         });
       } else {
+        setReapplyPhase("concluido");
         toast.success("Reanálise concluída", {
           description: `${diff.becameApproved} passaram a aprovado · ${diff.stayedReproved} continuam reprovados.`,
         });
