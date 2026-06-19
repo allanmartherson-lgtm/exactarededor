@@ -114,47 +114,10 @@ serve(async (req) => {
       if (convs?.length) extendConvenioMap(convs as Array<{ slug: string; name: string; aliases: string[] }>);
     } catch (_e) { /* fallback à normalização pura */ }
 
-    // [Sprint 2 - Tier 3.I] Idempotência: se a empresa já foi processada
-    // neste job (group em status != em_analise_ia e atualizado após o job
-    // iniciar), retorna sucesso imediato + increment. Evita re-processar
-    // quando o watchdog re-dispara páginas ou quando o usuário aciona
-    // reanálise sobre lote já analisado.
-    if (_job_id && company_name && !is_dry_run) {
-      const { data: jobRow } = await supabase
-        .from("payment_processing_jobs")
-        .select("started_at, created_at")
-        .eq("id", _job_id)
-        .maybeSingle();
-      const jobStart = (jobRow?.started_at as string | null) ?? (jobRow?.created_at as string | null);
-      if (jobStart) {
-        const { data: grp } = await supabase
-          .from("payment_company_groups")
-          .select("status, updated_at")
-          .eq("payment_id", payment_id)
-          .eq("company_name", company_name)
-          .maybeSingle();
-        const grpUpdated = grp?.updated_at ? new Date(grp.updated_at as string).getTime() : 0;
-        const jobStartMs = new Date(jobStart).getTime();
-        const grpStatus = grp?.status as string | undefined;
-        if (grpStatus && grpStatus !== "em_analise_ia" && grpUpdated >= jobStartMs) {
-          console.log(`${__t} [idempotent-skip] empresa já processada neste job (status=${grpStatus}); incrementando progresso sem reprocessar.`);
-          try {
-            await supabase.rpc("increment_processing_progress", {
-              _job_id,
-              _company_name: _company_label ?? company_name,
-              _error: null,
-            });
-            __progress_reported = true;
-          } catch (e) {
-            console.error("idempotent-skip: falha ao incrementar progresso:", e);
-          }
-          return new Response(
-            JSON.stringify({ ok: true, skipped: true, reason: "already_processed_in_job" }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
-      }
-    }
+    // Reanálise NÃO pode ser pulada por `payment_company_groups.updated_at`.
+    // Esse timestamp também muda por rotinas paralelas (snapshots, financeiros,
+    // deduções etc.) e já causou falso "concluído" sem recalcular a empresa.
+    // A idempotência fica no orquestrador (claim de página + job único ativo).
 
 
     // ---------- 1. carrega payment ----------
@@ -317,7 +280,10 @@ serve(async (req) => {
       const filtered = scopedCompanyId
         ? cachedRulesAll.filter((r: any) => {
             if (r.scope === "master") return true;
-            if (r.scope === "especifica") return r.target_company_id === scopedCompanyId;
+            if (r.scope === "especifica") {
+              if (r.target_type === "medico") return true;
+              return r.target_company_id === scopedCompanyId;
+            }
             if (r.scope === "grupo") {
               // group_doctors seguem o médico em qualquer PJ — não dá pra filtrar por empresa aqui.
               // O motor (targetsGroup) faz o match final por médico/PJ.
