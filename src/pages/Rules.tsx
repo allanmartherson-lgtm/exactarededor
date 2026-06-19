@@ -190,6 +190,8 @@ const Rules = () => {
   const activeHospitalId = hospital?.id ?? null;
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [refTables, setRefTables] = useState<{ id: string; name: string; purpose?: string }[]>([]);
+  const [specialCaseTypes, setSpecialCaseTypes] = useState<{ code: string; label: string }[]>([]);
+  const [fSpecialCaseFilter, setFSpecialCaseFilter] = useState<string[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
   const [globalThresholds, setGlobalThresholds] = useState<any>(null);
   const [open, setOpen] = useState(false);
