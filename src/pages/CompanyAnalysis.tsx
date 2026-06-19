@@ -2642,6 +2642,25 @@ export default function CompanyAnalysis() {
           initialCompose={conversationsOpen ? { groupId: group.id, companyName: group.company_name } : null}
         />
       )}
+      {mappingPrompt && (
+        <ColumnMappingDialog
+          open={!!mappingPrompt}
+          onOpenChange={(o) => { if (!o) setMappingPrompt(null); }}
+          fileName={mappingPrompt.file.name}
+          headers={mappingPrompt.headers}
+          initialMapping={mappingPrompt.initialMapping}
+          sampleRow={mappingPrompt.sampleRow}
+          hospitalId={(payment as any)?.hospital_id ?? null}
+          onApply={(mapping) => {
+            const file = mappingPrompt.file;
+            setMappingOverrides((prev) => ({ ...prev, [file.name]: mapping }));
+            setMappingPrompt(null);
+            // Reexecuta a reimportação com o mapeamento manual aplicado
+            const files = reimportConfirm ?? [file];
+            void doReimport(files);
+          }}
+        />
+      )}
     </div>
   );
 }
