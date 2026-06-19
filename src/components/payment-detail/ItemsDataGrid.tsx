@@ -3147,6 +3147,15 @@ function ItemDetailsRow({
                   </div>
                 </div>
               )}
+              {!specialCaseApproved && !specialCasePending && (
+                <SpecialCaseItemAction
+                  paymentId={it.payment_id}
+                  itemId={it.id}
+                  attendance={it.attendance_number ?? null}
+                  doctorId={(it as any).doctor_id ?? null}
+                />
+              )}
+
               {(it.ai_status === "reprovado" || it.ai_status === "alerta") && (it.ai_status as string) !== "acatado" && (() => {
                 const getNextStep = (): string => {
                   if (priority === "sem_regra") {
