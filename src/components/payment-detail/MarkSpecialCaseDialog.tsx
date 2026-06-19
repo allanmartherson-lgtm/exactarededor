@@ -101,9 +101,14 @@ export function MarkSpecialCaseDialog({
       });
       if (error) throw error;
       const status = (data as any)?.mark?.status;
+      const alreadyExists = Boolean((data as any)?.already_exists);
       toast({
-        title: status === "approved" ? "Caso especial aprovado" : "Caso especial enviado para aprovação",
-        description: status === "approved"
+        title: alreadyExists
+          ? "Caso especial já marcado"
+          : status === "approved" ? "Caso especial aprovado" : "Caso especial enviado para aprovação",
+        description: alreadyExists
+          ? status === "approved" ? "Este atendimento já está aprovado como caso especial." : "Este atendimento já está aguardando aprovação."
+          : status === "approved"
           ? "Aplicado direto pela gestão médica."
           : "A gestão médica receberá para decisão.",
       });
