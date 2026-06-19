@@ -117,7 +117,10 @@ export function MarkSpecialCaseDialog({
     }
   };
 
+  if (hasMatchingRule === false) return null;
+
   return (
+
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger ?? (
