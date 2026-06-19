@@ -461,6 +461,8 @@ serve(async (req) => {
         gross_override_at,
         item_hash,
         ai_findings,
+        special_case_code,
+        special_case_status,
         raw_data
       `)
       .eq("payment_id", payment_id);
