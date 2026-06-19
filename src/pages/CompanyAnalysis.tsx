@@ -784,7 +784,8 @@ export default function CompanyAnalysis() {
         if (status === "concluido") return true;
         if (status === "parcial" || status === "erro") {
           const firstError = failed[0]?.error ? ` ${failed[0].error}` : "";
-          throw new Error(`Reanálise não concluiu para todas as empresas.${firstError}`.trim());
+          setReapplyError(`Reanálise não concluiu para todas as empresas.${firstError}`.trim());
+          return false;
         }
         if (total > 0 && processed >= total && failed.length === 0) return true;
       } catch {
