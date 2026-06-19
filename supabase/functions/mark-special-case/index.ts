@@ -121,6 +121,31 @@ Deno.serve(async (req) => {
       metadata: { payment_id: body.payment_id, attendance_number: body.attendance_number, type: body.special_case_type_code, status: initialStatus, origin },
     });
 
+    // Inbox interno — notifica gestão médica quando vem como pending
+    if (initialStatus === "pending") {
+      const { data: gestao } = await admin
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "gestao_medica");
+      const inbox = (gestao ?? []).map((g: any) => ({
+        user_id: g.user_id,
+        kind: "info",
+        title: "Novo caso especial aguardando decisão",
+        body: `Atendimento ${body.attendance_number} marcado como "${body.special_case_type_code}". Origem: ${origin}.`,
+        link: "/casos-especiais",
+        payload: {
+          mark_id: mark.id,
+          payment_id: body.payment_id,
+          attendance_number: body.attendance_number,
+          special_case_type_code: body.special_case_type_code,
+          origin,
+        },
+      }));
+      if (inbox.length > 0) {
+        await admin.from("internal_notifications").insert(inbox);
+      }
+    }
+
     return new Response(JSON.stringify({ ok: true, mark }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
