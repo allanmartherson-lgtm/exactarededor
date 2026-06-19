@@ -190,6 +190,8 @@ const Rules = () => {
   const activeHospitalId = hospital?.id ?? null;
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [refTables, setRefTables] = useState<{ id: string; name: string; purpose?: string }[]>([]);
+  const [specialCaseTypes, setSpecialCaseTypes] = useState<{ code: string; label: string }[]>([]);
+  const [fSpecialCaseFilter, setFSpecialCaseFilter] = useState<string[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
   const [globalThresholds, setGlobalThresholds] = useState<any>(null);
   const [open, setOpen] = useState(false);
@@ -444,6 +446,13 @@ const Rules = () => {
     loadGlobalThresholds();
   };
   const loadRefs = () => supabase.from("reference_tables").select("id,name,purpose").order("name").then(({ data }) => setRefTables((data ?? []) as any));
+  const loadSpecialCaseTypes = () =>
+    supabase
+      .from("special_case_types")
+      .select("code,label")
+      .eq("active", true)
+      .order("label")
+      .then(({ data }) => setSpecialCaseTypes((data ?? []) as any));
   const loadCompanies = async () => {
     const PAGE = 1000;
     let all: any[] = [];
@@ -456,7 +465,7 @@ const Rules = () => {
     }
     setCompanies(all as any);
   };
-  useEffect(() => { document.title = "Regras | Exacta"; loadGlobalThresholds(); loadRefs(); loadCompanies(); }, []);
+  useEffect(() => { document.title = "Regras | Exacta"; loadGlobalThresholds(); loadRefs(); loadCompanies(); loadSpecialCaseTypes(); }, []);
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeHospitalId]);
 
   const exportRuleToPDF = (r: RuleRow) => {
@@ -816,7 +825,7 @@ const Rules = () => {
     setFSeverity("aviso");
     setScope("master"); setTargetType("medico");
     setFTargetIdentifier(""); setFTargetName("");
-    setRefTableId(""); setFExceptionTableIds([]);
+    setRefTableId(""); setFExceptionTableIds([]); setFSpecialCaseFilter([]);
     setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
     setFNature("informativo");
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
@@ -870,6 +879,7 @@ const Rules = () => {
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
     setRefTableId(r.reference_table_id ?? "");
     setFExceptionTableIds(Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []);
+    setFSpecialCaseFilter(Array.isArray((r as any).special_case_filter) ? (r as any).special_case_filter : []);
     // procedure_codes legados ignorados — agora vivem por Cálculo.
     setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
     setFBonusAmount(r.bonus_amount != null ? String(r.bonus_amount) : "");
@@ -1044,6 +1054,15 @@ const Rules = () => {
         console.warn("[Rules] Falha ao persistir prevent_external_fallback:", flagErr.message);
       }
     }
+    if (savedId && "special_case_filter" in (ruleData as any)) {
+      const { error: scErr } = await supabase
+        .from("rules")
+        .update({ special_case_filter: (ruleData as any).special_case_filter })
+        .eq("id", savedId);
+      if (scErr) {
+        console.warn("[Rules] Falha ao persistir special_case_filter:", scErr.message);
+      }
+    }
     if (savedId) {
       await recordAudit({
         entityType: "rule", entityId: savedId, action: meta.wasEditing ? "update" : "create",
@@ -1203,6 +1222,7 @@ const Rules = () => {
       exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
       allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
       exception_table_ids: fExceptionTableIds,
+      special_case_filter: fSpecialCaseFilter.length > 0 ? fSpecialCaseFilter : null,
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       minimo_garantido_ativo: fMinGarantidoAtivo,
@@ -2744,6 +2764,59 @@ const Rules = () => {
                                   </div>
                                 );
                               })()}
+                            </div>
+
+                            <div>
+                              <div className="flex items-center text-sm font-semibold mb-2">
+                                Caso especial (oncológico, pediátrico…)
+                                {fSpecialCaseFilter.length > 0 && (
+                                  <span className="ml-2 text-xs font-normal text-muted-foreground">({fSpecialCaseFilter.length})</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mb-3">
+                                Por padrão a regra <strong>NÃO</strong> se aplica a itens marcados como caso especial aprovado.
+                                Marque um ou mais tipos para que esta regra atue <strong>apenas</strong> quando o item tiver caso especial aprovado correspondente.
+                                Marque <strong>"Qualquer caso especial"</strong> para aplicar a todos.
+                              </p>
+                              <div className="space-y-1.5">
+                                <label className="flex items-start gap-2 rounded-md border border-border bg-background p-2 cursor-pointer hover:bg-muted/40">
+                                  <Checkbox
+                                    checked={fSpecialCaseFilter.includes("*")}
+                                    onCheckedChange={(v) => {
+                                      setFSpecialCaseFilter((prev) =>
+                                        v ? Array.from(new Set([...prev, "*"])) : prev.filter((c) => c !== "*")
+                                      );
+                                    }}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium leading-tight">Qualquer caso especial aprovado</p>
+                                    <p className="text-xs text-muted-foreground">Aplica a qualquer tipo, desde que aprovado pela gestão médica.</p>
+                                  </div>
+                                </label>
+                                {specialCaseTypes.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground italic">Nenhum tipo cadastrado em Casos Especiais.</p>
+                                ) : (
+                                  specialCaseTypes.map((t) => {
+                                    const checked = fSpecialCaseFilter.includes(t.code);
+                                    return (
+                                      <label key={t.code} className="flex items-start gap-2 rounded-md border border-border bg-background p-2 cursor-pointer hover:bg-muted/40">
+                                        <Checkbox
+                                          checked={checked}
+                                          onCheckedChange={(v) => {
+                                            setFSpecialCaseFilter((prev) =>
+                                              v ? Array.from(new Set([...prev, t.code])) : prev.filter((c) => c !== t.code)
+                                            );
+                                          }}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium leading-tight">{t.label}</p>
+                                          <p className="text-xs text-muted-foreground font-mono">{t.code}</p>
+                                        </div>
+                                      </label>
+                                    );
+                                  })
+                                )}
+                              </div>
                             </div>
                           </div>
                         ),

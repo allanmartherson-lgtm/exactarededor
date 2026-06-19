@@ -250,7 +250,8 @@ serve(async (req) => {
         bonus_amount,bonus_pct,target_amount,
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor,
         force_totalized,
-        prevent_external_fallback
+        prevent_external_fallback,
+        special_case_filter
     `;
 
     const RULE_CALCS_SELECT = `
@@ -268,9 +269,9 @@ serve(async (req) => {
       agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
       package_roles_distribution,
       adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim,
-      is_catch_all,
-      special_case_filter
+      is_catch_all
     `;
+
 
     // [Sprint 3 - Tier 1.B] Cache de contexto compartilhado por job:
     // rules + rule_calculations + system_configurations são IGUAIS para todas as
@@ -679,6 +680,8 @@ serve(async (req) => {
       sector: recoveredSector,
       attendance_character: it.attendance_character ?? null,
       convenio_value_totalized: it.convenio_value_totalized ?? false,
+      special_case_code: it.special_case_code ?? null,
+      special_case_status: it.special_case_status ?? null,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
         ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }

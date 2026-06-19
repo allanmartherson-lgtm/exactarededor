@@ -172,6 +172,15 @@ export interface RuleInput {
    * específicas (com setor/convênio/empresa/médico/grupo); false para a master.
    */
   prevent_external_fallback?: boolean | null;
+  /**
+   * Filtro de caso especial (oncológico, pediátrico, etc.).
+   * - null/vazio  → regra padrão: só se aplica a itens SEM caso especial aprovado.
+   * - ['*']       → aplica a qualquer caso especial aprovado.
+   * - ['oncologico'] → aplica apenas quando o item tem esse code aprovado.
+   * Itens com caso especial aprovado preferem regras filtradas; quando nenhuma
+   * filtrada se aplica, caem para as regras padrão (null/vazio).
+   */
+  special_case_filter?: string[] | null;
 }
 
 export interface RuleCalculationItem {
@@ -329,6 +338,10 @@ export interface ItemInput {
   attendance_character?: string | null;
   /** Sub-Onda 2C — resolução manual de duplicidade entre cálculos da mesma regra (analista escolheu qual cálculo aplicar). */
   calc_duplicity_resolution?: { chosen_calc_id: string } | null;
+  /** Código do caso especial (oncologico, pediatrico, etc.) — preenchido pela marcação. */
+  special_case_code?: string | null;
+  /** Status da marcação: 'pending' | 'approved' | 'rejected' | 'revoked' | null. */
+  special_case_status?: string | null;
 }
 
 export interface PaymentContext {
@@ -2802,9 +2815,32 @@ export function analyzeItem(
     if (!procDateValid) return false;
     return isInValidity(r, procDateRaw!);
   });
+  // ===== Caso especial (oncológico, pediátrico, etc.) =====
+  // Item com special_case_status='approved' + code=X tenta primeiro regras
+  // cujo `special_case_filter` contém X ou '*'. Se nenhuma se aplicar, cai
+  // para regras padrão (filter null/vazio). Itens SEM marcação aprovada
+  // ignoram regras filtradas — só veem as padrão.
+  const scItemCode = (item.special_case_code ?? "").trim();
+  const scItemApproved = item.special_case_status === "approved" && !!scItemCode;
+  const ruleIsDefault = (r: RuleInput) => !Array.isArray(r.special_case_filter) || r.special_case_filter.length === 0;
+  const ruleMatchesSpecialCase = (r: RuleInput, code: string) => {
+    const f = Array.isArray(r.special_case_filter) ? r.special_case_filter : [];
+    if (f.length === 0) return false;
+    return f.includes("*") || f.includes(code);
+  };
+  let scopedRulesForItem: RuleInput[];
+  if (scItemApproved) {
+    const matchingFiltered = rulesForItem.filter((r) => ruleMatchesSpecialCase(r, scItemCode));
+    scopedRulesForItem = matchingFiltered.length > 0
+      ? matchingFiltered
+      : rulesForItem.filter(ruleIsDefault);
+  } else {
+    scopedRulesForItem = rulesForItem.filter(ruleIsDefault);
+  }
+
   // Desempate de pacotes: quando múltiplos pacotes são elegíveis para o mesmo
   // item, o de maior score (mais específico) deve ser avaliado primeiro.
-  const scoredRulesForItem = rulesForItem
+  const scoredRulesForItem = scopedRulesForItem
     .map((r) => ({
       rule: r,
       score:
@@ -2814,6 +2850,7 @@ export function analyzeItem(
     }))
     .sort((a, b) => b.score - a.score)
     .map((x) => x.rule);
+
   const outcome = selectWinningRule(item, scoredRulesForItem, ctx, { collectTrace: true });
   let winner: RuleInput | null = null;
   let calc: ExpectedCalc = { expected: null, explanation: "", alerts: [] };
