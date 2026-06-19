@@ -27,10 +27,14 @@ Patologias/contextos que pedem remuneração diferenciada (oncológico, pediátr
 - TODO Fase 1.5: aplicar filtro no matching — regra com `special_case_filter` não-nulo só casa se item tem `special_case_status='approved'` e código compatível; itens com flag aprovada priorizam essas regras antes da padrão.
 - Sem regra cadastrada para o caso especial = cai na regra padrão + alerta (jamais default hardcoded).
 
-## Retroativo
+## Fase 3 — Retroativo
 - Aprovação tardia em pagamento já fechado NÃO recalcula automaticamente. Decisão manual do analista via `generate-retroactive-adjustment`.
 
 ## Permissões
 - Marcar: admin, diretor, analista, gestao_medica (médico via portal — Fase 2).
 - Decidir: admin, diretor, gestao_medica.
 - Tipos: admin, diretor, gestao_medica gerenciam.
+
+## Fase 3 (entregue)
+- Banner `SpecialCaseRetroactiveBanner` em PaymentDetail: aparece se status ∈ {pago, fechado, concluido, aprovado_diretor, aprovado} e existem marks `approved` com approved_at > payment.updated_at. CTA: "Recalcular com casos especiais" (invoca `analyze-payment` modo recompute) ou "Ver marcações".
+- Página `/casos-especiais/relatorio` (`SpecialCasesReport.tsx`): KPIs por status/tipo/origem + tabela filtrável (tipo, status, busca por atendimento/médico), link para o pagamento.
