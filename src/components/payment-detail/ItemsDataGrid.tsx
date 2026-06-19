@@ -794,12 +794,17 @@ export function ItemsDataGrid({
   const counts = useMemo(() => {
     const c = { alerta: 0, critico: 0, total: items.length };
     for (const it of items) {
-      const alerts = (it.ai_findings?.alerts ?? []) as string[];
+      // Crítico = reprovado pelo motor. Alerta = status efetivo "alerta".
+      // Observações informativas (ex.: "ℹ Caso especial ativo") NÃO contam:
+      // o item está aprovado, a observação é só sinalização para validador/diretor.
+      // Sem esse alinhamento, a pílula diz "N alertas" mas o filtro do grid
+      // (que exige ai_status alerta/reprovado) mostra a lista vazia.
       if (it.ai_status === "reprovado") c.critico += 1;
-      else if (alerts.length > 0 || it.ai_status === "alerta") c.alerta += 1;
+      else if (it.ai_status === "alerta") c.alerta += 1;
     }
     return c;
   }, [items]);
+
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
