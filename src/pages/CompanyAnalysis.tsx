@@ -765,6 +765,31 @@ export default function CompanyAnalysis() {
    * da reanálise quando a conexão HTTP cai antes do response final.
    * Retorna true se diagnostics.status === "success" e foi atualizado após `since`.
    */
+  const waitForJobCompletion = async (
+    jobId: string,
+    timeoutMs = 120_000,
+  ): Promise<boolean> => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        const { data } = await supabase
+          .from("payment_processing_jobs")
+          .select("status, processed_companies, total_companies")
+          .eq("id", jobId)
+          .maybeSingle();
+        const status = (data as any)?.status as string | undefined;
+        const processed = Number((data as any)?.processed_companies ?? 0);
+        const total = Number((data as any)?.total_companies ?? 0);
+        if (status === "concluido" || status === "parcial" || status === "erro") return status !== "erro";
+        if (total > 0 && processed >= total) return true;
+      } catch {
+        // ignora e tenta novamente
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    return false;
+  };
+
   const waitForProcessingCompletion = async (
     paymentId: string,
     since: number,
