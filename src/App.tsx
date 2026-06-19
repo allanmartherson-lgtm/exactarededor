@@ -160,6 +160,7 @@ const DreReport = lazy(loadDreReport);
 const MoneyHealth = lazy(loadMoneyHealth);
 const BusinessObservability = lazy(loadBusinessObservability);
 const Pendencias = lazy(loadPendencias);
+const SpecialCases = lazy(loadSpecialCases);
 const Conciliacao = lazy(loadConciliacao);
 const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
