@@ -43,6 +43,7 @@ import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefi
 import { PhaseSummary, resolvePhase } from "@/components/payment-detail/PhaseSummary";
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
 import { RegisterExternalApprovalDialog } from "@/components/payment-detail/RegisterExternalApprovalDialog";
+import { SpecialCaseRetroactiveBanner } from "@/components/payment-detail/SpecialCaseRetroactiveBanner";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -2508,6 +2509,13 @@ const PaymentDetail = () => {
         )}
         {id && <BatchAIFailureReport paymentId={id} />}
         {id && <TussPrincipalAuditPanel paymentId={id} />}
+        {id && (
+          <SpecialCaseRetroactiveBanner
+            paymentId={id}
+            paymentStatus={payment.status}
+            paymentUpdatedAt={(payment as any).updated_at ?? null}
+          />
+        )}
         {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
         {!isNfPhase && (
         <div className="md:hidden">
