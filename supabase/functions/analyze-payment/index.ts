@@ -2099,7 +2099,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           patch.gross_amount = u.expected_amount ?? null;
         }
       }
-      const delays = [250, 750, 1500];
+      const delays = [250, 500, 1000, 2000, 4000];
       let attempt = 0;
       let lastErr: string | null = null;
       while (attempt <= delays.length) {
