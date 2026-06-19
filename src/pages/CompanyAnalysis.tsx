@@ -1191,8 +1191,10 @@ export default function CompanyAnalysis() {
         return;
       }
 
-      // Limpa SOMENTE itens e o grupo desta empresa (não toca nas demais).
-      // Faz em chunks por id para evitar statement_timeout em DELETE com muitos cascades.
+      // Limpa SOMENTE itens desta empresa (não toca nas demais) e NUNCA apaga o
+      // payment_company_groups: se a reanálise falhar ou demorar, a empresa não
+      // pode sumir da lista. Zeramos totais e deixamos o analyze-payment
+      // reconciliar via UPDATE (linha 2391 do analyze-payment/index.ts).
       const { data: idsToDelete, error: idsErr } = await supabase
         .from("payment_items")
         .select("id")
@@ -1209,7 +1211,11 @@ export default function CompanyAnalysis() {
           .in("id", part);
         if (delErr) throw delErr;
       }
-      await supabase.from("payment_company_groups").delete().eq("id", group.id);
+      // Reseta totais do grupo (analyze-payment vai recalcular ao reanalisar).
+      await supabase
+        .from("payment_company_groups")
+        .update({ items_count: 0, total_amount: 0 })
+        .eq("id", group.id);
 
       const newItems = companyRows.map((r) => ({
         hospital_id: (payment as any).hospital_id,
