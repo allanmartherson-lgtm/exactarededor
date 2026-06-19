@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { recordObservation, type ObservationType } from "@/lib/observations";
+import { confirmDialog } from "@/lib/confirm";
 import { formatDateTimeBR } from "@/lib/dateUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2229,7 +2230,37 @@ export default function CompanyAnalysis() {
                 storageKey="companyAnalysisPage"
                 canEdit={canEditCompany}
                 onEditItem={openEditItem}
-                onDeleteItem={(it) => setDeleteItem(it)}
+                onDeleteItem={async (it) => {
+                  const tipo = String((it as any).tipo_linha ?? "").toLowerCase();
+                  const isBonus = tipo.includes("bonus");
+                  const isOrphanBonus = isBonus && !(it as any).applied_rule_id;
+                  if (!isOrphanBonus) {
+                    setDeleteItem(it);
+                    return;
+                  }
+                  // Bônus órfão (veio na base, não foi gerado pelo motor).
+                  // Hard delete: linhas extras que não impactam regras nem auditoria de cancelamento.
+                  const ok = await confirmDialog({
+                    title: "Excluir bônus importado?",
+                    description: `Esta linha de bônus veio da base original e será removida permanentemente. O motor continuará aplicando os bônus calculados pelas regras vinculadas. Deseja excluir "${(it as any).doctor_name ?? "—"} · ${formatCurrency(Number(it.gross_amount ?? 0))}"?`,
+                    confirmText: "Excluir",
+                    tone: "danger",
+                  });
+                  if (!ok) return;
+                  try {
+                    setItems(prev => prev.filter(x => x.id !== it.id));
+                    await supabase.from("reconciliation_items").delete().eq("payment_item_id", it.id);
+                    const { error } = await supabase.from("payment_items").delete().eq("id", it.id);
+                    if (error) throw error;
+                    toast.success("Bônus removido");
+                    await load();
+                    await composition.refresh();
+                  } catch (e) {
+                    const msg = (e as any)?.message ?? String(e);
+                    toast.error("Falha ao excluir", { description: msg });
+                    await load();
+                  }
+                }}
                 onAcceptItem={acceptItem}
                 onUndoAcceptItem={undoAcceptItem}
                 mode={(payment as any).analysis_mode === "confeccao" ? "confeccao" : "analise"}
