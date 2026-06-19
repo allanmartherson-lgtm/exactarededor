@@ -2669,6 +2669,60 @@ const PaymentDetail = () => {
           </AlertDialog>
         )}
 
+        <input
+          ref={addCompanyInputRef}
+          type="file"
+          multiple
+          accept=".xlsx,.xls"
+          className="hidden"
+          onChange={(e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+              setAddCompanyConfirm((prev) => (prev ? [...prev, ...Array.from(files)] : Array.from(files)));
+              e.target.value = "";
+            }
+          }}
+        />
+
+        {canReimport && (
+          <AlertDialog open={!!addCompanyConfirm} onOpenChange={(v) => !v && !addingCompany && setAddCompanyConfirm(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Adicionar empresa ao lote?</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-3">
+                  <p>Os arquivos selecionados devem conter linhas <strong>apenas de empresas que ainda não estão no lote</strong>. Empresas já existentes são ignoradas — use "Reimportar base" para refazê-las.</p>
+                  <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos ({addCompanyConfirm?.length}):</p>
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => addCompanyInputRef.current?.click()}>
+                        <Plus className="h-3 w-3 mr-1" /> Adicionar mais
+                      </Button>
+                    </div>
+                    <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
+                      {addCompanyConfirm?.map((f, i) => (
+                        <li key={i} className="flex items-center justify-between gap-2 group">
+                          <span className="truncate flex-1">• {f.name}</span>
+                          <button type="button" onClick={() => setAddCompanyConfirm((prev) => prev?.filter((_, idx) => idx !== i) || null)} className="text-muted-foreground hover:text-destructive p-0.5">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={addingCompany}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction disabled={addingCompany} onClick={() => addCompanyConfirm && doAddCompany(addCompanyConfirm)}>
+                  {addingCompany ? "Adicionando…" : "Confirmar"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
+
+
         {canCancel && (
           <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
             <AlertDialogContent>
