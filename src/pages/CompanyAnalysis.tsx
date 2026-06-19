@@ -734,15 +734,15 @@ export default function CompanyAnalysis() {
       setReapplyStep("carregar_ui");
       await load();
 
-      setReapplyPhase("concluido");
-
       if (!done) {
         // Motor não confirmou conclusão no tempo — ainda assim mostramos o diff
         // com o estado atual; o usuário pode reaplicar de novo se necessário.
+        setReapplyPhase("erro");
         toast.warning("Reanálise concluída sem confirmação do motor", {
-          description: "Exibindo o estado atual dos itens. Se algo não mudou, tente novamente em alguns segundos.",
+          description: reapplyError ?? "Exibindo o estado atual dos itens. Se algo não mudou, tente novamente em alguns segundos.",
         });
       } else {
+        setReapplyPhase("concluido");
         toast.success("Reanálise concluída", {
           description: `${diff.becameApproved} passaram a aprovado · ${diff.stayedReproved} continuam reprovados.`,
         });
@@ -774,14 +774,20 @@ export default function CompanyAnalysis() {
       try {
         const { data } = await supabase
           .from("payment_processing_jobs")
-          .select("status, processed_companies, total_companies")
+          .select("status, processed_companies, total_companies, failed_companies")
           .eq("id", jobId)
           .maybeSingle();
         const status = (data as any)?.status as string | undefined;
         const processed = Number((data as any)?.processed_companies ?? 0);
         const total = Number((data as any)?.total_companies ?? 0);
-        if (status === "concluido" || status === "parcial" || status === "erro") return status !== "erro";
-        if (total > 0 && processed >= total) return true;
+        const failed = Array.isArray((data as any)?.failed_companies) ? (data as any).failed_companies : [];
+        if (status === "concluido") return true;
+        if (status === "parcial" || status === "erro") {
+          const firstError = failed[0]?.error ? ` ${failed[0].error}` : "";
+          setReapplyError(`Reanálise não concluiu para todas as empresas.${firstError}`.trim());
+          return false;
+        }
+        if (total > 0 && processed >= total && failed.length === 0) return true;
       } catch {
         // ignora e tenta novamente
       }
