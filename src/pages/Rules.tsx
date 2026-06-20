@@ -2080,11 +2080,13 @@ const Rules = () => {
                                     <div className="space-y-1.5">
                                       <Label>Médico cadastrado</Label>
                                       <DoctorCombobox
-                                        value={fTargetName ? { id: "__sel__", name: fTargetName, crm: fTargetIdentifier || null, crm_uf: null } : null}
+                                        value={fTargetName ? { id: fTargetDoctorId ?? "__sel__", name: fTargetName, crm: fTargetIdentifier || null, crm_uf: null } : null}
                                         onChange={(d) => {
                                           setFTargetName(d?.name ?? "");
                                           setFTargetIdentifier(d?.crm ?? "");
+                                          setFTargetDoctorId(d?.id && d.id !== "__sel__" ? d.id : null);
                                         }}
+
                                         placeholder="Buscar médico…"
                                         className="w-full"
                                       />
