@@ -1226,7 +1226,7 @@ export default function CompanyAnalysis() {
     setReimporting(true);
     try {
       const { parsePaymentFile, similarity, inspectFileHeaders } = await import("@/lib/parsePaymentFile");
-      const { computeHeaderSignature, summarizeMissing, inspectColumnMapping } = await import("@/lib/columnMapping");
+      const { computeHeaderSignature, FIELD_BY_KEY, inspectColumnMapping } = await import("@/lib/columnMapping");
       const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
       const companiesData = await fetchAllPaginated<any>((from, to) =>
         supabase.from("companies").select("id,name,aliases").range(from, to),
@@ -1273,7 +1273,13 @@ export default function CompanyAnalysis() {
           if (ov && headers.includes(ov)) return { ...h, header: ov, score: 100, confidence: "high" as const };
           return h;
         });
-        const { missingRequired } = summarizeMissing(hits);
+        const isReimportConfeccao = (payment as any)?.analysis_mode === "confeccao";
+        const missingRequired = hits.filter((h) => {
+          const required = isReimportConfeccao
+            ? h.field === "procedure_amount" || (FIELD_BY_KEY[h.field].requirement === "required" && h.field !== "gross_amount")
+            : FIELD_BY_KEY[h.field].requirement === "required";
+          return required && (!h.header || h.score < 30);
+        });
         if (missingRequired.length > 0) {
           // Abre tela de mapeamento manual em vez de bloquear com erro
           const initialMapping: Record<string, string> = Object.fromEntries(
