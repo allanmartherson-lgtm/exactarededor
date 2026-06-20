@@ -272,6 +272,7 @@ Deno.serve(async (req) => {
           page_size,
           ai_statuses,
           tolerance_pct,
+          force_fresh_rules,
         }),
       }).then(async (resp) => {
         if (!resp.ok) console.error("[orchestrate] próxima página retornou erro", resp.status, (await resp.text()).slice(0, 500));
