@@ -2674,6 +2674,7 @@ export default function CompanyAnalysis() {
         errorMessage={reapplyError}
         diff={reapplyDiff}
         companyLabel={group?.company_name}
+        mode={isConfeccao ? "confeccao" : "analise"}
       />
 
 
