@@ -263,6 +263,24 @@ export function UnmatchedItemsPanel({
         </p>
       </CardHeader>
       <CardContent className="space-y-2">
+        {groups.length >= 3 && (
+          <CopilotCard
+            task="summarize_inconsistencies"
+            title="Resumo IA dos itens em quarentena"
+            triggerLabel="Resumir padrões com IA"
+            context={{
+              inconsistencies: groups.map((g) => ({
+                empresa_bruta: g.raw_company_name,
+                items: g.items_count,
+                valor: g.gross_total,
+                medico_amostra: g.sample_doctor,
+                melhor_score: g.best_score,
+                sugestao_atual: g.suggestion_name,
+              })),
+            }}
+          />
+        )}
+
         {groups.map((g) => {
           const conf =
             g.best_score >= 0.92 ? "alta" : g.best_score >= 0.75 ? "média" : "baixa";
