@@ -2829,11 +2829,19 @@ export function analyzeItem(
       const attKey = (item as any).attendance_group_key ?? item.attendance_number ?? "";
       const sibs = ctx?.attendanceSiblingCodes?.get(attKey) ?? new Set<string>();
       for (const rule of rulesForItem) {
-        // Gate de escopo: a regra precisa atingir o convênio do item.
-        // Sem isso, o trigger "vaza" e zera o complemento mesmo em
-        // convênios fora da whitelist da regra (ex.: STJ caindo em
-        // regra restrita a Bradesco/Unimed).
+        // Gate de escopo do item: convênio + alvo (médico/empresa/grupo).
+        // Sem isso, regras restritas a outras empresas/médicos absorviam
+        // complementos indevidamente (ex.: Regra "Colonoscopia – Lobato"
+        // zerando 40202542 de paciente do STJ sem vínculo com Lobato).
         if (!targetsAgreement(rule, item)) continue;
+        const scope = rule.scope ?? "geral";
+        if (scope === "especifica") {
+          if (rule.target_type === "medico" && !targetsDoctor(rule, item)) continue;
+          if (rule.target_type === "empresa" && !targetsCompany(rule, item)) continue;
+        } else if (scope === "grupo") {
+          if (!targetsGroup(rule, item)) continue;
+        }
+        // scope === "geral" → sem restrição de alvo (mantém comportamento).
         const calcs = Array.isArray(rule.calculations) ? rule.calculations : [];
         for (const c of calcs) {
           const conds = Array.isArray((c as any).context_conditions)
