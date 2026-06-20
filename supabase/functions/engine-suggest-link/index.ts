@@ -211,7 +211,13 @@ Deno.serve(async (req) => {
       candidate_a: body.detected_value,
       candidate_b: body.candidate_value,
       fuzzy_score: score,
+      ai_invoked: aiReasoning != null,
+      ai_model: aiReasoning != null ? "google/gemini-3-flash-preview" : null,
+      ai_response: aiReasoning != null ? { same_entity: aiSameEntity, confidence: aiConfidence, reasoning: aiReasoning } : null,
+      ai_confidence: aiConfidence,
+      ai_decision: aiSameEntity,
     });
+
 
     return new Response(JSON.stringify({ suggestion_id: inserted.id, score, class: cls, created: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
