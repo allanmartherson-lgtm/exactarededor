@@ -428,6 +428,13 @@ export function UnmatchedItemsPanel({
             <p className="text-xs text-muted-foreground">
               "{createOpen?.raw_company_name}" será gravado como apelido automaticamente.
             </p>
+            {newName.trim().length >= 4 && (
+              <DuplicateCheckBanner
+                newEntity={{ name: newName, document: newDoc || null, type: "company" }}
+                candidates={allCompanies.map((c) => ({ id: c.id, label: c.name, document: c.document }))}
+              />
+            )}
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(null)} disabled={busy}>
