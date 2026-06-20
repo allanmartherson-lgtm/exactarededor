@@ -14,21 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _doctor_name_fix_staging: {
-        Row: {
-          cpf: string
-          full_name: string
-        }
-        Insert: {
-          cpf: string
-          full_name: string
-        }
-        Update: {
-          cpf?: string
-          full_name?: string
-        }
-        Relationships: []
-      }
       access_requests: {
         Row: {
           birth_date: string
