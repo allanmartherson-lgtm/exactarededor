@@ -1906,7 +1906,7 @@ const NewPayment = () => {
       doctor_document: r.doctor_document,
       doctor_email: r.doctor_email,
       description: r.description,
-      gross_amount: r.gross_amount,
+      gross_amount: modoConfeccao ? null : r.gross_amount,
       attendance_number: r.attendance_number,
       procedure_code: r.procedure_code,
       procedure_name: r.procedure_name,
