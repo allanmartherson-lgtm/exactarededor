@@ -1850,6 +1850,8 @@ const NewPayment = () => {
       const cRes = convenioReg ? resolveConvenio(r.agreement_text, convenioReg) : { convenio: null, matched_by: null as any };
       // Override manual do bucket vence sobre o valor bruto da linha (analista corrigiu o setor para o lote inteiro).
       const sRawForLookup = (currentBucket?.sectorMapping?.trim() || r.sector) || null;
+      const sRes = sectorReg ? resolveSector(sRawForLookup, sectorReg) : { sector: null, matched_by: null as any };
+
 
       return ({
         hospital_id: (payment as any).hospital_id ?? hospital?.id,
