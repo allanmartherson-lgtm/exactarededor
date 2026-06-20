@@ -44,12 +44,17 @@ export function DoctorLinkSuggestionsPanel() {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("doctor_link_suggestions")
-      .select("*")
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
+    const { data, error } = await (async () => {
+      let q = supabase
+        .from("doctor_link_suggestions")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      if (filter !== "all") q = q.eq("source", filter);
+      return await q;
+    })();
     if (error) { toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" }); setLoading(false); return; }
+
     const list = (data ?? []) as Suggestion[];
     setItems(list);
 
