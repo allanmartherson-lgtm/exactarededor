@@ -652,18 +652,17 @@ function targetsDoctor(r: RuleInput, item: ItemInput): boolean {
   const ruleDoc = onlyDigits(r.target_identifier);
   const itemDoc = onlyDigits(item.doctor_document);
   if (ruleDoc && itemDoc && ruleDoc === itemDoc) return true;
-  // 3) Fallback por nome — exato OU prefixo de tokens (cadastro "Daniele
-  //    Franco E Couto" casa com item "Daniele Franco E Couto Manera").
+  // 3) Fallback por nome — EXATO normalizado apenas.
+  //    Heurística de "prefixo de tokens" foi removida intencionalmente:
+  //    causa vazamento de escopo (regra específica casando médico errado).
+  //    Vínculo deve ser garantido por ID/CRM no cadastro da regra; falhas
+  //    de nome devem cair na regra geral, nunca inferir match.
   if (r.target_name && item.doctor_name) {
-    const ruleNm = normName(r.target_name);
-    const itemNm = normName(item.doctor_name);
-    if (ruleNm === itemNm) return true;
-    const rT = ruleNm.split(" ").filter((t) => t.length >= 2);
-    const iT = itemNm.split(" ").filter((t) => t.length >= 2);
-    if (rT.length >= 2 && iT.length >= rT.length && rT[0] === iT[0] && rT.every((t) => iT.includes(t))) return true;
+    if (normName(r.target_name) === normName(item.doctor_name)) return true;
   }
   return false;
 }
+
 
 function targetsCompany(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "especifica" || r.target_type !== "empresa") return false;
