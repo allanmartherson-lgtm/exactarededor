@@ -2815,6 +2815,65 @@ export function analyzeItem(
     if (!procDateValid) return false;
     return isInValidity(r, procDateRaw!);
   });
+
+  // === Absorção de complemento via context_conditions ===
+  // Quando o código do item é `trigger_code` de algum cálculo cujo "main"
+  // (procedure_codes) está presente no MESMO atendimento, este item é
+  // ABSORVIDO (expected = complement_value ?? 0) — o valor do procedimento
+  // principal já foi transformado pelo gatilho (ex.: Colonoscopia R$ 370 →
+  // R$ 540 quando há Polipectomia 40202542). Sem essa absorção, o trigger
+  // cai em regra geral e duplica o repasse.
+  {
+    const itemCode = String(item.procedure_code ?? "").trim();
+    if (itemCode) {
+      const attKey = (item as any).attendance_group_key ?? item.attendance_number ?? "";
+      const sibs = ctx?.attendanceSiblingCodes?.get(attKey) ?? new Set<string>();
+      for (const rule of rulesForItem) {
+        const calcs = Array.isArray(rule.calculations) ? rule.calculations : [];
+        for (const c of calcs) {
+          const conds = Array.isArray((c as any).context_conditions)
+            ? (c as any).context_conditions
+            : [];
+          if (conds.length === 0) continue;
+          const mainCodes = (Array.isArray((c as any).procedure_codes) ? (c as any).procedure_codes : [])
+            .map((x: any) => String(x).trim()).filter(Boolean);
+          // Só absorve se algum código "main" do cálculo aparece em outro
+          // item do atendimento (evita absorver complemento órfão).
+          const mainPresent = mainCodes.some((m: string) => m !== itemCode && sibs.has(m));
+          if (!mainPresent) continue;
+          for (const cond of conds) {
+            const trigs = (Array.isArray((cond as any).trigger_codes) ? (cond as any).trigger_codes : [])
+              .map((x: any) => String(x).trim()).filter(Boolean);
+            if (!trigs.includes(itemCode)) continue;
+            const absorbed = Number((cond as any).complement_value ?? 0);
+            const expected = Number.isFinite(absorbed) ? Number(absorbed.toFixed(2)) : 0;
+            const grossPaid = Number(item.gross_amount ?? 0);
+            const diff = grossPaid - expected;
+            const status: ItemAiStatus = Math.abs(diff) < 0.01 ? "aprovado" : "alerta";
+            return {
+              item_id: item.id,
+              status,
+              expected_amount: expected,
+              diff_pct: expected > 0 ? (diff / expected) * 100 : (grossPaid === 0 ? 0 : 100),
+              matched_rule_id: rule.id,
+              matched_rule_name: rule.name,
+              matched_priority: "default_setor",
+              calculation_type_used: rule.calculation_type ?? "valor_fixo",
+              calculation_explanation:
+                `Código ${itemCode} absorvido como complemento da regra "${rule.name}"` +
+                (c.label ? ` (cálculo "${c.label}")` : "") +
+                ` — atendimento contém [${mainCodes.join(", ")}]; valor complemento = R$ ${expected.toFixed(2)}.`,
+              alerts: status === "aprovado"
+                ? []
+                : [`Complemento absorvido com valor esperado R$ ${expected.toFixed(2)}, mas pago R$ ${grossPaid.toFixed(2)}.`],
+              needs_ai_review: status !== "aprovado",
+            };
+          }
+        }
+      }
+    }
+  }
+
   // ===== Caso especial (oncológico, pediátrico, etc.) =====
   // Item com special_case_status='approved' + code=X tenta primeiro regras
   // cujo `special_case_filter` contém X ou '*'. Se nenhuma se aplicar, cai
