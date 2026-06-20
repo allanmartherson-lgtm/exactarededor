@@ -2606,7 +2606,7 @@ export default function CompanyAnalysis() {
           onCancelled={() => {
             const cancelledId = deleteItem.id;
             // Update otimista: remove imediatamente da grid
-            setItems(prev => prev.filter(it => it.id !== cancelledId));
+            hideItemImmediately(cancelledId);
             setDeleteItem(null);
             // Refetch para sincronizar totais/contadores
             load();
