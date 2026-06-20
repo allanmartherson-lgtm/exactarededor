@@ -597,12 +597,22 @@ Deno.serve(async (req) => {
     // pela mesma unidade. Sem esse filtro, regras de outras unidades vazariam.
     const { data: paymentMeta, error: payMetaErr } = await supabase
       .from("payments")
-      .select("hospital_id")
+      .select("hospital_id, analysis_mode")
       .eq("id", payment_id)
       .single();
     if (payMetaErr || !paymentMeta) throw payMetaErr ?? new Error("payment not found");
+    // Defesa em profundidade: validação assistencial não roda em confecção.
+    // Em confecção o motor apenas calcula repasse — não há fluxo de aprovação
+    // assistencial, e gross_amount está nulo (não há base contra a qual validar).
+    if ((paymentMeta as any).analysis_mode === "confeccao") {
+      return new Response(JSON.stringify({
+        ok: true, skipped: true, reason: "confeccao_mode",
+        message: "Validação assistencial não se aplica ao modo confecção.",
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     const paymentHospitalId = (paymentMeta as any).hospital_id as string | null;
     if (!paymentHospitalId) throw new Error("payment sem hospital_id — não é possível validar com segurança multi-tenant");
+
 
     // 1. Carrega lote (para filtros de escopo), itens, regras, médicos e grupos
     const [

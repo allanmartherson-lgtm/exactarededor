@@ -341,12 +341,19 @@ export default function CompanyAnalysis() {
     });
   }, [allItems, group, locallyDeletedItemIds]);
 
-  // Composição financeira da empresa (bruto, débitos, glosas, pool, conciliação, líquido)
+  // Composição financeira da empresa.
+  // - analise: bruto/débitos/glosas/pool/líquido via compute-company-financials.
+  // - confeccao: bruto = Σ procedure_amount, liquido = Σ expected_amount (sem deduções).
+  const compMode: "analise" | "confeccao" =
+    (payment as any)?.analysis_mode === "confeccao" ? "confeccao" : "analise";
   const composition = useFinancialComposition(
     id,
     group?.company_id ?? undefined,
     Number(group?.total_amount ?? 0),
+    compMode,
   );
+
+
 
 
   const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
@@ -1869,15 +1876,17 @@ export default function CompanyAnalysis() {
             );
           })()}
 
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy || hasReconciliationRun === null}
-            onClick={handleOpenConciliation}
-            title={hasReconciliationRun === false ? "Lote sem conciliação" : "Ver conciliação desta empresa"}
-          >
-            <GitCompareArrows className="h-4 w-4 mr-2" /> Conciliação desta empresa
-          </Button>
+          {!isConfeccao && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy || hasReconciliationRun === null}
+              onClick={handleOpenConciliation}
+              title={hasReconciliationRun === false ? "Lote sem conciliação" : "Ver conciliação desta empresa"}
+            >
+              <GitCompareArrows className="h-4 w-4 mr-2" /> Conciliação desta empresa
+            </Button>
+          )}
 
           {canReimport && (
             <>
@@ -2132,28 +2141,67 @@ export default function CompanyAnalysis() {
               tone="info"
               icon={<FileText className="h-4 w-4" />}
             />
-            <Stat
-              label="Valor líquido"
-              value={formatCurrency(composition.liquido)}
-              sub={`Bruto: ${formatCurrency(composition.bruto)}`}
-              mono
-              tone="success"
-              icon={<Wallet className="h-4 w-4" />}
-            />
-
-            <Stat
-              label="Alertas"
-              value={String(counts.alertasTotal)}
-              tone={counts.alertasTotal > 0 ? "warning" : "muted"}
-              icon={<AlertTriangle className="h-4 w-4" />}
-            />
-            <Stat
-              label="Críticos"
-              value={String(counts.criticosTotal)}
-              tone={counts.criticosTotal > 0 ? "destructive" : "muted"}
-              icon={<ShieldAlert className="h-4 w-4" />}
-            />
+            {isConfeccao ? (
+              <>
+                <Stat
+                  label="Repasse calculado"
+                  value={formatCurrency(composition.liquido)}
+                  sub={`Convênio: ${formatCurrency(composition.bruto)}`}
+                  mono
+                  tone="warning"
+                  icon={<Calculator className="h-4 w-4" />}
+                />
+                {(() => {
+                  const semRegra = items.filter(
+                    (it) => !(it as any).applied_rule_id && !(it as any).is_cancelled,
+                  ).length;
+                  const comRegra = items.filter(
+                    (it) => !!(it as any).applied_rule_id && !(it as any).is_cancelled,
+                  ).length;
+                  return (
+                    <>
+                      <Stat
+                        label="Com regra"
+                        value={String(comRegra)}
+                        tone={comRegra > 0 ? "success" : "muted"}
+                        icon={<FileText className="h-4 w-4" />}
+                      />
+                      <Stat
+                        label="Sem regra"
+                        value={String(semRegra)}
+                        tone={semRegra > 0 ? "warning" : "muted"}
+                        icon={<AlertTriangle className="h-4 w-4" />}
+                      />
+                    </>
+                  );
+                })()}
+              </>
+            ) : (
+              <>
+                <Stat
+                  label="Valor líquido"
+                  value={formatCurrency(composition.liquido)}
+                  sub={`Bruto: ${formatCurrency(composition.bruto)}`}
+                  mono
+                  tone="success"
+                  icon={<Wallet className="h-4 w-4" />}
+                />
+                <Stat
+                  label="Alertas"
+                  value={String(counts.alertasTotal)}
+                  tone={counts.alertasTotal > 0 ? "warning" : "muted"}
+                  icon={<AlertTriangle className="h-4 w-4" />}
+                />
+                <Stat
+                  label="Críticos"
+                  value={String(counts.criticosTotal)}
+                  tone={counts.criticosTotal > 0 ? "destructive" : "muted"}
+                  icon={<ShieldAlert className="h-4 w-4" />}
+                />
+              </>
+            )}
           </div>
+
         </CardContent>
       </Card>
 
@@ -2167,7 +2215,7 @@ export default function CompanyAnalysis() {
       )}
 
       {/* Faixa de composição financeira: Bruto − Débitos − Glosas − Pool ± Conciliação = Líquido */}
-      {id && group?.company_id && <FinancialCompositionStrip comp={composition} />}
+      {id && group?.company_id && <FinancialCompositionStrip comp={composition} mode={compMode} />}
 
       {id && group?.company_id && (
         <MinimumGuaranteeCard
@@ -2214,16 +2262,18 @@ export default function CompanyAnalysis() {
               Auditoria de cálculo
             </TabsTrigger>
           )}
-          <TabsTrigger value="divergencias">
-            Divergências
-            {divergentes.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{divergentes.length}</Badge>
-            )}
-          </TabsTrigger>
+          {!isConfeccao && (
+            <TabsTrigger value="divergencias">
+              Divergências
+              {divergentes.length > 0 && (
+                <Badge variant="secondary" className="ml-2">{divergentes.length}</Badge>
+              )}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="historico">
             <History className="h-3.5 w-3.5 mr-1" /> Histórico
           </TabsTrigger>
-          <TabsTrigger value="ia">Detalhe IA</TabsTrigger>
+          {!isConfeccao && <TabsTrigger value="ia">Detalhe IA</TabsTrigger>}
         </TabsList>
 
         {/* ABA 1 — Análise */}
@@ -2401,49 +2451,52 @@ export default function CompanyAnalysis() {
           </Card>
         </TabsContent>
 
-        {/* ABA 2 — Divergências */}
-        <TabsContent value="divergencias" className="space-y-3">
-          {divergentes.length === 0 ? (
-            <Card className="shadow-card">
-              <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                Nenhuma divergência identificada para esta empresa.
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {divergentes.slice(0, divergencesVisible).map((it) => (
-                <DivergenceCard
-                  key={it.id}
-                  it={it}
-                  comments={itemComments(it.id)}
-                  profiles={profiles}
-                  draft={itemDraft[it.id] ?? ""}
-                  onDraftChange={(v) => setItemDraft((m) => ({ ...m, [it.id]: v }))}
-                  type={itemCommentType[it.id] ?? "informativo"}
-                  onTypeChange={(v) => setItemCommentType((m) => ({ ...m, [it.id]: v }))}
-                  onAdd={() => addItemComment(it.id)}
-                  busy={busy}
-                />
-              ))}
-              {divergencesVisible < divergentes.length && (
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
-                  <span className="text-xs text-muted-foreground">
-                    Mostrando {divergencesVisible} de {divergentes.length}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setDivergencesVisible((n) => Math.min(divergentes.length, n + DIVERGENCE_PAGE_SIZE))
-                    }
-                  >
-                    Carregar mais
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </TabsContent>
+        {/* ABA 2 — Divergências (não existe em confecção) */}
+        {!isConfeccao && (
+          <TabsContent value="divergencias" className="space-y-3">
+            {divergentes.length === 0 ? (
+              <Card className="shadow-card">
+                <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                  Nenhuma divergência identificada para esta empresa.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {divergentes.slice(0, divergencesVisible).map((it) => (
+                  <DivergenceCard
+                    key={it.id}
+                    it={it}
+                    comments={itemComments(it.id)}
+                    profiles={profiles}
+                    draft={itemDraft[it.id] ?? ""}
+                    onDraftChange={(v) => setItemDraft((m) => ({ ...m, [it.id]: v }))}
+                    type={itemCommentType[it.id] ?? "informativo"}
+                    onTypeChange={(v) => setItemCommentType((m) => ({ ...m, [it.id]: v }))}
+                    onAdd={() => addItemComment(it.id)}
+                    busy={busy}
+                  />
+                ))}
+                {divergencesVisible < divergentes.length && (
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+                    <span className="text-xs text-muted-foreground">
+                      Mostrando {divergencesVisible} de {divergentes.length}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setDivergencesVisible((n) => Math.min(divergentes.length, n + DIVERGENCE_PAGE_SIZE))
+                      }
+                    >
+                      Carregar mais
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        )}
+
 
 
         {/* ABA — Histórico unificado (IA + analistas/validadores/diretores) */}
@@ -2457,10 +2510,13 @@ export default function CompanyAnalysis() {
           />
         </TabsContent>
 
-        {/* ABA 3 — Detalhe IA */}
-        <TabsContent value="ia" className="space-y-3">
-          <AiDetail items={items} versions={aiVersions} />
-        </TabsContent>
+        {/* ABA 3 — Detalhe IA (oculta em confecção: motor de regras não roda IA) */}
+        {!isConfeccao && (
+          <TabsContent value="ia" className="space-y-3">
+            <AiDetail items={items} versions={aiVersions} />
+          </TabsContent>
+        )}
+
 
         {/* ABA Confecção — auditoria de cálculo (só no modo confecção) */}
         {(payment as any)?.analysis_mode === "confeccao" && (

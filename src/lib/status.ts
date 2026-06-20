@@ -62,6 +62,47 @@ export const PAYMENT_STATUS_TONES: Record<PaymentStatus, Tone> = {
   revisao_pos_aprovacao: "success",
 };
 
+/**
+ * Labels e helper para o status próprio do MODO CONFECÇÃO.
+ * Em confecção o `payment_status` fica em "rascunho", então usar somente
+ * `PAYMENT_STATUS_LABELS` esconde do operador o estado real do lote.
+ * Para qualquer listagem (Payments, dashboards), use `displayPaymentStatus(payment)`
+ * em vez de ler `payment.status` direto.
+ */
+export const CONFECCAO_STATUS_LABELS: Record<string, string> = {
+  em_confeccao: "Em confecção",
+  confeccao_concluida: "Confecção concluída",
+};
+
+export const CONFECCAO_STATUS_TONES: Record<string, Tone> = {
+  em_confeccao: "warning",
+  confeccao_concluida: "info",
+};
+
+/**
+ * Retorna label + tom corretos para qualquer pagamento, dando prioridade ao
+ * `confeccao_status` quando o lote está em modo confecção.
+ */
+export function displayPaymentStatus(payment: {
+  status?: PaymentStatus | null;
+  analysis_mode?: string | null;
+  confeccao_status?: string | null;
+}): { label: string; tone: Tone } {
+  if (payment?.analysis_mode === "confeccao") {
+    const cs = payment.confeccao_status ?? "em_confeccao";
+    return {
+      label: CONFECCAO_STATUS_LABELS[cs] ?? "Em confecção",
+      tone: CONFECCAO_STATUS_TONES[cs] ?? "warning",
+    };
+  }
+  const st = (payment?.status ?? "rascunho") as PaymentStatus;
+  return {
+    label: PAYMENT_STATUS_LABELS[st] ?? String(st),
+    tone: PAYMENT_STATUS_TONES[st] ?? "muted",
+  };
+}
+
+
 export const TONE_CLASSES: Record<Tone, string> = {
   info: "bg-info-soft text-info border-info/20",
   success: "bg-success-soft text-success border-success/20",

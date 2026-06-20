@@ -2534,8 +2534,8 @@ const PaymentDetail = () => {
           </div>
         )}
 
-        {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
-        {!isNfPhase && (
+        {/* MOBILE: cards de IA colapsáveis — só na fase de análise, nunca em confecção */}
+        {!isNfPhase && !isConfeccao && (
         <div className="md:hidden">
           <button
             type="button"
@@ -2795,7 +2795,7 @@ const PaymentDetail = () => {
           </SheetContent>
         </Sheet>
 
-        {!isNfPhase && analysisJob?.status !== "em_andamento" && (payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
+        {!isNfPhase && !isConfeccao && analysisJob?.status !== "em_andamento" && (payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
           const extractCount = (text: string, keyword: RegExp): number | null => {
             const m = text.match(keyword);
             return m ? Number(m[1]) : null;
@@ -2928,7 +2928,7 @@ const PaymentDetail = () => {
           );
         })()}
 
-        <PhaseSummary payment={payment} groups={groups} invoices={invoices} />
+        {!isConfeccao && <PhaseSummary payment={payment} groups={groups} invoices={invoices} />}
 
 
 
@@ -3901,7 +3901,7 @@ const PaymentDetail = () => {
 
                   {expandedGroups.has(g.id) && (
                     <>
-                      {(payment as any)?.hospital_id && (
+                      {(payment as any)?.hospital_id && !isConfeccao && (
                         <GroupReconciliationGate
                           groupId={g.id}
                           hospitalId={(payment as any).hospital_id}

@@ -1065,7 +1065,7 @@ const Payments = () => {
             </p>
           </Link>
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <StatusBadge status={p.status} className={cn(finalLvl === "critico" && "ring-2 ring-destructive/40")} />
+            <StatusBadge status={p.status} analysisMode={(p as any).analysis_mode} confeccaoStatus={(p as any).confeccao_status} className={cn(finalLvl === "critico" && "ring-2 ring-destructive/40")} />
             {(isAnalista || isDiretor || isAdmin) && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(p.status) && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -1727,7 +1727,7 @@ const Payments = () => {
                           </td>
                           <td className="px-3 py-3 align-middle">
                             <div className="flex items-center justify-between gap-2">
-                              <StatusBadge status={p.status} />
+                              <StatusBadge status={p.status} analysisMode={(p as any).analysis_mode} confeccaoStatus={(p as any).confeccao_status} />
                               {canDelete && (
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>

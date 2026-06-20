@@ -1,9 +1,22 @@
 import { cn } from "@/lib/utils";
-import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_TONES, type PaymentStatus } from "@/lib/status";
+import {
+  PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_TONES,
+  CONFECCAO_STATUS_LABELS,
+  CONFECCAO_STATUS_TONES,
+  type PaymentStatus,
+} from "@/lib/status";
 
 interface StatusBadgeProps {
   status: PaymentStatus;
   className?: string;
+  /**
+   * Quando informado e === "confeccao", o badge ignora `status` e renderiza
+   * o estado próprio do modo confecção (em_confeccao / confeccao_concluida).
+   * Necessário porque em confecção `payment.status` fica em "rascunho".
+   */
+  analysisMode?: string | null;
+  confeccaoStatus?: string | null;
 }
 
 type Tone = "info" | "success" | "warning" | "destructive" | "muted" | "primary";
@@ -41,8 +54,17 @@ const TONE_TOKENS: Record<Tone, { bg: string; text: string; dot: string }> = {
   },
 };
 
-export const StatusBadge = ({ status, className }: StatusBadgeProps) => {
-  const tone = (PAYMENT_STATUS_TONES[status] ?? "muted") as Tone;
+export const StatusBadge = ({ status, className, analysisMode, confeccaoStatus }: StatusBadgeProps) => {
+  let label: string;
+  let tone: Tone;
+  if (analysisMode === "confeccao") {
+    const cs = confeccaoStatus ?? "em_confeccao";
+    label = CONFECCAO_STATUS_LABELS[cs] ?? "Em confecção";
+    tone = (CONFECCAO_STATUS_TONES[cs] ?? "warning") as Tone;
+  } else {
+    label = PAYMENT_STATUS_LABELS[status] ?? String(status);
+    tone = (PAYMENT_STATUS_TONES[status] ?? "muted") as Tone;
+  }
   const tokens = TONE_TOKENS[tone];
   return (
     <span
@@ -70,7 +92,7 @@ export const StatusBadge = ({ status, className }: StatusBadgeProps) => {
           display: "inline-block",
         }}
       />
-      {PAYMENT_STATUS_LABELS[status]}
+      {label}
     </span>
   );
 };

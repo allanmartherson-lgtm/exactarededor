@@ -61,6 +61,15 @@ export function useFinancialComposition(
   paymentId: string | undefined,
   companyId: string | undefined,
   brutoFallback: number,
+  /**
+   * Modo do pagamento:
+   * - "analise" (default): roda compute-company-financials e lê snapshot.
+   * - "confeccao": NÃO há gross_amount real; o bruto é Σ procedure_amount
+   *   (valor convênio) e o líquido é Σ expected_amount (repasse calculado pelo
+   *   motor). Débitos/glosas/pool ainda não se aplicam — só entram após
+   *   finalizar a confecção e o lote ir para análise.
+   */
+  mode: "analise" | "confeccao" = "analise",
 ): FinancialComposition {
   const [state, setState] = useState(() => emptyState(brutoFallback));
   const [loading, setLoading] = useState(true);
@@ -80,6 +89,57 @@ export function useFinancialComposition(
     if (!paymentId || !companyId) { setLoading(false); return; }
     setLoading(true);
 
+    // ---- Modo CONFECÇÃO: bypass da edge function ----
+    // Em confecção gross_amount está nulo, então compute-company-financials
+    // retornaria zeros sem sentido. Aqui calculamos diretamente:
+    //   bruto    = Σ procedure_amount (valor convênio bruto da produção)
+    //   liquido  = Σ expected_amount  (repasse calculado pelo motor)
+    // Sem débitos/glosas/pool/conciliação — ainda não se aplicam nessa fase.
+    if (mode === "confeccao") {
+      try {
+        const { data: rows, error } = await supabase
+          .from("payment_items")
+          .select("procedure_amount, expected_amount, is_cancelled, package_absorbed")
+          .eq("payment_id", paymentId)
+          .eq("company_id", companyId);
+        if (error) throw error;
+        const ativos = (rows ?? []).filter(
+          (it: any) => !it.is_cancelled && !it.package_absorbed,
+        );
+        const bruto = ativos.reduce(
+          (s: number, it: any) => s + Number(it.procedure_amount ?? 0),
+          0,
+        );
+        const liquido = ativos.reduce(
+          (s: number, it: any) => s + Number(it.expected_amount ?? 0),
+          0,
+        );
+        lastSnapshotRef.current = true;
+        setState({
+          bruto: Math.round(bruto * 100) / 100,
+          debitos: 0,
+          creditos: 0,
+          glosas: 0,
+          pool: 0,
+          poolAplicado: false,
+          poolPreview: false,
+          poolDetalhes: [],
+          conciliacao: 0,
+          conciliacaoAplicada: false,
+          liquido: Math.round(liquido * 100) / 100,
+          computedAt: new Date().toISOString(),
+          snapshotMissing: false,
+          error: null,
+        });
+      } catch (e: any) {
+        lastSnapshotRef.current = false;
+        setState({ ...emptyState(brutoFallback), error: e?.message ?? String(e) });
+      }
+      setLoading(false);
+      return;
+    }
+
+    // ---- Modo ANÁLISE: caminho original via edge function ----
     let computeError: string | null = null;
     try {
       // Dispara cálculo server-side (persiste em payment_company_financials)
@@ -130,9 +190,10 @@ export function useFinancialComposition(
       }
     }
     setLoading(false);
-  }, [paymentId, companyId, brutoFallback]);
+  }, [paymentId, companyId, brutoFallback, mode]);
 
   useEffect(() => { load(); }, [load]);
 
   return { ...state, loading, refresh: load };
 }
+
