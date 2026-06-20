@@ -60,6 +60,14 @@ function formatFindingText(f: any): string {
 
 export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): Promise<jsPDF> {
   const { payment, items, groups, observations = [], profiles = {}, rulesIndex } = input;
+  const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+
+  // Em modo confecção, gera um relatório dedicado (sem IA, sem divergências, sem
+  // alertas assistenciais). Foco: bruto do convênio × repasse calculado pela regra,
+  // e cobertura de regra item a item (com / sem regra).
+  if (isConfeccao) {
+    return generateConfeccaoReportPdf(input);
+  }
 
   const doc = new jsPDF();
   const marginX = 14;
@@ -248,3 +256,169 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
 
   return doc;
 }
+
+/**
+ * Relatório de Confecção — gerado quando o lote ainda está no modo de criação
+ * de repasse. NÃO traz colunas/sections de IA (aprovado/alerta/reprovado),
+ * divergências ou alertas assistenciais (esses só existem após a análise).
+ * Foco: valor convênio (procedure_amount), repasse calculado pela regra
+ * (expected_amount), cobertura de regra (com / sem regra) e itens descobertos.
+ */
+async function generateConfeccaoReportPdf(input: GeneratePaymentPdfInput): Promise<jsPDF> {
+  const { payment, items, groups, observations = [], profiles = {}, rulesIndex } = input;
+
+  const doc = new jsPDF();
+  const marginX = 14;
+
+  const headerBottomY = await drawReportHeader(doc, {
+    title: "Relatório de Confecção de Repasse",
+    subtitle: `Referência ${payment.reference}  ·  Modo: Confecção (cálculo de repasse)`,
+    marginX,
+    logoHeightMm: 11,
+  });
+
+  doc.setFontSize(10);
+  doc.setTextColor(17, 24, 39);
+  const somaBruto = items.reduce((s, i) => s + Number((i as any).procedure_amount ?? 0), 0);
+  const somaRepasse = items.reduce((s, i) => s + Number(i.expected_amount ?? 0), 0);
+  let metaY = headerBottomY;
+  doc.text(`Valor convênio (base): ${formatCurrency(somaBruto)}`, marginX, metaY);
+  metaY += 6;
+  doc.text(`Repasse calculado: ${formatCurrency(somaRepasse)}`, marginX, metaY);
+  metaY += 6;
+  doc.text(`Itens: ${items.length}  ·  Empresas: ${groups.length}`, marginX, metaY);
+  metaY += 6;
+
+  // Cobertura de regra
+  let semRegra = 0;
+  let comRegra = 0;
+  for (const i of items) {
+    const ruleId = (i as any).applied_rule_id ?? i.ai_findings?.matched_rule_ids?.[0] ?? null;
+    const method = (i.applied_calc_method ?? "") as string;
+    if (!ruleId && (!method || method === "sem_regra")) semRegra++;
+    else comRegra++;
+  }
+  doc.text(`Cobertura: ${comRegra} com regra  ·  ${semRegra} sem regra`, marginX, metaY);
+  metaY += 6;
+
+  let cursorY = metaY + 2;
+
+  // Totais por empresa (sem coluna de status — confecção não tem ai_status final)
+  if (groups.length > 0) {
+    doc.setFontSize(12);
+    doc.setTextColor(...REDE_DOR_BRAND_BLUE_RGB);
+    doc.text(`Totais por empresa (${groups.length})`, marginX, cursorY);
+    doc.setTextColor(17, 24, 39);
+    autoTable(doc, {
+      startY: cursorY + 4,
+      head: [["Empresa", "Itens", "Valor convênio", "Repasse calculado"]],
+      body: groups.map((g) => {
+        const gItems = items.filter((i) => i.company_name === g.company_name);
+        const bruto = gItems.reduce((s, i) => s + Number((i as any).procedure_amount ?? 0), 0);
+        const rep = gItems.reduce((s, i) => s + Number(i.expected_amount ?? 0), 0);
+        return [
+          g.company_name,
+          String(gItems.length),
+          formatCurrency(bruto),
+          formatCurrency(rep),
+        ];
+      }),
+      foot: [[
+        "Total geral",
+        String(items.length),
+        formatCurrency(somaBruto),
+        formatCurrency(somaRepasse),
+      ]],
+      styles: { fontSize: 9 },
+      footStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: "bold" },
+    });
+    cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
+  }
+
+  // Itens
+  autoTable(doc, {
+    startY: cursorY,
+    head: [["Médico", "Doc", "Convênio", "Descrição", "Qtd", "Valor convênio", "Repasse", "Regra"]],
+    body: items.map((i) => {
+      const ruleId = (i as any).applied_rule_id ?? i.ai_findings?.matched_rule_ids?.[0] ?? null;
+      const rule = ruleId ? rulesIndex?.[ruleId] : null;
+      const method = (i.applied_calc_method ?? "") as string;
+      const ruleCell = rule?.name
+        ? `${rule.name}${method ? `\n(${method})` : ""}`
+        : (!ruleId && (!method || method === "sem_regra")) ? "— sem regra —" : (method || "—");
+      return [
+        i.doctor_name,
+        i.doctor_document ?? "",
+        (i as any).agreement_text ?? (i as any).convenio_slug ?? "",
+        i.description ?? "",
+        String((i as any).quantity ?? 1),
+        formatCurrency(Number((i as any).procedure_amount ?? 0)),
+        formatCurrency(Number(i.expected_amount ?? 0)),
+        ruleCell,
+      ];
+    }),
+    styles: { fontSize: 8, overflow: "linebreak", cellPadding: 1.6 },
+    headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255 },
+    margin: { left: marginX, right: marginX, bottom: 14 },
+    showHead: "everyPage",
+    rowPageBreak: "avoid",
+  });
+
+  cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
+
+  // Itens sem regra (destaque para o analista corrigir antes de fechar)
+  const semRegraItems = items.filter((i) => {
+    const ruleId = (i as any).applied_rule_id ?? i.ai_findings?.matched_rule_ids?.[0] ?? null;
+    const method = (i.applied_calc_method ?? "") as string;
+    return !ruleId && (!method || method === "sem_regra");
+  });
+  if (semRegraItems.length > 0) {
+    if (cursorY > 230) { doc.addPage(); cursorY = 20; }
+    doc.setFontSize(12);
+    doc.setTextColor(180, 83, 9);
+    doc.text(`Itens sem regra (${semRegraItems.length}) — necessário cadastrar regra`, marginX, cursorY);
+    doc.setTextColor(17, 24, 39);
+    autoTable(doc, {
+      startY: cursorY + 4,
+      head: [["Médico", "Empresa", "Convênio", "TUSS", "Descrição", "Valor convênio"]],
+      body: semRegraItems.map((i) => [
+        i.doctor_name ?? "—",
+        i.company_name ?? "—",
+        (i as any).agreement_text ?? (i as any).convenio_slug ?? "—",
+        i.procedure_code ?? "—",
+        i.description ?? "—",
+        formatCurrency(Number((i as any).procedure_amount ?? 0)),
+      ]),
+      styles: { fontSize: 8, overflow: "linebreak", cellPadding: 1.6 },
+      headStyles: { fillColor: [217, 119, 6], textColor: 255 },
+      margin: { left: marginX, right: marginX, bottom: 14 },
+      showHead: "everyPage",
+      rowPageBreak: "avoid",
+    });
+    cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
+  }
+
+  // Histórico (observações) — útil mesmo em confecção (notas do analista)
+  if (observations.length > 0) {
+    if (cursorY > 250) { doc.addPage(); cursorY = 20; }
+    doc.setFontSize(12);
+    doc.text(`Histórico de observações (${observations.length})`, 14, cursorY);
+    autoTable(doc, {
+      startY: cursorY + 4,
+      head: [["Data/hora", "Autor", "Papel", "Mensagem"]],
+      body: [...observations]
+        .sort((a, b) => (a.created_at < b.created_at ? -1 : 1))
+        .map((o) => [
+          formatDate(o.created_at),
+          (o.author_id && profiles[o.author_id]) || "—",
+          o.author_type,
+          o.message,
+        ]),
+      styles: { fontSize: 8 },
+      columnStyles: { 3: { cellWidth: 95 } },
+    });
+  }
+
+  return doc;
+}
+

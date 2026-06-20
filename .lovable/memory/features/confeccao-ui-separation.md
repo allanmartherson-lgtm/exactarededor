@@ -36,3 +36,12 @@ Status visual em listagens:
 - src/lib/status.ts expõe CONFECCAO_STATUS_LABELS + displayPaymentStatus(payment).
 - StatusBadge aceita props analysisMode/confeccaoStatus — quando mode=confeccao usa confeccao_status, não payment.status ("rascunho").
 - Aplicado em src/pages/Payments.tsx em ambas as listagens (mobile cards e tabela desktop).
+
+Relatório (PaymentReportModal + paymentReportPdf):
+- Em confecção, PaymentReportModal renderiza body dedicado: cards "Valor convênio / Repasse calculado / Com regra / Sem regra", embute ConfeccaoAuditPanel e tabela por empresa SEM ai_status.
+- Exportar Excel é ocultado no modo confecção (sem ai_status para exportar). Só Exportar PDF.
+- generatePaymentReportPdf detecta analysis_mode==='confeccao' e delega a generateConfeccaoReportPdf: título "Relatório de Confecção de Repasse", colunas (Médico, Doc, Convênio, Descrição, Qtd, Valor convênio, Repasse, Regra), seção "Itens sem regra" (laranja) destacando o que falta cadastrar. SEM Divergências, SEM Alertas Assistenciais.
+
+PaymentDetail (lote):
+- ConfeccaoAuditPanel é embutido no corpo do lote quando analysis_mode==='confeccao' (depois do PaymentPivotSection), dando ao analista visão de cobertura agregada antes de finalizar.
+

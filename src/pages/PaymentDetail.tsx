@@ -33,6 +33,7 @@ import { CompanyListLegend } from "@/components/payment-detail/CompanyListLegend
 import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
 import { BatchAIFailureReport } from "@/components/payment-detail/BatchAIFailureReport";
 import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
+import { ConfeccaoAuditPanel } from "@/components/payment-detail/ConfeccaoAuditPanel";
 import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
 import { PaymentPivotSection, type PivotVariant } from "@/components/payment-detail/PaymentPivotSection";
 import { PreAnalysisScoreCard } from "@/components/payment-detail/PreAnalysisScoreCard";
@@ -3282,6 +3283,14 @@ const PaymentDetail = () => {
               variant={viewMode}
             />
           )}
+
+          {/* CONFECÇÃO — Auditoria do motor de cálculo a nível de lote.
+              Mostra cobertura (com/sem regra) e camadas aplicadas para que
+              o analista valide antes de finalizar a confecção. */}
+          {isConfeccao && items.length > 0 && (
+            <ConfeccaoAuditPanel items={items} rulesIndex={rulesIndex} />
+          )}
+
 
           {/* Footer de ações em lote — Questionar / Devolver / Aprovar */}
           {id && canUseBatchActions && (

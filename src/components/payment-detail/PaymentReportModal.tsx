@@ -65,6 +65,8 @@ import type { ObservationRow } from "@/hooks/usePaymentDetailData";
 import { supabase } from "@/integrations/supabase/client";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
 import { formatDateBR } from "@/lib/dateUtils";
+import { ConfeccaoAuditPanel } from "@/components/payment-detail/ConfeccaoAuditPanel";
+
 
 interface PaymentReportModalProps {
   open: boolean;
@@ -432,6 +434,158 @@ export function PaymentReportModal({
     }
   };
 
+  const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+
+  // ---------- Modo CONFECÇÃO: relatório dedicado ----------
+  // O motor ainda está calculando repasse — não há ai_status, divergências
+  // nem alertas assistenciais. Mostra somente: bruto convênio × repasse
+  // calculado, cobertura de regra e tabela por empresa.
+  if (isConfeccao) {
+    let semRegra = 0, comRegra = 0;
+    let somaBruto = 0, somaRepasse = 0;
+    for (const i of items) {
+      const ruleId = (i as any).applied_rule_id ?? i.ai_findings?.matched_rule_ids?.[0] ?? null;
+      const method = (i.applied_calc_method ?? "") as string;
+      if (!ruleId && (!method || method === "sem_regra")) semRegra++;
+      else comRegra++;
+      somaBruto += Number((i as any).procedure_amount ?? 0);
+      somaRepasse += Number(i.expected_amount ?? 0);
+    }
+
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" className="w-full sm:max-w-none p-0 flex flex-col h-screen overflow-hidden">
+          <div className="border-b bg-amber-500/5 p-4 sticky top-0 z-10 flex items-center justify-between">
+            <div>
+              <SheetTitle className="text-xl flex items-center gap-2">
+                <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                  Confecção
+                </span>
+                Relatório de Confecção — {formatCompetence(payment.competence_months || payment.competence_month)}
+                {payment.reference && ` — ${payment.reference}`}
+              </SheetTitle>
+              <div className="flex gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
+                <span><strong>Data:</strong> {formatDateBR(new Date().toISOString())}</span>
+                <span><strong>Analista:</strong> {analystName || "Sistema"}</span>
+                <span><strong>Empresas:</strong> {groups.length}</span>
+                <span><strong>Itens:</strong> {items.length}</span>
+                <span><strong>Repasse calculado:</strong> {formatCurrency(somaRepasse)}</span>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Exportar PDF
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Fechar relatório">
+                <Search className="h-4 w-4 rotate-45" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-muted/10">
+            {/* Resumo de cobertura */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium text-primary uppercase tracking-wider">Valor convênio</p>
+                  <p className="text-lg font-bold">{formatCurrency(somaBruto)}</p>
+                  <p className="text-xs text-muted-foreground">Base bruta da planilha</p>
+                </CardContent>
+              </Card>
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium text-primary uppercase tracking-wider">Repasse calculado</p>
+                  <p className="text-lg font-bold">{formatCurrency(somaRepasse)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {somaBruto > 0 ? `${((somaRepasse / somaBruto) * 100).toFixed(1)}% da base` : "—"}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="border-success/30 bg-success/5">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-2 bg-success/10 rounded-full text-success">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-success uppercase tracking-wider">Com regra</p>
+                    <p className="text-lg font-bold">{comRegra} itens</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className={cn("border-warning/30", semRegra > 0 ? "bg-warning/10" : "bg-muted/30")}>
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-2 bg-warning/10 rounded-full text-warning-text">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-warning-text uppercase tracking-wider">Sem regra</p>
+                    <p className="text-lg font-bold">{semRegra} itens</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {semRegra > 0 ? "Cadastrar regra antes de finalizar" : "Cobertura completa"}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Auditoria do motor (regras aplicadas, camadas, cobertura) */}
+            <ConfeccaoAuditPanel items={items} rulesIndex={rulesIndex ?? {}} />
+
+            {/* Detalhamento por empresa (sem status IA — confecção não tem) */}
+            <div className="space-y-3 pb-10">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Building2 className="h-5 w-5" /> Detalhamento por Empresa
+              </h3>
+              <div className="rounded-lg border bg-background overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead className="text-[10px] h-8 uppercase">Empresa</TableHead>
+                      <TableHead className="text-[10px] h-8 uppercase text-center">Itens</TableHead>
+                      <TableHead className="text-[10px] h-8 uppercase text-right">Valor convênio</TableHead>
+                      <TableHead className="text-[10px] h-8 uppercase text-right">Repasse calculado</TableHead>
+                      <TableHead className="text-[10px] h-8 uppercase text-center">Sem regra</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {groups.map((g) => {
+                      const gItems = items.filter((i) => i.company_name === g.company_name);
+                      const bruto = gItems.reduce((s, i) => s + Number((i as any).procedure_amount ?? 0), 0);
+                      const rep = gItems.reduce((s, i) => s + Number(i.expected_amount ?? 0), 0);
+                      const semR = gItems.filter((i) => {
+                        const rid = (i as any).applied_rule_id ?? i.ai_findings?.matched_rule_ids?.[0] ?? null;
+                        const m = (i.applied_calc_method ?? "") as string;
+                        return !rid && (!m || m === "sem_regra");
+                      }).length;
+                      return (
+                        <TableRow key={g.id ?? g.company_name}>
+                          <TableCell className="text-xs font-medium">{g.company_name}</TableCell>
+                          <TableCell className="text-xs text-center tabular-nums">{gItems.length}</TableCell>
+                          <TableCell className="text-xs text-right tabular-nums">{formatCurrency(bruto)}</TableCell>
+                          <TableCell className="text-xs text-right tabular-nums font-semibold">{formatCurrency(rep)}</TableCell>
+                          <TableCell className="text-xs text-center">
+                            {semR > 0 ? (
+                              <Badge variant="outline" className="text-[10px] border-warning/40 text-warning-text">
+                                {semR}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-none p-0 flex flex-col h-screen overflow-hidden">
@@ -473,6 +627,7 @@ export function PaymentReportModal({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="border-success/30 bg-success/5">
               <CardContent className="p-4 flex items-center gap-3">
+
                 <div className="p-2 bg-success/10 rounded-full text-success">
                   <CheckCircle2 className="h-5 w-5" />
                 </div>
