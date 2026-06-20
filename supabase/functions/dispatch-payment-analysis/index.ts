@@ -22,7 +22,7 @@ const runInBackground = (promise: Promise<unknown>, label: string) => {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { payment_id, ai_statuses, tolerance_pct, only_companies } = await req.json();
+    const { payment_id, ai_statuses, tolerance_pct, only_companies, force_fresh_rules } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
