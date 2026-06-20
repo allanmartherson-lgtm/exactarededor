@@ -188,10 +188,29 @@ export function DoctorLinkSuggestionsPanel() {
                       ) : (
                         <Badge variant="destructive" className="text-[10px]">PJ não cadastrada</Badge>
                       )}
+                      {s.source && s.source !== "analyst_manual" && (
+                        <Badge variant="outline" className="gap-1 text-[10px]">
+                          <Sparkles className="h-3 w-3" /> {s.source === "engine_fuzzy" ? "motor" : "IA"}
+                        </Badge>
+                      )}
+                      {s.source === "analyst_manual" && (
+                        <Badge variant="outline" className="gap-1 text-[10px]">
+                          <Hand className="h-3 w-3" /> analista
+                        </Badge>
+                      )}
+                      {s.score != null && (
+                        <Badge variant={s.confidence === "high" ? "default" : "outline"} className="text-[10px]">
+                          score {Number(s.score).toFixed(2)}
+                        </Badge>
+                      )}
                     </div>
+                    {s.ai_reasoning && (
+                      <p className="text-xs text-muted-foreground mt-1 italic">IA: {s.ai_reasoning}</p>
+                    )}
                     {s.raw_snippet && (
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic">"{s.raw_snippet}"</p>
                     )}
+
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => reject(s)} disabled={busyId === s.id}>
