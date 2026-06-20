@@ -2790,7 +2790,32 @@ function RowMain({
             </span>
           ) : (
           <div className="flex flex-row flex-wrap items-center gap-1">
-          {it.ai_status === "acatado" ? (
+          {mode === "confeccao" ? (() => {
+            // Em CONFECÇÃO, status de análise não se aplica. Mostramos apenas
+            // se o motor calculou (com_regra), não casou regra (sem_regra) ou
+            // gerou inconsistência (divergente). Ver itemConfeccaoStatus.ts.
+            const confStatus = deriveConfeccaoStatus(it as any);
+            const confTone = CONFECCAO_STATUS_TONE[confStatus];
+            return (
+              <span
+                data-testid={`confeccao-status-${confStatus}`}
+                className={cn(
+                  "inline-flex rounded-full border px-1 py-0.5 uppercase tracking-wide",
+                  TEXT_META,
+                  TONE_CLASSES[confTone],
+                )}
+                title={
+                  confStatus === "sem_regra"
+                    ? "Nenhuma regra cadastrada cobre este procedimento — bloqueia o envio para análise."
+                    : confStatus === "divergente"
+                    ? "Regra casou, mas o motor não conseguiu calcular um valor consistente — verifique."
+                    : "Motor calculou o repasse esperado."
+                }
+              >
+                {CONFECCAO_STATUS_LABEL[confStatus]}
+              </span>
+            );
+          })() : it.ai_status === "acatado" ? (
             <span
               className={cn(
                 "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold",
