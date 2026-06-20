@@ -1860,7 +1860,9 @@ const NewPayment = () => {
         doctor_document: r.doctor_document,
         doctor_email: r.doctor_email,
         description: r.description,
-        gross_amount: r.gross_amount,
+        // [Confecção] motor é dono do gross_amount; planilha só traz procedure_amount.
+        // Em análise, gross_amount = valor pago da base. Em confecção, fica NULL até o motor calcular.
+        gross_amount: modoConfeccao ? null : r.gross_amount,
         company_name: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.name || r.company_name) : r.company_name,
         company_id: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.id || r.company_id) : r.company_id,
         attendance_number: r.attendance_number,
@@ -1904,7 +1906,7 @@ const NewPayment = () => {
       doctor_document: r.doctor_document,
       doctor_email: r.doctor_email,
       description: r.description,
-      gross_amount: r.gross_amount,
+      gross_amount: modoConfeccao ? null : r.gross_amount,
       attendance_number: r.attendance_number,
       procedure_code: r.procedure_code,
       procedure_name: r.procedure_name,

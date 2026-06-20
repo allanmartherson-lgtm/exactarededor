@@ -2509,7 +2509,9 @@ const PaymentDetail = () => {
           </Alert>
         )}
         {id && <BatchAIFailureReport paymentId={id} />}
-        {id && <TussPrincipalAuditPanel paymentId={id} />}
+        {/* [Confecção] painel de auditoria pago×regra não faz sentido — o motor
+            é dono do gross_amount, então não há "pago" para auditar. */}
+        {id && !isConfeccao && <TussPrincipalAuditPanel paymentId={id} />}
         {id && (
           <SpecialCaseRetroactiveBanner
             paymentId={id}
