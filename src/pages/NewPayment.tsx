@@ -1462,7 +1462,18 @@ const NewPayment = () => {
     void reloadRegistries();
   }, []);
 
-  // Para cada linha, resolve (doctor_id, convenio_slug, sector_slug) + matched_by.
+  // Quando o analista escolhe explicitamente o setor do bucket via chip
+  // ("Setor: SADT Endoscopia"), esse override DEVE prevalecer sobre o valor
+  // bruto da linha — caso contrário a planilha que veio com a coluna errada
+  // (ex.: nome da empresa caindo no campo setor) continua gerando divergência
+  // na Resolução de cadastros mesmo após o usuário corrigir.
+  const sectorForRow = (r: ParsedRow & { source_bucket_index?: number }): string | null => {
+    const bIdx = (r as any).source_bucket_index;
+    const override = typeof bIdx === "number" ? buckets[bIdx]?.sectorMapping : null;
+    if (override && override.trim()) return override;
+    return r.sector ?? null;
+  };
+
   const resolvedRows = useMemo(() => {
     if (!doctorReg || !convenioReg || !sectorReg) {
       return allRows.map((r) => ({ ...r, _resolution: null as any }));
@@ -1470,7 +1481,7 @@ const NewPayment = () => {
     return allRows.map((r) => {
       const d = resolveDoctor({ name: r.doctor_name, crm: r.doctor_document, cpf: r.doctor_document }, doctorReg);
       const c = resolveConvenio(r.agreement_text, convenioReg);
-      const s = resolveSector(r.sector, sectorReg);
+      const s = resolveSector(sectorForRow(r), sectorReg);
       return {
         ...r,
         _resolution: {
@@ -1483,7 +1494,7 @@ const NewPayment = () => {
         },
       };
     });
-  }, [allRows, doctorReg, convenioReg, sectorReg, registryVersion]);
+  }, [allRows, doctorReg, convenioReg, sectorReg, registryVersion, buckets]);
 
   // Agrupa não-resolvidos por (kind, texto bruto). Tipo_linha "patient_only"
   // (linhas sem médico no Excel) é ignorado para evitar falsos positivos.
@@ -1503,10 +1514,12 @@ const NewPayment = () => {
       if (!res) continue;
       if (!res.doctor_id && r.doctor_name?.trim()) bump("doctor", r.doctor_name);
       if (!res.convenio_slug && r.agreement_text?.trim()) bump("convenio", r.agreement_text);
-      if (!res.sector_slug && r.sector?.trim()) bump("sector", r.sector);
+      const sectorRaw = sectorForRow(r as any);
+      if (!res.sector_slug && sectorRaw?.trim()) bump("sector", sectorRaw);
     }
     return Array.from(map.values()).sort((a, b) => b.count - a.count);
-  }, [resolvedRows, doctorReg, convenioReg, sectorReg]);
+  }, [resolvedRows, doctorReg, convenioReg, sectorReg, buckets]);
+
 
   const hasUnresolved = unresolvedGroups.length > 0;
 
@@ -1835,8 +1848,11 @@ const NewPayment = () => {
     const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => {
       const dRes = doctorReg ? resolveDoctor({ name: r.doctor_name, crm: r.doctor_document, cpf: r.doctor_document }, doctorReg) : { doctor: null, matched_by: null as any };
       const cRes = convenioReg ? resolveConvenio(r.agreement_text, convenioReg) : { convenio: null, matched_by: null as any };
-      const sRawForLookup = r.sector || currentBucket?.sectorMapping || null;
+      // Override manual do bucket vence sobre o valor bruto da linha (analista corrigiu o setor para o lote inteiro).
+      const sRawForLookup = (currentBucket?.sectorMapping?.trim() || r.sector) || null;
       const sRes = sectorReg ? resolveSector(sRawForLookup, sectorReg) : { sector: null, matched_by: null as any };
+
+
       return ({
         hospital_id: (payment as any).hospital_id ?? hospital?.id,
         payment_id: payment.id,
@@ -1901,7 +1917,7 @@ const NewPayment = () => {
       procedure_date: r.procedure_date,
       procedure_date_has_time: r.procedure_date_has_time,
       patient_name: r.patient_name,
-      sector: normalizeSector(r.sector || b.sectorMapping || null),
+      sector: normalizeSector((b.sectorMapping?.trim() || r.sector) || null),
       attendance_character: r.attendance_character,
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
