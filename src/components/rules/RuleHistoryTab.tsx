@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { History, AlertCircle } from "lucide-react";
 import { formatDateTimeBR } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
+import { RuleExplainCard } from "@/components/rules/RuleExplainCard";
+
 
 type AuditEntry = {
   id: string;
