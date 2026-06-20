@@ -400,6 +400,9 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
+  // Paginação leve da aba "Divergências" para evitar overflow vertical no mobile
+  const DIVERGENCE_PAGE_SIZE = 10;
+  const [divergencesVisible, setDivergencesVisible] = useState(DIVERGENCE_PAGE_SIZE);
 
   // FAB de Conversas — escopo desta empresa. Conta apenas mensagens NÃO LIDAS
   // (não autoradas pelo usuário atual e ausentes em payment_question_reads).
