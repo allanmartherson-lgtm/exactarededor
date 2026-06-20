@@ -146,6 +146,7 @@ type DraftRule = {
   name: string; description: string; rule_text: string;
   severity: RuleSeverity; scope: RuleScope;
   target_type: RuleTargetType | null; target_identifier: string | null; target_name: string | null;
+  target_doctor_id?: string | null; target_company_id?: string | null;
   calculation_type: RuleCalculationType;
   convenio_percentage: number | null;
   fixed_amount: number | null;
@@ -156,6 +157,7 @@ type DraftRule = {
   sectors: string[]; specialties: string[];
   valid_from: string | null; valid_until: string | null;
 };
+
 
 
 
