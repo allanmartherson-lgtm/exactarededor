@@ -235,8 +235,9 @@ export default function ColumnMappingDialog({
               </tr>
             </thead>
             <tbody>
-              {FIELD_DEFINITIONS.map((def) => {
+              {effectiveFields.map((def) => {
                 const hit = hits.find((h) => h.field === def.key)!;
+
                 const required = def.requirement === "required";
                 return (
                   <tr key={def.key} className="border-b last:border-0">
