@@ -3283,6 +3283,14 @@ const PaymentDetail = () => {
             />
           )}
 
+          {/* CONFECÇÃO — Auditoria do motor de cálculo a nível de lote.
+              Mostra cobertura (com/sem regra) e camadas aplicadas para que
+              o analista valide antes de finalizar a confecção. */}
+          {isConfeccao && items.length > 0 && (
+            <ConfeccaoAuditPanel items={items} rulesIndex={rulesIndex} />
+          )}
+
+
           {/* Footer de ações em lote — Questionar / Devolver / Aprovar */}
           {id && canUseBatchActions && (
               <PaymentBatchActionsFooter
