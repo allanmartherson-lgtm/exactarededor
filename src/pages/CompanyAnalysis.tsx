@@ -400,6 +400,9 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
+  // Paginação leve da aba "Divergências" para evitar overflow vertical no mobile
+  const DIVERGENCE_PAGE_SIZE = 10;
+  const [divergencesVisible, setDivergencesVisible] = useState(DIVERGENCE_PAGE_SIZE);
 
   // FAB de Conversas — escopo desta empresa. Conta apenas mensagens NÃO LIDAS
   // (não autoradas pelo usuário atual e ausentes em payment_question_reads).
@@ -2264,7 +2267,7 @@ export default function CompanyAnalysis() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 max-h-[70vh] sm:max-h-none overflow-y-auto overscroll-contain">
               <SpecialCaseHeaderBanner paymentId={id} companyId={group.company_id ?? null} canUse={isAnalista || isDiretor} />
               <ItemsDataGrid
 
@@ -2408,7 +2411,7 @@ export default function CompanyAnalysis() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {divergentes.map((it) => (
+              {divergentes.slice(0, divergencesVisible).map((it) => (
                 <DivergenceCard
                   key={it.id}
                   it={it}
@@ -2422,9 +2425,26 @@ export default function CompanyAnalysis() {
                   busy={busy}
                 />
               ))}
+              {divergencesVisible < divergentes.length && (
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+                  <span className="text-xs text-muted-foreground">
+                    Mostrando {divergencesVisible} de {divergentes.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setDivergencesVisible((n) => Math.min(divergentes.length, n + DIVERGENCE_PAGE_SIZE))
+                    }
+                  >
+                    Carregar mais
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
+
 
         {/* ABA — Histórico unificado (IA + analistas/validadores/diretores) */}
         <TabsContent value="historico" className="space-y-3">
