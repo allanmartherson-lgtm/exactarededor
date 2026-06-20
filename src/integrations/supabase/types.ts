@@ -1027,6 +1027,84 @@ export type Database = {
           },
         ]
       }
+      company_link_suggestions: {
+        Row: {
+          ai_reasoning: string | null
+          company_id: string | null
+          confidence: string | null
+          context_jsonb: Json | null
+          created_at: string
+          detected_value: string | null
+          detected_value_normalized: string | null
+          id: string
+          matched_company_id: string | null
+          raw_snippet: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          score: number | null
+          source: string
+          source_field: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          company_id?: string | null
+          confidence?: string | null
+          context_jsonb?: Json | null
+          created_at?: string
+          detected_value?: string | null
+          detected_value_normalized?: string | null
+          id?: string
+          matched_company_id?: string | null
+          raw_snippet?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          score?: number | null
+          source?: string
+          source_field?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          company_id?: string | null
+          confidence?: string | null
+          context_jsonb?: Json | null
+          created_at?: string
+          detected_value?: string | null
+          detected_value_normalized?: string | null
+          id?: string
+          matched_company_id?: string | null
+          raw_snippet?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          score?: number | null
+          source?: string
+          source_field?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_link_suggestions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_link_suggestions_matched_company_id_fkey"
+            columns: ["matched_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_messages: {
         Row: {
           author_name: string
@@ -1457,6 +1535,69 @@ export type Database = {
           },
         ]
       }
+      convenio_link_suggestions: {
+        Row: {
+          ai_reasoning: string | null
+          confidence: string | null
+          context_jsonb: Json | null
+          convenio_slug: string | null
+          created_at: string
+          detected_value: string | null
+          detected_value_normalized: string | null
+          id: string
+          matched_convenio_slug: string | null
+          raw_snippet: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          score: number | null
+          source: string
+          source_field: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          confidence?: string | null
+          context_jsonb?: Json | null
+          convenio_slug?: string | null
+          created_at?: string
+          detected_value?: string | null
+          detected_value_normalized?: string | null
+          id?: string
+          matched_convenio_slug?: string | null
+          raw_snippet?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          score?: number | null
+          source?: string
+          source_field?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          confidence?: string | null
+          context_jsonb?: Json | null
+          convenio_slug?: string | null
+          created_at?: string
+          detected_value?: string | null
+          detected_value_normalized?: string | null
+          id?: string
+          matched_convenio_slug?: string | null
+          raw_snippet?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          score?: number | null
+          source?: string
+          source_field?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       convenios: {
         Row: {
           active: boolean
@@ -1759,7 +1900,10 @@ export type Database = {
       }
       doctor_link_suggestions: {
         Row: {
+          ai_reasoning: string | null
           auto_resolution: string | null
+          confidence: string | null
+          context_jsonb: Json | null
           created_at: string
           detected_kind: string
           detected_value: string
@@ -1772,12 +1916,17 @@ export type Database = {
           resolution_note: string | null
           resolved_at: string | null
           resolved_by: string | null
+          score: number | null
+          source: string
           source_field: string
           status: string
           updated_at: string
         }
         Insert: {
+          ai_reasoning?: string | null
           auto_resolution?: string | null
+          confidence?: string | null
+          context_jsonb?: Json | null
           created_at?: string
           detected_kind: string
           detected_value: string
@@ -1790,12 +1939,17 @@ export type Database = {
           resolution_note?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          score?: number | null
+          source?: string
           source_field?: string
           status?: string
           updated_at?: string
         }
         Update: {
+          ai_reasoning?: string | null
           auto_resolution?: string | null
+          confidence?: string | null
+          context_jsonb?: Json | null
           created_at?: string
           detected_kind?: string
           detected_value?: string
@@ -1808,6 +1962,8 @@ export type Database = {
           resolution_note?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          score?: number | null
+          source?: string
           source_field?: string
           status?: string
           updated_at?: string
@@ -3585,6 +3741,72 @@ export type Database = {
           used_at?: string | null
           used_by_ip?: string | null
           used_by_user_agent?: string | null
+        }
+        Relationships: []
+      }
+      match_telemetry: {
+        Row: {
+          ai_confidence: number | null
+          ai_decision: boolean | null
+          ai_invoked: boolean | null
+          ai_model: string | null
+          ai_prompt: string | null
+          ai_response: Json | null
+          analyst_decision: string | null
+          analyst_decision_at: string | null
+          candidate_a: string | null
+          candidate_b: string | null
+          created_at: string
+          entity_type: string
+          fuzzy_score: number | null
+          id: string
+          payment_item_id: string | null
+          pillars_matched: Json | null
+          rule_id: string | null
+          suggestion_id: string | null
+          time_to_decision_seconds: number | null
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_decision?: boolean | null
+          ai_invoked?: boolean | null
+          ai_model?: string | null
+          ai_prompt?: string | null
+          ai_response?: Json | null
+          analyst_decision?: string | null
+          analyst_decision_at?: string | null
+          candidate_a?: string | null
+          candidate_b?: string | null
+          created_at?: string
+          entity_type: string
+          fuzzy_score?: number | null
+          id?: string
+          payment_item_id?: string | null
+          pillars_matched?: Json | null
+          rule_id?: string | null
+          suggestion_id?: string | null
+          time_to_decision_seconds?: number | null
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_decision?: boolean | null
+          ai_invoked?: boolean | null
+          ai_model?: string | null
+          ai_prompt?: string | null
+          ai_response?: Json | null
+          analyst_decision?: string | null
+          analyst_decision_at?: string | null
+          candidate_a?: string | null
+          candidate_b?: string | null
+          created_at?: string
+          entity_type?: string
+          fuzzy_score?: number | null
+          id?: string
+          payment_item_id?: string | null
+          pillars_matched?: Json | null
+          rule_id?: string | null
+          suggestion_id?: string | null
+          time_to_decision_seconds?: number | null
         }
         Relationships: []
       }
@@ -7802,6 +8024,69 @@ export type Database = {
             referencedColumns: ["slug"]
           },
         ]
+      }
+      sector_link_suggestions: {
+        Row: {
+          ai_reasoning: string | null
+          confidence: string | null
+          context_jsonb: Json | null
+          created_at: string
+          detected_value: string | null
+          detected_value_normalized: string | null
+          id: string
+          matched_sector_slug: string | null
+          raw_snippet: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          score: number | null
+          sector_slug: string | null
+          source: string
+          source_field: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          confidence?: string | null
+          context_jsonb?: Json | null
+          created_at?: string
+          detected_value?: string | null
+          detected_value_normalized?: string | null
+          id?: string
+          matched_sector_slug?: string | null
+          raw_snippet?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          score?: number | null
+          sector_slug?: string | null
+          source?: string
+          source_field?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          confidence?: string | null
+          context_jsonb?: Json | null
+          created_at?: string
+          detected_value?: string | null
+          detected_value_normalized?: string | null
+          id?: string
+          matched_sector_slug?: string | null
+          raw_snippet?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          score?: number | null
+          sector_slug?: string | null
+          source?: string
+          source_field?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       sectors: {
         Row: {
