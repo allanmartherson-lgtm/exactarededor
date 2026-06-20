@@ -1876,15 +1876,17 @@ export default function CompanyAnalysis() {
             );
           })()}
 
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy || hasReconciliationRun === null}
-            onClick={handleOpenConciliation}
-            title={hasReconciliationRun === false ? "Lote sem conciliação" : "Ver conciliação desta empresa"}
-          >
-            <GitCompareArrows className="h-4 w-4 mr-2" /> Conciliação desta empresa
-          </Button>
+          {!isConfeccao && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy || hasReconciliationRun === null}
+              onClick={handleOpenConciliation}
+              title={hasReconciliationRun === false ? "Lote sem conciliação" : "Ver conciliação desta empresa"}
+            >
+              <GitCompareArrows className="h-4 w-4 mr-2" /> Conciliação desta empresa
+            </Button>
+          )}
 
           {canReimport && (
             <>
