@@ -23,10 +23,12 @@ import {
   inspectColumnMapping,
   scoreToConfidence,
   summarizeMissing,
+  type FieldDefinition,
   type FieldKey,
   type FieldMappingHit,
   type ManualMapping,
 } from "@/lib/columnMapping";
+
 import { useSheetColumnTemplates } from "@/hooks/useSheetColumnTemplates";
 import { toast } from "sonner";
 
