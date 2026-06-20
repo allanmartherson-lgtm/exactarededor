@@ -2267,7 +2267,7 @@ export default function CompanyAnalysis() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 max-h-[70vh] sm:max-h-none overflow-y-auto overscroll-contain">
               <SpecialCaseHeaderBanner paymentId={id} companyId={group.company_id ?? null} canUse={isAnalista || isDiretor} />
               <ItemsDataGrid
 
