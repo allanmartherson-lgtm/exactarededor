@@ -739,22 +739,12 @@ function matchDoctorInList(
     if (d?.id && itemId && String(d.id) === itemId) return true;
     // 2) CRM digits
     if (d?.crm && itemCrm && onlyDigits(d.crm) === itemCrm) return true;
-    // 3) Nome normalizado (exato)
+    // 3) Nome normalizado (EXATO apenas).
+    //    Heurística de "prefixo de tokens" foi removida — causava vazamento
+    //    de escopo (médico errado entrando em regra específica). Garanta o
+    //    vínculo via ID/CRM no cadastro; sem match → cai na regra geral.
     if (d?.name && itemNm && normName(d.name) === itemNm) return true;
-    // 4) Nome com sobrenomes extras (ex.: lista "Daniele Franco E Couto"
-    //    cadastrada deve casar com item "Daniele Franco E Couto Manera").
-    //    Match SOMENTE se TODOS os tokens significativos (≥2 chars) do nome
-    //    cadastrado aparecem no nome do item E o primeiro nome bate — assim
-    //    "Maria Silva" não casa com "Maria Santos Silva Junior" sem ordem,
-    //    mas "Daniele Franco E Couto" casa com "Daniele Franco E Couto Manera".
-    if (d?.name && itemNm) {
-      const entryTokens = normName(d.name).split(" ").filter((t) => t.length >= 2);
-      if (entryTokens.length >= 2 && itemTokens.length >= entryTokens.length) {
-        const firstMatch = entryTokens[0] === itemTokens[0];
-        const allContained = entryTokens.every((t) => itemTokens.includes(t));
-        if (firstMatch && allContained) return true;
-      }
-    }
+
   }
   return false;
 }
