@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
       page_size = 4,
       ai_statuses,
       tolerance_pct,
+      force_fresh_rules = false,
     } = body ?? {};
 
     if (!job_id || !payment_id) {
