@@ -2508,10 +2508,13 @@ export default function CompanyAnalysis() {
           />
         </TabsContent>
 
-        {/* ABA 3 — Detalhe IA */}
-        <TabsContent value="ia" className="space-y-3">
-          <AiDetail items={items} versions={aiVersions} />
-        </TabsContent>
+        {/* ABA 3 — Detalhe IA (oculta em confecção: motor de regras não roda IA) */}
+        {!isConfeccao && (
+          <TabsContent value="ia" className="space-y-3">
+            <AiDetail items={items} versions={aiVersions} />
+          </TabsContent>
+        )}
+
 
         {/* ABA Confecção — auditoria de cálculo (só no modo confecção) */}
         {(payment as any)?.analysis_mode === "confeccao" && (
