@@ -1346,7 +1346,7 @@ export default function CompanyAnalysis() {
         doctor_document: r.doctor_document,
         doctor_email: r.doctor_email,
         description: r.description,
-        gross_amount: r.gross_amount,
+        gross_amount: isConfeccao ? null : r.gross_amount,
         company_name: group.company_name,
         company_id: group.company_id ?? r.company_id,
         attendance_number: r.attendance_number,
