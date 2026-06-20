@@ -343,17 +343,16 @@ export default function CompanyAnalysis() {
 
   // Composição financeira da empresa.
   // - analise: bruto/débitos/glosas/pool/líquido via compute-company-financials.
-  // - confeccao: bruto = Σ procedure_amount, liquido = Σ expected_amount (calculado client-side).
-  // Como `payment` ainda não foi carregado nesse ponto do render, lemos hospital/mode pelo
-  // próprio composition mais abaixo. Aqui o hook é seguro com paymentId undefined.
-  const compMode: "analise" | "confeccao" = "analise"; // placeholder; reatribuído logo abaixo via useMemo
+  // - confeccao: bruto = Σ procedure_amount, liquido = Σ expected_amount (sem deduções).
+  const compMode: "analise" | "confeccao" =
+    (payment as any)?.analysis_mode === "confeccao" ? "confeccao" : "analise";
   const composition = useFinancialComposition(
     id,
     group?.company_id ?? undefined,
     Number(group?.total_amount ?? 0),
-    // payment pode ainda não estar carregado; default analise é seguro nesse instante
     compMode,
   );
+
 
 
 
