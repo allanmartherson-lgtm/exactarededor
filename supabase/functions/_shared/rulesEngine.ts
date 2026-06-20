@@ -652,18 +652,17 @@ function targetsDoctor(r: RuleInput, item: ItemInput): boolean {
   const ruleDoc = onlyDigits(r.target_identifier);
   const itemDoc = onlyDigits(item.doctor_document);
   if (ruleDoc && itemDoc && ruleDoc === itemDoc) return true;
-  // 3) Fallback por nome — exato OU prefixo de tokens (cadastro "Daniele
-  //    Franco E Couto" casa com item "Daniele Franco E Couto Manera").
+  // 3) Fallback por nome — EXATO normalizado apenas.
+  //    Heurística de "prefixo de tokens" foi removida intencionalmente:
+  //    causa vazamento de escopo (regra específica casando médico errado).
+  //    Vínculo deve ser garantido por ID/CRM no cadastro da regra; falhas
+  //    de nome devem cair na regra geral, nunca inferir match.
   if (r.target_name && item.doctor_name) {
-    const ruleNm = normName(r.target_name);
-    const itemNm = normName(item.doctor_name);
-    if (ruleNm === itemNm) return true;
-    const rT = ruleNm.split(" ").filter((t) => t.length >= 2);
-    const iT = itemNm.split(" ").filter((t) => t.length >= 2);
-    if (rT.length >= 2 && iT.length >= rT.length && rT[0] === iT[0] && rT.every((t) => iT.includes(t))) return true;
+    if (normName(r.target_name) === normName(item.doctor_name)) return true;
   }
   return false;
 }
+
 
 function targetsCompany(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "especifica" || r.target_type !== "empresa") return false;
@@ -732,7 +731,7 @@ function matchDoctorInList(
 ): boolean {
   if (!doctors?.length) return false;
   const itemNm = item.doctor_name ? normName(item.doctor_name) : "";
-  const itemTokens = itemNm ? itemNm.split(" ").filter((t) => t.length >= 2) : [];
+
   const itemCrm = onlyDigits(item.doctor_document);
   const itemId = item.doctor_id ? String(item.doctor_id) : "";
   for (const d of doctors) {
@@ -740,22 +739,12 @@ function matchDoctorInList(
     if (d?.id && itemId && String(d.id) === itemId) return true;
     // 2) CRM digits
     if (d?.crm && itemCrm && onlyDigits(d.crm) === itemCrm) return true;
-    // 3) Nome normalizado (exato)
+    // 3) Nome normalizado (EXATO apenas).
+    //    Heurística de "prefixo de tokens" foi removida — causava vazamento
+    //    de escopo (médico errado entrando em regra específica). Garanta o
+    //    vínculo via ID/CRM no cadastro; sem match → cai na regra geral.
     if (d?.name && itemNm && normName(d.name) === itemNm) return true;
-    // 4) Nome com sobrenomes extras (ex.: lista "Daniele Franco E Couto"
-    //    cadastrada deve casar com item "Daniele Franco E Couto Manera").
-    //    Match SOMENTE se TODOS os tokens significativos (≥2 chars) do nome
-    //    cadastrado aparecem no nome do item E o primeiro nome bate — assim
-    //    "Maria Silva" não casa com "Maria Santos Silva Junior" sem ordem,
-    //    mas "Daniele Franco E Couto" casa com "Daniele Franco E Couto Manera".
-    if (d?.name && itemNm) {
-      const entryTokens = normName(d.name).split(" ").filter((t) => t.length >= 2);
-      if (entryTokens.length >= 2 && itemTokens.length >= entryTokens.length) {
-        const firstMatch = entryTokens[0] === itemTokens[0];
-        const allContained = entryTokens.every((t) => itemTokens.includes(t));
-        if (firstMatch && allContained) return true;
-      }
-    }
+
   }
   return false;
 }
