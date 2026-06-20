@@ -71,8 +71,44 @@ Deno.serve(async (req) => {
     }
 
     const confidence = cls === "high" ? "high" : "low";
+
+    // Layer 3: para low-confidence (0.80–0.91), pedimos opinião à IA
+    // (apenas enriquece a sugestão; nunca decide sozinha).
+    let aiReasoning: string | null = null;
+    let aiSameEntity: boolean | null = null;
+    let aiConfidence: number | null = null;
+    if (cls === "low") {
+      try {
+        const aiResp = await fetch(`${url}/functions/v1/ai-copilot`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${key}`,
+          },
+          body: JSON.stringify({
+            task: "disambiguate_entity",
+            context: {
+              name_a: body.detected_value,
+              name_b: body.candidate_value,
+              entity_type: body.entity_type,
+              shared_context: body.context_jsonb ?? {},
+            },
+          }),
+        });
+        if (aiResp.ok) {
+          const aiJson = await aiResp.json();
+          const r = aiJson?.result ?? {};
+          aiSameEntity = typeof r.same_entity === "boolean" ? r.same_entity : null;
+          aiConfidence = typeof r.confidence === "number" ? r.confidence : null;
+          aiReasoning = typeof r.reasoning === "string" ? r.reasoning : null;
+        }
+      } catch (_e) {
+        // IA opcional — não bloqueia
+      }
+    }
+
     const base = {
-      source: "engine_fuzzy" as const,
+      source: aiReasoning ? "ai_suggested" as const : "engine_fuzzy" as const,
       score,
       confidence,
       detected_value: body.detected_value,
@@ -80,8 +116,10 @@ Deno.serve(async (req) => {
       raw_snippet: body.raw_snippet ?? null,
       source_field: body.source_field ?? null,
       context_jsonb: body.context_jsonb ?? null,
+      ai_reasoning: aiReasoning,
       status: "pending" as const,
     };
+
 
     let table: string;
     let row: Record<string, unknown>;
@@ -173,7 +211,13 @@ Deno.serve(async (req) => {
       candidate_a: body.detected_value,
       candidate_b: body.candidate_value,
       fuzzy_score: score,
+      ai_invoked: aiReasoning != null,
+      ai_model: aiReasoning != null ? "google/gemini-3-flash-preview" : null,
+      ai_response: aiReasoning != null ? { same_entity: aiSameEntity, confidence: aiConfidence, reasoning: aiReasoning } : null,
+      ai_confidence: aiConfidence,
+      ai_decision: aiSameEntity,
     });
+
 
     return new Response(JSON.stringify({ suggestion_id: inserted.id, score, class: cls, created: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
