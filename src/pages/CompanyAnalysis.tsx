@@ -798,9 +798,16 @@ export default function CompanyAnalysis() {
         });
       } else {
         setReapplyPhase("concluido");
-        toast.success("Reanálise concluída", {
-          description: `${diff.becameApproved} passaram a aprovado · ${diff.stayedReproved} continuam reprovados.`,
-        });
+        const _isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+        if (_isConfeccao) {
+          toast.success("Cálculo do repasse concluído", {
+            description: `${diff.approvedTotal} com regra · ${diff.reprovedTotal} sem regra cadastrada.`,
+          });
+        } else {
+          toast.success("Reanálise concluída", {
+            description: `${diff.becameApproved} passaram a aprovado · ${diff.stayedReproved} continuam reprovados.`,
+          });
+        }
       }
 
     } catch (e) {
