@@ -2260,16 +2260,18 @@ export default function CompanyAnalysis() {
               Auditoria de cálculo
             </TabsTrigger>
           )}
-          <TabsTrigger value="divergencias">
-            Divergências
-            {divergentes.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{divergentes.length}</Badge>
-            )}
-          </TabsTrigger>
+          {!isConfeccao && (
+            <TabsTrigger value="divergencias">
+              Divergências
+              {divergentes.length > 0 && (
+                <Badge variant="secondary" className="ml-2">{divergentes.length}</Badge>
+              )}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="historico">
             <History className="h-3.5 w-3.5 mr-1" /> Histórico
           </TabsTrigger>
-          <TabsTrigger value="ia">Detalhe IA</TabsTrigger>
+          {!isConfeccao && <TabsTrigger value="ia">Detalhe IA</TabsTrigger>}
         </TabsList>
 
         {/* ABA 1 — Análise */}
