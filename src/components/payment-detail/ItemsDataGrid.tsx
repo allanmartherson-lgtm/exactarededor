@@ -1856,6 +1856,7 @@ export function ItemsDataGrid({
                         showGrossColumn={showGrossColumn}
                         showProcedureColumn={showProcedureColumn}
                         showDiferencaCol={showDiferencaCol}
+                        mode={mode}
                       />
                     )}
                   </Fragment>
@@ -2532,6 +2533,7 @@ function RowMain({
   showGrossColumn = true,
   showProcedureColumn = false,
   showDiferencaCol = true,
+  mode = "analise",
 }: {
   it: PaymentItemRowData;
   allItems: PaymentItemRowData[];
@@ -2561,6 +2563,7 @@ function RowMain({
   showGrossColumn?: boolean;
   showProcedureColumn?: boolean;
   showDiferencaCol?: boolean;
+  mode?: "analise" | "confeccao";
 }) {
   const convenio = getAgreement(it);
   // Itens absorvidos manualmente em pacote: zerados visualmente — o valor
