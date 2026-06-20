@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -310,10 +310,15 @@ export default function CompanyAnalysis() {
   const items = useMemo(() => {
     if (!group) return [] as PaymentItemRow[];
     const companyNorm = normalizeString(group.company_name);
-    return allItems.filter(
-      (x) => normalizeString(x.company_name ?? "Sem empresa") === companyNorm,
-    );
-  }, [allItems, group]);
+    return allItems.filter((x) => {
+      if (normalizeString(x.company_name ?? "Sem empresa") !== companyNorm) return false;
+      if (locallyDeletedItemIds.has(x.id)) return false;
+      const tipo = String((x as any).tipo_linha ?? "").toLowerCase();
+      const isOrphanBonus = tipo.includes("bonus") && !(x as any).applied_rule_id;
+      if (isOrphanBonus && (x as any).is_cancelled === true) return false;
+      return true;
+    });
+  }, [allItems, group, locallyDeletedItemIds]);
 
   // Composição financeira da empresa (bruto, débitos, glosas, pool, conciliação, líquido)
   const composition = useFinancialComposition(
@@ -374,6 +379,26 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
+  const [locallyDeletedItemIds, setLocallyDeletedItemIds] = useState<Set<string>>(() => new Set());
+
+  const hideItemImmediately = useCallback((itemId: string) => {
+    setLocallyDeletedItemIds((prev) => {
+      if (prev.has(itemId)) return prev;
+      const next = new Set(prev);
+      next.add(itemId);
+      return next;
+    });
+    setItems((prev) => prev.filter((it) => it.id !== itemId));
+  }, [setItems]);
+
+  const restoreItemVisibility = useCallback((itemId: string) => {
+    setLocallyDeletedItemIds((prev) => {
+      if (!prev.has(itemId)) return prev;
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
+  }, []);
 
   // FAB de Conversas — escopo desta empresa. Conta apenas mensagens NÃO LIDAS
   // (não autoradas pelo usuário atual e ausentes em payment_question_reads).
