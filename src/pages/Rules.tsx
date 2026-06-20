@@ -878,6 +878,9 @@ const Rules = () => {
     setFSeverity(r.severity ?? "aviso");
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
+    setFTargetDoctorId((r as any).target_doctor_id ?? null);
+    setFTargetCompanyId((r as any).target_company_id ?? null);
+
     const calc = (r.calculation_type as RuleCalculationType) ?? "informativo";
     setFCalculationType(calc);
     // fNature será derivado após carregar calcRows (abaixo).
