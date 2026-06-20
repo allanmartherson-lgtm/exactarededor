@@ -166,6 +166,8 @@ interface Props {
   diff?: ReapplyDiff | null;
   /** label opcional, ex. nome da empresa */
   companyLabel?: string;
+  /** Modo do lote — muda vocabulário: confecção fala em "cálculo" / análise em "auditoria" */
+  mode?: "analise" | "confeccao";
 }
 
 /**
