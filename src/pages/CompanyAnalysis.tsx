@@ -401,7 +401,7 @@ export default function CompanyAnalysis() {
   const [itemCommentType, setItemCommentType] = useState<Record<string, ObservationType>>({});
 
   const [editItem, setEditItem] = useState<PaymentItemRow | null>(null);
-  const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "" });
+  const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string; procedure_amount: string; procedure_code: string; doctor_role: string; sector: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "", procedure_amount: "", procedure_code: "", doctor_role: "", sector: "" });
   const [savingItem, setSavingItem] = useState(false);
   const [deleteItem, setDeleteItem] = useState<PaymentItemRow | null>(null);
   const [manualItemOpen, setManualItemOpen] = useState(false);
@@ -1450,6 +1450,10 @@ export default function CompanyAnalysis() {
       specialty: it.specialty ?? "",
       doctor_name: it.doctor_name ?? "",
       description: it.description ?? "",
+      procedure_amount: String(Number(it.procedure_amount ?? 0)),
+      procedure_code: String(it.procedure_code ?? ""),
+      doctor_role: String((it as any).doctor_role ?? ""),
+      sector: String((it as any).sector ?? ""),
     });
   };
 
