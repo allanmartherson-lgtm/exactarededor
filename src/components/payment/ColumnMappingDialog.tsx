@@ -54,6 +54,13 @@ interface Props {
   hospitalId: string | null;
   /** Callback quando o usuário confirma o mapeamento. */
   onApply: (mapping: ManualMapping) => void;
+  /**
+   * Modo de uso da base:
+   * - "analise" (default): planilha de pagamento real → exige `gross_amount` (valor repasse)
+   * - "confeccao": planilha bruta para o motor calcular → exige `procedure_amount` (valor convênio)
+   *   e oculta `gross_amount` para evitar que o analista importe valor de repasse pré-existente
+   */
+  mode?: "analise" | "confeccao";
 }
 
 export default function ColumnMappingDialog({
@@ -65,7 +72,9 @@ export default function ColumnMappingDialog({
   sampleRow,
   hospitalId,
   onApply,
+  mode = "analise",
 }: Props) {
+
   const [mapping, setMapping] = useState<ManualMapping>(initialMapping);
   const [showSave, setShowSave] = useState(false);
   const [templateName, setTemplateName] = useState("");
