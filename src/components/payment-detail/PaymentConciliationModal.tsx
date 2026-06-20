@@ -899,7 +899,22 @@ export function PaymentConciliationModal({
       const { company, level } = findMatch(t, loteCompanies);
       autoMapping[t] = company;
       newMatchLevels[t] = level;
+      // Quase-match: registra sugestão pendente para o admin revisar (não-bloqueante).
+      if (company && (level === "medium" || level === "high")) {
+        const matchedId = companyNameToId[company];
+        supabase.functions.invoke("engine-suggest-link", {
+          body: {
+            entity_type: "company",
+            detected_value: t,
+            candidate_value: company,
+            matched_company_id: matchedId ?? null,
+            source_field: "payment_items.company_name",
+            context_jsonb: { payment_id: paymentId, level },
+          },
+        }).catch(() => {/* fire-and-forget */});
+      }
     }
+
 
     setParsedColMap(colMapping);
     setHospitalCompanies(terceiros);
