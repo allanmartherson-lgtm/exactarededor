@@ -76,6 +76,8 @@ const loadAnalystProductivity = () => import("./pages/AnalystProductivity.tsx");
 const loadAbout = () => import("./pages/About.tsx");
 const loadSystemReleases = () => import("./pages/SystemReleases.tsx");
 const loadFeatureFlagsAdmin = () => import("./pages/FeatureFlagsAdmin.tsx");
+const loadCopilotTelemetry = () => import("./pages/CopilotTelemetry.tsx");
+
 const loadSystemAnnouncementsAdmin = () => import("./pages/SystemAnnouncementsAdmin.tsx");
 const loadFinancialJournal = () => import("./pages/FinancialJournal.tsx");
 const loadDreReport = () => import("./pages/DreReport.tsx");
