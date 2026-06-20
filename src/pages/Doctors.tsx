@@ -29,7 +29,10 @@ const DOCTORS_IMPORT_PROFILE: ImportProfile = {
   entity: "doctors",
   supportedModes: ["append", "update", "replace"],
   fields: [
-    { key: "full_name", label: "Nome completo", required: true, aliases: ["nome pessoa", "nome_pessoa", "nomepessoa", "nome", "medico", "médico", "nome_completo"] },
+    // IMPORTANTE: ordem dos aliases prioriza "Nome Pessoa" (versão civil completa do Tasy).
+    // Não incluir "nome" sozinho — o Tasy traz uma coluna "Nome" que costuma vir truncada
+    // e o suggestMapping pegaria essa coluna por aparecer antes de "Nome Pessoa" na planilha.
+    { key: "full_name", label: "Nome completo", required: true, aliases: ["nome pessoa", "nome_pessoa", "nomepessoa", "nome completo", "nome_completo"] },
     { key: "crm", label: "CRM", required: true, uniqueKey: true, aliases: ["crm", "registro", "crm/uf", "crm uf", "nr_crm"] },
     { key: "crm_uf", label: "UF do CRM", required: false, uniqueKey: true, aliases: ["uf", "estado", "uf_crm", "uf crm", "crm_uf"] },
     { key: "email", label: "E-mail", aliases: ["email", "e-mail"] },
