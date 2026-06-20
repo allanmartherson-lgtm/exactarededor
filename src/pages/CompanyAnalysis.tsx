@@ -1346,7 +1346,7 @@ export default function CompanyAnalysis() {
         doctor_document: r.doctor_document,
         doctor_email: r.doctor_email,
         description: r.description,
-        gross_amount: r.gross_amount,
+        gross_amount: (payment as any)?.analysis_mode === "confeccao" ? null : r.gross_amount,
         company_name: group.company_name,
         company_id: group.company_id ?? r.company_id,
         attendance_number: r.attendance_number,
@@ -1791,7 +1791,7 @@ export default function CompanyAnalysis() {
 
 
   return (
-    <div className="space-y-4 pb-32">
+    <div className="space-y-4 pb-32 overflow-x-hidden max-w-full">
       {isConfeccao && (
         <div
           className="sticky top-0 z-40 -mx-3 md:-mx-6 mb-2 border-b-2 border-amber-500/70 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/15 backdrop-blur-sm"
@@ -2738,6 +2738,7 @@ export default function CompanyAnalysis() {
           initialMapping={mappingPrompt.initialMapping}
           sampleRow={mappingPrompt.sampleRow}
           hospitalId={(payment as any)?.hospital_id ?? null}
+          mode={isConfeccao ? "confeccao" : "analise"}
           onApply={(mapping) => {
             const file = mappingPrompt.file;
             setMappingOverrides((prev) => ({ ...prev, [file.name]: mapping }));
@@ -2787,7 +2788,7 @@ function Stat({
         )}
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-          <div className={cn("mt-1 text-xl font-semibold leading-tight", mono && "tabular-nums", t.value)}>{value}</div>
+          <div className={cn("mt-1 text-lg sm:text-xl font-semibold leading-tight break-words", mono && "tabular-nums", t.value)}>{value}</div>
           {sub && <div className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">{sub}</div>}
         </div>
       </div>
