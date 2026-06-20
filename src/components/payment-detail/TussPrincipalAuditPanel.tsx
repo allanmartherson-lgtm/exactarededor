@@ -87,13 +87,15 @@ export function TussPrincipalAuditPanel({
     if (calcIds.length > 0) {
       const { data: calcs } = await supabase
         .from("rule_calculations")
-        .select("id,label,package_main_code,rule_id,calculation_type,rules(name)")
+        .select("id,label,package_main_code,package_included_codes,procedure_codes,rule_id,calculation_type,rules(name)")
         .in("id", calcIds);
       for (const c of (calcs ?? []) as any[]) {
         calcMap.set(c.id, {
           id: c.id,
           label: c.label,
           package_main_code: c.package_main_code,
+          package_included_codes: c.package_included_codes ?? null,
+          procedure_codes: c.procedure_codes ?? null,
           rule_id: c.rule_id,
           calculation_type: c.calculation_type,
           rule_name: c.rules?.name ?? null,
