@@ -2829,12 +2829,31 @@ export function analyzeItem(
       const attKey = (item as any).attendance_group_key ?? item.attendance_number ?? "";
       const sibs = ctx?.attendanceSiblingCodes?.get(attKey) ?? new Set<string>();
       for (const rule of rulesForItem) {
+        // Gate de escopo: a regra precisa atingir o convênio do item.
+        // Sem isso, o trigger "vaza" e zera o complemento mesmo em
+        // convênios fora da whitelist da regra (ex.: STJ caindo em
+        // regra restrita a Bradesco/Unimed).
+        if (!targetsAgreement(rule, item)) continue;
         const calcs = Array.isArray(rule.calculations) ? rule.calculations : [];
         for (const c of calcs) {
           const conds = Array.isArray((c as any).context_conditions)
             ? (c as any).context_conditions
             : [];
           if (conds.length === 0) continue;
+          // Gate de escopo no nível do cálculo (convênio).
+          const calcAgs = Array.isArray((c as any).agreement_aliases)
+            ? (c as any).agreement_aliases.filter(Boolean)
+            : [];
+          if (calcAgs.length > 0) {
+            const mode = (c as any).agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
+            const itemAg = normAgreement(item.agreement_name);
+            const normCalcAgs = calcAgs.map((x: any) => normAgreement(String(x))).filter(Boolean);
+            if (mode === "whitelist") {
+              if (!itemAg || !normCalcAgs.includes(itemAg)) continue;
+            } else {
+              if (itemAg && normCalcAgs.includes(itemAg)) continue;
+            }
+          }
           const mainCodes = (Array.isArray((c as any).procedure_codes) ? (c as any).procedure_codes : [])
             .map((x: any) => String(x).trim()).filter(Boolean);
           // Só absorve se algum código "main" do cálculo aparece em outro
