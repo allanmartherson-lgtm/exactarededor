@@ -2534,8 +2534,8 @@ const PaymentDetail = () => {
           </div>
         )}
 
-        {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
-        {!isNfPhase && (
+        {/* MOBILE: cards de IA colapsáveis — só na fase de análise, nunca em confecção */}
+        {!isNfPhase && !isConfeccao && (
         <div className="md:hidden">
           <button
             type="button"
