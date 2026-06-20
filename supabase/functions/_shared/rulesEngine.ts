@@ -731,7 +731,7 @@ function matchDoctorInList(
 ): boolean {
   if (!doctors?.length) return false;
   const itemNm = item.doctor_name ? normName(item.doctor_name) : "";
-  const itemTokens = itemNm ? itemNm.split(" ").filter((t) => t.length >= 2) : [];
+
   const itemCrm = onlyDigits(item.doctor_document);
   const itemId = item.doctor_id ? String(item.doctor_id) : "";
   for (const d of doctors) {
