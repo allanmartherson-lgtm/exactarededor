@@ -146,6 +146,7 @@ type DraftRule = {
   name: string; description: string; rule_text: string;
   severity: RuleSeverity; scope: RuleScope;
   target_type: RuleTargetType | null; target_identifier: string | null; target_name: string | null;
+  target_doctor_id?: string | null; target_company_id?: string | null;
   calculation_type: RuleCalculationType;
   convenio_percentage: number | null;
   fixed_amount: number | null;
@@ -156,6 +157,7 @@ type DraftRule = {
   sectors: string[]; specialties: string[];
   valid_from: string | null; valid_until: string | null;
 };
+
 
 
 
@@ -226,6 +228,13 @@ const Rules = () => {
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
   const [fTargetIdentifier, setFTargetIdentifier] = useState("");
   const [fTargetName, setFTargetName] = useState("");
+  // ID do médico/empresa cadastrada, preenchido APENAS via combobox.
+  // Persistido em rules.target_doctor_id/target_company_id para que o motor
+  // case por ID (estável) em vez de nome (frágil). Sem ID = match cai para
+  // CRM/CNPJ e, em último caso, nome exato — nunca heurística.
+  const [fTargetDoctorId, setFTargetDoctorId] = useState<string | null>(null);
+  const [fTargetCompanyId, setFTargetCompanyId] = useState<string | null>(null);
+
   
   // Nova abordagem: Natureza da regra (Calculável vs Informativa/bloqueio)
   const [fNature, setFNature] = useState<"calculavel" | "informativo">("informativo");
@@ -824,7 +833,7 @@ const Rules = () => {
     setFName(""); setFDescription(""); setFRuleText("");
     setFSeverity("aviso");
     setScope("master"); setTargetType("medico");
-    setFTargetIdentifier(""); setFTargetName("");
+    setFTargetIdentifier(""); setFTargetName(""); setFTargetDoctorId(null); setFTargetCompanyId(null);
     setRefTableId(""); setFExceptionTableIds([]); setFSpecialCaseFilter([]);
     setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
     setFNature("informativo");
@@ -871,6 +880,9 @@ const Rules = () => {
     setFSeverity(r.severity ?? "aviso");
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
+    setFTargetDoctorId((r as any).target_doctor_id ?? null);
+    setFTargetCompanyId((r as any).target_company_id ?? null);
+
     const calc = (r.calculation_type as RuleCalculationType) ?? "informativo";
     setFCalculationType(calc);
     // fNature será derivado após carregar calcRows (abaixo).
@@ -1191,6 +1203,10 @@ const Rules = () => {
       target_type: isEspecifica ? targetType : null,
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
+      // IDs estáveis do cadastro — preferenciais no motor (vide targetsDoctor/targetsCompany).
+      target_doctor_id: (isEspecifica && targetType === "medico") ? fTargetDoctorId : null,
+      target_company_id: (isEspecifica && targetType === "empresa") ? fTargetCompanyId : null,
+
       calculation_type: effectiveCalc,
       // ===== Campos de cálculo: TODOS nulos no nível Regra =====
       convenio_percentage: null,
@@ -1453,9 +1469,16 @@ const Rules = () => {
           ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
           : null,
         target_name: d.scope === "especifica" ? d.target_name : null,
+        // Preferência: ID escolhido no combobox. Fallback: lookup por CNPJ.
         target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
-          ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
+          ? ((d as any).target_company_id
+              ?? companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id
+              ?? null)
           : null,
+        target_doctor_id: (d.scope === "especifica" && d.target_type === "medico")
+          ? ((d as any).target_doctor_id ?? null)
+          : null,
+
       };
 
       // 1) Validação preventiva (drafts não têm cálculos — array vazio)
@@ -2038,11 +2061,13 @@ const Rules = () => {
                                     <div className="space-y-1.5">
                                       <Label>Empresa cadastrada</Label>
                                       <CompanyCombobox
-                                        value={fTargetName ? { id: "__sel__", name: fTargetName, document: fTargetIdentifier ? onlyDigits(fTargetIdentifier) : null } : null}
+                                        value={fTargetName ? { id: fTargetCompanyId ?? "__sel__", name: fTargetName, document: fTargetIdentifier ? onlyDigits(fTargetIdentifier) : null } : null}
                                         onChange={(c) => {
                                           setFTargetName(c?.name ?? "");
                                           setFTargetIdentifier(c?.document ? formatCNPJ(c.document) : "");
+                                          setFTargetCompanyId(c?.id && c.id !== "__sel__" ? c.id : null);
                                         }}
+
                                         placeholder="Selecionar empresa…"
                                         className="w-full"
                                       />
@@ -2068,11 +2093,13 @@ const Rules = () => {
                                     <div className="space-y-1.5">
                                       <Label>Médico cadastrado</Label>
                                       <DoctorCombobox
-                                        value={fTargetName ? { id: "__sel__", name: fTargetName, crm: fTargetIdentifier || null, crm_uf: null } : null}
+                                        value={fTargetName ? { id: fTargetDoctorId ?? "__sel__", name: fTargetName, crm: fTargetIdentifier || null, crm_uf: null } : null}
                                         onChange={(d) => {
                                           setFTargetName(d?.name ?? "");
                                           setFTargetIdentifier(d?.crm ?? "");
+                                          setFTargetDoctorId(d?.id && d.id !== "__sel__" ? d.id : null);
                                         }}
+
                                         placeholder="Buscar médico…"
                                         className="w-full"
                                       />
@@ -2998,14 +3025,15 @@ const Rules = () => {
                         <CompanyCombobox
                           value={
                             d.target_name || d.target_identifier
-                              ? { id: "", name: d.target_name ?? "", document: d.target_identifier ?? null }
+                              ? { id: (d as any).target_company_id ?? "", name: d.target_name ?? "", document: d.target_identifier ?? null }
                               : null
                           }
                           onChange={(c) =>
                             updateDraft(i, {
                               target_name: c?.name ?? "",
                               target_identifier: c?.document ? formatCNPJ(c.document) : "",
-                            })
+                              target_company_id: c?.id || null,
+                            } as any)
                           }
                           placeholder="Buscar empresa cadastrada…"
                           className="w-full"
@@ -3014,19 +3042,21 @@ const Rules = () => {
                         <DoctorCombobox
                           value={
                             d.target_name || d.target_identifier
-                              ? { id: "", name: d.target_name ?? "", crm: d.target_identifier ?? null, crm_uf: null }
+                              ? { id: (d as any).target_doctor_id ?? "", name: d.target_name ?? "", crm: d.target_identifier ?? null, crm_uf: null }
                               : null
                           }
                           onChange={(doc) =>
                             updateDraft(i, {
                               target_name: doc?.name ?? "",
                               target_identifier: doc?.crm ?? "",
-                            })
+                              target_doctor_id: doc?.id || null,
+                            } as any)
                           }
                           placeholder="Buscar médico cadastrado…"
                           className="w-full"
                         />
                       )}
+
                     </div>
                     <div className="space-y-1 col-span-3"><Label className="text-xs">CPF/CNPJ/CRM</Label>
                       <Input
