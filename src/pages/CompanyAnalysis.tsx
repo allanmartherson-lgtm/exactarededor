@@ -2213,7 +2213,7 @@ export default function CompanyAnalysis() {
       )}
 
       {/* Faixa de composição financeira: Bruto − Débitos − Glosas − Pool ± Conciliação = Líquido */}
-      {id && group?.company_id && <FinancialCompositionStrip comp={composition} />}
+      {id && group?.company_id && <FinancialCompositionStrip comp={composition} mode={compMode} />}
 
       {id && group?.company_id && (
         <MinimumGuaranteeCard
