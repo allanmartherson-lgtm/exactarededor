@@ -207,6 +207,7 @@ export function AddManualItemDialog({
         ai_findings: findings,
         source: "manual",
         item_origem: "inclusao_manual",
+        manual_entry: true,
         tipo_linha: tipoLinha,
         created_by_user_id: user?.id ?? null,
         manual_note: note.trim() || null,
