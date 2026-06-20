@@ -60,6 +60,14 @@ function formatFindingText(f: any): string {
 
 export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): Promise<jsPDF> {
   const { payment, items, groups, observations = [], profiles = {}, rulesIndex } = input;
+  const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+
+  // Em modo confecção, gera um relatório dedicado (sem IA, sem divergências, sem
+  // alertas assistenciais). Foco: bruto do convênio × repasse calculado pela regra,
+  // e cobertura de regra item a item (com / sem regra).
+  if (isConfeccao) {
+    return generateConfeccaoReportPdf(input);
+  }
 
   const doc = new jsPDF();
   const marginX = 14;
