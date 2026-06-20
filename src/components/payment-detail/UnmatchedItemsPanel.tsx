@@ -60,6 +60,21 @@ export function UnmatchedItemsPanel({
   const [newDoc, setNewDoc] = useState("");
   const [ignoreReason, setIgnoreReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [allCompanies, setAllCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
+
+  useEffect(() => {
+    if (!createOpen) return;
+    if (allCompanies.length > 0) return;
+    (async () => {
+      const { data } = await supabase
+        .from("companies")
+        .select("id,name,document")
+        .order("name")
+        .limit(500);
+      setAllCompanies((data ?? []) as { id: string; name: string; document: string | null }[]);
+    })();
+  }, [createOpen, allCompanies.length]);
+
 
   const load = async () => {
     setLoading(true);
