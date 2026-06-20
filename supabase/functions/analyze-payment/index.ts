@@ -82,10 +82,11 @@ serve(async (req) => {
 
   try {
     const parsedBody = await req.json();
-    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = parsedBody;
+    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label, _force_fresh } = parsedBody;
     __payment_id = payment_id;
     __job_id = _job_id;
     __company_label = _company_label;
+    const __force_fresh = _force_fresh === true;
     __company_name = company_name;
     // [TIMING] prefixo curto p/ diferenciar workers concorrentes nos logs
     const __t = `[T:${(_company_label ?? company_name ?? "all").toString().slice(0, 24)}]`;
@@ -246,7 +247,7 @@ serve(async (req) => {
     let cachedCalcsByRule: Record<string, any[]> | null = null;
     let cachedConfigs: any[] | null = null;
 
-    if (__job_id) {
+    if (__job_id && !__force_fresh) {
       try {
         const { data: cacheRow } = await supabase
           .from("payment_job_context")
@@ -269,6 +270,8 @@ serve(async (req) => {
       } catch (e) {
         console.warn(`${__t} ctx_cache lookup falhou`, (e as any)?.message ?? e);
       }
+    } else if (__force_fresh) {
+      console.log(`${__t} ctx_cache BYPASS (_force_fresh=true) — recarregando regras direto do banco`);
     }
 
     let rules: RuleInput[] = [];

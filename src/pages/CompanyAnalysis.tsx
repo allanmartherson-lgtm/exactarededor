@@ -723,7 +723,11 @@ export default function CompanyAnalysis() {
     const startedAt = Date.now();
     try {
       const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: id, only_companies: [group.company_name] },
+        // force_fresh_rules: este botão é manual e geralmente vem logo após o
+        // analista editar/cadastrar uma regra. Pulamos o ctx_cache para garantir
+        // que o motor leia o estado atual do banco — caso contrário, workers
+        // de uma reanalise nova podem reusar snapshot de regras antigo.
+        body: { payment_id: id, only_companies: [group.company_name], force_fresh_rules: true },
       });
       if (error) throw error;
 
@@ -794,9 +798,16 @@ export default function CompanyAnalysis() {
         });
       } else {
         setReapplyPhase("concluido");
-        toast.success("Reanálise concluída", {
-          description: `${diff.becameApproved} passaram a aprovado · ${diff.stayedReproved} continuam reprovados.`,
-        });
+        const _isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+        if (_isConfeccao) {
+          toast.success("Cálculo do repasse concluído", {
+            description: `${diff.approvedTotal} com regra · ${diff.reprovedTotal} sem regra cadastrada.`,
+          });
+        } else {
+          toast.success("Reanálise concluída", {
+            description: `${diff.becameApproved} passaram a aprovado · ${diff.stayedReproved} continuam reprovados.`,
+          });
+        }
       }
 
     } catch (e) {
@@ -2670,6 +2681,7 @@ export default function CompanyAnalysis() {
         errorMessage={reapplyError}
         diff={reapplyDiff}
         companyLabel={group?.company_name}
+        mode={isConfeccao ? "confeccao" : "analise"}
       />
 
 

@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
       page_size = 4,
       ai_statuses,
       tolerance_pct,
+      force_fresh_rules = false,
     } = body ?? {};
 
     if (!job_id || !payment_id) {
@@ -219,6 +220,7 @@ Deno.serve(async (req) => {
             tolerance_pct,
             _job_id: job_id,
             _company_label: companyName,
+            _force_fresh: force_fresh_rules === true,
           }),
           signal: controller.signal,
         });
@@ -270,6 +272,7 @@ Deno.serve(async (req) => {
           page_size,
           ai_statuses,
           tolerance_pct,
+          force_fresh_rules,
         }),
       }).then(async (resp) => {
         if (!resp.ok) console.error("[orchestrate] próxima página retornou erro", resp.status, (await resp.text()).slice(0, 500));

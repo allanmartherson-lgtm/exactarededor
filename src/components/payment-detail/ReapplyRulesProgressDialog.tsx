@@ -166,6 +166,8 @@ interface Props {
   diff?: ReapplyDiff | null;
   /** label opcional, ex. nome da empresa */
   companyLabel?: string;
+  /** Modo do lote — muda vocabulário: confecção fala em "cálculo" / análise em "auditoria" */
+  mode?: "analise" | "confeccao";
 }
 
 /**
@@ -202,8 +204,10 @@ export function ReapplyRulesProgressDialog({
   errorMessage,
   diff,
   companyLabel,
+  mode = "analise",
 }: Props) {
   const running = phase === "iniciando" || phase === "processando";
+  const isConfeccao = mode === "confeccao";
 
   const estimatedTotal = useMemo(() => estimateTotalSec(totalItems), [totalItems]);
   const etaSec = Math.max(0, estimatedTotal - elapsedSec);
@@ -240,20 +244,24 @@ export function ReapplyRulesProgressDialog({
               <RefreshCcw className="h-5 w-5 text-primary animate-spin" />
             )}
             {phase === "concluido"
-              ? "Reaplicação concluída"
+              ? (isConfeccao ? "Cálculo do repasse concluído" : "Reaplicação concluída")
               : phase === "erro"
-              ? "Falha ao reaplicar regras"
-              : "Reaplicando regras…"}
+              ? (isConfeccao ? "Falha ao calcular o repasse" : "Falha ao reaplicar regras")
+              : (isConfeccao ? "Calculando repasse…" : "Reaplicando regras…")}
           </DialogTitle>
           <DialogDescription>
             {companyLabel ? <span className="font-medium">{companyLabel}</span> : null}
             {companyLabel ? " · " : null}
             {phase === "iniciando" && "Preparando o motor de cálculo…"}
             {phase === "processando" &&
-              `Reanalisando ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`}
+              (isConfeccao
+                ? `Calculando o repasse de ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`
+                : `Reanalisando ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`)}
             {phase === "concluido" &&
-              "O motor terminou. Veja abaixo o que mudou em relação ao estado anterior."}
-            {phase === "erro" && (errorMessage ?? "Não foi possível concluir a reanálise.")}
+              (isConfeccao
+                ? "O motor terminou de aplicar as regras. Veja abaixo como ficou o repasse calculado."
+                : "O motor terminou. Veja abaixo o que mudou em relação ao estado anterior.")}
+            {phase === "erro" && (errorMessage ?? "Não foi possível concluir a operação.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -325,9 +333,9 @@ export function ReapplyRulesProgressDialog({
         )}
 
 
-        {phase === "concluido" && diff && (
+        {phase === "concluido" && diff && !isConfeccao && (
           <div className="space-y-4 py-2">
-            {/* Cards de transições */}
+            {/* Cards de transições (modo análise) */}
             <div className="grid grid-cols-2 gap-2">
               <StatCard
                 tone="success"
@@ -387,6 +395,78 @@ export function ReapplyRulesProgressDialog({
                   Os <strong>{diff.stayedReproved}</strong> itens que continuam reprovados aparecem com o badge
                   vermelho na tabela — verifique se falta cadastrar regra, se o convênio/setor está bloqueado
                   pela regra vencedora, ou se há divergência real de valor.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {phase === "concluido" && diff && isConfeccao && (
+          <div className="space-y-4 py-2">
+            {/* Cards específicos do modo confecção — não há "reprovado" aqui,
+                o que importa é quantos itens ganharam valor calculado pela regra
+                vs. quantos ficaram sem regra cadastrada. */}
+            <div className="grid grid-cols-2 gap-2">
+              <StatCard
+                tone="success"
+                icon={<TrendingUp className="h-4 w-4" />}
+                label="Repasse calculado"
+                value={diff.approvedTotal}
+                hint="Itens que receberam valor de repasse a partir de uma regra vencedora"
+              />
+              <StatCard
+                tone="warning"
+                icon={<AlertTriangle className="h-4 w-4" />}
+                label="Sem regra cadastrada"
+                value={diff.reprovedTotal}
+                hint="Itens sem regra aplicável — cadastre uma regra ou ajuste o escopo para incluí-los"
+              />
+              <StatCard
+                tone="info"
+                icon={<RefreshCcw className="h-4 w-4" />}
+                label="Itens recalculados"
+                value={diff.reanalyzedItems}
+                hint="Itens cujo valor calculado, regra vencedora ou status mudaram nesta execução"
+              />
+              <StatCard
+                tone="info"
+                icon={<RefreshCcw className="h-4 w-4" />}
+                label="Regra trocou"
+                value={diff.ruleChanged}
+                hint="Outra regra passou a vencer para o item após a sua última edição"
+              />
+            </div>
+
+            {/* Totais finais — vocabulário de confecção */}
+            <div className="rounded-md border bg-muted/30 p-3 space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground">
+                Estado do cálculo da empresa
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
+                  {diff.approvedTotal} com regra
+                </Badge>
+                <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-300">
+                  {diff.reprovedTotal} sem regra
+                </Badge>
+                {diff.pendingTotal > 0 && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    {diff.pendingTotal} pendentes
+                  </Badge>
+                )}
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {diff.totalItems} {diff.totalItems === 1 ? "item" : "itens"} no total
+                </span>
+              </div>
+            </div>
+
+            {diff.reprovedTotal > 0 && (
+              <div className="text-xs text-muted-foreground flex items-start gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  <strong>{diff.reprovedTotal}</strong> {diff.reprovedTotal === 1 ? "item ficou" : "itens ficaram"} sem regra
+                  cadastrada. Cadastre/edite a regra correspondente e clique em <strong>Recalcular repasse</strong> novamente —
+                  o motor lê o estado atual do banco a cada execução manual.
                 </span>
               </div>
             )}
