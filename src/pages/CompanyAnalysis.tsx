@@ -1221,7 +1221,7 @@ export default function CompanyAnalysis() {
     }
   };
 
-  const doReimport = async (files: File[]) => {
+  const doReimport = async (files: File[], extraOverrides?: Record<string, Record<string, string>>) => {
     if (!id || !payment || !user || !group) return;
     setReimporting(true);
     try {
@@ -1266,7 +1266,7 @@ export default function CompanyAnalysis() {
           ? await tplQuery.or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
           : await tplQuery.is("hospital_id", null);
         const tpl = (tplRows ?? [])[0] as { id: string; mapping: any; name: string } | undefined;
-        const override = mappingOverrides[file.name];
+        const override = extraOverrides?.[file.name] ?? mappingOverrides[file.name];
         const manualMapping = override ?? tpl?.mapping;
         const hits = inspectColumnMapping(headers).map((h) => {
           const ov = manualMapping?.[h.field];
@@ -2819,9 +2819,10 @@ export default function CompanyAnalysis() {
             const file = mappingPrompt.file;
             setMappingOverrides((prev) => ({ ...prev, [file.name]: mapping }));
             setMappingPrompt(null);
-            // Reexecuta a reimportação com o mapeamento manual aplicado
+            // Reexecuta a reimportação passando o override explicitamente —
+            // setState é assíncrono e o closure de doReimport ainda veria vazio.
             const files = reimportConfirm ?? [file];
-            void doReimport(files);
+            void doReimport(files, { [file.name]: mapping });
           }}
         />
       )}
