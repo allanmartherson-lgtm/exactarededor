@@ -652,8 +652,16 @@ function targetsDoctor(r: RuleInput, item: ItemInput): boolean {
   const ruleDoc = onlyDigits(r.target_identifier);
   const itemDoc = onlyDigits(item.doctor_document);
   if (ruleDoc && itemDoc && ruleDoc === itemDoc) return true;
-  // 3) Fallback por nome — só quando nem id nem CRM bateram
-  if (r.target_name && item.doctor_name && normName(r.target_name) === normName(item.doctor_name)) return true;
+  // 3) Fallback por nome — exato OU prefixo de tokens (cadastro "Daniele
+  //    Franco E Couto" casa com item "Daniele Franco E Couto Manera").
+  if (r.target_name && item.doctor_name) {
+    const ruleNm = normName(r.target_name);
+    const itemNm = normName(item.doctor_name);
+    if (ruleNm === itemNm) return true;
+    const rT = ruleNm.split(" ").filter((t) => t.length >= 2);
+    const iT = itemNm.split(" ").filter((t) => t.length >= 2);
+    if (rT.length >= 2 && iT.length >= rT.length && rT[0] === iT[0] && rT.every((t) => iT.includes(t))) return true;
+  }
   return false;
 }
 
