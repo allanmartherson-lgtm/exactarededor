@@ -226,6 +226,13 @@ const Rules = () => {
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
   const [fTargetIdentifier, setFTargetIdentifier] = useState("");
   const [fTargetName, setFTargetName] = useState("");
+  // ID do médico/empresa cadastrada, preenchido APENAS via combobox.
+  // Persistido em rules.target_doctor_id/target_company_id para que o motor
+  // case por ID (estável) em vez de nome (frágil). Sem ID = match cai para
+  // CRM/CNPJ e, em último caso, nome exato — nunca heurística.
+  const [fTargetDoctorId, setFTargetDoctorId] = useState<string | null>(null);
+  const [fTargetCompanyId, setFTargetCompanyId] = useState<string | null>(null);
+
   
   // Nova abordagem: Natureza da regra (Calculável vs Informativa/bloqueio)
   const [fNature, setFNature] = useState<"calculavel" | "informativo">("informativo");
