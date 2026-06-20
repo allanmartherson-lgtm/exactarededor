@@ -156,6 +156,8 @@ export function RuleHistoryTab({ ruleId }: { ruleId: string }) {
 
   return (
     <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+      <RuleExplainCard ruleId={ruleId} />
+
       {entries.map((e) => {
         const actor = e.actor_id ? profiles.get(e.actor_id) : null;
         const actorLabel = actor?.full_name || actor?.email || (e.actor_id ? e.actor_id.slice(0, 8) : "Sistema");
