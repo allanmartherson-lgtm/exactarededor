@@ -39,7 +39,7 @@ type Row = {
   applied_rule_id: string | null;
   package_absorbed: boolean | null;
   ai_findings: any;
-  _calc?: { id: string; label: string | null; package_main_code: string | null; rule_id: string | null; calculation_type: string | null; rule_name?: string | null } | null;
+  _calc?: { id: string; label: string | null; package_main_code: string | null; package_included_codes: string[] | null; procedure_codes: string[] | null; rule_id: string | null; calculation_type: string | null; rule_name?: string | null } | null;
   _mismatch?: TussMismatch | null;
   _override?: { resolved_at: string | null; justification: string | null } | null;
 };
