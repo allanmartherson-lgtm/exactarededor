@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, RefreshCw, Link2, X, Check, Building2 } from "lucide-react";
+import { Loader2, RefreshCw, Link2, X, Check, Building2, Sparkles, Hand } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatCNPJ } from "@/lib/cnpj";
@@ -18,7 +18,12 @@ interface Suggestion {
   status: string;
   raw_snippet: string | null;
   created_at: string;
+  source?: string | null;
+  score?: number | null;
+  confidence?: string | null;
+  ai_reasoning?: string | null;
 }
+
 
 interface DoctorRef { id: string; full_name: string; }
 interface CompanyRef { id: string; name: string; document: string | null; }
@@ -34,15 +39,22 @@ export function DoctorLinkSuggestionsPanel() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "engine_fuzzy" | "ai_suggested" | "analyst_manual">("all");
+
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("doctor_link_suggestions")
-      .select("*")
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
+    const { data, error } = await (async () => {
+      let q = supabase
+        .from("doctor_link_suggestions")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      if (filter !== "all") q = q.eq("source", filter);
+      return await q;
+    })();
     if (error) { toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" }); setLoading(false); return; }
+
     const list = (data ?? []) as Suggestion[];
     setItems(list);
 
@@ -63,7 +75,7 @@ export function DoctorLinkSuggestionsPanel() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
 
   const runScan = async () => {
     setScanning(true);
@@ -130,10 +142,21 @@ export function DoctorLinkSuggestionsPanel() {
             CNPJs encontrados em notas livres dos médicos. Aprove para criar o vínculo formal em <code>doctor_companies</code>.
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={runScan} disabled={scanning}>
-          {scanning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-          Varrer todas as notas agora
-        </Button>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex gap-1">
+            {(["all","engine_fuzzy","ai_suggested","analyst_manual"] as const).map((f) => (
+              <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} className="h-7 text-xs"
+                onClick={() => setFilter(f)}>
+                {f === "all" ? "todas" : f === "engine_fuzzy" ? "motor" : f === "ai_suggested" ? "IA" : "analista"}
+              </Button>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" onClick={runScan} disabled={scanning}>
+            {scanning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+            Varrer notas
+          </Button>
+        </div>
+
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -165,10 +188,29 @@ export function DoctorLinkSuggestionsPanel() {
                       ) : (
                         <Badge variant="destructive" className="text-[10px]">PJ não cadastrada</Badge>
                       )}
+                      {s.source && s.source !== "analyst_manual" && (
+                        <Badge variant="outline" className="gap-1 text-[10px]">
+                          <Sparkles className="h-3 w-3" /> {s.source === "engine_fuzzy" ? "motor" : "IA"}
+                        </Badge>
+                      )}
+                      {s.source === "analyst_manual" && (
+                        <Badge variant="outline" className="gap-1 text-[10px]">
+                          <Hand className="h-3 w-3" /> analista
+                        </Badge>
+                      )}
+                      {s.score != null && (
+                        <Badge variant={s.confidence === "high" ? "default" : "outline"} className="text-[10px]">
+                          score {Number(s.score).toFixed(2)}
+                        </Badge>
+                      )}
                     </div>
+                    {s.ai_reasoning && (
+                      <p className="text-xs text-muted-foreground mt-1 italic">IA: {s.ai_reasoning}</p>
+                    )}
                     {s.raw_snippet && (
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic">"{s.raw_snippet}"</p>
                     )}
+
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => reject(s)} disabled={busyId === s.id}>

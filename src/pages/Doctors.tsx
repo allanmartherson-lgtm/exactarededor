@@ -24,6 +24,8 @@ import { DoctorCompanySyncFaq } from "@/components/DoctorCompanySyncFaq";
 import { RegistryAliasesPanel } from "@/components/RegistryAliasesPanel";
 import { DoctorMissingSpecialtyPanel } from "@/components/doctors/DoctorMissingSpecialtyPanel";
 import { DoctorLinkSuggestionsPanel } from "@/components/DoctorLinkSuggestionsPanel";
+import { CompanyLinkSuggestionsPanel } from "@/components/CompanyLinkSuggestionsPanel";
+
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
   entity: "doctors",
@@ -788,9 +790,11 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
           <TabsContent value="pending" className="mt-4">
             <DoctorRegistrationPendingPanel />
           </TabsContent>
-          <TabsContent value="link-suggestions" className="mt-4">
+          <TabsContent value="link-suggestions" className="mt-4 space-y-4">
             <DoctorLinkSuggestionsPanel />
+            <CompanyLinkSuggestionsPanel />
           </TabsContent>
+
           <TabsContent value="aliases" className="mt-4">
             <RegistryAliasesPanel kind="doctor" />
           </TabsContent>
