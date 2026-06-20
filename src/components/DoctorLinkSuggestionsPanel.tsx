@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, RefreshCw, Link2, X, Check, Building2 } from "lucide-react";
+import { Loader2, RefreshCw, Link2, X, Check, Building2, Sparkles, Hand } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatCNPJ } from "@/lib/cnpj";
@@ -18,7 +18,12 @@ interface Suggestion {
   status: string;
   raw_snippet: string | null;
   created_at: string;
+  source?: string | null;
+  score?: number | null;
+  confidence?: string | null;
+  ai_reasoning?: string | null;
 }
+
 
 interface DoctorRef { id: string; full_name: string; }
 interface CompanyRef { id: string; name: string; document: string | null; }
