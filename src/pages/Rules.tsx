@@ -1469,9 +1469,16 @@ const Rules = () => {
           ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
           : null,
         target_name: d.scope === "especifica" ? d.target_name : null,
+        // Preferência: ID escolhido no combobox. Fallback: lookup por CNPJ.
         target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
-          ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
+          ? ((d as any).target_company_id
+              ?? companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id
+              ?? null)
           : null,
+        target_doctor_id: (d.scope === "especifica" && d.target_type === "medico")
+          ? ((d as any).target_doctor_id ?? null)
+          : null,
+
       };
 
       // 1) Validação preventiva (drafts não têm cálculos — array vazio)
