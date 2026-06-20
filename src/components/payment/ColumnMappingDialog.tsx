@@ -23,10 +23,12 @@ import {
   inspectColumnMapping,
   scoreToConfidence,
   summarizeMissing,
+  type FieldDefinition,
   type FieldKey,
   type FieldMappingHit,
   type ManualMapping,
 } from "@/lib/columnMapping";
+
 import { useSheetColumnTemplates } from "@/hooks/useSheetColumnTemplates";
 import { toast } from "sonner";
 
@@ -54,6 +56,13 @@ interface Props {
   hospitalId: string | null;
   /** Callback quando o usuário confirma o mapeamento. */
   onApply: (mapping: ManualMapping) => void;
+  /**
+   * Modo de uso da base:
+   * - "analise" (default): planilha de pagamento real → exige `gross_amount` (valor repasse)
+   * - "confeccao": planilha bruta para o motor calcular → exige `procedure_amount` (valor convênio)
+   *   e oculta `gross_amount` para evitar que o analista importe valor de repasse pré-existente
+   */
+  mode?: "analise" | "confeccao";
 }
 
 export default function ColumnMappingDialog({
@@ -65,7 +74,9 @@ export default function ColumnMappingDialog({
   sampleRow,
   hospitalId,
   onApply,
+  mode = "analise",
 }: Props) {
+
   const [mapping, setMapping] = useState<ManualMapping>(initialMapping);
   const [showSave, setShowSave] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -82,9 +93,29 @@ export default function ColumnMappingDialog({
     }
   }, [open, initialMapping, fileName]);
 
+  /**
+   * Definições efetivas conforme o modo:
+   * - confeccao: oculta `gross_amount` (motor é quem calcula o repasse) e
+   *   promove `procedure_amount` (valor convênio) a obrigatório, já que é
+   *   a base de cálculo das regras.
+   * - analise: mantém o comportamento padrão.
+   */
+  const effectiveFields = useMemo(() => {
+    if (mode !== "confeccao") return FIELD_DEFINITIONS;
+    return FIELD_DEFINITIONS.filter((f) => f.key !== "gross_amount").map((f) =>
+      f.key === "procedure_amount" ? { ...f, requirement: "required" as const } : f,
+    );
+  }, [mode]);
+
+  const requirementByField = useMemo(() => {
+    const m: Partial<Record<FieldKey, FieldDefinition["requirement"]>> = {};
+    effectiveFields.forEach((f) => { m[f.key] = f.requirement; });
+    return m;
+  }, [effectiveFields]);
+
   /** Reconstrói FieldMappingHit a partir do mapping atual + heurística para alternativas. */
   const hits = useMemo<FieldMappingHit[]>(() => {
-    const base = inspectColumnMapping(headers);
+    const base = inspectColumnMapping(headers).filter((h) => requirementByField[h.field] !== undefined);
     return base.map((h) => {
       const override = mapping[h.field];
       if (override && headers.includes(override)) {
@@ -92,9 +123,17 @@ export default function ColumnMappingDialog({
       }
       return h;
     });
-  }, [headers, mapping]);
+  }, [headers, mapping, requirementByField]);
 
-  const { missingRequired, lowConfidence } = useMemo(() => summarizeMissing(hits), [hits]);
+  const { missingRequired, lowConfidence } = useMemo(() => {
+    const missingRequired = hits.filter(
+      (h) => requirementByField[h.field] === "required" && (!h.header || h.score < 30),
+    );
+    const lowConfidence = hits.filter(
+      (h) => requirementByField[h.field] !== "optional" && h.header && h.score < 60,
+    );
+    return { missingRequired, lowConfidence };
+  }, [hits, requirementByField]);
 
   const setField = (field: FieldKey, header: string) => {
     setMapping((prev) => {
@@ -110,9 +149,12 @@ export default function ColumnMappingDialog({
       toast.error(`Faltam campos obrigatórios: ${missingRequired.map((m) => FIELD_BY_KEY[m.field].label).join(", ")}`);
       return;
     }
-    onApply(hitsToMapping(hits));
+    const out = hitsToMapping(hits);
+    if (mode === "confeccao") delete out.gross_amount;
+    onApply(out);
     onOpenChange(false);
   };
+
 
   const handleSaveTemplate = async () => {
     if (!templateName.trim()) {
@@ -193,8 +235,9 @@ export default function ColumnMappingDialog({
               </tr>
             </thead>
             <tbody>
-              {FIELD_DEFINITIONS.map((def) => {
+              {effectiveFields.map((def) => {
                 const hit = hits.find((h) => h.field === def.key)!;
+
                 const required = def.requirement === "required";
                 return (
                   <tr key={def.key} className="border-b last:border-0">
