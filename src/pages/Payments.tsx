@@ -1727,7 +1727,7 @@ const Payments = () => {
                           </td>
                           <td className="px-3 py-3 align-middle">
                             <div className="flex items-center justify-between gap-2">
-                              <StatusBadge status={p.status} />
+                              <StatusBadge status={p.status} analysisMode={(p as any).analysis_mode} confeccaoStatus={(p as any).confeccao_status} />
                               {canDelete && (
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
