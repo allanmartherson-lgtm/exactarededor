@@ -158,6 +158,8 @@ const AnalystProductivity = lazy(loadAnalystProductivity);
 const About = lazy(loadAbout);
 const SystemReleases = lazy(loadSystemReleases);
 const FeatureFlagsAdmin = lazy(loadFeatureFlagsAdmin);
+const CopilotTelemetry = lazy(loadCopilotTelemetry);
+
 const SystemAnnouncementsAdmin = lazy(loadSystemAnnouncementsAdmin);
 const FinancialJournal = lazy(loadFinancialJournal);
 const DreReport = lazy(loadDreReport);
