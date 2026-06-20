@@ -346,7 +346,7 @@ export function useTussAuditOpenCount(paymentId: string | undefined) {
       if (calcIds.length > 0) {
         const { data: calcs } = await supabase
           .from("rule_calculations")
-          .select("id,package_main_code,rule_id,calculation_type")
+          .select("id,package_main_code,package_included_codes,procedure_codes,rule_id,calculation_type")
           .in("id", calcIds);
         for (const c of (calcs ?? []) as any[]) calcMap.set(c.id, c);
       }
