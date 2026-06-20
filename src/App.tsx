@@ -76,6 +76,8 @@ const loadAnalystProductivity = () => import("./pages/AnalystProductivity.tsx");
 const loadAbout = () => import("./pages/About.tsx");
 const loadSystemReleases = () => import("./pages/SystemReleases.tsx");
 const loadFeatureFlagsAdmin = () => import("./pages/FeatureFlagsAdmin.tsx");
+const loadCopilotTelemetry = () => import("./pages/CopilotTelemetry.tsx");
+
 const loadSystemAnnouncementsAdmin = () => import("./pages/SystemAnnouncementsAdmin.tsx");
 const loadFinancialJournal = () => import("./pages/FinancialJournal.tsx");
 const loadDreReport = () => import("./pages/DreReport.tsx");
@@ -156,6 +158,8 @@ const AnalystProductivity = lazy(loadAnalystProductivity);
 const About = lazy(loadAbout);
 const SystemReleases = lazy(loadSystemReleases);
 const FeatureFlagsAdmin = lazy(loadFeatureFlagsAdmin);
+const CopilotTelemetry = lazy(loadCopilotTelemetry);
+
 const SystemAnnouncementsAdmin = lazy(loadSystemAnnouncementsAdmin);
 const FinancialJournal = lazy(loadFinancialJournal);
 const DreReport = lazy(loadDreReport);
@@ -343,6 +347,8 @@ const App = () => (
                   <Route path="/sobre" element={<About />} />
                   <Route path="/sistema/versoes" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemReleases /></ProtectedRoute>} />
                   <Route path="/sistema/feature-flags" element={<ProtectedRoute roles={["admin", "diretor"]}><FeatureFlagsAdmin /></ProtectedRoute>} />
+                  <Route path="/sistema/copiloto-telemetria" element={<ProtectedRoute roles={["admin", "diretor"]}><CopilotTelemetry /></ProtectedRoute>} />
+
                   <Route path="/sistema/avisos" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemAnnouncementsAdmin /></ProtectedRoute>} />
                   <Route path="/sistema/journal" element={<ProtectedRoute roles={["admin", "diretor"]}><FinancialJournal /></ProtectedRoute>} />
                   <Route path="/relatorios/dre" element={<Navigate to="/inteligencia-financeira" replace />} />

@@ -27,6 +27,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { CopilotCard } from "@/components/copilot/CopilotCard";
+import { DuplicateCheckBanner } from "@/components/copilot/DuplicateCheckBanner";
+
 
 
 interface UnmatchedGroup {
@@ -58,6 +60,21 @@ export function UnmatchedItemsPanel({
   const [newDoc, setNewDoc] = useState("");
   const [ignoreReason, setIgnoreReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [allCompanies, setAllCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
+
+  useEffect(() => {
+    if (!createOpen) return;
+    if (allCompanies.length > 0) return;
+    (async () => {
+      const { data } = await supabase
+        .from("companies")
+        .select("id,name,document")
+        .order("name")
+        .limit(500);
+      setAllCompanies((data ?? []) as { id: string; name: string; document: string | null }[]);
+    })();
+  }, [createOpen, allCompanies.length]);
+
 
   const load = async () => {
     setLoading(true);
@@ -411,6 +428,13 @@ export function UnmatchedItemsPanel({
             <p className="text-xs text-muted-foreground">
               "{createOpen?.raw_company_name}" será gravado como apelido automaticamente.
             </p>
+            {newName.trim().length >= 4 && (
+              <DuplicateCheckBanner
+                newEntity={{ name: newName, document: newDoc || null, type: "company" }}
+                candidates={allCompanies.map((c) => ({ id: c.id, label: c.name, document: c.document }))}
+              />
+            )}
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(null)} disabled={busy}>
