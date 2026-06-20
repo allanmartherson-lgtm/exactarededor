@@ -1,56 +1,107 @@
 
-# Modo Confecção — Comportamento próprio
+## Contexto
 
-A auditoria identificou que o modo confecção ainda renderiza vários blocos do modo análise (abas, cards, composição financeira zerada, conciliação, relatórios) e usa o mesmo vocabulário ("aprovado/reprovado/divergência"). O plano abaixo corta cada vazamento e dá ao modo confecção identidade própria.
+Hoje o modo confecção compartilha a máquina de estados de análise (`aprovado`, `pendente`, `glosa`, etc.) e é read-only nas linhas. Precisamos:
 
-## 1. UI — Tela da empresa (`CompanyAnalysis`)
+1. Substituir o status visual em confecção por **3 estados objetivos** que dizem apenas se o motor conseguiu calcular.
+2. Permitir que o analista **ajuste linhas** (valor convênio, médico, TUSS, função, setor), **exclua** (soft delete auditado) e **adicione** linhas manuais.
+3. Não tocar no caso 40202542 — diagnóstico já entregue (faltava o código no `procedure_codes` da regra).
 
-- **Aba "Divergências"**: ocultar em confecção. Não existe "divergência" — só "com regra" / "sem regra".
-- **Aba "Detalhe IA"**: ocultar em confecção (motor não roda IA aqui).
-- **Cards de stats (Alertas / Críticos)**: em confecção, trocar por **"Itens com regra"** e **"Itens sem regra"** (cor warning quando > 0). "Valor líquido" passa a ser **"Repasse calculado"** (Σ `expected_amount`) e o subtítulo "Bruto" vira **"Convênio"** (Σ `procedure_amount`).
-- **Botão "Conciliação desta empresa"**: ocultar em confecção (não há base hospitalar para confrontar).
-- **`FinancialCompositionStrip`**: passar prop `mode`; em confecção, exibir apenas "Valor convênio" → "Repasse calculado" e ocultar a equação Bruto−Débitos−Glosas−Pool=Líquido (ainda não se aplica).
-- **`CompanyHistoryPanel`**: esconder linhas de versão IA / `ai_status` em confecção; manter só observações e mudanças de `confeccao_status`.
+---
 
-## 2. UI — Tela do lote (`PaymentDetail`)
+## Parte 1 — Status simplificado no modo confecção
 
-- Bloco de cards de IA (`ExecutiveSummaryCard`, `DirectorBriefingCard`, `PreAnalysisScoreCard`, "Alertas assistenciais"): adicionar `&& !isConfeccao` no guard.
-- `PhaseSummary` (fases análise→validação→aprovação): ocultar em confecção; mostrar barrinha própria "Em confecção → Confecção concluída → Pronto para análise".
-- Header do lote: em confecção, mostrar "Repasse calculado: Σ expected_amount" (não `total_amount`, que está zerado).
-- `GroupReconciliationGate`: bypass em confecção.
+### Estados (derivados, não persistidos como novo enum)
+- **com regra** — `applied_rule_id IS NOT NULL` e `expected_amount` calculado (motor respondeu).
+- **sem regra** — nenhuma regra casou (`sem_regra = true` ou `applied_rule_id IS NULL`).
+- **divergente** — motor casou regra mas houve inconsistência (ex: pendência de cálculo, ambiguidade entre cálculos, código fora da lista esperada, alerta do limiar).
 
-## 3. Listagem `/pagamentos` e labels de status
+### Onde aplicar
+- Coluna **Status** do grid de itens em `ItemsDataGrid` quando `analysis_mode === "confeccao"`.
+- Banner / agregadores do header da empresa (contagens "aprovado/pendente" viram "com regra/sem regra/divergente").
+- Filtro de status do topo do grid: trocar opções quando em confecção.
 
-- Em `src/lib/status.ts`, adicionar labels de `confeccao_status` ("Em confecção", "Confecção concluída").
-- Na coluna de status da listagem, quando `analysis_mode === "confeccao"`, exibir o `confeccao_status` (com cor âmbar) em vez de "Rascunho".
+### Não muda
+- Coluna `ai_status` no banco fica como está (vamos só esconder os labels antigos na UI de confecção). Ao **finalizar confecção** e entrar em análise, o status volta a ser o atual.
 
-## 4. Dados — Composição financeira
+---
 
-- `useFinancialComposition` + edge `compute-company-financials`: aceitar `mode`. Em confecção, calcular `bruto = Σ procedure_amount` e `liquido = Σ expected_amount` (sem deduções/glosas/pool, que ainda não existem nessa fase).
-- Persistir snapshot em `payment_company_financials` marcado com `source = 'confeccao'` para auditoria.
+## Parte 2 — Edição operacional no modo confecção
 
-## 5. Relatórios
+Todas as ações abaixo só ficam ativas quando `analysis_mode === "confeccao"` E `confeccao_status` permite edição (ou seja, não está finalizado). Todas geram entrada em `audit_log` com `action`, `before`, `after`, `user_id`.
 
-- `paymentReportPdf` / `groupValidationPdf`: em confecção, gerar versão "Relatório de confecção" (sem colunas de `ai_status` e divergência; com colunas Convênio / Repasse calculado / Regra aplicada / Sem regra). Alternativa mínima: bloquear export em confecção com toast "Disponível após finalizar confecção".
+### 2.1 Editar valor convênio (`procedure_amount`)
+- Célula editável no grid (já existe handler de edição inline para outras colunas em `ItemsDataGrid`).
+- Validação: número >= 0, máx 2 decimais.
+- Após salvar: dispara **recálculo da linha** (motor re-roda só aquele item via `analyze-payment` com escopo `item_ids`) para atualizar `expected_amount`.
+- Snapshot financeiro da empresa marcado como stale → `useFinancialComposition` recarrega.
 
-## 6. Edge functions
+### 2.2 Editar médico / TUSS / função / setor
+- Modal "Editar linha" (botão de lápis na linha) com 4 campos:
+  - **Médico**: Combobox usando `registryLookup` (estrito — só matches válidos).
+  - **TUSS**: input livre 8 dígitos + validação.
+  - **Função** (`doctor_role`): select com valores canônicos (Cirurgião Principal, 1º Aux, 2º Aux, Anestesista, Instrumentador, Clínico…).
+  - **Setor**: Combobox via `useSectorAliases`.
+- Ao salvar: persiste, marca `manual_edit = true` (nova coluna boolean default false) e dispara recálculo da linha.
 
-- `validate-payment`: short-circuit no início se `payment.analysis_mode === 'confeccao'` (não deve rodar; só após finalize_confeccao).
-- `notify-validator-assignment` / `notify-director-approval` / `notify-analyst-review`: guard explícito `analysis_mode !== 'confeccao'` no topo (defesa em profundidade, mesmo que os paths atuais já não os disparem).
+### 2.3 Excluir linha (soft delete)
+- Botão lixeira → `confirm()` com motivo obrigatório (texto livre).
+- Set `is_cancelled = true`, `cancellation_reason = motivo`, `cancelled_by = user_id`, `cancelled_at = now()`.
+- Linha some dos agregados ativos (já é o comportamento de `is_cancelled` em `useFinancialComposition` modo confecção).
+- Nunca DELETE físico — preserva auditoria e permite "reativar".
 
-## 7. Memória do projeto
+### 2.4 Adicionar linha manual
+- Botão "+ Adicionar linha" no topo do grid.
+- Modal com: Atendimento, Data, Paciente, TUSS, Médico, Função, Setor, Convênio, Valor convênio (`procedure_amount`).
+- Insere `payment_items` com `analysis_mode='confeccao'`, `manual_entry=true`, `payment_company_group_id` = grupo atual.
+- Dispara recálculo do item.
 
-- Atualizar `.lovable/memory/features/confeccao-vs-analise-status.md` com a regra: "Em confecção, UI não usa vocabulário aprovado/reprovado/divergência, composição financeira é Σ procedure_amount → Σ expected_amount, abas Divergências/Detalhe IA ocultas, conciliação e PDFs analíticos bloqueados".
+### Gate de segurança
+- Edição bloqueada se grupo já está "finalizado confecção" (`confeccao_status='finalizado'`) — usuário precisa reabrir.
+- RLS: só usuários com role analista/admin do hospital ativo.
+- Toda mudança em `payment_items` no modo confecção entra em `audit_log` com `entity='payment_item'`, `entity_id`, `action ∈ {update_field, soft_delete, manual_insert, recalc}`.
+
+---
+
+## Schema
+
+Migration única adicionando colunas de auditoria/origem:
+
+```sql
+ALTER TABLE public.payment_items
+  ADD COLUMN IF NOT EXISTS manual_entry boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS manual_edit boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS cancellation_reason text,
+  ADD COLUMN IF NOT EXISTS cancelled_by uuid REFERENCES auth.users(id),
+  ADD COLUMN IF NOT EXISTS cancelled_at timestamptz;
+```
+
+(sem alteração de GRANT — `payment_items` já tem grants completos)
+
+---
 
 ## Detalhes técnicos
 
-- Flag única: `const isConfeccao = payment.analysis_mode === "confeccao"` já existe em cada tela — reusar.
-- Onde a composição depende de edge function (`compute-company-financials`), o branch novo é no SQL: somar `coalesce(procedure_amount,0)` e `coalesce(expected_amount,0)` quando `payments.analysis_mode = 'confeccao'`.
-- Sem mudança de schema: `confeccao_status` e `expected_amount` já existem.
-- Testes: estender `CompanyAnalysis.confeccao.contract.test.ts` para verificar (a) ausência das abas "divergencias" e "ia" em confecção, (b) stats com labels "Itens com/sem regra", (c) `FinancialCompositionStrip` recebendo `mode="confeccao"`.
+- **Arquivos principais a editar:**
+  - `src/components/payment-detail/ItemsDataGrid.tsx` — coluna Status condicional, edição inline `procedure_amount`, botões lixeira + lápis, "+ Adicionar".
+  - `src/components/payment-detail/EditItemDialog.tsx` (novo) — modal de edição médico/TUSS/função/setor.
+  - `src/components/payment-detail/AddItemDialog.tsx` (novo) — modal de inclusão manual.
+  - `src/lib/itemConfeccaoStatus.ts` (novo) — função pura `deriveConfeccaoStatus(item) → 'com_regra' | 'sem_regra' | 'divergente'`.
+  - `src/pages/CompanyAnalysis.tsx` — aplicar status derivado nos agregadores quando `isConfeccao`.
+  - `src/lib/audit.ts` — helper `logItemChange()`.
+  - Reuso de `analyze-payment` edge function com `item_ids: [id]` para recálculo unitário (já suporta).
 
-## Itens fora do escopo (próxima fase)
+- **Testes:**
+  - `src/lib/__tests__/itemConfeccaoStatus.test.ts` — cobre 3 estados.
+  - `src/components/payment-detail/__tests__/ItemsDataGrid.confeccao-edit.test.ts` — botões só aparecem em confecção editável, soft delete preserva linha no banco.
+  - `src/pages/__tests__/CompanyAnalysis.confeccao-status.test.ts` — agregadores do header refletem novo conjunto.
 
-- Painel próprio de "Itens sem regra" com call-to-action para vincular regra rapidamente.
-- Relatório PDF dedicado de confecção (a fase imediata só bloqueia/sinaliza).
-- Refatorar `ItemsDataGrid` para suprimir colunas de divergência em confecção (hoje já são vazias; baixo impacto visual).
+- **Memória a atualizar:** `mem://features/confeccao-ui-separation` — adicionar regras de status simplificado + edição com auditoria.
+
+---
+
+## Fora de escopo
+
+- Reabertura de confecção finalizada (fluxo separado).
+- Importar correções em lote (CSV) — apenas edição manual unitária por enquanto.
+- Editar `gross_amount` em confecção (não existe na fase).

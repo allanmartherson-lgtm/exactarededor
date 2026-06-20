@@ -4527,6 +4527,8 @@ export type Database = {
           item_hash: string | null
           item_origem: string | null
           item_origin: string
+          manual_edit: boolean
+          manual_entry: boolean
           manual_note: string | null
           origem_reconciliation_item_id: string | null
           origem_referencia: string | null
@@ -4624,6 +4626,8 @@ export type Database = {
           item_hash?: string | null
           item_origem?: string | null
           item_origin?: string
+          manual_edit?: boolean
+          manual_entry?: boolean
           manual_note?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
@@ -4721,6 +4725,8 @@ export type Database = {
           item_hash?: string | null
           item_origem?: string | null
           item_origin?: string
+          manual_edit?: boolean
+          manual_entry?: boolean
           manual_note?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
