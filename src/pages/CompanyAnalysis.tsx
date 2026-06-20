@@ -1221,7 +1221,7 @@ export default function CompanyAnalysis() {
     }
   };
 
-  const doReimport = async (files: File[]) => {
+  const doReimport = async (files: File[], extraOverrides?: Record<string, ManualMapping>) => {
     if (!id || !payment || !user || !group) return;
     setReimporting(true);
     try {
