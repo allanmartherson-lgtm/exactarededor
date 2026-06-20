@@ -2738,6 +2738,7 @@ export default function CompanyAnalysis() {
           initialMapping={mappingPrompt.initialMapping}
           sampleRow={mappingPrompt.sampleRow}
           hospitalId={(payment as any)?.hospital_id ?? null}
+          mode={isConfeccao ? "confeccao" : "analise"}
           onApply={(mapping) => {
             const file = mappingPrompt.file;
             setMappingOverrides((prev) => ({ ...prev, [file.name]: mapping }));
