@@ -347,6 +347,8 @@ const App = () => (
                   <Route path="/sobre" element={<About />} />
                   <Route path="/sistema/versoes" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemReleases /></ProtectedRoute>} />
                   <Route path="/sistema/feature-flags" element={<ProtectedRoute roles={["admin", "diretor"]}><FeatureFlagsAdmin /></ProtectedRoute>} />
+                  <Route path="/sistema/copiloto-telemetria" element={<ProtectedRoute roles={["admin", "diretor"]}><CopilotTelemetry /></ProtectedRoute>} />
+
                   <Route path="/sistema/avisos" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemAnnouncementsAdmin /></ProtectedRoute>} />
                   <Route path="/sistema/journal" element={<ProtectedRoute roles={["admin", "diretor"]}><FinancialJournal /></ProtectedRoute>} />
                   <Route path="/relatorios/dre" element={<Navigate to="/inteligencia-financeira" replace />} />
