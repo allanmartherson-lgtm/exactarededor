@@ -64,6 +64,8 @@ type CalcLike = {
   id: string;
   label?: string | null;
   package_main_code?: string | null;
+  package_included_codes?: string[] | null;
+  procedure_codes?: string[] | null;
   rule_id?: string | null;
   calculation_type?: string | null;
 } | null;
