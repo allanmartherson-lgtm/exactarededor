@@ -82,10 +82,11 @@ serve(async (req) => {
 
   try {
     const parsedBody = await req.json();
-    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = parsedBody;
+    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label, _force_fresh } = parsedBody;
     __payment_id = payment_id;
     __job_id = _job_id;
     __company_label = _company_label;
+    const __force_fresh = _force_fresh === true;
     __company_name = company_name;
     // [TIMING] prefixo curto p/ diferenciar workers concorrentes nos logs
     const __t = `[T:${(_company_label ?? company_name ?? "all").toString().slice(0, 24)}]`;
