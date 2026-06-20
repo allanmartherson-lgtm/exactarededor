@@ -1848,8 +1848,9 @@ const NewPayment = () => {
     const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => {
       const dRes = doctorReg ? resolveDoctor({ name: r.doctor_name, crm: r.doctor_document, cpf: r.doctor_document }, doctorReg) : { doctor: null, matched_by: null as any };
       const cRes = convenioReg ? resolveConvenio(r.agreement_text, convenioReg) : { convenio: null, matched_by: null as any };
-      const sRawForLookup = r.sector || currentBucket?.sectorMapping || null;
-      const sRes = sectorReg ? resolveSector(sRawForLookup, sectorReg) : { sector: null, matched_by: null as any };
+      // Override manual do bucket vence sobre o valor bruto da linha (analista corrigiu o setor para o lote inteiro).
+      const sRawForLookup = (currentBucket?.sectorMapping?.trim() || r.sector) || null;
+
       return ({
         hospital_id: (payment as any).hospital_id ?? hospital?.id,
         payment_id: payment.id,
