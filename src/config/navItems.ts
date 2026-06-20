@@ -159,6 +159,8 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/insights-observacoes", label: "Insights de Observações", icon: MessageSquare, iconName: "MessageSquare", roles: ["diretor", "admin", "validador"] },
       { to: "/sistema/versoes", label: "Versões e Releases", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
       { to: "/sistema/feature-flags", label: "Feature Flags", icon: Flag, iconName: "Flag", roles: ["admin", "diretor"] },
+      { to: "/sistema/copiloto-telemetria", label: "Telemetria do Copiloto", icon: BrainCircuit, iconName: "BrainCircuit", roles: ["admin", "diretor"] },
+
       { to: "/sistema/avisos", label: "Avisos do Sistema", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor"] },
       { to: "/sistema/integracoes", label: "Integrações de Comunicação", icon: MessageSquare, iconName: "MessageSquare", roles: ["admin", "diretor"] },
       { to: "/sobre", label: "Sobre o Exacta", icon: Info, iconName: "Info", roles: ALL_ROLES },
