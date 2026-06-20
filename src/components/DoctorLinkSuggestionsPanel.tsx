@@ -39,6 +39,8 @@ export function DoctorLinkSuggestionsPanel() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "engine_fuzzy" | "ai_suggested" | "analyst_manual">("all");
+
 
   const load = async () => {
     setLoading(true);
