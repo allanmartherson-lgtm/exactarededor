@@ -687,7 +687,7 @@ const NewPayment = () => {
             };
             const tipo_linha = base.tipo_linha_manual;
             const withType = { ...base, tipo_linha };
-            return { ...withType, line_issues: validateLine(withType) } as ParsedRow;
+            return { ...withType, line_issues: validateLine(withType, { modoConfeccao }) } as ParsedRow;
           });
           const headers = Object.keys(sourceRows[0] ?? {});
           setBuckets([{
@@ -909,7 +909,7 @@ const NewPayment = () => {
       };
       const tipo_linha = classifyLine(base, paymentKind || null);
       const withType = { ...base, tipo_linha };
-      const line_issues = validateLine(withType);
+      const line_issues = validateLine(withType, { modoConfeccao });
       return { ...withType, line_issues } as ParsedRow;
     }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
   };
@@ -1409,7 +1409,7 @@ const NewPayment = () => {
 
           const tipo_linha = next.tipo_linha_manual ?? classifyLine(next, paymentKind || null);
           const withType = { ...next, tipo_linha };
-          return { ...withType, line_issues: validateLine(withType) } as ParsedRow;
+          return { ...withType, line_issues: validateLine(withType, { modoConfeccao }) } as ParsedRow;
         });
         return { ...bucket, columnOverrides: overrides, rows };
       })
@@ -1435,7 +1435,7 @@ const NewPayment = () => {
     return buckets.flatMap((b, bucketIndex) => b.rows.map((r, rowIndex) => ({ ...r, source_bucket_index: bucketIndex, source_row_index: rowIndex }))).map((r) => {
       const tipo_linha = r.tipo_linha_manual ?? classifyLine(r, paymentKind || null);
       const withType = { ...r, tipo_linha };
-      return { ...withType, line_issues: validateLine(withType) };
+      return { ...withType, line_issues: validateLine(withType, { modoConfeccao }) };
     });
   }, [buckets, paymentKind]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
