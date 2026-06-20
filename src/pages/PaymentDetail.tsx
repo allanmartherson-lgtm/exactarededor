@@ -3901,7 +3901,7 @@ const PaymentDetail = () => {
 
                   {expandedGroups.has(g.id) && (
                     <>
-                      {(payment as any)?.hospital_id && (
+                      {(payment as any)?.hospital_id && !isConfeccao && (
                         <GroupReconciliationGate
                           groupId={g.id}
                           hospitalId={(payment as any).hospital_id}
