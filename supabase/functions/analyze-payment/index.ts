@@ -247,7 +247,7 @@ serve(async (req) => {
     let cachedCalcsByRule: Record<string, any[]> | null = null;
     let cachedConfigs: any[] | null = null;
 
-    if (__job_id) {
+    if (__job_id && !__force_fresh) {
       try {
         const { data: cacheRow } = await supabase
           .from("payment_job_context")
@@ -270,6 +270,8 @@ serve(async (req) => {
       } catch (e) {
         console.warn(`${__t} ctx_cache lookup falhou`, (e as any)?.message ?? e);
       }
+    } else if (__force_fresh) {
+      console.log(`${__t} ctx_cache BYPASS (_force_fresh=true) — recarregando regras direto do banco`);
     }
 
     let rules: RuleInput[] = [];
