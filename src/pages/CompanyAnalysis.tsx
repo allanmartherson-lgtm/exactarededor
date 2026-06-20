@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -307,13 +307,39 @@ export default function CompanyAnalysis() {
 
   const group = useMemo(() => groups.find((g) => g.id === groupId) ?? null, [groups, groupId]);
 
+  const [locallyDeletedItemIds, setLocallyDeletedItemIds] = useState<Set<string>>(() => new Set());
+
+  const hideItemImmediately = useCallback((itemId: string) => {
+    setLocallyDeletedItemIds((prev) => {
+      if (prev.has(itemId)) return prev;
+      const next = new Set(prev);
+      next.add(itemId);
+      return next;
+    });
+    setItems((prev) => prev.filter((it) => it.id !== itemId));
+  }, [setItems]);
+
+  const restoreItemVisibility = useCallback((itemId: string) => {
+    setLocallyDeletedItemIds((prev) => {
+      if (!prev.has(itemId)) return prev;
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
+  }, []);
+
   const items = useMemo(() => {
     if (!group) return [] as PaymentItemRow[];
     const companyNorm = normalizeString(group.company_name);
-    return allItems.filter(
-      (x) => normalizeString(x.company_name ?? "Sem empresa") === companyNorm,
-    );
-  }, [allItems, group]);
+    return allItems.filter((x) => {
+      if (normalizeString(x.company_name ?? "Sem empresa") !== companyNorm) return false;
+      if (locallyDeletedItemIds.has(x.id)) return false;
+      const tipo = String((x as any).tipo_linha ?? "").toLowerCase();
+      const isOrphanBonus = tipo.includes("bonus") && !(x as any).applied_rule_id;
+      if (isOrphanBonus && (x as any).is_cancelled === true) return false;
+      return true;
+    });
+  }, [allItems, group, locallyDeletedItemIds]);
 
   // Composição financeira da empresa (bruto, débitos, glosas, pool, conciliação, líquido)
   const composition = useFinancialComposition(
@@ -1452,7 +1478,7 @@ export default function CompanyAnalysis() {
       const gross = Number(deleteItem.gross_amount ?? 0);
       
       // Optimistic update
-      setItems(prev => prev.filter(it => it.id !== deleteItem.id));
+      hideItemImmediately(deleteItem.id);
       
       // Deleta registros dependentes em reconciliation_items antes (FK sem CASCADE)
       await supabase
@@ -1503,6 +1529,7 @@ export default function CompanyAnalysis() {
       // load() será chamado via Realtime automaticamente, não precisamos chamar aqui
     } catch (e) {
       // Rollback
+      restoreItemVisibility(deleteItem.id);
       setItems(previousItems);
       // Supabase errors são objetos com .message, não instâncias de Error
       const msg = e instanceof Error
@@ -2248,7 +2275,7 @@ export default function CompanyAnalysis() {
                   });
                   if (!ok) return;
                   try {
-                    setItems(prev => prev.filter(x => x.id !== it.id));
+                    hideItemImmediately(it.id);
                     await supabase.from("reconciliation_items").delete().eq("payment_item_id", it.id);
                     const { error } = await supabase.from("payment_items").delete().eq("id", it.id);
                     if (error) throw error;
@@ -2256,6 +2283,7 @@ export default function CompanyAnalysis() {
                     await load();
                     await composition.refresh();
                   } catch (e) {
+                    restoreItemVisibility(it.id);
                     const msg = (e as any)?.message ?? String(e);
                     toast.error("Falha ao excluir", { description: msg });
                     await load();
@@ -2578,7 +2606,7 @@ export default function CompanyAnalysis() {
           onCancelled={() => {
             const cancelledId = deleteItem.id;
             // Update otimista: remove imediatamente da grid
-            setItems(prev => prev.filter(it => it.id !== cancelledId));
+            hideItemImmediately(cancelledId);
             setDeleteItem(null);
             // Refetch para sincronizar totais/contadores
             load();
