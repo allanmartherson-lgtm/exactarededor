@@ -1460,38 +1460,63 @@ export default function CompanyAnalysis() {
   const saveItem = async () => {
     if (!editItem || !id || !group) return;
     if (!guardEditable()) return;
+    const _isConfeccao = (payment as any)?.analysis_mode === "confeccao";
     const newGross = Number(editDraft.gross_amount.replace(",", "."));
-    if (Number.isNaN(newGross)) {
+    const newProcedureAmount = Number((editDraft.procedure_amount || "0").replace(",", "."));
+    if (_isConfeccao ? Number.isNaN(newProcedureAmount) : Number.isNaN(newGross)) {
       toast.error("Valor inválido");
       return;
     }
     setSavingItem(true);
     try {
       const oldGross = Number(editItem.gross_amount ?? 0);
+      const oldProcedure = Number(editItem.procedure_amount ?? 0);
+      const cleanTuss = (editDraft.procedure_code || "").replace(/\D/g, "");
+      const patch: Record<string, unknown> = _isConfeccao
+        ? {
+            // Em confecção a base não tem "valor pago" — quem manda é o valor
+            // do convênio (procedure_amount). gross_amount fica espelhado com
+            // procedure_amount para manter consistência dos agregadores legados
+            // até o lote ir para análise.
+            procedure_amount: newProcedureAmount,
+            gross_amount: newProcedureAmount,
+            doctor_name: editDraft.doctor_name,
+            doctor_role: editDraft.doctor_role || null,
+            sector: editDraft.sector || null,
+            procedure_code: cleanTuss || null,
+            description: editDraft.description || null,
+            specialty: editDraft.specialty || null,
+            manual_edit: true,
+            ai_status: "pendente",
+          }
+        : {
+            gross_amount: newGross,
+            specialty: editDraft.specialty || null,
+            doctor_name: editDraft.doctor_name,
+            description: editDraft.description || null,
+            ai_status: "pendente",
+          };
       const { error } = await supabase
         .from("payment_items")
-        .update({
-          gross_amount: newGross,
-          specialty: editDraft.specialty || null,
-          doctor_name: editDraft.doctor_name,
-          description: editDraft.description || null,
-          ai_status: "pendente",
-        })
+        .update(patch as any)
         .eq("id", editItem.id);
       if (error) throw error;
-      const delta = newGross - oldGross;
+      const delta = _isConfeccao ? (newProcedureAmount - oldProcedure) : (newGross - oldGross);
       if (Math.abs(delta) > 0.001) {
         await supabase
           .from("payment_company_groups")
           .update({ total_amount: Number(group.total_amount ?? 0) + delta })
           .eq("id", group.id);
       }
+      const valorMsg = _isConfeccao
+        ? `valor convênio: ${oldProcedure} → ${newProcedureAmount}`
+        : `valor: ${oldGross} → ${newGross}`;
       await recordObservation({
         payment_id: id,
         item_id: editItem.id,
         author_type: "analista",
         author_id: user!.id,
-        message: `Item editado pelo analista (valor: ${oldGross} → ${newGross}).`,
+        message: `Item editado pelo analista (${valorMsg}).`,
       });
       try {
         await supabase.functions.invoke("dispatch-payment-analysis", {
