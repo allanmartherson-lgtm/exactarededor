@@ -1,4 +1,4 @@
-import { Wallet, Minus, Plus, Equal, Users, MinusCircle } from "lucide-react";
+import { Wallet, Minus, Plus, Equal, Users, MinusCircle, Calculator, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FinancialComposition } from "@/hooks/useFinancialComposition";
 
@@ -7,13 +7,51 @@ const brl = (n: number) =>
 
 /**
  * Faixa visual de composição financeira da empresa no lote.
- * Mostra a equação: Bruto − Débitos (+ Créditos) − Glosas − Pool = Líquido.
- * A conciliação NÃO aparece como parcela: ela age dentro do bruto, cancelando itens
- * cujo valor sai automaticamente da soma. Esse detalhamento é interno (analista) e
- * não é exibido para empresa/médico — auditoria fica no banner "itens cancelados".
+ * Modo "analise" (default): mostra a equação completa
+ *   Bruto − Débitos (+ Créditos) − Glosas − Pool = Líquido
+ *   A conciliação NÃO aparece como parcela: ela age dentro do bruto.
+ *
+ * Modo "confeccao": ainda não há pagamento real. A faixa exibe o que o motor
+ *   está calculando do zero: valor convênio → repasse calculado.
+ *   Não aparecem débitos/glosas/pool/conciliação (são aplicados depois de
+ *   finalizar a confecção e enviar para análise).
  */
-export function FinancialCompositionStrip({ comp }: { comp: FinancialComposition }) {
+export function FinancialCompositionStrip({
+  comp,
+  mode = "analise",
+}: {
+  comp: FinancialComposition;
+  mode?: "analise" | "confeccao";
+}) {
   if (comp.loading) return null;
+
+  if (mode === "confeccao") {
+    return (
+      <div className="rounded-lg border-2 border-amber-500/30 bg-amber-500/5 shadow-soft px-4 py-3">
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-2">
+            <Calculator className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <h3 className="text-sm font-semibold">Repasse em confecção</h3>
+          </div>
+          <span className="text-[11px] text-muted-foreground">
+            Motor está calculando o repasse a partir das regras cadastradas — ainda não há débitos/glosas/pool.
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-stretch gap-2">
+          <Cell label="Valor convênio" value={brl(comp.bruto)} tone="info" hint="Σ procedure_amount dos itens" />
+          <Op icon={<ArrowRight className="h-3.5 w-3.5" />} />
+          <Cell
+            label="Repasse calculado"
+            value={brl(comp.liquido)}
+            tone="warning"
+            highlight
+            hint="Σ expected_amount (o que o motor irá pagar)"
+          />
+        </div>
+      </div>
+    );
+  }
 
   const hasCredito = comp.creditos > 0;
 
@@ -90,7 +128,9 @@ function Cell({
     <div className={cn(
       "flex-1 min-w-[120px] rounded-md border bg-background/60 px-2.5 py-1.5",
       t.ring,
-      highlight && "bg-success-soft border-success/50 shadow-sm",
+      highlight && (tone === "warning"
+        ? "bg-amber-500/10 border-amber-500/50 shadow-sm"
+        : "bg-success-soft border-success/50 shadow-sm"),
     )}>
       <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium", t.chip)}>
         {icon}
@@ -98,7 +138,8 @@ function Cell({
       </div>
       <div className={cn(
         "mt-0.5 font-mono tabular-nums leading-tight",
-        highlight ? "text-base font-bold text-success" : "text-sm font-semibold",
+        highlight ? "text-base font-bold" : "text-sm font-semibold",
+        highlight && tone === "warning" ? "text-amber-700 dark:text-amber-300" : highlight ? "text-success" : "",
         t.valueCls,
       )}>{value}</div>
       {hint && <div className="text-[10px] text-muted-foreground italic mt-0.5">{hint}</div>}
