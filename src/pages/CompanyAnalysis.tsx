@@ -2449,49 +2449,52 @@ export default function CompanyAnalysis() {
           </Card>
         </TabsContent>
 
-        {/* ABA 2 — Divergências */}
-        <TabsContent value="divergencias" className="space-y-3">
-          {divergentes.length === 0 ? (
-            <Card className="shadow-card">
-              <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                Nenhuma divergência identificada para esta empresa.
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {divergentes.slice(0, divergencesVisible).map((it) => (
-                <DivergenceCard
-                  key={it.id}
-                  it={it}
-                  comments={itemComments(it.id)}
-                  profiles={profiles}
-                  draft={itemDraft[it.id] ?? ""}
-                  onDraftChange={(v) => setItemDraft((m) => ({ ...m, [it.id]: v }))}
-                  type={itemCommentType[it.id] ?? "informativo"}
-                  onTypeChange={(v) => setItemCommentType((m) => ({ ...m, [it.id]: v }))}
-                  onAdd={() => addItemComment(it.id)}
-                  busy={busy}
-                />
-              ))}
-              {divergencesVisible < divergentes.length && (
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
-                  <span className="text-xs text-muted-foreground">
-                    Mostrando {divergencesVisible} de {divergentes.length}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setDivergencesVisible((n) => Math.min(divergentes.length, n + DIVERGENCE_PAGE_SIZE))
-                    }
-                  >
-                    Carregar mais
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </TabsContent>
+        {/* ABA 2 — Divergências (não existe em confecção) */}
+        {!isConfeccao && (
+          <TabsContent value="divergencias" className="space-y-3">
+            {divergentes.length === 0 ? (
+              <Card className="shadow-card">
+                <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                  Nenhuma divergência identificada para esta empresa.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {divergentes.slice(0, divergencesVisible).map((it) => (
+                  <DivergenceCard
+                    key={it.id}
+                    it={it}
+                    comments={itemComments(it.id)}
+                    profiles={profiles}
+                    draft={itemDraft[it.id] ?? ""}
+                    onDraftChange={(v) => setItemDraft((m) => ({ ...m, [it.id]: v }))}
+                    type={itemCommentType[it.id] ?? "informativo"}
+                    onTypeChange={(v) => setItemCommentType((m) => ({ ...m, [it.id]: v }))}
+                    onAdd={() => addItemComment(it.id)}
+                    busy={busy}
+                  />
+                ))}
+                {divergencesVisible < divergentes.length && (
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+                    <span className="text-xs text-muted-foreground">
+                      Mostrando {divergencesVisible} de {divergentes.length}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setDivergencesVisible((n) => Math.min(divergentes.length, n + DIVERGENCE_PAGE_SIZE))
+                      }
+                    >
+                      Carregar mais
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        )}
+
 
 
         {/* ABA — Histórico unificado (IA + analistas/validadores/diretores) */}
