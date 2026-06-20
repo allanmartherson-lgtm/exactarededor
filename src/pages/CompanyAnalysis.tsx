@@ -723,7 +723,11 @@ export default function CompanyAnalysis() {
     const startedAt = Date.now();
     try {
       const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: id, only_companies: [group.company_name] },
+        // force_fresh_rules: este botão é manual e geralmente vem logo após o
+        // analista editar/cadastrar uma regra. Pulamos o ctx_cache para garantir
+        // que o motor leia o estado atual do banco — caso contrário, workers
+        // de uma reanalise nova podem reusar snapshot de regras antigo.
+        body: { payment_id: id, only_companies: [group.company_name], force_fresh_rules: true },
       });
       if (error) throw error;
 
