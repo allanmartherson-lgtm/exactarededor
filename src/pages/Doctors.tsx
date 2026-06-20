@@ -788,9 +788,11 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
           <TabsContent value="pending" className="mt-4">
             <DoctorRegistrationPendingPanel />
           </TabsContent>
-          <TabsContent value="link-suggestions" className="mt-4">
+          <TabsContent value="link-suggestions" className="mt-4 space-y-4">
             <DoctorLinkSuggestionsPanel />
+            <CompanyLinkSuggestionsPanel />
           </TabsContent>
+
           <TabsContent value="aliases" className="mt-4">
             <RegistryAliasesPanel kind="doctor" />
           </TabsContent>
