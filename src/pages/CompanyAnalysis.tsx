@@ -576,6 +576,15 @@ export default function CompanyAnalysis() {
     : "analista";
 
   const guardEditable = (): boolean => {
+    // Em modo CONFECÇÃO o estado vivo está em confeccao_status, não em status
+    // (que fica em 'rascunho'). O grupo é editável enquanto em_confeccao.
+    const _isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+    const _confStatus = (group as any)?.confeccao_status as string | null | undefined;
+    if (_isConfeccao) {
+      if (_confStatus === "em_confeccao") return true;
+      toast.error("Empresa concluída", { description: COMPANY_GROUP_LOCKED_TOOLTIP });
+      return false;
+    }
     if (!isCompanyGroupEditable(group?.status)) {
       toast.error("Empresa concluída", { description: COMPANY_GROUP_LOCKED_TOOLTIP });
       return false;
