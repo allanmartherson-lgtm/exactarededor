@@ -220,6 +220,7 @@ Deno.serve(async (req) => {
             tolerance_pct,
             _job_id: job_id,
             _company_label: companyName,
+            _force_fresh: force_fresh_rules === true,
           }),
           signal: controller.signal,
         });
