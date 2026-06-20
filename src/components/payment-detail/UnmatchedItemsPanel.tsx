@@ -27,6 +27,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { CopilotCard } from "@/components/copilot/CopilotCard";
+import { DuplicateCheckBanner } from "@/components/copilot/DuplicateCheckBanner";
+
 
 
 interface UnmatchedGroup {
