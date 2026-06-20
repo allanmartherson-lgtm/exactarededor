@@ -2048,11 +2048,13 @@ const Rules = () => {
                                     <div className="space-y-1.5">
                                       <Label>Empresa cadastrada</Label>
                                       <CompanyCombobox
-                                        value={fTargetName ? { id: "__sel__", name: fTargetName, document: fTargetIdentifier ? onlyDigits(fTargetIdentifier) : null } : null}
+                                        value={fTargetName ? { id: fTargetCompanyId ?? "__sel__", name: fTargetName, document: fTargetIdentifier ? onlyDigits(fTargetIdentifier) : null } : null}
                                         onChange={(c) => {
                                           setFTargetName(c?.name ?? "");
                                           setFTargetIdentifier(c?.document ? formatCNPJ(c.document) : "");
+                                          setFTargetCompanyId(c?.id && c.id !== "__sel__" ? c.id : null);
                                         }}
+
                                         placeholder="Selecionar empresa…"
                                         className="w-full"
                                       />
