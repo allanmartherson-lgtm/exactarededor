@@ -75,7 +75,7 @@ export function DoctorLinkSuggestionsPanel() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
 
   const runScan = async () => {
     setScanning(true);
