@@ -161,13 +161,23 @@ const classifyLine = (
 
 const validateLine = (
   r: Omit<ParsedRow, "line_issues">,
+  opts?: { modoConfeccao?: boolean },
 ): LineIssue[] => {
   const issues: LineIssue[] = [];
+  const modoConfeccao = !!opts?.modoConfeccao;
   const hasDoctor = !!r.doctor_name?.trim();
   const hasValue = Math.abs(r.gross_amount ?? 0) > 0;
   const hasAtt = !!r.attendance_number?.trim() || !!r.patient_name?.trim();
   const hasCode = !!r.procedure_code?.trim();
   const hasDesc = !!(r.description?.trim() || r.procedure_name?.trim());
+
+  // No modo confecção o valor pago não é input: o motor calcula a partir das regras.
+  // Pacotes têm secundários com valor 0 propositalmente; bloqueio por "Valor obrigatório"
+  // não faz sentido aqui. Mantemos só validação de valor numérico inválido (texto não-parseável).
+  const requireValue = (msg: string) => {
+    if (modoConfeccao) return;
+    if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: msg });
+  };
 
   if (r.valor_invalido && r.tipo_linha !== "glosa_desconto") {
     // Em glosa/desconto valores negativos são esperados (estorno/abatimento),
@@ -178,31 +188,31 @@ const validateLine = (
   switch (r.tipo_linha) {
     case "procedimento":
       if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      requireValue("Valor obrigatório");
       if (!hasCode && !hasDesc) issues.push({ severity: "critico", field: "procedure_code", message: "Código TUSS ou descrição obrigatório" });
       if (!hasAtt) issues.push({ severity: "alerta", field: "attendance_number", message: "Atendimento/paciente recomendado" });
       break;
     case "visita":
     case "parecer":
       if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      requireValue("Valor obrigatório");
       break;
     case "pacote":
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor total obrigatório" });
+      requireValue("Valor total obrigatório");
       if (!hasAtt) issues.push({ severity: "critico", field: "attendance_number", message: "Atendimento/paciente obrigatório no pacote" });
       if (!hasCode) issues.push({ severity: "alerta", field: "procedure_code", message: "Código principal recomendado" });
       break;
     case "complemento_bonus":
       if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      requireValue("Valor obrigatório");
       if (!hasAtt) issues.push({ severity: "alerta", field: "attendance_number", message: "Atendimento ausente — recomendado" });
       break;
     case "glosa_desconto":
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      requireValue("Valor obrigatório");
       if (!hasDesc) issues.push({ severity: "critico", field: "description", message: "Motivo/descrição obrigatório" });
       break;
     case "reprocessamento":
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      requireValue("Valor obrigatório");
       if (!hasDoctor) issues.push({ severity: "alerta", field: "doctor_name", message: "Médico recomendado" });
       break;
     case "outro":
@@ -211,6 +221,7 @@ const validateLine = (
   }
   return issues;
 };
+
 
 interface ColumnOverrides {
   doctor?: string;
@@ -676,7 +687,7 @@ const NewPayment = () => {
             };
             const tipo_linha = base.tipo_linha_manual;
             const withType = { ...base, tipo_linha };
-            return { ...withType, line_issues: validateLine(withType) } as ParsedRow;
+            return { ...withType, line_issues: validateLine(withType, { modoConfeccao }) } as ParsedRow;
           });
           const headers = Object.keys(sourceRows[0] ?? {});
           setBuckets([{
@@ -898,7 +909,7 @@ const NewPayment = () => {
       };
       const tipo_linha = classifyLine(base, paymentKind || null);
       const withType = { ...base, tipo_linha };
-      const line_issues = validateLine(withType);
+      const line_issues = validateLine(withType, { modoConfeccao });
       return { ...withType, line_issues } as ParsedRow;
     }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
   };
@@ -1398,7 +1409,7 @@ const NewPayment = () => {
 
           const tipo_linha = next.tipo_linha_manual ?? classifyLine(next, paymentKind || null);
           const withType = { ...next, tipo_linha };
-          return { ...withType, line_issues: validateLine(withType) } as ParsedRow;
+          return { ...withType, line_issues: validateLine(withType, { modoConfeccao }) } as ParsedRow;
         });
         return { ...bucket, columnOverrides: overrides, rows };
       })
@@ -1424,7 +1435,7 @@ const NewPayment = () => {
     return buckets.flatMap((b, bucketIndex) => b.rows.map((r, rowIndex) => ({ ...r, source_bucket_index: bucketIndex, source_row_index: rowIndex }))).map((r) => {
       const tipo_linha = r.tipo_linha_manual ?? classifyLine(r, paymentKind || null);
       const withType = { ...r, tipo_linha };
-      return { ...withType, line_issues: validateLine(withType) };
+      return { ...withType, line_issues: validateLine(withType, { modoConfeccao }) };
     });
   }, [buckets, paymentKind]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
