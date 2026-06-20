@@ -2139,28 +2139,67 @@ export default function CompanyAnalysis() {
               tone="info"
               icon={<FileText className="h-4 w-4" />}
             />
-            <Stat
-              label="Valor líquido"
-              value={formatCurrency(composition.liquido)}
-              sub={`Bruto: ${formatCurrency(composition.bruto)}`}
-              mono
-              tone="success"
-              icon={<Wallet className="h-4 w-4" />}
-            />
-
-            <Stat
-              label="Alertas"
-              value={String(counts.alertasTotal)}
-              tone={counts.alertasTotal > 0 ? "warning" : "muted"}
-              icon={<AlertTriangle className="h-4 w-4" />}
-            />
-            <Stat
-              label="Críticos"
-              value={String(counts.criticosTotal)}
-              tone={counts.criticosTotal > 0 ? "destructive" : "muted"}
-              icon={<ShieldAlert className="h-4 w-4" />}
-            />
+            {isConfeccao ? (
+              <>
+                <Stat
+                  label="Repasse calculado"
+                  value={formatCurrency(composition.liquido)}
+                  sub={`Convênio: ${formatCurrency(composition.bruto)}`}
+                  mono
+                  tone="warning"
+                  icon={<Calculator className="h-4 w-4" />}
+                />
+                {(() => {
+                  const semRegra = items.filter(
+                    (it) => !(it as any).applied_rule_id && !(it as any).is_cancelled,
+                  ).length;
+                  const comRegra = items.filter(
+                    (it) => !!(it as any).applied_rule_id && !(it as any).is_cancelled,
+                  ).length;
+                  return (
+                    <>
+                      <Stat
+                        label="Com regra"
+                        value={String(comRegra)}
+                        tone={comRegra > 0 ? "success" : "muted"}
+                        icon={<FileText className="h-4 w-4" />}
+                      />
+                      <Stat
+                        label="Sem regra"
+                        value={String(semRegra)}
+                        tone={semRegra > 0 ? "warning" : "muted"}
+                        icon={<AlertTriangle className="h-4 w-4" />}
+                      />
+                    </>
+                  );
+                })()}
+              </>
+            ) : (
+              <>
+                <Stat
+                  label="Valor líquido"
+                  value={formatCurrency(composition.liquido)}
+                  sub={`Bruto: ${formatCurrency(composition.bruto)}`}
+                  mono
+                  tone="success"
+                  icon={<Wallet className="h-4 w-4" />}
+                />
+                <Stat
+                  label="Alertas"
+                  value={String(counts.alertasTotal)}
+                  tone={counts.alertasTotal > 0 ? "warning" : "muted"}
+                  icon={<AlertTriangle className="h-4 w-4" />}
+                />
+                <Stat
+                  label="Críticos"
+                  value={String(counts.criticosTotal)}
+                  tone={counts.criticosTotal > 0 ? "destructive" : "muted"}
+                  icon={<ShieldAlert className="h-4 w-4" />}
+                />
+              </>
+            )}
           </div>
+
         </CardContent>
       </Card>
 
