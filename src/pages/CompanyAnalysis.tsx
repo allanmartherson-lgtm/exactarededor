@@ -2674,57 +2674,95 @@ export default function CompanyAnalysis() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div>
-              <Label className="text-xs">Médico</Label>
-              <Input value={editDraft.doctor_name} onChange={(e) => setEditDraft((d) => ({ ...d, doctor_name: e.target.value }))} />
-            </div>
-            <div>
-              <Label className="text-xs">Valor (R$)</Label>
-              <Input value={editDraft.gross_amount} onChange={(e) => setEditDraft((d) => ({ ...d, gross_amount: e.target.value }))} inputMode="decimal" />
-              {(() => {
-                if (!editItem) return null;
-                const gross = Number(editItem.gross_amount ?? 0);
-                const expected = editItem.expected_amount != null ? Number(editItem.expected_amount) : null;
-                const hasSuggestion = expected != null && Number.isFinite(expected) && Math.abs(expected - gross) > 0.001;
-                if (!hasSuggestion) return null;
-                const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-                const currentDraft = Number(editDraft.gross_amount.replace(",", "."));
-                const draftMatchesSuggestion = Math.abs(currentDraft - (expected as number)) < 0.001;
-                return (
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                    <span>
-                      Sugestão IA: <strong className="text-foreground">{fmt(expected as number)}</strong>{" "}
-                      · Original: {fmt(gross)}
-                    </span>
-                    {draftMatchesSuggestion ? (
-                      <button
-                        type="button"
-                        className="underline hover:text-foreground"
-                        onClick={() => setEditDraft((d) => ({ ...d, gross_amount: String(gross) }))}
-                      >
-                        restaurar original
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="underline hover:text-foreground"
-                        onClick={() => setEditDraft((d) => ({ ...d, gross_amount: String(expected) }))}
-                      >
-                        usar sugestão
-                      </button>
-                    )}
+            {(payment as any)?.analysis_mode === "confeccao" ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Médico</Label>
+                    <Input value={editDraft.doctor_name} onChange={(e) => setEditDraft((d) => ({ ...d, doctor_name: e.target.value }))} />
                   </div>
-                );
-              })()}
-            </div>
-            <div>
-              <Label className="text-xs">Especialidade</Label>
-              <Input value={editDraft.specialty} onChange={(e) => setEditDraft((d) => ({ ...d, specialty: e.target.value }))} />
-            </div>
-            <div>
-              <Label className="text-xs">Descrição</Label>
-              <Input value={editDraft.description} onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))} />
-            </div>
+                  <div>
+                    <Label className="text-xs">Função</Label>
+                    <Input value={editDraft.doctor_role} placeholder="Ex: Cirurgião Principal, 1º Aux, Anestesista…" onChange={(e) => setEditDraft((d) => ({ ...d, doctor_role: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">TUSS</Label>
+                    <Input value={editDraft.procedure_code} inputMode="numeric" maxLength={10} onChange={(e) => setEditDraft((d) => ({ ...d, procedure_code: e.target.value.replace(/\D/g, "") }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Setor</Label>
+                    <Input value={editDraft.sector} onChange={(e) => setEditDraft((d) => ({ ...d, sector: e.target.value }))} />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Valor convênio (R$)</Label>
+                  <Input value={editDraft.procedure_amount} inputMode="decimal" onChange={(e) => setEditDraft((d) => ({ ...d, procedure_amount: e.target.value }))} />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Base de cálculo do repasse. Após salvar, o motor recalcula o esperado.
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs">Descrição</Label>
+                  <Input value={editDraft.description} onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label className="text-xs">Médico</Label>
+                  <Input value={editDraft.doctor_name} onChange={(e) => setEditDraft((d) => ({ ...d, doctor_name: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Valor (R$)</Label>
+                  <Input value={editDraft.gross_amount} onChange={(e) => setEditDraft((d) => ({ ...d, gross_amount: e.target.value }))} inputMode="decimal" />
+                  {(() => {
+                    if (!editItem) return null;
+                    const gross = Number(editItem.gross_amount ?? 0);
+                    const expected = editItem.expected_amount != null ? Number(editItem.expected_amount) : null;
+                    const hasSuggestion = expected != null && Number.isFinite(expected) && Math.abs(expected - gross) > 0.001;
+                    if (!hasSuggestion) return null;
+                    const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                    const currentDraft = Number(editDraft.gross_amount.replace(",", "."));
+                    const draftMatchesSuggestion = Math.abs(currentDraft - (expected as number)) < 0.001;
+                    return (
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                        <span>
+                          Sugestão IA: <strong className="text-foreground">{fmt(expected as number)}</strong>{" "}
+                          · Original: {fmt(gross)}
+                        </span>
+                        {draftMatchesSuggestion ? (
+                          <button
+                            type="button"
+                            className="underline hover:text-foreground"
+                            onClick={() => setEditDraft((d) => ({ ...d, gross_amount: String(gross) }))}
+                          >
+                            restaurar original
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="underline hover:text-foreground"
+                            onClick={() => setEditDraft((d) => ({ ...d, gross_amount: String(expected) }))}
+                          >
+                            usar sugestão
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <div>
+                  <Label className="text-xs">Especialidade</Label>
+                  <Input value={editDraft.specialty} onChange={(e) => setEditDraft((d) => ({ ...d, specialty: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Descrição</Label>
+                  <Input value={editDraft.description} onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))} />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditItem(null)} disabled={savingItem}>Cancelar</Button>
