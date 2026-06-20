@@ -1,79 +1,56 @@
 
-## Objetivo
+# Modo Confecção — Comportamento próprio
 
-Hoje a função `current_active_hospital()` lê o hospital ativo de um header HTTP (`x-active-hospital`) que o cliente controla. Um usuário com acesso a 2+ hospitais pode simplesmente omitir o header e a RLS permite acesso a todos. Vamos mover essa informação para uma tabela no banco, onde o cliente não tem como mentir.
+A auditoria identificou que o modo confecção ainda renderiza vários blocos do modo análise (abas, cards, composição financeira zerada, conciliação, relatórios) e usa o mesmo vocabulário ("aprovado/reprovado/divergência"). O plano abaixo corta cada vazamento e dá ao modo confecção identidade própria.
 
----
+## 1. UI — Tela da empresa (`CompanyAnalysis`)
 
-## Mudanças
+- **Aba "Divergências"**: ocultar em confecção. Não existe "divergência" — só "com regra" / "sem regra".
+- **Aba "Detalhe IA"**: ocultar em confecção (motor não roda IA aqui).
+- **Cards de stats (Alertas / Críticos)**: em confecção, trocar por **"Itens com regra"** e **"Itens sem regra"** (cor warning quando > 0). "Valor líquido" passa a ser **"Repasse calculado"** (Σ `expected_amount`) e o subtítulo "Bruto" vira **"Convênio"** (Σ `procedure_amount`).
+- **Botão "Conciliação desta empresa"**: ocultar em confecção (não há base hospitalar para confrontar).
+- **`FinancialCompositionStrip`**: passar prop `mode`; em confecção, exibir apenas "Valor convênio" → "Repasse calculado" e ocultar a equação Bruto−Débitos−Glosas−Pool=Líquido (ainda não se aplica).
+- **`CompanyHistoryPanel`**: esconder linhas de versão IA / `ai_status` em confecção; manter só observações e mudanças de `confeccao_status`.
 
-### 1. Nova tabela `public.user_active_hospital`
+## 2. UI — Tela do lote (`PaymentDetail`)
 
-Guarda o hospital ativo de cada usuário interno, gravado pelo servidor.
+- Bloco de cards de IA (`ExecutiveSummaryCard`, `DirectorBriefingCard`, `PreAnalysisScoreCard`, "Alertas assistenciais"): adicionar `&& !isConfeccao` no guard.
+- `PhaseSummary` (fases análise→validação→aprovação): ocultar em confecção; mostrar barrinha própria "Em confecção → Confecção concluída → Pronto para análise".
+- Header do lote: em confecção, mostrar "Repasse calculado: Σ expected_amount" (não `total_amount`, que está zerado).
+- `GroupReconciliationGate`: bypass em confecção.
 
-- `user_id` (PK, FK auth.users)
-- `hospital_id` (FK hospitals)
-- `updated_at`
+## 3. Listagem `/pagamentos` e labels de status
 
-Acesso: usuário lê só a própria linha; escrita só via RPC (não direto).
+- Em `src/lib/status.ts`, adicionar labels de `confeccao_status` ("Em confecção", "Confecção concluída").
+- Na coluna de status da listagem, quando `analysis_mode === "confeccao"`, exibir o `confeccao_status` (com cor âmbar) em vez de "Rascunho".
 
-### 2. Nova RPC `set_active_hospital(uuid)` — SECURITY DEFINER
+## 4. Dados — Composição financeira
 
-- Valida que o usuário realmente tem acesso ao hospital (via `my_accessible_hospitals`).
-- Faz upsert em `user_active_hospital`.
-- Atualiza `profiles.last_active_hospital_id`.
-- Reaproveita auditoria do `log_hospital_switch`.
+- `useFinancialComposition` + edge `compute-company-financials`: aceitar `mode`. Em confecção, calcular `bruto = Σ procedure_amount` e `liquido = Σ expected_amount` (sem deduções/glosas/pool, que ainda não existem nessa fase).
+- Persistir snapshot em `payment_company_financials` marcado com `source = 'confeccao'` para auditoria.
 
-### 3. Reescreve `current_active_hospital()`
+## 5. Relatórios
 
-Nova lógica, **sem fallback para header**:
+- `paymentReportPdf` / `groupValidationPdf`: em confecção, gerar versão "Relatório de confecção" (sem colunas de `ai_status` e divergência; com colunas Convênio / Repasse calculado / Regra aplicada / Sem regra). Alternativa mínima: bloquear export em confecção com toast "Disponível após finalizar confecção".
 
-```text
-1. Lê hospital_id de user_active_hospital WHERE user_id = auth.uid()
-2. Se NULL e usuário tem apenas 1 hospital acessível → retorna esse 1
-3. Caso contrário → NULL (bloqueia acesso cross-hospital)
-```
+## 6. Edge functions
 
-Portal users (empresa/médico) seguem sendo isentos via `hospital_scope_allows`.
+- `validate-payment`: short-circuit no início se `payment.analysis_mode === 'confeccao'` (não deve rodar; só após finalize_confeccao).
+- `notify-validator-assignment` / `notify-director-approval` / `notify-analyst-review`: guard explícito `analysis_mode !== 'confeccao'` no topo (defesa em profundidade, mesmo que os paths atuais já não os disparem).
 
-### 4. Frontend (`HospitalContext.tsx`)
+## 7. Memória do projeto
 
-- Em `load()`: assim que resolver o `active`, chama `set_active_hospital(active.id)` **antes** de qualquer outra query.
-- Em `switchHospital()`: substitui `log_hospital_switch` por `set_active_hospital` (já loga + persiste + define ativo num único call).
-- Mantém o header `x-active-hospital` por enquanto (não atrapalha, apenas vira inerte).
+- Atualizar `.lovable/memory/features/confeccao-vs-analise-status.md` com a regra: "Em confecção, UI não usa vocabulário aprovado/reprovado/divergência, composição financeira é Σ procedure_amount → Σ expected_amount, abas Divergências/Detalhe IA ocultas, conciliação e PDFs analíticos bloqueados".
 
-### 5. Deprecar o header (follow-up futuro)
+## Detalhes técnicos
 
-Após confirmar em telemetria que todos os usuários ativos passaram a chamar `set_active_hospital`, remove o `fetch` custom que injeta o header. Não é parte desta entrega para evitar quebrar sessões ativas.
+- Flag única: `const isConfeccao = payment.analysis_mode === "confeccao"` já existe em cada tela — reusar.
+- Onde a composição depende de edge function (`compute-company-financials`), o branch novo é no SQL: somar `coalesce(procedure_amount,0)` e `coalesce(expected_amount,0)` quando `payments.analysis_mode = 'confeccao'`.
+- Sem mudança de schema: `confeccao_status` e `expected_amount` já existem.
+- Testes: estender `CompanyAnalysis.confeccao.contract.test.ts` para verificar (a) ausência das abas "divergencias" e "ia" em confecção, (b) stats com labels "Itens com/sem regra", (c) `FinancialCompositionStrip` recebendo `mode="confeccao"`.
 
----
+## Itens fora do escopo (próxima fase)
 
-## Compatibilidade durante o deploy
-
-- Sessões antigas (frontend velho) param de funcionar para multi-hospital — passam a ver NULL e queries operacionais bloqueiam. **Mitigação:** a chamada de `set_active_hospital` é disparada no primeiro `load()` do novo frontend, antes de qualquer fetch. Usuário com 1 hospital só continua funcionando via auto-resolve.
-- Portal users: zero impacto (já isentos da RLS de hospital).
-
-## Riscos
-
-| Risco | Mitigação |
-|---|---|
-| Usuário sem hospital ativo definido após deploy → telas em branco | `current_active_hospital()` auto-resolve quando há só 1 hospital acessível; multi precisa abrir o app uma vez (load() chama set_active_hospital) |
-| `set_active_hospital` falha → usuário trava | RPC retorna erro claro; frontend mostra toast e mantém fluxo de seleção |
-| RLS de `user_active_hospital` em recursão | Tabela sem cross-reference; políticas simples `auth.uid() = user_id` |
-
-## Validação
-
-- Teste manual: usuário com 2 hospitais — verificar que omitir o header via DevTools **não vaza mais dados** do hospital não-ativo.
-- CI guard existente (`audit-hospital-scope`) segue válido — `current_active_hospital()` continua sendo a função canônica.
-- Smoke test: login + troca de hospital + listagem de pagamentos em cada um.
-
-## Arquivos afetados
-
-- `supabase/migrations/<nova>.sql` — tabela, RPC, reescrita de `current_active_hospital()`.
-- `src/contexts/HospitalContext.tsx` — chamadas de `set_active_hospital` no load e switch.
-
-## Fora de escopo
-
-- Remover header `x-active-hospital` do fetch custom (follow-up após período de observação).
-- RLS no `realtime.messages` (próxima entrega, depende deste).
-- Hardening dos warnings do linter Supabase.
+- Painel próprio de "Itens sem regra" com call-to-action para vincular regra rapidamente.
+- Relatório PDF dedicado de confecção (a fase imediata só bloqueia/sinaliza).
+- Refatorar `ItemsDataGrid` para suprimir colunas de divergência em confecção (hoje já são vazias; baixo impacto visual).
