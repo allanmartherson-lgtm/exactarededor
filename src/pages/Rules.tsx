@@ -3016,14 +3016,15 @@ const Rules = () => {
                         <CompanyCombobox
                           value={
                             d.target_name || d.target_identifier
-                              ? { id: "", name: d.target_name ?? "", document: d.target_identifier ?? null }
+                              ? { id: (d as any).target_company_id ?? "", name: d.target_name ?? "", document: d.target_identifier ?? null }
                               : null
                           }
                           onChange={(c) =>
                             updateDraft(i, {
                               target_name: c?.name ?? "",
                               target_identifier: c?.document ? formatCNPJ(c.document) : "",
-                            })
+                              target_company_id: c?.id || null,
+                            } as any)
                           }
                           placeholder="Buscar empresa cadastrada…"
                           className="w-full"
@@ -3032,19 +3033,21 @@ const Rules = () => {
                         <DoctorCombobox
                           value={
                             d.target_name || d.target_identifier
-                              ? { id: "", name: d.target_name ?? "", crm: d.target_identifier ?? null, crm_uf: null }
+                              ? { id: (d as any).target_doctor_id ?? "", name: d.target_name ?? "", crm: d.target_identifier ?? null, crm_uf: null }
                               : null
                           }
                           onChange={(doc) =>
                             updateDraft(i, {
                               target_name: doc?.name ?? "",
                               target_identifier: doc?.crm ?? "",
-                            })
+                              target_doctor_id: doc?.id || null,
+                            } as any)
                           }
                           placeholder="Buscar médico cadastrado…"
                           className="w-full"
                         />
                       )}
+
                     </div>
                     <div className="space-y-1 col-span-3"><Label className="text-xs">CPF/CNPJ/CRM</Label>
                       <Input
