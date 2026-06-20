@@ -161,13 +161,23 @@ const classifyLine = (
 
 const validateLine = (
   r: Omit<ParsedRow, "line_issues">,
+  opts?: { modoConfeccao?: boolean },
 ): LineIssue[] => {
   const issues: LineIssue[] = [];
+  const modoConfeccao = !!opts?.modoConfeccao;
   const hasDoctor = !!r.doctor_name?.trim();
   const hasValue = Math.abs(r.gross_amount ?? 0) > 0;
   const hasAtt = !!r.attendance_number?.trim() || !!r.patient_name?.trim();
   const hasCode = !!r.procedure_code?.trim();
   const hasDesc = !!(r.description?.trim() || r.procedure_name?.trim());
+
+  // No modo confecção o valor pago não é input: o motor calcula a partir das regras.
+  // Pacotes têm secundários com valor 0 propositalmente; bloqueio por "Valor obrigatório"
+  // não faz sentido aqui. Mantemos só validação de valor numérico inválido (texto não-parseável).
+  const requireValue = (msg: string) => {
+    if (modoConfeccao) return;
+    if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: msg });
+  };
 
   if (r.valor_invalido && r.tipo_linha !== "glosa_desconto") {
     // Em glosa/desconto valores negativos são esperados (estorno/abatimento),
@@ -178,31 +188,31 @@ const validateLine = (
   switch (r.tipo_linha) {
     case "procedimento":
       if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      requireValue("Valor obrigatório");
       if (!hasCode && !hasDesc) issues.push({ severity: "critico", field: "procedure_code", message: "Código TUSS ou descrição obrigatório" });
       if (!hasAtt) issues.push({ severity: "alerta", field: "attendance_number", message: "Atendimento/paciente recomendado" });
       break;
     case "visita":
     case "parecer":
       if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      requireValue("Valor obrigatório");
       break;
     case "pacote":
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor total obrigatório" });
+      requireValue("Valor total obrigatório");
       if (!hasAtt) issues.push({ severity: "critico", field: "attendance_number", message: "Atendimento/paciente obrigatório no pacote" });
       if (!hasCode) issues.push({ severity: "alerta", field: "procedure_code", message: "Código principal recomendado" });
       break;
     case "complemento_bonus":
       if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      requireValue("Valor obrigatório");
       if (!hasAtt) issues.push({ severity: "alerta", field: "attendance_number", message: "Atendimento ausente — recomendado" });
       break;
     case "glosa_desconto":
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      requireValue("Valor obrigatório");
       if (!hasDesc) issues.push({ severity: "critico", field: "description", message: "Motivo/descrição obrigatório" });
       break;
     case "reprocessamento":
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      requireValue("Valor obrigatório");
       if (!hasDoctor) issues.push({ severity: "alerta", field: "doctor_name", message: "Médico recomendado" });
       break;
     case "outro":
@@ -211,6 +221,7 @@ const validateLine = (
   }
   return issues;
 };
+
 
 interface ColumnOverrides {
   doctor?: string;
