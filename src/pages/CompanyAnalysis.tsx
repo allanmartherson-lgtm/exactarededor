@@ -1803,6 +1803,12 @@ export default function CompanyAnalysis() {
   const canAct = canActAnalista || canActValidador || canActDiretor;
   const canReopenConfeccao =
     isConfeccao && gConfeccaoStatus === "confeccao_concluida" && isAnalistaRole && (isOwner || isAdmin);
+  // Em CONFECÇÃO o analista conduz o processo: pode ajustar valores, editar
+  // metadados, excluir (soft delete) e adicionar linhas. Esse flag controla
+  // os botões da área de itens (separado do canEditCompany que rege ações
+  // de análise como acatar/devolver). guardEditable() já cobre a regra
+  // server-side e bloqueia se a confecção foi finalizada.
+  const canEditItems = canEditCompany || isConfeccaoEditable;
   // (removido) returner: o fluxo unificado de "Concluir análise" não distingue mais reencaminhamento aqui — o envio ao validador é feito no lote inteiro.
 
 
@@ -2316,7 +2322,7 @@ export default function CompanyAnalysis() {
                     )}
                   </p>
                 </div>
-                {canEditCompany && (
+                {canEditItems && (
                   <Button size="sm" variant="outline" onClick={() => setManualItemOpen(true)} className="shrink-0">
                     <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar item manual
                   </Button>
@@ -2334,7 +2340,7 @@ export default function CompanyAnalysis() {
                 observations={obs}
                 profiles={profiles}
                 storageKey="companyAnalysisPage"
-                canEdit={canEditCompany}
+                canEdit={canEditItems}
                 onEditItem={openEditItem}
                 onDeleteItem={async (it) => {
                   const tipo = String((it as any).tipo_linha ?? "").toLowerCase();
