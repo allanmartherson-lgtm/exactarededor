@@ -2666,9 +2666,11 @@ export default function CompanyAnalysis() {
       <Dialog open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar item</DialogTitle>
+            <DialogTitle>{(payment as any)?.analysis_mode === "confeccao" ? "Editar linha (confecção)" : "Editar item"}</DialogTitle>
             <DialogDescription>
-              Ajuste valores ou metadados desta linha. O item será reanalisado pela IA.
+              {(payment as any)?.analysis_mode === "confeccao"
+                ? "Ajuste os dados da linha. Após salvar, o motor recalcula o repasse esperado."
+                : "Ajuste valores ou metadados desta linha. O item será reanalisado pela IA."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
