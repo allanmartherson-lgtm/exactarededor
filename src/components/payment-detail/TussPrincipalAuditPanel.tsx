@@ -39,7 +39,7 @@ type Row = {
   applied_rule_id: string | null;
   package_absorbed: boolean | null;
   ai_findings: any;
-  _calc?: { id: string; label: string | null; package_main_code: string | null; rule_id: string | null; calculation_type: string | null; rule_name?: string | null } | null;
+  _calc?: { id: string; label: string | null; package_main_code: string | null; package_included_codes: string[] | null; procedure_codes: string[] | null; rule_id: string | null; calculation_type: string | null; rule_name?: string | null } | null;
   _mismatch?: TussMismatch | null;
   _override?: { resolved_at: string | null; justification: string | null } | null;
 };
@@ -87,13 +87,15 @@ export function TussPrincipalAuditPanel({
     if (calcIds.length > 0) {
       const { data: calcs } = await supabase
         .from("rule_calculations")
-        .select("id,label,package_main_code,rule_id,calculation_type,rules(name)")
+        .select("id,label,package_main_code,package_included_codes,procedure_codes,rule_id,calculation_type,rules(name)")
         .in("id", calcIds);
       for (const c of (calcs ?? []) as any[]) {
         calcMap.set(c.id, {
           id: c.id,
           label: c.label,
           package_main_code: c.package_main_code,
+          package_included_codes: c.package_included_codes ?? null,
+          procedure_codes: c.procedure_codes ?? null,
           rule_id: c.rule_id,
           calculation_type: c.calculation_type,
           rule_name: c.rules?.name ?? null,
@@ -344,7 +346,7 @@ export function useTussAuditOpenCount(paymentId: string | undefined) {
       if (calcIds.length > 0) {
         const { data: calcs } = await supabase
           .from("rule_calculations")
-          .select("id,package_main_code,rule_id,calculation_type")
+          .select("id,package_main_code,package_included_codes,procedure_codes,rule_id,calculation_type")
           .in("id", calcIds);
         for (const c of (calcs ?? []) as any[]) calcMap.set(c.id, c);
       }

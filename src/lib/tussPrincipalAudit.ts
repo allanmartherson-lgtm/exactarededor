@@ -64,6 +64,8 @@ type CalcLike = {
   id: string;
   label?: string | null;
   package_main_code?: string | null;
+  package_included_codes?: string[] | null;
+  procedure_codes?: string[] | null;
   rule_id?: string | null;
   calculation_type?: string | null;
 } | null;
@@ -138,6 +140,19 @@ export function detectTussMismatch(
 
   // Caso o cálculo tenha package_main_code, exigimos match com o TUSS do item.
   if (tussCalc && tussItem && tussCalc !== tussItem) {
+    // Se o TUSS do item está explicitamente listado como código secundário/incluso
+    // do pacote (ou na whitelist de procedure_codes), o motor está correto em
+    // absorvê-lo — não é divergência.
+    const allowedCodes = [
+      ...(calc?.package_included_codes ?? []),
+      ...(calc?.procedure_codes ?? []),
+    ]
+      .map((c) => norm(c))
+      .filter(Boolean);
+    if (allowedCodes.includes(tussItem)) {
+      return null;
+    }
+
     const isPackage = (calc?.calculation_type ?? "").startsWith("pacote") || !!item.package_absorbed;
     return {
       reason: isPackage ? "pacote_absorbido" : "tuss_divergente",
