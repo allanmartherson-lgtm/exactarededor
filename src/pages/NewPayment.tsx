@@ -2989,9 +2989,11 @@ const NewPayment = () => {
           }
           sampleRow={buckets[mappingDialog.bucketIdx].sampleRow}
           hospitalId={hospital?.id ?? null}
+          mode={modoConfeccao ? "confeccao" : "analise"}
           onApply={(mapping) => {
             applyColumnMappingOverride(mappingDialog.bucketIdx!, mapping);
           }}
+
         />
       )}
     </>
