@@ -1266,7 +1266,7 @@ export default function CompanyAnalysis() {
           ? await tplQuery.or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
           : await tplQuery.is("hospital_id", null);
         const tpl = (tplRows ?? [])[0] as { id: string; mapping: any; name: string } | undefined;
-        const override = mappingOverrides[file.name];
+        const override = extraOverrides?.[file.name] ?? mappingOverrides[file.name];
         const manualMapping = override ?? tpl?.mapping;
         const hits = inspectColumnMapping(headers).map((h) => {
           const ov = manualMapping?.[h.field];
