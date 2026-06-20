@@ -307,6 +307,27 @@ export default function CompanyAnalysis() {
 
   const group = useMemo(() => groups.find((g) => g.id === groupId) ?? null, [groups, groupId]);
 
+  const [locallyDeletedItemIds, setLocallyDeletedItemIds] = useState<Set<string>>(() => new Set());
+
+  const hideItemImmediately = useCallback((itemId: string) => {
+    setLocallyDeletedItemIds((prev) => {
+      if (prev.has(itemId)) return prev;
+      const next = new Set(prev);
+      next.add(itemId);
+      return next;
+    });
+    setItems((prev) => prev.filter((it) => it.id !== itemId));
+  }, [setItems]);
+
+  const restoreItemVisibility = useCallback((itemId: string) => {
+    setLocallyDeletedItemIds((prev) => {
+      if (!prev.has(itemId)) return prev;
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
+  }, []);
+
   const items = useMemo(() => {
     if (!group) return [] as PaymentItemRow[];
     const companyNorm = normalizeString(group.company_name);
@@ -379,26 +400,6 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
-  const [locallyDeletedItemIds, setLocallyDeletedItemIds] = useState<Set<string>>(() => new Set());
-
-  const hideItemImmediately = useCallback((itemId: string) => {
-    setLocallyDeletedItemIds((prev) => {
-      if (prev.has(itemId)) return prev;
-      const next = new Set(prev);
-      next.add(itemId);
-      return next;
-    });
-    setItems((prev) => prev.filter((it) => it.id !== itemId));
-  }, [setItems]);
-
-  const restoreItemVisibility = useCallback((itemId: string) => {
-    setLocallyDeletedItemIds((prev) => {
-      if (!prev.has(itemId)) return prev;
-      const next = new Set(prev);
-      next.delete(itemId);
-      return next;
-    });
-  }, []);
 
   // FAB de Conversas — escopo desta empresa. Conta apenas mensagens NÃO LIDAS
   // (não autoradas pelo usuário atual e ausentes em payment_question_reads).
