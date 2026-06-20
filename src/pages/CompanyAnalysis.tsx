@@ -2819,9 +2819,10 @@ export default function CompanyAnalysis() {
             const file = mappingPrompt.file;
             setMappingOverrides((prev) => ({ ...prev, [file.name]: mapping }));
             setMappingPrompt(null);
-            // Reexecuta a reimportação com o mapeamento manual aplicado
+            // Reexecuta a reimportação passando o override explicitamente —
+            // setState é assíncrono e o closure de doReimport ainda veria vazio.
             const files = reimportConfirm ?? [file];
-            void doReimport(files);
+            void doReimport(files, { [file.name]: mapping });
           }}
         />
       )}
