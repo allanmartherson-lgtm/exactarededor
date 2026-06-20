@@ -142,10 +142,21 @@ export function DoctorLinkSuggestionsPanel() {
             CNPJs encontrados em notas livres dos médicos. Aprove para criar o vínculo formal em <code>doctor_companies</code>.
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={runScan} disabled={scanning}>
-          {scanning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-          Varrer todas as notas agora
-        </Button>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex gap-1">
+            {(["all","engine_fuzzy","ai_suggested","analyst_manual"] as const).map((f) => (
+              <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} className="h-7 text-xs"
+                onClick={() => setFilter(f)}>
+                {f === "all" ? "todas" : f === "engine_fuzzy" ? "motor" : f === "ai_suggested" ? "IA" : "analista"}
+              </Button>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" onClick={runScan} disabled={scanning}>
+            {scanning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+            Varrer notas
+          </Button>
+        </div>
+
       </CardHeader>
       <CardContent>
         {loading ? (
