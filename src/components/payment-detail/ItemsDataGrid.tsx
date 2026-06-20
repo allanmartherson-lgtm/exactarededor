@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label";
 import { SafeCard } from "@/components/ui/SafeCard";
 import { CalcDuplicityResolverPanel } from "./CalcDuplicityResolverPanel";
+import { deriveConfeccaoStatus, CONFECCAO_STATUS_LABEL, CONFECCAO_STATUS_TONE } from "@/lib/itemConfeccaoStatus";
 import {
   AlertTriangle,
   Columns3,
