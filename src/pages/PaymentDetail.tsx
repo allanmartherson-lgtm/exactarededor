@@ -2928,7 +2928,7 @@ const PaymentDetail = () => {
           );
         })()}
 
-        <PhaseSummary payment={payment} groups={groups} invoices={invoices} />
+        {!isConfeccao && <PhaseSummary payment={payment} groups={groups} invoices={invoices} />}
 
 
 
