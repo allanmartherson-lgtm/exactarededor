@@ -26,6 +26,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
+import { CopilotCard } from "@/components/copilot/CopilotCard";
+
 
 interface UnmatchedGroup {
   raw_company_name: string;
