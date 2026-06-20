@@ -1201,6 +1201,10 @@ const Rules = () => {
       target_type: isEspecifica ? targetType : null,
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
+      // IDs estáveis do cadastro — preferenciais no motor (vide targetsDoctor/targetsCompany).
+      target_doctor_id: (isEspecifica && targetType === "medico") ? fTargetDoctorId : null,
+      target_company_id: (isEspecifica && targetType === "empresa") ? fTargetCompanyId : null,
+
       calculation_type: effectiveCalc,
       // ===== Campos de cálculo: TODOS nulos no nível Regra =====
       convenio_percentage: null,
