@@ -204,8 +204,10 @@ export function ReapplyRulesProgressDialog({
   errorMessage,
   diff,
   companyLabel,
+  mode = "analise",
 }: Props) {
   const running = phase === "iniciando" || phase === "processando";
+  const isConfeccao = mode === "confeccao";
 
   const estimatedTotal = useMemo(() => estimateTotalSec(totalItems), [totalItems]);
   const etaSec = Math.max(0, estimatedTotal - elapsedSec);
@@ -242,20 +244,24 @@ export function ReapplyRulesProgressDialog({
               <RefreshCcw className="h-5 w-5 text-primary animate-spin" />
             )}
             {phase === "concluido"
-              ? "Reaplicação concluída"
+              ? (isConfeccao ? "Cálculo do repasse concluído" : "Reaplicação concluída")
               : phase === "erro"
-              ? "Falha ao reaplicar regras"
-              : "Reaplicando regras…"}
+              ? (isConfeccao ? "Falha ao calcular o repasse" : "Falha ao reaplicar regras")
+              : (isConfeccao ? "Calculando repasse…" : "Reaplicando regras…")}
           </DialogTitle>
           <DialogDescription>
             {companyLabel ? <span className="font-medium">{companyLabel}</span> : null}
             {companyLabel ? " · " : null}
             {phase === "iniciando" && "Preparando o motor de cálculo…"}
             {phase === "processando" &&
-              `Reanalisando ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`}
+              (isConfeccao
+                ? `Calculando o repasse de ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`
+                : `Reanalisando ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`)}
             {phase === "concluido" &&
-              "O motor terminou. Veja abaixo o que mudou em relação ao estado anterior."}
-            {phase === "erro" && (errorMessage ?? "Não foi possível concluir a reanálise.")}
+              (isConfeccao
+                ? "O motor terminou de aplicar as regras. Veja abaixo como ficou o repasse calculado."
+                : "O motor terminou. Veja abaixo o que mudou em relação ao estado anterior.")}
+            {phase === "erro" && (errorMessage ?? "Não foi possível concluir a operação.")}
           </DialogDescription>
         </DialogHeader>
 
