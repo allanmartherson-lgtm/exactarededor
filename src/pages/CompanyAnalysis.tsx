@@ -1478,7 +1478,7 @@ export default function CompanyAnalysis() {
       const gross = Number(deleteItem.gross_amount ?? 0);
       
       // Optimistic update
-      setItems(prev => prev.filter(it => it.id !== deleteItem.id));
+      hideItemImmediately(deleteItem.id);
       
       // Deleta registros dependentes em reconciliation_items antes (FK sem CASCADE)
       await supabase
@@ -1529,6 +1529,7 @@ export default function CompanyAnalysis() {
       // load() será chamado via Realtime automaticamente, não precisamos chamar aqui
     } catch (e) {
       // Rollback
+      restoreItemVisibility(deleteItem.id);
       setItems(previousItems);
       // Supabase errors são objetos com .message, não instâncias de Error
       const msg = e instanceof Error
@@ -2274,7 +2275,7 @@ export default function CompanyAnalysis() {
                   });
                   if (!ok) return;
                   try {
-                    setItems(prev => prev.filter(x => x.id !== it.id));
+                    hideItemImmediately(it.id);
                     await supabase.from("reconciliation_items").delete().eq("payment_item_id", it.id);
                     const { error } = await supabase.from("payment_items").delete().eq("id", it.id);
                     if (error) throw error;
@@ -2282,6 +2283,7 @@ export default function CompanyAnalysis() {
                     await load();
                     await composition.refresh();
                   } catch (e) {
+                    restoreItemVisibility(it.id);
                     const msg = (e as any)?.message ?? String(e);
                     toast.error("Falha ao excluir", { description: msg });
                     await load();
