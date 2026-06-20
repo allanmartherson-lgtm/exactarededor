@@ -62,13 +62,17 @@ export function useHasSpecialCaseRules(
 
       // Monta filtro: target_company_id = PJ
       //              OU target_doctor_id IN (médicos desta PJ)
-      //              OU regra global sem target específico
+      // Regras "globais" (sem target) NÃO contam — analistas reportaram banner
+      // aparecendo em PJs sem vínculo real com a regra cadastrada.
       const orParts: string[] = [
         `target_company_id.eq.${companyId}`,
-        "and(target_company_id.is.null,target_doctor_id.is.null)",
       ];
       if (doctorIds.length > 0) {
         orParts.push(`target_doctor_id.in.(${doctorIds.join(",")})`);
+      } else {
+        // Sem médicos elegíveis e sem target_company match possível → não há regra escopada.
+        if (!cancelled) setHasRules(false);
+        return;
       }
 
       let q = supabase
