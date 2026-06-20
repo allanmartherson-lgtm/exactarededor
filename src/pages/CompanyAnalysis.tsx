@@ -2411,7 +2411,7 @@ export default function CompanyAnalysis() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {divergentes.map((it) => (
+              {divergentes.slice(0, divergencesVisible).map((it) => (
                 <DivergenceCard
                   key={it.id}
                   it={it}
@@ -2425,9 +2425,26 @@ export default function CompanyAnalysis() {
                   busy={busy}
                 />
               ))}
+              {divergencesVisible < divergentes.length && (
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+                  <span className="text-xs text-muted-foreground">
+                    Mostrando {divergencesVisible} de {divergentes.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setDivergencesVisible((n) => Math.min(divergentes.length, n + DIVERGENCE_PAGE_SIZE))
+                    }
+                  >
+                    Carregar mais
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
+
 
         {/* ABA — Histórico unificado (IA + analistas/validadores/diretores) */}
         <TabsContent value="historico" className="space-y-3">
