@@ -24,6 +24,8 @@ import { DoctorCompanySyncFaq } from "@/components/DoctorCompanySyncFaq";
 import { RegistryAliasesPanel } from "@/components/RegistryAliasesPanel";
 import { DoctorMissingSpecialtyPanel } from "@/components/doctors/DoctorMissingSpecialtyPanel";
 import { DoctorLinkSuggestionsPanel } from "@/components/DoctorLinkSuggestionsPanel";
+import { CompanyLinkSuggestionsPanel } from "@/components/CompanyLinkSuggestionsPanel";
+
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
   entity: "doctors",
