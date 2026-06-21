@@ -114,7 +114,7 @@ export function CopilotCard({
               <pre className="text-xs bg-background/60 p-2 rounded">{JSON.stringify(result.json, null, 2)}</pre>
             )}
             <div className="text-[10px] text-muted-foreground mt-2 italic">
-              Sugestão gerada por IA — confirme antes de aplicar.
+              Gerado por IA · apoio analítico
             </div>
           </div>
         )}
