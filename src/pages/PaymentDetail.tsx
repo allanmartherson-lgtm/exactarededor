@@ -742,58 +742,89 @@ const PaymentDetail = () => {
     navigate("/pagamentos");
   };
 
-  // Modo confecção: exporta xlsx com coluna de repasse calculado.
-  // Layout: bloco de título + metadados, tabela formatada (cabeçalho azul
-  // Rede D'Or, zebra, bordas, moeda BR, freeze pane, autofilter, total geral).
-  const exportConfeccaoXlsx = () => {
+  // Registry de colunas disponíveis no Excel de Confecção.
+  // O usuário escolhe quais e em que ordem via ExportColumnPickerDialog.
+  const CONFECCAO_EXPORT_COLUMNS: Array<{
+    id: string;
+    label: string;
+    isMoney?: boolean;
+    width: number;
+    get: (it: any) => any;
+  }> = [
+    { id: "company_name", label: "Empresa", width: 32, get: (it) => it.company_name ?? "" },
+    { id: "doctor_name", label: "Médico", width: 28, get: (it) => it.doctor_name ?? "" },
+    { id: "doctor_role", label: "Função", width: 14, get: (it) => it.doctor_role ?? "" },
+    { id: "patient_name", label: "Paciente", width: 26, get: (it) => it.patient_name ?? "" },
+    { id: "attendance_number", label: "Atendimento", width: 14, get: (it) => it.attendance_number ?? "" },
+    { id: "procedure_code", label: "Código TUSS", width: 14, get: (it) => it.procedure_code ?? "" },
+    { id: "procedure_name", label: "Procedimento", width: 42, get: (it) => it.procedure_name ?? it.description ?? "" },
+    { id: "agreement_text", label: "Convênio", width: 30, get: (it) => it.agreement_text ?? "" },
+    { id: "procedure_date", label: "Data Procedimento", width: 16, get: (it) => it.procedure_date ? new Date(it.procedure_date).toLocaleDateString("pt-BR") : "" },
+    { id: "procedure_amount", label: "Valor Convênio (R$)", width: 18, isMoney: true, get: (it) => Number(it.procedure_amount ?? it.gross_amount ?? 0) },
+    { id: "expected_amount", label: "Repasse Calculado (R$)", width: 20, isMoney: true, get: (it) => it.expected_amount != null ? Number(it.expected_amount) : "" },
+    { id: "applied_rule_label", label: "Regra Aplicada", width: 32, get: (it) => it.applied_rule_label ?? "" },
+    { id: "sector", label: "Setor", width: 22, get: (it) => it.sector ?? "" },
+  ];
+
+  const DEFAULT_CONFECCAO_EXPORT_ORDER = [
+    "company_name", "doctor_name", "doctor_role", "patient_name",
+    "attendance_number", "procedure_code", "procedure_name",
+    "agreement_text", "procedure_date", "procedure_amount",
+    "expected_amount", "applied_rule_label", "sector",
+  ];
+
+  // Modo confecção: exporta xlsx formatado (cabeçalho azul Rede D'Or, zebra,
+  // bordas, moeda BR, freeze pane, autofilter, total geral). Recebe a lista
+  // ordenada de colunas escolhida pelo usuário.
+  const exportConfeccaoXlsx = (orderedColumnIds: string[]) => {
     if (!items.length) return;
     const activeItems = (items as any[]).filter((it) => !it.is_cancelled);
     const fmtBRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-    const headers = [
-      "Empresa", "Médico", "Função", "Atendimento", "Código TUSS", "Procedimento",
-      "Convênio", "Data Procedimento", "Valor Convênio (R$)", "Repasse Calculado (R$)",
-      "Regra Aplicada", "Setor",
-    ];
-    const dataRows = activeItems.map((it) => [
-      it.company_name ?? "",
-      it.doctor_name ?? "",
-      it.doctor_role ?? "",
-      it.attendance_number ?? "",
-      it.procedure_code ?? "",
-      it.procedure_name ?? it.description ?? "",
-      it.agreement_text ?? "",
-      it.procedure_date ? new Date(it.procedure_date).toLocaleDateString("pt-BR") : "",
-      Number(it.procedure_amount ?? it.gross_amount ?? 0),
-      it.expected_amount != null ? Number(it.expected_amount) : "",
-      it.applied_rule_label ?? "",
-      it.sector ?? "",
-    ]);
+    const cols = orderedColumnIds
+      .map((id) => CONFECCAO_EXPORT_COLUMNS.find((c) => c.id === id))
+      .filter((c): c is (typeof CONFECCAO_EXPORT_COLUMNS)[number] => !!c);
+    if (cols.length === 0) return;
 
-    const somaConv = dataRows.reduce((s, r) => s + (Number(r[8]) || 0), 0);
-    const somaRep = dataRows.reduce((s, r) => s + (Number(r[9]) || 0), 0);
+    const headers = cols.map((c) => c.label);
+    const dataRows = activeItems.map((it) => cols.map((c) => c.get(it)));
+
+    // Totais somente para colunas monetárias.
+    const moneyIdx = cols.map((c, i) => (c.isMoney ? i : -1)).filter((i) => i >= 0);
+    const totals = moneyIdx.reduce<Record<number, number>>((acc, i) => {
+      acc[i] = dataRows.reduce((s, r) => s + (Number(r[i]) || 0), 0);
+      return acc;
+    }, {});
 
     const title = `Relatório de Confecção — ${payment?.reference ?? "Lote"}`;
-    const meta1 = `Itens: ${activeItems.length}  ·  Valor convênio: ${fmtBRL(somaConv)}  ·  Repasse calculado: ${fmtBRL(somaRep)}`;
+    const metaParts = [`Itens: ${activeItems.length}`];
+    moneyIdx.forEach((i) => metaParts.push(`${cols[i].label.replace(" (R$)", "")}: ${fmtBRL(totals[i])}`));
+    const meta1 = metaParts.join("  ·  ");
     const meta2 = `Gerado em ${new Date().toLocaleString("pt-BR")}`;
+
+    // Linha de total geral: rótulo na primeira coluna monetária - 1 (ou col 0).
+    const totalLabelCol = moneyIdx.length > 0 ? Math.max(0, moneyIdx[0] - 1) : 0;
+    const totalRow: any[] = cols.map((_, i) => {
+      if (i === totalLabelCol) return "Total geral";
+      if (totals[i] != null) return totals[i];
+      return "";
+    });
 
     const aoa: any[][] = [
       [title], [meta1], [meta2], [],
       headers,
       ...dataRows,
-      ["", "", "", "", "", "", "", "Total geral", somaConv, somaRep, "", ""],
+      totalRow,
     ];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-    ws["!cols"] = [
-      { wch: 32 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 42 },
-      { wch: 30 }, { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 32 }, { wch: 22 },
-    ];
+    ws["!cols"] = cols.map((c) => ({ wch: c.width }));
     (ws as any)["!views"] = [{ state: "frozen", ySplit: 5 }];
+    const lastCol = cols.length - 1;
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
-      { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: lastCol } },
     ];
 
     const BRAND = "0B3D91";
@@ -824,38 +855,39 @@ const PaymentDetail = () => {
       };
     });
 
+    const procIdx = cols.findIndex((c) => c.id === "procedure_name");
     for (let i = 0; i < dataRows.length; i++) {
       const r = 5 + i;
       const isZebra = i % 2 === 1;
-      for (let c = 0; c < headers.length; c++) {
+      for (let c = 0; c < cols.length; c++) {
         const cell = ws[XLSX.utils.encode_cell({ r, c })];
         if (!cell) continue;
-        const isMoney = c === 8 || c === 9;
+        const isMoney = cols[c].isMoney === true;
         cell.s = {
           font: { sz: 10, color: { rgb: "111827" } },
           fill: isZebra ? { fgColor: { rgb: ZEBRA } } : undefined,
-          alignment: { vertical: "center", horizontal: isMoney ? "right" : "left", wrapText: c === 5 },
+          alignment: { vertical: "center", horizontal: isMoney ? "right" : "left", wrapText: c === procIdx },
           border: allBorders,
         };
         if (isMoney && typeof cell.v === "number") cell.z = moneyFmt;
       }
     }
 
-    const totalRow = aoa.length - 1;
-    for (let c = 0; c < headers.length; c++) {
-      const cell = ws[XLSX.utils.encode_cell({ r: totalRow, c })];
+    const totalRowIdx = aoa.length - 1;
+    for (let c = 0; c < cols.length; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: totalRowIdx, c })];
       if (!cell) continue;
-      const isMoney = c === 8 || c === 9;
+      const isMoney = cols[c].isMoney === true;
       cell.s = {
         font: { bold: true, sz: 10, color: { rgb: BRAND } },
         fill: { fgColor: { rgb: BRAND_LIGHT } },
-        alignment: { vertical: "center", horizontal: isMoney ? "right" : (c === 7 ? "right" : "left") },
+        alignment: { vertical: "center", horizontal: isMoney ? "right" : (c === totalLabelCol ? "right" : "left") },
         border: { top: { style: "medium", color: { rgb: BRAND } }, bottom: BORDER, left: BORDER, right: BORDER },
       };
       if (isMoney && typeof cell.v === "number") cell.z = moneyFmt;
     }
 
-    ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 4, c: 0 }, e: { r: 4 + dataRows.length, c: headers.length - 1 } }) };
+    ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 4, c: 0 }, e: { r: 4 + dataRows.length, c: lastCol } }) };
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Confecção");
