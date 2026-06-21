@@ -743,6 +743,9 @@ const PaymentDetail = () => {
     navigate("/pagamentos");
   };
 
+  // Picker de colunas do Excel de Confecção.
+  const [exportPickerOpen, setExportPickerOpen] = useState(false);
+
   // Registry de colunas disponíveis no Excel de Confecção.
   // O usuário escolhe quais e em que ordem via ExportColumnPickerDialog.
   const CONFECCAO_EXPORT_COLUMNS: Array<{
