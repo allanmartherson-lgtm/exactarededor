@@ -503,7 +503,7 @@ export function BonusPacienteDialog({
           </Button>
           <Button onClick={submit} disabled={!canSubmit || busy}>
             {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            <Upload className="h-4 w-4 mr-2" /> Importar bônus
+            <Upload className="h-4 w-4 mr-2" /> Importar pagamento avulso
           </Button>
         </DialogFooter>
       </DialogContent>
