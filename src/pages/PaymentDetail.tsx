@@ -4357,6 +4357,15 @@ const PaymentDetail = () => {
         />
       )}
 
+      <ExportColumnPickerDialog
+        open={exportPickerOpen}
+        onOpenChange={setExportPickerOpen}
+        allColumns={CONFECCAO_EXPORT_COLUMNS.map(({ id, label, isMoney, width }) => ({ id, label, isMoney, width }))}
+        defaultOrder={DEFAULT_CONFECCAO_EXPORT_ORDER}
+        onConfirm={(ids) => exportConfeccaoXlsx(ids)}
+      />
+
+
 
 
 
