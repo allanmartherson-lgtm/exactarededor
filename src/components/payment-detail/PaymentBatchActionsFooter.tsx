@@ -21,7 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
 import type { GroupRow } from "@/hooks/usePaymentDetailData";
 import { parseReconciliationBlock, type ReconciliationBlockPayload } from "@/lib/parseReconciliationBlock";
-import { ReconciliationBlockDialog } from "./ReconciliationBlockDialog";
+import { BatchReconciliationBlockDialog } from "./BatchReconciliationBlockDialog";
 
 interface Props {
   paymentId: string;
@@ -59,6 +59,7 @@ export function PaymentBatchActionsFooter({
   const [externalOpen, setExternalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
+  const [reconTargets, setReconTargets] = useState<string[]>([]);
   const [pendingRetry, setPendingRetry] = useState<{ groupIds: string[]; note: string | null } | null>(null);
 
   const pendencias = useMemo(() => {
@@ -162,6 +163,7 @@ export function PaymentBatchActionsFooter({
       const block = parseReconciliationBlock(error);
       if (block) {
         setReconBlock(block);
+        setReconTargets(groupIds);
         setPendingRetry({ groupIds, note });
         return;
       }
@@ -307,19 +309,20 @@ export function PaymentBatchActionsFooter({
         onDone={onDone}
       />
 
-      <ReconciliationBlockDialog
-        open={reconBlock !== null}
-        onOpenChange={(v) => { if (!v) { setReconBlock(null); setPendingRetry(null); } }}
-        payload={reconBlock}
+      <BatchReconciliationBlockDialog
+        open={reconBlock !== null && reconTargets.length > 0}
+        onOpenChange={(v) => { if (!v) { setReconBlock(null); setReconTargets([]); setPendingRetry(null); } }}
+        paymentId={paymentId}
+        targetGroupIds={reconTargets}
         actorRole={actorRole}
         currentUserId={currentUserId}
         currentUserName={currentUserName}
-        onResolved={async () => { setReconBlock(null); setPendingRetry(null); await onDone(); }}
-        retryAfterRelease={pendingRetry ? async () => {
+        onResolved={async () => { setReconBlock(null); setReconTargets([]); setPendingRetry(null); await onDone(); }}
+        retryAfterRelease={async () => {
           const retry = pendingRetry;
           setPendingRetry(null);
-          await doApprove(retry.groupIds, retry.note);
-        } : undefined}
+          if (retry) await doApprove(retry.groupIds, retry.note);
+        }}
       />
 
       {/* sentinel-removed-card-close-was-here */}
