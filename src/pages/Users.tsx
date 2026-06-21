@@ -842,6 +842,13 @@ const Users = () => {
                   </div>
                 </section>
 
+                <UserDirectorApproverSection
+                  userId={editingUser.id}
+                  email={editingUser.email}
+                  fullName={editingUser.full_name}
+                  roleTitle={editingUser.role_title}
+                />
+
                 <section className="space-y-2 border-t pt-4">
                   <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Analista sênior</h4>
                   <div className="flex items-center justify-between gap-2">
