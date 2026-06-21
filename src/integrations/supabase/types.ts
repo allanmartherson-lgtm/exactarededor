@@ -10698,6 +10698,9 @@ export type Database = {
         | "decisao_juridica"
         | "duplicidade_externa"
         | "outro"
+        | "economia_real"
+        | "pago_em_outro_lote"
+        | "duplicidade_motor"
       payment_kind: "atual" | "pendencia" | "misto"
       payment_status:
         | "rascunho"
@@ -10996,6 +10999,9 @@ export const Constants = {
         "decisao_juridica",
         "duplicidade_externa",
         "outro",
+        "economia_real",
+        "pago_em_outro_lote",
+        "duplicidade_motor",
       ],
       payment_kind: ["atual", "pendencia", "misto"],
       payment_status: [
