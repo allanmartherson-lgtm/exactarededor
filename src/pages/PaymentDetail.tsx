@@ -719,33 +719,52 @@ const PaymentDetail = () => {
     }
     setBusy(true);
     await autoClaim();
-    for (const g of targets) {
-      const { error: upErr } = await supabase.from("payment_company_groups")
-        .update({ status: "aguardando_validacao" })
-        .eq("id", g.id);
-      if (upErr) {
-        toast({ title: `Falha em ${g.company_name}`, description: upErr.message, variant: "destructive" });
-        continue;
-      }
-      const obsRes = await recordObservation({
-        payment_id: id, author_type: "analista", author_id: user!.id,
-        message: `[${g.company_name}] Enviado para validação pelo analista.`,
-        status_from: g.status, status_to: "aguardando_validacao",
-      });
-      if (!obsRes.ok) {
-        toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
-      }
-      supabase.functions.invoke("notify-validator-assignment", {
-        body: {
-          payment_id: id,
-          group_id: g.id,
-          sender_id: user!.id,
-        },
-      }).catch((e) => console.warn("notify-validator-assignment failed", g.id, e));
+    // Envio ATÔMICO via RPC — substitui o loop UPDATE-por-grupo que
+    // deixava grupos travados em 'concluida_analista' quando uma das
+    // chamadas falhava silenciosamente (RLS, AbortError de token refresh,
+    // throttling). A RPC roda em uma única instrução, então ou tudo passa
+    // ou nada passa.
+    const { data: rpcData, error: rpcErr } = await supabase.rpc(
+      "bulk_send_groups_to_validation",
+      { _payment_id: id, _group_ids: targets.map((g) => g.id) },
+    );
+    if (rpcErr) {
+      setBusy(false);
+      toast({ title: "Falha ao enviar para validação", description: rpcErr.message, variant: "destructive" });
+      return;
     }
+    const rpcRow = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+    const updated = Number((rpcRow as { updated_count?: number } | null)?.updated_count ?? 0);
+    if (updated === 0) {
+      setBusy(false);
+      toast({
+        title: "Nenhuma empresa enviada",
+        description: (rpcRow as { message?: string } | null)?.message ?? "Status atual não permite envio.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Histórico + notificação por grupo são best-effort e NÃO bloqueiam o
+    // envio (já efetivado pela RPC). Disparados em paralelo para não
+    // recriar o problema de loop serial.
+    await Promise.allSettled(
+      targets.map(async (g) => {
+        const obsRes = await recordObservation({
+          payment_id: id, author_type: "analista", author_id: user!.id,
+          message: `[${g.company_name}] Enviado para validação pelo analista.`,
+          status_from: g.status, status_to: "aguardando_validacao",
+        });
+        if (!obsRes.ok) {
+          console.warn("[sendForValidation] histórico falhou", g.id, obsRes.error);
+        }
+        supabase.functions.invoke("notify-validator-assignment", {
+          body: { payment_id: id, group_id: g.id, sender_id: user!.id },
+        }).catch((e) => console.warn("notify-validator-assignment failed", g.id, e));
+      }),
+    );
     await load();
     setBusy(false);
-    toast({ title: "Lote enviado para validação", description: `${targets.length} empresa(s) a caminho do validador.` });
+    toast({ title: "Lote enviado para validação", description: `${updated} empresa(s) a caminho do validador.` });
     navigate("/pagamentos");
   };
 
