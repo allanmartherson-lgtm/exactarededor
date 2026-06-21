@@ -196,6 +196,7 @@ const ExportAudit = lazy(loadExportAudit);
 const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal.tsx"));
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
 const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
+const ComunicacaoHub = lazy(() => import("./pages/ComunicacaoHub.tsx"));
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -314,9 +315,10 @@ const App = () => (
                   <Route path="/casos-especiais/relatorio" element={<Navigate to="/casos-especiais?tab=relatorio" replace />} />
                   <Route path="/admin/tipos-caso-especial" element={<Navigate to="/casos-especiais?tab=tipos" replace />} />
                   <Route path="/conversas" element={<Conversas />} />
-                  <Route path="/comunicacao/massa" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador"]}><MassCommunication /></ProtectedRoute>} />
-                  <Route path="/comunicacao/aprovacoes" element={<ProtectedRoute roles={["admin", "diretor", "validador"]}><CampaignApprovalQueue /></ProtectedRoute>} />
-                  <Route path="/comunicacao/supervisao" element={<ProtectedRoute roles={["admin", "diretor", "validador"]}><CommunicationSupervision /></ProtectedRoute>} />
+                  <Route path="/comunicacao" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador"]}><ComunicacaoHub /></ProtectedRoute>} />
+                  <Route path="/comunicacao/massa" element={<Navigate to="/comunicacao?tab=massa" replace />} />
+                  <Route path="/comunicacao/aprovacoes" element={<Navigate to="/comunicacao?tab=aprovacoes" replace />} />
+                  <Route path="/comunicacao/supervisao" element={<Navigate to="/comunicacao?tab=supervisao" replace />} />
 
                   <Route path="/notificacoes" element={<ProtectedRoute><NotificationsInbox /></ProtectedRoute>} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><SaudeHub /></ProtectedRoute>} />
@@ -364,7 +366,7 @@ const App = () => (
                   <Route path="/relatorios/dre" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/relatorios/saude-dinheiro" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/relatorios/observabilidade" element={<Navigate to="/saude-processo" replace />} />
-                  <Route path="/sistema/integracoes" element={<ProtectedRoute roles={["admin", "diretor"]}><IntegrationsAdmin /></ProtectedRoute>} />
+                  <Route path="/sistema/integracoes" element={<Navigate to="/comunicacao?tab=integracoes" replace />} />
                   <Route path="/configuracoes/notificacoes" element={<NotificationPreferences />} />
                   <Route path="/wcag-audit" element={<WcagAudit />} />
                   <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
