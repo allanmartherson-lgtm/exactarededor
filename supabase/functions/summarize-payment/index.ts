@@ -184,7 +184,10 @@ serve(async (req) => {
         total: totalItems,
         alertas: totalAlerts,
         pct_alertas: totalItems > 0 ? Math.round((totalAlerts / totalItems) * 100) : 0,
-        distribuicao_status: statusCounts,
+        distribuicao_status: Object.fromEntries(
+          Object.entries(statusCounts).map(([k, v]) => [labelAiStatus(k), v]),
+        ),
+
       },
       empresas: Object.entries(byCompany)
         .map(([nome, v]) => ({ nome, ...v, pct_alertas: v.count > 0 ? Math.round((v.alerts / v.count) * 100) : 0 }))
