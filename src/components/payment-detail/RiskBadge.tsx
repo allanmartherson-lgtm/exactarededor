@@ -44,6 +44,7 @@ export function RiskBadge({
   title,
   reasons,
   financialData,
+  compact = false,
 }: {
   level: RiskLevel;
   score?: number;
@@ -52,6 +53,8 @@ export function RiskBadge({
   title?: string;
   reasons?: string[];
   financialData?: RiskFinancialData;
+  /** When true, hides the "Valor em risco" subline (use in dense rows/lists). */
+  compact?: boolean;
 }) {
   const badge = (
     <div className="flex flex-col items-start gap-0.5 min-w-0 max-w-full">
@@ -69,7 +72,7 @@ export function RiskBadge({
         </span>
         <HelpCircle className="h-3 w-3 text-muted-foreground opacity-40 hover:opacity-100 transition-opacity cursor-help shrink-0" />
       </div>
-      {financialData && financialData.valorEmRisco > 0 && (
+      {!compact && financialData && financialData.valorEmRisco > 0 && (
         <div className="text-[10px] text-muted-foreground break-words opacity-80 min-w-0 max-w-full leading-tight">
           Valor em risco:{" "}
           <span className="font-semibold text-foreground">

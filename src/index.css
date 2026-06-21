@@ -539,16 +539,23 @@ All colors MUST be HSL.
       padding: 4px 8px !important;
       font-size: 11px !important;
     }
-    /* Pipeline columns: allow horizontal scroll on mobile so labels don't break */
+    /* Pipeline columns: wrap in a 5-col grid (2 rows) on mobile, no horizontal scroll.
+       Inline grid-template-columns set in JSX is overridden via !important here. */
     .pipeline-scroll {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      margin: 0 -8px;
-      padding: 0 8px;
+      overflow: visible;
+      margin: 0;
+      padding: 0;
     }
-    .pipeline-scroll > * {
-      min-width: 820px;
+    .pipeline-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+      row-gap: 10px !important;
+      padding: 14px 8px !important;
     }
+    .pipeline-col {
+      padding: 8px 4px !important;
+      gap: 6px !important;
+    }
+
 
     /* Payment task row (Progresso por lote): stack vertically on mobile */
     .payment-task-row {
