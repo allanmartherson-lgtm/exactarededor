@@ -139,7 +139,11 @@ export default function InterventionAdjustments() {
       p_end: end.toISOString(),
       p_hospital_id: currentHospitalId ?? null,
     });
-    if (!error) setData((res as unknown as InterventionSavingsResult) ?? emptyResult());
+    if (!error) {
+      const result = (res as unknown as InterventionSavingsResult) ?? emptyResult();
+      const enrichedItems = await enrichItemsWithCancellationReasons(result.items ?? []);
+      setData({ ...result, items: enrichedItems });
+    }
   };
 
   const handleReactivate = async (itemId: string) => {
