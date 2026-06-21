@@ -209,7 +209,7 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
                   )}
                   {grouped.map((g, idx) => {
                     const info = CAMADA_INFO[g.camada];
-                    const methodEmpty = g.method === "sem_acordo" || g.method === "exclusao" || g.method === "sem_regra";
+                    const methodEmpty = g.method === "sem_acordo" || g.method === "exclusao" || g.method === "sem_regra" || g.method === "informativo";
                     return (
                       <tr key={idx} className="border-t">
                         <td className="px-3 py-2">
