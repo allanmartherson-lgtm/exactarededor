@@ -198,6 +198,7 @@ const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
 const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
 const ComunicacaoHub = lazy(() => import("./pages/ComunicacaoHub.tsx"));
 const RegrasHub = lazy(() => import("./pages/RegrasHub.tsx"));
+const SistemaHub = lazy(() => import("./pages/SistemaHub.tsx"));
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -358,11 +359,11 @@ const App = () => (
                   <Route path="/anomalias-status" element={<Navigate to="/auditoria?tab=anomalias" replace />} />
                   <Route path="/insights-observacoes" element={<Navigate to="/auditoria?tab=insights" replace />} />
                   <Route path="/sobre" element={<About />} />
-                  <Route path="/sistema/versoes" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemReleases /></ProtectedRoute>} />
-                  <Route path="/sistema/feature-flags" element={<ProtectedRoute roles={["admin", "diretor"]}><FeatureFlagsAdmin /></ProtectedRoute>} />
-                  <Route path="/sistema/copiloto-telemetria" element={<ProtectedRoute roles={["admin", "diretor"]}><CopilotTelemetry /></ProtectedRoute>} />
-
-                  <Route path="/sistema/avisos" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemAnnouncementsAdmin /></ProtectedRoute>} />
+                  <Route path="/sistema" element={<ProtectedRoute roles={["admin", "diretor"]}><SistemaHub /></ProtectedRoute>} />
+                  <Route path="/sistema/versoes" element={<Navigate to="/sistema?tab=versoes" replace />} />
+                  <Route path="/sistema/feature-flags" element={<Navigate to="/sistema?tab=feature-flags" replace />} />
+                  <Route path="/sistema/copiloto-telemetria" element={<Navigate to="/sistema?tab=copiloto" replace />} />
+                  <Route path="/sistema/avisos" element={<Navigate to="/sistema?tab=avisos" replace />} />
                   <Route path="/sistema/journal" element={<ProtectedRoute roles={["admin", "diretor"]}><FinancialJournal /></ProtectedRoute>} />
                   <Route path="/relatorios/dre" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/relatorios/saude-dinheiro" element={<Navigate to="/inteligencia-financeira" replace />} />
