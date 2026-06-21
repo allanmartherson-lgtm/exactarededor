@@ -7,14 +7,16 @@ import { formatCurrency } from "@/lib/status";
 import type { PaymentItemRow, RuleLite } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
 
-type Camada = "1" | "2" | "3" | "—";
+type Camada = "1" | "2" | "3" | "I" | "—";
 
-function detectCamada(label: string | null | undefined, method: string, ruleId: string | null): Camada {
+function detectCamada(label: string | null | undefined, method: string, ruleId: string | null, calcType?: string | null): Camada {
   const l = (label ?? "").toLowerCase();
   if (l.includes("camada 1")) return "1";
   if (l.includes("camada 2") || l.includes("sem acordo") || l.includes("exclus")) return "2";
   if (l.includes("camada 3") || l.includes("fallback")) return "3";
+  if (ruleId && (calcType === "informativo" || method === "informativo")) return "I";
   if (ruleId && method && method !== "sem_regra") return "1";
+  if (ruleId) return "I"; // regra vinculada sem método explícito → informativa, nunca "sem regra"
   return "—";
 }
 
@@ -33,6 +35,11 @@ const CAMADA_INFO: Record<Camada, { label: string; desc: string; tone: "ok" | "w
     label: "Camada 3 — Fallback Master",
     desc: "Nenhuma regra específica casou e o motor caiu em uma regra master/global. Revisar se a cobertura de regras está adequada.",
     tone: "warn",
+  },
+  "I": {
+    label: "Regra informativa",
+    desc: "Regra casou, mas está cadastrada como informativa (sem método de cálculo). O motor não altera o valor — esperado = valor base do convênio. Use para sinalização/relatório, não para repasse.",
+    tone: "muted",
   },
   "—": {
     label: "Sem regra",
@@ -97,14 +104,18 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
         ((it.ai_findings?.matched_rule_ids?.[0] as string | undefined) ?? null);
       const rawMethod = (it.applied_calc_method ?? "") as string;
       const label = anyIt.applied_rule_label ?? null;
+      const ruleObj = ruleId ? rulesIndex[ruleId] : undefined;
+      const calcType = ruleObj?.calculation_type ?? null;
       const method = rawMethod
         ? rawMethod
         : label && /Sem acordo/i.test(label)
           ? "sem_acordo"
           : label && /Exclus[ãa]o/i.test(label)
             ? "exclusao"
-            : "sem_regra";
-      const camada = detectCamada(label, method, ruleId);
+            : ruleId
+              ? (calcType || "informativo") // regra vinculada sem método → usar calculation_type, nunca "sem_regra"
+              : "sem_regra";
+      const camada = detectCamada(label, method, ruleId, calcType);
       const key = `${ruleId ?? "—"}|${method}|${camada}`;
       const entry = m.get(key) ?? {
         rule: ruleId ? rulesIndex[ruleId] : undefined,
@@ -198,7 +209,7 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
                   )}
                   {grouped.map((g, idx) => {
                     const info = CAMADA_INFO[g.camada];
-                    const methodEmpty = g.method === "sem_acordo" || g.method === "exclusao" || g.method === "sem_regra";
+                    const methodEmpty = g.method === "sem_acordo" || g.method === "exclusao" || g.method === "sem_regra" || g.method === "informativo";
                     return (
                       <tr key={idx} className="border-t">
                         <td className="px-3 py-2">
@@ -218,7 +229,7 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
                                   info.tone === "warn" && "border-amber-500/50 text-amber-700 dark:text-amber-400",
                                 )}
                               >
-                                {g.camada === "—" ? "—" : `Camada ${g.camada}`}
+                                {g.camada === "—" ? "—" : g.camada === "I" ? "Informativa" : `Camada ${g.camada}`}
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-xs">
@@ -240,7 +251,9 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
                                   ? "Método vazio porque a Camada 2 (Sem Acordo) encerra a regra sem aplicar nenhum cálculo. O esperado é o valor base do convênio."
                                   : g.method === "exclusao"
                                     ? "Método vazio porque a Camada 2 (Exclusão) bloqueia o item da regra."
-                                    : "Item não foi coberto por nenhuma regra — não há método de cálculo."}
+                                    : g.method === "informativo"
+                                      ? "Regra informativa: casou com o item mas não define método de cálculo. O esperado é o valor base do convênio."
+                                      : "Item não foi coberto por nenhuma regra — não há método de cálculo."}
                               </TooltipContent>
                             )}
                           </Tooltip>
@@ -266,7 +279,7 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {(["1", "2", "3", "—"] as Camada[])
+            {(["1", "2", "3", "I", "—"] as Camada[])
               .filter((c) => camadasPresentes.includes(c))
               .map((c) => {
                 const info = CAMADA_INFO[c];
@@ -280,7 +293,7 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
                         info.tone === "warn" && "border-amber-500/50 text-amber-700 dark:text-amber-400",
                       )}
                     >
-                      {c === "—" ? "—" : `Camada ${c}`}
+                      {c === "—" ? "—" : c === "I" ? "Informativa" : `Camada ${c}`}
                     </Badge>
                     <div>
                       <div className="font-medium">{info.label}</div>
