@@ -39,6 +39,7 @@ import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsP
 import { PaymentPivotSection, type PivotVariant } from "@/components/payment-detail/PaymentPivotSection";
 import { PreAnalysisScoreCard } from "@/components/payment-detail/PreAnalysisScoreCard";
 import { DoctorAnomalyAlerts } from "@/components/payment-detail/DoctorAnomalyAlerts";
+import { EmailApprovalCard } from "@/components/payment-detail/EmailApprovalCard";
 import { ExecutiveSummaryCard } from "@/components/payment-detail/ExecutiveSummaryCard";
 import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
 import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
@@ -2707,6 +2708,13 @@ const PaymentDetail = () => {
             <div className="space-y-3 mt-2">
               {id && !isConfeccao && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
               {id && <PoolCalculationCard paymentId={id} />}
+              {id && (
+                <EmailApprovalCard
+                  paymentId={id}
+                  hasGroupsAwaitingApproval={groups.some((g) => String(g.status) === "aguardando_aprovacao")}
+                  onApplied={() => { void load(); }}
+                />
+              )}
               {id && <DirectorBriefingCard
                 paymentId={id}
                 payment={payment}
