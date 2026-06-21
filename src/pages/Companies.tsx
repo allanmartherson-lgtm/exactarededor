@@ -62,7 +62,7 @@ const fetchAllCompanies = async (columns = "*", orderBy?: string) => {
   return all;
 };
 
-const Companies = () => {
+const Companies = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [items, setItems] = useState<Company[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Company>(empty);
