@@ -194,6 +194,7 @@ const ProcessHealth = lazy(loadProcessHealth);
 const ReportsCentral = lazy(loadReportsCentral);
 const ExportAudit = lazy(loadExportAudit);
 const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal.tsx"));
+const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -299,7 +300,7 @@ const App = () => (
                   <Route path="/relatorios/auditoria-intervencao" element={<Navigate to="/relatorios/intervencoes?view=auditoria" replace />} />
                   <Route path="/relatorios/pagamentos-cancelados" element={<Navigate to="/relatorios/intervencoes?view=ajustes&role=cancelamento_empresa" replace />} />
                   <Route path="/relatorios/central" element={<ReportsCentral />} />
-                  <Route path="/relatorios/auditoria-exportacoes" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><ExportAudit /></ProtectedRoute>} />
+                  <Route path="/relatorios/auditoria-exportacoes" element={<Navigate to="/auditoria?tab=exportacoes" replace />} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><AgingRecebiveis /></ProtectedRoute>} />
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
@@ -347,11 +348,11 @@ const App = () => (
                   <Route path="/produtividade-analistas" element={<Navigate to="/saude-processo" replace />} />
                   <Route path="/saude-processo" element={<ProtectedRoute roles={["diretor", "admin"]}><ProcessHealth /></ProtectedRoute>} />
                   
-                  <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><AuditLog /></ProtectedRoute>} />
-                  <Route path="/auditoria/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><HospitalSwitchLog /></ProtectedRoute>} />
-                  <Route path="/auditoria/tuss-principal" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><AuditoriaTussPrincipal /></ProtectedRoute>} />
-                  <Route path="/anomalias-status" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><StatusAnomalies /></ProtectedRoute>} />
-                  <Route path="/insights-observacoes" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><ObservationInsights /></ProtectedRoute>} />
+                  <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><AuditoriaHub /></ProtectedRoute>} />
+                  <Route path="/auditoria/hospitais" element={<Navigate to="/auditoria?tab=hospitais" replace />} />
+                  <Route path="/auditoria/tuss-principal" element={<Navigate to="/auditoria?tab=tuss" replace />} />
+                  <Route path="/anomalias-status" element={<Navigate to="/auditoria?tab=anomalias" replace />} />
+                  <Route path="/insights-observacoes" element={<Navigate to="/auditoria?tab=insights" replace />} />
                   <Route path="/sobre" element={<About />} />
                   <Route path="/sistema/versoes" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemReleases /></ProtectedRoute>} />
                   <Route path="/sistema/feature-flags" element={<ProtectedRoute roles={["admin", "diretor"]}><FeatureFlagsAdmin /></ProtectedRoute>} />
