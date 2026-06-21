@@ -167,7 +167,7 @@ All colors MUST be HSL.
     --primary-dark: 214 100% 12%;     /* azul navy escuro */
 
     /* ── Accent: ouro Exacta ─────────────────────────────── */
-    --accent: 164 33% 26%;
+    --accent: 37 42% 61%;             /* #C6A27C — Pantone 728 C Rede D'Or */
     --accent-foreground: 0 0% 100%;
     --accent-light: 40 58% 78%;
 
