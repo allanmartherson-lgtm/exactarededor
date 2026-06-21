@@ -23,6 +23,8 @@ import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/Payme
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { PaymentBatchExportDialog } from "@/components/payment-detail/PaymentBatchExportDialog";
+import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
+
 import { ExportColumnPickerDialog } from "@/components/payment-detail/ExportColumnPickerDialog";
 import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
@@ -237,6 +239,8 @@ const PaymentDetail = () => {
   const addCompanyInputRef = useRef<HTMLInputElement | null>(null);
   const [addingCompany, setAddingCompany] = useState(false);
   const [addCompanyConfirm, setAddCompanyConfirm] = useState<File[] | null>(null);
+  const [bonusDialogOpen, setBonusDialogOpen] = useState(false);
+
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
@@ -2545,6 +2549,12 @@ const PaymentDetail = () => {
                     <Plus className="h-4 w-4 mr-2" /> Adicionar empresa ao lote
                   </DropdownMenuItem>
                 )}
+                {canReimport && (
+                  <DropdownMenuItem disabled={busy} onSelect={() => setBonusDialogOpen(true)}>
+                    <Sparkles className="h-4 w-4 mr-2" /> Adicionar bônus por paciente
+                  </DropdownMenuItem>
+                )}
+
                 <DropdownMenuItem onSelect={() => setAssignmentsHistoryOpen(true)}>
                   <UserCheck className="h-4 w-4 mr-2" /> Transferir / Histórico
                 </DropdownMenuItem>
@@ -4394,6 +4404,17 @@ const PaymentDetail = () => {
           profiles={profiles}
         />
       )}
+
+      {payment && (
+        <BonusPacienteDialog
+          open={bonusDialogOpen}
+          onOpenChange={setBonusDialogOpen}
+          lockedPayment={{ id: payment.id, reference: payment.reference }}
+          onSaved={() => load()}
+        />
+      )}
+
+
 
       <ExportColumnPickerDialog
         open={exportPickerOpen}
