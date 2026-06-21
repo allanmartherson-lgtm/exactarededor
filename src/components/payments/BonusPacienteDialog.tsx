@@ -107,15 +107,21 @@ export function BonusPacienteDialog({
     })();
   }, [open, hospital?.id]);
 
-  // Quando escolhe empresa, tenta puxar médico único da PJ
+  // Quando troca empresa: limpa médico atual (se não pertencer à PJ) e tenta puxar único
   useEffect(() => {
-    if (!company?.id) return;
+    if (!company?.id) {
+      setDoctor(null);
+      return;
+    }
     (async () => {
       const { data } = await supabase
         .from("doctor_companies")
         .select("doctor_id, doctors!inner(id, full_name, active, crm, crm_uf)")
         .eq("company_id", company.id);
       const active = (data ?? []).filter((d: any) => d.doctors?.active);
+      const allowedIds = new Set(active.map((d: any) => d.doctors.id));
+      // Limpa seleção atual se não pertencer mais à PJ
+      setDoctor((prev) => (prev && !allowedIds.has(prev.id) ? null : prev));
       if (active.length === 1) {
         const d = active[0].doctors as any;
         setDoctor({ id: d.id, name: d.full_name, crm: d.crm ?? null, crm_uf: d.crm_uf ?? null });
@@ -311,6 +317,7 @@ export function BonusPacienteDialog({
               value={doctor}
               onChange={setDoctor}
               placeholder={company ? "Selecionar médico" : "Escolha a PJ primeiro"}
+              filterCompanyId={company?.id ?? null}
             />
             {company && doctor && (
               <p className="text-[11px] text-muted-foreground">

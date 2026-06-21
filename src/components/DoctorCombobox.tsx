@@ -20,6 +20,8 @@ interface Props {
   placeholder?: string;
   className?: string;
   pageSize?: number;
+  /** Se definido, restringe a médicos vinculados a esta PJ (doctor_companies). */
+  filterCompanyId?: string | null;
 }
 
 const PAGE = 20;
@@ -34,6 +36,7 @@ export function DoctorCombobox({
   placeholder = "Buscar médico por nome ou CRM...",
   className,
   pageSize = PAGE,
+  filterCompanyId,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -52,7 +55,7 @@ export function DoctorCombobox({
   useEffect(() => {
     if (!open) return;
     setPage(0);
-  }, [debounced, open]);
+  }, [debounced, open, filterCompanyId]);
 
   useEffect(() => {
     if (!open) return;
@@ -60,34 +63,51 @@ export function DoctorCombobox({
     setLoading(true);
     const from = page * pageSize;
     const to = from + pageSize - 1;
-    
-    let q = supabase.from("doctors").select("id, full_name, crm, crm_uf", { count: "exact" });
-    const term = debounced.trim();
-    
-    if (term) {
-      const safe = term.replace(/[%,]/g, " ");
-      const ors: string[] = [`full_name.ilike.%${safe}%`];
-      // Se parecer um CRM (números), buscar por CRM também
-      if (/^\d+$/.test(term)) {
-        ors.push(`crm.ilike.%${term}%`);
+
+    (async () => {
+      let allowedIds: string[] | null = null;
+      if (filterCompanyId) {
+        const { data: dc } = await supabase
+          .from("doctor_companies")
+          .select("doctor_id")
+          .eq("company_id", filterCompanyId);
+        allowedIds = (dc ?? []).map((r: any) => r.doctor_id);
+        if (allowedIds.length === 0) {
+          if (reqId.current !== myId) return;
+          setItems([]);
+          setHasMore(false);
+          setLoading(false);
+          return;
+        }
       }
-      q = q.or(ors.join(","));
-    }
-    
-    q.order("full_name").range(from, to).then(({ data, count }) => {
+
+      let q = supabase.from("doctors").select("id, full_name, crm, crm_uf", { count: "exact" });
+      if (allowedIds) q = q.in("id", allowedIds);
+
+      const term = debounced.trim();
+      if (term) {
+        const safe = term.replace(/[%,]/g, " ");
+        const ors: string[] = [`full_name.ilike.%${safe}%`];
+        if (/^\d+$/.test(term)) {
+          ors.push(`crm.ilike.%${term}%`);
+        }
+        q = q.or(ors.join(","));
+      }
+
+      const { data, count } = await q.order("full_name").range(from, to);
       if (reqId.current !== myId) return;
-      const next = (data ?? []).map(d => ({
+      const next = (data ?? []).map((d: any) => ({
         id: d.id,
         name: d.full_name,
         crm: d.crm,
-        crm_uf: d.crm_uf
+        crm_uf: d.crm_uf,
       })) as DoctorOption[];
-      
+
       setItems((prev) => (page === 0 ? next : [...prev, ...next]));
       setHasMore((count ?? 0) > to + 1);
       setLoading(false);
-    });
-  }, [debounced, page, open, pageSize]);
+    })();
+  }, [debounced, page, open, pageSize, filterCompanyId]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
