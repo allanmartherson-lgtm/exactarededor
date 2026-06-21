@@ -197,6 +197,7 @@ const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
 const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
 const ComunicacaoHub = lazy(() => import("./pages/ComunicacaoHub.tsx"));
+const RegrasHub = lazy(() => import("./pages/RegrasHub.tsx"));
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -322,11 +323,11 @@ const App = () => (
 
                   <Route path="/notificacoes" element={<ProtectedRoute><NotificationsInbox /></ProtectedRoute>} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><SaudeHub /></ProtectedRoute>} />
-                  <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
-                  <Route path="/regras/pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
-                  <Route path="/regras/validacao" element={<ProtectedRoute roles={["diretor", "admin"]}><ValidationRules /></ProtectedRoute>} />
-                  <Route path="/regras/simulador" element={<ProtectedRoute roles={["diretor", "admin"]}><RuleSimulator /></ProtectedRoute>} />
-                  <Route path="/regras/simulador-lote" element={<ProtectedRoute roles={["diretor", "admin"]}><RuleSimulatorBatch /></ProtectedRoute>} />
+                  <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><RegrasHub /></ProtectedRoute>} />
+                  <Route path="/regras/pagamento" element={<Navigate to="/regras?tab=pagamento" replace />} />
+                  <Route path="/regras/validacao" element={<Navigate to="/regras?tab=validacao" replace />} />
+                  <Route path="/regras/simulador" element={<Navigate to="/regras?tab=simulador" replace />} />
+                  <Route path="/regras/simulador-lote" element={<Navigate to="/regras?tab=simulador-lote" replace />} />
                   <Route path="/tabelas" element={<ProtectedRoute roles={["diretor", "admin"]}><ReferenceTables /></ProtectedRoute>} />
                   
                   <Route path="/cadastros" element={<ProtectedRoute roles={["diretor", "admin"]}><CadastrosHub /></ProtectedRoute>} />

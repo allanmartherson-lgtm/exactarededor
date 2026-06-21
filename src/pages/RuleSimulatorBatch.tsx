@@ -117,7 +117,7 @@ const STATUS_LABEL: Record<Status, { label: string; cls: string; icon: any }> = 
 
 const BRL = (n: number | null | undefined) => n == null ? "—" : n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function RuleSimulatorBatch() {
+export default function RuleSimulatorBatch({ embedded = false }: { embedded?: boolean } = {}) {
   const { hospital } = useHospital();
   const fileRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<RawItem[]>([]);
@@ -212,15 +212,17 @@ export default function RuleSimulatorBatch() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6 max-w-7xl">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3"><FlaskConical className="text-primary" /> Simulador em Lote</h1>
-          <p className="text-muted-foreground mt-1">
-            Suba uma planilha de teste e veja o que cada regra do hospital produziria — sem persistir nada.
-          </p>
-        </div>
-      </header>
+    <div className={embedded ? "space-y-6" : "container mx-auto p-6 space-y-6 max-w-7xl"}>
+      {!embedded && (
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-3"><FlaskConical className="text-primary" /> Simulador em Lote</h1>
+            <p className="text-muted-foreground mt-1">
+              Suba uma planilha de teste e veja o que cada regra do hospital produziria — sem persistir nada.
+            </p>
+          </div>
+        </header>
+      )}
 
       <Card>
         <CardHeader><CardTitle className="text-base">1. Carregar planilha</CardTitle></CardHeader>

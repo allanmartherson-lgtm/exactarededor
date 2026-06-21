@@ -91,7 +91,7 @@ const PAYMENT_TYPE = [
   { v: "outro", label: "Outro" },
 ];
 
-export default function RuleSimulator() {
+export default function RuleSimulator({ embedded = false }: { embedded?: boolean } = {}) {
   const { hospital } = useHospital();
   const [form, setForm] = useState<SimForm>(empty);
   const [loading, setLoading] = useState(false);
@@ -149,17 +149,19 @@ export default function RuleSimulator() {
   const breakdown = result?.calculation_breakdown ?? [];
 
   return (
-    <div className="container mx-auto py-6 space-y-6 max-w-7xl">
-      <div className="flex items-center gap-3">
-        <FlaskConical className="h-7 w-7 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Simulador de Regras</h1>
-          <p className="text-sm text-muted-foreground">
-            Selecione os campos a partir das bases reais e veja qual regra/cálculo se aplica,
-            com o caminho completo de fallback. Não persiste nada.
-          </p>
+    <div className={embedded ? "space-y-6" : "container mx-auto py-6 space-y-6 max-w-7xl"}>
+      {!embedded && (
+        <div className="flex items-center gap-3">
+          <FlaskConical className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Simulador de Regras</h1>
+            <p className="text-sm text-muted-foreground">
+              Selecione os campos a partir das bases reais e veja qual regra/cálculo se aplica,
+              com o caminho completo de fallback. Não persiste nada.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ---------- Form ---------- */}
