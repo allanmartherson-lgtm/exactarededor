@@ -46,6 +46,13 @@ interface Props {
   currentUserName: string;
   /** Recarrega o pagamento depois de uma ação concluída. */
   onResolved: () => void | Promise<void>;
+  /**
+   * Opcional. Quando informado, após a liberação com justificativa o dialog
+   * re-executa a ação original (envio para validação / aprovação) em vez de
+   * apenas registrar o override e fechar. Sem isso o override fica criado
+   * mas o lote não avança de status.
+   */
+  retryAfterRelease?: () => Promise<void> | void;
 }
 
 const fmt = (n: number) =>
