@@ -20,6 +20,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
 import type { GroupRow } from "@/hooks/usePaymentDetailData";
+import { parseReconciliationBlock, type ReconciliationBlockPayload } from "@/lib/parseReconciliationBlock";
+import { ReconciliationBlockDialog } from "./ReconciliationBlockDialog";
 
 interface Props {
   paymentId: string;
