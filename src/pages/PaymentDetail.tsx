@@ -742,6 +742,7 @@ const PaymentDetail = () => {
       const block = parseReconciliationBlock(rpcErr);
       if (block) {
         setReconBlock(block);
+        setReconTargets(targets.map((g) => g.id));
         // Guarda o retry para que "Liberar com justificativa" possa re-disparar
         // o envio depois do override ser registrado.
         setReconRetry(() => async () => { await doSendForValidation(targets); });
