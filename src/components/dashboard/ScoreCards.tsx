@@ -260,12 +260,13 @@ export function ScoreSection({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `repeat(${Math.max(items.length, 2)}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))`,
           gap: 16,
           flex: 1,
           alignItems: "stretch",
         }}
       >
+
 
         {items.map((item) => (
           <ScoreCard key={item.label} item={item} tone={tone} />
