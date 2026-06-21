@@ -235,7 +235,7 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
           cn(
             "relative inline-flex flex-col items-center justify-center gap-1 rounded-md px-3 py-1 min-w-[72px] text-[11px] leading-tight font-bold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
             isActive
-              ? "bg-accent text-accent-foreground"
+              ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )
         }
