@@ -70,11 +70,11 @@ async function seedPaymentWithGroups(c: Client, groupCount: number): Promise<See
   const reference = `__test_bulk_send_${crypto.randomUUID().slice(0, 8)}`;
   const paymentRow = await c.queryObject<{ id: string }>(
     `INSERT INTO public.payments (
-       hospital_id, status, analysis_mode, file_name, total_amount, items_count,
+       hospital_id, status, analysis_mode, total_amount, items_count,
        reference, created_by
-     ) VALUES ($1, 'revisao_analista'::public.payment_status, 'padrao', $2, 0, 0, $3, $4::uuid)
+     ) VALUES ($1, 'revisao_analista'::public.payment_status, 'padrao', 0, 0, $2, $3::uuid)
      RETURNING id::text AS id`,
-    [hospitalId, reference, reference, createdBy],
+    [hospitalId, reference, createdBy],
   );
   const paymentId = paymentRow.rows[0].id;
 
