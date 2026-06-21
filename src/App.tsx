@@ -87,6 +87,7 @@ const loadPendencias = () => import("./pages/Pendencias.tsx");
 const loadSpecialCases = () => import("./pages/SpecialCases.tsx");
 const loadSpecialCasesReport = () => import("./pages/SpecialCasesReport.tsx");
 const loadSpecialCaseTypesAdmin = () => import("./pages/SpecialCaseTypesAdmin.tsx");
+const loadSpecialCasesHub = () => import("./pages/SpecialCasesHub.tsx");
 const loadConciliacao = () => import("./pages/Conciliacao.tsx");
 const loadPendenciaDetail = () => import("./pages/PendenciaDetail.tsx");
 const loadConversas = () => import("./pages/Conversas.tsx");
@@ -173,6 +174,7 @@ const Pendencias = lazy(loadPendencias);
 const SpecialCases = lazy(loadSpecialCases);
 const SpecialCasesReport = lazy(loadSpecialCasesReport);
 const SpecialCaseTypesAdmin = lazy(loadSpecialCaseTypesAdmin);
+const SpecialCasesHub = lazy(loadSpecialCasesHub);
 const Conciliacao = lazy(loadConciliacao);
 const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
@@ -306,9 +308,9 @@ const App = () => (
                   <Route path="/financeiro/conciliacao" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><Conciliacao /></ProtectedRoute>} />
                   <Route path="/pendencias" element={<Pendencias />} />
                   <Route path="/pendencias/:id" element={<PendenciaDetail />} />
-                  <Route path="/casos-especiais" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador", "gestao_medica"]}><SpecialCases /></ProtectedRoute>} />
-                  <Route path="/casos-especiais/relatorio" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador", "gestao_medica"]}><SpecialCasesReport /></ProtectedRoute>} />
-                  <Route path="/admin/tipos-caso-especial" element={<ProtectedRoute roles={["admin", "diretor", "gestao_medica"]}><SpecialCaseTypesAdmin /></ProtectedRoute>} />
+                  <Route path="/casos-especiais" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador", "gestao_medica"]}><SpecialCasesHub /></ProtectedRoute>} />
+                  <Route path="/casos-especiais/relatorio" element={<Navigate to="/casos-especiais?tab=relatorio" replace />} />
+                  <Route path="/admin/tipos-caso-especial" element={<Navigate to="/casos-especiais?tab=tipos" replace />} />
                   <Route path="/conversas" element={<Conversas />} />
                   <Route path="/comunicacao/massa" element={<ProtectedRoute roles={["admin", "diretor", "analista", "validador"]}><MassCommunication /></ProtectedRoute>} />
                   <Route path="/comunicacao/aprovacoes" element={<ProtectedRoute roles={["admin", "diretor", "validador"]}><CampaignApprovalQueue /></ProtectedRoute>} />

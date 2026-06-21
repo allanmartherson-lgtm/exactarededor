@@ -24,7 +24,7 @@ interface TypeRow {
   hospital_id: string | null;
 }
 
-export default function SpecialCaseTypesAdmin() {
+export default function SpecialCaseTypesAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const { toast } = useToast();
   const hospitalId = useActiveHospitalId();
   const [rows, setRows] = useState<TypeRow[]>([]);
@@ -123,11 +123,13 @@ export default function SpecialCaseTypesAdmin() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <PageHeader
-        title="Tipos de caso especial"
-        description="Catálogo de patologias/contextos (oncológico, pediátrico, etc.) que habilitam regras diferenciadas"
-      />
+    <div className={embedded ? "space-y-6" : "p-6 space-y-6"}>
+      {!embedded && (
+        <PageHeader
+          title="Tipos de caso especial"
+          description="Catálogo de patologias/contextos (oncológico, pediátrico, etc.) que habilitam regras diferenciadas"
+        />
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
