@@ -397,8 +397,8 @@ export function ItemsDataGrid({
     }
   }, [density, DENSITY_PREFS_KEY]);
   const isCompact = density === "compact";
-  const headPad = isCompact ? "px-1.5 py-1" : "px-2 py-2";
-  const tableTextSize = TEXT_BODY;
+  const headPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
+  const tableTextSize = isCompact ? "text-[11px] leading-tight tracking-tight" : TEXT_BODY;
 
   const getConvenio = getAgreement;
 
