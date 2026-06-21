@@ -398,25 +398,18 @@ async function generateConfeccaoReportPdf(input: GeneratePaymentPdfInput): Promi
     cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
   }
 
-  // Histórico (observações) — útil mesmo em confecção (notas do analista)
+  // Histórico de observações: relatório de Confecção é peça executiva, não
+  // auditoria. Mostrar apenas contagem — quem precisa do detalhe abre na tela.
   if (observations.length > 0) {
-    if (cursorY > 250) { doc.addPage(); cursorY = 20; }
-    doc.setFontSize(12);
-    doc.text(`Histórico de observações (${observations.length})`, 14, cursorY);
-    autoTable(doc, {
-      startY: cursorY + 4,
-      head: [["Data/hora", "Autor", "Papel", "Mensagem"]],
-      body: [...observations]
-        .sort((a, b) => (a.created_at < b.created_at ? -1 : 1))
-        .map((o) => [
-          formatDate(o.created_at),
-          (o.author_id && profiles[o.author_id]) || "—",
-          o.author_type,
-          o.message,
-        ]),
-      styles: { fontSize: 8 },
-      columnStyles: { 3: { cellWidth: 95 } },
-    });
+    if (cursorY > 270) { doc.addPage(); cursorY = 20; }
+    doc.setFontSize(9);
+    doc.setTextColor(90, 90, 90);
+    doc.text(
+      `Observações registradas: ${observations.length}. Consulte a tela do lote para o detalhe.`,
+      marginX,
+      cursorY,
+    );
+    doc.setTextColor(17, 24, 39);
   }
 
   return doc;
