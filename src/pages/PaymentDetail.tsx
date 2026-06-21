@@ -4405,14 +4405,14 @@ const PaymentDetail = () => {
         />
       )}
 
-      {payment && (
-        <BonusPacienteDialog
-          open={bonusDialogOpen}
-          onOpenChange={setBonusDialogOpen}
-          lockedPayment={{ id: payment.id, reference: payment.reference }}
-          onSaved={() => load()}
-        />
-      )}
+      <BonusPacienteDialog
+        open={bonusDialogOpen}
+        onOpenChange={setBonusDialogOpen}
+        lockedPayment={payment ? { id: payment.id, reference: payment.reference } : null}
+        onSaved={() => load()}
+      />
+
+
 
 
 
