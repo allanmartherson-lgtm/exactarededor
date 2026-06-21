@@ -194,6 +194,7 @@ type PersistedPaymentsState = Partial<{
   divergenceFilter: "all" | "with" | "without";
   questionedFilter: "all" | "with" | "without";
   archivedView: boolean;
+  showConcluded: boolean;
 }>;
 type ColSortCol = "reference" | "competence" | "elapsed" | "items" | "value" | "status";
 const loadPersistedPaymentsState = (): PersistedPaymentsState => {
