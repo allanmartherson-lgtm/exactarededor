@@ -501,8 +501,8 @@ const TopbarGroup = ({
                   borderRadius: 6,
                   fontSize: 13.5,
                   fontWeight: childActive ? 500 : 400,
-                  background: childActive ? "hsl(var(--accent))" : undefined,
-                  color: childActive ? "hsl(var(--accent-foreground))" : undefined,
+                  background: childActive ? "hsl(var(--primary))" : undefined,
+                  color: childActive ? "hsl(var(--primary-foreground))" : undefined,
                 }}
               >
                 <c.icon
