@@ -255,21 +255,23 @@ Deno.test("bulk_send_groups_to_validation: subconjuntos sobrepostos cobrem uniã
 // o bug do loop UPDATE em série.
 // ============================================================================
 Deno.test("bulk_send_groups_to_validation: row lock concorrente não deixa o grupo travado para trás", async () => {
+  // Usamos o seedClient como "lock holder": ele já provou que tem permissão
+  // de escrita (acabou de inserir os grupos). Abre transação, faz UPDATE
+  // segurando o lock da linha 0 e só commita após disparar a RPC numa
+  // segunda conexão. Se a RPC pulasse a linha travada, ela ficaria presa em
+  // concluida_analista — exatamente o bug do loop client-side antigo.
   const seedClient = await newClient();
-  const lockHolder = await newClient();
   const racer = await newClient();
   let paymentId = "";
+  let lockHeld = false;
   try {
     const seed = await seedPaymentWithGroups(seedClient, 6);
     paymentId = seed.paymentId;
 
-    // Trava UM dos grupos em outra transação. Usamos UPDATE no-op
-    // (set updated_at) em vez de SELECT FOR UPDATE porque o role de
-    // teste tem GRANT UPDATE mas não necessariamente SELECT direto
-    // nesta tabela (RLS + GRANTs por papel).
-    await lockHolder.queryArray("BEGIN");
-    await lockHolder.queryObject(
-      `UPDATE public.payment_company_groups SET updated_at = updated_at WHERE id = $1`,
+    await seedClient.queryArray("BEGIN");
+    lockHeld = true;
+    await seedClient.queryObject(
+      `UPDATE public.payment_company_groups SET updated_at = now() WHERE id = $1`,
       [seed.groupIds[0]],
     );
 
@@ -278,22 +280,24 @@ Deno.test("bulk_send_groups_to_validation: row lock concorrente não deixa o gru
 
     // Mantém o lock por 1.5s, simulando uma transação concorrente lenta.
     await new Promise((r) => setTimeout(r, 1500));
-    await lockHolder.queryArray("COMMIT");
+    await seedClient.queryArray("COMMIT");
+    lockHeld = false;
 
-    // Agora a RPC deve liberar e completar TODOS os grupos, inclusive o
-    // que estava locked.
     const res = await racerPromise;
     assertEquals(Number(res.rows[0].updated_count), 6, "Todos os 6 grupos devem ser atualizados, incluindo o que estava locked");
 
-    const counts = await countByStatus(seedClient, seed.paymentId);
+    const counts = await countByStatus(racer, seed.paymentId);
     assertEquals(counts["aguardando_validacao"] ?? 0, 6);
     assertEquals(counts["concluida_analista"] ?? 0, 0, "Nenhum grupo pode ter sido pulado por causa do lock");
   } finally {
-    try { await lockHolder.queryArray("ROLLBACK"); } catch { /* já comitada */ }
+    if (lockHeld) {
+      try { await seedClient.queryArray("ROLLBACK"); } catch { /* noop */ }
+    }
+    if (paymentId) {
+      try { await cleanup(racer, paymentId); } catch { /* noop */ }
+    }
     try { await racer.end(); } catch { /* noop */ }
-    try { await lockHolder.end(); } catch { /* noop */ }
-    if (paymentId) await cleanup(seedClient, paymentId);
-    await seedClient.end();
+    try { await seedClient.end(); } catch { /* noop */ }
   }
 });
 
