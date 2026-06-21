@@ -102,6 +102,7 @@ const loadCommunicationSupervision = () => import("./pages/CommunicationSupervis
 const loadProcessHealth = () => import("./pages/ProcessHealth.tsx");
 const loadMedicosHub = () => import("./pages/MedicosHub.tsx");
 const loadDirectors = () => import("./pages/Directors.tsx");
+const loadCadastrosHub = () => import("./pages/CadastrosHub.tsx");
 const loadReportsCentral = () => import("./pages/ReportsCentral.tsx");
 const loadExportAudit = () => import("./pages/ExportAudit.tsx");
 
@@ -129,6 +130,7 @@ const Doctors = lazy(loadDoctors);
 const ProcedureSpecialtyMap = lazy(loadProcedureSpecialtyMap);
 const MedicosHub = lazy(loadMedicosHub);
 const Directors = lazy(loadDirectors);
+const CadastrosHub = lazy(loadCadastrosHub);
 const Sectors = lazy(loadSectors);
 const Convenios = lazy(loadConvenios);
 const CostCenters = lazy(loadCostCenters);
@@ -321,16 +323,17 @@ const App = () => (
                   <Route path="/regras/simulador-lote" element={<ProtectedRoute roles={["diretor", "admin"]}><RuleSimulatorBatch /></ProtectedRoute>} />
                   <Route path="/tabelas" element={<ProtectedRoute roles={["diretor", "admin"]}><ReferenceTables /></ProtectedRoute>} />
                   
-                  <Route path="/empresas" element={<ProtectedRoute roles={["diretor", "admin"]}><Companies /></ProtectedRoute>} />
+                  <Route path="/cadastros" element={<ProtectedRoute roles={["diretor", "admin"]}><CadastrosHub /></ProtectedRoute>} />
+                  <Route path="/empresas" element={<Navigate to="/cadastros?tab=empresas" replace />} />
                   <Route path="/empresas/apelidos" element={<ProtectedRoute roles={["diretor", "admin"]}><CompanyAliases /></ProtectedRoute>} />
                   <Route path="/aprendizado/padroes" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><LearnedPatterns /></ProtectedRoute>} />
-                  <Route path="/medicos" element={<ProtectedRoute roles={["diretor", "admin"]}><MedicosHub /></ProtectedRoute>} />
-                  <Route path="/diretores" element={<ProtectedRoute roles={["diretor", "admin"]}><Directors /></ProtectedRoute>} />
-                  <Route path="/mapa-especialidades" element={<Navigate to="/medicos" replace />} />
-                  <Route path="/setores" element={<ProtectedRoute roles={["diretor", "admin"]}><Sectors /></ProtectedRoute>} />
-                  <Route path="/convenios" element={<ProtectedRoute roles={["diretor", "admin"]}><Convenios /></ProtectedRoute>} />
-                  <Route path="/centros-de-custo" element={<CostCenters />} />
-                  <Route path="/tipos-pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><PaymentTypes /></ProtectedRoute>} />
+                  <Route path="/medicos" element={<Navigate to="/cadastros?tab=medicos" replace />} />
+                  <Route path="/diretores" element={<Navigate to="/cadastros?tab=diretores" replace />} />
+                  <Route path="/mapa-especialidades" element={<Navigate to="/cadastros?tab=mapa-especialidades" replace />} />
+                  <Route path="/setores" element={<Navigate to="/cadastros?tab=centros-de-custo" replace />} />
+                  <Route path="/convenios" element={<Navigate to="/cadastros?tab=convenios" replace />} />
+                  <Route path="/centros-de-custo" element={<Navigate to="/cadastros?tab=centros-de-custo" replace />} />
+                  <Route path="/tipos-pagamento" element={<Navigate to="/cadastros?tab=tipos-pagamento" replace />} />
                   <Route path="/pools" element={<ProtectedRoute roles={["diretor", "admin"]}><PoolsHub /></ProtectedRoute>} />
                   <Route path="/pools/relatorios" element={<Navigate to="/pools" replace />} />
                   <Route path="/financeiro/creditos-debitos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><CreditosDebitos /></ProtectedRoute>} />

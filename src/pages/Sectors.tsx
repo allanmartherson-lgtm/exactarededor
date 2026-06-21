@@ -7,11 +7,11 @@ import { RegistryAliasesPanel } from "@/components/RegistryAliasesPanel";
  * Página standalone de Setores — mantida para compatibilidade de URL/links.
  * A experiência principal agora vive como sub-aba em /centros-de-custo.
  */
-export default function Sectors() {
+export default function Sectors({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <div className="flex flex-col h-full w-full">
-      <PageHeader title="Setores" description="Padronização dos nomes de setor que vêm da base." />
-      <div className="p-4 md:p-8 w-full mx-auto">
+      {!embedded && <PageHeader title="Setores" description="Padronização dos nomes de setor que vêm da base." />}
+      <div className={embedded ? "w-full mx-auto" : "p-4 md:p-8 w-full mx-auto"}>
         <Tabs defaultValue="list" className="w-full">
           <TabsList>
             <TabsTrigger value="list">Cadastro</TabsTrigger>

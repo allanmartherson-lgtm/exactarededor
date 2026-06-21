@@ -53,6 +53,7 @@ import {
   Scales,
   ArrowsLeftRight,
   PencilSimple,
+  Folders,
   type IconProps,
 } from "@phosphor-icons/react";
 
@@ -114,6 +115,7 @@ export const Scale = makeIcon(Scales, "Scale");
 export const GitCompare = makeIcon(ArrowsLeftRight, "GitCompare");
 export const GitCompareIcon = GitCompare;
 export const Pencil = makeIcon(PencilSimple, "Pencil");
+export const FolderKanban = makeIcon(Folders, "FolderKanban");
 
 export type NavIconComponent = ReturnType<typeof makeIcon>;
 

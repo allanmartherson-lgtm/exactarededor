@@ -31,7 +31,7 @@ const empty = (hid: string): Partial<Director> => ({
   hospital_id: hid, full_name: "", email: "", role_label: "Diretor", active: true, notes: "",
 });
 
-export default function Directors() {
+export default function Directors({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, hasRole } = useAuth();
   const { hospital } = useHospital();
   const canManage = hasRole("admin") || hasRole("diretor");
@@ -106,23 +106,32 @@ export default function Directors() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-4 max-w-5xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-primary" /> Diretores autorizados
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Cadastre os diretores que podem aprovar pagamentos. O sistema usa esta lista para validar
-            automaticamente as <strong>aprovações anexadas por e-mail</strong> (PDF ou print).
-          </p>
+    <div className={embedded ? "space-y-4" : "container mx-auto p-6 space-y-4 max-w-5xl"}>
+      {!embedded && (
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold flex items-center gap-2">
+              <ShieldCheck className="h-6 w-6 text-primary" /> Diretores autorizados
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Cadastre os diretores que podem aprovar pagamentos. O sistema usa esta lista para validar
+              automaticamente as <strong>aprovações anexadas por e-mail</strong> (PDF ou print).
+            </p>
+          </div>
+          {canManage && (
+            <Button onClick={startCreate} disabled={!hospital}>
+              <Plus className="h-4 w-4 mr-2" /> Novo diretor
+            </Button>
+          )}
         </div>
-        {canManage && (
-          <Button onClick={startCreate} disabled={!hospital}>
+      )}
+      {embedded && canManage && (
+        <div className="flex justify-end">
+          <Button onClick={startCreate} disabled={!hospital} size="sm">
             <Plus className="h-4 w-4 mr-2" /> Novo diretor
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       <Card>
         <CardHeader className="pb-2">

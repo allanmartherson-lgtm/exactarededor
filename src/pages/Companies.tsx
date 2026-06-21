@@ -62,7 +62,7 @@ const fetchAllCompanies = async (columns = "*", orderBy?: string) => {
   return all;
 };
 
-const Companies = () => {
+const Companies = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [items, setItems] = useState<Company[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Company>(empty);
@@ -345,8 +345,8 @@ const Companies = () => {
 
   return (
     <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
-      <PageHeader title="Empresas" description="Cadastro de clínicas/PJs para reconhecimento automático nas planilhas." />
-      <div className="p-4 md:p-8 w-full mx-auto space-y-4">
+      {!embedded && <PageHeader title="Empresas" description="Cadastro de clínicas/PJs para reconhecimento automático nas planilhas." />}
+      <div className={embedded ? "w-full mx-auto space-y-4" : "p-4 md:p-8 w-full mx-auto space-y-4"}>
           <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 flex-1 min-w-[280px]">
             <Input placeholder="Buscar por nome, código, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
