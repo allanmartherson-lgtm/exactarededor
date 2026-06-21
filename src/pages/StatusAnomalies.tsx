@@ -79,7 +79,7 @@ const DiagnosticPanel = ({ kind }: { kind: string }) => {
   );
 };
 
-const StatusAnomalies = () => {
+const StatusAnomalies = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { user } = useAuth();
   const [rows, setRows] = useState<Anomaly[]>([]);
   const [loading, setLoading] = useState(true);
@@ -207,11 +207,13 @@ const StatusAnomalies = () => {
 
   return (
     <>
-      <PageHeader
-        title="Anomalias de status"
-        description="Pagamentos cuja transição de status fugiu do fluxo permitido ou ficou dessincronizada com os grupos."
-      />
-      <div className="p-8 space-y-4">
+      {!embedded && (
+        <PageHeader
+          title="Anomalias de status"
+          description="Pagamentos cuja transição de status fugiu do fluxo permitido ou ficou dessincronizada com os grupos."
+        />
+      )}
+      <div className={embedded ? "space-y-4" : "p-8 space-y-4"}>
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="gap-1 px-2 py-1">
             <AlertTriangle className="h-3.5 w-3.5 text-destructive" />

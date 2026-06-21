@@ -40,7 +40,7 @@ const formatBadge = (f: string) => {
   return <Badge variant="outline" className={color}>{f.toUpperCase()}</Badge>;
 };
 
-const ExportAudit = () => {
+const ExportAudit = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [rows, setRows] = useState<ExportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
