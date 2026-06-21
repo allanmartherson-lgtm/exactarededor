@@ -130,10 +130,10 @@ const Users = () => {
     const { error } = await supabase.from("profiles").update({
       full_name: parsed.data.full_name,
       phone: parsed.data.phone,
-      cpf: parsed.data.cpf,
+      cpf: parsed.data.cpf ? parsed.data.cpf : null,
       role_title: parsed.data.role_title,
       department: parsed.data.department,
-      birth_date: parsed.data.birth_date,
+      birth_date: parsed.data.birth_date ? parsed.data.birth_date : null,
     }).eq("id", editingUser.id);
     setSavingUser(false);
     if (error) {
