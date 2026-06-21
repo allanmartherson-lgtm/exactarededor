@@ -104,6 +104,7 @@ export function PaymentBatchExportDialog({
   const [selectedStatuses, setSelectedStatuses] = useState<Set<ItemAiStatus>>(
     new Set(["aprovado", "alerta", "reprovado"]),
   );
+  const [includeHistory, setIncludeHistory] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Empresas com contagem de itens (do lote inteiro)
