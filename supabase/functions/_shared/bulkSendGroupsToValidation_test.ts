@@ -41,6 +41,22 @@ interface Seeded {
 async function newClient(): Promise<Client> {
   const c = new Client(requireDbUrl());
   await c.connect();
+  // Autentica como admin existente para bater RLS de payment_company_groups
+  // e payments (UPDATE/DELETE). Sem isto, mesmo a limpeza falha com
+  // "permission denied". Usa SET (sem LOCAL) porque vários cenários abrem
+  // múltiplas transações na mesma conexão.
+  const lookup = await c.queryObject<{ id: string }>(
+    `SELECT user_id::text AS id FROM public.user_roles
+      WHERE role = 'admin'::public.app_role LIMIT 1`,
+  );
+  if (lookup.rows.length === 0) {
+    throw new Error("Nenhum admin em user_roles — testes de integração precisam de um admin no preview.");
+  }
+  await c.queryArray(
+    `SELECT set_config('request.jwt.claims', $1, false),
+            set_config('role', 'authenticated', false)`,
+    [JSON.stringify({ sub: lookup.rows[0].id, role: "authenticated" })],
+  );
   return c;
 }
 
