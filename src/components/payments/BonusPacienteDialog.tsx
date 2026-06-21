@@ -294,10 +294,10 @@ export function BonusPacienteDialog({
       <DialogContent className="max-w-[min(48rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto space-y-4">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" /> Bônus por paciente
+            <Sparkles className="h-4 w-4 text-primary" /> Pagamento avulso (atendimento)
           </DialogTitle>
           <DialogDescription>
-            Para planilhas em que cada linha é um paciente atendido. O valor da planilha é o
+            Para planilhas em que cada linha é um atendimento. O valor da planilha é o
             que será pago — sem cálculo de regra.
           </DialogDescription>
         </DialogHeader>
