@@ -66,8 +66,23 @@ serve(async (req) => {
       .eq("payment_id", payment_id)
       .limit(20000);
 
+    // Rótulos humanos para os códigos técnicos do enum item_ai_status — a IA
+    // NÃO deve nunca exibir códigos brutos do banco no resumo final.
+    const AI_STATUS_LABELS: Record<string, string> = {
+      pendente: "Pendente",
+      aprovado: "Aprovado",
+      alerta: "Em alerta",
+      reprovado: "Reprovado",
+      erro_duplicidade_pagamento: "Duplicidade de pagamento",
+      erro_duplicidade_calculo: "Duplicidade de cálculo",
+      acatado: "Acatado",
+      sem_status: "Sem status",
+    };
+    const labelAiStatus = (code: string) => AI_STATUS_LABELS[code] ?? code;
+
     const statusCounts: Record<string, number> = {};
     const byCompany: Record<string, { total: number; count: number; alerts: number }> = {};
+
     let totalItems = 0;
     let totalAlerts = 0;
     let excecoesCount = 0;
@@ -169,7 +184,10 @@ serve(async (req) => {
         total: totalItems,
         alertas: totalAlerts,
         pct_alertas: totalItems > 0 ? Math.round((totalAlerts / totalItems) * 100) : 0,
-        distribuicao_status: statusCounts,
+        distribuicao_status: Object.fromEntries(
+          Object.entries(statusCounts).map(([k, v]) => [labelAiStatus(k), v]),
+        ),
+
       },
       empresas: Object.entries(byCompany)
         .map(([nome, v]) => ({ nome, ...v, pct_alertas: v.count > 0 ? Math.round((v.alerts / v.count) * 100) : 0 }))
@@ -253,6 +271,14 @@ REGRAS GERAIS:
 - Use somente fatos presentes no contexto JSON. Nunca invente números, regras ou empresas.
 - O resumo deve ajudar analista, validador e diretor a entender o lote em <30s.
 - Operação de processo (reanálises, recálculos, reprocessamentos do motor) NÃO é achado financeiro: NÃO cite isso.
+
+LINGUAGEM PARA O USUÁRIO FINAL (REGRA INVIOLÁVEL):
+- O resumo é lido por pessoal financeiro/operacional, não por desenvolvedores.
+- NUNCA mencione nomes técnicos de campos, colunas ou chaves do JSON (ex: NÃO escreva "lote.houve_deducoes", "glosas_por_empresa", "conciliacao_divergente_por_empresa", "ai_status", "true/false"). Traduza para frases naturais.
+- NUNCA cite códigos brutos de status entre aspas (ex: NÃO escreva 'erro_duplicidade_pagamento', 'reprovado', 'sem_regra'). Use os rótulos humanos já entregues em 'itens.distribuicao_status' (ex: "Duplicidade de pagamento", "Reprovado", "Em alerta").
+- Em vez de "glosas_por_empresa está vazio", escreva "sem glosas registradas". Em vez de "houve_deducoes = true", escreva "houve deduções no líquido".
+- Se precisar afirmar que algo não existe nos dados, diga em linguagem comum (ex: "nenhuma exceção autorizada no período"), nunca citando o nome do campo.
+
 
 ÚNICA FONTE DE GLOSA (REGRA INVIOLÁVEL):
 - Glosa SÓ existe se aparecer em 'glosas_por_empresa' com valor > 0, OU em 'composicao_financeira.glosas' > 0 quando composicao_financeira NÃO está indisponível.
