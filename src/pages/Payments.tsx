@@ -1192,25 +1192,45 @@ const Payments = () => {
               success: "bg-success/10 text-success",
               info: "bg-info/10 text-info",
             };
+            const isHero = kpi.tone === "primary";
             return (
               <div
                 key={kpi.label}
-                className="bg-card p-5 rounded-xl border border-border/40 shadow-soft"
+                className={cn(
+                  "p-5 rounded-xl border shadow-soft",
+                  isHero ? "border-transparent" : "bg-card border-border/40",
+                )}
+                style={isHero ? { background: "hsl(var(--primary-dark))" } : undefined}
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", chipMap[kpi.tone])}>
+                  <div
+                    className={cn("w-8 h-8 rounded-lg flex items-center justify-center", !isHero && chipMap[kpi.tone])}
+                    style={isHero ? { background: "rgba(255,255,255,0.15)", color: "#fff" } : undefined}
+                  >
                     <Icon className="w-4 h-4" strokeWidth={2} />
                   </div>
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <span
+                    className={cn(
+                      "text-[11px] font-semibold uppercase tracking-wider",
+                      !isHero && "text-muted-foreground",
+                    )}
+                    style={isHero ? { color: "rgba(255,255,255,0.7)" } : undefined}
+                  >
                     {kpi.label}
                   </span>
                 </div>
-                <div className="text-2xl font-bold text-foreground tabular-nums">{kpi.value}</div>
+                <div
+                  className={cn("text-2xl font-bold tabular-nums", !isHero && "text-foreground")}
+                  style={isHero ? { color: "#fff" } : undefined}
+                >
+                  {kpi.value}
+                </div>
                 <div
                   className={cn(
                     "text-[11px] mt-1",
-                    (kpi as any).hintTone === "destructive" ? "text-destructive font-medium" : "text-muted-foreground",
+                    !isHero && ((kpi as any).hintTone === "destructive" ? "text-destructive font-medium" : "text-muted-foreground"),
                   )}
+                  style={isHero ? { color: "rgba(255,255,255,0.7)" } : undefined}
                 >
                   {kpi.hint}
                 </div>
