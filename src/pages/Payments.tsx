@@ -1645,7 +1645,102 @@ const Payments = () => {
           </Card>
         ) : view === "lista" ? (
           <>
-            <div className="overflow-hidden border border-border bg-card shadow-sm rounded-md">
+            {/* MOBILE: card list — no horizontal scroll, tap-friendly. */}
+            <div className="md:hidden space-y-2">
+              {sortedList.map((p) => {
+                const elapsedMs = elapsedFor(p);
+                const lvl = delayLevel(p.status, elapsedMs);
+                const sla = slaFor(p);
+                const slaLvl = sla?.level ?? "ok";
+                const finalLvl: "none" | "leve" | "critico" =
+                  slaLvl === "vencido" ? "critico" : slaLvl === "preventivo" ? "leve" : lvl;
+                const companies = companiesPerPayment[p.id] ?? 0;
+                const analystName = p.created_by ? analysts[p.created_by] ?? "—" : "—";
+                const isSelected = selected.has(p.id);
+                const liquido = Number(p.liquido_total ?? p.total_amount);
+                const bruto = Number(p.bruto_total ?? p.total_amount);
+                const hasDiff = Math.abs(liquido - bruto) > 0.01;
+                return (
+                  <div
+                    key={p.id}
+                    className={cn(
+                      "rounded-lg border bg-card p-3 shadow-sm transition-colors",
+                      isSelected && "border-primary/60 bg-primary/5",
+                      finalLvl === "critico" && !isSelected && "border-destructive/40",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelect(p.id)}
+                          aria-label={`Selecionar ${p.reference}`}
+                        />
+                      </div>
+                      <Link to={`/pagamentos/${p.id}`} className="flex-1 min-w-0 space-y-2 block">
+                        <p className="font-semibold text-sm text-foreground leading-snug break-words">
+                          {p.reference}
+                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <StatusBadge
+                            status={p.status}
+                            analysisMode={(p as any).analysis_mode}
+                            confeccaoStatus={(p as any).confeccao_status}
+                          />
+                          <PaymentRiskBadgeInline paymentId={p.id} compact />
+                          {openQuestionCount[p.id] > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning-text">
+                              <MessageCircleQuestion className="h-2.5 w-2.5" /> {openQuestionCount[p.id]}
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                          <div className="min-w-0">
+                            <div className="text-[9px] uppercase tracking-wide opacity-70">Valor</div>
+                            <div className="font-bold text-sm text-foreground tabular-nums break-words">
+                              {formatCurrency(liquido)}
+                            </div>
+                            {hasDiff && (
+                              <div className="text-[10px] opacity-80 break-words">
+                                bruto {formatCurrency(bruto)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-[9px] uppercase tracking-wide opacity-70">Tempo</div>
+                            <div
+                              className={cn(
+                                "font-semibold text-xs",
+                                finalLvl === "critico" && "text-destructive",
+                                finalLvl === "leve" && "text-warning-text",
+                              )}
+                            >
+                              {SLA_EXEMPT_STATUSES.has(p.status)
+                                ? "—"
+                                : sla?.level === "vencido"
+                                ? "vencido"
+                                : formatDuration(elapsedMs)}
+                            </div>
+                            <div className="text-[10px] opacity-80 capitalize break-words">
+                              {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
+                            </div>
+                          </div>
+                          <div className="col-span-2 min-w-0 flex flex-wrap gap-x-2 gap-y-0.5 pt-1 border-t border-border/40 text-[10px]">
+                            <span className="break-words">
+                              {p.items_count.toLocaleString("pt-BR")} itens
+                              {companies > 0 && ` · ${companies} PJ`}
+                            </span>
+                            <span className="opacity-70 break-words">{analystName}</span>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* DESKTOP/tablet: tabela completa. */}
+            <div className="hidden md:block overflow-hidden border border-border bg-card shadow-sm rounded-md">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left">
                   <thead>
