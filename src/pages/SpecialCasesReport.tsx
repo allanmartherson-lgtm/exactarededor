@@ -47,7 +47,7 @@ const ORIGIN_LABEL: Record<string, string> = {
   gestao_medica: "Gestão médica",
 };
 
-export default function SpecialCasesReport() {
+export default function SpecialCasesReport({ embedded = false }: { embedded?: boolean } = {}) {
   const activeHospitalId = useActiveHospitalId();
   const [loading, setLoading] = useState(false);
   const [marks, setMarks] = useState<MarkRow[]>([]);
