@@ -3325,15 +3325,19 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
         fontSize: comfortable ? 10 : 9,
         fontWeight: 600,
         textTransform: "uppercase",
-        letterSpacing: "0.05em",
+        letterSpacing: "0.04em",
         color: "hsl(var(--muted-foreground))",
         textAlign: "center",
         lineHeight: 1.2,
-        whiteSpace: "nowrap",
+        wordBreak: "break-word",
+        overflowWrap: "anywhere",
+        hyphens: "auto",
+        maxWidth: "100%",
       }}
     >
       {label}
     </div>
+
     </Link>
   );
 });
