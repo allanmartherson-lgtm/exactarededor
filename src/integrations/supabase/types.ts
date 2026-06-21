@@ -3151,6 +3151,53 @@ export type Database = {
           },
         ]
       }
+      hospital_directors: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          email: string
+          full_name: string
+          hospital_id: string
+          id: string
+          notes: string | null
+          role_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          email: string
+          full_name: string
+          hospital_id: string
+          id?: string
+          notes?: string | null
+          role_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          full_name?: string
+          hospital_id?: string
+          id?: string
+          notes?: string | null
+          role_label?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_directors_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_settings: {
         Row: {
           created_at: string
@@ -4573,6 +4620,120 @@ export type Database = {
             foreignKeyName: "payment_director_notifications_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: true
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
+      payment_email_approvals: {
+        Row: {
+          ai_model: string | null
+          applied_at: string | null
+          applied_by: string | null
+          created_at: string
+          extracted: Json | null
+          file_mime: string
+          file_name: string
+          file_path: string
+          file_size_bytes: number | null
+          hospital_id: string
+          id: string
+          matched_director_id: string | null
+          parse_attempts: number
+          parsed_at: string | null
+          payment_id: string
+          reject_reason: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          status: Database["public"]["Enums"]["email_approval_status"]
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string
+          validation_errors: string[]
+        }
+        Insert: {
+          ai_model?: string | null
+          applied_at?: string | null
+          applied_by?: string | null
+          created_at?: string
+          extracted?: Json | null
+          file_mime: string
+          file_name: string
+          file_path: string
+          file_size_bytes?: number | null
+          hospital_id: string
+          id?: string
+          matched_director_id?: string | null
+          parse_attempts?: number
+          parsed_at?: string | null
+          payment_id: string
+          reject_reason?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          status?: Database["public"]["Enums"]["email_approval_status"]
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by: string
+          validation_errors?: string[]
+        }
+        Update: {
+          ai_model?: string | null
+          applied_at?: string | null
+          applied_by?: string | null
+          created_at?: string
+          extracted?: Json | null
+          file_mime?: string
+          file_name?: string
+          file_path?: string
+          file_size_bytes?: number | null
+          hospital_id?: string
+          id?: string
+          matched_director_id?: string | null
+          parse_attempts?: number
+          parsed_at?: string | null
+          payment_id?: string
+          reject_reason?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          status?: Database["public"]["Enums"]["email_approval_status"]
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string
+          validation_errors?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_email_approvals_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_email_approvals_matched_director_id_fkey"
+            columns: ["matched_director_id"]
+            isOneToOne: false
+            referencedRelation: "hospital_directors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_email_approvals_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_email_approvals_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_email_approvals_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -10477,6 +10638,14 @@ export type Database = {
         | "medico"
         | "gestao_medica"
       confeccao_status: "em_confeccao" | "confeccao_concluida" | "cancelada"
+      email_approval_status:
+        | "pending_parse"
+        | "parsing"
+        | "validated"
+        | "divergent"
+        | "parse_failed"
+        | "applied"
+        | "rejected"
       invoice_status:
         | "aguardando"
         | "recebida"
@@ -10765,6 +10934,15 @@ export const Constants = {
         "gestao_medica",
       ],
       confeccao_status: ["em_confeccao", "confeccao_concluida", "cancelada"],
+      email_approval_status: [
+        "pending_parse",
+        "parsing",
+        "validated",
+        "divergent",
+        "parse_failed",
+        "applied",
+        "rejected",
+      ],
       invoice_status: [
         "aguardando",
         "recebida",
