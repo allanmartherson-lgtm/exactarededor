@@ -43,7 +43,7 @@ const HEALTH_LABEL: Record<Row["link_health"], { label: string; tone: string; ic
   inactive: { label: "Inativo", tone: "bg-muted text-muted-foreground", icon: ShieldOff },
 };
 
-export default function PortalHealth() {
+export default function PortalHealth({ embedded = false }: { embedded?: boolean } = {}) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [repairing, setRepairing] = useState(false);
@@ -97,21 +97,34 @@ export default function PortalHealth() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Saúde dos Portais"
-        description="Monitora vínculos de médico e empresa com o sistema de login. Atualizações de dados nunca devem deixar usuários sem acesso — esta tela detecta e repara."
-        actions={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={load} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              Atualizar
-            </Button>
-            <Button onClick={repair} disabled={repairing || stats.orphan_user === 0}>
-              {repairing ? "Reparando..." : "Auto-reparar órfãos"}
-            </Button>
-          </div>
-        }
-      />
+      {!embedded ? (
+        <PageHeader
+          title="Saúde dos Portais"
+          description="Monitora vínculos de médico e empresa com o sistema de login. Atualizações de dados nunca devem deixar usuários sem acesso — esta tela detecta e repara."
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={load} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Atualizar
+              </Button>
+              <Button onClick={repair} disabled={repairing || stats.orphan_user === 0}>
+                {repairing ? "Reparando..." : "Auto-reparar órfãos"}
+              </Button>
+            </div>
+          }
+        />
+      ) : (
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={load} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+          <Button onClick={repair} disabled={repairing || stats.orphan_user === 0}>
+            {repairing ? "Reparando..." : "Auto-reparar órfãos"}
+          </Button>
+        </div>
+      )}
+
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard label="Total" value={stats.total} />
