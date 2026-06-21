@@ -1724,12 +1724,17 @@ const PaymentDetail = () => {
   const [convertingMode, setConvertingMode] = useState(false);
   const convertToConfeccao = async () => {
     if (!id || !user) return;
-    const ok = window.confirm(
-      "Converter este lote para Modo Confecção?\n\n" +
-      "• Todos os status de IA serão recalculados (itens passam para 'aprovado' conforme regras do sistema).\n" +
-      "• A IA não acionará justificativas — o motor apenas calcula.\n" +
-      "• Você poderá revisar e enviar para validação manualmente."
-    );
+    const ok = await confirmDialog({
+      title: "Converter para Modo Confecção?",
+      description: "Os status de IA serão recalculados e o motor apenas calcula, sem justificativas.",
+      details:
+        "• Todos os status de IA serão recalculados (itens passam para 'aprovado' conforme regras do sistema).\n" +
+        "• A IA não acionará justificativas — o motor apenas calcula.\n" +
+        "• Você poderá revisar e enviar para validação manualmente.",
+      confirmText: "Converter",
+      cancelText: "Cancelar",
+      tone: "warning",
+    });
     if (!ok) return;
     setConvertingMode(true);
     try {
@@ -4200,7 +4205,17 @@ const PaymentDetail = () => {
                       disabled={busy}
                       onClick={async () => {
                         if (!id || !user) return;
-                        if (!window.confirm(`Arquivar "${g.company_name}"? Esta ação é irreversível.`)) return;
+                        {
+                          const ok = await confirmDialog({
+                            title: "Arquivar empresa?",
+                            description: `Arquivar "${g.company_name}" neste lote.`,
+                            details: "Esta ação é irreversível dentro do lote. A empresa não voltará a aparecer nas listas ativas.",
+                            confirmText: "Arquivar",
+                            cancelText: "Cancelar",
+                            tone: "danger",
+                          });
+                          if (!ok) return;
+                        }
                         setBusy(true);
                         const { error } = await supabase
                           .from("payment_company_groups")

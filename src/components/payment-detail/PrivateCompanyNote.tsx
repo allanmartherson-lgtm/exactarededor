@@ -12,6 +12,7 @@ import {
   AlertCircle as CloudAlert,
   FileText,
 } from "lucide-react";
+import { alertDialog } from "@/lib/confirm";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -124,7 +125,11 @@ export function PrivateCompanyNote({
     e.target.value = "";
     if (!file || !onUploadAttachment) return;
     if (file.size > 20 * 1024 * 1024) {
-      alert("Arquivo maior que 20MB. Compacte antes de anexar.");
+      await alertDialog({
+        title: "Arquivo muito grande",
+        description: "O anexo excede o limite de 20 MB. Compacte o arquivo antes de tentar novamente.",
+        tone: "warning",
+      });
       return;
     }
     setUploading(true);

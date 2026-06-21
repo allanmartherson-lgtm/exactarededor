@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, AlertTriangle, RefreshCcw, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { confirmDialog } from "@/lib/confirm";
 
 interface ProcessingJob {
   id: string;
@@ -115,12 +116,16 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
     if (!job || job.status !== "em_andamento") return;
     
     // Confirmação dupla para evitar cliques acidentais
-    const confirmed = window.confirm(
-      "Tem certeza que deseja cancelar a reanálise em andamento? " +
-      "As empresas que já foram processadas manterão os novos valores, " +
-      "mas o processamento das demais será interrompido imediatamente."
-    );
-    
+    const confirmed = await confirmDialog({
+      title: "Cancelar reanálise em andamento?",
+      description: "O processamento das empresas restantes será interrompido imediatamente.",
+      details:
+        "• As empresas já processadas mantêm os novos valores.\n" +
+        "• As demais permanecem com os valores anteriores até uma nova reanálise.",
+      confirmText: "Cancelar reanálise",
+      cancelText: "Voltar",
+      tone: "danger",
+    });
     if (!confirmed) return;
     
     setCancelling(true);

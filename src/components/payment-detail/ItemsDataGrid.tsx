@@ -268,7 +268,7 @@ export function ItemsDataGrid({
       } as any).eq("id", itemId);
       if (error) {
         console.error("Erro ao absorver item:", error);
-        alert(`Não foi possível absorver o item: ${error.message}`);
+        toast.error(`Não foi possível absorver o item: ${error.message}`);
         return;
       }
       setAbsorcaoPending(null);
@@ -276,7 +276,7 @@ export function ItemsDataGrid({
       onRefresh?.();
     } catch (e: any) {
       console.error("Erro ao absorver item:", e);
-      alert(`Erro inesperado: ${e?.message ?? e}`);
+      toast.error(`Erro inesperado: ${e?.message ?? e}`);
     } finally {
       setSavingAbsorcao(null);
     }
@@ -296,13 +296,13 @@ export function ItemsDataGrid({
       } as any).eq("id", itemId);
       if (error) {
         console.error("Erro ao reverter absorção:", error);
-        alert(`Não foi possível reverter: ${error.message}`);
+        toast.error(`Não foi possível reverter: ${error.message}`);
         return;
       }
       onRefresh?.();
     } catch (e: any) {
       console.error("Erro ao reverter absorção:", e);
-      alert(`Erro inesperado: ${e?.message ?? e}`);
+      toast.error(`Erro inesperado: ${e?.message ?? e}`);
     } finally {
       setSavingAbsorcao(null);
     }
@@ -1754,9 +1754,15 @@ export function ItemsDataGrid({
                                         <div className="flex items-center gap-2 text-[11px]">
                                           <button
                                             type="button"
-                                            onClick={() => {
+                                            onClick={async () => {
                                               if (isAbsorbed) {
-                                                if (confirm("Reverter absorção deste código?")) reverterAbsorcao(x.id);
+                                                const ok = await confirmDialog({
+                                                  title: "Reverter absorção?",
+                                                  description: "O código volta a ser cobrado fora do pacote.",
+                                                  confirmText: "Reverter",
+                                                  tone: "warning",
+                                                });
+                                                if (ok) reverterAbsorcao(x.id);
                                               } else {
                                                 setAbsorcaoPending(isPending ? null : x.id);
                                               }
@@ -1776,7 +1782,15 @@ export function ItemsDataGrid({
                                           {isAbsorbed && (
                                             <button
                                               type="button"
-                                              onClick={() => { if (confirm("Reverter absorção?")) reverterAbsorcao(x.id); }}
+                                              onClick={async () => {
+                                                const ok = await confirmDialog({
+                                                  title: "Reverter absorção?",
+                                                  description: "O código volta a ser cobrado fora do pacote.",
+                                                  confirmText: "Reverter",
+                                                  tone: "warning",
+                                                });
+                                                if (ok) reverterAbsorcao(x.id);
+                                              }}
                                               disabled={!!savingAbsorcao}
                                               className="inline-flex items-center gap-1 text-[10px] text-red-600 hover:text-red-700"
                                               title="Reverter absorção manual"
@@ -3489,7 +3503,7 @@ function ItemDetailsRow({
                             onClick={(e) => {
                               e.stopPropagation();
                               console.log("Full Selection Trace for Item " + it.id, it.ai_findings.selection_trace);
-                              alert("Trace técnico completo enviado para o Console (F12)");
+                              toast.success("Trace técnico enviado para o Console (F12).");
                             }}
                           >
                             <FileText className="h-3 w-3 mr-1" /> Ver detalhes técnicos (Console)
