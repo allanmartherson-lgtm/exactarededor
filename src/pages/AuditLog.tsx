@@ -58,7 +58,7 @@ const stringify = (v: unknown): string => {
   try { return JSON.stringify(v, null, 2); } catch { return String(v); }
 };
 
-const AuditLog = () => {
+const AuditLog = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const [rolesByUser, setRolesByUser] = useState<Map<string, AppRole[]>>(new Map());

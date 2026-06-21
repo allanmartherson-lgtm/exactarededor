@@ -109,17 +109,27 @@ const ExportAudit = () => {
   };
 
   return (
-    <div className="space-y-4 pb-8">
-      <PageHeader
-        title="Auditoria de exportações"
-        description="Quem baixou ou imprimiu cada relatório, quando e com quais filtros."
-        icon={History}
-        actions={
+    <div className={embedded ? "space-y-4" : "space-y-4 pb-8"}>
+      {!embedded && (
+        <PageHeader
+          title="Auditoria de exportações"
+          description="Quem baixou ou imprimiu cada relatório, quando e com quais filtros."
+          icon={History}
+          actions={
+            <Button size="sm" variant="outline" onClick={downloadCsv} disabled={filtered.length === 0}>
+              <Download className="h-4 w-4 mr-1" /> Exportar CSV
+            </Button>
+          }
+        />
+      )}
+      {embedded && (
+        <div className="flex justify-end">
           <Button size="sm" variant="outline" onClick={downloadCsv} disabled={filtered.length === 0}>
             <Download className="h-4 w-4 mr-1" /> Exportar CSV
           </Button>
-        }
-      />
+        </div>
+      )}
+
 
       <div className="px-6 grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
