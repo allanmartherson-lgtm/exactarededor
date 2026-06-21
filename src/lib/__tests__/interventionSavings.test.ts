@@ -54,6 +54,7 @@ describe("summarizeItems", () => {
       saldo: 0,
       qtd_itens: 0,
     });
+  });
 
   it("cancelamento manual sem motivo de economia real → vai para neutro, não soma no saldo", () => {
     const items = [
@@ -73,7 +74,6 @@ describe("summarizeItems", () => {
     expect(s.saldo).toBeCloseTo(400);
     expect(s.qtd_itens).toBe(4);
   });
-});
 });
 
 describe("filterItems", () => {
