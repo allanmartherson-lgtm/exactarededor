@@ -439,16 +439,20 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
 
   // Importação via wizard padrão (ImportWizard) — fluxo: upload → mapeamento → validação → confirmação → resumo.
 
+  // Defer the heavy filter so typing stays responsive on bases with milhares de médicos.
+  const deferredSearch = useDeferredValue(search);
+  const deferredCompany = useDeferredValue(filterCompany);
+
   const filtered = useMemo(() => {
-    const q = norm(search);
+    const q = norm(deferredSearch);
     const base = showInactive ? items : items.filter((d) => d.active);
 
-    if (!q && !filterCompany) return base;
+    if (!q && !deferredCompany) return base;
 
     const results = base.filter((d) => {
-      if (filterCompany) {
+      if (deferredCompany) {
         const cids = linksByDoctor.get(d.id) ?? [];
-        if (!cids.includes(filterCompany)) return false;
+        if (!cids.includes(deferredCompany)) return false;
       }
       if (!q) return true;
 
@@ -462,20 +466,20 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
     });
 
     return results;
-  }, [items, search, filterCompany, linksByDoctor, showInactive]);
+  }, [items, deferredSearch, deferredCompany, linksByDoctor, showInactive]);
 
   // Se houver busca, mostramos apenas os filtrados. 
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
     // Se há uma busca ativa, mostramos os resultados filtrados SEM limite (garantindo que todos apareçam)
-    if (search.trim() || filterCompany) {
+    if (deferredSearch.trim() || deferredCompany) {
       return filtered;
     }
     // Sem busca ativa, mantemos a paginação de 100 itens para performance inicial
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filtered.slice(startIndex, startIndex + itemsPerPage);
-  }, [filtered, currentPage, itemsPerPage, search, filterCompany]);
+  }, [filtered, currentPage, itemsPerPage, deferredSearch, deferredCompany]);
 
   const totalPages = itemsPerPage > 0 ? Math.ceil(filtered.length / itemsPerPage) : 1;
 
