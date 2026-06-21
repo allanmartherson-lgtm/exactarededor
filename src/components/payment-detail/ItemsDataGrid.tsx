@@ -2126,7 +2126,13 @@ function CalcFormulaBlock({
 
       {/* Trilha de decisão */}
       <div>
-        <Label>Trilha de decisão</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label>Trilha de decisão</Label>
+          <PaymentItemExplainButton
+            item={item as Record<string, unknown>}
+            itemStatus={(item as { ai_status?: string }).ai_status ?? "—"}
+          />
+        </div>
         <ol className="mt-1 space-y-1 text-[12px]">
           <li className="flex gap-2">
             <span aria-hidden>✅</span>
