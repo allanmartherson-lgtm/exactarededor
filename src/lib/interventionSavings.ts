@@ -197,6 +197,17 @@ export const classifyDelta = (delta: number): "economia" | "aumento" | "neutro" 
   return delta > 0 ? "economia" : "aumento";
 };
 
+/**
+ * Classificação semântica do item considerando motivo do cancelamento.
+ * Cancelamento manual sem motivo de economia real → "neutro" (operacional).
+ */
+export const classifyItem = (
+  it: InterventionItem,
+): "economia" | "aumento" | "neutro" => {
+  if (isCancellationNeutral(it)) return "neutro";
+  return classifyDelta(it.delta);
+};
+
 /** Converte linhas do drill-down para CSV (separador `;`, padrão BR). */
 export const itemsToCsv = (items: InterventionItem[]): string => {
   const header = [
