@@ -248,10 +248,13 @@ Deno.test("bulk_send_groups_to_validation: row lock concorrente não deixa o gru
     const seed = await seedPaymentWithGroups(seedClient, 6);
     paymentId = seed.paymentId;
 
-    // Trava UM dos grupos em outra transação.
+    // Trava UM dos grupos em outra transação. Usamos UPDATE no-op
+    // (set updated_at) em vez de SELECT FOR UPDATE porque o role de
+    // teste tem GRANT UPDATE mas não necessariamente SELECT direto
+    // nesta tabela (RLS + GRANTs por papel).
     await lockHolder.queryArray("BEGIN");
     await lockHolder.queryObject(
-      `SELECT id FROM public.payment_company_groups WHERE id = $1 FOR UPDATE`,
+      `UPDATE public.payment_company_groups SET updated_at = updated_at WHERE id = $1`,
       [seed.groupIds[0]],
     );
 
