@@ -221,6 +221,48 @@ export function BonusPacienteDialog({
       const { error: itemsErr } = await supabase.from("payment_items").insert(itemsPayload);
       if (itemsErr) throw itemsErr;
 
+      // Garante/atualiza o grupo da PJ no pagamento (payment_company_groups)
+      // — sem isso, os itens não aparecem na visão Detalhe que agrega por grupo.
+      const { data: companyItems } = await supabase
+        .from("payment_items")
+        .select("gross_amount")
+        .eq("payment_id", paymentId)
+        .eq("company_id", company.id);
+      const companyCount = companyItems?.length ?? 0;
+      const companyTotal = (companyItems ?? []).reduce(
+        (s, r: any) => s + Number(r.gross_amount ?? 0),
+        0,
+      );
+
+      const { data: existingGroup } = await supabase
+        .from("payment_company_groups")
+        .select("id, status")
+        .eq("payment_id", paymentId)
+        .eq("company_id", company.id)
+        .maybeSingle();
+
+      if (existingGroup) {
+        await supabase
+          .from("payment_company_groups")
+          .update({
+            items_count: companyCount,
+            total_amount: companyTotal,
+            bruto_total: companyTotal,
+          })
+          .eq("id", existingGroup.id);
+      } else {
+        await supabase.from("payment_company_groups").insert({
+          payment_id: paymentId,
+          hospital_id: hospital.id,
+          company_id: company.id,
+          company_name: company.name,
+          items_count: companyCount,
+          total_amount: companyTotal,
+          bruto_total: companyTotal,
+          status: "revisao_analista",
+        } as any);
+      }
+
       // Recalibra totais do pagamento
       const { data: items } = await supabase
         .from("payment_items")
