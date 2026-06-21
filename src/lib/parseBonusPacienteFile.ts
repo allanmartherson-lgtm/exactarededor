@@ -20,6 +20,13 @@ export interface BonusRow {
   raw: Record<string, unknown>;
 }
 
+export interface BonusValidationIssue {
+  row: number; // 1-indexed row in the spreadsheet (header = row 1)
+  field: string;
+  message: string;
+  severity: "error" | "warning";
+}
+
 export interface BonusParseResult {
   rows: BonusRow[];
   declared_total: number | null;
@@ -32,6 +39,7 @@ export interface BonusParseResult {
     date?: string;
   };
   warnings: string[];
+  issues: BonusValidationIssue[];
 }
 
 const norm = (s: string) =>
