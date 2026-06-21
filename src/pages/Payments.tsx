@@ -326,6 +326,7 @@ const Payments = () => {
       view, sortBy, colSort,
       divergenceFilter, questionedFilter,
       archivedView,
+      showConcluded,
     };
     try {
       window.sessionStorage.setItem(PAYMENTS_LIST_STATE_KEY, JSON.stringify(snapshot));
@@ -339,6 +340,7 @@ const Payments = () => {
     view, sortBy, colSort,
     divergenceFilter, questionedFilter,
     archivedView,
+    showConcluded,
   ]);
 
 
