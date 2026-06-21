@@ -1469,6 +1469,23 @@ const Payments = () => {
                   {archivedView ? <Inbox className="h-4 w-4 mr-1" /> : <Archive className="h-4 w-4 mr-1" />}
                   {archivedView ? "Ver ativos" : `Ver arquivados${archivedCount ? ` (${archivedCount})` : ""}`}
                 </Button>
+                {!archivedView && (
+                  <Button
+                    variant={showConcluded ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      const next = !showConcluded;
+                      setShowConcluded(next);
+                      const sp = new URLSearchParams(searchParams);
+                      if (next) sp.set("concluded", "1"); else sp.delete("concluded");
+                      setSearchParams(sp, { replace: true });
+                    }}
+                    title={showConcluded ? "Esconder pagos/lançados da lista (padrão)" : "Mostrar também lotes pagos/lançados"}
+                  >
+                    {showConcluded ? <EyeOff className="h-4 w-4 mr-1" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
+                    {showConcluded ? "Esconder concluídos" : "Ver concluídos"}
+                  </Button>
+                )}
                 {view === "lista" && (
                   <Select value={colSort ? "__col" : sortBy} onValueChange={(v) => { if (v === "__col") return; setColSort(null); setSortBy(v as typeof sortBy); }}>
                     <SelectTrigger className="w-[200px]"><SelectValue placeholder="Ordenar">{colSort ? `Coluna: ${({reference:"Lote",competence:"Competência",elapsed:"Tempo",items:"Volumetria",value:"Valor",status:"Status"} as const)[colSort.col]} ${colSort.dir === "asc" ? "↑" : "↓"}` : undefined}</SelectValue></SelectTrigger>
