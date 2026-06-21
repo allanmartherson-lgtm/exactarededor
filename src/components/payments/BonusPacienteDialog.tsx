@@ -52,10 +52,12 @@ export function BonusPacienteDialog({
   open,
   onOpenChange,
   onSaved,
+  lockedPayment,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onSaved?: () => void;
+  lockedPayment?: { id: string; reference: string } | null;
 }) {
   const { user } = useAuth();
   const { hospital } = useHospital();
@@ -69,6 +71,7 @@ export function BonusPacienteDialog({
   const [targetPaymentId, setTargetPaymentId] = useState<string>("");
   const [newReference, setNewReference] = useState<string>("");
   const [busy, setBusy] = useState(false);
+
 
   const reset = () => {
     setFile(null);
