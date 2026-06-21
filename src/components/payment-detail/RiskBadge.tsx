@@ -54,26 +54,35 @@ export function RiskBadge({
   financialData?: RiskFinancialData;
 }) {
   const badge = (
-    <div className="flex items-center gap-1">
-      <span
-        className={cn(
-          "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] tabular-nums whitespace-nowrap cursor-help",
-          RISK_BADGE_CLASS[level],
-          className,
-        )}
-      >
-        <span aria-hidden>{RISK_EMOJI[level]}</span>
-        {showLabel && <span>{RISK_LABELS[level]}</span>}
-      {score != null && <span className="opacity-70">· {score}</span>}
-      </span>
-      <HelpCircle className="h-3 w-3 text-muted-foreground opacity-40 hover:opacity-100 transition-opacity cursor-help shrink-0" />
+    <div className="flex flex-col items-start gap-0.5 min-w-0 max-w-full">
+      <div className="flex items-center gap-1 min-w-0">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] tabular-nums whitespace-nowrap cursor-help",
+            RISK_BADGE_CLASS[level],
+            className,
+          )}
+        >
+          <span aria-hidden>{RISK_EMOJI[level]}</span>
+          {showLabel && <span>{RISK_LABELS[level]}</span>}
+          {score != null && <span className="opacity-70">· {score}</span>}
+        </span>
+        <HelpCircle className="h-3 w-3 text-muted-foreground opacity-40 hover:opacity-100 transition-opacity cursor-help shrink-0" />
+      </div>
       {financialData && financialData.valorEmRisco > 0 && (
-        <div className="text-[10px] text-muted-foreground whitespace-normal break-words opacity-80 mt-0.5 min-w-0">
-          Valor em risco: <div className="font-semibold text-foreground inline-block"> {formatCurrency(financialData.valorEmRisco)}</div> <span className="whitespace-nowrap">({financialData.percentualRisco.toFixed(1)}% do total)</span>
+        <div className="text-[10px] text-muted-foreground break-words opacity-80 min-w-0 max-w-full leading-tight">
+          Valor em risco:{" "}
+          <span className="font-semibold text-foreground">
+            {formatCurrency(financialData.valorEmRisco)}
+          </span>{" "}
+          <span className="whitespace-nowrap">
+            ({financialData.percentualRisco.toFixed(1)}% do total)
+          </span>
         </div>
       )}
     </div>
   );
+
 
   return (
     <TooltipProvider delayDuration={150}>
