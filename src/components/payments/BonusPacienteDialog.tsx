@@ -321,55 +321,66 @@ export function BonusPacienteDialog({
         </div>
 
         {/* Destino */}
-        <div className="space-y-2">
-          <Label>Destino</Label>
-          <RadioGroup value={mode} onValueChange={(v) => setMode(v as Mode)} className="space-y-2">
-            <div className="flex items-start gap-2 p-3 rounded-md border border-border/50">
-              <RadioGroupItem value="existing" id="bp-existing" className="mt-1" />
-              <div className="flex-1 space-y-2">
-                <label htmlFor="bp-existing" className="text-sm font-medium cursor-pointer">
-                  Adicionar a um pagamento em andamento
-                </label>
-                {mode === "existing" && (
-                  <Select value={targetPaymentId} onValueChange={setTargetPaymentId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecionar pagamento..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {openPayments.length === 0 && (
-                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                          Nenhum pagamento em andamento.
-                        </div>
-                      )}
-                      {openPayments.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.reference} · {p.status}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
+        {lockedPayment ? (
+          <div className="rounded-md border border-border/50 p-3 bg-muted/30 text-sm">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
+              Destino
             </div>
-            <div className="flex items-start gap-2 p-3 rounded-md border border-border/50">
-              <RadioGroupItem value="new" id="bp-new" className="mt-1" />
-              <div className="flex-1 space-y-2">
-                <label htmlFor="bp-new" className="text-sm font-medium cursor-pointer">
-                  Criar um novo pagamento (tipo "Bônus por paciente")
-                </label>
-                {mode === "new" && (
-                  <Input
-                    placeholder="Referência do pagamento"
-                    value={newReference}
-                    onChange={(e) => setNewReference(e.target.value)}
-                  />
-                )}
-              </div>
+            <div className="font-medium">{lockedPayment.reference}</div>
+            <div className="text-[11px] text-muted-foreground">
+              Os itens serão somados a este pagamento.
             </div>
-          </RadioGroup>
-        </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label>Destino</Label>
+            <RadioGroup value={mode} onValueChange={(v) => setMode(v as Mode)} className="space-y-2">
+              <div className="flex items-start gap-2 p-3 rounded-md border border-border/50">
+                <RadioGroupItem value="existing" id="bp-existing" className="mt-1" />
+                <div className="flex-1 space-y-2">
+                  <label htmlFor="bp-existing" className="text-sm font-medium cursor-pointer">
+                    Adicionar a um pagamento em andamento
+                  </label>
+                  {mode === "existing" && (
+                    <Select value={targetPaymentId} onValueChange={setTargetPaymentId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecionar pagamento..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {openPayments.length === 0 && (
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                            Nenhum pagamento em andamento.
+                          </div>
+                        )}
+                        {openPayments.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.reference} · {p.status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-start gap-2 p-3 rounded-md border border-border/50">
+                <RadioGroupItem value="new" id="bp-new" className="mt-1" />
+                <div className="flex-1 space-y-2">
+                  <label htmlFor="bp-new" className="text-sm font-medium cursor-pointer">
+                    Criar um novo pagamento (tipo "Bônus por paciente")
+                  </label>
+                  {mode === "new" && (
+                    <Input
+                      placeholder="Referência do pagamento"
+                      value={newReference}
+                      onChange={(e) => setNewReference(e.target.value)}
+                    />
+                  )}
+                </div>
+              </div>
+            </RadioGroup>
+          </div>
+        )}
 
-        {mode === "existing" && targetPaymentId && (
           <Alert>
             <AlertTitle className="text-xs">Sem motor de regras</AlertTitle>
             <AlertDescription className="text-xs">
