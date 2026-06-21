@@ -1336,18 +1336,18 @@ export function ItemsDataGrid({
           >
             <colgroup>
               {colVis.atendimento && <col style={{ width: 96 }} />}
+              <col style={{ width: 160 }} />
+              {colVis.convenio && <col style={{ width: 120 }} />}
+              {colVis.via && <col style={{ width: 110 }} />}
+              <col style={{ width: 88 }} />
+              <col style={{ width: 56 }} />
               <col style={{ width: 200 }} />
-              {colVis.convenio && <col style={{ width: 140 }} />}
-              {colVis.via && <col style={{ width: 140 }} />}
-              <col style={{ width: 96 }} />
-              <col style={{ width: 64 }} />
-              <col style={{ width: 240 }} />
-              {colVis.setor_lido && <col style={{ width: 140 }} />}
-              {colVis.setor_inferido && <col style={{ width: 140 }} />}
-              {colVis.tipo_entrada && <col style={{ width: 130 }} />}
-              <col style={{ width: 180 }} />
-              {colVis.funcao && <col style={{ width: 120 }} />}
-              {colVis.regra && <col style={{ width: 180 }} />}
+              {colVis.setor_lido && <col style={{ width: 110 }} />}
+              {colVis.setor_inferido && <col style={{ width: 110 }} />}
+              {colVis.tipo_entrada && <col style={{ width: 110 }} />}
+              <col style={{ width: 150 }} />
+              {colVis.funcao && <col style={{ width: 100 }} />}
+              {colVis.regra && <col style={{ width: 150 }} />}
               {showGrossColumn && <col style={{ width: 110 }} />}
               {showProcedureColumn && <col style={{ width: 130 }} />}
               <col style={{ width: expectedColWidth }} />
