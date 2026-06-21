@@ -278,7 +278,7 @@ export function BonusPacienteDialog({
         .eq("id", paymentId);
 
       toast.success(
-        `${parsed.rows.length} item(ns) de bônus adicionados · ${formatCurrency(totalSum)}`,
+        `${parsed.rows.length} atendimento(s) avulso(s) adicionado(s) · ${formatCurrency(totalSum)}`,
       );
       onSaved?.();
       onOpenChange(false);
