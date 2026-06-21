@@ -123,11 +123,13 @@ export default function SpecialCaseTypesAdmin({ embedded = false }: { embedded?:
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <PageHeader
-        title="Tipos de caso especial"
-        description="Catálogo de patologias/contextos (oncológico, pediátrico, etc.) que habilitam regras diferenciadas"
-      />
+    <div className={embedded ? "space-y-6" : "p-6 space-y-6"}>
+      {!embedded && (
+        <PageHeader
+          title="Tipos de caso especial"
+          description="Catálogo de patologias/contextos (oncológico, pediátrico, etc.) que habilitam regras diferenciadas"
+        />
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
