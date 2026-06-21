@@ -4452,12 +4452,17 @@ const PaymentDetail = () => {
           empresa em vez de só toast de erro. */}
       <ReconciliationBlockDialog
         open={reconBlock !== null}
-        onOpenChange={(v) => { if (!v) setReconBlock(null); }}
+        onOpenChange={(v) => { if (!v) { setReconBlock(null); setReconRetry(null); } }}
         payload={reconBlock}
         actorRole="analista"
         currentUserId={user?.id ?? ""}
         currentUserName={user?.user_metadata?.full_name ?? user?.email ?? "Analista"}
-        onResolved={async () => { setReconBlock(null); await load(); }}
+        onResolved={async () => { setReconBlock(null); setReconRetry(null); await load(); }}
+        retryAfterRelease={reconRetry ? async () => {
+          const retry = reconRetry;
+          setReconRetry(null);
+          await retry();
+        } : undefined}
       />
 
 
