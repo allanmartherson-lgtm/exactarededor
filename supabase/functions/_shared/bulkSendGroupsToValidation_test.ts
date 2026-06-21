@@ -83,11 +83,15 @@ async function seedPaymentWithGroups(c: Client, groupCount: number): Promise<See
   const createdBy = userLookup.rows[0].id;
 
   const reference = `__test_bulk_send_${crypto.randomUUID().slice(0, 8)}`;
+  // is_test=true garante que mesmo se a limpeza falhar (crash do test runner,
+  // SIGKILL, etc.) os registros NUNCA aparecem na UI: a policy RESTRITIVA
+  // `hide_test_rows_select` em payments/payment_company_groups exclui
+  // is_test=true de toda leitura via Data API.
   const paymentRow = await c.queryObject<{ id: string }>(
     `INSERT INTO public.payments (
        hospital_id, status, analysis_mode, total_amount, items_count,
-       reference, created_by
-     ) VALUES ($1, 'revisao_analista'::public.payment_status, 'padrao', 0, 0, $2, $3::uuid)
+       reference, created_by, is_test
+     ) VALUES ($1, 'revisao_analista'::public.payment_status, 'padrao', 0, 0, $2, $3::uuid, true)
      RETURNING id::text AS id`,
     [hospitalId, reference, createdBy],
   );
@@ -97,14 +101,26 @@ async function seedPaymentWithGroups(c: Client, groupCount: number): Promise<See
   for (let i = 0; i < groupCount; i++) {
     const g = await c.queryObject<{ id: string }>(
       `INSERT INTO public.payment_company_groups (
-         payment_id, hospital_id, company_name, status, total_amount, items_count
-       ) VALUES ($1, $2, $3, 'concluida_analista'::public.payment_status, 0, 0)
+         payment_id, hospital_id, company_name, status, total_amount, items_count, is_test
+       ) VALUES ($1, $2, $3, 'concluida_analista'::public.payment_status, 0, 0, true)
        RETURNING id::text AS id`,
       [paymentId, hospitalId, `__test_co_${i}_${crypto.randomUUID().slice(0, 8)}`],
     );
     groupIds.push(g.rows[0].id);
   }
   return { paymentId, groupIds, hospitalId };
+}
+
+/**
+ * Limpeza preventiva: apaga qualquer rastro de execuções anteriores que
+ * tenham falhado antes do `finally`. Usa a função SECURITY DEFINER
+ * `purge_test_payments` para não depender de RLS. Chamada uma vez no
+ * início da suíte via Deno.test setup implícito (cada teste chama).
+ */
+async function purgeStaleTestRows(c: Client): Promise<void> {
+  try {
+    await c.queryArray(`SELECT public.purge_test_payments()`);
+  } catch { /* noop — ambiente sem a função ainda */ }
 }
 
 async function cleanup(c: Client, paymentId: string): Promise<void> {
