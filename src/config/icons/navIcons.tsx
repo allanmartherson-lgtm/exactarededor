@@ -53,6 +53,7 @@ import {
   Scales,
   ArrowsLeftRight,
   PencilSimple,
+  Folders,
   type IconProps,
 } from "@phosphor-icons/react";
 
