@@ -2573,18 +2573,37 @@ const NewPayment = () => {
                             </Label>
                           </div>
 
+                          {/* Quando o sistema NÃO detectou setor, o seletor sai do popover e fica
+                              direto na barra — analista vê o valor escolhido e não envia "achando" que mapeou. */}
+                          {b.sectorMissing && !b.sectorMapping ? (
+                            <div className="flex items-center gap-1.5 h-6 px-1.5 border border-destructive/60 rounded animate-pulse">
+                              <Label className="text-[10px] font-medium text-destructive whitespace-nowrap">Setor *</Label>
+                              <Select
+                                value={b.sectorMapping || ""}
+                                onValueChange={(v) => {
+                                  setBuckets(prev => prev.map((x, i) => i === idx ? { ...x, sectorMapping: v } : x));
+                                  toast({ title: "Setor aplicado", description: `${RULE_SECTOR_LABELS[v as RuleSector] ?? v} — vale para todas as linhas deste arquivo.` });
+                                }}
+                              >
+                                <SelectTrigger className="h-5 text-[11px] border-0 bg-transparent px-1 min-w-[160px]"><SelectValue placeholder="Escolha o setor…" /></SelectTrigger>
+                                <SelectContent>
+                                  {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map(s => (
+                                    <SelectItem key={s} value={s} className="text-xs">{RULE_SECTOR_LABELS[s]}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ) : (
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
                                 type="button"
                                 size="sm"
-                                variant={b.sectorMissing && !b.sectorMapping ? "outline" : "ghost"}
-                                className={`h-6 px-2 text-[11px] ${b.sectorMissing && !b.sectorMapping ? "border-destructive text-destructive hover:text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                               >
                                 <Pencil className="h-3 w-3 mr-1" />
-                                {b.sectorMissing && !b.sectorMapping
-                                  ? "Setor: mapear (obrigatório)"
-                                  : `Setor: ${b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}`}
+                                {`Setor: ${b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}`}
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[min(420px,calc(100vw-2rem))] p-3" align="end">
@@ -2683,6 +2702,7 @@ const NewPayment = () => {
                               </div>
                             </PopoverContent>
                           </Popover>
+                          )}
 
                           <Popover>
                             <PopoverTrigger asChild>
