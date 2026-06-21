@@ -153,7 +153,7 @@ All colors MUST be HSL.
     --background: 214 22% 10%;           /* fundo um pouco mais claro p/ reduzir contraste com cards */
     --foreground: 60 12% 90%;
 
-    --card: 214 18% 14%;                 /* ~4% L acima do fundo — separação suave, leitura confortável */
+    --card: 214 16% 17%;                 /* mais separação do fundo */
     --card-foreground: 60 12% 90%;
 
     --popover: 214 22% 13%;
