@@ -103,7 +103,16 @@ export function PaymentBatchActionsFooter({
   };
 
   const proceedApprove = async () => {
+    if (groups.length === 0) {
+      // Estado de carregamento/refresh — não tem como aprovar nada ainda.
+      toast({
+        title: "Aguarde — empresas ainda carregando",
+        description: "Tente novamente em alguns segundos.",
+      });
+      return;
+    }
     if (approvable.length === 0 && pending.length === 0) {
+      // Todos os grupos já estão em status terminal (aprovado/pago/...).
       toast({ title: "Lote já foi processado", variant: "destructive" });
       return;
     }
