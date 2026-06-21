@@ -72,6 +72,7 @@ const SECTOR_RAW_KEYS = ["setor", "unidade", "unidade de atendimento", "departam
 import { authorRoleLabel } from "@/lib/observations";
 import { MarkSpecialCaseDialog } from "./MarkSpecialCaseDialog";
 import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
+import { PaymentItemExplainButton } from "@/components/copilot/PaymentItemExplainButton";
 
 /** Botão "Sinalizar caso especial" para um item específico — só aparece
  * quando existe ao menos 1 regra ativa do hospital com special_case_filter. */
@@ -2125,7 +2126,13 @@ function CalcFormulaBlock({
 
       {/* Trilha de decisão */}
       <div>
-        <Label>Trilha de decisão</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label>Trilha de decisão</Label>
+          <PaymentItemExplainButton
+            item={item as Record<string, unknown>}
+            itemStatus={(item as { ai_status?: string }).ai_status ?? "—"}
+          />
+        </div>
         <ol className="mt-1 space-y-1 text-[12px]">
           <li className="flex gap-2">
             <span aria-hidden>✅</span>
