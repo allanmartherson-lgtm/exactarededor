@@ -57,12 +57,24 @@ async function pickHospitalId(c: Client): Promise<string> {
 
 async function seedPaymentWithGroups(c: Client, groupCount: number): Promise<Seeded> {
   const hospitalId = await pickHospitalId(c);
+  // created_by precisa ser um usuário real (FK auth.users). Reusa qualquer
+  // user já existente no preview — não cria/persiste nada novo em auth.
+  const userLookup = await c.queryObject<{ id: string }>(
+    `SELECT user_id::text AS id FROM public.user_roles LIMIT 1`,
+  );
+  if (userLookup.rows.length === 0) {
+    throw new Error("Nenhum user_roles no preview — impossível semear payments.created_by.");
+  }
+  const createdBy = userLookup.rows[0].id;
+
+  const reference = `__test_bulk_send_${crypto.randomUUID().slice(0, 8)}`;
   const paymentRow = await c.queryObject<{ id: string }>(
     `INSERT INTO public.payments (
-       hospital_id, status, analysis_mode, file_name, total_amount, items_count
-     ) VALUES ($1, 'revisao_analista'::public.payment_status, 'padrao', $2, 0, 0)
+       hospital_id, status, analysis_mode, file_name, total_amount, items_count,
+       reference, created_by
+     ) VALUES ($1, 'revisao_analista'::public.payment_status, 'padrao', $2, 0, 0, $3, $4::uuid)
      RETURNING id::text AS id`,
-    [hospitalId, `__test_bulk_send_${crypto.randomUUID()}`],
+    [hospitalId, reference, reference, createdBy],
   );
   const paymentId = paymentRow.rows[0].id;
 
