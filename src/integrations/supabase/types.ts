@@ -4379,6 +4379,7 @@ export type Database = {
           created_at: string
           hospital_id: string
           id: string
+          is_test: boolean
           items_count: number
           last_approved_bruto: number | null
           last_approved_company_id: string | null
@@ -4438,6 +4439,7 @@ export type Database = {
           created_at?: string
           hospital_id: string
           id?: string
+          is_test?: boolean
           items_count?: number
           last_approved_bruto?: number | null
           last_approved_company_id?: string | null
@@ -4497,6 +4499,7 @@ export type Database = {
           created_at?: string
           hospital_id?: string
           id?: string
+          is_test?: boolean
           items_count?: number
           last_approved_bruto?: number | null
           last_approved_company_id?: string | null
@@ -5989,6 +5992,7 @@ export type Database = {
           hospital_id: string
           id: string
           import_mode: string
+          is_test: boolean
           items_count: number
           liquido_total: number
           origem: string
@@ -6032,6 +6036,7 @@ export type Database = {
           hospital_id: string
           id?: string
           import_mode?: string
+          is_test?: boolean
           items_count?: number
           liquido_total?: number
           origem?: string
@@ -6075,6 +6080,7 @@ export type Database = {
           hospital_id?: string
           id?: string
           import_mode?: string
+          is_test?: boolean
           items_count?: number
           liquido_total?: number
           origem?: string
@@ -10401,6 +10407,7 @@ export type Database = {
         }
         Returns: string
       }
+      purge_test_payments: { Args: never; Returns: number }
       question_company_group: {
         Args: {
           p_author_id: string
