@@ -136,10 +136,13 @@ export async function parseBonusPacienteFile(file: File): Promise<BonusParseResu
   }
 
   const rows: BonusRow[] = [];
+  const issues: BonusValidationIssue[] = [];
   let declared_total: number | null = null;
 
-  for (const raw of json) {
-    const valor = toNumber(raw[detected.value!]);
+  json.forEach((raw, idx) => {
+    const excelRow = idx + 2; // +1 for header, +1 for 1-index
+    const rawValor = raw[detected.value!];
+    const valor = toNumber(rawValor);
     const patient = detected.patient ? toStr(raw[detected.patient]) : null;
     // Linha de totalização: tem valor mas nada mais → vira declared_total
     const looksTotal =
@@ -149,20 +152,77 @@ export async function parseBonusPacienteFile(file: File): Promise<BonusParseResu
       !(detected.attendance && toStr(raw[detected.attendance]));
     if (looksTotal) {
       declared_total = (declared_total ?? 0) + valor;
-      continue;
+      return;
     }
-    if (valor === 0 && !patient) continue;
+    if (valor === 0 && !patient) return;
+
+    // Validações de schema/constraint do banco
+    if (rawValor != null && rawValor !== "" && valor === 0) {
+      issues.push({
+        row: excelRow,
+        field: detected.value!,
+        message: `Valor não numérico: "${rawValor}"`,
+        severity: "error",
+      });
+    }
+    if (valor < 0) {
+      issues.push({
+        row: excelRow,
+        field: detected.value!,
+        message: `Valor negativo (${valor}). Bônus por paciente exige valor positivo.`,
+        severity: "error",
+      });
+    }
+    if (valor > 0 && valor < 0.01) {
+      issues.push({
+        row: excelRow,
+        field: detected.value!,
+        message: `Valor abaixo de R$ 0,01 (${valor}).`,
+        severity: "error",
+      });
+    }
+    if (valor > 1_000_000) {
+      issues.push({
+        row: excelRow,
+        field: detected.value!,
+        message: `Valor incomumente alto (${valor}). Verifique se a coluna correta foi detectada.`,
+        severity: "warning",
+      });
+    }
+    if (detected.patient && !patient) {
+      issues.push({
+        row: excelRow,
+        field: detected.patient,
+        message: "Paciente em branco numa linha com valor.",
+        severity: "warning",
+      });
+    }
+    let procedureDate: string | null = null;
+    if (detected.date) {
+      const rawDate = raw[detected.date];
+      if (rawDate != null && rawDate !== "") {
+        procedureDate = excelDateToISO(rawDate);
+        if (!procedureDate) {
+          issues.push({
+            row: excelRow,
+            field: detected.date,
+            message: `Data inválida: "${rawDate}"`,
+            severity: "error",
+          });
+        }
+      }
+    }
 
     rows.push({
       patient_name: patient,
       doctor_name_in_row: detected.doctor ? toStr(raw[detected.doctor]) : null,
       agreement_text: detected.agreement ? toStr(raw[detected.agreement]) : null,
       attendance_number: detected.attendance ? toStr(raw[detected.attendance]) : null,
-      procedure_date: detected.date ? excelDateToISO(raw[detected.date]) : null,
+      procedure_date: procedureDate,
       gross_amount: valor,
       raw,
     });
-  }
+  });
 
-  return { rows, declared_total, detected_columns: detected, warnings };
+  return { rows, declared_total, detected_columns: detected, warnings, issues };
 }
