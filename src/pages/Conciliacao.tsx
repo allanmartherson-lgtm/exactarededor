@@ -146,7 +146,8 @@ export default function Conciliacao() {
             onChange={(e) => setSearch(e.target.value)}
             className="md:max-w-sm"
           />
-          <div className="rounded-lg border border-border bg-card overflow-hidden">
+          {/* Desktop: tabela */}
+          <div className="hidden md:block rounded-lg border border-border bg-card overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -208,6 +209,66 @@ export default function Conciliacao() {
                   })}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile: cards */}
+          <div className="md:hidden flex flex-col gap-3">
+            {loading &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full rounded-lg" />
+              ))}
+            {!loading && filteredRuns.length === 0 && (
+              <div className="rounded-lg border border-border bg-card py-10 text-center text-sm text-muted-foreground">
+                Nenhuma conciliação encontrada.
+              </div>
+            )}
+            {!loading &&
+              filteredRuns.map((r) => {
+                const p = paymentsById[r.payment_id];
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => navigate(`/pagamentos/${r.payment_id}`)}
+                    className="w-full text-left rounded-lg border border-border bg-card p-4 flex flex-col gap-3 hover:bg-muted/40 transition-colors active:scale-[0.99]"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[15px] font-semibold text-foreground break-words leading-snug">
+                          {p?.reference ?? "—"}
+                        </div>
+                        <div className="text-[12px] text-muted-foreground mt-0.5">
+                          {p?.competence_month ?? "—"} · {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                        </div>
+                      </div>
+                      <Badge
+                        variant={r.status === "done" ? "outline" : r.status === "error" ? "destructive" : "secondary"}
+                        className="flex-shrink-0"
+                      >
+                        {r.status === "done" ? "Concluída" : r.status === "error" ? "Erro" : "Processando"}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-md bg-muted/40 px-2 py-2">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Itens</div>
+                        <div className="text-base font-semibold tabular-nums">{r.total_items}</div>
+                      </div>
+                      <div className="rounded-md bg-success/10 px-2 py-2">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Conciliados</div>
+                        <div className="text-base font-semibold tabular-nums text-success">{r.conciliado}</div>
+                      </div>
+                      <div className="rounded-md bg-warning/10 px-2 py-2">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Diverg.</div>
+                        <div className="text-base font-semibold tabular-nums text-warning">{r.valor_divergente}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[12px] text-muted-foreground">
+                      <span>Só hospital: <span className="font-medium text-foreground tabular-nums">{r.so_hospital}</span></span>
+                      <span>Só Exacta: <span className="font-medium text-foreground tabular-nums">{r.so_exacta}</span></span>
+                    </div>
+                  </button>
+                );
+              })}
           </div>
         </TabsContent>
 
