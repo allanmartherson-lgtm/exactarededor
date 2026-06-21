@@ -1043,17 +1043,19 @@ const Payments = () => {
                   {PAYMENT_TRACK_SHORT_LABELS[p.payment_track]}
                 </Badge>
               )}
-              <Badge
-                variant="outline"
-                className={cn(
-                  "gap-1 font-normal",
-                  finalLvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
-                  finalLvl === "leve" && "bg-warning-soft text-warning-text border-warning/30",
-                  finalLvl === "none" && "text-muted-foreground",
-                )}
-              >
-                <Clock className="h-3 w-3" /> {formatDuration(elapsedMs)} no status
-              </Badge>
+              {!SLA_EXEMPT_STATUSES.has(p.status) && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "gap-1 font-normal",
+                    finalLvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
+                    finalLvl === "leve" && "bg-warning-soft text-warning-text border-warning/30",
+                    finalLvl === "none" && "text-muted-foreground",
+                  )}
+                >
+                  <Clock className="h-3 w-3" /> {formatDuration(elapsedMs)} no status
+                </Badge>
+              )}
               {sla && (
                 <Badge
                   variant="outline"
