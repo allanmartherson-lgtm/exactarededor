@@ -3100,7 +3100,15 @@ const BatchProgressRow = ({ p, qCount = 0, groupStatuses = [] }: { p: PaymentRow
 };
 
 
+const MetaCell = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <span className="flex flex-col sm:inline sm:flex-row min-w-0">
+    <span className="sm:hidden text-[10px] uppercase tracking-wide opacity-60">{label}</span>
+    <span className="sm:before:content-['·_'] sm:before:opacity-60 min-w-0 break-words">{children}</span>
+  </span>
+);
+
 const TaskRow = ({
+
   p,
   mine,
   profiles,
