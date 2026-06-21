@@ -52,6 +52,39 @@ export function DoctorCombobox({
     return () => clearTimeout(t);
   }, [search]);
 
+  // Cache do conjunto de médicos permitidos para a PJ atual
+  const [allowedIds, setAllowedIds] = useState<Set<string> | null>(null);
+  const [allowedLoading, setAllowedLoading] = useState(false);
+
+  // Recarrega allowedIds quando muda a PJ; reseta para null se não houver filtro
+  useEffect(() => {
+    if (!filterCompanyId) {
+      setAllowedIds(null);
+      return;
+    }
+    let cancelled = false;
+    setAllowedLoading(true);
+    setItems([]); // limpa imediatamente lista antiga (evita mostrar médicos de outra PJ)
+    setHasMore(false);
+    (async () => {
+      const { data } = await supabase
+        .from("doctor_companies")
+        .select("doctor_id, doctors!inner(active)")
+        .eq("company_id", filterCompanyId);
+      if (cancelled) return;
+      const ids = new Set<string>(
+        (data ?? [])
+          .filter((r: any) => r.doctors?.active !== false)
+          .map((r: any) => r.doctor_id),
+      );
+      setAllowedIds(ids);
+      setAllowedLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filterCompanyId]);
+
   useEffect(() => {
     if (!open) return;
     setPage(0);
@@ -59,30 +92,33 @@ export function DoctorCombobox({
 
   useEffect(() => {
     if (!open) return;
+    // Se estamos esperando carregar a lista de IDs permitidos, segura o fetch
+    if (filterCompanyId && (allowedLoading || allowedIds === null)) {
+      setLoading(true);
+      return;
+    }
     const myId = ++reqId.current;
     setLoading(true);
     const from = page * pageSize;
     const to = from + pageSize - 1;
 
     (async () => {
-      let allowedIds: string[] | null = null;
-      if (filterCompanyId) {
-        const { data: dc } = await supabase
-          .from("doctor_companies")
-          .select("doctor_id")
-          .eq("company_id", filterCompanyId);
-        allowedIds = (dc ?? []).map((r: any) => r.doctor_id);
-        if (allowedIds.length === 0) {
-          if (reqId.current !== myId) return;
-          setItems([]);
-          setHasMore(false);
-          setLoading(false);
-          return;
-        }
+      // Sem médicos vinculados: lista vazia
+      if (filterCompanyId && allowedIds && allowedIds.size === 0) {
+        if (reqId.current !== myId) return;
+        setItems([]);
+        setHasMore(false);
+        setLoading(false);
+        return;
       }
 
       let q = supabase.from("doctors").select("id, full_name, crm, crm_uf", { count: "exact" });
-      if (allowedIds) q = q.in("id", allowedIds);
+      if (filterCompanyId && allowedIds) {
+        q = q.in("id", Array.from(allowedIds));
+      } else {
+        // Sem filtro de PJ: esconde médicos de teste E2E
+        q = q.not("full_name", "ilike", "\\_\\_E2E%");
+      }
 
       const term = debounced.trim();
       if (term) {
@@ -96,18 +132,23 @@ export function DoctorCombobox({
 
       const { data, count } = await q.order("full_name").range(from, to);
       if (reqId.current !== myId) return;
-      const next = (data ?? []).map((d: any) => ({
+      let next = (data ?? []).map((d: any) => ({
         id: d.id,
         name: d.full_name,
         crm: d.crm,
         crm_uf: d.crm_uf,
       })) as DoctorOption[];
 
+      // Defesa em profundidade: filtra novamente no cliente
+      if (filterCompanyId && allowedIds) {
+        next = next.filter((d) => allowedIds.has(d.id));
+      }
+
       setItems((prev) => (page === 0 ? next : [...prev, ...next]));
       setHasMore((count ?? 0) > to + 1);
       setLoading(false);
     })();
-  }, [debounced, page, open, pageSize, filterCompanyId]);
+  }, [debounced, page, open, pageSize, filterCompanyId, allowedIds, allowedLoading]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
