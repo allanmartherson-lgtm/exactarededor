@@ -125,10 +125,7 @@ export const NAV_ITEMS: NavItem[] = [
     iconName: "SlidersHorizontal",
     roles: ALL_ROLES,
     children: [
-      { to: "/regras/pagamento", label: "Regras de Pagamento", icon: BadgeDollarSign, iconName: "BadgeDollarSign", roles: ["admin"] },
-      { to: "/regras/validacao", label: "Regras de Validação", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin"] },
-      { to: "/regras/simulador", label: "Simulador de Regras", icon: FlaskConical, iconName: "FlaskConical", roles: ["admin"] },
-      { to: "/regras/simulador-lote", label: "Simulador em Lote", icon: FlaskConical, iconName: "FlaskConical", roles: ["admin"] },
+      { to: "/regras", label: "Regras (Pagamento, Validação, Simuladores)", icon: BadgeDollarSign, iconName: "BadgeDollarSign", roles: ["admin"] },
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["admin"] },
       { to: "/cadastros", label: "Cadastros", icon: FolderKanban, iconName: "FolderKanban", roles: ["admin", "diretor"] },
       { to: "/pools", label: "Pools de rateio", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
