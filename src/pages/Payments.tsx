@@ -1197,8 +1197,8 @@ const Payments = () => {
               <div
                 key={kpi.label}
                 className={cn(
-                  "p-5 rounded-xl border shadow-soft",
-                  isHero ? "border-transparent" : "bg-card border-border/40",
+                  "p-5 rounded-2xl border shadow-card",
+                  isHero ? "border-transparent" : "bg-card border-border/50",
                 )}
                 style={isHero ? { background: "hsl(var(--primary-dark))" } : undefined}
               >
