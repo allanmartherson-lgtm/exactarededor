@@ -75,6 +75,48 @@ const downloadCsv = (filename: string, csv: string) => {
 const fmtDate = (s: string) =>
   s ? new Date(s).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
 
+/**
+ * A RPC `get_intervention_savings` não retorna `cancellation_reason`. Buscamos os motivos
+ * dos itens cancelados em `payment_items` e juntamos client-side para classificar como
+ * economia real vs neutro (operacional).
+ */
+async function enrichItemsWithCancellationReasons(
+  items: InterventionItem[],
+): Promise<InterventionItem[]> {
+  const cancellationRoles = new Set(["cancelamento_item", "cancelamento_empresa"]);
+  const itemIds = Array.from(
+    new Set(
+      items
+        .filter((it) => cancellationRoles.has(it.role) && it.item_id)
+        .map((it) => it.item_id),
+    ),
+  );
+  if (itemIds.length === 0) return items;
+  // Supabase tem limite prático de ~1000 IDs por `in()`. Paginamos por segurança.
+  const reasonByItem = new Map<string, string | null>();
+  const chunkSize = 500;
+  for (let i = 0; i < itemIds.length; i += chunkSize) {
+    const slice = itemIds.slice(i, i + chunkSize);
+    const { data, error } = await supabase
+      .from("payment_items")
+      .select("id, cancellation_reason")
+      .in("id", slice);
+    if (error) {
+      // Não bloqueia o relatório — apenas perde a classificação fina (cai em neutro).
+      console.warn("[InterventionAdjustments] enrich reasons failed", error);
+      continue;
+    }
+    for (const row of (data ?? []) as Array<{ id: string; cancellation_reason: string | null }>) {
+      reasonByItem.set(row.id, row.cancellation_reason);
+    }
+  }
+  return items.map((it) =>
+    cancellationRoles.has(it.role)
+      ? { ...it, cancellation_reason: reasonByItem.get(it.item_id) ?? null }
+      : it,
+  );
+}
+
 export default function InterventionAdjustments() {
   const currentHospitalId = useActiveHospitalId();
   const { hasRole } = useAuth();
