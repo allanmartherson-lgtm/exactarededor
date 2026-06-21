@@ -1680,11 +1680,15 @@ const NewPayment = () => {
       const ok = confirm(`A base contém ${preValidation.warnings} alerta(s) leve(s) (ex.: complemento sem atendimento, tipo não identificado). Deseja prosseguir?`);
       if (!ok) return;
     }
-    const unmappedSectorBuckets = buckets.filter((b) => b.sectorMissing && !b.sectorMapping);
+    // Em modo CONFECÇÃO o setor é obrigatório em TODO bucket matched (afeta cálculo de regras).
+    // Em modo análise basta bloquear quando o detector não conseguiu inferir.
+    const unmappedSectorBuckets = modoConfeccao
+      ? buckets.filter((b) => !isUnmatchedBucket(b) && !b.sectorMapping && (b.sectorMissing || !b.sectorColumnUsed))
+      : buckets.filter((b) => b.sectorMissing && !b.sectorMapping);
     if (unmappedSectorBuckets.length > 0) {
       toast({
-        title: "Setor não identificado",
-        description: `Mapeie o setor manualmente nos arquivos: ${unmappedSectorBuckets.map((b) => b.file.name).join(", ")}.`,
+        title: modoConfeccao ? "Setor obrigatório em confecção" : "Setor não identificado",
+        description: `Selecione o setor (botão "Setor: …" no topo de cada arquivo) em: ${unmappedSectorBuckets.map((b) => b.file.name).join(", ")}.`,
         variant: "destructive",
       });
       return;
