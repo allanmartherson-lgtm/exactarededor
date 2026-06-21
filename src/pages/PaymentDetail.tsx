@@ -219,6 +219,7 @@ const PaymentDetail = () => {
   const [markerFilter, setMarkerFilter] = useState<"all" | "pinned" | "waiting" | "reviewed">("all");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [obsType, setObsType] = useState<ObservationType>("informativo");
