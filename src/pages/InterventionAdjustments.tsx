@@ -510,8 +510,20 @@ export default function InterventionAdjustments() {
                     </TableRow>
                   )}
                   {!loading && filteredItems.map((it) => {
+                    const isNeutralCancellation = isCancellationNeutral(it);
+                    const isCancellationRole =
+                      it.role === "cancelamento_item" || it.role === "cancelamento_empresa";
                     const positivo = it.delta > 0;
-                    const neutro = Math.abs(it.delta) < 0.005;
+                    const zeroDelta = Math.abs(it.delta) < 0.005;
+                    // Classificação visual: neutro (cancelamento sem motivo de economia real),
+                    // economia, perda ou zero.
+                    const classification: "neutro" | "economia" | "aumento" = isNeutralCancellation
+                      ? "neutro"
+                      : zeroDelta
+                      ? "neutro"
+                      : positivo
+                      ? "economia"
+                      : "aumento";
                     return (
                       <TableRow key={it.item_id}>
                         <TableCell className="text-sm">{fmtDate(it.acatado_at)}</TableCell>
@@ -520,6 +532,24 @@ export default function InterventionAdjustments() {
                           <Badge variant="outline" className="text-[10px] mt-0.5">
                             {roleLabel(it.role)}
                           </Badge>
+                          {isCancellationRole && (
+                            <div className="mt-1">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  "text-[10px] " +
+                                  (isEconomiaRealReason(it.cancellation_reason)
+                                    ? "border-success/30 text-success"
+                                    : "border-muted-foreground/30 text-muted-foreground")
+                                }
+                                title="Motivo do cancelamento"
+                              >
+                                {it.cancellation_reason
+                                  ? reasonLabel(it.cancellation_reason)
+                                  : "Sem motivo classificado"}
+                              </Badge>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm">
                           <div className="font-medium">{it.company_name ?? "—"}</div>
@@ -531,9 +561,21 @@ export default function InterventionAdjustments() {
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(it.valor_regra)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(it.valor_pago_final)}</TableCell>
-                        <TableCell className={`text-right font-semibold ${neutro ? "" : positivo ? "text-success" : "text-destructive"}`}>
+                        <TableCell
+                          className={`text-right font-semibold ${
+                            classification === "neutro"
+                              ? "text-muted-foreground"
+                              : classification === "economia"
+                              ? "text-success"
+                              : "text-destructive"
+                          }`}
+                        >
                           <span className="inline-flex items-center gap-1">
-                            {neutro ? null : positivo ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                            {classification === "neutro"
+                              ? null
+                              : classification === "economia"
+                              ? <ArrowUpRight className="h-3 w-3" />
+                              : <ArrowDownRight className="h-3 w-3" />}
                             {formatCurrency(Math.abs(it.delta))}
                           </span>
                         </TableCell>
@@ -541,14 +583,18 @@ export default function InterventionAdjustments() {
                           <Badge
                             variant="outline"
                             className={
-                              neutro
+                              classification === "neutro"
                                 ? "border-border text-muted-foreground"
-                                : positivo
+                                : classification === "economia"
                                 ? "border-success/40 text-success bg-success/5"
                                 : "border-destructive/40 text-destructive bg-destructive/5"
                             }
                           >
-                            {neutro ? "Neutro" : positivo ? "Economia" : "Aumento"}
+                            {classification === "neutro"
+                              ? "Neutro"
+                              : classification === "economia"
+                              ? "Economia"
+                              : "Aumento"}
                           </Badge>
                         </TableCell>
                         <TableCell>
