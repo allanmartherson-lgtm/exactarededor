@@ -220,6 +220,7 @@ const PaymentDetail = () => {
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
+  const [reconRetry, setReconRetry] = useState<(() => Promise<void>) | null>(null);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [obsType, setObsType] = useState<ObservationType>("informativo");
@@ -740,6 +741,9 @@ const PaymentDetail = () => {
       const block = parseReconciliationBlock(rpcErr);
       if (block) {
         setReconBlock(block);
+        // Guarda o retry para que "Liberar com justificativa" possa re-disparar
+        // o envio depois do override ser registrado.
+        setReconRetry(() => async () => { await doSendForValidation(targets); });
         return;
       }
       toast({ title: "Falha ao enviar para validação", description: rpcErr.message, variant: "destructive" });
@@ -4448,12 +4452,17 @@ const PaymentDetail = () => {
           empresa em vez de só toast de erro. */}
       <ReconciliationBlockDialog
         open={reconBlock !== null}
-        onOpenChange={(v) => { if (!v) setReconBlock(null); }}
+        onOpenChange={(v) => { if (!v) { setReconBlock(null); setReconRetry(null); } }}
         payload={reconBlock}
         actorRole="analista"
         currentUserId={user?.id ?? ""}
         currentUserName={user?.user_metadata?.full_name ?? user?.email ?? "Analista"}
-        onResolved={async () => { setReconBlock(null); await load(); }}
+        onResolved={async () => { setReconBlock(null); setReconRetry(null); await load(); }}
+        retryAfterRelease={reconRetry ? async () => {
+          const retry = reconRetry;
+          setReconRetry(null);
+          await retry();
+        } : undefined}
       />
 
 

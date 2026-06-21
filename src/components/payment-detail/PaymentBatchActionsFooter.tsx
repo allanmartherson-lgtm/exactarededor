@@ -59,6 +59,7 @@ export function PaymentBatchActionsFooter({
   const [externalOpen, setExternalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
+  const [pendingRetry, setPendingRetry] = useState<{ groupIds: string[]; note: string | null } | null>(null);
 
   const pendencias = useMemo(() => {
     const list = items ?? [];
@@ -155,10 +156,13 @@ export function PaymentBatchActionsFooter({
     if (error) {
       // Trata especificamente o bloqueio do trigger de divergência:
       // abre o ReconciliationBlockDialog com ações diretas (devolver,
-      // liberar, abrir empresa) em vez de só toast.
+      // liberar, abrir empresa) em vez de só toast. Guarda também os
+      // groupIds/note pra que a opção "Liberar com justificativa" possa
+      // re-disparar este mesmo envio depois do override ser registrado.
       const block = parseReconciliationBlock(error);
       if (block) {
         setReconBlock(block);
+        setPendingRetry({ groupIds, note });
         return;
       }
       toast({
@@ -305,12 +309,17 @@ export function PaymentBatchActionsFooter({
 
       <ReconciliationBlockDialog
         open={reconBlock !== null}
-        onOpenChange={(v) => { if (!v) setReconBlock(null); }}
+        onOpenChange={(v) => { if (!v) { setReconBlock(null); setPendingRetry(null); } }}
         payload={reconBlock}
         actorRole={actorRole}
         currentUserId={currentUserId}
         currentUserName={currentUserName}
-        onResolved={async () => { setReconBlock(null); await onDone(); }}
+        onResolved={async () => { setReconBlock(null); setPendingRetry(null); await onDone(); }}
+        retryAfterRelease={pendingRetry ? async () => {
+          const retry = pendingRetry;
+          setPendingRetry(null);
+          await doApprove(retry.groupIds, retry.note);
+        } : undefined}
       />
 
       {/* sentinel-removed-card-close-was-here */}

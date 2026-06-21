@@ -46,6 +46,13 @@ interface Props {
   currentUserName: string;
   /** Recarrega o pagamento depois de uma ação concluída. */
   onResolved: () => void | Promise<void>;
+  /**
+   * Opcional. Quando informado, após a liberação com justificativa o dialog
+   * re-executa a ação original (envio para validação / aprovação) em vez de
+   * apenas registrar o override e fechar. Sem isso o override fica criado
+   * mas o lote não avança de status.
+   */
+  retryAfterRelease?: () => Promise<void> | void;
 }
 
 const fmt = (n: number) =>
@@ -59,6 +66,7 @@ export function ReconciliationBlockDialog({
   currentUserId,
   currentUserName,
   onResolved,
+  retryAfterRelease,
 }: Props) {
   const navigate = useNavigate();
   const { hasRole } = useAuth();
@@ -205,9 +213,19 @@ export function ReconciliationBlockDialog({
         hospitalId={payload.hospital_id}
         brutoRegra={payload.bruto_regra}
         brutoPedido={payload.bruto_pedido}
-        onReleased={() => {
+        onReleased={async () => {
           setReleaseOpen(false);
           onOpenChange(false);
+          if (retryAfterRelease) {
+            // Re-executa o envio original agora que o override já existe.
+            // Isso é o que faz o status do grupo realmente avançar.
+            try {
+              await retryAfterRelease();
+            } catch (e) {
+              // Erro do retry já é tratado pelo caller (toast). Só evita unhandled.
+              console.error("[ReconciliationBlockDialog] retry após liberação falhou", e);
+            }
+          }
           void onResolved();
         }}
       />
