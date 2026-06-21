@@ -81,7 +81,7 @@ const isUnblocked = (status: string | null): boolean => {
   return n === "nao bloqueado";
 };
 
-const CostCenters = () => {
+const CostCenters = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { user, roles } = useAuth();
   const canManage = roles.includes("admin") || roles.includes("diretor");
   const [items, setItems] = useState<CostCenter[]>([]);
