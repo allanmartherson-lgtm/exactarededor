@@ -36,6 +36,7 @@ import {
   Megaphone,
   Info,
   BookOpen,
+  FolderKanban,
   GitCompare,
   HeadsetIcon,
   ListChecksIcon,
