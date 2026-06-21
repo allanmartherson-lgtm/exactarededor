@@ -413,9 +413,13 @@ export default function InterventionAdjustments() {
             </TooltipProvider>
             <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
               <span className="font-semibold">Como o saldo é calculado:</span> Saldo = Economia − Perda.
-              Itens com Δ &gt; 0 (pagou menos que a regra) entram em <span className="text-success">Economia</span>;
-              Δ &lt; 0 (pagou a mais) entram em <span className="text-destructive">Perda</span>.
-              Cancelamentos entram como economia integral (o valor que deixaria de ser pago).
+              Ajustes de diretor/supervisor/analista entram pelo Δ (Δ &gt; 0 vira <span className="text-success">Economia</span>;
+              Δ &lt; 0 vira <span className="text-destructive">Perda</span>).
+              Já <strong>cancelamentos manuais</strong> só contam como economia quando o motivo é
+              de economia real (médico fatura externamente, contrato encerrado, glosa, jurídico,
+              duplicidade externa). Motivos operacionais (<em>pago em outro lote</em>,
+              <em> duplicidade corrigida pelo motor</em>, <em>outro</em>) ficam em
+              <span className="text-muted-foreground"> Neutro</span> e não somam no saldo.
             </div>
           </CardContent>
         </Card>
