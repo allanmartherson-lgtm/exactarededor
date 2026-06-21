@@ -2549,6 +2549,12 @@ const PaymentDetail = () => {
                     <Plus className="h-4 w-4 mr-2" /> Adicionar empresa ao lote
                   </DropdownMenuItem>
                 )}
+                {canReimport && (
+                  <DropdownMenuItem disabled={busy} onSelect={() => setBonusDialogOpen(true)}>
+                    <Sparkles className="h-4 w-4 mr-2" /> Adicionar bônus por paciente
+                  </DropdownMenuItem>
+                )}
+
                 <DropdownMenuItem onSelect={() => setAssignmentsHistoryOpen(true)}>
                   <UserCheck className="h-4 w-4 mr-2" /> Transferir / Histórico
                 </DropdownMenuItem>
