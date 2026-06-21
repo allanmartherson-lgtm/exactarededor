@@ -179,8 +179,10 @@ serve(async (req) => {
         empresa: g.company_name,
         status: g.status,
         valor_liquido: Number(g.liquido_total ?? g.total_amount) || 0,
-        valor_bruto: Number(g.bruto_total ?? g.total_amount) || 0,
         itens: g.items_count,
+        // NOTA: valor_bruto removido propositalmente. A diferença bruto/líquido
+        // de um grupo NÃO é glosa — pode ser pool, débitos contratuais ou
+        // créditos. Glosa real só aparece em `glosas_por_empresa` abaixo.
       })),
       observacoes_recentes: (observations ?? []).map((o) => ({
         tipo: o.observation_type,
@@ -193,27 +195,56 @@ serve(async (req) => {
         impacto_total: excecoesImpacto,
         amostra: excecoesAmostra,
       },
+      // Glosa real por empresa — vem direto de payment_company_financials.glosas.
+      // Disponível mesmo quando a composição agregada está incompleta, pois cada
+      // linha individual é confiável. Se nenhuma empresa tem glosa, manda lista
+      // vazia explícita para a IA saber que NÃO HÁ GLOSA no lote.
+      glosas_por_empresa: (() => {
+        const companyNameById = new Map<string, string>();
+        for (const g of groups ?? []) {
+          if (g.company_name) companyNameById.set(String((g as any).company_id ?? ""), String(g.company_name));
+        }
+        return computedRows
+          .filter((r: any) => Math.abs(Number(r.glosas || 0)) > 0.01)
+          .map((r: any) => ({
+            empresa: companyNameById.get(String(r.company_id)) ?? "—",
+            glosa: Math.round(Number(r.glosas) * 100) / 100,
+          }))
+          .sort((a, b) => b.glosa - a.glosa)
+          .slice(0, 10);
+      })(),
+      conciliacao_divergente_por_empresa: (() => {
+        const companyNameById = new Map<string, string>();
+        for (const g of groups ?? []) {
+          if (g.company_name) companyNameById.set(String((g as any).company_id ?? ""), String(g.company_name));
+        }
+        return computedRows
+          .filter((r: any) => Math.abs(Number(r.conciliacao || 0)) > 0.01)
+          .map((r: any) => ({
+            empresa: companyNameById.get(String(r.company_id)) ?? "—",
+            conciliacao: Math.round(Number(r.conciliacao) * 100) / 100,
+          }))
+          .sort((a, b) => Math.abs(b.conciliacao) - Math.abs(a.conciliacao))
+          .slice(0, 10);
+      })(),
       composicao_financeira: composicaoCompleta
         ? {
             bruto: Math.round(composicao.bruto * 100) / 100,
             liquido: Math.round(composicao.liquido * 100) / 100,
             reducao_total: Math.round(reducaoTotal * 100) / 100,
-            // Pool/rateio = modelo de negociação contratual entre médicos/empresa (neutro, NÃO é risco)
             pool_rateio: Math.round(composicao.pool * 100) / 100,
-            // Débitos contratuais aplicados (fixos, plantões etc.) — neutro
             debitos_contratuais: Math.round(composicao.debitos * 100) / 100,
             creditos: Math.round(composicao.creditos * 100) / 100,
-            // Glosas = perda financeira real (risco)
             glosas: Math.round(composicao.glosas * 100) / 100,
-            // Conciliação ≠ 0 = divergência NF vs base (risco)
             conciliacao: Math.round(composicao.conciliacao * 100) / 100,
             reducao_nao_explicada: reducaoNaoExplicada,
           }
         : {
             indisponivel: true,
-            motivo: `Snapshots financeiros incompletos (${computedRows.length}/${totalGroups} empresas) — recompute em andamento.`,
+            motivo: `Snapshots financeiros incompletos (${computedRows.length}/${totalGroups} empresas) — recompute em andamento. Use 'glosas_por_empresa' e 'conciliacao_divergente_por_empresa' como única fonte de glosa/conciliação.`,
           },
     };
+
 
     const generalPrompt = `Você é um auditor sênior de pagamentos médicos. Gere um RESUMO EXECUTIVO objetivo e direto sobre um lote de pagamento, em português do Brasil.
 
