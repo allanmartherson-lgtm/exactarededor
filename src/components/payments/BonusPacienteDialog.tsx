@@ -317,6 +317,7 @@ export function BonusPacienteDialog({
               value={doctor}
               onChange={setDoctor}
               placeholder={company ? "Selecionar médico" : "Escolha a PJ primeiro"}
+              filterCompanyId={company?.id ?? null}
             />
             {company && doctor && (
               <p className="text-[11px] text-muted-foreground">
