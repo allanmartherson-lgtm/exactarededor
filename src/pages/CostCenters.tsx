@@ -211,11 +211,13 @@ const CostCenters = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
   return (
     <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
-      <PageHeader
-        title="Centros de custo e setores"
-        description="Catálogo de centros de custo (P12) e padronização de setores que vêm da base. Apenas centros com status 'Não Bloqueado' são considerados."
-      />
-      <div className="p-4 md:p-8 w-full mx-auto space-y-6">
+      {!embedded && (
+        <PageHeader
+          title="Centros de custo e setores"
+          description="Catálogo de centros de custo (P12) e padronização de setores que vêm da base. Apenas centros com status 'Não Bloqueado' são considerados."
+        />
+      )}
+      <div className={embedded ? "w-full mx-auto space-y-6" : "p-4 md:p-8 w-full mx-auto space-y-6"}>
         <Tabs defaultValue="centros" className="w-full">
           <TabsList>
             <TabsTrigger value="centros">Centros de custo</TabsTrigger>
