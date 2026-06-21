@@ -134,12 +134,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/regras/simulador", label: "Simulador de Regras", icon: FlaskConical, iconName: "FlaskConical", roles: ["admin"] },
       { to: "/regras/simulador-lote", label: "Simulador em Lote", icon: FlaskConical, iconName: "FlaskConical", roles: ["admin"] },
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["admin"] },
-      { to: "/empresas", label: "Empresas", icon: Building2, iconName: "Building2", roles: ["admin"] },
-      { to: "/medicos", label: "Médicos", icon: Stethoscope, iconName: "Stethoscope", roles: ["admin"] },
-      
-      { to: "/centros-de-custo", label: "Setores e Centros de Custos", icon: Network, iconName: "Network", roles: ALL_ROLES },
-      { to: "/convenios", label: "Convênios", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor"] },
-      { to: "/tipos-pagamento", label: "Tipos de pagamento", icon: Tag, iconName: "Tag", roles: ["admin", "diretor"] },
+      { to: "/cadastros", label: "Cadastros", icon: FolderKanban, iconName: "FolderKanban", roles: ["admin", "diretor"] },
       { to: "/pools", label: "Pools de rateio", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
       { to: "/prazos-sla", label: "Prazos e SLA", icon: Timer, iconName: "Timer", roles: ["admin"] },
     ],
