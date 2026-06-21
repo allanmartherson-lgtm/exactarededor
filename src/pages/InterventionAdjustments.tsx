@@ -483,21 +483,22 @@ export default function InterventionAdjustments() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-auto max-h-[560px]">
-              <Table>
+            <div className="overflow-x-hidden overflow-y-auto max-h-[560px]">
+              <Table className="w-full table-fixed text-xs [&_th]:px-2 [&_th]:py-2 [&_td]:px-2 [&_td]:py-2 [&_td]:align-top [&_td]:break-words">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data acatamento</TableHead>
-                    <TableHead>Autor</TableHead>
-                    <TableHead>Empresa / Médico</TableHead>
-                    <TableHead>Procedimento</TableHead>
-                    <TableHead className="text-right">Valor regra</TableHead>
-                    <TableHead className="text-right">Pago final</TableHead>
-                    <TableHead className="text-right">Δ</TableHead>
-                    <TableHead>Classificação</TableHead>
-                    <TableHead></TableHead>
+                    <TableHead className="w-[88px]">Data</TableHead>
+                    <TableHead className="w-[140px]">Autor</TableHead>
+                    <TableHead className="w-[220px]">Empresa / Médico</TableHead>
+                    <TableHead className="w-[200px]">Procedimento</TableHead>
+                    <TableHead className="w-[88px] text-right">Valor regra</TableHead>
+                    <TableHead className="w-[88px] text-right">Pago final</TableHead>
+                    <TableHead className="w-[88px] text-right">Δ</TableHead>
+                    <TableHead className="w-[96px]">Classificação</TableHead>
+                    <TableHead className="w-[130px]"></TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {loading && (
                     <TableRow><TableCell colSpan={9}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
