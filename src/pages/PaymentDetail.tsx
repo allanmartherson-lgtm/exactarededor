@@ -4405,6 +4405,17 @@ const PaymentDetail = () => {
         />
       )}
 
+      {payment && (
+        <BonusPacienteDialog
+          open={bonusDialogOpen}
+          onOpenChange={setBonusDialogOpen}
+          lockedPayment={{ id: payment.id, reference: payment.reference }}
+          onSaved={() => load()}
+        />
+      )}
+
+
+
       <ExportColumnPickerDialog
         open={exportPickerOpen}
         onOpenChange={setExportPickerOpen}
