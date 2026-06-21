@@ -45,14 +45,22 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
             fontFamily: OUTFIT,
             fontSize: 10,
             fontWeight: 700,
-            letterSpacing: "0.08em",
+            letterSpacing: "0.06em",
             textTransform: "uppercase",
             color: "hsl(var(--muted-foreground))",
             transition: "color 0.3s",
+            wordBreak: "break-word",
+            overflowWrap: "anywhere",
+            hyphens: "auto",
+            lineHeight: 1.25,
+            minWidth: 0,
+            flex: 1,
+            paddingRight: 6,
           }}
         >
           {item.label}
         </span>
+
         {tone === "action" ? (
           <svg
             viewBox="0 0 40 10"
