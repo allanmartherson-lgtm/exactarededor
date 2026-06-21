@@ -27,9 +27,9 @@ All colors MUST be HSL.
     --primary-dark: 214 100% 17%;        /* #002855 — Pantone 295 C navy */
 
     /* ── Accent: ouro Exacta ─────────────────────────────── */
-    --accent: 38 47% 61%;                /* #C8A96E ouro */
+    --accent: 37 42% 61%;                /* #C6A27C — Pantone 728 C Rede D'Or oficial */
     --accent-foreground: 214 28% 7%;
-    --accent-light: 40 58% 78%;          /* #E8D5A8 ouro claro */
+    --accent-light: 35 80% 86%;          /* #F7CEA7 — Pantone 2015 C (dourado claro D'Or) */
 
     /* Mantém token de azul apenas para status info */
     --accent-blue: 213 94% 50%;
@@ -42,8 +42,8 @@ All colors MUST be HSL.
     --copper-active: 28 100% 40%;
     --copper-soft: 36 100% 94%;
 
-    --secondary: 60 14% 93%;
-    --secondary-foreground: 164 33% 26%;
+    --secondary: 214 40% 94%;            /* azul suavíssimo derivado */
+    --secondary-foreground: 214 100% 32%; /* azul D'Or */
 
     --muted: 0 0% 96%;
     --muted-foreground: 220 9% 46%;      /* #6B7280 */
