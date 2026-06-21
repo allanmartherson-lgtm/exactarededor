@@ -31,7 +31,7 @@ const empty = (hid: string): Partial<Director> => ({
   hospital_id: hid, full_name: "", email: "", role_label: "Diretor", active: true, notes: "",
 });
 
-export default function Directors() {
+export default function Directors({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, hasRole } = useAuth();
   const { hospital } = useHospital();
   const canManage = hasRole("admin") || hasRole("diretor");
