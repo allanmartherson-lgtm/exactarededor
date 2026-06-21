@@ -61,7 +61,7 @@ const sentimentColor: Record<string, string> = {
   negativo: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
 };
 
-export default function ObservationInsights() {
+export default function ObservationInsights({ embedded = false }: { embedded?: boolean } = {}) {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [rows, setRows] = useState<EnrichedRow[]>([]);
@@ -192,22 +192,25 @@ export default function ObservationInsights() {
   const maxCount = categoryCounts[0]?.count ?? 1;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className={embedded ? "space-y-6" : "space-y-6 p-6"}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <MessageSquare className="h-6 w-6 text-primary" />
-            Insights de Observações
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Análise semântica das observações dos últimos 90 dias
-          </p>
-        </div>
+        {!embedded ? (
+          <div>
+            <h1 className="text-2xl font-semibold flex items-center gap-2">
+              <MessageSquare className="h-6 w-6 text-primary" />
+              Insights de Observações
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Análise semântica das observações dos últimos 90 dias
+            </p>
+          </div>
+        ) : <div />}
         <Button onClick={runClassification} disabled={loading} className="gap-2">
           <Sparkles className="h-4 w-4" />
           {loading ? "Classificando..." : "Classificar observações"}
         </Button>
       </div>
+
 
       {loading && progress.total > 0 && (
         <Card>

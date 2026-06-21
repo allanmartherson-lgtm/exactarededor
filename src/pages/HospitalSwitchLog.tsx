@@ -24,7 +24,7 @@ interface LogRow {
  * Auditoria de troca de hospital — visível para admin/diretor.
  * Rastreia QUEM trocou, DE/PARA qual hospital e QUANDO.
  */
-export default function HospitalSwitchLog() {
+export default function HospitalSwitchLog({ embedded = false }: { embedded?: boolean } = {}) {
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
@@ -61,11 +61,14 @@ export default function HospitalSwitchLog() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Auditoria de troca de hospital"
-        description="Histórico de qual usuário acessou cada hospital, quando e a partir de qual estava antes."
-        icon={Shield}
-      />
+      {!embedded && (
+        <PageHeader
+          title="Auditoria de troca de hospital"
+          description="Histórico de qual usuário acessou cada hospital, quando e a partir de qual estava antes."
+          icon={Shield}
+        />
+      )}
+
 
       <Card>
         <CardHeader>
