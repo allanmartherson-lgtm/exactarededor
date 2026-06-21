@@ -1511,8 +1511,8 @@ const Payments = () => {
                   </Select>
                 )}
                 <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v as "lista" | "kanban")} variant="outline" size="sm">
-                  <ToggleGroupItem value="lista">Lista</ToggleGroupItem>
-                  <ToggleGroupItem value="kanban">Kanban</ToggleGroupItem>
+                  <ToggleGroupItem value="lista" className="data-[state=on]:bg-muted data-[state=on]:text-foreground hover:bg-muted hover:text-foreground">Lista</ToggleGroupItem>
+                  <ToggleGroupItem value="kanban" className="data-[state=on]:bg-muted data-[state=on]:text-foreground hover:bg-muted hover:text-foreground">Kanban</ToggleGroupItem>
                 </ToggleGroup>
               </div>
             </>
