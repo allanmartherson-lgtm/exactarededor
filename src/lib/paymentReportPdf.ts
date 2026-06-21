@@ -245,8 +245,8 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
   }
 
 
-  // Histórico (observações)
-  if (observations.length > 0) {
+  // Histórico (observações) — só quando o analista pede explicitamente.
+  if (includeHistory && observations.length > 0) {
     if (cursorY > 250) { doc.addPage(); cursorY = 20; }
     doc.setFontSize(12);
     doc.text(`Histórico de observações (${observations.length})`, 14, cursorY);
