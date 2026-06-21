@@ -213,9 +213,19 @@ export function ReconciliationBlockDialog({
         hospitalId={payload.hospital_id}
         brutoRegra={payload.bruto_regra}
         brutoPedido={payload.bruto_pedido}
-        onReleased={() => {
+        onReleased={async () => {
           setReleaseOpen(false);
           onOpenChange(false);
+          if (retryAfterRelease) {
+            // Re-executa o envio original agora que o override já existe.
+            // Isso é o que faz o status do grupo realmente avançar.
+            try {
+              await retryAfterRelease();
+            } catch (e) {
+              // Erro do retry já é tratado pelo caller (toast). Só evita unhandled.
+              console.error("[ReconciliationBlockDialog] retry após liberação falhou", e);
+            }
+          }
           void onResolved();
         }}
       />
