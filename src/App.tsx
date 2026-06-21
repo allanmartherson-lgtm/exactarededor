@@ -328,7 +328,7 @@ const App = () => (
                   <Route path="/empresas/apelidos" element={<ProtectedRoute roles={["diretor", "admin"]}><CompanyAliases /></ProtectedRoute>} />
                   <Route path="/aprendizado/padroes" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><LearnedPatterns /></ProtectedRoute>} />
                   <Route path="/medicos" element={<Navigate to="/cadastros?tab=medicos" replace />} />
-                  <Route path="/diretores" element={<Navigate to="/cadastros?tab=diretores" replace />} />
+                  <Route path="/diretores" element={<ProtectedRoute roles={["diretor", "admin"]}><Directors /></ProtectedRoute>} />
                   <Route path="/mapa-especialidades" element={<Navigate to="/cadastros?tab=mapa-especialidades" replace />} />
                   <Route path="/setores" element={<Navigate to="/cadastros?tab=centros-de-custo" replace />} />
                   <Route path="/convenios" element={<Navigate to="/cadastros?tab=convenios" replace />} />
