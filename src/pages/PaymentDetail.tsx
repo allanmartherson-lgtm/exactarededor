@@ -88,6 +88,7 @@ import {
 import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, ChevronRight, Download, FileDown, GitCompare, History, Mail, MailCheck, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx-js-style";
+import { confirmDialog } from "@/lib/confirm";
 
 const ObservationTypeSelector = ({
   value,
@@ -902,12 +903,17 @@ const PaymentDetail = () => {
   // O motor passa a confrontar com a base hospitalar (modo padrão) e a IA é reacionada.
   const sendConfeccaoForAnalysis = async () => {
     if (!id || !user) return;
-    const ok = window.confirm(
-      "Encerrar a confecção e encaminhar para análise?\n\n" +
-      "• O lote sai de CONFECÇÃO e entra em ANÁLISE (modo padrão).\n" +
-      "• O motor irá confrontar com a base hospitalar e a IA reavalia cada item.\n" +
-      "• Só depois da análise é que o lote pode ir para validação/aprovação."
-    );
+    const ok = await confirmDialog({
+      title: "Encaminhar lote para análise?",
+      description: "A confecção será encerrada e o motor passa a confrontar com a base hospitalar.",
+      details:
+        "• O lote sai de CONFECÇÃO e entra em ANÁLISE.\n" +
+        "• O motor confronta com a base hospitalar e a IA reavalia cada item.\n" +
+        "• Só depois da análise o lote pode ir para validação ou aprovação.",
+      confirmText: "Encaminhar",
+      cancelText: "Cancelar",
+      tone: "warning",
+    });
     if (!ok) return;
     // Gate: mesmo bloqueio do envio normal — médico provisório precisa aprovação admin.
     {
