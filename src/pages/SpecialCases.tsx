@@ -32,7 +32,7 @@ interface Mark {
 
 interface TypeRow { code: string; label: string; description: string | null; active: boolean; requires_justification: boolean; }
 
-export default function SpecialCases() {
+export default function SpecialCases({ embedded = false }: { embedded?: boolean } = {}) {
   const { toast } = useToast();
   const [tab, setTab] = useState<Status>("pending");
   const [marks, setMarks] = useState<Mark[]>([]);
