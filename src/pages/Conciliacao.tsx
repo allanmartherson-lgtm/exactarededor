@@ -226,48 +226,71 @@ export default function Conciliacao() {
             {!loading &&
               filteredRuns.map((r) => {
                 const p = paymentsById[r.payment_id];
+                const isOpen = expandedId === r.id;
                 return (
-                  <button
+                  <div
                     key={r.id}
-                    type="button"
-                    onClick={() => navigate(`/pagamentos/${r.payment_id}`)}
-                    className="w-full text-left rounded-lg border border-border bg-card p-4 flex flex-col gap-3 hover:bg-muted/40 transition-colors active:scale-[0.99]"
+                    className="rounded-lg border border-border bg-card overflow-hidden"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[15px] font-semibold text-foreground break-words leading-snug">
-                          {p?.reference ?? "—"}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedId(isOpen ? null : r.id)}
+                      aria-expanded={isOpen}
+                      className="w-full text-left p-4 flex flex-col gap-2 hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[15px] font-semibold text-foreground break-words leading-snug">
+                            {p?.reference ?? "—"}
+                          </div>
+                          <div className="text-[12px] text-muted-foreground mt-0.5 break-words">
+                            {p?.competence_month ?? "—"} · {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                          </div>
                         </div>
-                        <div className="text-[12px] text-muted-foreground mt-0.5">
-                          {p?.competence_month ?? "—"} · {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                        <Badge
+                          variant={r.status === "done" ? "outline" : r.status === "error" ? "destructive" : "secondary"}
+                          className="flex-shrink-0"
+                        >
+                          {r.status === "done" ? "Concluída" : r.status === "error" ? "Erro" : "Processando"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-[11.5px] text-muted-foreground">
+                        <span className="tabular-nums">
+                          {r.total_items} itens · <span className="text-success font-medium">{r.conciliado} ok</span> · <span className="text-warning font-medium">{r.valor_divergente} div.</span>
+                        </span>
+                        <span className="text-[11px]">{isOpen ? "Recolher ▴" : "Detalhes ▾"}</span>
+                      </div>
+                    </button>
+                    {isOpen && (
+                      <div className="px-4 pb-4 flex flex-col gap-3 border-t border-border/60 pt-3">
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="rounded-md bg-muted/40 px-2 py-2 min-w-0">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Itens</div>
+                            <div className="text-base font-semibold tabular-nums">{r.total_items}</div>
+                          </div>
+                          <div className="rounded-md bg-success/10 px-2 py-2 min-w-0">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Conciliados</div>
+                            <div className="text-base font-semibold tabular-nums text-success">{r.conciliado}</div>
+                          </div>
+                          <div className="rounded-md bg-warning/10 px-2 py-2 min-w-0">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Diverg.</div>
+                            <div className="text-base font-semibold tabular-nums text-warning">{r.valor_divergente}</div>
+                          </div>
                         </div>
+                        <div className="flex items-center justify-between text-[12px] text-muted-foreground flex-wrap gap-2">
+                          <span>Só hospital: <span className="font-medium text-foreground tabular-nums">{r.so_hospital}</span></span>
+                          <span>Só Exacta: <span className="font-medium text-foreground tabular-nums">{r.so_exacta}</span></span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/pagamentos/${r.payment_id}`); }}
+                          className="text-[13px] font-medium text-primary text-left"
+                        >
+                          Abrir pagamento →
+                        </button>
                       </div>
-                      <Badge
-                        variant={r.status === "done" ? "outline" : r.status === "error" ? "destructive" : "secondary"}
-                        className="flex-shrink-0"
-                      >
-                        {r.status === "done" ? "Concluída" : r.status === "error" ? "Erro" : "Processando"}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-md bg-muted/40 px-2 py-2">
-                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Itens</div>
-                        <div className="text-base font-semibold tabular-nums">{r.total_items}</div>
-                      </div>
-                      <div className="rounded-md bg-success/10 px-2 py-2">
-                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Conciliados</div>
-                        <div className="text-base font-semibold tabular-nums text-success">{r.conciliado}</div>
-                      </div>
-                      <div className="rounded-md bg-warning/10 px-2 py-2">
-                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Diverg.</div>
-                        <div className="text-base font-semibold tabular-nums text-warning">{r.valor_divergente}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-[12px] text-muted-foreground">
-                      <span>Só hospital: <span className="font-medium text-foreground tabular-nums">{r.so_hospital}</span></span>
-                      <span>Só Exacta: <span className="font-medium text-foreground tabular-nums">{r.so_exacta}</span></span>
-                    </div>
-                  </button>
+                    )}
+                  </div>
                 );
               })}
           </div>

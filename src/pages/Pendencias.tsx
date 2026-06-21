@@ -409,56 +409,83 @@ export default function Pendencias() {
         )}
         {!loading &&
           !error &&
-          filtered.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => navigate(`/pendencias/${p.id}`)}
-              className="w-full text-left rounded-lg border border-border bg-card p-4 flex flex-col gap-3 hover:bg-muted/40 transition-colors active:scale-[0.99]"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[15px] font-semibold text-foreground break-words leading-snug">
-                    {p.subject}
+          filtered.map((p) => {
+            const isOpen = expandedId === p.id;
+            return (
+              <div
+                key={p.id}
+                className="rounded-lg border border-border bg-card overflow-hidden"
+              >
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isOpen ? null : p.id)}
+                  aria-expanded={isOpen}
+                  className="w-full text-left p-4 flex flex-col gap-2 hover:bg-muted/40 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[15px] font-semibold text-foreground break-words leading-snug">
+                        {p.subject}
+                      </div>
+                      <div className="text-[11.5px] text-muted-foreground mt-0.5 break-words">
+                        {companies[p.company_id] ?? "—"} · {format(new Date(p.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                      </div>
+                    </div>
+                    <Badge variant={STATUS_VARIANT[p.status]} className="flex-shrink-0">
+                      {STATUS_LABEL[p.status]}
+                    </Badge>
                   </div>
-                  <div className="text-[11.5px] text-muted-foreground mt-0.5 break-words">
-                    {companies[p.company_id] ?? "—"} · {format(new Date(p.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                  <div className="flex items-center justify-between text-[11.5px] text-muted-foreground gap-2">
+                    <span className="truncate min-w-0">
+                      <span className="text-foreground font-medium">{p.patient_name}</span>
+                      {" · "}
+                      <span className={PRIORITY_COLOR[p.priority]}>
+                        {p.priority === "alta" ? "Alta" : p.priority === "baixa" ? "Baixa" : "Normal"}
+                      </span>
+                    </span>
+                    <span className="text-[11px] flex-shrink-0">{isOpen ? "Recolher ▴" : "Detalhes ▾"}</span>
                   </div>
-                </div>
-                <Badge variant={STATUS_VARIANT[p.status]} className="flex-shrink-0">
-                  {STATUS_LABEL[p.status]}
-                </Badge>
+                </button>
+                {isOpen && (
+                  <div className="px-4 pb-4 flex flex-col gap-3 border-t border-border/60 pt-3">
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[12.5px]">
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Paciente</div>
+                        <div className="font-medium text-foreground break-words leading-snug">{p.patient_name}</div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Médico</div>
+                        <div className="font-medium text-foreground break-words leading-snug">{p.doctor_name}</div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Evento</div>
+                        <div className="font-medium text-foreground break-words leading-snug">
+                          {EVENT_LABEL[p.event_type]} · {format(new Date(p.event_date), "dd/MM/yy", { locale: ptBR })}
+                        </div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Prioridade</div>
+                        <div className={`font-medium leading-snug ${PRIORITY_COLOR[p.priority]}`}>
+                          {p.priority === "alta" ? "Alta" : p.priority === "baixa" ? "Baixa" : "Normal"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground break-words">
+                      por {(p.created_by_user_id && profileNames[p.created_by_user_id]) || p.created_by_name}
+                      {p.assigned_to === user?.id && " · você"}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/pendencias/${p.id}`); }}
+                      className="text-[13px] font-medium text-primary text-left"
+                    >
+                      Abrir pendência →
+                    </button>
+                  </div>
+                )}
               </div>
-
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[12.5px]">
-                <div className="min-w-0">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Paciente</div>
-                  <div className="font-medium text-foreground break-words leading-snug">{p.patient_name}</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Médico</div>
-                  <div className="font-medium text-foreground break-words leading-snug">{p.doctor_name}</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Evento</div>
-                  <div className="font-medium text-foreground break-words leading-snug">
-                    {EVENT_LABEL[p.event_type]} · {format(new Date(p.event_date), "dd/MM/yy", { locale: ptBR })}
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Prioridade</div>
-                  <div className={`font-medium leading-snug ${PRIORITY_COLOR[p.priority]}`}>
-                    {p.priority === "alta" ? "Alta" : p.priority === "baixa" ? "Baixa" : "Normal"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-muted-foreground border-t border-border/60 pt-2">
-                por {(p.created_by_user_id && profileNames[p.created_by_user_id]) || p.created_by_name}
-                {p.assigned_to === user?.id && " · você"}
-              </div>
-            </button>
-          ))}
+            );
+          })}
       </div>
         </TabsContent>
       </Tabs>
