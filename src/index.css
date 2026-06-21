@@ -164,7 +164,7 @@ All colors MUST be HSL.
     --primary-foreground: 0 0% 100%;
     --primary-soft: 214 40% 18%;
     --primary-glow: 200 55% 60%;
-    --primary-dark: 164 35% 18%;
+    --primary-dark: 214 100% 12%;     /* azul navy escuro */
 
     /* ── Accent: ouro Exacta ─────────────────────────────── */
     --accent: 164 33% 26%;
