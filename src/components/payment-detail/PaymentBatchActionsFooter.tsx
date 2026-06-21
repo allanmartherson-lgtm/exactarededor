@@ -155,10 +155,13 @@ export function PaymentBatchActionsFooter({
     if (error) {
       // Trata especificamente o bloqueio do trigger de divergência:
       // abre o ReconciliationBlockDialog com ações diretas (devolver,
-      // liberar, abrir empresa) em vez de só toast.
+      // liberar, abrir empresa) em vez de só toast. Guarda também os
+      // groupIds/note pra que a opção "Liberar com justificativa" possa
+      // re-disparar este mesmo envio depois do override ser registrado.
       const block = parseReconciliationBlock(error);
       if (block) {
         setReconBlock(block);
+        setPendingRetry({ groupIds, note });
         return;
       }
       toast({
