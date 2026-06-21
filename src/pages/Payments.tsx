@@ -289,6 +289,11 @@ const Payments = () => {
   const [archivedView, setArchivedView] = useState<boolean>(
     searchParams.get("archived") === "1" || persisted.archivedView === true,
   );
+  // Concluídos (pago/lançado): saem do fluxo operacional mas não são "arquivados".
+  // Escondidos por padrão; podem ser exibidos via ?concluded=1 ou pelo toggle.
+  const [showConcluded, setShowConcluded] = useState<boolean>(
+    searchParams.get("concluded") === "1" || persisted.showConcluded === true,
+  );
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
