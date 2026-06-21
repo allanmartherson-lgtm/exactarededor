@@ -3346,7 +3346,7 @@ function ItemDetailsRow({
                       </p>
                     </div>
                   )}
-                  <CalcFormulaBlock item={it} />
+                  {showTechnical && <CalcFormulaBlock item={it} />}
                   {matchedRules.length > 1 && (
                     <p className={cn("mt-1 italic", TEXT_META)}>
                       + {matchedRules.length - 1} regra(s) também casaram
