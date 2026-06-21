@@ -443,30 +443,38 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
   const deferredSearch = useDeferredValue(search);
   const deferredCompany = useDeferredValue(filterCompany);
 
+  // Pre-normaliza os campos pesquisáveis uma única vez por mudança em `items`.
+  // Sem isto, cada tecla refazia norm() ~25k vezes (5 campos × 4.7k médicos).
+  const searchIndex = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const d of items) {
+      const parts = [
+        d.full_name,
+        d.crm,
+        d.code ?? "",
+        d.email ?? "",
+        ...(d.specialties ?? []),
+      ];
+      map.set(d.id, norm(parts.join(" ")));
+    }
+    return map;
+  }, [items]);
+
   const filtered = useMemo(() => {
     const q = norm(deferredSearch);
     const base = showInactive ? items : items.filter((d) => d.active);
 
     if (!q && !deferredCompany) return base;
 
-    const results = base.filter((d) => {
+    return base.filter((d) => {
       if (deferredCompany) {
         const cids = linksByDoctor.get(d.id) ?? [];
         if (!cids.includes(deferredCompany)) return false;
       }
       if (!q) return true;
-
-      const nameMatch = norm(d.full_name).includes(q);
-      const crmMatch = norm(d.crm).includes(q);
-      const codeMatch = d.code ? norm(d.code).includes(q) : false;
-      const emailMatch = d.email ? norm(d.email).includes(q) : false;
-      const specMatch = (d.specialties ?? []).some(s => norm(s).includes(q));
-
-      return nameMatch || crmMatch || codeMatch || emailMatch || specMatch;
+      return (searchIndex.get(d.id) ?? "").includes(q);
     });
-
-    return results;
-  }, [items, deferredSearch, deferredCompany, linksByDoctor, showInactive]);
+  }, [items, deferredSearch, deferredCompany, linksByDoctor, showInactive, searchIndex]);
 
   // Se houver busca, mostramos apenas os filtrados. 
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
