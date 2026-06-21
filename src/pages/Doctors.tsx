@@ -146,7 +146,12 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
       const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
       const [companiesAll, linksAll, countResp] = await Promise.all([
         fetchAllPaginated<Company>((from, to) =>
-          supabase.from("companies").select("id,name,document").order("name").range(from, to),
+          supabase
+            .from("companies")
+            .select("id,name,document")
+            .eq("active", true)
+            .order("name")
+            .range(from, to),
         ),
         fetchAllPaginated<Link>((from, to) =>
           supabase
