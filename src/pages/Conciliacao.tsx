@@ -62,6 +62,7 @@ export default function Conciliacao() {
   const [paymentsById, setPaymentsById] = useState<Record<string, PaymentLite>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;

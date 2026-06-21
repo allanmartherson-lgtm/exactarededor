@@ -102,6 +102,7 @@ export default function Pendencias() {
   const [companyFilter, setCompanyFilter] = useState<string>("todas");
   const [mineOnly, setMineOnly] = useState<boolean>(false);
   const [search, setSearch] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
