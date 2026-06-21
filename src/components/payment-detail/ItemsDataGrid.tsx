@@ -836,18 +836,18 @@ export function ItemsDataGrid({
 
   const tableMinWidth = 24 +
     (colVis.atendimento ? 96 : 0) +
+    160 +
+    (colVis.convenio ? 120 : 0) +
+    (colVis.via ? 110 : 0) +
+    88 +
+    56 +
     200 +
-    (colVis.convenio ? 140 : 0) +
-    (colVis.via ? 140 : 0) +
-    96 +
-    64 +
-    240 +
-    (colVis.setor_lido ? 140 : 0) +
-    (colVis.setor_inferido ? 140 : 0) +
-    (colVis.tipo_entrada ? 130 : 0) +
-    180 +
-    (colVis.funcao ? 120 : 0) +
-    (colVis.regra ? 180 : 0) +
+    (colVis.setor_lido ? 110 : 0) +
+    (colVis.setor_inferido ? 110 : 0) +
+    (colVis.tipo_entrada ? 110 : 0) +
+    150 +
+    (colVis.funcao ? 100 : 0) +
+    (colVis.regra ? 150 : 0) +
     (showGrossColumn ? 110 : 0) +
     (showProcedureColumn ? 130 : 0) +
     expectedColWidth +
