@@ -103,7 +103,16 @@ export function PaymentBatchActionsFooter({
   };
 
   const proceedApprove = async () => {
+    if (groups.length === 0) {
+      // Estado de carregamento/refresh — não tem como aprovar nada ainda.
+      toast({
+        title: "Aguarde — empresas ainda carregando",
+        description: "Tente novamente em alguns segundos.",
+      });
+      return;
+    }
     if (approvable.length === 0 && pending.length === 0) {
+      // Todos os grupos já estão em status terminal (aprovado/pago/...).
       toast({ title: "Lote já foi processado", variant: "destructive" });
       return;
     }
@@ -243,16 +252,18 @@ export function PaymentBatchActionsFooter({
       <Card className="shadow-card border-primary/30">
         <CardContent className="p-3 md:p-4 flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
           <span className="text-xs md:text-sm text-muted-foreground md:mr-auto">
-            Ações do lote — {approvable.length} aprovável(is), {pending.length} pendente(s).
+            {groups.length === 0
+              ? "Carregando empresas do lote…"
+              : `Ações do lote — ${approvable.length} aprovável(is), ${pending.length} pendente(s).`}
           </span>
           <div className="grid grid-cols-2 md:flex md:flex-row gap-2 w-full md:w-auto">
-            <Button variant="outline" onClick={openQuestion} disabled={busy} className="w-full md:w-auto min-h-[44px] md:min-h-0 col-span-2 md:col-span-1">
+            <Button variant="outline" onClick={openQuestion} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0 col-span-2 md:col-span-1">
               <MessageCircle className="h-4 w-4 mr-2" /> Questionar
             </Button>
-            <Button variant="outline" onClick={openReturn} disabled={busy} className="w-full md:w-auto min-h-[44px] md:min-h-0">
+            <Button variant="outline" onClick={openReturn} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0">
               <Undo2 className="h-4 w-4 mr-2" /> Devolver
             </Button>
-            <Button onClick={handleApproveClick} disabled={busy} className="w-full md:w-auto min-h-[44px] md:min-h-0">
+            <Button onClick={handleApproveClick} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0">
               <CheckCircle2 className="h-4 w-4 mr-2" />
               {actorRole === "diretor" ? "Aprovar" : "Enviar p/ aprovação do diretor"}
             </Button>

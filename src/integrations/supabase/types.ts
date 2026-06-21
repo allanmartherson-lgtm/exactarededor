@@ -9512,6 +9512,14 @@ export type Database = {
           updated_count: number
         }[]
       }
+      bulk_send_groups_to_validation: {
+        Args: { _group_ids: string[]; _payment_id: string }
+        Returns: {
+          message: string
+          skipped_count: number
+          updated_count: number
+        }[]
+      }
       calculate_payment_audit: { Args: { p_payment_id: string }; Returns: Json }
       calculate_payment_priority: {
         Args: { _payment_id: string }
