@@ -58,6 +58,7 @@ export function PaymentBatchActionsFooter({
   const [gateOpen, setGateOpen] = useState(false);
   const [externalOpen, setExternalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
 
   const pendencias = useMemo(() => {
     const list = items ?? [];
