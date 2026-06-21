@@ -4443,6 +4443,19 @@ const PaymentDetail = () => {
         onSaved={() => load()}
       />
 
+      {/* Dialog disparado quando o trigger de divergência pedido × regra
+          barra o envio analista→validador. Oferece devolver/liberar/abrir
+          empresa em vez de só toast de erro. */}
+      <ReconciliationBlockDialog
+        open={reconBlock !== null}
+        onOpenChange={(v) => { if (!v) setReconBlock(null); }}
+        payload={reconBlock}
+        actorRole="analista"
+        currentUserId={user?.id ?? ""}
+        currentUserName={user?.user_metadata?.full_name ?? user?.email ?? "Analista"}
+        onResolved={async () => { setReconBlock(null); await load(); }}
+      />
+
 
 
 
