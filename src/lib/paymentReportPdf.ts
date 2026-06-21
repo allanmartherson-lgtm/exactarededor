@@ -79,7 +79,7 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
     return generateConfeccaoReportPdf(activeInput);
   }
 
-  const { items, groups, observations = [], profiles = {}, rulesIndex } = activeInput;
+  const { items, groups, observations = [], profiles = {}, rulesIndex, includeHistory = false } = activeInput;
 
   const doc = new jsPDF();
   const marginX = 14;
