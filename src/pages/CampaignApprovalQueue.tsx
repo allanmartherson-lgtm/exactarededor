@@ -87,7 +87,7 @@ async function rpcWithRetry<T = unknown>(
   return { data: null, error: lastErr };
 }
 
-export default function CampaignApprovalQueue() {
+export default function CampaignApprovalQueue({ embedded = false }: { embedded?: boolean } = {}) {
   const { hasRole } = useAuth();
   const navigate = useNavigate();
   const isSupervisor = hasRole("admin") || hasRole("diretor") || hasRole("validador");
@@ -259,11 +259,14 @@ export default function CampaignApprovalQueue() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader
-        title="Aprovações pendentes"
-        icon={ShieldCheck as never}
-        description="Comunicados em massa criados por analistas que aguardam decisão do supervisor antes do disparo."
-      />
+      {!embedded && (
+        <PageHeader
+          title="Aprovações pendentes"
+          icon={ShieldCheck as never}
+          description="Comunicados em massa criados por analistas que aguardam decisão do supervisor antes do disparo."
+        />
+      )}
+
 
       {/* Filtros */}
       <div className="rounded-lg border border-border bg-card p-3 flex flex-wrap items-end gap-3">
