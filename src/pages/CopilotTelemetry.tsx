@@ -33,7 +33,7 @@ function emptyBucket(): Bucket {
   return { total: 0, approved: 0, rejected: 0, pending: 0, aiInvoked: 0, aiAgreed: 0 };
 }
 
-export default function CopilotTelemetry() {
+export default function CopilotTelemetry({ embedded = false }: { embedded?: boolean } = {}) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -67,15 +67,19 @@ export default function CopilotTelemetry() {
   }
 
   return (
-    <div className="container max-w-6xl py-6 space-y-6">
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-purple-600" />
-        <h1 className="text-2xl font-semibold">Telemetria do Copiloto</h1>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Monitoramento das sugestões geradas pelo motor fuzzy e pela IA, e as decisões dos analistas.
-        Use para calibrar thresholds e confiança da IA.
-      </p>
+    <div className={embedded ? "space-y-6" : "container max-w-6xl py-6 space-y-6"}>
+      {!embedded && (
+        <>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-purple-600" />
+            <h1 className="text-2xl font-semibold">Telemetria do Copiloto</h1>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Monitoramento das sugestões geradas pelo motor fuzzy e pela IA, e as decisões dos analistas.
+            Use para calibrar thresholds e confiança da IA.
+          </p>
+        </>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">

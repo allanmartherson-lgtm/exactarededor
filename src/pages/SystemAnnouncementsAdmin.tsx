@@ -34,7 +34,7 @@ function toLocalInput(iso: string | null) {
   return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
 }
 
-export default function SystemAnnouncementsAdmin() {
+export default function SystemAnnouncementsAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
   const [items, setItems] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,11 +97,15 @@ export default function SystemAnnouncementsAdmin() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Avisos do sistema"
-        description="Banner global exibido no topo de todas as telas. Útil para manutenção, releases ou comunicados urgentes."
-        actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo aviso</Button>}
-      />
+      {!embedded ? (
+        <PageHeader
+          title="Avisos do sistema"
+          description="Banner global exibido no topo de todas as telas. Útil para manutenção, releases ou comunicados urgentes."
+          actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo aviso</Button>}
+        />
+      ) : (
+        <div className="flex justify-end"><Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo aviso</Button></div>
+      )}
 
       {loading && <p className="text-sm text-muted-foreground">Carregando…</p>}
       <div className="space-y-2">
