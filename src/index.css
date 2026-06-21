@@ -169,7 +169,7 @@ All colors MUST be HSL.
     /* ── Accent: ouro Exacta ─────────────────────────────── */
     --accent: 37 42% 61%;             /* #C6A27C — Pantone 728 C Rede D'Or */
     --accent-foreground: 0 0% 100%;
-    --accent-light: 40 58% 78%;
+    --accent-light: 35 80% 86%;       /* #F7CEA7 — dourado claro D'Or */
 
     --accent-blue: 213 85% 65%;
     --accent-blue-soft: 222 25% 20%;
