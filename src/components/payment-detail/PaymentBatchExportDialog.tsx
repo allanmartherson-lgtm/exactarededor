@@ -358,6 +358,7 @@ export function PaymentBatchExportDialog({
       observations,
       profiles,
       rulesIndex,
+      includeHistory,
     });
     doc.save(buildFileName(payment, scopeLabel, "pdf"));
   };
