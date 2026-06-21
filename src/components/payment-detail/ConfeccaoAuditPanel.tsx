@@ -279,7 +279,7 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {(["1", "2", "3", "—"] as Camada[])
+            {(["1", "2", "3", "I", "—"] as Camada[])
               .filter((c) => camadasPresentes.includes(c))
               .map((c) => {
                 const info = CAMADA_INFO[c];
@@ -293,7 +293,7 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
                         info.tone === "warn" && "border-amber-500/50 text-amber-700 dark:text-amber-400",
                       )}
                     >
-                      {c === "—" ? "—" : `Camada ${c}`}
+                      {c === "—" ? "—" : c === "I" ? "Informativa" : `Camada ${c}`}
                     </Badge>
                     <div>
                       <div className="font-medium">{info.label}</div>
