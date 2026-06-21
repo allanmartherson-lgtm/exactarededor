@@ -836,18 +836,18 @@ export function ItemsDataGrid({
 
   const tableMinWidth = 24 +
     (colVis.atendimento ? 96 : 0) +
+    160 +
+    (colVis.convenio ? 120 : 0) +
+    (colVis.via ? 110 : 0) +
+    88 +
+    56 +
     200 +
-    (colVis.convenio ? 140 : 0) +
-    (colVis.via ? 140 : 0) +
-    96 +
-    64 +
-    240 +
-    (colVis.setor_lido ? 140 : 0) +
-    (colVis.setor_inferido ? 140 : 0) +
-    (colVis.tipo_entrada ? 130 : 0) +
-    180 +
-    (colVis.funcao ? 120 : 0) +
-    (colVis.regra ? 180 : 0) +
+    (colVis.setor_lido ? 110 : 0) +
+    (colVis.setor_inferido ? 110 : 0) +
+    (colVis.tipo_entrada ? 110 : 0) +
+    150 +
+    (colVis.funcao ? 100 : 0) +
+    (colVis.regra ? 150 : 0) +
     (showGrossColumn ? 110 : 0) +
     (showProcedureColumn ? 130 : 0) +
     expectedColWidth +
@@ -1336,18 +1336,18 @@ export function ItemsDataGrid({
           >
             <colgroup>
               {colVis.atendimento && <col style={{ width: 96 }} />}
+              <col style={{ width: 160 }} />
+              {colVis.convenio && <col style={{ width: 120 }} />}
+              {colVis.via && <col style={{ width: 110 }} />}
+              <col style={{ width: 88 }} />
+              <col style={{ width: 56 }} />
               <col style={{ width: 200 }} />
-              {colVis.convenio && <col style={{ width: 140 }} />}
-              {colVis.via && <col style={{ width: 140 }} />}
-              <col style={{ width: 96 }} />
-              <col style={{ width: 64 }} />
-              <col style={{ width: 240 }} />
-              {colVis.setor_lido && <col style={{ width: 140 }} />}
-              {colVis.setor_inferido && <col style={{ width: 140 }} />}
-              {colVis.tipo_entrada && <col style={{ width: 130 }} />}
-              <col style={{ width: 180 }} />
-              {colVis.funcao && <col style={{ width: 120 }} />}
-              {colVis.regra && <col style={{ width: 180 }} />}
+              {colVis.setor_lido && <col style={{ width: 110 }} />}
+              {colVis.setor_inferido && <col style={{ width: 110 }} />}
+              {colVis.tipo_entrada && <col style={{ width: 110 }} />}
+              <col style={{ width: 150 }} />
+              {colVis.funcao && <col style={{ width: 100 }} />}
+              {colVis.regra && <col style={{ width: 150 }} />}
               {showGrossColumn && <col style={{ width: 110 }} />}
               {showProcedureColumn && <col style={{ width: 130 }} />}
               <col style={{ width: expectedColWidth }} />
@@ -2614,11 +2614,11 @@ function RowMain({
     ? "bg-primary-soft/60"
     : "bg-card";
   const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted" : "";
-  const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
-  const cell = cn(cellPad, "truncate border-b whitespace-nowrap", baseCellBg);
+  const cellPad = isCompact ? "px-1.5 py-1" : "px-2 py-2";
+  const cell = cn(cellPad, "border-b align-top break-words", baseCellBg);
   const stickyCell = cn(
     cellPad,
-    "truncate border-b whitespace-nowrap sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))]",
+    "border-b align-top break-words sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))]",
     stickyBg,
     stickyHover,
   );
@@ -2662,7 +2662,7 @@ function RowMain({
                 <Pencil className="h-2.5 w-2.5" />
               </Badge>
             )}
-            <span className="truncate block">{paciente}</span>
+            <span className="line-clamp-2 break-words leading-tight">{paciente}</span>
           </div>
         </td>
         {colVis.convenio && (
@@ -2699,12 +2699,12 @@ function RowMain({
               >
                 <span aria-hidden="true">🎯 FdS</span>
               </span>
-              <span className="truncate block text-indigo-900 dark:text-indigo-100">
+              <span className="line-clamp-2 break-words leading-tight text-indigo-900 dark:text-indigo-100">
                 {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
               </span>
             </span>
           ) : (
-            <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
+            <span className="line-clamp-2 break-words leading-tight">{it.procedure_name ?? it.description ?? "—"}</span>
           )}
         </td>
         {colVis.setor_lido && (() => {
@@ -2724,7 +2724,7 @@ function RowMain({
           return <td className={cn(cell, TEXT_META)} title={raw}>{label}</td>;
         })()}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
-          <span className="truncate block">{it.doctor_name}</span>
+          <span className="line-clamp-2 break-words leading-tight">{it.doctor_name}</span>
         </td>
         {colVis.funcao && (
           <td className={cn(cell, TEXT_META)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
