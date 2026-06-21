@@ -220,6 +220,7 @@ const PaymentDetail = () => {
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
+  const [reconRetry, setReconRetry] = useState<(() => Promise<void>) | null>(null);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [obsType, setObsType] = useState<ObservationType>("informativo");
