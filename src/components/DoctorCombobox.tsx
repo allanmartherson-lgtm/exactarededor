@@ -20,6 +20,8 @@ interface Props {
   placeholder?: string;
   className?: string;
   pageSize?: number;
+  /** Se definido, restringe a médicos vinculados a esta PJ (doctor_companies). */
+  filterCompanyId?: string | null;
 }
 
 const PAGE = 20;
@@ -34,6 +36,7 @@ export function DoctorCombobox({
   placeholder = "Buscar médico por nome ou CRM...",
   className,
   pageSize = PAGE,
+  filterCompanyId,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
