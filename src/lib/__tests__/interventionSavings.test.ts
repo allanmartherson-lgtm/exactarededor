@@ -54,7 +54,26 @@ describe("summarizeItems", () => {
       saldo: 0,
       qtd_itens: 0,
     });
+
+  it("cancelamento manual sem motivo de economia real → vai para neutro, não soma no saldo", () => {
+    const items = [
+      // diretor reduziu pagamento — entra como economia
+      item({ delta: 300, role: "diretor" }),
+      // cancelamento de item com motivo neutro (pago em outro lote) — não soma
+      item({ item_id: "i2", delta: 500, role: "cancelamento_item", cancellation_reason: "pago_em_outro_lote" }),
+      // cancelamento de item sem motivo classificado — vai para neutro
+      item({ item_id: "i3", delta: 200, role: "cancelamento_item", cancellation_reason: null }),
+      // cancelamento de item com motivo de economia real — soma como economia
+      item({ item_id: "i4", delta: 100, role: "cancelamento_item", cancellation_reason: "medico_fatura_externamente" }),
+    ];
+    const s = summarizeItems(items);
+    expect(s.economia).toBeCloseTo(400); // 300 + 100
+    expect(s.perda).toBeCloseTo(0);
+    expect(s.neutro).toBeCloseTo(700); // 500 + 200
+    expect(s.saldo).toBeCloseTo(400);
+    expect(s.qtd_itens).toBe(4);
   });
+});
 });
 
 describe("filterItems", () => {
