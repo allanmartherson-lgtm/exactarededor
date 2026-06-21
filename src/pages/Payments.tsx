@@ -1713,16 +1713,20 @@ const Payments = () => {
                           </td>
                           <td className="px-3 py-3 align-middle hidden md:table-cell">
                             <div className="flex flex-col text-[11px]">
-                              <span
-                                className={cn(
-                                  "font-bold",
-                                  finalLvl === "critico" && "text-destructive",
-                                  finalLvl === "leve" && "text-warning-text",
-                                  finalLvl === "none" && "text-foreground",
-                                )}
-                              >
-                                {formatDuration(elapsedMs)} no status
-                              </span>
+                              {SLA_EXEMPT_STATUSES.has(p.status) ? (
+                                <span className="text-muted-foreground">—</span>
+                              ) : (
+                                <span
+                                  className={cn(
+                                    "font-bold",
+                                    finalLvl === "critico" && "text-destructive",
+                                    finalLvl === "leve" && "text-warning-text",
+                                    finalLvl === "none" && "text-foreground",
+                                  )}
+                                >
+                                  {formatDuration(elapsedMs)} no status
+                                </span>
+                              )}
                               <span className="text-muted-foreground text-[10px] capitalize">
                                 {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
                               </span>
