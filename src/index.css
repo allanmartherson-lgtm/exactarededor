@@ -32,8 +32,8 @@ All colors MUST be HSL.
     --accent-light: 35 80% 86%;          /* #F7CEA7 — Pantone 2015 C (dourado claro D'Or) */
 
     /* Mantém token de azul apenas para status info */
-    --accent-blue: 213 94% 50%;
-    --accent-blue-soft: 213 60% 94%;
+    --accent-blue: 211 100% 45%;
+    --accent-blue-soft: 211 90% 95%;
 
     /* ── Copper (legado de status warning) ─────────────────── */
     --copper: 33 100% 50%;
