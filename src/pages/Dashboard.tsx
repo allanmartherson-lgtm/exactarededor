@@ -2166,7 +2166,7 @@ const Dashboard = () => {
                     {combined.map((p) => {
                       const sla = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
                       return (
-                        <TaskRow key={p.id} p={p} mine profiles={profiles} timeMs={sla?.ms} slaLevel={sla?.level} qCount={openQuestionCount[p.id]} />
+                        <TaskRow key={p.id} p={p} mine profiles={profiles} timeMs={sla?.ms} slaLevel={sla?.level} qCount={openQuestionCount[p.id]} density={pipelineDensity} />
                       );
                     })}
                   </div>
