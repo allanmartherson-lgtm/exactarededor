@@ -4450,21 +4450,23 @@ const PaymentDetail = () => {
       />
 
       {/* Dialog disparado quando o trigger de divergência pedido × regra
-          barra o envio analista→validador. Oferece devolver/liberar/abrir
-          empresa em vez de só toast de erro. */}
-      <ReconciliationBlockDialog
-        open={reconBlock !== null}
-        onOpenChange={(v) => { if (!v) { setReconBlock(null); setReconRetry(null); } }}
-        payload={reconBlock}
+          barra o envio analista→validador. Lista TODAS as empresas
+          divergentes do lote em uma só tela para liberação/devolução em
+          massa (em vez de uma por uma). */}
+      <BatchReconciliationBlockDialog
+        open={reconBlock !== null && reconTargets.length > 0}
+        onOpenChange={(v) => { if (!v) { setReconBlock(null); setReconTargets([]); setReconRetry(null); } }}
+        paymentId={id ?? ""}
+        targetGroupIds={reconTargets}
         actorRole="analista"
         currentUserId={user?.id ?? ""}
         currentUserName={user?.user_metadata?.full_name ?? user?.email ?? "Analista"}
-        onResolved={async () => { setReconBlock(null); setReconRetry(null); await load(); }}
-        retryAfterRelease={reconRetry ? async () => {
+        onResolved={async () => { setReconBlock(null); setReconTargets([]); setReconRetry(null); await load(); }}
+        retryAfterRelease={async () => {
           const retry = reconRetry;
           setReconRetry(null);
-          await retry();
-        } : undefined}
+          if (retry) await retry();
+        }}
       />
 
 
