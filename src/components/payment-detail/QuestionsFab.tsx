@@ -29,7 +29,7 @@ export function QuestionsFab({ openCount, onClick, className }: Props) {
         size="lg"
         aria-label="Abrir conversas"
         className={cn(
-          "h-12 w-12 sm:h-14 sm:w-auto sm:pl-5 sm:pr-6 rounded-full shadow-elevated gap-2 ring-1 ring-primary/20 p-0 sm:p-0",
+          "h-12 w-12 p-0 sm:h-14 sm:w-auto sm:px-6 rounded-full shadow-elevated gap-2 ring-1 ring-primary/20",
           "bg-primary text-primary-foreground hover:bg-primary/90",
         )}
       >
