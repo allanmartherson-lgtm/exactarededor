@@ -882,7 +882,7 @@ const Users = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-2">
-                      <Label>CPF *</Label>
+                      <Label>CPF <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                       <Input
                         inputMode="numeric"
                         placeholder="000.000.000-00"
