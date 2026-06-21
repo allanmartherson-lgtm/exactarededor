@@ -303,6 +303,16 @@ export function PaymentBatchActionsFooter({
         onDone={onDone}
       />
 
+      <ReconciliationBlockDialog
+        open={reconBlock !== null}
+        onOpenChange={(v) => { if (!v) setReconBlock(null); }}
+        payload={reconBlock}
+        actorRole={actorRole}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+        onResolved={async () => { setReconBlock(null); await onDone(); }}
+      />
+
       {/* sentinel-removed-card-close-was-here */}
 
       {/* ============== Questionar ============== */}
