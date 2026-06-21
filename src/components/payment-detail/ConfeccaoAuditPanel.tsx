@@ -251,7 +251,9 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
                                   ? "Método vazio porque a Camada 2 (Sem Acordo) encerra a regra sem aplicar nenhum cálculo. O esperado é o valor base do convênio."
                                   : g.method === "exclusao"
                                     ? "Método vazio porque a Camada 2 (Exclusão) bloqueia o item da regra."
-                                    : "Item não foi coberto por nenhuma regra — não há método de cálculo."}
+                                    : g.method === "informativo"
+                                      ? "Regra informativa: casou com o item mas não define método de cálculo. O esperado é o valor base do convênio."
+                                      : "Item não foi coberto por nenhuma regra — não há método de cálculo."}
                               </TooltipContent>
                             )}
                           </Tooltip>
