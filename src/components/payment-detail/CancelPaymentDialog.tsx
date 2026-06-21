@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,13 +17,35 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, XCircle, TrendingUp, MinusCircle, AlertTriangle } from "lucide-react";
+import { Loader2, XCircle, TrendingUp, MinusCircle, AlertTriangle, Sparkles } from "lucide-react";
 import {
   REASON_GROUPS,
   REASON_LABELS,
   isEconomiaRealReason,
   type CancellationReason,
 } from "@/lib/cancelledPayments";
+
+/** Normaliza nome de médico para matching (mesma lógica do PaymentConciliationModal). */
+const normName = (s: string | null | undefined): string =>
+  (s ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** Normaliza atendimento — só dígitos. */
+const normAtt = (s: string | null | undefined): string => (s ?? "").toString().replace(/\D/g, "");
+
+/** Normaliza TUSS — só dígitos, 8 chars padding. */
+const normCode = (s: string | null | undefined): string => {
+  const d = (s ?? "").toString().replace(/\D/g, "");
+  if (!d) return "";
+  return d.length >= 8 ? d.slice(-8) : d.padStart(8, "0");
+};
+
 
 interface Props {
   level: "group" | "item";
