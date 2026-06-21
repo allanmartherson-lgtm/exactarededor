@@ -5,11 +5,16 @@
  */
 
 export type CancellationReason =
+  // Economia real — regra dizia que valor não era devido
   | "medico_fatura_externamente"
   | "contrato_encerrado"
   | "glosa_total_quitada"
   | "decisao_juridica"
   | "duplicidade_externa"
+  | "economia_real"
+  // Neutros — não geram economia nem perda no saldo de intervenção
+  | "pago_em_outro_lote"
+  | "duplicidade_motor"
   | "outro";
 
 export const REASON_LABELS: Record<CancellationReason, string> = {
@@ -18,15 +23,66 @@ export const REASON_LABELS: Record<CancellationReason, string> = {
   glosa_total_quitada: "Glosa total quitada",
   decisao_juridica: "Decisão jurídica",
   duplicidade_externa: "Duplicidade externa",
+  economia_real: "Economia real (regra não previa pagamento)",
+  pago_em_outro_lote: "Pago em outro lote / competência",
+  duplicidade_motor: "Duplicidade — motor já calculou automaticamente",
   outro: "Outro",
 };
 
-export const ALL_REASONS: CancellationReason[] = [
+/** Motivos que representam economia real para o hospital (entram no saldo do KPI). */
+export const ECONOMIA_REAL_REASONS: ReadonlySet<CancellationReason> = new Set([
   "medico_fatura_externamente",
   "contrato_encerrado",
   "glosa_total_quitada",
   "decisao_juridica",
   "duplicidade_externa",
+  "economia_real",
+]);
+
+/** Motivos neutros: cancelamento é operacional, não representa ganho nem perda. */
+export const NEUTRAL_REASONS: ReadonlySet<CancellationReason> = new Set([
+  "pago_em_outro_lote",
+  "duplicidade_motor",
+]);
+
+/** "outro" é tratado como neutro por segurança: sem motivo claro, não conta como economia. */
+export const isEconomiaRealReason = (r: string | null | undefined): boolean =>
+  !!r && ECONOMIA_REAL_REASONS.has(r as CancellationReason);
+
+/** Agrupamento visual para o <Select> do diálogo de cancelamento. */
+export const REASON_GROUPS: Array<{
+  label: string;
+  hint: string;
+  reasons: CancellationReason[];
+}> = [
+  {
+    label: "Conta como economia",
+    hint: "Valor que de fato não devia ser pago — entra no saldo do KPI de intervenção.",
+    reasons: [
+      "economia_real",
+      "medico_fatura_externamente",
+      "contrato_encerrado",
+      "glosa_total_quitada",
+      "decisao_juridica",
+      "duplicidade_externa",
+    ],
+  },
+  {
+    label: "Não conta no saldo (operacional)",
+    hint: "Cancelamento sem impacto financeiro: ajuste, deslocamento ou duplicidade. Aparece no relatório mas não soma como economia.",
+    reasons: ["pago_em_outro_lote", "duplicidade_motor", "outro"],
+  },
+];
+
+export const ALL_REASONS: CancellationReason[] = [
+  "economia_real",
+  "medico_fatura_externamente",
+  "contrato_encerrado",
+  "glosa_total_quitada",
+  "decisao_juridica",
+  "duplicidade_externa",
+  "pago_em_outro_lote",
+  "duplicidade_motor",
   "outro",
 ];
 
