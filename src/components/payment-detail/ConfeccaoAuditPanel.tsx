@@ -104,14 +104,18 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
         ((it.ai_findings?.matched_rule_ids?.[0] as string | undefined) ?? null);
       const rawMethod = (it.applied_calc_method ?? "") as string;
       const label = anyIt.applied_rule_label ?? null;
+      const ruleObj = ruleId ? rulesIndex[ruleId] : undefined;
+      const calcType = ruleObj?.calculation_type ?? null;
       const method = rawMethod
         ? rawMethod
         : label && /Sem acordo/i.test(label)
           ? "sem_acordo"
           : label && /Exclus[ãa]o/i.test(label)
             ? "exclusao"
-            : "sem_regra";
-      const camada = detectCamada(label, method, ruleId);
+            : ruleId
+              ? (calcType || "informativo") // regra vinculada sem método → usar calculation_type, nunca "sem_regra"
+              : "sem_regra";
+      const camada = detectCamada(label, method, ruleId, calcType);
       const key = `${ruleId ?? "—"}|${method}|${camada}`;
       const entry = m.get(key) ?? {
         rule: ruleId ? rulesIndex[ruleId] : undefined,
