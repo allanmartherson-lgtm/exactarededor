@@ -30,6 +30,8 @@ import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { ReleaseInvoiceRequestDialog } from "@/components/payment-detail/ReleaseInvoiceRequestDialog";
+import { ReconciliationBlockDialog } from "@/components/payment-detail/ReconciliationBlockDialog";
+import { parseReconciliationBlock, type ReconciliationBlockPayload } from "@/lib/parseReconciliationBlock";
 import { BulkReleaseInvoiceRequestDialog } from "@/components/payment-detail/BulkReleaseInvoiceRequestDialog";
 import { GroupReconciliationGate } from "@/components/payment-detail/GroupReconciliationGate";
 import { CompanyListLegend } from "@/components/payment-detail/CompanyListLegend";
@@ -217,6 +219,7 @@ const PaymentDetail = () => {
   const [markerFilter, setMarkerFilter] = useState<"all" | "pinned" | "waiting" | "reviewed">("all");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [obsType, setObsType] = useState<ObservationType>("informativo");
@@ -730,6 +733,15 @@ const PaymentDetail = () => {
     );
     if (rpcErr) {
       setBusy(false);
+      // Bloqueio do trigger de divergência pedido × regra: abre dialog
+      // com ações diretas (devolver/liberar/abrir empresa) em vez de
+      // só toast. Vale para o envio analista→validador agora que o gate
+      // dispara também em 'aguardando_validacao'.
+      const block = parseReconciliationBlock(rpcErr);
+      if (block) {
+        setReconBlock(block);
+        return;
+      }
       toast({ title: "Falha ao enviar para validação", description: rpcErr.message, variant: "destructive" });
       return;
     }
@@ -4429,6 +4441,19 @@ const PaymentDetail = () => {
         onOpenChange={setBonusDialogOpen}
         lockedPayment={payment ? { id: payment.id, reference: payment.reference } : null}
         onSaved={() => load()}
+      />
+
+      {/* Dialog disparado quando o trigger de divergência pedido × regra
+          barra o envio analista→validador. Oferece devolver/liberar/abrir
+          empresa em vez de só toast de erro. */}
+      <ReconciliationBlockDialog
+        open={reconBlock !== null}
+        onOpenChange={(v) => { if (!v) setReconBlock(null); }}
+        payload={reconBlock}
+        actorRole="analista"
+        currentUserId={user?.id ?? ""}
+        currentUserName={user?.user_metadata?.full_name ?? user?.email ?? "Analista"}
+        onResolved={async () => { setReconBlock(null); await load(); }}
       />
 
 

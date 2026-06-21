@@ -20,6 +20,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
 import type { GroupRow } from "@/hooks/usePaymentDetailData";
+import { parseReconciliationBlock, type ReconciliationBlockPayload } from "@/lib/parseReconciliationBlock";
+import { ReconciliationBlockDialog } from "./ReconciliationBlockDialog";
 
 interface Props {
   paymentId: string;
@@ -56,6 +58,7 @@ export function PaymentBatchActionsFooter({
   const [gateOpen, setGateOpen] = useState(false);
   const [externalOpen, setExternalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
 
   const pendencias = useMemo(() => {
     const list = items ?? [];
@@ -150,6 +153,14 @@ export function PaymentBatchActionsFooter({
     });
     setBusy(false);
     if (error) {
+      // Trata especificamente o bloqueio do trigger de divergência:
+      // abre o ReconciliationBlockDialog com ações diretas (devolver,
+      // liberar, abrir empresa) em vez de só toast.
+      const block = parseReconciliationBlock(error);
+      if (block) {
+        setReconBlock(block);
+        return;
+      }
       toast({
         title: actorRole === "diretor" ? "Falha ao aprovar" : "Falha ao encaminhar ao diretor",
         description: error.message,
@@ -290,6 +301,16 @@ export function PaymentBatchActionsFooter({
         stage={actorRole === "diretor" ? "approval" : "validation"}
         registeredById={currentUserId}
         onDone={onDone}
+      />
+
+      <ReconciliationBlockDialog
+        open={reconBlock !== null}
+        onOpenChange={(v) => { if (!v) setReconBlock(null); }}
+        payload={reconBlock}
+        actorRole={actorRole}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+        onResolved={async () => { setReconBlock(null); await onDone(); }}
       />
 
       {/* sentinel-removed-card-close-was-here */}

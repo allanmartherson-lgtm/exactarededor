@@ -40,7 +40,9 @@ export function ReleaseDivergenceDialog({
   const [justification, setJustification] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const canRelease = hasRole("diretor") || hasRole("admin");
+  // Validador é o último guardião antes do diretor; ele assume a exceção
+  // quando aceita conscientemente a divergência (auditado pelo override).
+  const canRelease = hasRole("validador") || hasRole("diretor") || hasRole("admin");
   const diferenca = brutoPedido - brutoRegra;
 
   const submit = async () => {
