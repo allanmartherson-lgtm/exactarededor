@@ -1469,6 +1469,7 @@ const Payments = () => {
                 <Button
                   variant={archivedView ? "default" : "outline"}
                   size="sm"
+                  className={archivedView ? undefined : "text-muted-foreground"}
                   onClick={() => {
                     const next = !archivedView;
                     setArchivedView(next);
