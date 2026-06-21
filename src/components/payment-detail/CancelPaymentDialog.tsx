@@ -76,6 +76,69 @@ export default function CancelPaymentDialog({
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Sugestão automática de "duplicidade_motor": quando o item-alvo é manual
+  // (sem applied_calc_id) e existe um item-irmão no mesmo lote, com mesmo
+  // (atendimento + TUSS + médico) já calculado automaticamente pelo motor.
+  // Só sugere — analista precisa selecionar o motivo manualmente.
+  const [duplicateSuggestion, setDuplicateSuggestion] = useState<{
+    siblingId: string;
+    siblingLabel: string;
+  } | null>(null);
+  const [detecting, setDetecting] = useState(false);
+
+  useEffect(() => {
+    if (!open || level !== "item" || !targetId) {
+      setDuplicateSuggestion(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setDetecting(true);
+      try {
+        const { data: current, error: e1 } = await supabase
+          .from("payment_items")
+          .select("id, payment_id, attendance_number, procedure_code, doctor_name, applied_calc_id, applied_rule_label, cancelled_at")
+          .eq("id", targetId)
+          .maybeSingle();
+        if (cancelled || e1 || !current) return;
+        // Se o próprio item já foi calculado pelo motor, NÃO é duplicidade manual.
+        if (current.applied_calc_id) return;
+        const att = normAtt(current.attendance_number);
+        const code = normCode(current.procedure_code);
+        const name = normName(current.doctor_name);
+        if (!att || !code || !name) return;
+
+        const { data: siblings, error: e2 } = await supabase
+          .from("payment_items")
+          .select("id, attendance_number, procedure_code, doctor_name, applied_calc_id, applied_rule_label, cancelled_at")
+          .eq("payment_id", current.payment_id)
+          .neq("id", current.id)
+          .not("applied_calc_id", "is", null)
+          .is("cancelled_at", null)
+          .limit(50);
+        if (cancelled || e2 || !siblings?.length) return;
+        const match = siblings.find(
+          (s) =>
+            normAtt(s.attendance_number) === att &&
+            normCode(s.procedure_code) === code &&
+            normName(s.doctor_name) === name,
+        );
+        if (match) {
+          setDuplicateSuggestion({
+            siblingId: match.id,
+            siblingLabel: match.applied_rule_label || "regra aplicada automaticamente",
+          });
+        }
+      } finally {
+        if (!cancelled) setDetecting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, level, targetId]);
+
+
   const handle = async () => {
     if (!reason) {
       toast.error("Selecione um motivo");
