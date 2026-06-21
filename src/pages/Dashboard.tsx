@@ -3034,6 +3034,7 @@ const BatchProgressRow = ({ p, qCount = 0, groupStatuses = [] }: { p: PaymentRow
               score={risk.score} 
               financialData={risk}
               showLabel={false}
+              compact
               className="scale-90 shrink-0"
             />
           )}
