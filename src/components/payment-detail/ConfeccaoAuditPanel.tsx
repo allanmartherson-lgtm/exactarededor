@@ -229,7 +229,7 @@ export function ConfeccaoAuditPanel({ items, rulesIndex }: ConfeccaoAuditPanelPr
                                   info.tone === "warn" && "border-amber-500/50 text-amber-700 dark:text-amber-400",
                                 )}
                               >
-                                {g.camada === "—" ? "—" : `Camada ${g.camada}`}
+                                {g.camada === "—" ? "—" : g.camada === "I" ? "Informativa" : `Camada ${g.camada}`}
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-xs">
