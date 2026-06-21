@@ -50,7 +50,7 @@ export default function CadastrosHub() {
       case "convenios": return <Convenios embedded />;
       case "centros-de-custo": return <CostCenters embedded />;
       case "tipos-pagamento": return <PaymentTypes embedded />;
-      case "diretores": return <Directors embedded />;
+      
       case "mapa-especialidades": return <ProcedureSpecialtyMap embedded />;
     }
   }, [active]);
