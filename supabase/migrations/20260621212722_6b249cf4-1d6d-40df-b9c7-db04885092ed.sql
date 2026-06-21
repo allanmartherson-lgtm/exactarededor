@@ -1,0 +1,1 @@
+DELETE FROM public.payments WHERE is_test = true OR reference LIKE '__test_%';
