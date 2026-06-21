@@ -214,7 +214,7 @@ export function BonusPacienteDialog({
         ai_status: "aprovado",
         manual_entry: true,
         source: "manual",
-        item_origin: "producao",
+        item_origin: "bonus",
         raw_data: r.raw as any,
       }));
 
