@@ -174,6 +174,7 @@ const Pendencias = lazy(loadPendencias);
 const SpecialCases = lazy(loadSpecialCases);
 const SpecialCasesReport = lazy(loadSpecialCasesReport);
 const SpecialCaseTypesAdmin = lazy(loadSpecialCaseTypesAdmin);
+const SpecialCasesHub = lazy(loadSpecialCasesHub);
 const Conciliacao = lazy(loadConciliacao);
 const PendenciaDetail = lazy(loadPendenciaDetail);
 const Conversas = lazy(loadConversas);
