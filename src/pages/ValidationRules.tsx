@@ -243,7 +243,7 @@ const emptyForm = (): FormState => ({
   assistance_group_id: null,
 });
 
-export default function ValidationRules() {
+export default function ValidationRules({ embedded = false }: { embedded?: boolean } = {}) {
   const [rules, setRules] = useState<ValidationRule[]>([]);
   const [groups, setGroups] = useState<AssistanceGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -819,9 +819,9 @@ export default function ValidationRules() {
   return (
     <div>
       <PageHeader
-        title="Regras de Validação"
-        icon={ShieldCheck}
-        description="Regras assistenciais e contratuais aplicadas automaticamente pelo sistema. Complementam a análise financeira sem alterá-la — cada alerta requer avaliação do analista."
+        title={embedded ? "" : "Regras de Validação"}
+        icon={embedded ? undefined : ShieldCheck}
+        description={embedded ? "" : "Regras assistenciais e contratuais aplicadas automaticamente pelo sistema. Complementam a análise financeira sem alterá-la — cada alerta requer avaliação do analista."}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={exportAllToPDF}><FileDown className="h-4 w-4 mr-2" /> Exportar Relatório</Button>

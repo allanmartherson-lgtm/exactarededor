@@ -117,7 +117,7 @@ const STATUS_LABEL: Record<Status, { label: string; cls: string; icon: any }> = 
 
 const BRL = (n: number | null | undefined) => n == null ? "—" : n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function RuleSimulatorBatch() {
+export default function RuleSimulatorBatch({ embedded = false }: { embedded?: boolean } = {}) {
   const { hospital } = useHospital();
   const fileRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<RawItem[]>([]);

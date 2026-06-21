@@ -1666,7 +1666,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
   return (
     <>
-      <PageHeader title="Regras de Pagamento" icon={BadgeDollarSign} description="A IA usa essas regras para analisar cada pagamento."
+      <PageHeader title={embedded ? "" : "Regras de Pagamento"} icon={embedded ? undefined : BadgeDollarSign} description={embedded ? "" : "A IA usa essas regras para analisar cada pagamento."}
         actions={<>
           {/* Menu "Mais ações" — agrupa CTAs secundárias para reduzir ruído visual */}
           <DropdownMenu>
