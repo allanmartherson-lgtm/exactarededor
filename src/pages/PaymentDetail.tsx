@@ -2551,7 +2551,7 @@ const PaymentDetail = () => {
                 )}
                 {canReimport && (
                   <DropdownMenuItem disabled={busy} onSelect={() => setBonusDialogOpen(true)}>
-                    <Sparkles className="h-4 w-4 mr-2" /> Adicionar bônus por paciente
+                    <Sparkles className="h-4 w-4 mr-2" /> Adicionar pagamento avulso (atendimento)
                   </DropdownMenuItem>
                 )}
 
