@@ -48,7 +48,8 @@ export function ExportColumnPickerDialog({
     } catch {}
     setOrder(defaultOrder);
     setSelected(new Set(defaultOrder));
-  }, [open, storageKey, allColumns, defaultOrder]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, storageKey]);
 
   const move = (id: string, dir: -1 | 1) => {
     setOrder((prev) => {
