@@ -21,13 +21,16 @@ import {
   emptyResult,
   filterItems,
   impactTone,
+  isCancellationNeutral,
   itemsToCsv,
   summarizeItems,
   roleLabel,
   type InterventionFilters,
+  type InterventionItem,
   type InterventionSavingsResult,
   type IntervenorRole,
 } from "@/lib/interventionSavings";
+import { reasonLabel, isEconomiaRealReason } from "@/lib/cancelledPayments";
 import { logExport } from "@/lib/exportLog";
 
 type Range = 7 | 30 | 90 | 180;
