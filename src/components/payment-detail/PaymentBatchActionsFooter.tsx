@@ -21,7 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
 import type { GroupRow } from "@/hooks/usePaymentDetailData";
 import { parseReconciliationBlock, type ReconciliationBlockPayload } from "@/lib/parseReconciliationBlock";
-import { ReconciliationBlockDialog } from "./ReconciliationBlockDialog";
+import { BatchReconciliationBlockDialog } from "./BatchReconciliationBlockDialog";
 
 interface Props {
   paymentId: string;
