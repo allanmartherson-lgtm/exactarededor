@@ -2615,7 +2615,7 @@ function RowMain({
     : "bg-card";
   const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted" : "";
   const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
-  const wrapClass = isCompact ? "truncate" : "line-clamp-2 break-words leading-tight";
+  const wrapClass = isCompact ? "truncate" : {wrapClass};
   const cell = cn(cellPad, "border-b align-top", isCompact ? "whitespace-nowrap" : "break-words", baseCellBg);
   const stickyCell = cn(
     cellPad,
@@ -2664,7 +2664,7 @@ function RowMain({
                 <Pencil className="h-2.5 w-2.5" />
               </Badge>
             )}
-            <span className="line-clamp-2 break-words leading-tight">{paciente}</span>
+            <span className={wrapClass}>{paciente}</span>
           </div>
         </td>
         {colVis.convenio && (
@@ -2701,12 +2701,12 @@ function RowMain({
               >
                 <span aria-hidden="true">🎯 FdS</span>
               </span>
-              <span className="line-clamp-2 break-words leading-tight text-indigo-900 dark:text-indigo-100">
+              <span className={cn(wrapClass, "text-indigo-900 dark:text-indigo-100")}>
                 {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
               </span>
             </span>
           ) : (
-            <span className="line-clamp-2 break-words leading-tight">{it.procedure_name ?? it.description ?? "—"}</span>
+            <span className={wrapClass}>{it.procedure_name ?? it.description ?? "—"}</span>
           )}
         </td>
         {colVis.setor_lido && (() => {
@@ -2726,7 +2726,7 @@ function RowMain({
           return <td className={cn(cell, TEXT_META)} title={raw}>{label}</td>;
         })()}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
-          <span className="line-clamp-2 break-words leading-tight">{it.doctor_name}</span>
+          <span className={wrapClass}>{it.doctor_name}</span>
         </td>
         {colVis.funcao && (
           <td className={cn(cell, TEXT_META)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
