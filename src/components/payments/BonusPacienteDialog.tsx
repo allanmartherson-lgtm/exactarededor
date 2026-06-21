@@ -26,7 +26,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Upload, AlertTriangle, CheckCircle2, FileSpreadsheet } from "lucide-react";
+import {
+  Loader2,
+  Sparkles,
+  Upload,
+  AlertTriangle,
+  CheckCircle2,
+  FileSpreadsheet,
+} from "lucide-react";
 import {
   parseBonusPacienteFile,
   type BonusParseResult,
@@ -77,20 +84,19 @@ export function BonusPacienteDialog({
     if (!open) reset();
   }, [open]);
 
-  // Carrega pagamentos em andamento do hospital ativo
   useEffect(() => {
-    if (!open || !activeHospital?.id) return;
+    if (!open || !hospital?.id) return;
     (async () => {
       const { data } = await supabase
         .from("payments")
         .select("id, reference, status")
-        .eq("hospital_id", activeHospital.id)
+        .eq("hospital_id", hospital.id)
         .not("status", "in", "(aprovado,pago,cancelado,arquivado)")
         .order("created_at", { ascending: false })
         .limit(50);
       setOpenPayments((data ?? []) as OpenPayment[]);
     })();
-  }, [open, activeHospital?.id]);
+  }, [open, hospital?.id]);
 
   // Quando escolhe empresa, tenta puxar médico único da PJ
   useEffect(() => {
@@ -98,12 +104,12 @@ export function BonusPacienteDialog({
     (async () => {
       const { data } = await supabase
         .from("doctor_companies")
-        .select("doctor_id, doctors!inner(id, full_name, active)")
+        .select("doctor_id, doctors!inner(id, full_name, active, crm, crm_uf)")
         .eq("company_id", company.id);
       const active = (data ?? []).filter((d: any) => d.doctors?.active);
       if (active.length === 1) {
-        setDoctorId(active[0].doctor_id);
-        setDoctorName(active[0].doctors.full_name);
+        const d = active[0].doctors as any;
+        setDoctor({ id: d.id, name: d.full_name, crm: d.crm ?? null, crm_uf: d.crm_uf ?? null });
       }
     })();
   }, [company?.id]);
@@ -138,39 +144,40 @@ export function BonusPacienteDialog({
     !!parsed &&
     parsed.rows.length > 0 &&
     !!company &&
-    !!doctorId &&
+    !!doctor &&
     (mode === "existing" ? !!targetPaymentId : newReference.trim().length >= 3);
 
   const submit = async () => {
-    if (!canSubmit || !parsed || !company || !doctorId || !activeHospital?.id || !user?.id) return;
+    if (!canSubmit || !parsed || !company || !doctor || !hospital?.id || !user?.id) return;
     setBusy(true);
     try {
       let paymentId = targetPaymentId;
 
       if (mode === "new") {
+        const insertPayload: any = {
+          reference: newReference.trim(),
+          status: "rascunho",
+          payment_type: "bonus_paciente",
+          payment_kind: "producao",
+          hospital_id: hospital.id,
+          created_by: user.id,
+          total_amount: totalSum,
+          items_count: parsed.rows.length,
+        };
         const { data: created, error } = await supabase
           .from("payments")
-          .insert({
-            reference: newReference.trim(),
-            status: "rascunho",
-            payment_type: "bonus_paciente",
-            payment_kind: "producao",
-            hospital_id: activeHospital.id,
-            created_by: user.id,
-            total_amount: totalSum,
-            items_count: parsed.rows.length,
-          })
+          .insert(insertPayload)
           .select("id")
           .single();
         if (error) throw error;
         paymentId = created.id;
       }
 
-      const itemsPayload = parsed.rows.map((r) => ({
+      const itemsPayload: any[] = parsed.rows.map((r) => ({
         payment_id: paymentId,
-        hospital_id: activeHospital.id,
-        doctor_id: doctorId,
-        doctor_name: doctorName || "—",
+        hospital_id: hospital.id,
+        doctor_id: doctor.id,
+        doctor_name: doctor.name,
         company_id: company.id,
         company_name: company.name,
         patient_name: r.patient_name,
@@ -184,7 +191,7 @@ export function BonusPacienteDialog({
         applied_calc_method: "bonus_paciente_passthrough",
         applied_rule_label: "Bônus por paciente (pass-through)",
         applied_at: new Date().toISOString(),
-        ai_status: "aprovado" as const,
+        ai_status: "aprovado",
         manual_entry: true,
         source: "manual",
         item_origin: "producao",
@@ -199,7 +206,10 @@ export function BonusPacienteDialog({
         .from("payment_items")
         .select("gross_amount")
         .eq("payment_id", paymentId);
-      const totalAll = (items ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0);
+      const totalAll = (items ?? []).reduce(
+        (s, r: any) => s + Number(r.gross_amount ?? 0),
+        0,
+      );
       await supabase
         .from("payments")
         .update({ items_count: items?.length ?? 0, total_amount: totalAll })
@@ -219,14 +229,14 @@ export function BonusPacienteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[min(48rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[min(48rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto space-y-4">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" /> Bônus por paciente
           </DialogTitle>
           <DialogDescription>
-            Para planilhas em que cada linha é um paciente atendido. O valor da planilha é
-            o que será pago — sem cálculo de regra.
+            Para planilhas em que cada linha é um paciente atendido. O valor da planilha é o
+            que será pago — sem cálculo de regra.
           </DialogDescription>
         </DialogHeader>
 
@@ -244,7 +254,7 @@ export function BonusPacienteDialog({
           </div>
           {file && parsed && (
             <div className="rounded-md border border-border/50 p-3 bg-muted/30 space-y-2">
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-sm flex-wrap">
                 <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium truncate">{file.name}</span>
                 <Badge variant="secondary">{parsed.rows.length} linha(s)</Badge>
@@ -254,8 +264,10 @@ export function BonusPacienteDialog({
                 Colunas detectadas: paciente=
                 <b>{parsed.detected_columns.patient ?? "—"}</b>, valor=
                 <b>{parsed.detected_columns.value}</b>
-                {parsed.detected_columns.doctor && `, profissional=${parsed.detected_columns.doctor}`}
-                {parsed.detected_columns.agreement && `, convênio=${parsed.detected_columns.agreement}`}
+                {parsed.detected_columns.doctor &&
+                  `, profissional=${parsed.detected_columns.doctor}`}
+                {parsed.detected_columns.agreement &&
+                  `, convênio=${parsed.detected_columns.agreement}`}
               </div>
               {parsed.warnings.map((w, i) => (
                 <div key={i} className="text-[11px] text-warning flex items-center gap-1">
@@ -287,14 +299,11 @@ export function BonusPacienteDialog({
           <div className="space-y-1">
             <Label>Médico responsável</Label>
             <DoctorCombobox
-              value={doctorId}
-              onChange={(id, name) => {
-                setDoctorId(id);
-                setDoctorName(name ?? "");
-              }}
+              value={doctor}
+              onChange={setDoctor}
               placeholder={company ? "Selecionar médico" : "Escolha a PJ primeiro"}
             />
-            {company && doctorId && (
+            {company && doctor && (
               <p className="text-[11px] text-muted-foreground">
                 Todas as {parsed?.rows.length ?? 0} linhas serão atribuídas a este médico.
               </p>
