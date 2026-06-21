@@ -67,21 +67,39 @@ export const birthDateSchema = z
     message: "Data de nascimento inválida (use AAAA-MM-DD, idade entre 14 e 120 anos).",
   });
 
+// Aceita vazio (analista pode cadastrar sem ter o dado ainda)
+export const birthDateOptionalSchema = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v) => (v ?? "").trim())
+  .refine((v) => v === "" || isValidBirthDate(v), {
+    message: "Data de nascimento inválida (use AAAA-MM-DD, idade entre 14 e 120 anos).",
+  });
+
 export const cpfSchema = z
   .string()
   .trim()
   .refine((v) => isValidCPF(v), { message: "CPF inválido (verifique os dígitos)." })
   .transform((v) => onlyDigits(v));
 
+export const cpfOptionalSchema = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v) => onlyDigits(v ?? ""))
+  .refine((v) => v === "" || isValidCPF(v), { message: "CPF inválido (verifique os dígitos)." });
+
 export const userExtraSchema = z.object({
   full_name: z.string().trim().min(2, "Informe o nome completo").max(120),
   email: z.string().trim().email("E-mail inválido").max(255),
-  cpf: cpfSchema,
+  cpf: cpfOptionalSchema,
   phone: phoneSchema,
   role_title: z.string().trim().min(2, "Informe o cargo").max(80),
   department: z.string().trim().min(2, "Informe o setor").max(80),
-  birth_date: birthDateSchema,
+  birth_date: birthDateOptionalSchema,
 });
 
 export type UserExtraFields = z.infer<typeof userExtraSchema>;
+
 

@@ -521,7 +521,7 @@ const Users = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-2">
-                      <Label>CPF *</Label>
+                      <Label>CPF <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                       <Input inputMode="numeric" placeholder="000.000.000-00"
                         value={formatCPF(form.cpf)}
                         onChange={(e) => setForm({ ...form, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
@@ -544,7 +544,7 @@ const Users = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Data de nascimento *</Label>
+                    <Label>Data de nascimento <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                     <Input type="date" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
                   </div>
                   <div className="space-y-2">
@@ -882,7 +882,7 @@ const Users = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-2">
-                      <Label>CPF *</Label>
+                      <Label>CPF <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                       <Input
                         inputMode="numeric"
                         placeholder="000.000.000-00"
@@ -912,7 +912,7 @@ const Users = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Data de nascimento *</Label>
+                    <Label>Data de nascimento <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                     <Input type="date" value={editingUser.birth_date} onChange={(e) => setEditingUser({ ...editingUser, birth_date: e.target.value })} />
                   </div>
                 </section>
