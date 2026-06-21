@@ -129,6 +129,20 @@ describe("computeDashboardCounts — mineAnalista", () => {
 });
 
 describe("computeDashboardCounts — mineValidador", () => {
+  it("conta lote inteiro em aguardando_validacao mesmo sem grupo por empresa", () => {
+    const r = computeDashboardCounts({
+      payments: [make("p1", "aguardando_validacao")],
+      groupsByPayment: {},
+      companiesByPayment: { p1: ["c1"] },
+      uid: UID,
+      roles: ["validador"],
+    });
+    expect(r.mineValidador).toBe(1);
+    expect(r.mineValidadorCompanies).toBe(1);
+    expect(r.teamValidacao).toBe(1);
+    expect(r.pipeValidacao).toBe(1);
+  });
+
   it("conta lotes com qualquer grupo em aguardando_validacao", () => {
     const r = computeDashboardCounts({
       payments: [
