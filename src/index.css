@@ -575,10 +575,9 @@ All colors MUST be HSL.
       align-self: flex-start;
     }
 
-    /* TaskRow (Minhas tarefas) — also stack and reduce padding */
+    /* TaskRow (Minhas tarefas) — padding/spacing now driven by density prop in JS.
+       Keep only the wrap behavior here so flex chips don't overflow on small screens. */
     .task-row:not(.payment-task-row) {
-      padding: 12px 14px !important;
-      gap: 10px !important;
       flex-wrap: wrap;
     }
 
