@@ -737,6 +737,9 @@ const Payments = () => {
   const elapsedFor = (p: Row) => now - new Date(statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at).getTime();
 
   const slaFor = (p: Row) => {
+    // Concluídos/terminais não têm SLA — evita exibir "perto do prazo" / "vencido"
+    // em lotes que já saíram do fluxo (ex.: pagos, lançados, arquivados).
+    if (SLA_EXEMPT_STATUSES.has(p.status)) return null;
     const enteredAt = new Date(statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at);
     const compId = companyByPayment[p.id] ?? null;
     const ov = compId ? companyOverrides[compId] ?? null : null;
