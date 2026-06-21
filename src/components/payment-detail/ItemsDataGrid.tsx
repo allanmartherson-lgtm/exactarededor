@@ -3048,6 +3048,10 @@ function ItemDetailsRow({
   const explanation = it.ai_findings?.calculation_explanation;
   const engine = it.ai_findings?.engine ?? null;
   const aiNote = engine?.ai_note;
+  // Colapso "Detalhes técnicos": esconde por padrão fórmula completa, trilha de
+  // decisão, justificativa, auditoria de normalização, hierarquia e coerência.
+  // Mantém visível só o essencial: Regra + Valor calculado + Alertas + Histórico.
+  const [showTechnical, setShowTechnical] = useState(false);
   const diff = expected != null ? Number(expected) - Number(it.gross_amount ?? 0) : null;
   const diffPct = (engine?.diff_pct ?? null) as number | null;
   const priority = (engine?.matched_priority ?? null) as RuleMatchPriority | null;
