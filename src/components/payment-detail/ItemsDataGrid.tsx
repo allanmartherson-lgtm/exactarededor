@@ -2665,7 +2665,7 @@ function RowMain({
               <span>{it.attendance_number ?? "—"}</span>
               {(it as any).special_case_status === "approved" && (it as any).special_case_code && (
                 <span
-                  className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-amber-100 text-amber-800 border border-amber-300"
+                  className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-muted text-muted-foreground border border-border"
                   title={`Caso especial ativo: ${(it as any).special_case_code}`}
                 >
                   CE

@@ -109,7 +109,7 @@ export const HospitalSwitcher = ({ className }: { className?: string }) => {
               {hospital.name}
             </span>
           </div>
-          <Badge variant="secondary" className="ml-1 text-[10px] font-normal shrink-0">
+          <Badge variant="secondary" className="ml-1 text-[10px] font-normal shrink-0 bg-muted text-muted-foreground hover:bg-muted">
             {hospital.state_uf}
           </Badge>
           <ChevronsUpDown className="h-3.5 w-3.5 opacity-60 ml-0.5 shrink-0" />

@@ -1469,6 +1469,7 @@ const Payments = () => {
                 <Button
                   variant={archivedView ? "default" : "outline"}
                   size="sm"
+                  className={archivedView ? undefined : "text-muted-foreground"}
                   onClick={() => {
                     const next = !archivedView;
                     setArchivedView(next);
@@ -1511,8 +1512,8 @@ const Payments = () => {
                   </Select>
                 )}
                 <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v as "lista" | "kanban")} variant="outline" size="sm">
-                  <ToggleGroupItem value="lista">Lista</ToggleGroupItem>
-                  <ToggleGroupItem value="kanban">Kanban</ToggleGroupItem>
+                  <ToggleGroupItem value="lista" className="data-[state=on]:bg-muted data-[state=on]:text-foreground hover:bg-muted hover:text-foreground">Lista</ToggleGroupItem>
+                  <ToggleGroupItem value="kanban" className="data-[state=on]:bg-muted data-[state=on]:text-foreground hover:bg-muted hover:text-foreground">Kanban</ToggleGroupItem>
                 </ToggleGroup>
               </div>
             </>
