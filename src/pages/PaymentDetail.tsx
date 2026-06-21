@@ -23,6 +23,8 @@ import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/Payme
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { PaymentBatchExportDialog } from "@/components/payment-detail/PaymentBatchExportDialog";
+import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
+
 import { ExportColumnPickerDialog } from "@/components/payment-detail/ExportColumnPickerDialog";
 import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
