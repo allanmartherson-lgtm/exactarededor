@@ -88,15 +88,15 @@ All colors MUST be HSL.
     --shadow-elevated: 0 4px 8px -1px rgb(13 17 23 / 0.1), 0 8px 20px -4px rgb(13 17 23 / 0.08);
     --shadow-inset: inset 0 1px 2px rgb(13 17 23 / 0.04);
     --shadow-control: 0 1px 2px rgb(13 17 23 / 0.04);
-    --gradient-brand: linear-gradient(135deg, hsl(164 33% 26%), hsl(165 33% 36%));
-    --gradient-soft: linear-gradient(135deg, hsl(60 23% 98%), hsl(60 23% 95%));
+    --gradient-brand: linear-gradient(135deg, hsl(214 100% 17%), hsl(214 100% 32%));   /* navy → azul D'Or */
+    --gradient-soft: linear-gradient(135deg, hsl(214 40% 98%), hsl(214 40% 95%));      /* off-white azulado */
 
     /* ── Bubble tokens ──────────────────────────────────── */
     /* Rebrand: tons alinhados a forest-green (#2D5A4E) + copper (#C8A96E).
        Mantém variação suficiente para distinguir etapas do pipeline sem
        sair da paleta da marca. */
-    --bubble-purple-bg: 164 30% 90%;     /* forest soft */
-    --bubble-purple-fg: 164 35% 24%;
+    --bubble-purple-bg: 214 55% 92%;     /* azul suave D'Or */
+    --bubble-purple-fg: 214 100% 28%;    /* azul D'Or escuro */
     --bubble-yellow-bg: 38 65% 90%;      /* copper soft */
     --bubble-yellow-fg: 32 55% 35%;
     --bubble-red-bg: 0 80% 95%;
@@ -160,10 +160,10 @@ All colors MUST be HSL.
     --popover-foreground: 60 15% 92%;
 
     /* ── Brand: verde mais claro no dark ─────────────────── */
-    --primary: 165 33% 42%;              /* verde médio para legibilidade */
+    --primary: 214 80% 55%;              /* azul D'Or mais claro para dark mode */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 165 25% 18%;
-    --primary-glow: 165 40% 55%;
+    --primary-soft: 214 40% 18%;
+    --primary-glow: 200 55% 60%;
     --primary-dark: 164 35% 18%;
 
     /* ── Accent: ouro Exacta ─────────────────────────────── */
@@ -224,7 +224,7 @@ All colors MUST be HSL.
     --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 3px 0 rgb(0 0 0 / 0.25);
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 2px 6px -1px rgb(0 0 0 / 0.3), 0 4px 12px -2px rgb(0 0 0 / 0.25);
     --shadow-elevated: 0 6px 12px -2px rgb(0 0 0 / 0.55), 0 4px 8px -2px rgb(0 0 0 / 0.35);
-    --gradient-brand: linear-gradient(135deg, hsl(164 35% 18%), hsl(165 33% 36%));
+    --gradient-brand: linear-gradient(135deg, hsl(214 100% 12%), hsl(214 100% 28%));
     --gradient-soft: linear-gradient(135deg, hsl(214 22% 13%), hsl(214 28% 7%));
 
     /* ── Bubble tokens ──────────────────────────────────────── */
@@ -251,7 +251,7 @@ All colors MUST be HSL.
     --sidebar-background: 214 28% 9%;
     --sidebar-foreground: 60 12% 70%;
     --sidebar-muted-foreground: 220 9% 50%;
-    --sidebar-primary: 165 33% 45%;
+    --sidebar-primary: 214 80% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-hover: 214 22% 15%;
     --sidebar-hover-foreground: 60 15% 90%;
