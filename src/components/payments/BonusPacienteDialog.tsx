@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
-import { DoctorCombobox } from "@/components/DoctorCombobox";
+import { DoctorCombobox, type DoctorOption } from "@/components/DoctorCombobox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
@@ -51,13 +51,12 @@ export function BonusPacienteDialog({
   onSaved?: () => void;
 }) {
   const { user } = useAuth();
-  const { activeHospital } = useHospital();
+  const { hospital } = useHospital();
   const [file, setFile] = useState<File | null>(null);
   const [parsed, setParsed] = useState<BonusParseResult | null>(null);
   const [parsing, setParsing] = useState(false);
   const [company, setCompany] = useState<CompanyOption | null>(null);
-  const [doctorId, setDoctorId] = useState<string | null>(null);
-  const [doctorName, setDoctorName] = useState<string>("");
+  const [doctor, setDoctor] = useState<DoctorOption | null>(null);
   const [mode, setMode] = useState<Mode>("existing");
   const [openPayments, setOpenPayments] = useState<OpenPayment[]>([]);
   const [targetPaymentId, setTargetPaymentId] = useState<string>("");
@@ -68,8 +67,7 @@ export function BonusPacienteDialog({
     setFile(null);
     setParsed(null);
     setCompany(null);
-    setDoctorId(null);
-    setDoctorName("");
+    setDoctor(null);
     setMode("existing");
     setTargetPaymentId("");
     setNewReference("");
