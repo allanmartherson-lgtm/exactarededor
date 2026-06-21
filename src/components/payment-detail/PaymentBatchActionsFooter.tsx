@@ -309,12 +309,17 @@ export function PaymentBatchActionsFooter({
 
       <ReconciliationBlockDialog
         open={reconBlock !== null}
-        onOpenChange={(v) => { if (!v) setReconBlock(null); }}
+        onOpenChange={(v) => { if (!v) { setReconBlock(null); setPendingRetry(null); } }}
         payload={reconBlock}
         actorRole={actorRole}
         currentUserId={currentUserId}
         currentUserName={currentUserName}
-        onResolved={async () => { setReconBlock(null); await onDone(); }}
+        onResolved={async () => { setReconBlock(null); setPendingRetry(null); await onDone(); }}
+        retryAfterRelease={pendingRetry ? async () => {
+          const retry = pendingRetry;
+          setPendingRetry(null);
+          await doApprove(retry.groupIds, retry.note);
+        } : undefined}
       />
 
       {/* sentinel-removed-card-close-was-here */}
