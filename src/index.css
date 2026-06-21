@@ -160,10 +160,10 @@ All colors MUST be HSL.
     --popover-foreground: 60 15% 92%;
 
     /* ── Brand: verde mais claro no dark ─────────────────── */
-    --primary: 165 33% 42%;              /* verde médio para legibilidade */
+    --primary: 214 80% 55%;              /* azul D'Or mais claro para dark mode */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 165 25% 18%;
-    --primary-glow: 165 40% 55%;
+    --primary-soft: 214 40% 18%;
+    --primary-glow: 200 55% 60%;
     --primary-dark: 164 35% 18%;
 
     /* ── Accent: ouro Exacta ─────────────────────────────── */
