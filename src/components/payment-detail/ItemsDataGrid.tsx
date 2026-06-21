@@ -2662,7 +2662,7 @@ function RowMain({
                 <Pencil className="h-2.5 w-2.5" />
               </Badge>
             )}
-            <span className="truncate block">{paciente}</span>
+            <span className="line-clamp-2 break-words leading-tight">{paciente}</span>
           </div>
         </td>
         {colVis.convenio && (
@@ -2699,12 +2699,12 @@ function RowMain({
               >
                 <span aria-hidden="true">🎯 FdS</span>
               </span>
-              <span className="truncate block text-indigo-900 dark:text-indigo-100">
+              <span className="line-clamp-2 break-words leading-tight text-indigo-900 dark:text-indigo-100">
                 {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
               </span>
             </span>
           ) : (
-            <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
+            <span className="line-clamp-2 break-words leading-tight">{it.procedure_name ?? it.description ?? "—"}</span>
           )}
         </td>
         {colVis.setor_lido && (() => {
@@ -2724,7 +2724,7 @@ function RowMain({
           return <td className={cn(cell, TEXT_META)} title={raw}>{label}</td>;
         })()}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
-          <span className="truncate block">{it.doctor_name}</span>
+          <span className="line-clamp-2 break-words leading-tight">{it.doctor_name}</span>
         </td>
         {colVis.funcao && (
           <td className={cn(cell, TEXT_META)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
