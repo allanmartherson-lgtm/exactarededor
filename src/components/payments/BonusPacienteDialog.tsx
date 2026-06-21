@@ -471,7 +471,7 @@ export function BonusPacienteDialog({
                 <RadioGroupItem value="new" id="bp-new" className="mt-1" />
                 <div className="flex-1 space-y-2">
                   <label htmlFor="bp-new" className="text-sm font-medium cursor-pointer">
-                    Criar um novo pagamento (tipo "Bônus por paciente")
+                    Criar um novo pagamento (tipo "Pagamento avulso")
                   </label>
                   {mode === "new" && (
                     <Input
