@@ -150,7 +150,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ALL_ROLES,
     children: [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
-      { to: "/diretores", label: "Diretores autorizados", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor"] },
+      
       { to: "/portal-usuarios", label: "Acessos dos Portais", icon: Building2, iconName: "Building2", roles: ["admin"] },
       { to: "/portal-saude", label: "Saúde dos Portais", icon: Activity, iconName: "Activity", roles: ["admin"] },
       { to: "/saude", label: "Saúde do Motor", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
