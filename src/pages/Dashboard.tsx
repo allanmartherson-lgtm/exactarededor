@@ -2341,13 +2341,13 @@ const Dashboard = () => {
             }
 
             return (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: hasAcoes && (hasTransito || hasAlertas)
-                  ? 'minmax(0, 1fr) minmax(0, 1fr)'
-                  : 'minmax(0, 1fr)',
-                gap: 40,
-              }}>
+              <div
+                className={
+                  hasAcoes && (hasTransito || hasAlertas)
+                    ? "grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10"
+                    : "grid grid-cols-1 gap-6"
+                }
+              >
                 {hasAcoes && (
                   <ScoreSection title="Ações — Sua Vez" items={acaoItems} tone="action" />
                 )}
@@ -2358,6 +2358,7 @@ const Dashboard = () => {
                   <ScoreSection title="Alertas" items={alertaItems} tone="alert" />
                 )}
               </div>
+
             );
           })()
 
