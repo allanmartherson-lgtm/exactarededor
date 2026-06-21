@@ -3100,7 +3100,15 @@ const BatchProgressRow = ({ p, qCount = 0, groupStatuses = [] }: { p: PaymentRow
 };
 
 
+const MetaCell = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <span className="flex flex-col sm:inline sm:flex-row min-w-0">
+    <span className="sm:hidden text-[10px] uppercase tracking-wide opacity-60">{label}</span>
+    <span className="sm:before:content-['·_'] sm:before:opacity-60 min-w-0 break-words">{children}</span>
+  </span>
+);
+
 const TaskRow = ({
+
   p,
   mine,
   profiles,
@@ -3127,9 +3135,8 @@ const TaskRow = ({
   return (
     <Link
       to={`/pagamentos/${p.id}`}
-      className="task-row flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+      className="task-row flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-5 sm:px-6 sm:py-4"
       style={{
-        padding: "14px 22px",
         borderBottom: "1px solid hsl(var(--border-light, var(--border)))",
         textDecoration: "none",
         color: "inherit",
@@ -3138,7 +3145,7 @@ const TaskRow = ({
       }}
     >
       <div className="min-w-0 flex-1 w-full">
-        <SafeCard className="p-0 border-none bg-transparent shadow-none space-y-2">
+        <SafeCard className="p-0 border-none bg-transparent shadow-none space-y-3">
           {/* Linha 1: chips de papel/SLA/questionamento */}
           <div className="flex items-center gap-2 flex-wrap">
             {mine ? (
@@ -3212,7 +3219,7 @@ const TaskRow = ({
           {/* Linha 2: título do lote em destaque (pode quebrar em 2-3 linhas no mobile) */}
           <div className="flex items-start gap-2 min-w-0">
             <p
-              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))", lineHeight: 1.3, wordBreak: "break-word" }}
+              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))", lineHeight: 1.35, wordBreak: "break-word" }}
               className="min-w-0 flex-1"
             >
               {p.reference}
@@ -3229,21 +3236,42 @@ const TaskRow = ({
             )}
           </div>
 
-          {/* Linha 3: metadados */}
-          <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", lineHeight: 1.5 }}>
-            <span className="capitalize">
-              {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
-            </span>
-            {" · "}{p.items_count} itens
-            {" · "}<span className="font-semibold text-foreground whitespace-nowrap">{formatCurrency((p as any).liquido_total ?? p.total_amount)}</span>
-            {creator && <> · criado por <span style={{ color: "hsl(var(--foreground))" }}>{creator}</span></>}
-            {p.payment_type && <> · <span className="capitalize">{p.payment_type}</span></>}
-            {" · "}{formatDate(p.created_at)}
-          </p>
+          {/* Linha 3: metadados — grid 2 colunas no mobile, inline no desktop */}
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:flex sm:flex-wrap sm:gap-x-1 sm:gap-y-0" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", lineHeight: 1.4 }}>
+            <MetaCell label="Competência">
+              <span className="capitalize">
+                {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
+              </span>
+            </MetaCell>
+            <MetaCell label="Itens">{p.items_count}</MetaCell>
+            <MetaCell label="Total">
+              <span className="font-semibold text-foreground whitespace-nowrap">{formatCurrency((p as any).liquido_total ?? p.total_amount)}</span>
+            </MetaCell>
+            {creator && (
+              <MetaCell label="Criado por">
+                <span style={{ color: "hsl(var(--foreground))", wordBreak: "break-word" }}>{creator}</span>
+              </MetaCell>
+            )}
+            {p.payment_type && (
+              <MetaCell label="Tipo">
+                <span className="capitalize">{p.payment_type}</span>
+              </MetaCell>
+            )}
+            <MetaCell label="Data">{formatDate(p.created_at)}</MetaCell>
+          </div>
 
           {/* Linha 4: valor em risco em destaque (só se houver) */}
           {risk && risk.valorEmRisco > 0 && (
-            <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", lineHeight: 1.4 }}>
+            <p
+              className="rounded-md sm:bg-transparent sm:p-0"
+              style={{
+                fontSize: 11,
+                color: "hsl(var(--muted-foreground))",
+                lineHeight: 1.4,
+                background: "hsl(var(--muted) / 0.4)",
+                padding: "6px 10px",
+              }}
+            >
               Valor em risco:{" "}
               <span className="font-semibold text-foreground">{formatCurrency(risk.valorEmRisco)}</span>
               <span className="opacity-70"> ({risk.percentualRisco.toFixed(1)}% do total)</span>
@@ -3251,6 +3279,7 @@ const TaskRow = ({
           )}
         </SafeCard>
       </div>
+
       <StatusBadge status={p.status} className="shrink-0 hidden sm:inline-flex" />
     </Link>
   );
