@@ -10590,6 +10590,10 @@ export type Database = {
         Returns: undefined
       }
       state_scope_allows: { Args: { _state_uf: string }; Returns: boolean }
+      sync_payment_company_group: {
+        Args: { p_company_id: string; p_payment_id: string }
+        Returns: undefined
+      }
       unaccent: { Args: { "": string }; Returns: string }
       undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
       unignore_glosa_debt: { Args: { _debt_id: string }; Returns: undefined }
