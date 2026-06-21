@@ -7,14 +7,16 @@ import { formatCurrency } from "@/lib/status";
 import type { PaymentItemRow, RuleLite } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
 
-type Camada = "1" | "2" | "3" | "—";
+type Camada = "1" | "2" | "3" | "I" | "—";
 
-function detectCamada(label: string | null | undefined, method: string, ruleId: string | null): Camada {
+function detectCamada(label: string | null | undefined, method: string, ruleId: string | null, calcType?: string | null): Camada {
   const l = (label ?? "").toLowerCase();
   if (l.includes("camada 1")) return "1";
   if (l.includes("camada 2") || l.includes("sem acordo") || l.includes("exclus")) return "2";
   if (l.includes("camada 3") || l.includes("fallback")) return "3";
+  if (ruleId && (calcType === "informativo" || method === "informativo")) return "I";
   if (ruleId && method && method !== "sem_regra") return "1";
+  if (ruleId) return "I"; // regra vinculada sem método explícito → informativa, nunca "sem regra"
   return "—";
 }
 
@@ -33,6 +35,11 @@ const CAMADA_INFO: Record<Camada, { label: string; desc: string; tone: "ok" | "w
     label: "Camada 3 — Fallback Master",
     desc: "Nenhuma regra específica casou e o motor caiu em uma regra master/global. Revisar se a cobertura de regras está adequada.",
     tone: "warn",
+  },
+  "I": {
+    label: "Regra informativa",
+    desc: "Regra casou, mas está cadastrada como informativa (sem método de cálculo). O motor não altera o valor — esperado = valor base do convênio. Use para sinalização/relatório, não para repasse.",
+    tone: "muted",
   },
   "—": {
     label: "Sem regra",
