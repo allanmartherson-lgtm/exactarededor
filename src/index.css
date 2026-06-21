@@ -255,10 +255,10 @@ All colors MUST be HSL.
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-hover: 214 22% 15%;
     --sidebar-hover-foreground: 60 15% 90%;
-    --sidebar-accent: 165 25% 18%;
-    --sidebar-accent-foreground: 60 15% 92%;
+    --sidebar-accent: 214 40% 18%;    /* azul suave dark */
+    --sidebar-accent-foreground: 214 80% 80%;
     --sidebar-border: 214 14% 16%;
-    --sidebar-ring: 38 47% 61%;
+    --sidebar-ring: 214 80% 55%;
   }
 
   /* ============================================================
