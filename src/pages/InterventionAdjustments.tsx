@@ -180,7 +180,9 @@ export default function InterventionAdjustments() {
           p_hospital_id: currentHospitalId ?? null,
         });
         if (error) throw error;
-        if (!cancelled) setData((res as unknown as InterventionSavingsResult) ?? emptyResult());
+        const result = (res as unknown as InterventionSavingsResult) ?? emptyResult();
+        const enrichedItems = await enrichItemsWithCancellationReasons(result.items ?? []);
+        if (!cancelled) setData({ ...result, items: enrichedItems });
       } catch (e) {
         console.error(e);
         toast.error("Falha ao carregar ajustes por intervenção");
