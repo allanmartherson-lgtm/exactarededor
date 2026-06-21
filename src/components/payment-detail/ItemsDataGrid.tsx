@@ -2615,12 +2615,13 @@ function RowMain({
     : "bg-card";
   const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted" : "";
   const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
-  const wrapClass = isCompact ? "truncate" : "line-clamp-2 break-words leading-tight";
-  const cell = cn(cellPad, "border-b align-top", isCompact ? "whitespace-nowrap" : "break-words", baseCellBg);
+  const wrapClass = isCompact
+    ? "line-clamp-2 break-words leading-[1.15]"
+    : "line-clamp-2 break-words leading-tight";
+  const cell = cn(cellPad, "border-b align-top break-words", baseCellBg);
   const stickyCell = cn(
     cellPad,
-    "border-b align-top sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))]",
-    isCompact ? "whitespace-nowrap" : "break-words",
+    "border-b align-top break-words sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))]",
     stickyBg,
     stickyHover,
   );
