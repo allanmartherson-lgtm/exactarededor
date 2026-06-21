@@ -104,7 +104,7 @@ serve(async (req) => {
     // 3. Grupos por empresa (status)
     const { data: groups } = await supabase
       .from("payment_company_groups")
-      .select("company_name, status, total_amount, bruto_total, liquido_total, items_count")
+      .select("company_id, company_name, status, total_amount, bruto_total, liquido_total, items_count")
       .eq("payment_id", payment_id);
 
     // 3b. Composição financeira agregada do lote (pool, glosa, conciliação separados)
@@ -179,8 +179,10 @@ serve(async (req) => {
         empresa: g.company_name,
         status: g.status,
         valor_liquido: Number(g.liquido_total ?? g.total_amount) || 0,
-        valor_bruto: Number(g.bruto_total ?? g.total_amount) || 0,
         itens: g.items_count,
+        // NOTA: valor_bruto removido propositalmente. A diferença bruto/líquido
+        // de um grupo NÃO é glosa — pode ser pool, débitos contratuais ou
+        // créditos. Glosa real só aparece em `glosas_por_empresa` abaixo.
       })),
       observacoes_recentes: (observations ?? []).map((o) => ({
         tipo: o.observation_type,
@@ -193,56 +195,95 @@ serve(async (req) => {
         impacto_total: excecoesImpacto,
         amostra: excecoesAmostra,
       },
+      // Glosa real por empresa — vem direto de payment_company_financials.glosas.
+      // Disponível mesmo quando a composição agregada está incompleta, pois cada
+      // linha individual é confiável. Se nenhuma empresa tem glosa, manda lista
+      // vazia explícita para a IA saber que NÃO HÁ GLOSA no lote.
+      glosas_por_empresa: (() => {
+        const companyNameById = new Map<string, string>();
+        for (const g of groups ?? []) {
+          if (g.company_name) companyNameById.set(String((g as any).company_id ?? ""), String(g.company_name));
+        }
+        return computedRows
+          .filter((r: any) => Math.abs(Number(r.glosas || 0)) > 0.01)
+          .map((r: any) => ({
+            empresa: companyNameById.get(String(r.company_id)) ?? "—",
+            glosa: Math.round(Number(r.glosas) * 100) / 100,
+          }))
+          .sort((a, b) => b.glosa - a.glosa)
+          .slice(0, 10);
+      })(),
+      conciliacao_divergente_por_empresa: (() => {
+        const companyNameById = new Map<string, string>();
+        for (const g of groups ?? []) {
+          if (g.company_name) companyNameById.set(String((g as any).company_id ?? ""), String(g.company_name));
+        }
+        return computedRows
+          .filter((r: any) => Math.abs(Number(r.conciliacao || 0)) > 0.01)
+          .map((r: any) => ({
+            empresa: companyNameById.get(String(r.company_id)) ?? "—",
+            conciliacao: Math.round(Number(r.conciliacao) * 100) / 100,
+          }))
+          .sort((a, b) => Math.abs(b.conciliacao) - Math.abs(a.conciliacao))
+          .slice(0, 10);
+      })(),
       composicao_financeira: composicaoCompleta
         ? {
             bruto: Math.round(composicao.bruto * 100) / 100,
             liquido: Math.round(composicao.liquido * 100) / 100,
             reducao_total: Math.round(reducaoTotal * 100) / 100,
-            // Pool/rateio = modelo de negociação contratual entre médicos/empresa (neutro, NÃO é risco)
             pool_rateio: Math.round(composicao.pool * 100) / 100,
-            // Débitos contratuais aplicados (fixos, plantões etc.) — neutro
             debitos_contratuais: Math.round(composicao.debitos * 100) / 100,
             creditos: Math.round(composicao.creditos * 100) / 100,
-            // Glosas = perda financeira real (risco)
             glosas: Math.round(composicao.glosas * 100) / 100,
-            // Conciliação ≠ 0 = divergência NF vs base (risco)
             conciliacao: Math.round(composicao.conciliacao * 100) / 100,
             reducao_nao_explicada: reducaoNaoExplicada,
           }
         : {
             indisponivel: true,
-            motivo: `Snapshots financeiros incompletos (${computedRows.length}/${totalGroups} empresas) — recompute em andamento.`,
+            motivo: `Snapshots financeiros incompletos (${computedRows.length}/${totalGroups} empresas) — recompute em andamento. Use 'glosas_por_empresa' e 'conciliacao_divergente_por_empresa' como única fonte de glosa/conciliação.`,
           },
     };
 
+
     const generalPrompt = `Você é um auditor sênior de pagamentos médicos. Gere um RESUMO EXECUTIVO objetivo e direto sobre um lote de pagamento, em português do Brasil.
 
-REGRAS:
+REGRAS GERAIS:
 - Seja conciso, técnico e prático. Nada de jargão vago.
 - Use somente fatos presentes no contexto JSON. Nunca invente números, regras ou empresas.
 - O resumo deve ajudar analista, validador e diretor a entender o lote em <30s.
-- Operação de processo (reanálises, recálculos, reprocessamentos do motor) NÃO é achado financeiro: NÃO mencione "regras reaplicadas N vezes", "ajustes em andamento" nem coisas do tipo. Foque exclusivamente em conteúdo financeiro do lote.
-- Se composicao_financeira.indisponivel === true, NÃO cite bruto da composição, "redução não explicada", nem compare líquido vs bruto da composição. Use apenas lote.valor_liquido e lote.valor_bruto para qualquer menção a bruto/líquido.
+- Operação de processo (reanálises, recálculos, reprocessamentos do motor) NÃO é achado financeiro: NÃO cite isso.
 
-CLASSIFICAÇÃO DA DIFERENÇA BRUTO → LÍQUIDO (composicao_financeira):
-- NEUTRO (NÃO é risco, não eleva risk_level, não alarmar): pool_rateio, debitos_contratuais, creditos.
-  Pool/rateio é MODELO DE PAGAMENTO contratado — médicos da empresa dividem produção segundo um acordo. É esperado e legítimo, mesmo quando representa parcela grande do bruto. Mencione com naturalidade ("X% do bruto foi rateado conforme pool contratado"), sem termos como "forte ajuste", "redução expressiva", "necessário validar".
-- RISCO REAL (eleva risk_level e merece destaque): glosas (perda financeira da operadora), conciliacao ≠ 0 (NF não bate com base Exacta), reducao_nao_explicada > 1% do bruto (composição inconsistente).
+ÚNICA FONTE DE GLOSA (REGRA INVIOLÁVEL):
+- Glosa SÓ existe se aparecer em 'glosas_por_empresa' com valor > 0, OU em 'composicao_financeira.glosas' > 0 quando composicao_financeira NÃO está indisponível.
+- Se 'glosas_por_empresa' está vazio (lista []), NÃO HÁ GLOSA NO LOTE. NUNCA escreva "glosa", "perda por glosa" ou similar em nenhum bullet.
+- É TERMINANTEMENTE PROIBIDO inferir glosa a partir da diferença entre bruto e líquido de qualquer empresa ou do lote. Essa diferença normalmente é pool/rateio, débitos contratuais ou créditos — NUNCA presuma que é glosa.
+- 'grupos_status' NÃO contém valor_bruto justamente para impedir essa inferência. Não invente bruto por grupo.
 
-INSTRUÇÕES PARA O RESUMO:
-- Foque em riscos FINANCEIROS de fato: glosas, divergências de conciliação, itens com divergência significativa (>10%), regras sem match, outliers por médico/procedimento.
-- NÃO considere concentração de prestadores numa empresa como risco — em hospitais é normal.
-- NÃO trate a diferença bruto→líquido como problema quando ela é explicada por pool/débitos contratuais. Trate como problema apenas a parcela atribuível a glosas, conciliação divergente ou redução não explicada.
-- Ignore métricas puramente operacionais sem contexto de relevância.
+ÚNICA FONTE DE CONCILIAÇÃO DIVERGENTE:
+- Use apenas 'conciliacao_divergente_por_empresa'. Se vazio, NÃO cite divergência de conciliação.
 
-- Headline: 1 frase com o VALOR LÍQUIDO total (lote.valor_liquido), qtd de empresas e principal sinal financeiro REAL (não citar bruto a menos que haja glosa/divergência relevante).
-- Bullets: 3 a 5 pontos com achados financeiros relevantes. Se citar pool, faça em tom neutro.
-- risk_level: baseado em probabilidade de erro financeiro REAL (glosas, conciliação, divergências), NUNCA por causa de pool/rateio sozinho.
-  - baixo: <10% itens com divergência, sem glosas relevantes, conciliação ok
-  - medio: 10-30% divergências OU glosas pequenas
-  - alto: 30-60% divergências OU glosas relevantes OU divergência de conciliação
-  - critico: >60% divergências OU sinais combinados de perda financeira
+CLASSIFICAÇÃO DA DIFERENÇA BRUTO → LÍQUIDO (só quando composicao_financeira NÃO está indisponível):
+- NEUTRO (não eleva risk_level): pool_rateio, debitos_contratuais, creditos. Pool é modelo contratual legítimo — cite com naturalidade, sem alarme.
+- RISCO REAL: glosas > 0, conciliacao ≠ 0, reducao_nao_explicada > 1% do bruto.
+
+QUANDO composicao_financeira.indisponivel === true:
+- NÃO cite bruto da composição, "redução não explicada", nem compare líquido vs bruto agregado.
+- Para bruto/líquido use apenas lote.valor_liquido e lote.valor_bruto.
+- Glosa e conciliação SÓ podem ser citados se aparecerem em glosas_por_empresa / conciliacao_divergente_por_empresa.
+
+DEMAIS INSTRUÇÕES:
+- Foque em riscos reais: glosas (das listas), conciliação divergente (da lista), itens com ai_status de alerta, exceções autorizadas relevantes.
+- NÃO considere concentração de prestadores numa empresa como risco — é normal em hospitais.
+- Headline: 1 frase com VALOR LÍQUIDO (lote.valor_liquido), qtd de empresas e principal sinal financeiro REAL. Se não há glosa nem conciliação divergente, diga isso explicitamente (ex: "sem glosas registradas").
+- Bullets: 3 a 5. Cada afirmação financeira precisa apontar para um campo concreto do JSON.
+- risk_level:
+  - baixo: <10% itens em alerta, glosas_por_empresa vazio, conciliação ok
+  - medio: 10-30% alertas OU glosa pequena
+  - alto: 30-60% alertas OU glosa relevante OU conciliação divergente
+  - critico: >60% alertas OU combinação de glosa + conciliação
 - recommended_action: 1 frase com a próxima ação concreta.`;
+
 
     const directorPrompt = `Você é um auditor sênior preparando um BRIEFING DE APROVAÇÃO para o Diretor Financeiro de uma rede hospitalar, em português do Brasil.
 
