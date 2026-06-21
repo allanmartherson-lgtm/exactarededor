@@ -118,14 +118,14 @@ All colors MUST be HSL.
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 214 28% 14%;
     --sidebar-muted-foreground: 220 9% 50%;
-    --sidebar-primary: 164 33% 26%;
+    --sidebar-primary: 214 100% 32%;         /* #003DA5 azul D'Or */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-hover: 60 14% 95%;
-    --sidebar-hover-foreground: 164 33% 26%;
-    --sidebar-accent: 165 28% 92%;
-    --sidebar-accent-foreground: 164 33% 26%;
+    --sidebar-hover-foreground: 214 100% 32%;
+    --sidebar-accent: 214 60% 94%;           /* #EAF0FA azul suave */
+    --sidebar-accent-foreground: 214 100% 32%;
     --sidebar-border: 60 10% 88%;
-    --sidebar-ring: 38 47% 61%;
+    --sidebar-ring: 214 100% 32%;
 
     /* ── Chat (Conversas) — segue o tema do sistema ─────── */
     --chat-bg: var(--background);
