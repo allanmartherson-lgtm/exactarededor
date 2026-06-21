@@ -228,8 +228,8 @@ All colors MUST be HSL.
     --gradient-soft: linear-gradient(135deg, hsl(214 22% 13%), hsl(214 28% 7%));
 
     /* ── Bubble tokens ──────────────────────────────────────── */
-    --bubble-purple-bg: 164 25% 18%;
-    --bubble-purple-fg: 165 45% 70%;
+    --bubble-purple-bg: 214 40% 18%;  /* azul suave dark */
+    --bubble-purple-fg: 214 80% 75%;  /* azul claro dark */
     --bubble-yellow-bg: 35 35% 20%;
     --bubble-yellow-fg: 38 70% 68%;
     --bubble-red-bg: 0 30% 20%;
