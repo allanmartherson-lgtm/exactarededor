@@ -215,8 +215,8 @@ All colors MUST be HSL.
     --border-highlight: 214 16% 30%;
     --input: 214 12% 32%;
     --input-bg: 214 22% 13%;
-    --ring: 38 47% 61%;
-    --ring-soft: 38 47% 61% / 0.35;
+    --ring: 214 80% 55%;              /* azul D'Or dark mode */
+    --ring-soft: 214 80% 55% / 0.3;
     --track-soft: 214 12% 28%;
 
     --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.35);
