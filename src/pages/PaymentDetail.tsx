@@ -741,6 +741,9 @@ const PaymentDetail = () => {
       const block = parseReconciliationBlock(rpcErr);
       if (block) {
         setReconBlock(block);
+        // Guarda o retry para que "Liberar com justificativa" possa re-disparar
+        // o envio depois do override ser registrado.
+        setReconRetry(() => async () => { await doSendForValidation(targets); });
         return;
       }
       toast({ title: "Falha ao enviar para validação", description: rpcErr.message, variant: "destructive" });
