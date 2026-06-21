@@ -72,6 +72,7 @@ const SECTOR_RAW_KEYS = ["setor", "unidade", "unidade de atendimento", "departam
 import { authorRoleLabel } from "@/lib/observations";
 import { MarkSpecialCaseDialog } from "./MarkSpecialCaseDialog";
 import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
+import { PaymentItemExplainButton } from "@/components/copilot/PaymentItemExplainButton";
 
 /** Botão "Sinalizar caso especial" para um item específico — só aparece
  * quando existe ao menos 1 regra ativa do hospital com special_case_filter. */
