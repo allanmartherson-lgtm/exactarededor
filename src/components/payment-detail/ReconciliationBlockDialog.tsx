@@ -66,6 +66,7 @@ export function ReconciliationBlockDialog({
   currentUserId,
   currentUserName,
   onResolved,
+  retryAfterRelease,
 }: Props) {
   const navigate = useNavigate();
   const { hasRole } = useAuth();
