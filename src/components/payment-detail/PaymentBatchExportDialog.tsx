@@ -104,6 +104,7 @@ export function PaymentBatchExportDialog({
   const [selectedStatuses, setSelectedStatuses] = useState<Set<ItemAiStatus>>(
     new Set(["aprovado", "alerta", "reprovado"]),
   );
+  const [includeHistory, setIncludeHistory] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Empresas com contagem de itens (do lote inteiro)
@@ -128,6 +129,7 @@ export function PaymentBatchExportDialog({
       setSelectedCompanies(new Set(companies.map((c) => c.name)));
       setSelectedStatuses(new Set(["aprovado", "alerta", "reprovado"]));
       setCompanySearch("");
+      setIncludeHistory(false);
     }
   }, [open, companies]);
 
@@ -356,6 +358,7 @@ export function PaymentBatchExportDialog({
       observations,
       profiles,
       rulesIndex,
+      includeHistory,
     });
     doc.save(buildFileName(payment, scopeLabel, "pdf"));
   };
@@ -501,6 +504,26 @@ export function PaymentBatchExportDialog({
               })}
             </div>
           </div>
+
+          {/* Opções específicas do PDF */}
+          {format === "pdf" && (
+            <div className="rounded-md border border-dashed p-3">
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <Checkbox
+                  checked={includeHistory}
+                  onCheckedChange={(v) => setIncludeHistory(v === true)}
+                  className="mt-0.5"
+                />
+                <div className="min-w-0">
+                  <div className="font-medium">Incluir histórico de observações</div>
+                  <div className="text-xs text-muted-foreground">
+                    Por padrão o relatório é executivo e não traz o histórico. Marque
+                    para anexar todas as observações registradas no lote.
+                  </div>
+                </div>
+              </label>
+            </div>
+          )}
 
           {/* Status */}
           <div>

@@ -28,6 +28,12 @@ export type GeneratePaymentPdfInput = {
   observations?: ObservationRow[];
   profiles?: Record<string, string>;
   rulesIndex?: Record<string, RuleLite>;
+  /**
+   * Inclui a seção "Histórico de observações" no PDF. Default: false.
+   * Relatório executivo não traz histórico salvo se o analista pedir
+   * explicitamente na hora da exportação.
+   */
+  includeHistory?: boolean;
 };
 
 type DocWithLastTable = jsPDF & { lastAutoTable?: { finalY?: number } };
@@ -73,7 +79,7 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
     return generateConfeccaoReportPdf(activeInput);
   }
 
-  const { items, groups, observations = [], profiles = {}, rulesIndex } = activeInput;
+  const { items, groups, observations = [], profiles = {}, rulesIndex, includeHistory = false } = activeInput;
 
   const doc = new jsPDF();
   const marginX = 14;
@@ -239,8 +245,8 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
   }
 
 
-  // Histórico (observações)
-  if (observations.length > 0) {
+  // Histórico (observações) — só quando o analista pede explicitamente.
+  if (includeHistory && observations.length > 0) {
     if (cursorY > 250) { doc.addPage(); cursorY = 20; }
     doc.setFontSize(12);
     doc.text(`Histórico de observações (${observations.length})`, 14, cursorY);

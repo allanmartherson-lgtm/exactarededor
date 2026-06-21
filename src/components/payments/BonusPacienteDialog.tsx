@@ -204,12 +204,12 @@ export function BonusPacienteDialog({
         attendance_number: r.attendance_number,
         procedure_date: r.procedure_date,
         agreement_text: r.agreement_text,
-        description: "Bônus por paciente",
+        description: "Pagamento avulso (atendimento)",
         gross_amount: r.gross_amount,
         expected_amount: r.gross_amount,
         tipo_linha: "complemento_bonus",
         applied_calc_method: "bonus_paciente_passthrough",
-        applied_rule_label: "Bônus por paciente (pass-through)",
+        applied_rule_label: "Pagamento avulso (pass-through)",
         applied_at: new Date().toISOString(),
         ai_status: "aprovado",
         manual_entry: true,
@@ -278,7 +278,7 @@ export function BonusPacienteDialog({
         .eq("id", paymentId);
 
       toast.success(
-        `${parsed.rows.length} item(ns) de bônus adicionados · ${formatCurrency(totalSum)}`,
+        `${parsed.rows.length} atendimento(s) avulso(s) adicionado(s) · ${formatCurrency(totalSum)}`,
       );
       onSaved?.();
       onOpenChange(false);
@@ -294,10 +294,10 @@ export function BonusPacienteDialog({
       <DialogContent className="max-w-[min(48rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto space-y-4">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" /> Bônus por paciente
+            <Sparkles className="h-4 w-4 text-primary" /> Pagamento avulso (atendimento)
           </DialogTitle>
           <DialogDescription>
-            Para planilhas em que cada linha é um paciente atendido. O valor da planilha é o
+            Para planilhas em que cada linha é um atendimento. O valor da planilha é o
             que será pago — sem cálculo de regra.
           </DialogDescription>
         </DialogHeader>
@@ -471,7 +471,7 @@ export function BonusPacienteDialog({
                 <RadioGroupItem value="new" id="bp-new" className="mt-1" />
                 <div className="flex-1 space-y-2">
                   <label htmlFor="bp-new" className="text-sm font-medium cursor-pointer">
-                    Criar um novo pagamento (tipo "Bônus por paciente")
+                    Criar um novo pagamento (tipo "Pagamento avulso")
                   </label>
                   {mode === "new" && (
                     <Input
@@ -503,7 +503,7 @@ export function BonusPacienteDialog({
           </Button>
           <Button onClick={submit} disabled={!canSubmit || busy}>
             {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            <Upload className="h-4 w-4 mr-2" /> Importar bônus
+            <Upload className="h-4 w-4 mr-2" /> Importar pagamento avulso
           </Button>
         </DialogFooter>
       </DialogContent>
