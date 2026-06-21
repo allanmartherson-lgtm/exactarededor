@@ -3335,9 +3335,9 @@ const PaymentDetail = () => {
                     <p>
                       {pendingSendState?.pendentes.length} empresa(s) ainda não foram concluídas pelo analista:
                     </p>
-                    <ul className="max-h-40 overflow-y-auto rounded border border-border bg-muted/30 p-2 text-xs space-y-1">
+                    <ul className="max-h-40 overflow-y-auto overflow-x-hidden rounded border border-border bg-muted/30 p-2 text-xs space-y-1">
                       {pendingSendState?.pendentes.map((g) => (
-                        <li key={g.id}>• {g.company_name}</li>
+                        <li key={g.id} className="break-words leading-snug">• {g.company_name}</li>
                       ))}
                     </ul>
                     <p>
