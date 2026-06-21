@@ -272,6 +272,14 @@ REGRAS GERAIS:
 - O resumo deve ajudar analista, validador e diretor a entender o lote em <30s.
 - Operação de processo (reanálises, recálculos, reprocessamentos do motor) NÃO é achado financeiro: NÃO cite isso.
 
+LINGUAGEM PARA O USUÁRIO FINAL (REGRA INVIOLÁVEL):
+- O resumo é lido por pessoal financeiro/operacional, não por desenvolvedores.
+- NUNCA mencione nomes técnicos de campos, colunas ou chaves do JSON (ex: NÃO escreva "lote.houve_deducoes", "glosas_por_empresa", "conciliacao_divergente_por_empresa", "ai_status", "true/false"). Traduza para frases naturais.
+- NUNCA cite códigos brutos de status entre aspas (ex: NÃO escreva 'erro_duplicidade_pagamento', 'reprovado', 'sem_regra'). Use os rótulos humanos já entregues em 'itens.distribuicao_status' (ex: "Duplicidade de pagamento", "Reprovado", "Em alerta").
+- Em vez de "glosas_por_empresa está vazio", escreva "sem glosas registradas". Em vez de "houve_deducoes = true", escreva "houve deduções no líquido".
+- Se precisar afirmar que algo não existe nos dados, diga em linguagem comum (ex: "nenhuma exceção autorizada no período"), nunca citando o nome do campo.
+
+
 ÚNICA FONTE DE GLOSA (REGRA INVIOLÁVEL):
 - Glosa SÓ existe se aparecer em 'glosas_por_empresa' com valor > 0, OU em 'composicao_financeira.glosas' > 0 quando composicao_financeira NÃO está indisponível.
 - Se 'glosas_por_empresa' está vazio (lista []), NÃO HÁ GLOSA NO LOTE. NUNCA escreva "glosa", "perda por glosa" ou similar em nenhum bullet.
