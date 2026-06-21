@@ -310,12 +310,12 @@ export default function InterventionAdjustments() {
         </Card>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <SummaryCard
             icon={TrendingUp}
             label="Economia"
             value={formatCurrency(filteredSummary.economia)}
-            hint="Pagto final < valor regra"
+            hint="Cancelamentos de economia real + ajustes que reduziram pagamento"
             tone="success"
             loading={loading}
           />
@@ -325,6 +325,14 @@ export default function InterventionAdjustments() {
             value={formatCurrency(filteredSummary.perda)}
             hint="Pagto final > valor regra"
             tone="destructive"
+            loading={loading}
+          />
+          <SummaryCard
+            icon={MinusCircle}
+            label="Neutro (operacional)"
+            value={formatCurrency(filteredSummary.neutro)}
+            hint="Pago em outro lote, duplicidade do motor, sem motivo — não soma no saldo"
+            tone="muted"
             loading={loading}
           />
           <SummaryCard
