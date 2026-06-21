@@ -212,6 +212,35 @@ export default function CancelPaymentDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 py-2">
+            {duplicateSuggestion && reason !== "duplicidade_motor" && (
+              <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                <Sparkles className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                <div className="flex-1 space-y-1.5">
+                  <p className="font-medium text-foreground">
+                    Possível duplicidade detectada
+                  </p>
+                  <p className="text-muted-foreground">
+                    Já existe um item neste lote para o mesmo atendimento + procedimento + médico que foi calculado automaticamente pelo motor
+                    {duplicateSuggestion.siblingLabel ? ` (${duplicateSuggestion.siblingLabel})` : ""}.
+                    Sugerimos cancelar este lançamento manual como <strong>Duplicidade corrigida pelo motor</strong> (não soma como economia).
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-primary/40 hover:bg-primary/10"
+                    onClick={() => setReason("duplicidade_motor")}
+                  >
+                    Usar este motivo
+                  </Button>
+                </div>
+              </div>
+            )}
+            {detecting && (
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" /> Verificando duplicidade…
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Motivo *</Label>
               <Select value={reason} onValueChange={(v) => setReason(v as CancellationReason)}>
