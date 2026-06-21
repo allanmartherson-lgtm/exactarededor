@@ -381,6 +381,7 @@ export function BonusPacienteDialog({
           </div>
         )}
 
+        {(lockedPayment || (mode === "existing" && targetPaymentId)) && (
           <Alert>
             <AlertTitle className="text-xs">Sem motor de regras</AlertTitle>
             <AlertDescription className="text-xs">
@@ -389,6 +390,7 @@ export function BonusPacienteDialog({
             </AlertDescription>
           </Alert>
         )}
+
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
