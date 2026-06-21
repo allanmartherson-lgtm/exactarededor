@@ -67,7 +67,16 @@ interface StatusEntry { status: PaymentStatus; changed_at: string }
 const SLA_EXEMPT_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
   ...TERMINAL_STATUSES,
   "nf_conciliada",
+  // Lançamentos históricos / pagamentos concluídos não têm SLA ativo —
+  // não fazem sentido como "atrasados" porque já saíram do fluxo operacional.
+  "lancado",
+  "pago",
 ]);
+
+// Status considerados "concluídos" (saída natural do fluxo, mas não terminais
+// como `arquivado`/`rejeitado`/`cancelado`). Escondidos por padrão para não
+// poluir a fila de trabalho.
+const CONCLUDED_STATUSES: ReadonlySet<string> = new Set<string>(["pago", "lancado"]);
 
 const formatDuration = (ms: number) => {
   const mins = Math.floor(ms / 60000);
