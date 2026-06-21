@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_SHORT_LABELS, type PaymentStatus, type PaymentType, type PaymentKind, type PaymentTrack } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope, Trash2, SlidersHorizontal, Receipt, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope, Trash2, SlidersHorizontal, Receipt, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, EyeOff } from "lucide-react";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
@@ -67,7 +67,16 @@ interface StatusEntry { status: PaymentStatus; changed_at: string }
 const SLA_EXEMPT_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
   ...TERMINAL_STATUSES,
   "nf_conciliada",
+  // Lançamentos históricos / pagamentos concluídos não têm SLA ativo —
+  // não fazem sentido como "atrasados" porque já saíram do fluxo operacional.
+  "lancado",
+  "pago",
 ]);
+
+// Status considerados "concluídos" (saída natural do fluxo, mas não terminais
+// como `arquivado`/`rejeitado`/`cancelado`). Escondidos por padrão para não
+// poluir a fila de trabalho.
+const CONCLUDED_STATUSES: ReadonlySet<string> = new Set<string>(["pago", "lancado"]);
 
 const formatDuration = (ms: number) => {
   const mins = Math.floor(ms / 60000);
@@ -185,6 +194,7 @@ type PersistedPaymentsState = Partial<{
   divergenceFilter: "all" | "with" | "without";
   questionedFilter: "all" | "with" | "without";
   archivedView: boolean;
+  showConcluded: boolean;
 }>;
 type ColSortCol = "reference" | "competence" | "elapsed" | "items" | "value" | "status";
 const loadPersistedPaymentsState = (): PersistedPaymentsState => {
@@ -279,6 +289,11 @@ const Payments = () => {
   const [archivedView, setArchivedView] = useState<boolean>(
     searchParams.get("archived") === "1" || persisted.archivedView === true,
   );
+  // Concluídos (pago/lançado): saem do fluxo operacional mas não são "arquivados".
+  // Escondidos por padrão; podem ser exibidos via ?concluded=1 ou pelo toggle.
+  const [showConcluded, setShowConcluded] = useState<boolean>(
+    searchParams.get("concluded") === "1" || persisted.showConcluded === true,
+  );
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
@@ -311,6 +326,7 @@ const Payments = () => {
       view, sortBy, colSort,
       divergenceFilter, questionedFilter,
       archivedView,
+      showConcluded,
     };
     try {
       window.sessionStorage.setItem(PAYMENTS_LIST_STATE_KEY, JSON.stringify(snapshot));
@@ -324,6 +340,7 @@ const Payments = () => {
     view, sortBy, colSort,
     divergenceFilter, questionedFilter,
     archivedView,
+    showConcluded,
   ]);
 
 
@@ -432,6 +449,12 @@ const Payments = () => {
     const terminal = Array.from(TERMINAL_STATUSES) as string[];
     const nonTerminal = ALL_STATUSES.filter((s) => !TERMINAL_STATUSES.has(s));
     let base: string[] = archivedView ? terminal : nonTerminal;
+    // Concluídos (pago/lançado) só aparecem se: (a) a visão de arquivados estiver
+    // ativa, (b) o usuário ligou explicitamente "ver concluídos", ou (c) o filtro
+    // de status pediu um desses status diretamente.
+    if (!archivedView && !showConcluded && statusFilter === "all") {
+      base = base.filter((s) => !CONCLUDED_STATUSES.has(s));
+    }
     if (statusFilter !== "all") {
       base = base.includes(statusFilter) ? [statusFilter] : [statusFilter];
     }
@@ -448,7 +471,7 @@ const Payments = () => {
       if (mine.size) base = base.filter((s) => mine.has(s));
     }
     return base.length ? base : undefined;
-  }, [archivedView, statusFilter, ownerGroup, onlyMine, roles, ALL_STATUSES]);
+  }, [archivedView, showConcluded, statusFilter, ownerGroup, onlyMine, roles, ALL_STATUSES]);
 
   // Monta o objeto de filtros que será enviado para a RPC.
   const rpcFilters = useMemo(() => {
@@ -728,6 +751,9 @@ const Payments = () => {
   const elapsedFor = (p: Row) => now - new Date(statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at).getTime();
 
   const slaFor = (p: Row) => {
+    // Concluídos/terminais não têm SLA — evita exibir "perto do prazo" / "vencido"
+    // em lotes que já saíram do fluxo (ex.: pagos, lançados, arquivados).
+    if (SLA_EXEMPT_STATUSES.has(p.status)) return null;
     const enteredAt = new Date(statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at);
     const compId = companyByPayment[p.id] ?? null;
     const ov = compId ? companyOverrides[compId] ?? null : null;
@@ -1031,17 +1057,19 @@ const Payments = () => {
                   {PAYMENT_TRACK_SHORT_LABELS[p.payment_track]}
                 </Badge>
               )}
-              <Badge
-                variant="outline"
-                className={cn(
-                  "gap-1 font-normal",
-                  finalLvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
-                  finalLvl === "leve" && "bg-warning-soft text-warning-text border-warning/30",
-                  finalLvl === "none" && "text-muted-foreground",
-                )}
-              >
-                <Clock className="h-3 w-3" /> {formatDuration(elapsedMs)} no status
-              </Badge>
+              {!SLA_EXEMPT_STATUSES.has(p.status) && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "gap-1 font-normal",
+                    finalLvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
+                    finalLvl === "leve" && "bg-warning-soft text-warning-text border-warning/30",
+                    finalLvl === "none" && "text-muted-foreground",
+                  )}
+                >
+                  <Clock className="h-3 w-3" /> {formatDuration(elapsedMs)} no status
+                </Badge>
+              )}
               {sla && (
                 <Badge
                   variant="outline"
@@ -1441,6 +1469,23 @@ const Payments = () => {
                   {archivedView ? <Inbox className="h-4 w-4 mr-1" /> : <Archive className="h-4 w-4 mr-1" />}
                   {archivedView ? "Ver ativos" : `Ver arquivados${archivedCount ? ` (${archivedCount})` : ""}`}
                 </Button>
+                {!archivedView && (
+                  <Button
+                    variant={showConcluded ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      const next = !showConcluded;
+                      setShowConcluded(next);
+                      const sp = new URLSearchParams(searchParams);
+                      if (next) sp.set("concluded", "1"); else sp.delete("concluded");
+                      setSearchParams(sp, { replace: true });
+                    }}
+                    title={showConcluded ? "Esconder pagos/lançados da lista (padrão)" : "Mostrar também lotes pagos/lançados"}
+                  >
+                    {showConcluded ? <EyeOff className="h-4 w-4 mr-1" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
+                    {showConcluded ? "Esconder concluídos" : "Ver concluídos"}
+                  </Button>
+                )}
                 {view === "lista" && (
                   <Select value={colSort ? "__col" : sortBy} onValueChange={(v) => { if (v === "__col") return; setColSort(null); setSortBy(v as typeof sortBy); }}>
                     <SelectTrigger className="w-[200px]"><SelectValue placeholder="Ordenar">{colSort ? `Coluna: ${({reference:"Lote",competence:"Competência",elapsed:"Tempo",items:"Volumetria",value:"Valor",status:"Status"} as const)[colSort.col]} ${colSort.dir === "asc" ? "↑" : "↓"}` : undefined}</SelectValue></SelectTrigger>
@@ -1699,16 +1744,20 @@ const Payments = () => {
                           </td>
                           <td className="px-3 py-3 align-middle hidden md:table-cell">
                             <div className="flex flex-col text-[11px]">
-                              <span
-                                className={cn(
-                                  "font-bold",
-                                  finalLvl === "critico" && "text-destructive",
-                                  finalLvl === "leve" && "text-warning-text",
-                                  finalLvl === "none" && "text-foreground",
-                                )}
-                              >
-                                {formatDuration(elapsedMs)} no status
-                              </span>
+                              {SLA_EXEMPT_STATUSES.has(p.status) ? (
+                                <span className="text-muted-foreground">—</span>
+                              ) : (
+                                <span
+                                  className={cn(
+                                    "font-bold",
+                                    finalLvl === "critico" && "text-destructive",
+                                    finalLvl === "leve" && "text-warning-text",
+                                    finalLvl === "none" && "text-foreground",
+                                  )}
+                                >
+                                  {formatDuration(elapsedMs)} no status
+                                </span>
+                              )}
                               <span className="text-muted-foreground text-[10px] capitalize">
                                 {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
                               </span>
