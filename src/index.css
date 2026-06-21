@@ -643,10 +643,10 @@ All colors MUST be HSL.
 
   .side-nav-active,
   .side-nav-active:hover {
-    background: hsl(var(--accent));             /* accent-light */
-    color: hsl(var(--accent-foreground));       /* accent-text */
+    background: hsl(var(--primary-soft));       /* azul suave D'Or */
+    color: hsl(var(--primary));                 /* azul D'Or */
     font-weight: 500;
-    border-left-color: hsl(var(--primary));     /* accent */
+    border-left-color: hsl(var(--primary));
   }
 }
 
