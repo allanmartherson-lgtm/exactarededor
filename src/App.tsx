@@ -195,6 +195,7 @@ const ReportsCentral = lazy(loadReportsCentral);
 const ExportAudit = lazy(loadExportAudit);
 const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal.tsx"));
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
+const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -318,7 +319,7 @@ const App = () => (
                   <Route path="/comunicacao/supervisao" element={<ProtectedRoute roles={["admin", "diretor", "validador"]}><CommunicationSupervision /></ProtectedRoute>} />
 
                   <Route path="/notificacoes" element={<ProtectedRoute><NotificationsInbox /></ProtectedRoute>} />
-                  <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><HealthMonitoring /></ProtectedRoute>} />
+                  <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><SaudeHub /></ProtectedRoute>} />
                   <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
                   <Route path="/regras/pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
                   <Route path="/regras/validacao" element={<ProtectedRoute roles={["diretor", "admin"]}><ValidationRules /></ProtectedRoute>} />
@@ -344,9 +345,9 @@ const App = () => (
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
                   <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
                   <Route path="/portal-usuarios" element={<ProtectedRoute roles={["admin"]}><PortalUsers /></ProtectedRoute>} />
-                  <Route path="/portal-saude" element={<ProtectedRoute roles={["admin"]}><PortalHealth /></ProtectedRoute>} />
+                  <Route path="/portal-saude" element={<Navigate to="/saude?tab=portais" replace />} />
                   <Route path="/produtividade-analistas" element={<Navigate to="/saude-processo" replace />} />
-                  <Route path="/saude-processo" element={<ProtectedRoute roles={["diretor", "admin"]}><ProcessHealth /></ProtectedRoute>} />
+                  <Route path="/saude-processo" element={<Navigate to="/saude?tab=processo" replace />} />
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><AuditoriaHub /></ProtectedRoute>} />
                   <Route path="/auditoria/hospitais" element={<Navigate to="/auditoria?tab=hospitais" replace />} />

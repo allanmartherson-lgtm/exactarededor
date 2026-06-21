@@ -115,7 +115,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/relatorios/central", label: "Central de Relatórios", icon: FileBarChart, iconName: "FileBarChart", roles: ALL_ROLES },
       { to: "/kpis", label: "KPIs", icon: BarChart2, iconName: "BarChart2", roles: ALL_ROLES },
       { to: "/relatorios/intervencoes", label: "Ajustes por intervenção", icon: Scale, iconName: "Scale", roles: ["diretor", "admin", "validador", "analista"] as const },
-      { to: "/saude-processo", label: "Saúde do Processo", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
+      { to: "/saude?tab=processo", label: "Saúde do Processo", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/recebiveis", label: "Contas a Pagar", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista", "validador"] as const },
       { to: "/inteligencia-financeira", label: "Inteligência Financeira", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
       { to: "/aprendizado/padroes", label: "Aprendizado de padrões", icon: BrainCircuit, iconName: "BrainCircuit", roles: ["diretor", "admin", "analista"] as const },
@@ -146,8 +146,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
       
       { to: "/portal-usuarios", label: "Acessos dos Portais", icon: Building2, iconName: "Building2", roles: ["admin"] },
-      { to: "/portal-saude", label: "Saúde dos Portais", icon: Activity, iconName: "Activity", roles: ["admin"] },
-      { to: "/saude", label: "Saúde do Motor", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
+      { to: "/saude", label: "Saúde (Motor, Portais, Processo)", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin", "validador"] },
       { to: "/sistema/versoes", label: "Versões e Releases", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
       { to: "/sistema/feature-flags", label: "Feature Flags", icon: Flag, iconName: "Flag", roles: ["admin", "diretor"] },

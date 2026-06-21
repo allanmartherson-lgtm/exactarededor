@@ -21,7 +21,7 @@ const PILLS: { value: TabValue; label: string }[] = [
   { value: "returns", label: "Taxa de devolução" },
 ];
 
-export default function ProcessHealth() {
+export default function ProcessHealth({ embedded = false }: { embedded?: boolean } = {}) {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const aliasMap: Record<string, TabValue> = {
@@ -42,13 +42,15 @@ export default function ProcessHealth() {
 
   return (
     <div>
-      <PageHeader
-        title="Saúde do Processo"
-        description="Produtividade da equipe, acurácia da IA, tempo por estágio e taxa de devolução"
-        icon={Activity}
-        showBack={false}
-      />
-      <div className="p-6 space-y-6">
+      {!embedded && (
+        <PageHeader
+          title="Saúde do Processo"
+          description="Produtividade da equipe, acurácia da IA, tempo por estágio e taxa de devolução"
+          icon={Activity}
+          showBack={false}
+        />
+      )}
+      <div className={embedded ? "space-y-6" : "p-6 space-y-6"}>
         <nav className="flex flex-wrap gap-2" aria-label="Seções de Saúde do Processo">
           {PILLS.map((item) => {
             const isActive = active === item.value;

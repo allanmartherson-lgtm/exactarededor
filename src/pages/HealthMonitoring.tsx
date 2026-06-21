@@ -141,7 +141,7 @@ function fmtHoras(h: number): string {
   return `${Math.floor(h / 24)}d ${Math.round(h % 24)}h`;
 }
 
-export default function HealthMonitoring() {
+export default function HealthMonitoring({ embedded = false }: { embedded?: boolean } = {}) {
   const { hospital } = useHospital();
   const activeHospitalId = hospital?.id ?? null;
   const [data, setData] = useState<HealthData | null>(null);
@@ -379,14 +379,20 @@ export default function HealthMonitoring() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
-            Saúde do <span style={{ fontWeight: 700 }}>Motor</span>
-          </h1>
-          <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
-            Monitoramento operacional do motor Exacta · Atualizado às {lastRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+        {!embedded ? (
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
+              Saúde do <span style={{ fontWeight: 700 }}>Motor</span>
+            </h1>
+            <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+              Monitoramento operacional do motor Exacta · Atualizado às {lastRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          </div>
+        ) : (
+          <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
+            Atualizado às {lastRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
           </p>
-        </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <StatusPill status={globalStatus} />
           <button
