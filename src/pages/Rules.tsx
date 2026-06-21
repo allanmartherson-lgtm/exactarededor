@@ -186,7 +186,7 @@ const REQUIRED_NEW_FIELDS: { key: string; label: string; isMissing: (r: RuleRow)
 const isIncomplete = (r: RuleRow) => REQUIRED_NEW_FIELDS.some((f) => f.isMissing(r));
 const missingFields = (r: RuleRow) => REQUIRED_NEW_FIELDS.filter((f) => f.isMissing(r)).map((f) => f.label);
 
-const Rules = () => {
+const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { user } = useAuth();
   const { hospital } = useHospital();
   const activeHospitalId = hospital?.id ?? null;
