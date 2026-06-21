@@ -223,11 +223,13 @@ const AuditLog = () => {
 
   return (
     <>
-      <PageHeader
-        title="Auditoria"
-        description="Histórico de criações e alterações em regras e pagamentos, com ator, papel e empresa envolvida."
-      />
-      <div className="p-8 space-y-4">
+      {!embedded && (
+        <PageHeader
+          title="Auditoria"
+          description="Histórico de criações e alterações em regras e pagamentos, com ator, papel e empresa envolvida."
+        />
+      )}
+      <div className={embedded ? "space-y-4" : "p-8 space-y-4"}>
         <Card className="shadow-card">
           <CardContent className="p-4 flex flex-wrap items-center gap-3">
             <Select value={filterEntity} onValueChange={(v) => setFilterEntity(v as any)}>
