@@ -117,13 +117,23 @@ describe("dedup — cancelamentos reativados / dupla contagem", () => {
   it("RPC já filtra reativados; client confia em ausência deles na lista", () => {
     // O RPC exclui cancellation_reactivated_at IS NOT NULL. Esta suíte
     // simula a saída do RPC: nenhum item reativado deve aparecer no input.
+    // Para cancelamento manual, motivo de economia real é obrigatório p/ entrar no saldo.
     const items: InterventionItem[] = [
-      ev("cancelamento_empresa", 400, { item_id: "live" }),
-      // simulação: se algum dia um reativado vazar, ele NÃO está aqui
+      ev("cancelamento_empresa", 400, { item_id: "live", cancellation_reason: "contrato_encerrado" }),
     ];
     const s = summarizeItems(items);
     expect(s.economia).toBe(400);
     expect(s.qtd_itens).toBe(1);
+  });
+
+  it("cancelamento sem motivo (legado) cai em neutro, não em economia", () => {
+    const items: InterventionItem[] = [
+      ev("cancelamento_item", 400, { item_id: "legacy" }),
+    ];
+    const s = summarizeItems(items);
+    expect(s.economia).toBe(0);
+    expect(s.neutro).toBe(400);
+    expect(s.saldo).toBe(0);
   });
 
   it("detecta duplicatas quando o mesmo item_id é contabilizado por > 1 fonte", () => {
