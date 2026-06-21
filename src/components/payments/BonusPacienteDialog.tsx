@@ -308,7 +308,58 @@ export function BonusPacienteDialog({
               )}
             </div>
           )}
+
+          {/* Validação de schema (constraints do banco + sanidade) */}
+          {parsed && (errorIssues.length > 0 || warningIssues.length > 0) && (
+            <div
+              className={`rounded-md border p-3 space-y-2 ${
+                hasBlockingErrors
+                  ? "border-destructive/40 bg-destructive/5"
+                  : "border-warning/40 bg-warning/5"
+              }`}
+            >
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <AlertTriangle
+                  className={`h-4 w-4 ${
+                    hasBlockingErrors ? "text-destructive" : "text-warning"
+                  }`}
+                />
+                {hasBlockingErrors
+                  ? `${errorIssues.length} erro(s) bloqueando a importação`
+                  : `${warningIssues.length} aviso(s) — importação permitida`}
+              </div>
+              <ul className="text-[11px] space-y-0.5 max-h-40 overflow-auto">
+                {errorIssues.slice(0, 20).map((iss, i) => (
+                  <li key={`e-${i}`} className="text-destructive">
+                    Linha {iss.row} · {iss.field}: {iss.message}
+                  </li>
+                ))}
+                {errorIssues.length > 20 && (
+                  <li className="text-destructive italic">
+                    … +{errorIssues.length - 20} erro(s) ocultos
+                  </li>
+                )}
+                {warningIssues.slice(0, 10).map((iss, i) => (
+                  <li key={`w-${i}`} className="text-warning">
+                    Linha {iss.row} · {iss.field}: {iss.message}
+                  </li>
+                ))}
+                {warningIssues.length > 10 && (
+                  <li className="text-warning italic">
+                    … +{warningIssues.length - 10} aviso(s) ocultos
+                  </li>
+                )}
+              </ul>
+              {hasBlockingErrors && (
+                <div className="text-[11px] text-muted-foreground">
+                  Corrija os erros na planilha e reenvie. A importação fica bloqueada até a
+                  planilha estar compatível com as regras de validação.
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
 
         {/* Empresa + médico */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
