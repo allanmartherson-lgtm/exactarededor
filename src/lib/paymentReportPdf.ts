@@ -59,15 +59,21 @@ function formatFindingText(f: any): string {
 }
 
 export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): Promise<jsPDF> {
-  const { payment, items, groups, observations = [], profiles = {}, rulesIndex } = input;
+  // Itens cancelados ("não-devido") permanecem em payment_items para auditoria,
+  // mas não devem aparecer em nenhuma vitrine do relatório — nem nas contagens,
+  // somas, tabela de itens ou cobertura de regra.
+  const activeInput: GeneratePaymentPdfInput = {
+    ...input,
+    items: input.items.filter((i) => !(i as any).is_cancelled),
+  };
+  const { payment } = activeInput;
   const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
 
-  // Em modo confecção, gera um relatório dedicado (sem IA, sem divergências, sem
-  // alertas assistenciais). Foco: bruto do convênio × repasse calculado pela regra,
-  // e cobertura de regra item a item (com / sem regra).
   if (isConfeccao) {
-    return generateConfeccaoReportPdf(input);
+    return generateConfeccaoReportPdf(activeInput);
   }
+
+  const { items, groups, observations = [], profiles = {}, rulesIndex } = activeInput;
 
   const doc = new jsPDF();
   const marginX = 14;
