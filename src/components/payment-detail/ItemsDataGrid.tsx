@@ -3190,7 +3190,20 @@ function ItemDetailsRow({
             ))}
           </div>
 
+          <div className="mb-3 flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); setShowTechnical((v) => !v); }}
+              className="h-6 text-[11px] text-muted-foreground hover:text-foreground gap-1"
+            >
+              {showTechnical ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {showTechnical ? "Ocultar detalhes técnicos" : "Mostrar detalhes técnicos"}
+            </Button>
+          </div>
+
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-3 items-start">
+
             {/* Coluna 1 (mobile: 1º — alertas + histórico) */}
             <div className="space-y-2 min-w-0 order-1 lg:order-1">
               {alerts.length > 0 && (
