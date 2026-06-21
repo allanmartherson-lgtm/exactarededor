@@ -26,7 +26,7 @@ type Flag = {
 
 const ROLES = ["admin", "diretor", "validador", "analista"] as const;
 
-export default function FeatureFlagsAdmin() {
+export default function FeatureFlagsAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
   const [items, setItems] = useState<Flag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,11 +77,15 @@ export default function FeatureFlagsAdmin() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Feature flags"
-        description="Liga e desliga funcionalidades por role e rollout percentual sem precisar de novo deploy."
-        actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Nova flag</Button>}
-      />
+      {!embedded ? (
+        <PageHeader
+          title="Feature flags"
+          description="Liga e desliga funcionalidades por role e rollout percentual sem precisar de novo deploy."
+          actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Nova flag</Button>}
+        />
+      ) : (
+        <div className="flex justify-end"><Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Nova flag</Button></div>
+      )}
 
       {loading && <p className="text-sm text-muted-foreground">Carregando…</p>}
       <div className="space-y-2">

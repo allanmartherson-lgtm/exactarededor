@@ -17,7 +17,7 @@ import type { SystemRelease } from "@/hooks/useSystemVersion";
 
 const RELEASE_TYPES = ["major", "minor", "patch", "hotfix"] as const;
 
-export default function SystemReleases() {
+export default function SystemReleases({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
   const [items, setItems] = useState<SystemRelease[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,11 +78,15 @@ export default function SystemReleases() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Versões do sistema"
-        description="Controle de releases, changelog e versão ativa do Exacta."
-        actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Nova release</Button>}
-      />
+      {!embedded ? (
+        <PageHeader
+          title="Versões do sistema"
+          description="Controle de releases, changelog e versão ativa do Exacta."
+          actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Nova release</Button>}
+        />
+      ) : (
+        <div className="flex justify-end"><Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Nova release</Button></div>
+      )}
 
       {loading && <p className="text-sm text-muted-foreground">Carregando…</p>}
       <div className="space-y-3">
