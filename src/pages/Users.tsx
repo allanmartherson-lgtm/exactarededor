@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { UserHospitalsManager } from "@/components/UserHospitalsManager";
+import { UserDirectorApproverSection } from "@/components/UserDirectorApproverSection";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
@@ -840,6 +841,13 @@ const Users = () => {
                     </Button>
                   </div>
                 </section>
+
+                <UserDirectorApproverSection
+                  userId={editingUser.id}
+                  email={editingUser.email}
+                  fullName={editingUser.full_name}
+                  roleTitle={editingUser.role_title}
+                />
 
                 <section className="space-y-2 border-t pt-4">
                   <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Analista sênior</h4>
