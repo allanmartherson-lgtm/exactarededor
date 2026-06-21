@@ -24,7 +24,7 @@ type PT = {
 
 const empty: PT = { code: "", label: "", description: "", color: "", sort_order: 50, active: true };
 
-export default function PaymentTypes() {
+export default function PaymentTypes({ embedded = false }: { embedded?: boolean } = {}) {
   const [list, setList] = useState<PT[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PT | null>(null);
