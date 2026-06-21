@@ -1,5 +1,12 @@
 import * as XLSX from "xlsx-js-style";
 
+// Tipografia Exacta: corpo em DM Sans, títulos em Playfair Display.
+// Excel cai para a fonte padrão quando a família não está instalada.
+const FONT_BODY = "DM Sans";
+const FONT_HEADING = "Playfair Display";
+const FONT_BODY_STYLE = { name: FONT_BODY, sz: 10 } as const;
+const FONT_HEADER_STYLE = { name: FONT_HEADING, sz: 11, bold: true } as const;
+
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "";
   try {
@@ -9,6 +16,25 @@ function fmtDate(iso: string | null | undefined): string {
   } catch { return iso; }
 }
 
+function applyTypography(ws: XLSX.WorkSheet) {
+  if (!ws["!ref"]) return;
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      const cell = ws[addr];
+      if (!cell) continue;
+      const isHeader = R === 0;
+      const baseFont = isHeader ? FONT_HEADER_STYLE : FONT_BODY_STYLE;
+      const prev = cell.s || {};
+      const prevFont = prev.font || {};
+      cell.s = {
+        ...prev,
+        font: { ...baseFont, ...prevFont, name: baseFont.name, sz: prevFont.sz ?? baseFont.sz },
+      };
+    }
+  }
+}
 
 self.onmessage = async (e) => {
   const { summary, companyGroups, filteredItems, fileName } = e.data;
@@ -26,6 +52,7 @@ self.onmessage = async (e) => {
       ["Valor em Risco", "", summary.riskValue, `${((summary.riskValue / summary.totalValue) * 100 || 0).toFixed(1)}%`],
     ];
     const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+    applyTypography(wsSummary);
     XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
 
     // Aba 2: Por Empresa
@@ -54,6 +81,7 @@ self.onmessage = async (e) => {
         if (bgColor) statusCell.s = { fill: { fgColor: { rgb: bgColor } } };
       }
     }
+    applyTypography(wsCompanies);
     XLSX.utils.book_append_sheet(wb, wsCompanies, "Por Empresa");
 
     // Aba 3: Detalhe dos Itens
@@ -115,6 +143,7 @@ self.onmessage = async (e) => {
     });
 
     const wsDetails = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailRows]);
+    applyTypography(wsDetails);
     XLSX.utils.book_append_sheet(wb, wsDetails, "Detalhe dos Itens");
 
     // Aba 4: Alertas Assistenciais — tabela comparativa lado a lado
@@ -138,9 +167,7 @@ self.onmessage = async (e) => {
         for (const f of findings) {
           const ci = f?.conflicting_item;
           alertRows.push([
-            // Col A: Tipo de Alerta
             f?.rule_name || f?.kind || "Validação",
-            // Col B-H: Item Original
             it.doctor_name || "",
             it.company_name || "",
             it.attendance_number || "",
@@ -148,9 +175,7 @@ self.onmessage = async (e) => {
             it.patient_name || "",
             fmtDate(it.procedure_date),
             Number(it.gross_amount ?? 0),
-            // Col I: Separador
             "",
-            // Col J-P: Item Conflitante
             ci?.doctor_name || "",
             ci?.company_name || "",
             ci?.attendance_number || "",
@@ -188,6 +213,7 @@ self.onmessage = async (e) => {
         { wch: 26 }, { wch: 30 }, { wch: 14 }, { wch: 16 }, { wch: 24 }, { wch: 12 }, { wch: 12 },
       ];
 
+      applyTypography(wsAlerts);
       XLSX.utils.book_append_sheet(wb, wsAlerts, "Alertas Assistenciais");
     }
 
