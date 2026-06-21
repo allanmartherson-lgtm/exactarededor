@@ -88,8 +88,8 @@ All colors MUST be HSL.
     --shadow-elevated: 0 4px 8px -1px rgb(13 17 23 / 0.1), 0 8px 20px -4px rgb(13 17 23 / 0.08);
     --shadow-inset: inset 0 1px 2px rgb(13 17 23 / 0.04);
     --shadow-control: 0 1px 2px rgb(13 17 23 / 0.04);
-    --gradient-brand: linear-gradient(135deg, hsl(164 33% 26%), hsl(165 33% 36%));
-    --gradient-soft: linear-gradient(135deg, hsl(60 23% 98%), hsl(60 23% 95%));
+    --gradient-brand: linear-gradient(135deg, hsl(214 100% 17%), hsl(214 100% 32%));   /* navy → azul D'Or */
+    --gradient-soft: linear-gradient(135deg, hsl(214 40% 98%), hsl(214 40% 95%));      /* off-white azulado */
 
     /* ── Bubble tokens ──────────────────────────────────── */
     /* Rebrand: tons alinhados a forest-green (#2D5A4E) + copper (#C8A96E).
