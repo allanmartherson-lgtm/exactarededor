@@ -2764,6 +2764,7 @@ const Dashboard = () => {
             return (
               <div className="pipeline-scroll">
                 <div
+                  className="pipeline-grid"
                   style={{
                     padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
                     display: "grid",
