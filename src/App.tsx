@@ -102,6 +102,7 @@ const loadCommunicationSupervision = () => import("./pages/CommunicationSupervis
 const loadProcessHealth = () => import("./pages/ProcessHealth.tsx");
 const loadMedicosHub = () => import("./pages/MedicosHub.tsx");
 const loadDirectors = () => import("./pages/Directors.tsx");
+const loadCadastrosHub = () => import("./pages/CadastrosHub.tsx");
 const loadReportsCentral = () => import("./pages/ReportsCentral.tsx");
 const loadExportAudit = () => import("./pages/ExportAudit.tsx");
 
