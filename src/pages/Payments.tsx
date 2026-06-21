@@ -27,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { evaluateSla, type SlaSetting, type CompanySlaOverride } from "@/lib/sla";
 import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
 import { toast } from "sonner";
+import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
 
 interface Row {
   id: string;
@@ -215,6 +216,7 @@ const Payments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const persisted = useMemo<PersistedPaymentsState>(() => loadPersistedPaymentsState(), []);
   const [rows, setRows] = useState<Row[]>([]);
+  const [bonusOpen, setBonusOpen] = useState(false);
   // Paginação server-side via RPC list_payments. `totalRows` é o total filtrado
   // no banco (não só desta página); `rows` contém apenas a página atual.
   const [totalRows, setTotalRows] = useState<number>(0);
@@ -1136,6 +1138,16 @@ const Payments = () => {
       <PageHeader
         title="Pagamentos"
         description="Todos os lotes de pagamento e seu status no fluxo."
+        actions={
+          <Button size="sm" variant="outline" onClick={() => setBonusOpen(true)}>
+            <Sparkles className="h-4 w-4 mr-1" /> Bônus por paciente
+          </Button>
+        }
+      />
+      <BonusPacienteDialog
+        open={bonusOpen}
+        onOpenChange={setBonusOpen}
+        onSaved={() => load()}
       />
       <div className="p-4 md:px-6 md:py-6 w-full mx-auto space-y-4">
         {/* KPI Cards — macOS Ventura style: elevated cards com icon chip colorido */}
