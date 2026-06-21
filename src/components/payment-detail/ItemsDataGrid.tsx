@@ -2614,11 +2614,11 @@ function RowMain({
     ? "bg-primary-soft/60"
     : "bg-card";
   const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted" : "";
-  const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
-  const cell = cn(cellPad, "truncate border-b whitespace-nowrap", baseCellBg);
+  const cellPad = isCompact ? "px-1.5 py-1" : "px-2 py-2";
+  const cell = cn(cellPad, "border-b align-top break-words", baseCellBg);
   const stickyCell = cn(
     cellPad,
-    "truncate border-b whitespace-nowrap sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))]",
+    "border-b align-top break-words sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))]",
     stickyBg,
     stickyHover,
   );
