@@ -155,9 +155,14 @@ export function BonusPacienteDialog({
   const totalMismatch =
     parsed?.declared_total != null && Math.abs(parsed.declared_total - totalSum) > 0.01;
 
+  const errorIssues = (parsed?.issues ?? []).filter((i) => i.severity === "error");
+  const warningIssues = (parsed?.issues ?? []).filter((i) => i.severity === "warning");
+  const hasBlockingErrors = errorIssues.length > 0;
+
   const canSubmit =
     !!parsed &&
     parsed.rows.length > 0 &&
+    !hasBlockingErrors &&
     !!company &&
     !!doctor &&
     (mode === "existing" ? !!targetPaymentId : newReference.trim().length >= 3);
