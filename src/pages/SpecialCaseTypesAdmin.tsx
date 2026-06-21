@@ -24,7 +24,7 @@ interface TypeRow {
   hospital_id: string | null;
 }
 
-export default function SpecialCaseTypesAdmin() {
+export default function SpecialCaseTypesAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const { toast } = useToast();
   const hospitalId = useActiveHospitalId();
   const [rows, setRows] = useState<TypeRow[]>([]);
