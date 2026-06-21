@@ -66,8 +66,23 @@ serve(async (req) => {
       .eq("payment_id", payment_id)
       .limit(20000);
 
+    // Rótulos humanos para os códigos técnicos do enum item_ai_status — a IA
+    // NÃO deve nunca exibir códigos brutos do banco no resumo final.
+    const AI_STATUS_LABELS: Record<string, string> = {
+      pendente: "Pendente",
+      aprovado: "Aprovado",
+      alerta: "Em alerta",
+      reprovado: "Reprovado",
+      erro_duplicidade_pagamento: "Duplicidade de pagamento",
+      erro_duplicidade_calculo: "Duplicidade de cálculo",
+      acatado: "Acatado",
+      sem_status: "Sem status",
+    };
+    const labelAiStatus = (code: string) => AI_STATUS_LABELS[code] ?? code;
+
     const statusCounts: Record<string, number> = {};
     const byCompany: Record<string, { total: number; count: number; alerts: number }> = {};
+
     let totalItems = 0;
     let totalAlerts = 0;
     let excecoesCount = 0;
