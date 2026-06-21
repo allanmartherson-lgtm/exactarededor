@@ -224,7 +224,7 @@ All colors MUST be HSL.
     --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 3px 0 rgb(0 0 0 / 0.25);
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 2px 6px -1px rgb(0 0 0 / 0.3), 0 4px 12px -2px rgb(0 0 0 / 0.25);
     --shadow-elevated: 0 6px 12px -2px rgb(0 0 0 / 0.55), 0 4px 8px -2px rgb(0 0 0 / 0.35);
-    --gradient-brand: linear-gradient(135deg, hsl(164 35% 18%), hsl(165 33% 36%));
+    --gradient-brand: linear-gradient(135deg, hsl(214 100% 12%), hsl(214 100% 28%));
     --gradient-soft: linear-gradient(135deg, hsl(214 22% 13%), hsl(214 28% 7%));
 
     /* ── Bubble tokens ──────────────────────────────────────── */
