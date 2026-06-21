@@ -2615,7 +2615,7 @@ function RowMain({
     : "bg-card";
   const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted" : "";
   const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
-  const wrapClass = isCompact ? "truncate" : {wrapClass};
+  const wrapClass = isCompact ? "truncate" : "line-clamp-2 break-words leading-tight";
   const cell = cn(cellPad, "border-b align-top", isCompact ? "whitespace-nowrap" : "break-words", baseCellBg);
   const stickyCell = cn(
     cellPad,
