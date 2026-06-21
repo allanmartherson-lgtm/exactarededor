@@ -544,7 +544,7 @@ const Users = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Data de nascimento *</Label>
+                    <Label>Data de nascimento <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                     <Input type="date" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
                   </div>
                   <div className="space-y-2">
