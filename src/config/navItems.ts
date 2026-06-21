@@ -143,11 +143,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/portal-usuarios", label: "Acessos dos Portais", icon: Building2, iconName: "Building2", roles: ["admin"] },
       { to: "/saude", label: "Saúde (Motor, Portais, Processo)", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin", "validador"] },
-      { to: "/sistema/versoes", label: "Versões e Releases", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
-      { to: "/sistema/feature-flags", label: "Feature Flags", icon: Flag, iconName: "Flag", roles: ["admin", "diretor"] },
-      { to: "/sistema/copiloto-telemetria", label: "Telemetria do Copiloto", icon: BrainCircuit, iconName: "BrainCircuit", roles: ["admin", "diretor"] },
-
-      { to: "/sistema/avisos", label: "Avisos do Sistema", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor"] },
+      { to: "/sistema", label: "Sistema (Versões, Flags, Avisos)", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
       
       { to: "/sobre", label: "Sobre o Exacta", icon: Info, iconName: "Info", roles: ALL_ROLES },
     ],
@@ -185,9 +181,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Acessos dos Portais", iconName: "Building2" },
   { label: "Saúde (Motor, Portais, Processo)", iconName: "Activity" },
   { label: "Auditoria", iconName: "History" },
-  { label: "Versões e Releases", iconName: "Rocket" },
-  { label: "Feature Flags", iconName: "Flag" },
-  { label: "Avisos do Sistema", iconName: "Megaphone" },
+  { label: "Sistema (Versões, Flags, Avisos)", iconName: "Rocket" },
   { label: "Sobre o Exacta", iconName: "Info" },
 ];
 
