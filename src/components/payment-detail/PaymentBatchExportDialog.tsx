@@ -129,6 +129,7 @@ export function PaymentBatchExportDialog({
       setSelectedCompanies(new Set(companies.map((c) => c.name)));
       setSelectedStatuses(new Set(["aprovado", "alerta", "reprovado"]));
       setCompanySearch("");
+      setIncludeHistory(false);
     }
   }, [open, companies]);
 
