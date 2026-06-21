@@ -237,6 +237,8 @@ const PaymentDetail = () => {
   const addCompanyInputRef = useRef<HTMLInputElement | null>(null);
   const [addingCompany, setAddingCompany] = useState(false);
   const [addCompanyConfirm, setAddCompanyConfirm] = useState<File[] | null>(null);
+  const [bonusDialogOpen, setBonusDialogOpen] = useState(false);
+
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
