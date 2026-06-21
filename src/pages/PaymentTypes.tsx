@@ -75,12 +75,19 @@ export default function PaymentTypes({ embedded = false }: { embedded?: boolean 
 
   return (
     <>
-      <PageHeader
-        title="Tipos de pagamento"
-        description="Gerencie os tipos de pagamento usados nos lotes (produção, plantão, remessa, valor fixo etc.)."
-        actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo tipo</Button>}
-      />
-      <div className="p-8 max-w-5xl space-y-4">
+      {!embedded && (
+        <PageHeader
+          title="Tipos de pagamento"
+          description="Gerencie os tipos de pagamento usados nos lotes (produção, plantão, remessa, valor fixo etc.)."
+          actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo tipo</Button>}
+        />
+      )}
+      <div className={embedded ? "max-w-5xl space-y-4" : "p-8 max-w-5xl space-y-4"}>
+        {embedded && (
+          <div className="flex justify-end">
+            <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo tipo</Button>
+          </div>
+        )}
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4" /> Tipos cadastrados</CardTitle>
