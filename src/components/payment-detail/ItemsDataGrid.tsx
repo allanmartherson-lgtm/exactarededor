@@ -3379,7 +3379,7 @@ function ItemDetailsRow({
                 </SafeCard>
               )}
 
-              {(it.ai_findings?.selection_trace || it.ai_status !== "aprovado") && (
+              {showTechnical && (it.ai_findings?.selection_trace || it.ai_status !== "aprovado") && (
                 <SafeCard>
                   <Label icon={ShieldAlert}>Justificativa da Classificação</Label>
                   <div className="mt-2 space-y-2">
