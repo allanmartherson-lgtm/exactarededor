@@ -732,6 +732,15 @@ const PaymentDetail = () => {
     );
     if (rpcErr) {
       setBusy(false);
+      // Bloqueio do trigger de divergência pedido × regra: abre dialog
+      // com ações diretas (devolver/liberar/abrir empresa) em vez de
+      // só toast. Vale para o envio analista→validador agora que o gate
+      // dispara também em 'aguardando_validacao'.
+      const block = parseReconciliationBlock(rpcErr);
+      if (block) {
+        setReconBlock(block);
+        return;
+      }
       toast({ title: "Falha ao enviar para validação", description: rpcErr.message, variant: "destructive" });
       return;
     }
