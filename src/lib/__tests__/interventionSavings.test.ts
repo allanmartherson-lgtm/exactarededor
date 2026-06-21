@@ -43,13 +43,14 @@ describe("summarizeItems", () => {
 
   it("delta zero não afeta nenhum acumulador", () => {
     const s = summarizeItems([item({ delta: 0 })]);
-    expect(s).toEqual({ economia: 0, perda: 0, saldo: 0, qtd_itens: 1 });
+    expect(s).toEqual({ economia: 0, perda: 0, neutro: 0, saldo: 0, qtd_itens: 1 });
   });
 
   it("lista vazia → tudo zero", () => {
     expect(summarizeItems([])).toEqual({
       economia: 0,
       perda: 0,
+      neutro: 0,
       saldo: 0,
       qtd_itens: 0,
     });
