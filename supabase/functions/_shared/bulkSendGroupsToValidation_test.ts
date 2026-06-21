@@ -53,8 +53,7 @@ async function newClient(): Promise<Client> {
     throw new Error("Nenhum admin em user_roles — testes de integração precisam de um admin no preview.");
   }
   await c.queryArray(
-    `SELECT set_config('request.jwt.claims', $1, false),
-            set_config('role', 'authenticated', false)`,
+    `SELECT set_config('request.jwt.claims', $1, false)`,
     [JSON.stringify({ sub: lookup.rows[0].id, role: "authenticated" })],
   );
   return c;
