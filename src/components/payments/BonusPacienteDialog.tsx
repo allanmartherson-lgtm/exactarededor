@@ -84,8 +84,14 @@ export function BonusPacienteDialog({
   };
 
   useEffect(() => {
-    if (!open) reset();
-  }, [open]);
+    if (!open) {
+      reset();
+    } else if (lockedPayment) {
+      setMode("existing");
+      setTargetPaymentId(lockedPayment.id);
+    }
+  }, [open, lockedPayment?.id]);
+
 
   useEffect(() => {
     if (!open || !hospital?.id) return;
