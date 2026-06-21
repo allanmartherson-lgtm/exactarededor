@@ -2771,24 +2771,28 @@ export default function CompanyAnalysis() {
         </DialogContent>
       </Dialog>
 
-      {/* Excluir item */}
-      {/* Cancelar item (não-devido) */}
+      {/* Excluir item (hard delete) — o histórico fica em audit_log + observação do lote */}
       {deleteItem && (
-        <CancelPaymentDialog
-          level="item"
-          targetId={deleteItem.id}
-          targetLabel={`${deleteItem.doctor_name ?? "—"} · ${formatCurrency(Number(deleteItem.gross_amount ?? 0))}`}
-          open={!!deleteItem}
-          onOpenChange={(v) => { if (!v) setDeleteItem(null); }}
-          onCancelled={() => {
-            const cancelledId = deleteItem.id;
-            // Update otimista: remove imediatamente da grid
-            hideItemImmediately(cancelledId);
-            setDeleteItem(null);
-            // Refetch para sincronizar totais/contadores
-            load();
-          }}
-        />
+        <AlertDialog open={!!deleteItem} onOpenChange={(v) => { if (!v && !deletingItem) setDeleteItem(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir item permanentemente?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {`Esta ação remove definitivamente "${deleteItem.doctor_name ?? "—"} · ${formatCurrency(Number(deleteItem.gross_amount ?? 0))}" deste lote. O item não será mais pago nem aparecerá em relatórios. O registro da exclusão fica no histórico de observações e na trilha de auditoria.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingItem}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deletingItem}
+                onClick={(e) => { e.preventDefault(); void confirmDeleteItem(); }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingItem ? "Excluindo…" : "Excluir item"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {payment && (
