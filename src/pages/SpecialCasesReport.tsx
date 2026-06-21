@@ -116,11 +116,13 @@ export default function SpecialCasesReport({ embedded = false }: { embedded?: bo
   }, [marks]);
 
   return (
-    <div className="p-6 space-y-6">
-      <PageHeader
-        title="Casos especiais — relatório"
-        description="Marcações de oncológico, pediátrico e outras patologias com tratamento diferenciado"
-      />
+    <div className={embedded ? "space-y-6" : "p-6 space-y-6"}>
+      {!embedded && (
+        <PageHeader
+          title="Casos especiais — relatório"
+          description="Marcações de oncológico, pediátrico e outras patologias com tratamento diferenciado"
+        />
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
