@@ -3554,7 +3554,7 @@ const PaymentDetail = () => {
               </div>
               {isAnalista && (
                 <div className="flex gap-2 flex-shrink-0">
-                  <Button size="sm" variant="outline" onClick={exportConfeccaoXlsx} className="gap-1.5 border-amber-500/40 hover:bg-amber-500/10">
+                  <Button size="sm" variant="outline" onClick={() => setExportPickerOpen(true)} className="gap-1.5 border-amber-500/40 hover:bg-amber-500/10">
                     <Download className="h-4 w-4" />
                     Exportar xlsx
                   </Button>
