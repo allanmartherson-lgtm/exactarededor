@@ -95,8 +95,8 @@ All colors MUST be HSL.
     /* Rebrand: tons alinhados a forest-green (#2D5A4E) + copper (#C8A96E).
        Mantém variação suficiente para distinguir etapas do pipeline sem
        sair da paleta da marca. */
-    --bubble-purple-bg: 164 30% 90%;     /* forest soft */
-    --bubble-purple-fg: 164 35% 24%;
+    --bubble-purple-bg: 214 55% 92%;     /* azul suave D'Or */
+    --bubble-purple-fg: 214 100% 28%;    /* azul D'Or escuro */
     --bubble-yellow-bg: 38 65% 90%;      /* copper soft */
     --bubble-yellow-fg: 32 55% 35%;
     --bubble-red-bg: 0 80% 95%;
