@@ -3048,6 +3048,10 @@ function ItemDetailsRow({
   const explanation = it.ai_findings?.calculation_explanation;
   const engine = it.ai_findings?.engine ?? null;
   const aiNote = engine?.ai_note;
+  // Colapso "Detalhes técnicos": esconde por padrão fórmula completa, trilha de
+  // decisão, justificativa, auditoria de normalização, hierarquia e coerência.
+  // Mantém visível só o essencial: Regra + Valor calculado + Alertas + Histórico.
+  const [showTechnical, setShowTechnical] = useState(false);
   const diff = expected != null ? Number(expected) - Number(it.gross_amount ?? 0) : null;
   const diffPct = (engine?.diff_pct ?? null) as number | null;
   const priority = (engine?.matched_priority ?? null) as RuleMatchPriority | null;
@@ -3186,7 +3190,20 @@ function ItemDetailsRow({
             ))}
           </div>
 
+          <div className="mb-3 flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); setShowTechnical((v) => !v); }}
+              className="h-6 text-[11px] text-muted-foreground hover:text-foreground gap-1"
+            >
+              {showTechnical ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {showTechnical ? "Ocultar detalhes técnicos" : "Mostrar detalhes técnicos"}
+            </Button>
+          </div>
+
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-3 items-start">
+
             {/* Coluna 1 (mobile: 1º — alertas + histórico) */}
             <div className="space-y-2 min-w-0 order-1 lg:order-1">
               {alerts.length > 0 && (
@@ -3329,7 +3346,7 @@ function ItemDetailsRow({
                       </p>
                     </div>
                   )}
-                  <CalcFormulaBlock item={it} />
+                  {showTechnical && <CalcFormulaBlock item={it} />}
                   {matchedRules.length > 1 && (
                     <p className={cn("mt-1 italic", TEXT_META)}>
                       + {matchedRules.length - 1} regra(s) também casaram
@@ -3349,7 +3366,7 @@ function ItemDetailsRow({
                       </p>
                     </div>
                   )}
-                  <CalcFormulaBlock item={it} />
+                  {showTechnical && <CalcFormulaBlock item={it} />}
                 </SafeCard>
               ) : (
                 <SafeCard className="text-muted-foreground italic">Nenhuma regra específica casou.</SafeCard>
@@ -3362,7 +3379,7 @@ function ItemDetailsRow({
                 </SafeCard>
               )}
 
-              {(it.ai_findings?.selection_trace || it.ai_status !== "aprovado") && (
+              {showTechnical && (it.ai_findings?.selection_trace || it.ai_status !== "aprovado") && (
                 <SafeCard>
                   <Label icon={ShieldAlert}>Justificativa da Classificação</Label>
                   <div className="mt-2 space-y-2">
