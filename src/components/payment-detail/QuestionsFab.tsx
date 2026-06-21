@@ -16,10 +16,13 @@ export function QuestionsFab({ openCount, onClick, className }: Props) {
   return (
     <div
       className={cn(
-        "fixed z-40 bottom-6 right-6 print:hidden",
+        "fixed z-40 bottom-4 right-4 sm:bottom-6 sm:right-6 print:hidden",
         className,
       )}
+      style={{ position: "fixed" }}
     >
+      <div className="relative">
+
       <Button
         type="button"
         onClick={onClick}
