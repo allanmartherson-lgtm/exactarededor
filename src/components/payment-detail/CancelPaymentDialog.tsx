@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,13 +17,35 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, XCircle, TrendingUp, MinusCircle, AlertTriangle } from "lucide-react";
+import { Loader2, XCircle, TrendingUp, MinusCircle, AlertTriangle, Sparkles } from "lucide-react";
 import {
   REASON_GROUPS,
   REASON_LABELS,
   isEconomiaRealReason,
   type CancellationReason,
 } from "@/lib/cancelledPayments";
+
+/** Normaliza nome de médico para matching (mesma lógica do PaymentConciliationModal). */
+const normName = (s: string | null | undefined): string =>
+  (s ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** Normaliza atendimento — só dígitos. */
+const normAtt = (s: string | null | undefined): string => (s ?? "").toString().replace(/\D/g, "");
+
+/** Normaliza TUSS — só dígitos, 8 chars padding. */
+const normCode = (s: string | null | undefined): string => {
+  const d = (s ?? "").toString().replace(/\D/g, "");
+  if (!d) return "";
+  return d.length >= 8 ? d.slice(-8) : d.padStart(8, "0");
+};
+
 
 interface Props {
   level: "group" | "item";
@@ -53,6 +75,69 @@ export default function CancelPaymentDialog({
   const [reason, setReason] = useState<CancellationReason | "">("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Sugestão automática de "duplicidade_motor": quando o item-alvo é manual
+  // (sem applied_calc_id) e existe um item-irmão no mesmo lote, com mesmo
+  // (atendimento + TUSS + médico) já calculado automaticamente pelo motor.
+  // Só sugere — analista precisa selecionar o motivo manualmente.
+  const [duplicateSuggestion, setDuplicateSuggestion] = useState<{
+    siblingId: string;
+    siblingLabel: string;
+  } | null>(null);
+  const [detecting, setDetecting] = useState(false);
+
+  useEffect(() => {
+    if (!open || level !== "item" || !targetId) {
+      setDuplicateSuggestion(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setDetecting(true);
+      try {
+        const { data: current, error: e1 } = await supabase
+          .from("payment_items")
+          .select("id, payment_id, attendance_number, procedure_code, doctor_name, applied_calc_id, applied_rule_label, cancelled_at")
+          .eq("id", targetId)
+          .maybeSingle();
+        if (cancelled || e1 || !current) return;
+        // Se o próprio item já foi calculado pelo motor, NÃO é duplicidade manual.
+        if (current.applied_calc_id) return;
+        const att = normAtt(current.attendance_number);
+        const code = normCode(current.procedure_code);
+        const name = normName(current.doctor_name);
+        if (!att || !code || !name) return;
+
+        const { data: siblings, error: e2 } = await supabase
+          .from("payment_items")
+          .select("id, attendance_number, procedure_code, doctor_name, applied_calc_id, applied_rule_label, cancelled_at")
+          .eq("payment_id", current.payment_id)
+          .neq("id", current.id)
+          .not("applied_calc_id", "is", null)
+          .is("cancelled_at", null)
+          .limit(50);
+        if (cancelled || e2 || !siblings?.length) return;
+        const match = siblings.find(
+          (s) =>
+            normAtt(s.attendance_number) === att &&
+            normCode(s.procedure_code) === code &&
+            normName(s.doctor_name) === name,
+        );
+        if (match) {
+          setDuplicateSuggestion({
+            siblingId: match.id,
+            siblingLabel: match.applied_rule_label || "regra aplicada automaticamente",
+          });
+        }
+      } finally {
+        if (!cancelled) setDetecting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, level, targetId]);
+
 
   const handle = async () => {
     if (!reason) {
@@ -127,6 +212,35 @@ export default function CancelPaymentDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 py-2">
+            {duplicateSuggestion && reason !== "duplicidade_motor" && (
+              <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                <Sparkles className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                <div className="flex-1 space-y-1.5">
+                  <p className="font-medium text-foreground">
+                    Possível duplicidade detectada
+                  </p>
+                  <p className="text-muted-foreground">
+                    Já existe um item neste lote para o mesmo atendimento + procedimento + médico que foi calculado automaticamente pelo motor
+                    {duplicateSuggestion.siblingLabel ? ` (${duplicateSuggestion.siblingLabel})` : ""}.
+                    Sugerimos cancelar este lançamento manual como <strong>Duplicidade corrigida pelo motor</strong> (não soma como economia).
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-primary/40 hover:bg-primary/10"
+                    onClick={() => setReason("duplicidade_motor")}
+                  >
+                    Usar este motivo
+                  </Button>
+                </div>
+              </div>
+            )}
+            {detecting && (
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" /> Verificando duplicidade…
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Motivo *</Label>
               <Select value={reason} onValueChange={(v) => setReason(v as CancellationReason)}>
