@@ -110,7 +110,19 @@ export async function drawReportHeader(
   const logo = await getRedeDOrLogoPng(effectiveVariant, 160);
   const logoWidthMm = logoHeightMm * logo.aspect;
 
-  const barHeight = logoHeightMm + 10;
+  // Pré-calcula linhas do subtítulo para dimensionar a faixa antes de desenhar
+  const titleX = marginX + logoWidthMm + 8;
+  const titleMaxW = pageWidth - titleX - marginX;
+  let subLines: string[] = [];
+  if (subtitle) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    subLines = (doc.splitTextToSize(subtitle, titleMaxW) as string[]).slice(0, 2);
+  }
+  // Espaço necessário: título (~7mm) + cada linha de subtítulo (~4mm) + folga
+  const textBlockHeight = 7 + subLines.length * 4 + 3;
+  const barHeight = Math.max(logoHeightMm + 10, textBlockHeight + 6);
+
   if (filledBar) {
     doc.setFillColor(...REDE_DOR_BRAND_BLUE_RGB);
     doc.rect(0, 0, pageWidth, barHeight, "F");
@@ -120,21 +132,16 @@ export async function drawReportHeader(
   doc.addImage(logo.dataUrl, "PNG", marginX, 6, logoWidthMm, logoHeightMm);
 
   // Título à direita do logo
-  const titleX = marginX + logoWidthMm + 8;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(filledBar ? 255 : 17, filledBar ? 255 : 24, filledBar ? 255 : 39);
-  const titleMaxW = pageWidth - titleX - marginX;
   const titleLines = doc.splitTextToSize(title, titleMaxW) as string[];
   doc.text(titleLines[0] ?? "", titleX, 12);
 
-  if (subtitle) {
+  if (subLines.length > 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(filledBar ? 230 : 90, filledBar ? 230 : 90, filledBar ? 230 : 90);
-    const subLines = (doc.splitTextToSize(subtitle, titleMaxW) as string[]).slice(0, 2);
-    // jsPDF: passar array pode acionar runs de texto com kerning estranho em
-    // algumas versões — desenhamos cada linha com string pura.
     subLines.forEach((line, idx) => {
       doc.text(String(line), titleX, 17 + idx * 4);
     });
