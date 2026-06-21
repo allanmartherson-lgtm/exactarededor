@@ -28,6 +28,12 @@ export type GeneratePaymentPdfInput = {
   observations?: ObservationRow[];
   profiles?: Record<string, string>;
   rulesIndex?: Record<string, RuleLite>;
+  /**
+   * Inclui a seção "Histórico de observações" no PDF. Default: false.
+   * Relatório executivo não traz histórico salvo se o analista pedir
+   * explicitamente na hora da exportação.
+   */
+  includeHistory?: boolean;
 };
 
 type DocWithLastTable = jsPDF & { lastAutoTable?: { finalY?: number } };
