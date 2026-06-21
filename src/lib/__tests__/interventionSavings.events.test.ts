@@ -45,18 +45,19 @@ const ev = (
 });
 
 describe("KPI — todas as fontes alimentam o saldo sem perder sinal", () => {
-  it("soma diretor + analista + cancelamento empresa + cancelamento item", () => {
+  it("soma diretor + analista + cancelamento empresa + cancelamento item (com motivo de economia real)", () => {
     const items: InterventionItem[] = [
-      ev("diretor", 300),               // economia
+      ev("diretor", 300),               // economia (delta-based)
       ev("analista", 200),              // economia (ajuste p/ menos)
       ev("analista", -150),             // aumento (ajuste p/ mais → entra como perda)
-      ev("cancelamento_empresa", 500),  // economia
-      ev("cancelamento_item", 80),      // economia
+      ev("cancelamento_empresa", 500, { cancellation_reason: "contrato_encerrado" }),  // economia real
+      ev("cancelamento_item", 80, { cancellation_reason: "medico_fatura_externamente" }), // economia real
       ev("validador", -40),             // aumento
     ];
     const s = summarizeItems(items);
     expect(s.economia).toBeCloseTo(300 + 200 + 500 + 80);
     expect(s.perda).toBeCloseTo(150 + 40);
+    expect(s.neutro).toBeCloseTo(0);
     expect(s.saldo).toBeCloseTo(1080 - 190);
     expect(s.qtd_itens).toBe(6);
   });
