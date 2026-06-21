@@ -3125,12 +3125,8 @@ const TaskRow = ({
   return (
     <Link
       to={`/pagamentos/${p.id}`}
-      className="task-row"
+      className="task-row flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
       style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
         padding: "14px 22px",
         borderBottom: "1px solid hsl(var(--border-light, var(--border)))",
         textDecoration: "none",
@@ -3139,8 +3135,9 @@ const TaskRow = ({
         background: slaLevel === "vencido" ? "hsl(var(--destructive) / 0.04)" : undefined,
       }}
     >
-      <div className="min-w-0 flex-1">
-        <SafeCard className="p-0 border-none bg-transparent shadow-none space-y-3">
+      <div className="min-w-0 flex-1 w-full">
+        <SafeCard className="p-0 border-none bg-transparent shadow-none space-y-2">
+          {/* Linha 1: chips de papel/SLA/questionamento */}
           <div className="flex items-center gap-2 flex-wrap">
             {mine ? (
               <SuaVezBadge />
@@ -3183,24 +3180,6 @@ const TaskRow = ({
                 <AlertTriangle size={11} /> Questionamento ({qCount})
               </span>
             )}
-            
-            <div className="flex flex-col gap-1 min-w-0 flex-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
-                  {p.reference}
-                </p>
-                {risk && risk.score > 0 && (
-                  <RiskBadge 
-                    level={risk.level} 
-                    score={risk.score} 
-                    financialData={risk}
-                    showLabel={false}
-                    className="scale-90 shrink-0"
-                  />
-                )}
-              </div>
-            </div>
-
             {slaTone && (
               <span
                 style={{
@@ -3222,8 +3201,34 @@ const TaskRow = ({
                 <Timer size={11} aria-hidden /> {formatShortDuration(timeMs)}
               </span>
             )}
+            {/* Status visível no topo no mobile, escondido no desktop (já aparece à direita) */}
+            <span className="sm:hidden ml-auto">
+              <StatusBadge status={p.status} />
+            </span>
           </div>
-          <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
+
+          {/* Linha 2: título do lote em destaque (pode quebrar em 2-3 linhas no mobile) */}
+          <div className="flex items-start gap-2 min-w-0">
+            <p
+              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))", lineHeight: 1.3, wordBreak: "break-word" }}
+              className="min-w-0 flex-1"
+            >
+              {p.reference}
+            </p>
+            {risk && risk.score > 0 && (
+              <RiskBadge
+                level={risk.level}
+                score={risk.score}
+                financialData={risk}
+                showLabel={false}
+                compact
+                className="scale-90 shrink-0"
+              />
+            )}
+          </div>
+
+          {/* Linha 3: metadados */}
+          <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", lineHeight: 1.5 }}>
             <span className="capitalize">
               {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
             </span>
@@ -3233,9 +3238,18 @@ const TaskRow = ({
             {p.payment_type && <> · <span className="capitalize">{p.payment_type}</span></>}
             {" · "}{formatDate(p.created_at)}
           </p>
+
+          {/* Linha 4: valor em risco em destaque (só se houver) */}
+          {risk && risk.valorEmRisco > 0 && (
+            <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", lineHeight: 1.4 }}>
+              Valor em risco:{" "}
+              <span className="font-semibold text-foreground">{formatCurrency(risk.valorEmRisco)}</span>
+              <span className="opacity-70"> ({risk.percentualRisco.toFixed(1)}% do total)</span>
+            </p>
+          )}
         </SafeCard>
       </div>
-      <StatusBadge status={p.status} className="shrink-0" />
+      <StatusBadge status={p.status} className="shrink-0 hidden sm:inline-flex" />
     </Link>
   );
 };
