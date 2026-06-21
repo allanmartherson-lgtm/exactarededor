@@ -2616,10 +2616,12 @@ function RowMain({
     ? "bg-primary-soft/60"
     : "bg-card";
   const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted" : "";
-  const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
+  const cellPad = isCompact ? "px-1 py-0" : "px-2.5 py-2";
+  // Sempre permitir quebra de linha natural. Sem line-clamp (que estava clipando
+  // texto em 1 linha quando o span ficava como flex item sem min-w-0).
   const wrapClass = isCompact
-    ? "line-clamp-2 break-words leading-[1.15]"
-    : "line-clamp-2 break-words leading-tight";
+    ? "block whitespace-normal break-words leading-[1.1] min-w-0"
+    : "block whitespace-normal break-words leading-snug min-w-0";
   const cell = cn(cellPad, "border-b align-top break-words", baseCellBg);
   const stickyCell = cn(
     cellPad,
