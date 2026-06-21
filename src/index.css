@@ -164,12 +164,12 @@ All colors MUST be HSL.
     --primary-foreground: 0 0% 100%;
     --primary-soft: 214 40% 18%;
     --primary-glow: 200 55% 60%;
-    --primary-dark: 164 35% 18%;
+    --primary-dark: 214 100% 12%;     /* azul navy escuro */
 
     /* ── Accent: ouro Exacta ─────────────────────────────── */
-    --accent: 164 33% 26%;
+    --accent: 37 42% 61%;             /* #C6A27C — Pantone 728 C Rede D'Or */
     --accent-foreground: 0 0% 100%;
-    --accent-light: 40 58% 78%;
+    --accent-light: 35 80% 86%;       /* #F7CEA7 — dourado claro D'Or */
 
     --accent-blue: 213 85% 65%;
     --accent-blue-soft: 222 25% 20%;
@@ -215,8 +215,8 @@ All colors MUST be HSL.
     --border-highlight: 214 16% 30%;
     --input: 214 12% 32%;
     --input-bg: 214 22% 13%;
-    --ring: 38 47% 61%;
-    --ring-soft: 38 47% 61% / 0.35;
+    --ring: 214 80% 55%;              /* azul D'Or dark mode */
+    --ring-soft: 214 80% 55% / 0.3;
     --track-soft: 214 12% 28%;
 
     --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.35);
@@ -228,8 +228,8 @@ All colors MUST be HSL.
     --gradient-soft: linear-gradient(135deg, hsl(214 22% 13%), hsl(214 28% 7%));
 
     /* ── Bubble tokens ──────────────────────────────────────── */
-    --bubble-purple-bg: 164 25% 18%;
-    --bubble-purple-fg: 165 45% 70%;
+    --bubble-purple-bg: 214 40% 18%;  /* azul suave dark */
+    --bubble-purple-fg: 214 80% 75%;  /* azul claro dark */
     --bubble-yellow-bg: 35 35% 20%;
     --bubble-yellow-fg: 38 70% 68%;
     --bubble-red-bg: 0 30% 20%;
@@ -255,10 +255,10 @@ All colors MUST be HSL.
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-hover: 214 22% 15%;
     --sidebar-hover-foreground: 60 15% 90%;
-    --sidebar-accent: 165 25% 18%;
-    --sidebar-accent-foreground: 60 15% 92%;
+    --sidebar-accent: 214 40% 18%;    /* azul suave dark */
+    --sidebar-accent-foreground: 214 80% 80%;
     --sidebar-border: 214 14% 16%;
-    --sidebar-ring: 38 47% 61%;
+    --sidebar-ring: 214 80% 55%;
   }
 
   /* ============================================================
