@@ -3353,6 +3353,7 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
   delayed = 0,
 }, ref) => {
   const comfortable = density === "comfortable";
+  const isApproval = label === "Aprovação" || label === "Aprovação diretoria";
   return (
     <Link
       ref={ref}
@@ -3368,9 +3369,10 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
         textDecoration: "none",
         color: "inherit",
         transition: "background 0.15s ease",
-        boxShadow: separated ? "inset 1px 0 0 hsl(var(--border) / 0.8)" : undefined,
+        boxShadow: separated && !isApproval ? "inset 1px 0 0 hsl(var(--border) / 0.8)" : undefined,
         minWidth: 0,
         position: "relative",
+        background: isApproval ? "hsl(var(--primary-dark))" : undefined,
       }}
     >
     {delayed > 0 && (
@@ -3396,7 +3398,9 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        ...bubbleStyle(color),
+        ...(isApproval
+          ? { background: "rgba(255,255,255,0.15)", color: "#fff" }
+          : bubbleStyle(color)),
       }}
     >
       <Icon size={comfortable ? 18 : 17} strokeWidth={2} />
@@ -3407,7 +3411,7 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
         fontWeight: 300,
         letterSpacing: "-0.02em",
         lineHeight: 1,
-        color: "hsl(var(--foreground))",
+        color: isApproval ? "#fff" : "hsl(var(--foreground))",
         fontVariantNumeric: "tabular-nums",
       }}
     >
@@ -3419,7 +3423,7 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
         fontWeight: 600,
         textTransform: "uppercase",
         letterSpacing: "0.04em",
-        color: "hsl(var(--muted-foreground))",
+        color: isApproval ? "rgba(255,255,255,0.75)" : "hsl(var(--muted-foreground))",
         textAlign: "center",
         lineHeight: 1.2,
         wordBreak: "break-word",
