@@ -138,13 +138,14 @@ export function computeDashboardCounts(input: ComputeCountsInput): DashboardCoun
     const groupStatuses = groupsByPayment[p.id] ?? [];
     const hasGroupInValidacao = groupStatuses.some((s) => s === "aguardando_validacao");
     const hasGroupInAprovacao = groupStatuses.some((s) => s === "aguardando_aprovacao");
+    const isValidadorQueue = p.status === "aguardando_validacao" || hasGroupInValidacao;
 
     const isMineRow =
       !!uid &&
       ((owner === "analista" &&
         ANALISTA_PENDING_STATUSES.has(p.status) &&
         p.created_by === uid) ||
-        hasGroupInValidacao ||
+        (isValidadorRole && isValidadorQueue) ||
         p.status === "aguardando_aprovacao" ||
         hasGroupInAprovacao);
 
@@ -157,7 +158,7 @@ export function computeDashboardCounts(input: ComputeCountsInput): DashboardCoun
       ) {
         companies.forEach((id) => mineAnalistaCompaniesSet.add(id));
       }
-      if (isValidadorRole && hasGroupInValidacao) {
+      if (isValidadorRole && isValidadorQueue) {
         companies.forEach((id) => mineValidadorCompaniesSet.add(id));
       }
       if (p.status === "aguardando_aprovacao" || hasGroupInAprovacao) {
@@ -177,9 +178,11 @@ export function computeDashboardCounts(input: ComputeCountsInput): DashboardCoun
       c.mineDiretor++;
     }
 
-    if (hasGroupInValidacao) {
+    if (isValidadorRole && isValidadorQueue) {
       c.mineValidador++;
-      if (owner !== "validador") c.teamValidacao++;
+    }
+    if (hasGroupInValidacao && owner !== "validador") {
+      c.teamValidacao++;
     }
 
     switch (p.status) {

@@ -1507,7 +1507,7 @@ const Dashboard = () => {
 
   // Modo de dashboard por perfil — admin vê o do diretor (visão máxima)
   const dashboardMode: "analista" | "validador" | "diretor" =
-    isDiretor || roles.includes("admin")
+    isDiretor && !isValidador
       ? "diretor"
       : isValidador
       ? "validador"
