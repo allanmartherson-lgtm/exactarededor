@@ -127,11 +127,18 @@ export function DoctorPendingReviewPanel() {
     if (!rejecting) return;
     setBusyId(rejecting.id);
     try {
-      // doctor_aliases tem FK on delete cascade; payment_items.doctor_id é nullable
-      // mas o item perde o vínculo — o gate avisa o analista a rever.
-      const { error } = await supabase.from("doctors").delete().eq("id", rejecting.id);
+      // Soft-delete: trigger no banco bloqueia DELETE físico em doctors para preservar
+      // histórico e vínculos. Marcamos active=false e tiramos da fila de pendentes.
+      const { error } = await supabase
+        .from("doctors")
+        .update({
+          active: false,
+          pending_admin_review: false,
+          pending_review_note: `Rejeitado em ${new Date().toLocaleString("pt-BR")}. ${rejecting.pending_review_note ?? ""}`.trim(),
+        })
+        .eq("id", rejecting.id);
       if (error) throw error;
-      toast({ title: "Cadastro rejeitado", description: `${rejecting.full_name} removido.` });
+      toast({ title: "Cadastro rejeitado", description: `${rejecting.full_name} inativado.` });
       setRejecting(null);
       await load();
     } catch (err: any) {
