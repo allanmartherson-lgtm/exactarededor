@@ -153,6 +153,14 @@ export function PaymentBatchActionsFooter({
     });
     setBusy(false);
     if (error) {
+      // Trata especificamente o bloqueio do trigger de divergência:
+      // abre o ReconciliationBlockDialog com ações diretas (devolver,
+      // liberar, abrir empresa) em vez de só toast.
+      const block = parseReconciliationBlock(error);
+      if (block) {
+        setReconBlock(block);
+        return;
+      }
       toast({
         title: actorRole === "diretor" ? "Falha ao aprovar" : "Falha ao encaminhar ao diretor",
         description: error.message,
