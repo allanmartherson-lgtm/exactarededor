@@ -101,9 +101,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/pendencias", label: "Pendências", icon: ListChecksIcon, iconName: "ListChecksIcon", roles: ALL_ROLES },
       { to: "/casos-especiais", label: "Casos Especiais", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor", "analista", "validador"] as const },
       { to: "/conversas", label: "Conversas", icon: ChatsIcon, iconName: "ChatsIcon", roles: ALL_ROLES },
-      { to: "/comunicacao/massa", label: "Comunicação em Massa", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor", "analista", "validador"] as const },
-      { to: "/comunicacao/aprovacoes", label: "Aprovações de Comunicados", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor", "validador"] as const },
-      { to: "/comunicacao/supervisao", label: "Supervisão de Atendimento", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor", "validador"] as const },
+      { to: "/comunicacao", label: "Comunicação", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor", "analista", "validador"] as const },
     ],
   },
   {
@@ -153,7 +151,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/sistema/copiloto-telemetria", label: "Telemetria do Copiloto", icon: BrainCircuit, iconName: "BrainCircuit", roles: ["admin", "diretor"] },
 
       { to: "/sistema/avisos", label: "Avisos do Sistema", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor"] },
-      { to: "/sistema/integracoes", label: "Integrações de Comunicação", icon: MessageSquare, iconName: "MessageSquare", roles: ["admin", "diretor"] },
+      
       { to: "/sobre", label: "Sobre o Exacta", icon: Info, iconName: "Info", roles: ALL_ROLES },
     ],
   },
