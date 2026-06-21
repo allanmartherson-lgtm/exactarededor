@@ -449,6 +449,12 @@ const Payments = () => {
     const terminal = Array.from(TERMINAL_STATUSES) as string[];
     const nonTerminal = ALL_STATUSES.filter((s) => !TERMINAL_STATUSES.has(s));
     let base: string[] = archivedView ? terminal : nonTerminal;
+    // Concluídos (pago/lançado) só aparecem se: (a) a visão de arquivados estiver
+    // ativa, (b) o usuário ligou explicitamente "ver concluídos", ou (c) o filtro
+    // de status pediu um desses status diretamente.
+    if (!archivedView && !showConcluded && statusFilter === "all") {
+      base = base.filter((s) => !CONCLUDED_STATUSES.has(s));
+    }
     if (statusFilter !== "all") {
       base = base.includes(statusFilter) ? [statusFilter] : [statusFilter];
     }
@@ -465,7 +471,7 @@ const Payments = () => {
       if (mine.size) base = base.filter((s) => mine.has(s));
     }
     return base.length ? base : undefined;
-  }, [archivedView, statusFilter, ownerGroup, onlyMine, roles, ALL_STATUSES]);
+  }, [archivedView, showConcluded, statusFilter, ownerGroup, onlyMine, roles, ALL_STATUSES]);
 
   // Monta o objeto de filtros que será enviado para a RPC.
   const rpcFilters = useMemo(() => {
