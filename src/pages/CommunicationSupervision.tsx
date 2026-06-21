@@ -39,7 +39,7 @@ interface ThreadRow {
   payment_id: string | null;
 }
 
-export default function CommunicationSupervision() {
+export default function CommunicationSupervision({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, roles } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<ThreadRow[]>([]);
@@ -155,7 +155,7 @@ export default function CommunicationSupervision() {
   if (!canSupervise) {
     return (
       <>
-        <PageHeader title="Supervisão de Atendimento" />
+        {!embedded && <PageHeader title="Supervisão de Atendimento" />}
         <div className="p-8 flex items-center gap-2 text-muted-foreground">
           <Lock className="h-4 w-4" /> Acesso restrito a supervisores (validador, diretor ou admin).
         </div>
@@ -165,8 +165,8 @@ export default function CommunicationSupervision() {
 
   return (
     <>
-      <PageHeader title="Supervisão de Atendimento" description="Fila unificada de conversas com médicos e empresas — SLA em horas úteis." />
-      <div className="p-6 space-y-4">
+      {!embedded && <PageHeader title="Supervisão de Atendimento" description="Fila unificada de conversas com médicos e empresas — SLA em horas úteis." />}
+      <div className={embedded ? "space-y-4" : "p-6 space-y-4"}>
         <StatTileGrid>
           <StatCard label="Pendentes" value={stats.pendentes} icon={MessageCircle} tone="info" />
           <StatCard label="Vencidos SLA" value={stats.vencidos} icon={AlertTriangle} tone="warning" />

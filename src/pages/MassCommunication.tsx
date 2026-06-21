@@ -89,7 +89,7 @@ const APPROVAL_LABEL: Record<Campaign["approval_status"], string> = {
   rejected: "Rejeitada",
 };
 
-export default function MassCommunication() {
+export default function MassCommunication({ embedded = false }: { embedded?: boolean } = {}) {
   const { hasRole, user } = useAuth();
   const isSupervisor = hasRole("admin") || hasRole("diretor") || hasRole("validador");
   const [items, setItems] = useState<Campaign[]>([]);
@@ -224,17 +224,28 @@ export default function MassCommunication() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader
-        title="Comunicação em massa"
-        icon={Megaphone as never}
-        description="Envie comunicados para empresas, médicos ou grupos por especialidade. Disparo via portal, e-mail e/ou WhatsApp."
-        actions={
+      {!embedded ? (
+        <PageHeader
+          title="Comunicação em massa"
+          icon={Megaphone as never}
+          description="Envie comunicados para empresas, médicos ou grupos por especialidade. Disparo via portal, e-mail e/ou WhatsApp."
+          actions={
+            <Button onClick={() => setOpenDialog(true)} className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              Nova campanha
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex justify-end">
           <Button onClick={() => setOpenDialog(true)} className="gap-1.5">
             <Plus className="h-4 w-4" />
             Nova campanha
           </Button>
-        }
-      />
+        </div>
+      )}
+
+
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <Table>

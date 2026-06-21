@@ -25,7 +25,7 @@ type Template = {
   language_code: string;
 };
 
-export default function IntegrationsAdmin() {
+export default function IntegrationsAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,8 +43,8 @@ export default function IntegrationsAdmin() {
   }, []);
 
   return (
-    <div className="container py-8 space-y-6">
-      <PageHeader title="Integrações de Comunicação" description="Status dos canais, templates e últimas entregas." />
+    <div className={embedded ? "space-y-6" : "container py-8 space-y-6"}>
+      {!embedded && <PageHeader title="Integrações de Comunicação" description="Status dos canais, templates e últimas entregas." />}
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatusCard
