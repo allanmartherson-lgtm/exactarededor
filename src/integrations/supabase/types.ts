@@ -9723,6 +9723,16 @@ export type Database = {
           matched_by: string
         }[]
       }
+      find_status_inconsistent_payments: {
+        Args: { _limit?: number }
+        Returns: {
+          current_status: Database["public"]["Enums"]["payment_status"]
+          expected_status: Database["public"]["Enums"]["payment_status"]
+          last_updated: string
+          payment_id: string
+          total_groups: number
+        }[]
+      }
       fix_specialties_array: { Args: { arr: string[] }; Returns: string[] }
       forward_groups_to_director: {
         Args: {
@@ -10505,6 +10515,17 @@ export type Database = {
         Returns: undefined
       }
       repair_portal_links: { Args: never; Returns: Json }
+      repair_status_inconsistencies: {
+        Args: { _limit?: number }
+        Returns: {
+          after_status: Database["public"]["Enums"]["payment_status"]
+          before_status: Database["public"]["Enums"]["payment_status"]
+          expected_status: Database["public"]["Enums"]["payment_status"]
+          fixed: boolean
+          payment_id: string
+          total_groups: number
+        }[]
+      }
       reply_question: {
         Args: {
           p_author_id: string
