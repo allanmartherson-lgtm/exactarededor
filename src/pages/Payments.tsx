@@ -1192,28 +1192,53 @@ const Payments = () => {
               success: "bg-success/10 text-success",
               info: "bg-info/10 text-info",
             };
+            const isHero = kpi.tone === "primary";
             return (
               <div
                 key={kpi.label}
-                className="bg-card p-5 rounded-xl border border-border/40 shadow-soft"
+                className="p-5 rounded-xl border border-border/40 shadow-soft"
+                style={
+                  isHero
+                    ? { background: "hsl(var(--primary-dark))", borderColor: "transparent" }
+                    : undefined
+                }
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", chipMap[kpi.tone])}>
-                    <Icon className="w-4 h-4" strokeWidth={2} />
+                {!isHero ? (
+                  <div className="bg-card -m-5 p-5 rounded-xl" style={{ display: "contents" }}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", chipMap[kpi.tone])}>
+                        <Icon className="w-4 h-4" strokeWidth={2} />
+                      </div>
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        {kpi.label}
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold text-foreground tabular-nums">{kpi.value}</div>
+                    <div
+                      className={cn(
+                        "text-[11px] mt-1",
+                        (kpi as any).hintTone === "destructive" ? "text-destructive font-medium" : "text-muted-foreground",
+                      )}
+                    >
+                      {kpi.hint}
+                    </div>
                   </div>
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    {kpi.label}
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-foreground tabular-nums">{kpi.value}</div>
-                <div
-                  className={cn(
-                    "text-[11px] mt-1",
-                    (kpi as any).hintTone === "destructive" ? "text-destructive font-medium" : "text-muted-foreground",
-                  )}
-                >
-                  {kpi.hint}
-                </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>
+                        <Icon className="w-4 h-4" strokeWidth={2} />
+                      </div>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.7)" }}>
+                        {kpi.label}
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold tabular-nums" style={{ color: "#fff" }}>{kpi.value}</div>
+                    <div className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>
+                      {kpi.hint}
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
