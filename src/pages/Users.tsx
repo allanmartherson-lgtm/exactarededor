@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { UserHospitalsManager } from "@/components/UserHospitalsManager";
+import { UserDirectorApproverSection } from "@/components/UserDirectorApproverSection";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
