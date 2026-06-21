@@ -20,6 +20,7 @@ import {
   type OwnerRole,
 } from "@/lib/dashboardCounts";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride, type SlaLevel } from "@/lib/sla";
 import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
 import {
