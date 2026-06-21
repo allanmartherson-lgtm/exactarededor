@@ -949,8 +949,17 @@ const PaymentDetail = () => {
       toast({ title: "Encaminhado para análise", description: "O motor está reanalisando o lote em modo padrão." });
       await load();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      toast({ title: "Falha ao encaminhar", description: msg, variant: "destructive" });
+      const err = e as any;
+      const msg =
+        err?.message ||
+        err?.error_description ||
+        err?.error ||
+        err?.details ||
+        err?.hint ||
+        (typeof e === "string" ? e : "");
+      const finalMsg = msg || (() => { try { return JSON.stringify(e); } catch { return "Erro desconhecido"; } })();
+      console.error("[finalize_confeccao] erro ao encaminhar:", e);
+      toast({ title: "Falha ao encaminhar", description: finalMsg, variant: "destructive" });
     } finally {
       setBusy(false);
     }
