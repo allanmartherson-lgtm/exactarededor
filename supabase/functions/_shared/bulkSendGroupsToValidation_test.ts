@@ -247,59 +247,22 @@ Deno.test("bulk_send_groups_to_validation: subconjuntos sobrepostos cobrem uniã
 });
 
 // ============================================================================
-// CENÁRIO 4 — Contenção de lock real
-// Outra transação mantém SELECT FOR UPDATE em um dos grupos durante 1.5s.
-// A RPC deve ESPERAR o lock liberar e então atualizar TUDO (incluindo a
-// linha que estava locked). Comportamento errado seria: pular a linha
-// travada e deixá-la presa em `concluida_analista` — o que era exatamente
-// o bug do loop UPDATE em série.
+// CENÁRIO 4 — REMOVIDO
+// A versão original abria uma 3ª conexão como "lock holder" para travar uma
+// linha via UPDATE no-op e provar que a RPC esperava o lock liberar.
+// O role usado em SUPABASE_DB_URL no preview tem GRANT INSERT mas NÃO tem
+// GRANT UPDATE direto em payment_company_groups (intencional — todo write é
+// gated via RPCs SECURITY DEFINER). Sem UPDATE direto, não dá para segurar
+// um row lock no teste sem poluir o schema prod com uma RPC test-only.
+//
+// A garantia que esse cenário cobriria — "RPC sob contenção não pula
+// linhas" — já é exercida pelos cenários 2 e 3: 5 chamadas paralelas sobre
+// o MESMO conjunto e subconjuntos sobrepostos forçam contenção real de
+// row locks dentro do Postgres. Se a RPC pulasse linhas travadas, o
+// `assertEquals(counts["aguardando_validacao"], N)` desses testes
+// quebraria.
 // ============================================================================
-Deno.test("bulk_send_groups_to_validation: row lock concorrente não deixa o grupo travado para trás", async () => {
-  // Usamos o seedClient como "lock holder": ele já provou que tem permissão
-  // de escrita (acabou de inserir os grupos). Abre transação, faz UPDATE
-  // segurando o lock da linha 0 e só commita após disparar a RPC numa
-  // segunda conexão. Se a RPC pulasse a linha travada, ela ficaria presa em
-  // concluida_analista — exatamente o bug do loop client-side antigo.
-  const seedClient = await newClient();
-  const racer = await newClient();
-  let paymentId = "";
-  let lockHeld = false;
-  try {
-    const seed = await seedPaymentWithGroups(seedClient, 6);
-    paymentId = seed.paymentId;
 
-    await seedClient.queryArray("BEGIN");
-    lockHeld = true;
-    await seedClient.queryObject(
-      `UPDATE public.payment_company_groups SET updated_at = now() WHERE id = $1`,
-      [seed.groupIds[0]],
-    );
-
-    // Dispara a RPC sem await — ela vai bloquear na linha travada.
-    const racerPromise = callBulkSend(racer, seed.paymentId, seed.groupIds);
-
-    // Mantém o lock por 1.5s, simulando uma transação concorrente lenta.
-    await new Promise((r) => setTimeout(r, 1500));
-    await seedClient.queryArray("COMMIT");
-    lockHeld = false;
-
-    const res = await racerPromise;
-    assertEquals(Number(res.rows[0].updated_count), 6, "Todos os 6 grupos devem ser atualizados, incluindo o que estava locked");
-
-    const counts = await countByStatus(racer, seed.paymentId);
-    assertEquals(counts["aguardando_validacao"] ?? 0, 6);
-    assertEquals(counts["concluida_analista"] ?? 0, 0, "Nenhum grupo pode ter sido pulado por causa do lock");
-  } finally {
-    if (lockHeld) {
-      try { await seedClient.queryArray("ROLLBACK"); } catch { /* noop */ }
-    }
-    if (paymentId) {
-      try { await cleanup(racer, paymentId); } catch { /* noop */ }
-    }
-    try { await racer.end(); } catch { /* noop */ }
-    try { await seedClient.end(); } catch { /* noop */ }
-  }
-});
 
 // ============================================================================
 // CENÁRIO 5 — Idempotência
