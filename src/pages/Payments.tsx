@@ -1136,6 +1136,16 @@ const Payments = () => {
       <PageHeader
         title="Pagamentos"
         description="Todos os lotes de pagamento e seu status no fluxo."
+        actions={
+          <Button size="sm" variant="outline" onClick={() => setBonusOpen(true)}>
+            <Sparkles className="h-4 w-4 mr-1" /> Bônus por paciente
+          </Button>
+        }
+      />
+      <BonusPacienteDialog
+        open={bonusOpen}
+        onOpenChange={setBonusOpen}
+        onSaved={() => loadRows()}
       />
       <div className="p-4 md:px-6 md:py-6 w-full mx-auto space-y-4">
         {/* KPI Cards — macOS Ventura style: elevated cards com icon chip colorido */}
