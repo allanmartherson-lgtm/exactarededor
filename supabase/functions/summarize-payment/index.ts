@@ -104,7 +104,7 @@ serve(async (req) => {
     // 3. Grupos por empresa (status)
     const { data: groups } = await supabase
       .from("payment_company_groups")
-      .select("company_name, status, total_amount, bruto_total, liquido_total, items_count")
+      .select("company_id, company_name, status, total_amount, bruto_total, liquido_total, items_count")
       .eq("payment_id", payment_id);
 
     // 3b. Composição financeira agregada do lote (pool, glosa, conciliação separados)
