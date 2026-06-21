@@ -20,11 +20,11 @@ All colors MUST be HSL.
     --popover-foreground: 214 28% 7%;
 
     /* ── Brand: verde-floresta Exacta ─────────────────────── */
-    --primary: 164 33% 26%;              /* #2D5A4E verde-floresta */
+    --primary: 214 100% 32%;             /* #003DA5 — Pantone 293 C Rede D'Or */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 165 28% 92%;
-    --primary-glow: 165 33% 36%;         /* #3D7A6A verde médio */
-    --primary-dark: 164 35% 18%;         /* #1E3D35 verde profundo */
+    --primary-soft: 214 60% 94%;         /* #EAF0FA — azul suave derivado */
+    --primary-glow: 200 68% 68%;         /* #71C5E8 — Pantone 297 C */
+    --primary-dark: 214 100% 17%;        /* #002855 — Pantone 295 C navy */
 
     /* ── Accent: ouro Exacta ─────────────────────────────── */
     --accent: 38 47% 61%;                /* #C8A96E ouro */
@@ -76,8 +76,8 @@ All colors MUST be HSL.
     --border-highlight: 0 0% 100%;
     --input: 60 8% 76%;
     --input-bg: 0 0% 100%;
-    --ring: 38 47% 61%;                  /* ouro como foco */
-    --ring-soft: 38 47% 61% / 0.3;
+    --ring: 214 100% 32%;                /* azul D'Or como foco */
+    --ring-soft: 214 100% 32% / 0.2;
     --track-soft: 60 8% 80%;
 
     --radius: 0.5rem;
