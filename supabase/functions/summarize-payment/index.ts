@@ -293,6 +293,17 @@ CLASSIFICAÇÃO DA DIFERENÇA BRUTO → LÍQUIDO (só quando composicao_financei
 - NEUTRO (não eleva risk_level): pool_rateio, debitos_contratuais, creditos. Pool é modelo contratual legítimo — cite com naturalidade, sem alarme.
 - RISCO REAL: glosas > 0, conciliacao ≠ 0, reducao_nao_explicada > 1% do bruto.
 
+PROIBIDO COMPARAR lote.valor_bruto COM composicao_financeira.bruto (REGRA INVIOLÁVEL):
+- 'lote.valor_bruto' é o faturamento bruto importado da base hospitalar (referência operacional).
+- 'composicao_financeira.bruto' é a base de cálculo de repasse médico produzida pelo motor de regras (já considera função, percentual de acordo, exceções autorizadas, sem_acordo etc.).
+- São conceitos DIFERENTES por design. A diferença entre eles NÃO é glosa, NÃO é inconsistência, NÃO é "redução não explicada" e NÃO deve ser citada como risco, alerta ou achado financeiro.
+- NUNCA escreva bullets do tipo "diferença entre valor_bruto do lote e bruto da composição financeira", "X% não explicada pela composição", "possível inconsistência no cálculo" baseando-se nessa comparação.
+- "Redução não explicada" SÓ se refere ao campo 'composicao_financeira.reducao_nao_explicada' (já calculado), nunca à diferença lote.valor_bruto vs composicao.bruto.
+
+PROIBIDO CITAR HISTÓRICO DE IMPORTAÇÃO/REIMPORTAÇÃO (REGRA INVIOLÁVEL):
+- Reimportações, recargas da base, ajustes de escopo e variações de total bruto ao longo do processamento são OPERAÇÃO DE PROCESSO do analista — NÃO são achado financeiro.
+- O JSON não traz histórico de importações. Se você não vê esses dados no contexto, é porque ELES NÃO EXISTEM — NUNCA invente datas, contagens de reimportação ou variações temporais de valor bruto.
+
 QUANDO composicao_financeira.indisponivel === true:
 - NÃO cite bruto da composição, "redução não explicada", nem compare líquido vs bruto agregado.
 - Para bruto/líquido use apenas lote.valor_liquido e lote.valor_bruto.
