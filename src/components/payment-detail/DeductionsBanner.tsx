@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Wallet, AlertTriangle, Loader2, Plus, Trash2, RefreshCw, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { confirmDialog } from "@/lib/confirm";
 
 type Caa = {
   id: string; payment_id: string; company_id: string; adjustment_id: string;
@@ -114,7 +115,13 @@ export function DeductionsBanner({
   const totalLinhas = caa.length + gpa.length;
 
   const removeCaa = async (id: string) => {
-    if (!confirm("Remover esta dedução do pagamento?")) return;
+    const ok = await confirmDialog({
+      title: "Remover dedução?",
+      description: "A dedução será revertida deste pagamento.",
+      confirmText: "Remover",
+      tone: "danger",
+    });
+    if (!ok) return;
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("company_adjustment_applications")
       .update({ status: "revertido", reverted_at: new Date().toISOString(), reverted_by: user?.id })
@@ -122,7 +129,13 @@ export function DeductionsBanner({
     await load();
   };
   const removeGpa = async (id: string) => {
-    if (!confirm("Remover esta glosa do pagamento?")) return;
+    const ok = await confirmDialog({
+      title: "Remover glosa?",
+      description: "A glosa será revertida deste pagamento.",
+      confirmText: "Remover",
+      tone: "danger",
+    });
+    if (!ok) return;
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("glosa_payment_applications")
       .update({ status: "revertido", reverted_at: new Date().toISOString(), reverted_by: user?.id })
