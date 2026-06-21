@@ -42,21 +42,23 @@ const ev = (
   procedure_name: over.procedure_name ?? null,
   company_name: over.company_name ?? null,
   company_group_id: over.company_group_id ?? null,
+  cancellation_reason: over.cancellation_reason ?? null,
 });
 
 describe("KPI — todas as fontes alimentam o saldo sem perder sinal", () => {
-  it("soma diretor + analista + cancelamento empresa + cancelamento item", () => {
+  it("soma diretor + analista + cancelamento empresa + cancelamento item (com motivo de economia real)", () => {
     const items: InterventionItem[] = [
-      ev("diretor", 300),               // economia
+      ev("diretor", 300),               // economia (delta-based)
       ev("analista", 200),              // economia (ajuste p/ menos)
       ev("analista", -150),             // aumento (ajuste p/ mais → entra como perda)
-      ev("cancelamento_empresa", 500),  // economia
-      ev("cancelamento_item", 80),      // economia
+      ev("cancelamento_empresa", 500, { cancellation_reason: "contrato_encerrado" }),  // economia real
+      ev("cancelamento_item", 80, { cancellation_reason: "medico_fatura_externamente" }), // economia real
       ev("validador", -40),             // aumento
     ];
     const s = summarizeItems(items);
     expect(s.economia).toBeCloseTo(300 + 200 + 500 + 80);
     expect(s.perda).toBeCloseTo(150 + 40);
+    expect(s.neutro).toBeCloseTo(0);
     expect(s.saldo).toBeCloseTo(1080 - 190);
     expect(s.qtd_itens).toBe(6);
   });
@@ -116,13 +118,23 @@ describe("dedup — cancelamentos reativados / dupla contagem", () => {
   it("RPC já filtra reativados; client confia em ausência deles na lista", () => {
     // O RPC exclui cancellation_reactivated_at IS NOT NULL. Esta suíte
     // simula a saída do RPC: nenhum item reativado deve aparecer no input.
+    // Para cancelamento manual, motivo de economia real é obrigatório p/ entrar no saldo.
     const items: InterventionItem[] = [
-      ev("cancelamento_empresa", 400, { item_id: "live" }),
-      // simulação: se algum dia um reativado vazar, ele NÃO está aqui
+      ev("cancelamento_empresa", 400, { item_id: "live", cancellation_reason: "contrato_encerrado" }),
     ];
     const s = summarizeItems(items);
     expect(s.economia).toBe(400);
     expect(s.qtd_itens).toBe(1);
+  });
+
+  it("cancelamento sem motivo (legado) cai em neutro, não em economia", () => {
+    const items: InterventionItem[] = [
+      ev("cancelamento_item", 400, { item_id: "legacy" }),
+    ];
+    const s = summarizeItems(items);
+    expect(s.economia).toBe(0);
+    expect(s.neutro).toBe(400);
+    expect(s.saldo).toBe(0);
   });
 
   it("detecta duplicatas quando o mesmo item_id é contabilizado por > 1 fonte", () => {

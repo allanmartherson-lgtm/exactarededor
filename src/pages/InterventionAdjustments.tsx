@@ -14,20 +14,23 @@ import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowDownRight, ArrowUpRight, Download, Info, Scale, TrendingDown, TrendingUp, Undo2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Download, Info, MinusCircle, Scale, TrendingDown, TrendingUp, Undo2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   emptyResult,
   filterItems,
   impactTone,
+  isCancellationNeutral,
   itemsToCsv,
   summarizeItems,
   roleLabel,
   type InterventionFilters,
+  type InterventionItem,
   type InterventionSavingsResult,
   type IntervenorRole,
 } from "@/lib/interventionSavings";
+import { reasonLabel, isEconomiaRealReason } from "@/lib/cancelledPayments";
 import { logExport } from "@/lib/exportLog";
 
 type Range = 7 | 30 | 90 | 180;
@@ -72,6 +75,48 @@ const downloadCsv = (filename: string, csv: string) => {
 const fmtDate = (s: string) =>
   s ? new Date(s).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
 
+/**
+ * A RPC `get_intervention_savings` não retorna `cancellation_reason`. Buscamos os motivos
+ * dos itens cancelados em `payment_items` e juntamos client-side para classificar como
+ * economia real vs neutro (operacional).
+ */
+async function enrichItemsWithCancellationReasons(
+  items: InterventionItem[],
+): Promise<InterventionItem[]> {
+  const cancellationRoles = new Set(["cancelamento_item", "cancelamento_empresa"]);
+  const itemIds = Array.from(
+    new Set(
+      items
+        .filter((it) => cancellationRoles.has(it.role) && it.item_id)
+        .map((it) => it.item_id),
+    ),
+  );
+  if (itemIds.length === 0) return items;
+  // Supabase tem limite prático de ~1000 IDs por `in()`. Paginamos por segurança.
+  const reasonByItem = new Map<string, string | null>();
+  const chunkSize = 500;
+  for (let i = 0; i < itemIds.length; i += chunkSize) {
+    const slice = itemIds.slice(i, i + chunkSize);
+    const { data, error } = await supabase
+      .from("payment_items")
+      .select("id, cancellation_reason")
+      .in("id", slice);
+    if (error) {
+      // Não bloqueia o relatório — apenas perde a classificação fina (cai em neutro).
+      console.warn("[InterventionAdjustments] enrich reasons failed", error);
+      continue;
+    }
+    for (const row of (data ?? []) as Array<{ id: string; cancellation_reason: string | null }>) {
+      reasonByItem.set(row.id, row.cancellation_reason);
+    }
+  }
+  return items.map((it) =>
+    cancellationRoles.has(it.role)
+      ? { ...it, cancellation_reason: reasonByItem.get(it.item_id) ?? null }
+      : it,
+  );
+}
+
 export default function InterventionAdjustments() {
   const currentHospitalId = useActiveHospitalId();
   const { hasRole } = useAuth();
@@ -94,7 +139,11 @@ export default function InterventionAdjustments() {
       p_end: end.toISOString(),
       p_hospital_id: currentHospitalId ?? null,
     });
-    if (!error) setData((res as unknown as InterventionSavingsResult) ?? emptyResult());
+    if (!error) {
+      const result = (res as unknown as InterventionSavingsResult) ?? emptyResult();
+      const enrichedItems = await enrichItemsWithCancellationReasons(result.items ?? []);
+      setData({ ...result, items: enrichedItems });
+    }
   };
 
   const handleReactivate = async (itemId: string) => {
@@ -131,7 +180,9 @@ export default function InterventionAdjustments() {
           p_hospital_id: currentHospitalId ?? null,
         });
         if (error) throw error;
-        if (!cancelled) setData((res as unknown as InterventionSavingsResult) ?? emptyResult());
+        const result = (res as unknown as InterventionSavingsResult) ?? emptyResult();
+        const enrichedItems = await enrichItemsWithCancellationReasons(result.items ?? []);
+        if (!cancelled) setData({ ...result, items: enrichedItems });
       } catch (e) {
         console.error(e);
         toast.error("Falha ao carregar ajustes por intervenção");
@@ -259,12 +310,12 @@ export default function InterventionAdjustments() {
         </Card>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <SummaryCard
             icon={TrendingUp}
             label="Economia"
             value={formatCurrency(filteredSummary.economia)}
-            hint="Pagto final < valor regra"
+            hint="Cancelamentos de economia real + ajustes que reduziram pagamento"
             tone="success"
             loading={loading}
           />
@@ -274,6 +325,14 @@ export default function InterventionAdjustments() {
             value={formatCurrency(filteredSummary.perda)}
             hint="Pagto final > valor regra"
             tone="destructive"
+            loading={loading}
+          />
+          <SummaryCard
+            icon={MinusCircle}
+            label="Neutro (operacional)"
+            value={formatCurrency(filteredSummary.neutro)}
+            hint="Pago em outro lote, duplicidade do motor, sem motivo — não soma no saldo"
+            tone="muted"
             loading={loading}
           />
           <SummaryCard
@@ -354,9 +413,13 @@ export default function InterventionAdjustments() {
             </TooltipProvider>
             <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
               <span className="font-semibold">Como o saldo é calculado:</span> Saldo = Economia − Perda.
-              Itens com Δ &gt; 0 (pagou menos que a regra) entram em <span className="text-success">Economia</span>;
-              Δ &lt; 0 (pagou a mais) entram em <span className="text-destructive">Perda</span>.
-              Cancelamentos entram como economia integral (o valor que deixaria de ser pago).
+              Ajustes de diretor/supervisor/analista entram pelo Δ (Δ &gt; 0 vira <span className="text-success">Economia</span>;
+              Δ &lt; 0 vira <span className="text-destructive">Perda</span>).
+              Já <strong>cancelamentos manuais</strong> só contam como economia quando o motivo é
+              de economia real (médico fatura externamente, contrato encerrado, glosa, jurídico,
+              duplicidade externa). Motivos operacionais (<em>pago em outro lote</em>,
+              <em> duplicidade corrigida pelo motor</em>, <em>outro</em>) ficam em
+              <span className="text-muted-foreground"> Neutro</span> e não somam no saldo.
             </div>
           </CardContent>
         </Card>
@@ -447,8 +510,20 @@ export default function InterventionAdjustments() {
                     </TableRow>
                   )}
                   {!loading && filteredItems.map((it) => {
+                    const isNeutralCancellation = isCancellationNeutral(it);
+                    const isCancellationRole =
+                      it.role === "cancelamento_item" || it.role === "cancelamento_empresa";
                     const positivo = it.delta > 0;
-                    const neutro = Math.abs(it.delta) < 0.005;
+                    const zeroDelta = Math.abs(it.delta) < 0.005;
+                    // Classificação visual: neutro (cancelamento sem motivo de economia real),
+                    // economia, perda ou zero.
+                    const classification: "neutro" | "economia" | "aumento" = isNeutralCancellation
+                      ? "neutro"
+                      : zeroDelta
+                      ? "neutro"
+                      : positivo
+                      ? "economia"
+                      : "aumento";
                     return (
                       <TableRow key={it.item_id}>
                         <TableCell className="text-sm">{fmtDate(it.acatado_at)}</TableCell>
@@ -457,6 +532,24 @@ export default function InterventionAdjustments() {
                           <Badge variant="outline" className="text-[10px] mt-0.5">
                             {roleLabel(it.role)}
                           </Badge>
+                          {isCancellationRole && (
+                            <div className="mt-1">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  "text-[10px] " +
+                                  (isEconomiaRealReason(it.cancellation_reason)
+                                    ? "border-success/30 text-success"
+                                    : "border-muted-foreground/30 text-muted-foreground")
+                                }
+                                title="Motivo do cancelamento"
+                              >
+                                {it.cancellation_reason
+                                  ? reasonLabel(it.cancellation_reason)
+                                  : "Sem motivo classificado"}
+                              </Badge>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm">
                           <div className="font-medium">{it.company_name ?? "—"}</div>
@@ -468,9 +561,21 @@ export default function InterventionAdjustments() {
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(it.valor_regra)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(it.valor_pago_final)}</TableCell>
-                        <TableCell className={`text-right font-semibold ${neutro ? "" : positivo ? "text-success" : "text-destructive"}`}>
+                        <TableCell
+                          className={`text-right font-semibold ${
+                            classification === "neutro"
+                              ? "text-muted-foreground"
+                              : classification === "economia"
+                              ? "text-success"
+                              : "text-destructive"
+                          }`}
+                        >
                           <span className="inline-flex items-center gap-1">
-                            {neutro ? null : positivo ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                            {classification === "neutro"
+                              ? null
+                              : classification === "economia"
+                              ? <ArrowUpRight className="h-3 w-3" />
+                              : <ArrowDownRight className="h-3 w-3" />}
                             {formatCurrency(Math.abs(it.delta))}
                           </span>
                         </TableCell>
@@ -478,14 +583,18 @@ export default function InterventionAdjustments() {
                           <Badge
                             variant="outline"
                             className={
-                              neutro
+                              classification === "neutro"
                                 ? "border-border text-muted-foreground"
-                                : positivo
+                                : classification === "economia"
                                 ? "border-success/40 text-success bg-success/5"
                                 : "border-destructive/40 text-destructive bg-destructive/5"
                             }
                           >
-                            {neutro ? "Neutro" : positivo ? "Economia" : "Aumento"}
+                            {classification === "neutro"
+                              ? "Neutro"
+                              : classification === "economia"
+                              ? "Economia"
+                              : "Aumento"}
                           </Badge>
                         </TableCell>
                         <TableCell>

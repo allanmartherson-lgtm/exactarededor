@@ -33,6 +33,8 @@ export const roleLabel = (r: string): string =>
 export interface InterventionSummary {
   economia: number;
   perda: number;
+  /** Cancelamentos operacionais (pago em outro lote, duplicidade motor, "outro" sem contexto) — não somam no saldo. */
+  neutro: number;
   saldo: number;
   qtd_itens: number;
 }
@@ -70,6 +72,8 @@ export interface InterventionItem {
   procedure_name: string | null;
   company_name: string | null;
   company_group_id: string | null;
+  /** Motivo do cancelamento — buscado client-side a partir de payment_items para classificação fina. */
+  cancellation_reason?: string | null;
 }
 
 export interface InterventionSavingsResult {
@@ -83,6 +87,7 @@ export interface InterventionSavingsResult {
 export const emptySummary = (): InterventionSummary => ({
   economia: 0,
   perda: 0,
+  neutro: 0,
   saldo: 0,
   qtd_itens: 0,
 });
@@ -95,17 +100,52 @@ export const emptyResult = (): InterventionSavingsResult => ({
   window: { start: "", end: "", hospital_id: null },
 });
 
+/** Papéis que representam cancelamento manual e dependem do motivo p/ contar como economia. */
+const CANCELLATION_ROLES: ReadonlySet<IntervenorRole> = new Set([
+  "cancelamento_item",
+  "cancelamento_empresa",
+]);
+
+/** Motivos de cancelamento que contam como economia real (espelha lib/cancelledPayments.ts). */
+const ECONOMIA_REAL_REASONS: ReadonlySet<string> = new Set([
+  "medico_fatura_externamente",
+  "contrato_encerrado",
+  "glosa_total_quitada",
+  "decisao_juridica",
+  "duplicidade_externa",
+  "economia_real",
+]);
+
+/**
+ * Decide se um item de cancelamento conta como neutro (não soma no saldo).
+ * Aplicável só a cancelamento_item e cancelamento_empresa; diretor/validador/analista
+ * e cancelamento_conciliacao (automático) mantêm a lógica clássica de delta.
+ *
+ * Sem `cancellation_reason` (ou motivo neutro/outro) → NEUTRO até o analista classificar.
+ */
+export const isCancellationNeutral = (it: InterventionItem): boolean => {
+  if (!CANCELLATION_ROLES.has(it.role)) return false;
+  if (!it.cancellation_reason) return true;
+  return !ECONOMIA_REAL_REASONS.has(it.cancellation_reason);
+};
+
 /** Recalcula resumo a partir da lista de itens — útil para filtros client-side. */
 export const summarizeItems = (items: InterventionItem[]): InterventionSummary => {
   let economia = 0;
   let perda = 0;
+  let neutro = 0;
   for (const it of items) {
+    if (isCancellationNeutral(it)) {
+      neutro += Math.abs(it.delta);
+      continue;
+    }
     if (it.delta > 0) economia += it.delta;
     else if (it.delta < 0) perda += -it.delta;
   }
   return {
     economia,
     perda,
+    neutro,
     saldo: economia - perda,
     qtd_itens: items.length,
   };
@@ -155,6 +195,17 @@ export const impactTone = (
 export const classifyDelta = (delta: number): "economia" | "aumento" | "neutro" => {
   if (Math.abs(delta) < 0.005) return "neutro";
   return delta > 0 ? "economia" : "aumento";
+};
+
+/**
+ * Classificação semântica do item considerando motivo do cancelamento.
+ * Cancelamento manual sem motivo de economia real → "neutro" (operacional).
+ */
+export const classifyItem = (
+  it: InterventionItem,
+): "economia" | "aumento" | "neutro" => {
+  if (isCancellationNeutral(it)) return "neutro";
+  return classifyDelta(it.delta);
 };
 
 /** Converte linhas do drill-down para CSV (separador `;`, padrão BR). */
