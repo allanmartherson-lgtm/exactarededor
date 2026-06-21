@@ -163,6 +163,7 @@ export function PaymentBatchActionsFooter({
       const block = parseReconciliationBlock(error);
       if (block) {
         setReconBlock(block);
+        setReconTargets(groupIds);
         setPendingRetry({ groupIds, note });
         return;
       }
