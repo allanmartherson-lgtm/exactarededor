@@ -20,6 +20,7 @@ import {
   type OwnerRole,
 } from "@/lib/dashboardCounts";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride, type SlaLevel } from "@/lib/sla";
 import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
 import {
@@ -2165,7 +2166,7 @@ const Dashboard = () => {
                     {combined.map((p) => {
                       const sla = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
                       return (
-                        <TaskRow key={p.id} p={p} mine profiles={profiles} timeMs={sla?.ms} slaLevel={sla?.level} qCount={openQuestionCount[p.id]} />
+                        <TaskRow key={p.id} p={p} mine profiles={profiles} timeMs={sla?.ms} slaLevel={sla?.level} qCount={openQuestionCount[p.id]} density={pipelineDensity} />
                       );
                     })}
                   </div>
@@ -2517,6 +2518,7 @@ const Dashboard = () => {
                       timeMs={sla?.ms}
                       slaLevel={sla?.level}
                       qCount={openQuestionCount[p.id]}
+                      density={pipelineDensity}
                     />
                   );
                 })}
@@ -2682,6 +2684,7 @@ const Dashboard = () => {
                     timeMs={sla?.ms}
                     slaLevel={sla?.level}
                     qCount={openQuestionCount[p.id]}
+                    density={pipelineDensity}
                   />
                 );
               })}
@@ -3102,19 +3105,19 @@ const BatchProgressRow = ({ p, qCount = 0, groupStatuses = [] }: { p: PaymentRow
 
 const MetaCell = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <span className="flex flex-col sm:inline sm:flex-row min-w-0">
-    <span className="sm:hidden text-[10px] uppercase tracking-wide opacity-60">{label}</span>
-    <span className="sm:before:content-['·_'] sm:before:opacity-60 min-w-0 break-words">{children}</span>
+    <span className="sm:hidden text-[10px] uppercase tracking-wide opacity-60 leading-tight">{label}</span>
+    <span className="sm:before:content-['·_'] sm:before:opacity-60 min-w-0 break-words leading-snug">{children}</span>
   </span>
 );
 
 const TaskRow = ({
-
   p,
   mine,
   profiles,
   timeMs,
   slaLevel,
   qCount = 0,
+  density = "compact",
 }: {
   p: PaymentRow;
   mine: boolean;
@@ -3122,20 +3125,193 @@ const TaskRow = ({
   timeMs?: number;
   slaLevel?: SlaLevel;
   qCount?: number;
+  density?: PipelineDensity;
 }) => {
   const risk = usePaymentRisk(p.id);
   const owner = ownerRoleFor(p.status);
   const creator = p.created_by ? profiles[p.created_by] : null;
+  const isMobile = useIsMobile();
+  const [expanded, setExpanded] = useState(false);
   const slaTone =
     slaLevel === "vencido"
       ? { bg: "hsl(var(--destructive) / 0.12)", fg: "hsl(var(--destructive))", label: "Vencido" }
       : slaLevel === "preventivo"
       ? { bg: "hsl(var(--warning, 38 92% 50%) / 0.15)", fg: "hsl(var(--warning, 38 92% 50%))", label: "Perto do SLA" }
       : null;
+
+  const comfortable = density === "comfortable";
+  // Mobile padding/spacing tokens driven by density preference.
+  const mobilePad = comfortable ? "px-4 py-5" : "px-3 py-3";
+  const mobileSpace = comfortable ? "space-y-3" : "space-y-2";
+  const titleSize = comfortable ? 15 : 13.5;
+  const titleLh = comfortable ? 1.45 : 1.35;
+
+  const chipsRow = (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {mine ? (
+        <SuaVezBadge />
+      ) : owner !== "—" ? (
+        <span
+          style={{
+            fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em",
+            background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))",
+            borderRadius: 20, padding: "3px 7px", lineHeight: 1,
+          }}
+        >
+          Com {ownerLabel[owner]}
+        </span>
+      ) : null}
+      {qCount > 0 && (
+        <span
+          title={`${qCount} questionamento(s) aguardando resposta`}
+          style={{
+            fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em",
+            background: "hsl(var(--warning-soft))", color: "hsl(var(--warning-foreground))",
+            border: "1px solid hsl(var(--warning) / 0.4)", borderRadius: 20, padding: "3px 7px",
+            lineHeight: 1, display: "inline-flex", alignItems: "center", gap: 4,
+          }}
+        >
+          <AlertTriangle size={11} /> Pergunta ({qCount})
+        </span>
+      )}
+      {slaTone && (
+        <span
+          style={{
+            fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em",
+            background: slaTone.bg, color: slaTone.fg, borderRadius: 20, padding: "3px 7px", lineHeight: 1,
+          }}
+        >
+          {slaTone.label}
+        </span>
+      )}
+      {timeMs != null && (
+        <span
+          style={{
+            fontSize: 11, color: "hsl(var(--muted-foreground))",
+            display: "inline-flex", alignItems: "center", gap: 3,
+          }}
+          title="Tempo no status atual"
+        >
+          <Timer size={11} aria-hidden /> {formatShortDuration(timeMs)}
+        </span>
+      )}
+      <span className="sm:hidden ml-auto">
+        <StatusBadge status={p.status} />
+      </span>
+    </div>
+  );
+
+  const titleRow = (
+    <div className="flex items-start gap-2 min-w-0">
+      <p
+        style={{ fontSize: titleSize, fontWeight: 600, color: "hsl(var(--foreground))", lineHeight: titleLh, wordBreak: "break-word" }}
+        className="min-w-0 flex-1"
+      >
+        {p.reference}
+      </p>
+      {risk && risk.score > 0 && (
+        <RiskBadge
+          level={risk.level}
+          score={risk.score}
+          financialData={risk}
+          showLabel={false}
+          compact
+          className="scale-90 shrink-0"
+        />
+      )}
+    </div>
+  );
+
+  const metaGrid = (
+    <div
+      className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:flex sm:flex-wrap sm:gap-x-1 sm:gap-y-0"
+      style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", lineHeight: 1.45 }}
+    >
+      <MetaCell label="Competência">
+        <span className="capitalize">
+          {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
+        </span>
+      </MetaCell>
+      <MetaCell label="Itens">{p.items_count}</MetaCell>
+      <MetaCell label="Total">
+        <span className="font-semibold text-foreground whitespace-nowrap">{formatCurrency((p as any).liquido_total ?? p.total_amount)}</span>
+      </MetaCell>
+      {creator && (
+        <MetaCell label="Criado por">
+          <span style={{ color: "hsl(var(--foreground))", wordBreak: "break-word" }}>{creator}</span>
+        </MetaCell>
+      )}
+      {p.payment_type && (
+        <MetaCell label="Tipo"><span className="capitalize">{p.payment_type}</span></MetaCell>
+      )}
+      <MetaCell label="Data">{formatDate(p.created_at)}</MetaCell>
+    </div>
+  );
+
+  const riskLine = risk && risk.valorEmRisco > 0 && (
+    <p
+      className="rounded-md sm:bg-transparent sm:p-0"
+      style={{
+        fontSize: 11, color: "hsl(var(--muted-foreground))", lineHeight: 1.45,
+        background: "hsl(var(--muted) / 0.4)", padding: "6px 10px",
+      }}
+    >
+      Valor em risco:{" "}
+      <span className="font-semibold text-foreground">{formatCurrency(risk.valorEmRisco)}</span>
+      <span className="opacity-70"> ({risk.percentualRisco.toFixed(1)}% do total)</span>
+    </p>
+  );
+
+  // --- MOBILE: tap-to-expand card (no navigation on row tap). ---
+  if (isMobile) {
+    const handleToggle = () => setExpanded((v) => !v);
+    return (
+      <div
+        className={cn("task-row w-full", mobilePad)}
+        style={{
+          borderBottom: "1px solid hsl(var(--border-light, var(--border)))",
+          background: slaLevel === "vencido" ? "hsl(var(--destructive) / 0.04)" : undefined,
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleToggle}
+          aria-expanded={expanded}
+          aria-label={expanded ? "Recolher detalhes do lote" : "Expandir detalhes do lote"}
+          className={cn("w-full text-left min-w-0 bg-transparent border-0 p-0", mobileSpace)}
+          style={{ color: "inherit" }}
+        >
+          {chipsRow}
+          {titleRow}
+          {!expanded && risk && risk.valorEmRisco > 0 && (
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Valor em risco{" "}
+              <span className="font-semibold text-foreground">{formatCurrency(risk.valorEmRisco)}</span>
+              <span className="opacity-70"> · toque para mais</span>
+            </p>
+          )}
+        </button>
+        {expanded && (
+          <div className={cn("pt-2 mt-2 border-t border-border/60", mobileSpace)}>
+            {metaGrid}
+            {riskLine}
+            <Link
+              to={`/pagamentos/${p.id}`}
+              className="inline-flex items-center gap-1 mt-1 text-xs font-semibold text-primary hover:underline"
+            >
+              Abrir lote <ArrowRight size={12} aria-hidden />
+            </Link>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- DESKTOP: row is a Link as before. ---
   return (
     <Link
       to={`/pagamentos/${p.id}`}
-      className="task-row flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-5 sm:px-6 sm:py-4"
+      className="task-row flex flex-row items-center justify-between gap-3 px-6 py-4"
       style={{
         borderBottom: "1px solid hsl(var(--border-light, var(--border)))",
         textDecoration: "none",
@@ -3146,141 +3322,13 @@ const TaskRow = ({
     >
       <div className="min-w-0 flex-1 w-full">
         <SafeCard className="p-0 border-none bg-transparent shadow-none space-y-3">
-          {/* Linha 1: chips de papel/SLA/questionamento */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {mine ? (
-              <SuaVezBadge />
-            ) : owner !== "—" ? (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  background: "hsl(var(--muted))",
-                  color: "hsl(var(--muted-foreground))",
-                  borderRadius: 20,
-                  padding: "3px 8px",
-                  lineHeight: 1,
-                }}
-              >
-                Com {ownerLabel[owner]}
-              </span>
-            ) : null}
-            {qCount > 0 && (
-              <span
-                title={`${qCount} questionamento(s) aguardando resposta`}
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  background: "hsl(var(--warning-soft))",
-                  color: "hsl(var(--warning-foreground))",
-                  border: "1px solid hsl(var(--warning) / 0.4)",
-                  borderRadius: 20,
-                  padding: "3px 8px",
-                  lineHeight: 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <AlertTriangle size={11} /> Questionamento ({qCount})
-              </span>
-            )}
-            {slaTone && (
-              <span
-                style={{
-                  fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
-                  background: slaTone.bg, color: slaTone.fg, borderRadius: 20, padding: "3px 8px", lineHeight: 1,
-                }}
-              >
-                {slaTone.label}
-              </span>
-            )}
-            {timeMs != null && (
-              <span
-                style={{
-                  fontSize: 11, color: "hsl(var(--muted-foreground))",
-                  display: "inline-flex", alignItems: "center", gap: 3,
-                }}
-                title="Tempo no status atual"
-              >
-                <Timer size={11} aria-hidden /> {formatShortDuration(timeMs)}
-              </span>
-            )}
-            {/* Status visível no topo no mobile, escondido no desktop (já aparece à direita) */}
-            <span className="sm:hidden ml-auto">
-              <StatusBadge status={p.status} />
-            </span>
-          </div>
-
-          {/* Linha 2: título do lote em destaque (pode quebrar em 2-3 linhas no mobile) */}
-          <div className="flex items-start gap-2 min-w-0">
-            <p
-              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))", lineHeight: 1.35, wordBreak: "break-word" }}
-              className="min-w-0 flex-1"
-            >
-              {p.reference}
-            </p>
-            {risk && risk.score > 0 && (
-              <RiskBadge
-                level={risk.level}
-                score={risk.score}
-                financialData={risk}
-                showLabel={false}
-                compact
-                className="scale-90 shrink-0"
-              />
-            )}
-          </div>
-
-          {/* Linha 3: metadados — grid 2 colunas no mobile, inline no desktop */}
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:flex sm:flex-wrap sm:gap-x-1 sm:gap-y-0" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", lineHeight: 1.4 }}>
-            <MetaCell label="Competência">
-              <span className="capitalize">
-                {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
-              </span>
-            </MetaCell>
-            <MetaCell label="Itens">{p.items_count}</MetaCell>
-            <MetaCell label="Total">
-              <span className="font-semibold text-foreground whitespace-nowrap">{formatCurrency((p as any).liquido_total ?? p.total_amount)}</span>
-            </MetaCell>
-            {creator && (
-              <MetaCell label="Criado por">
-                <span style={{ color: "hsl(var(--foreground))", wordBreak: "break-word" }}>{creator}</span>
-              </MetaCell>
-            )}
-            {p.payment_type && (
-              <MetaCell label="Tipo">
-                <span className="capitalize">{p.payment_type}</span>
-              </MetaCell>
-            )}
-            <MetaCell label="Data">{formatDate(p.created_at)}</MetaCell>
-          </div>
-
-          {/* Linha 4: valor em risco em destaque (só se houver) */}
-          {risk && risk.valorEmRisco > 0 && (
-            <p
-              className="rounded-md sm:bg-transparent sm:p-0"
-              style={{
-                fontSize: 11,
-                color: "hsl(var(--muted-foreground))",
-                lineHeight: 1.4,
-                background: "hsl(var(--muted) / 0.4)",
-                padding: "6px 10px",
-              }}
-            >
-              Valor em risco:{" "}
-              <span className="font-semibold text-foreground">{formatCurrency(risk.valorEmRisco)}</span>
-              <span className="opacity-70"> ({risk.percentualRisco.toFixed(1)}% do total)</span>
-            </p>
-          )}
+          {chipsRow}
+          {titleRow}
+          {metaGrid}
+          {riskLine}
         </SafeCard>
       </div>
-
-      <StatusBadge status={p.status} className="shrink-0 hidden sm:inline-flex" />
+      <StatusBadge status={p.status} className="shrink-0" />
     </Link>
   );
 };
