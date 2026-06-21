@@ -1,110 +1,133 @@
-## Objetivo
+## Re-skin token-level "Apple-clean" sobre identidade D'Or
 
-Adicionar inteligência (determinística + IA) como **copiloto** em todo o sistema, sem tomar decisões automáticas (exceto onde for explicitamente autorizado). Reaproveitar fluxos de aprovação existentes — nada de painel novo.
-
----
-
-## Etapa 1 — Detector de quase-match (determinístico, sem IA)
-
-**Onde roda:** dentro do motor de matching (regra ↔ payment_item), depois que o match exato falha.
-
-**Como funciona:**
-- Quando match exato falha mas pilares fortes batem (atendimento + médico + TUSS), calcula similaridade do nome da empresa (Jaro-Winkler normalizado, ignorando "LTDA", "ME", acentos, pontuação).
-- Score ≥ 0.92 → cria sugestão de vínculo `pending` com `source='engine_fuzzy'`, score, contexto (regra, item, pilares que bateram).
-- Score 0.80–0.91 → mesma sugestão, mas marcada `confidence='low'`.
-- Score < 0.80 → ignora (comportamento atual).
-- Item segue com status `sem_regra` + alerta "sugestão pendente" até admin aprovar.
-
-**Mesma lógica aplicada a:** nome de médico (quando CRM falha), nome de convênio (quando código falha), nome de setor.
+Mudança **apenas** em `src/index.css`. Zero em `tailwind.config.ts` (stack SF Pro já está em `fontFamily.sans/display`; radius e sombras já consomem CSS vars). Zero em componentes, telas, lógica, densidade de tabela, status, chat, bubbles.
 
 ---
 
-## Etapa 2 — Aprovação reaproveita fluxo existente
+### (a) Variáveis que mudam — antes → depois
 
-**Nada de painel novo.** Estender a tabela `doctor_link_suggestions` (e criar análogas `company_link_suggestions`, `convenio_link_suggestions`, `sector_link_suggestions` se ainda não existirem) com colunas:
-- `source` (`analyst_manual` | `engine_fuzzy` | `ai_suggested`)
-- `score` numérico
-- `context_jsonb` (regra_id, item_id, pilares que bateram)
-- `ai_reasoning` texto (preenchido na etapa 3)
+#### Light (`:root`)
 
-**UI:** na tela de aprovação que o admin já usa, adicionar:
-- Filtro por origem (analista / motor / IA)
-- Badge mostrando score e pilares que bateram
-- Botão "Aprovar" → cria alias permanente + reprocessa itens afetados
-- Botão "Rejeitar" → grava `status='rejected'`, motor nunca mais sugere o mesmo par
+| Token | Antes | Depois |
+|---|---|---|
+| `--primary` | `214 100% 32%` (#003DA5) | `211 100% 45%` (#0071E3) |
+| `--ring` | `214 100% 32%` | `211 100% 45%` |
+| `--ring-soft` | `214 100% 32% / 0.2` | `211 100% 45% / 0.2` |
+| `--secondary-foreground` | `214 100% 32%` | `211 100% 45%` |
+| `--primary-soft` | `214 60% 94%` (#EAF0FA) | `211 80% 95%` (#E8F2FE) |
+| `--primary-glow` | `200 68% 68%` | `205 90% 70%` |
+| `--primary-dark` | `214 100% 17%` (#002855) | **manter** (navy D'Or — âncora do gradient e do `chat-bubble-mine-foreground`) |
+| `--sidebar-primary` | `214 100% 32%` | `211 100% 45%` |
+| `--sidebar-ring` | `214 100% 32%` | `211 100% 45%` |
+| `--sidebar-hover-foreground` | `214 100% 32%` | `211 100% 45%` |
+| `--sidebar-accent` | `214 60% 94%` | `211 80% 95%` |
+| `--sidebar-accent-foreground` | `214 100% 32%` | `211 100% 45%` |
+| `--gradient-brand` | `linear-gradient(135deg, hsl(214 100% 17%), hsl(214 100% 32%))` | `linear-gradient(135deg, hsl(214 100% 17%), hsl(211 100% 45%))` (navy D'Or → azul Apple) |
+| `--gradient-soft` | `..hsl(214 40% 98%), hsl(214 40% 95%)` | `..hsl(211 50% 98%), hsl(211 50% 95%)` |
+| `--radius` | `0.5rem` | `0.625rem` |
+| `--shadow-soft` | `0 1px 2px /.06, 0 1px 3px /.05` | `0 1px 2px /.04, 0 1px 2px /.03` |
+| `--shadow-card` | `0 1px 2px /.06, 0 2px 6px -1px /.08, 0 4px 12px -2px /.06` | `0 1px 2px /.04, 0 2px 6px -1px /.05, 0 8px 24px -6px /.05` |
+| `--shadow-elevated` | `0 4px 8px -1px /.10, 0 8px 20px -4px /.08` | `0 4px 10px -2px /.08, 0 12px 32px -8px /.06` |
+| `--shadow-hover` (em `:root` e em cada `data-contrast="1..5"`) | atual | reduzir ~25% em cada nível (mantém escala do slider) |
 
----
+Intactos: `--accent` `37 42% 61%` e `--accent-light` (dourado D'Or), `--accent-blue*` (status info), todos os `--success/--warning/--info/--destructive*`, todos os `--chat-*`, todos os `--bubble-*`.
 
-## Etapa 3 — Camada IA (Lovable AI Gateway, somente em casos ambíguos)
+#### Dark (`.dark`)
 
-**Quando dispara (gate rígido para controlar custo):**
-- Score fuzzy entre 0.80 e 0.92 (faixa cinzenta)
-- OU múltiplos candidatos com scores parecidos
-- OU contexto suspeito (mesma paciente, mesma data, mesmo TUSS, empresas diferentes)
+| Token | Antes | Depois |
+|---|---|---|
+| `--primary` | `214 80% 55%` | **`211 90% 60%`** (ver risco em **d**) |
+| `--ring` | `214 80% 55%` | `211 90% 60%` |
+| `--ring-soft` | `214 80% 55% / 0.3` | `211 90% 60% / 0.3` |
+| `--primary-soft` | `214 40% 18%` | `211 50% 18%` |
+| `--primary-glow` | `200 55% 60%` | `205 70% 62%` |
+| `--sidebar-primary` | `214 80% 58%` | `211 90% 62%` |
+| `--sidebar-ring` | `214 80% 55%` | `211 90% 60%` |
+| `--sidebar-accent` | `214 40% 18%` | `211 50% 18%` |
+| `--sidebar-accent-foreground` | `214 80% 80%` | `211 90% 82%` |
+| `--gradient-brand` | `..hsl(214 100% 12%), hsl(214 100% 28%)` | `..hsl(214 100% 12%), hsl(211 100% 42%)` |
+| Sombras dark | atuais | **manter** (no dark, sombra é estrutural — suavizar achata cards). |
 
-**Como funciona:**
-- Edge function chama `google/gemini-3-flash-preview` com prompt curto: nomes candidatos, contexto (CNPJ se houver, médico, convênio, regras vinculadas).
-- Retorna JSON estruturado: `{ same_entity: bool, confidence: 0-1, reasoning: string }`.
-- Resultado vira sugestão com `source='ai_suggested'` + `ai_reasoning` exibido ao admin.
-- **IA nunca aprova sozinha** — só enriquece a sugestão.
+#### Tipografia (`@layer base`)
 
-**Custo controlado:** ~1 chamada por caso ambíguo por importação, não por item.
-
----
-
-## Etapa 4 — Copiloto IA transversal na interface
-
-IA como assistente em toda a UI, **nunca decidindo**, sempre sugerindo/explicando:
-
-**4.1 — Tela de regra:**
-- Botão "Explicar essa regra" → IA resume em linguagem natural o que a regra faz
-- Detecta conflitos entre regras cadastradas (ex: duas regras cobrindo mesmo médico+convênio com bases diferentes) e sugere ajuste
-
-**4.2 — Tela de payment / item:**
-- Card "Análise IA" no item com problema: explica em uma frase por que ficou `sem_regra` / `valor_divergente` e sugere ação (cadastrar alias, criar regra, marcar exceção)
-- Botão "Por que esse valor?" → IA narra o cálculo passo a passo (base × multiplicador × função)
-
-**4.3 — Upload de planilha:**
-- Após validação determinística, IA roda análise leve sobre as inconsistências e gera resumo executivo: "12 itens sem regra, 3 padrões dominantes — sugiro cadastrar regra X antes de processar"
-
-**4.4 — Tela de cadastros (médico/empresa/convênio):**
-- Ao colar nome, IA sugere possível duplicidade com cadastro existente (similaridade + contexto)
-
-**4.5 — Telemetria de aprendizado (`match_telemetry`):**
-- Tabela registrando: caso, score, decisão IA, decisão analista, tempo até decisão
-- Após 1-2 meses, dashboard mostra ajuste sugerido de thresholds
-
----
-
-## Detalhes técnicos
-
-**Backend:**
-- `supabase/functions/_shared/fuzzy.ts` — Jaro-Winkler + normalizador (stems já existentes em `convenioStems.ts`)
-- `supabase/functions/engine-suggest-link/index.ts` — chamada pelo motor para criar sugestões
-- `supabase/functions/ai-copilot/index.ts` — endpoint único do copiloto, recebe `{ context, question }`, roteia para prompt apropriado
-- Migrations: estender tabelas `*_link_suggestions` com colunas novas + criar `match_telemetry`
-
-**Frontend:**
-- `src/components/copilot/CopilotCard.tsx` — componente reutilizável (card colapsável, ícone IA, badge "sugestão")
-- Integração nas telas: Regra, PaymentDetail, Upload, Cadastros
-- Filtro/badge na tela de aprovação de vínculos existente
-
-**Modelo IA:** `google/gemini-3-flash-preview` (barato, rápido, estruturado via `Output.object`)
-
-**Governança:**
-- Toda sugestão IA é registrada em `match_telemetry` com prompt + resposta (auditável)
-- Admin pode desligar copiloto por feature flag (`feature_flags.ai_copilot_enabled`)
-- Nenhuma decisão automática — IA só preenche `pending`
+| Item | Antes | Depois |
+|---|---|---|
+| `body` font-family | `'DM Sans', -apple-system, …` | `-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', system-ui, sans-serif` |
+| `h1..h4` font-family | `'DM Sans', sans-serif` | mesmo stack SF Pro |
+| `body` 13.5px/400/1.6/0.01em | atual | **manter** |
+| `h1..h4` sizes/weights/tracking | atuais | **manter** |
+| `thead th` 11px/600/uppercase | atual | **manter** explicitamente |
+| `tbody td` 13px/400 | atual | **manter** explicitamente |
+| `button` 500/0.02em | atual | **manter** |
+| Linha 1 (`@import` Google Fonts) | `DM+Sans:…&family=Playfair+Display:…` | remover `DM+Sans`; Playfair fica se a decisão (c) for "manter" |
 
 ---
 
-## Ordem de implementação
+### (b) Impacto global esperado
 
-1. Migrations (tabelas de sugestão estendidas + `match_telemetry` + feature flag)
-2. Etapa 1: detector fuzzy no motor + criação de sugestões
-3. Etapa 2: filtro/badge na tela de aprovação existente
-4. Etapa 3: edge function `ai-copilot` + gate de ambiguidade
-5. Etapa 4: componente `CopilotCard` + integrações por tela (incrementais, uma por vez)
-6. Dashboard de telemetria (último, depois de coletar dados)
+Tudo o que consome `hsl(var(--primary))`, `bg-primary`, `text-primary`, `ring-primary`, `bg-sidebar-accent`, `bg-sidebar-primary` muda de tom em todo o app:
 
-Posso começar pela Etapa 1 + migrations e seguir incrementalmente. Aprova?
+- **CTAs primários, links ativos, foco de input, badges azuis, item ativo da sidebar e seu fundo soft** passam do azul D'Or escuro pro azul Apple mais vivo. Sensação: mais "ar", menos peso institucional.
+- **`--gradient-brand`** segue começando no navy D'Or e termina no Apple — leitura "D'Or que abre pra um azul moderno", em vez de monocromia D'Or.
+- **`chat-bubble-mine`** (usa `--primary-soft` + `--primary-dark` como fg) **não muda contraste** — `--primary-dark` está protegido.
+- **Tipografia**: todo o app vira SF Pro nativa no macOS/iOS e cai pra Segoe UI/system-ui no Windows/Linux. Letras um pouco mais estreitas que DM Sans, contadores mais abertos. Tamanhos não mudam → layouts não quebram.
+- **Cantos +2px**. Botões `sm`, badges e inputs absorvem sem reflow. Avatares/switches/checkbox já são `rounded-full`.
+- **Sombras**: efeito visível em hover de card, modais e popovers — "vidro Apple". Nos níveis `data-contrast="4|5"` mantemos sombras densas (já têm override), então quem precisa de mais profundidade não perde.
+- **Dark mode**: `211 90% 60%` é mais saturado/claro que o atual — leitura mais "elétrica". Ver risco em **(d)**.
+
+Não muda: tokens de status, chat, bubbles, dourado D'Or, densidade de tabela, paddings de componentes, qualquer comportamento.
+
+Telas que mais sentem: Login (piloto), Sidebar, Dashboard, Auth, listas com badges azuis, gráficos que pintam por `--primary`.
+
+---
+
+### (c) Wordmark — recomendação: **manter Playfair Display**
+
+- É a única "voz tipográfica" diferenciada do app — todo o resto vira SF Pro. Trocar pra SF Pro semibold homogeneíza demais e o app perde a única assinatura editorial que separa "marca" de "interface".
+- Playfair atual (`font-wordmark`, weight 400, tracking 0.005em) dialoga bem com Apple-clean justamente pelo contraste: SF na UI, serif só na marca — mesmo princípio Apple (San Francisco na UI, New York serif em peças editoriais).
+- Casa com o dourado D'Or sem precisar de mais cor.
+
+**Alternativa SF Pro Display semibold**, se quiser homogeneidade total:
+```css
+.font-wordmark {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+```
++ remover Playfair do `@import`. Perde-se a única âncora editorial; ganha "Apple puro".
+
+---
+
+### (d) Risco de contraste — #0071E3
+
+Texto branco sobre primary:
+
+| Combinação | Contraste atual | Contraste novo | WCAG |
+|---|---|---|---|
+| `#FFFFFF` sobre `--primary` light (#003DA5 → #0071E3) | ≈ 9.5:1 | **≈ 4.65:1** | **AA normal ✅**, AAA normal ❌ (precisa 7.0) |
+| `#FFFFFF` sobre `--primary` dark (`214 80% 55%` ≈ #338AE3 → `211 90% 60%` ≈ #3DA0F5) | ≈ 3.5:1 | **≈ 2.9:1** | **AA normal ❌**, AA large ✅ |
+| `--primary-dark` sobre `--primary-soft` (chat-bubble-mine) | ≈ 12:1 | ≈ 12:1 | AAA ✅ intacto |
+| `text-primary` pequeno (<14px) sobre `--background` off-white | n/a | **≈ 4.2:1** | **AA normal ❌**, AA large ✅ |
+
+Implicações:
+1. **Caminho mais visível (CTA primary branco em light) passa AA normal** (4.65:1). Conforme WCAG 2.1 AA. Abaixo de AAA.
+2. **Dark mode + texto branco em botão primary** já estava no limite e cai pra 2.9:1 — **falha AA normal**. Mitigação: `--primary` dark = `211 90% 48%` (#1175D9 → 5.3:1 ✅) — perde um pouco do brilho Apple, mas conforma.
+3. **Links/labels pequenos com `text-primary` em fundo claro** caem pra 4.2:1 (limite AA pra <14px). Mitigação: `--primary` light = `211 100% 42%` (#0066CC → 5.5:1) — perde um pouco do "Apple vivo".
+4. **Foco (ring)** mais visível → ganho de acessibilidade.
+5. **Botões `outline`/`ghost`** em superfície branca ficam mais legíveis → ganho.
+6. `data-contrast="4|5"` continuam funcionando (não tocam `--primary`).
+
+**Decisões pendentes antes de eu implementar:**
+1. `--primary` dark: ficar em `211 90% 60%` (Apple, 2.9:1 — falha AA) ou ir pra `211 90% 48%` (5.3:1, AA ✅, menos vibrante)?
+2. Wordmark: manter Playfair (recomendação) ou trocar pra SF Pro Display semibold?
+3. `text-primary` pequeno em fundo claro: aceitar 4.2:1 ou escurecer `--primary` light pra `211 100% 42%` (5.5:1)?
+
+---
+
+### Plano de execução (quando virar build)
+
+1. Editar **só `src/index.css`**: aplicar tabelas light e dark, trocar `font-family` de body/h1..h4 (sem mexer em sizes/weights/tracking), remover `DM+Sans` do `@import`, atualizar 3 shadows base + os `--shadow-hover` dos 5 níveis de `data-contrast`.
+2. `tailwind.config.ts`: **não tocar**.
+3. Verificação visual: `/auth` (piloto), sidebar (hover + ativo), `/pagamentos` (densidade + badges), um modal qualquer, uma página em dark, foco via Tab.
+4. Não rodar migration, não tocar em componente, não tocar em `chat-*`, `bubble-*`, status.
