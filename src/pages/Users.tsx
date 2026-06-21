@@ -912,7 +912,7 @@ const Users = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Data de nascimento *</Label>
+                    <Label>Data de nascimento <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                     <Input type="date" value={editingUser.birth_date} onChange={(e) => setEditingUser({ ...editingUser, birth_date: e.target.value })} />
                   </div>
                 </section>
