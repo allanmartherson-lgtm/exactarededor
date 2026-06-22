@@ -1703,6 +1703,11 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   // (evita aplicar regra de Parecer em base sem classificação).
   const calcPaymentType = c.payment_type_id ?? null;
   if (calcPaymentType) {
+    // Exceção do cálculo: analista marcou o item para pular cálculos tipados.
+    // Item cai no próximo cálculo elegível da regra (tipicamente o universal).
+    if (item.calc_exception_skip === true) {
+      return { ok: false, reason: "item_calc_exception_skip" };
+    }
     const itemPaymentType = item.payment_type_id ?? null;
     if (!itemPaymentType || itemPaymentType !== calcPaymentType) {
       return { ok: false, reason: "payment_type_nao_corresponde" };
