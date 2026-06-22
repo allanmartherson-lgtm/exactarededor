@@ -993,21 +993,8 @@ export const AppLayout = () => {
       <div className="min-h-screen bg-background flex flex-col">
         {canRetryInvoices && <InvoiceRetryMonitor />}
         <header
-          className="sticky top-0 z-40 app-topbar-navy"
-          style={{
-            height: 60,
-            background: "hsl(var(--primary-dark))",
-            borderBottom: "1px solid rgba(255,255,255,0.10)",
-            // Scoped token overrides — turn the topbar into a navy "chrome" surface.
-            // Descendants resolving --foreground/--muted/--border/--card pick these up;
-            // popovers/dropdowns are portaled to <body>, so they stay light.
-            ["--card" as any]: "var(--primary-dark)",
-            ["--background" as any]: "var(--primary-dark)",
-            ["--foreground" as any]: "0 0% 100%",
-            ["--muted-foreground" as any]: "0 0% 100% / 0.85",
-            ["--muted" as any]: "0 0% 100% / 0.12",
-            ["--border" as any]: "0 0% 100% / 0",
-          } as React.CSSProperties}
+          className="sticky top-0 z-40 bg-background border-b border-border/60"
+          style={{ height: 60 }}
         >
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
             {MobileNavDrawer}
