@@ -94,7 +94,7 @@ const LoginAnimation = () => {
       <div className="exacta-block flex items-center gap-4">
         <div
           className="flex items-center justify-center rounded-[11px] flex-shrink-0"
-          style={{ width: 44, height: 44, background: '#C6A27C' }}
+          style={{ width: 44, height: 44, background: 'hsl(var(--accent))' }}
         >
           <svg viewBox="0 0 24 24" fill="none" width={24} height={24}>
             <polyline points="3,13 10,20 21,7" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -105,7 +105,7 @@ const LoginAnimation = () => {
             className="text-white"
             style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 32, fontWeight: 400, letterSpacing: '0.04em', lineHeight: 1 }}
           >
-            E<span style={{ color: '#C8A96E' }}>x</span>acta
+            E<span style={{ color: 'hsl(var(--accent))' }}>x</span>acta
           </p>
           <p
             className="text-white/40 uppercase"
