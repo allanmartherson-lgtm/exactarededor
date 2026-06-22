@@ -54,6 +54,8 @@ export function FinancialCompositionStrip({
   }
 
   const hasCredito = comp.creditos > 0;
+  const base = Math.max(Math.abs(comp.bruto), 1); // evita divisão por zero
+  const r = (v: number) => Math.abs(v) / base;
 
   return (
     <div className="rounded-lg border bg-card shadow-soft px-4 py-3">
@@ -68,27 +70,30 @@ export function FinancialCompositionStrip({
       </div>
 
       <div className="flex flex-wrap items-stretch gap-2">
-        <Cell label="Bruto produção" value={brl(comp.bruto)} tone="info" />
+        <Cell label="Bruto produção" value={brl(comp.bruto)} tone="info" ratio={1} />
         <Op icon={<Minus className="h-3.5 w-3.5" />} />
         <Cell label="Débitos" value={comp.debitos > 0 ? brl(comp.debitos) : "—"}
               tone={comp.debitos > 0 ? "destructive" : "muted"}
+              ratio={comp.debitos > 0 ? r(comp.debitos) : undefined}
               hint={comp.debitos === 0 ? "Sem débitos" : undefined} />
         {hasCredito && (
           <>
             <Op icon={<Plus className="h-3.5 w-3.5" />} />
-            <Cell label="Créditos" value={brl(comp.creditos)} tone="success" />
+            <Cell label="Créditos" value={brl(comp.creditos)} tone="success" ratio={r(comp.creditos)} />
           </>
         )}
         <Op icon={<Minus className="h-3.5 w-3.5" />} />
         <Cell label="Glosas" value={comp.glosas > 0 ? brl(comp.glosas) : "—"}
               icon={<MinusCircle className="h-3.5 w-3.5" />}
               tone={comp.glosas > 0 ? "destructive" : "muted"}
+              ratio={comp.glosas > 0 ? r(comp.glosas) : undefined}
               hint={comp.glosas === 0 ? "Sem glosas aplicadas" : undefined} />
         <Op icon={<Minus className="h-3.5 w-3.5" />} />
         <Cell label={comp.poolPreview && !comp.poolAplicado ? "Pool / rateio (prévia)" : "Pool / rateio"}
               value={(comp.poolAplicado || comp.poolPreview) && comp.pool !== 0 ? brl(comp.pool) : "—"}
               icon={<Users className="h-3.5 w-3.5" />}
               tone={comp.poolAplicado ? "warning" : comp.poolPreview ? "info" : "muted"}
+              ratio={(comp.poolAplicado || comp.poolPreview) && comp.pool !== 0 ? r(comp.pool) : undefined}
               hint={(() => {
                 if (!comp.poolAplicado && !comp.poolPreview) return "Sem pool aplicado";
                 const dedTxt = comp.poolDetalhes
@@ -103,7 +108,9 @@ export function FinancialCompositionStrip({
               })()} />
 
         <Op icon={<Equal className="h-3.5 w-3.5" />} />
-        <Cell label="Líquido a pagar" value={brl(comp.liquido)} tone="success" highlight />
+        <Cell label="Líquido a pagar" value={brl(comp.liquido)} tone="success" highlight
+              ratio={r(comp.liquido)}
+              hint={comp.bruto > 0 ? `${Math.round((comp.liquido / comp.bruto) * 100)}% do bruto` : undefined} />
       </div>
     </div>
   );
