@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { Link, useParams } from "react-router-dom";
 import {
   ChevronRight,
@@ -249,40 +250,31 @@ export default function BiLoteDetalhe() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1440px] mx-auto px-8 py-10 space-y-8">
-        {/* Breadcrumb + header */}
-        <div className="flex items-end justify-between gap-6 flex-wrap">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-              <Link to="/bi/diretoria" className="hover:text-foreground transition-colors">BI</Link>
-              <ChevronRight className="h-3 w-3" />
-              <Link to="/bi/pagamentos" className="hover:text-foreground transition-colors">Pagamentos</Link>
-              <ChevronRight className="h-3 w-3" />
-              <span>Detalhe</span>
-            </div>
-            <h1 className="text-[34px] font-semibold tracking-tight text-foreground leading-none truncate max-w-[820px]">
-              {empresaTitle}
-            </h1>
-            <div className="flex items-center gap-3 mt-3 text-sm text-muted-foreground flex-wrap">
-              <span className="truncate max-w-[520px]">{reference}</span>
-              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-              <span>Competência {competencia}</span>
-              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-              <span>{itens} itens</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="h-9 px-3 rounded-full border border-border bg-card text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Exportar
-            </button>
-            <Link
-              to={`/pagamentos/${payment.id}`}
-              className="h-9 px-4 rounded-full bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
-            >
-              Abrir operacional
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
+        <div className="-mx-8 -mt-10">
+          <PageHeader
+            title={empresaTitle}
+            description={`${reference} · Competência ${competencia} · ${itens} itens`}
+            breadcrumb={[
+              { label: "BI", to: "/bi/diretoria" },
+              { label: "Pagamentos", to: "/bi/pagamentos" },
+              { label: "Detalhe" },
+            ]}
+            actions={
+              <>
+                <button className="h-9 px-3 rounded-full border border-border bg-card text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Exportar
+                </button>
+                <Link
+                  to={`/pagamentos/${payment.id}`}
+                  className="h-9 px-4 rounded-full bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+                >
+                  Abrir operacional
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </>
+            }
+          />
         </div>
 
         {/* HERO valor + stepper */}

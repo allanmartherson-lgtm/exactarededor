@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { Link } from "react-router-dom";
 import {
   Search,
@@ -219,34 +220,26 @@ export default function BiPagamentos() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1440px] mx-auto px-8 py-10 space-y-8">
-        {/* breadcrumb + título */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-              <Link to="/bi/diretoria" className="hover:text-foreground transition-colors">BI</Link>
-              <ChevronRight className="h-3 w-3" />
-              <span>Pagamentos</span>
-            </div>
-            <h1 className="text-[34px] font-semibold tracking-tight text-foreground leading-none">
-              Pagamentos
-            </h1>
-            <p className="text-sm text-muted-foreground mt-2">
-              {totals.count} lotes carregados · {totals.itensTotais.toLocaleString("pt-BR")} itens no total
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="h-9 px-3 rounded-full border border-border bg-card text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Exportar
-            </button>
-            <Link
-              to="/pagamentos"
-              className="h-9 px-4 rounded-full bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
-            >
-              Operacional
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
+        <div className="-mx-8 -mt-10">
+          <PageHeader
+            title="Pagamentos"
+            description={`${totals.count} lotes carregados · ${totals.itensTotais.toLocaleString("pt-BR")} itens no total`}
+            actions={
+              <>
+                <button className="h-9 px-3 rounded-full border border-border bg-card text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Exportar
+                </button>
+                <Link
+                  to="/pagamentos"
+                  className="h-9 px-4 rounded-full bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+                >
+                  Operacional
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </>
+            }
+          />
         </div>
 
         {/* HERO + side */}

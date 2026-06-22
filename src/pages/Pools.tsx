@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,12 +189,12 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
 
 
   return (
-    <div className={embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"}>
+    <div className={embedded ? "space-y-6" : "space-y-6"}>
       {!embedded && (
-        <div>
-          <h1 className="text-3xl font-bold">Pools de rateio</h1>
-          <p className="text-muted-foreground">Configure rateio de produção entre empresas e ajustes financeiros recorrentes.</p>
-        </div>
+        <PageHeader
+          title="Pools de rateio"
+          description="Configure rateio de produção entre empresas e ajustes financeiros recorrentes."
+        />
       )}
 
       <div className="space-y-4">

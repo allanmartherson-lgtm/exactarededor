@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,16 +122,13 @@ export default function DreReport() {
   }, {});
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <TrendingUp className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">DRE & Posição em Aberto</h1>
-          <p className="text-sm text-muted-foreground">
-            Consolidação por competência, médico e PJ, com posição financeira em aberto e aging.
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="DRE & Posição em Aberto"
+        description="Consolidação por competência, médico e PJ, com posição financeira em aberto e aging."
+      />
+      <div className="px-6 space-y-6">
+
 
       <Card>
         <CardHeader><CardTitle className="text-base">Filtros</CardTitle></CardHeader>
@@ -306,6 +304,7 @@ export default function DreReport() {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { Link } from "react-router-dom";
 import { Calendar, AlertTriangle, TrendingUp, ChevronRight, AlertCircle, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -300,31 +301,31 @@ export default function BiDiretoria() {
   return (
     <div className="container mx-auto px-4 py-6 max-w-[1400px] space-y-6">
       {/* ===== Header ===== */}
-      <header className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">BI · Diretoria</h1>
-          <p className="text-sm text-muted-foreground mt-1">Visão consolidada · competência {competenciaLabel.toLowerCase()}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-full bg-muted/60 p-1">
-            {(["semana", "mes", "trimestre", "ano"] as Period[]).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
-                  period === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {p === "mes" ? "Mês" : p.charAt(0).toUpperCase() + p.slice(1)}
-              </button>
-            ))}
-          </div>
-          <button className="inline-flex items-center gap-2 rounded-full bg-card border border-border px-4 py-2 text-sm text-foreground hover:bg-muted/40 transition-colors">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            {MONTHS_PT_FULL[now.getMonth()]} {now.getFullYear()}
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        title="BI · Diretoria"
+        description={`Visão consolidada · competência ${competenciaLabel.toLowerCase()}`}
+        actions={
+          <>
+            <div className="inline-flex rounded-full bg-muted/60 p-1">
+              {(["semana", "mes", "trimestre", "ano"] as Period[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                    period === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {p === "mes" ? "Mês" : p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              ))}
+            </div>
+            <button className="inline-flex items-center gap-2 rounded-full bg-card border border-border px-4 py-2 text-sm text-foreground hover:bg-muted/40 transition-colors">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              {MONTHS_PT_FULL[now.getMonth()]} {now.getFullYear()}
+            </button>
+          </>
+        }
+      />
 
       {/* ===== Faixa narrativa ===== */}
       <div className="rounded-2xl bg-card border border-border px-8 py-6 shadow-sm">

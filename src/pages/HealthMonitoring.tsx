@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospital } from "@/contexts/HospitalContext";
 import { Link } from "react-router-dom";
@@ -378,39 +379,55 @@ export default function HealthMonitoring({ embedded = false }: { embedded?: bool
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        {!embedded ? (
-          <div>
-            <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
-              Saúde do <span style={{ fontWeight: 700 }}>Motor</span>
-            </h1>
-            <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
-              Monitoramento operacional do motor Exacta · Atualizado às {lastRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-            </p>
-          </div>
-        ) : (
+      {!embedded ? (
+        <PageHeader
+          title="Saúde do Motor"
+          description={`Monitoramento operacional do motor Exacta · Atualizado às ${lastRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}
+          actions={
+            <>
+              <StatusPill status={globalStatus} />
+              <button
+                onClick={load}
+                disabled={loading}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
+                  borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600,
+                  color: "hsl(var(--foreground))", cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.6 : 1,
+                }}
+              >
+                <RefreshCw size={13} className={cn(loading && "animate-spin")} />
+                {loading ? "Verificando..." : "Atualizar"}
+              </button>
+            </>
+          }
+        />
+      ) : (
+        <div className="flex items-center justify-between gap-3">
           <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
             Atualizado às {lastRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
           </p>
-        )}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <StatusPill status={globalStatus} />
-          <button
-            onClick={load}
-            disabled={loading}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
-              borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600,
-              color: "hsl(var(--foreground))", cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            <RefreshCw size={13} className={cn(loading && "animate-spin")} />
-            {loading ? "Verificando..." : "Atualizar"}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <StatusPill status={globalStatus} />
+            <button
+              onClick={load}
+              disabled={loading}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
+                borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600,
+                color: "hsl(var(--foreground))", cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.6 : 1,
+              }}
+            >
+              <RefreshCw size={13} className={cn(loading && "animate-spin")} />
+              {loading ? "Verificando..." : "Atualizar"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
 
       {globalStatus === "critico" && (
         <div style={{ background: "hsl(var(--bubble-red-bg))", border: "1px solid hsl(var(--bubble-red-fg) / 0.4)", borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>

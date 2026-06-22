@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -197,20 +198,18 @@ const OverflowAudit = () => {
   );
 
   return (
-    <div className="container mx-auto p-4 space-y-4">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold">Auditoria de overflow horizontal</h1>
-          <p className="text-sm text-muted-foreground">
-            Renderiza cada rota em iframes nas larguras alvo e checa
-            <code className="mx-1">scrollWidth &gt; clientWidth</code>.
-            Combinações em vermelho têm scroll horizontal indevido.
-          </p>
-        </div>
-        <Button onClick={() => setRunId((n) => n + 1)} variant="outline">
-          <RefreshCw className="h-4 w-4 mr-2" /> Re-executar
-        </Button>
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Auditoria de overflow horizontal"
+        description="Renderiza cada rota em iframes nas larguras alvo e checa scrollWidth > clientWidth. Combinações em vermelho têm scroll horizontal indevido."
+        actions={
+          <Button onClick={() => setRunId((n) => n + 1)} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" /> Re-executar
+          </Button>
+        }
+      />
+      <div className="px-6 space-y-4">
+
 
       <Card>
         <CardHeader className="py-3">
@@ -261,6 +260,7 @@ const OverflowAudit = () => {
           </Card>
         );
       })}
+      </div>
     </div>
   );
 };

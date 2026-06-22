@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 import { Link } from "react-router-dom";
@@ -236,14 +237,10 @@ export default function ExecutiveDashboard() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
-          Dashboard <span style={{ fontWeight: 700 }}>Executivo</span>
-        </h1>
-        <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
-          DF Star · Visão consolidada de pagamentos médicos · {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
-        </p>
-      </div>
+      <PageHeader
+        title="Dashboard Executivo"
+        description={`DF Star · Visão consolidada de pagamentos médicos · ${new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`}
+      />
 
       <section>
         <SectionLabel>Visão geral</SectionLabel>

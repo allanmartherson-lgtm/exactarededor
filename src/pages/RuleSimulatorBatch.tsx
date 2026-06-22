@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospital } from "@/contexts/HospitalContext";
@@ -212,16 +213,12 @@ export default function RuleSimulatorBatch({ embedded = false }: { embedded?: bo
   };
 
   return (
-    <div className={embedded ? "space-y-6" : "container mx-auto p-6 space-y-6 max-w-7xl"}>
+    <div className={embedded ? "space-y-6" : "space-y-6"}>
       {!embedded && (
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3"><FlaskConical className="text-primary" /> Simulador em Lote</h1>
-            <p className="text-muted-foreground mt-1">
-              Suba uma planilha de teste e veja o que cada regra do hospital produziria — sem persistir nada.
-            </p>
-          </div>
-        </header>
+        <PageHeader
+          title="Simulador em Lote"
+          description="Suba uma planilha de teste e veja o que cada regra do hospital produziria — sem persistir nada."
+        />
       )}
 
       <Card>
