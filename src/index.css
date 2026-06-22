@@ -1002,28 +1002,42 @@ All colors MUST be HSL.
     height: auto;
   }
   .filter-tabs [data-state] {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 16px;
+    padding: 10px 4px;
+    margin: 0 12px;
     font-size: 13px;
     font-weight: 500;
     color: hsl(var(--muted-foreground));
     background: transparent !important;
     border: 0;
-    border-bottom: 2px solid transparent;
     border-radius: 0 !important;
     box-shadow: none !important;
-    transition: color 0.12s ease, border-color 0.12s ease;
-    margin-bottom: -1px;
+    transition: color 0.12s ease;
   }
+  .filter-tabs [data-state]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: transparent;
+    transition: background-color 0.12s ease;
+  }
+  .filter-tabs [data-state]:first-child { margin-left: 0; }
+  .filter-tabs [data-state]:last-child { margin-right: 0; }
   .filter-tabs [data-state]:hover {
     color: hsl(var(--foreground));
   }
   .filter-tabs [data-state="active"] {
     color: hsl(var(--primary)) !important;
-    border-bottom-color: hsl(var(--primary));
     background: transparent !important;
+  }
+  .filter-tabs [data-state="active"]::after {
+    background: hsl(var(--primary));
   }
   .filter-tabs__count {
     display: inline-flex;
