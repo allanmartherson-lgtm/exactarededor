@@ -3375,12 +3375,12 @@ const PaymentDetail = () => {
 
 
           <AlertDialog open={!!pendingSendState} onOpenChange={(o) => { if (!o) setPendingSendState(null); }}>
-            <AlertDialogContent className="max-w-lg">
+            <AlertDialogContent className="max-w-lg w-[calc(100vw-2rem)] sm:w-full">
               <AlertDialogHeader>
-                <AlertDialogTitle>Enviar lote com empresas pendentes?</AlertDialogTitle>
+                <AlertDialogTitle className="break-words">Enviar lote com empresas pendentes?</AlertDialogTitle>
                 <AlertDialogDescription asChild>
-                  <div className="space-y-2 text-sm">
-                    <p>
+                  <div className="space-y-2 text-sm min-w-0">
+                    <p className="break-words">
                       {pendingSendState?.pendentes.length} empresa(s) ainda não foram concluídas pelo analista:
                     </p>
                     <ul className="max-h-40 overflow-y-auto overflow-x-hidden rounded border border-border bg-muted/30 p-2 text-xs space-y-1">
@@ -3388,7 +3388,7 @@ const PaymentDetail = () => {
                         <li key={g.id} className="break-words leading-snug">• {g.company_name}</li>
                       ))}
                     </ul>
-                    <p>
+                    <p className="break-words">
                       {(pendingSendState?.prontos.length ?? 0) > 0
                         ? `Você quer concluir essas empresas e enviar tudo junto, ou enviar apenas as ${pendingSendState?.prontos.length} já prontas?`
                         : "Nenhuma empresa foi marcada como concluída ainda. Deseja concluir e enviar todas de uma vez?"}
@@ -3396,11 +3396,11 @@ const PaymentDetail = () => {
                   </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2">
+                <AlertDialogCancel className="w-full sm:w-auto whitespace-normal text-center h-auto min-h-10 py-2">Cancelar</AlertDialogCancel>
                 {(pendingSendState?.prontos.length ?? 0) > 0 && (
                   <AlertDialogAction
-                    className="bg-muted text-foreground hover:bg-muted/80"
+                    className="bg-muted text-foreground hover:bg-muted/80 w-full sm:w-auto whitespace-normal text-center h-auto min-h-10 py-2"
                     onClick={async () => {
                       const prontos = pendingSendState?.prontos ?? [];
                       setPendingSendState(null);
@@ -3411,7 +3411,9 @@ const PaymentDetail = () => {
                   </AlertDialogAction>
                 )}
 
+
                 <AlertDialogAction
+                  className="w-full sm:w-auto whitespace-normal text-center h-auto min-h-10 py-2"
                   onClick={async () => {
                     const prontos = pendingSendState?.prontos ?? [];
                     const pendentes = pendingSendState?.pendentes ?? [];
