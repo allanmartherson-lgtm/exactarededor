@@ -376,6 +376,59 @@ All colors MUST be HSL.
   }
 }
 
+/* ============================================================
+   Mobile fit safety net (< 768px)
+   Atenua padrões que estouram em 430px (fontes display, padding
+   grande, containers fixos, breadcrumbs longos) sem precisar
+   reescrever cada página. Só atua no mobile.
+   ============================================================ */
+@media (max-width: 767px) {
+  html, body { overflow-x: hidden; }
+  main { max-width: 100vw; overflow-x: hidden; }
+
+  /* Reduz tipografia display que sempre estoura no celular */
+  .text-6xl { font-size: 2.25rem; line-height: 1.1; }
+  .text-5xl { font-size: 1.875rem; line-height: 1.1; }
+  .text-4xl { font-size: 1.5rem;   line-height: 1.15; }
+  .text-3xl { font-size: 1.375rem; line-height: 1.2; }
+
+  /* Amacia padding extra-grande */
+  .p-8 { padding: 1.25rem; }
+  .px-8 { padding-left: 1.25rem; padding-right: 1.25rem; }
+  .py-8 { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+  .p-6 { padding: 1rem; }
+  .px-6 { padding-left: 1rem; padding-right: 1rem; }
+
+  /* Containers genéricos não devem grudar na borda */
+  .container { padding-left: 0.75rem; padding-right: 0.75rem; }
+
+  /* PageHeader actions: garantir wrap */
+  [data-page-header] [data-page-header-actions] { flex-wrap: wrap; gap: 0.5rem; }
+
+  /* Breadcrumbs longos: cortar e permitir scroll horizontal */
+  nav[aria-label="Breadcrumb"], [data-breadcrumb] {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    white-space: nowrap;
+  }
+  nav[aria-label="Breadcrumb"]::-webkit-scrollbar,
+  [data-breadcrumb]::-webkit-scrollbar { display: none; }
+
+  /* Tabelas dentro de Cards: scroll horizontal interno */
+  [data-mobile-scroll], .table-scroll-mobile {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* DialogContent ocupa quase a tela e nunca vaza */
+  [role="dialog"] > div[class*="max-w-"] {
+    max-width: calc(100vw - 1.5rem);
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
