@@ -58,15 +58,17 @@ const PhaseShell = ({
         {tiles.map((t) => {
           const Icon = t.icon;
           return (
-            <div key={t.label} className={`border-l-2 ${toneBorder(t.tone)} pl-3 py-1.5 min-w-0`}>
-              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                <Icon className="h-3 w-3" />
-                <span className="truncate">{t.label}</span>
+            <div key={t.label} className="pl-0 py-1.5 min-w-0 flex items-start gap-2">
+              <div className={`flex h-7 w-7 items-center justify-center rounded-lg flex-shrink-0 ${toneIcon(t.tone)}`}>
+                <Icon className="h-3.5 w-3.5" />
               </div>
-              <p className={`text-2xl font-semibold tabular-nums leading-tight ${toneText(t.tone)}`}>
-                {t.value}
-              </p>
-              {t.sub && <p className="text-[10px] text-muted-foreground truncate">{t.sub}</p>}
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-[0.04em] text-muted-foreground truncate">{t.label}</div>
+                <p className={`text-2xl font-semibold tabular-nums leading-tight ${toneText(t.tone)}`}>
+                  {t.value}
+                </p>
+                {t.sub && <p className="text-[10px] text-muted-foreground truncate">{t.sub}</p>}
+              </div>
             </div>
           );
         })}
