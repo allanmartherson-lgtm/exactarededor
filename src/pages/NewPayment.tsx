@@ -2118,15 +2118,43 @@ const NewPayment = () => {
 
     const matchedItems: ReturnType<typeof buildItemRow>[] = [];
     const unmatchedItems: ReturnType<typeof buildUnmatchedRow>[] = [];
-    let offset = 0;
-    for (const b of buckets) {
+    // Itera direto sobre allRows usando source_bucket_index — evita drift de offset
+    // quando suspiciousDecisions filtram linhas (causa raiz de lotes presos em
+    // em_analise_ia: buildItemRow recebia undefined e o try/catch externo
+    // marcava o payment sem inserir itens).
+    const orphanRows: number[] = [];
+    for (let idx = 0; idx < allRows.length; idx++) {
+      const r = allRows[idx];
+      if (!r) { orphanRows.push(idx); continue; }
+      const bIdx = (r as any).source_bucket_index as number | undefined;
+      const b = typeof bIdx === "number" ? buckets[bIdx] : undefined;
+      if (!b) { orphanRows.push(idx); continue; }
       const isUnmatched = isUnmatchedBucket(b);
-      for (let j = 0; j < b.rows.length; j++) {
-        const r = allRows[offset + j];
-        if (isUnmatched) unmatchedItems.push(buildUnmatchedRow(r, b));
-        else matchedItems.push(buildItemRow(r, b));
-      }
-      offset += b.rows.length;
+      if (isUnmatched) unmatchedItems.push(buildUnmatchedRow(r, b));
+      else matchedItems.push(buildItemRow(r, b));
+    }
+    if (orphanRows.length > 0) {
+      setSubmitting(false);
+      // Abort antes do insert para não deixar payment órfão em em_analise_ia.
+      // Deleta o registro recém-criado para o analista poder reimportar limpo.
+      await supabase.from("payments").delete().eq("id", payment.id);
+      toast({
+        title: "Inconsistência ao montar itens do lote",
+        description: `${orphanRows.length} linha(s) sem bucket associado. Recarregue a página e tente novamente. Nenhum dado foi salvo.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const expectedTotal = matchedItems.length + unmatchedItems.length;
+    if (expectedTotal !== allRows.length) {
+      setSubmitting(false);
+      await supabase.from("payments").delete().eq("id", payment.id);
+      toast({
+        title: "Inconsistência ao montar itens do lote",
+        description: `Esperado ${allRows.length} itens, montados ${expectedTotal}. Recarregue a página e tente novamente.`,
+        variant: "destructive",
+      });
+      return;
     }
 
     if (matchedItems.length > 0) {
