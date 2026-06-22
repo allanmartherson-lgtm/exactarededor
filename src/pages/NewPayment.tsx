@@ -63,6 +63,8 @@ import {
 import { useSheetColumnTemplates } from "@/hooks/useSheetColumnTemplates";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
 import { confirmDialog } from "@/lib/confirm";
+import { detectSuspiciousRows } from "@/lib/detectSuspiciousRows";
+import { SuspiciousRowsReview, type SuspiciousDecision } from "@/components/payment-wizard/SuspiciousRowsReview";
 
 interface ParsedRow {
   doctor_name: string;
