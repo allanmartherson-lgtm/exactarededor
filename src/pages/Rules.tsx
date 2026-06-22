@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
