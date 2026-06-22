@@ -96,12 +96,15 @@ export function CalcExceptionDialog({
       await recordAudit({
         entityType: "payment_item",
         entityId: itemId,
-        action: next ? "calc_exception_enable" : "calc_exception_disable",
+        action: "update",
         actorId: user.id,
-        diff: buildDiff(before, {
-          calc_exception_skip: !!patch.calc_exception_skip,
-          calc_exception_reason: (patch as any).calc_exception_reason ?? null,
-        }),
+        diff: {
+          __op: { before: null, after: next ? "calc_exception_enable" : "calc_exception_disable" },
+          ...buildDiff(before, {
+            calc_exception_skip: !!patch.calc_exception_skip,
+            calc_exception_reason: (patch as any).calc_exception_reason ?? null,
+          }),
+        },
       });
 
       // Re-dispara análise apenas da PJ do item para refletir o novo cálculo.
