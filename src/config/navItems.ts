@@ -105,22 +105,14 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: "BI",
-    icon: TrendingUp,
-    iconName: "TrendingUp",
-    roles: ALL_ROLES,
-    children: [
-      { to: "/bi/diretoria", label: "Diretoria", icon: BarChart3, iconName: "BarChart3", roles: ALL_ROLES },
-      { to: "/bi/pagamentos", label: "Pagamentos", icon: Wallet, iconName: "Wallet", roles: ALL_ROLES },
-    ],
-  },
-  {
     label: "Relatórios",
     icon: FileBarChart,
     iconName: "FileBarChart",
     roles: ALL_ROLES,
     children: [
       { to: "/relatorios/central", label: "Central de Relatórios", icon: FileBarChart, iconName: "FileBarChart", roles: ALL_ROLES },
+      { to: "/bi/diretoria", label: "BI · Diretoria", icon: BarChart3, iconName: "BarChart3", roles: ALL_ROLES },
+      { to: "/bi/pagamentos", label: "BI · Pagamentos", icon: Wallet, iconName: "Wallet", roles: ALL_ROLES },
       { to: "/kpis", label: "KPIs", icon: BarChart2, iconName: "BarChart2", roles: ALL_ROLES },
       { to: "/relatorios/intervencoes", label: "Ajustes por intervenção", icon: Scale, iconName: "Scale", roles: ["diretor", "admin", "validador", "analista"] as const },
       { to: "/saude?tab=processo", label: "Saúde do Processo", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
