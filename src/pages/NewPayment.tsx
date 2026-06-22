@@ -3281,6 +3281,11 @@ const NewPayment = () => {
           sampleRow={buckets[mappingDialog.bucketIdx].sampleRow}
           hospitalId={hospital?.id ?? null}
           mode={modoConfeccao ? "confeccao" : "analise"}
+          paymentTypeMeta={paymentTypeMeta ? {
+            tuss_default: paymentTypeMeta.tuss_default,
+            requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
+            default_function: paymentTypeMeta.default_function,
+          } : null}
           onApply={(mapping) => {
             applyColumnMappingOverride(mappingDialog.bucketIdx!, mapping);
           }}
