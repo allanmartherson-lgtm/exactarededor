@@ -269,7 +269,7 @@ export default function PaymentEvolution() {
       .from("payment_company_groups")
       .select("id,payment_id,company_id,company_name,liquido_total,bruto_total,total_amount,status")
       .in("payment_id", paymentIds)
-      .neq("status", "cancelled");
+      .neq("status", "cancelado");
     setDrillCompanies((s) => ({ ...s, [cc]: (data ?? []) as CompanyGroupRow[] }));
     setDrillLoading(false);
   };
