@@ -1005,6 +1005,15 @@ const NewPayment = () => {
           base.doctor_role = ptMeta.default_function;
           (base.raw_data as any).__role_default_applied = ptMeta.default_function;
         }
+        // Tipos por evento (parecer, visita, plantão fixo etc.) que injetam
+        // função padrão NÃO possuem dimensão de setor — a planilha não traz
+        // coluna real de setor e qualquer valor capturado (ex.: "parecer"
+        // vindo de uma coluna de procedimento/serviço) só polui a Resolução
+        // de cadastros. Limpamos para o lookup estrito não tentar resolver.
+        if (ptMeta.default_function) {
+          base.sector = null;
+          (base.raw_data as any).__sector_skipped_by_payment_type = true;
+        }
       }
 
       // === Subtipos mistos (Parecer + Visita) ===
