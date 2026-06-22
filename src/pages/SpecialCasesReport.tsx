@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { KpiCard } from "@/components/ui/KpiCard";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -125,22 +126,10 @@ export default function SpecialCasesReport({ embedded = false }: { embedded?: bo
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-semibold">{kpis.total}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Aprovados</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-semibold text-emerald-600">{kpis.byStatus.approved}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Pendentes</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-semibold text-amber-600">{kpis.byStatus.pending}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Rejeitados / revogados</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-semibold text-muted-foreground">{kpis.byStatus.rejected + kpis.byStatus.revoked}</div></CardContent>
-        </Card>
+        <KpiCard label="Total" value={kpis.total} />
+        <KpiCard label="Aprovados" value={kpis.byStatus.approved} tone="success" />
+        <KpiCard label="Pendentes" value={kpis.byStatus.pending} tone="warning" />
+        <KpiCard label="Rejeitados / revogados" value={kpis.byStatus.rejected + kpis.byStatus.revoked} />
       </div>
 
       <div className="grid md:grid-cols-2 gap-3">

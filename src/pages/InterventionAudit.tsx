@@ -25,6 +25,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
+import { KpiCard } from "@/components/ui/KpiCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
@@ -48,12 +49,12 @@ const fmtDate = (s: string) =>
 
 const sourceBadge = (role: string) => {
   switch (role) {
-    case "diretor": return "bg-blue-100 text-blue-800";
-    case "validador": return "bg-indigo-100 text-indigo-800";
-    case "analista": return "bg-amber-100 text-amber-800";
-    case "cancelamento_empresa": return "bg-red-100 text-red-800";
-    case "cancelamento_item": return "bg-rose-100 text-rose-800";
-    default: return "bg-muted text-muted-foreground";
+    case "diretor": return "bg-info/10 text-info border-info/30";
+    case "validador": return "bg-primary/10 text-primary border-primary/30";
+    case "analista": return "bg-warning/10 text-warning-text border-warning/30";
+    case "cancelamento_empresa": return "bg-destructive/10 text-destructive border-destructive/30";
+    case "cancelamento_item": return "bg-destructive/10 text-destructive border-destructive/30";
+    default: return "bg-muted text-muted-foreground border-border";
   }
 };
 
@@ -153,49 +154,38 @@ export default function InterventionAudit() {
 
         {/* Resumo por fonte */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <Card className="shadow-card">
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Saldo total</CardTitle></CardHeader>
-            <CardContent>
-              {loading ? <Skeleton className="h-6 w-32" /> : (
-                <div className={`text-xl font-bold ${tone === "positive" ? "text-emerald-700" : tone === "negative" ? "text-red-700" : ""}`}>
-                  {formatCurrency(totalSummary.saldo)}
-                </div>
-              )}
-              <div className="text-xs text-muted-foreground mt-1">{totalSummary.qtd_itens} eventos</div>
-            </CardContent>
-          </Card>
+          <KpiCard
+            label="Saldo total"
+            value={loading ? <Skeleton className="h-8 w-32" /> : formatCurrency(totalSummary.saldo)}
+            hint={`${totalSummary.qtd_itens} eventos`}
+            tone={tone === "positive" ? "success" : tone === "negative" ? "danger" : "default"}
+          />
           {(["diretor","validador","analista","cancelamento_empresa","cancelamento_item"] as const).map((r) => {
             const s = bySource[r] ?? { qtd: 0, saldo: 0 };
             return (
-              <Card key={r} className="shadow-card">
-                <CardHeader className="pb-2"><CardTitle className="text-sm">{roleLabel(r)}</CardTitle></CardHeader>
-                <CardContent>
-                  {loading ? <Skeleton className="h-6 w-24" /> : (
-                    <div className={`text-lg font-semibold ${s.saldo > 0 ? "text-emerald-700" : s.saldo < 0 ? "text-red-700" : ""}`}>
-                      {formatCurrency(s.saldo)}
-                    </div>
-                  )}
-                  <div className="text-xs text-muted-foreground mt-1">{s.qtd} eventos</div>
-                </CardContent>
-              </Card>
+              <KpiCard
+                key={r}
+                label={roleLabel(r)}
+                value={loading ? <Skeleton className="h-8 w-24" /> : formatCurrency(s.saldo)}
+                hint={`${s.qtd} eventos`}
+                tone={s.saldo > 0 ? "success" : s.saldo < 0 ? "danger" : "default"}
+              />
             );
           })}
         </div>
 
         {duplicates.length > 0 && (
-          <Card className="border-amber-300 bg-amber-50">
-            <CardContent className="p-3 flex items-start gap-2 text-amber-900">
-              <AlertTriangle className="h-4 w-4 mt-0.5" />
-              <div className="text-sm">
-                <strong>{duplicates.length}</strong> item(ns) contabilizados por mais de uma fonte —
-                revisar para garantir que não há dupla contagem no KPI. IDs:{" "}
-                <span className="font-mono text-xs">
-                  {duplicates.slice(0, 5).map(d => d.item_id).join(", ")}
-                  {duplicates.length > 5 ? " …" : ""}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-2xl border border-warning/30 bg-warning/5 p-4 flex items-start gap-2 text-warning-text">
+            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <div className="text-sm">
+              <strong>{duplicates.length}</strong> item(ns) contabilizados por mais de uma fonte —
+              revisar para garantir que não há dupla contagem no KPI. IDs:{" "}
+              <span className="font-mono text-xs">
+                {duplicates.slice(0, 5).map(d => d.item_id).join(", ")}
+                {duplicates.length > 5 ? " …" : ""}
+              </span>
+            </div>
+          </div>
         )}
 
         {/* Tabela por pagamento */}

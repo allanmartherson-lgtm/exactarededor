@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
+import { KpiCard as UiKpiCard } from "@/components/ui/KpiCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
@@ -257,31 +258,20 @@ export default function AnalystCorrections() {
 }
 
 function KpiCard({
-  icon: Icon, label, value, hint, tone, loading,
+  icon: _Icon, label, value, hint, tone, loading,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon?: React.ComponentType<{ className?: string }>;
   label: string; value: string; hint?: string;
   tone: "success" | "destructive" | "muted";
   loading?: boolean;
 }) {
-  const ring =
-    tone === "success" ? "border-success/30" :
-    tone === "destructive" ? "border-destructive/30" :
-    "border-border";
-  const iconColor =
-    tone === "success" ? "text-success" :
-    tone === "destructive" ? "text-destructive" :
-    "text-muted-foreground";
+  const kpiTone = tone === "success" ? "success" : tone === "destructive" ? "danger" : "default";
   return (
-    <Card className={`shadow-card ${ring} border`}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">{label}</span>
-          <Icon className={`h-4 w-4 ${iconColor}`} />
-        </div>
-        {loading ? <Skeleton className="h-7 w-32 mt-2" /> : <div className="text-2xl font-semibold mt-1">{value}</div>}
-        {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
-      </CardContent>
-    </Card>
+    <UiKpiCard
+      label={label}
+      value={loading ? <Skeleton className="h-8 w-32" /> : value}
+      hint={hint}
+      tone={kpiTone}
+    />
   );
 }

@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
+import { KpiCard } from "@/components/ui/KpiCard";
 import { supabase } from "@/integrations/supabase/client";
 import { History, Download } from "lucide-react";
 
@@ -131,24 +132,10 @@ const ExportAudit = ({ embedded = false }: { embedded?: boolean } = {}) => {
       )}
 
 
-      <div className="px-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card>
-          <CardHeader className="pb-1">
-            <CardTitle className="text-xs text-muted-foreground">Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold">{rows.length}</div>
-          </CardContent>
-        </Card>
+      <div className="px-6 grid grid-cols-2 md:grid-cols-5 gap-3">
+        <KpiCard label="Total" value={rows.length} />
         {(["csv", "pdf", "print", "view"] as const).map((f) => (
-          <Card key={f}>
-            <CardHeader className="pb-1">
-              <CardTitle className="text-xs text-muted-foreground uppercase">{f}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-semibold">{byFormat[f] ?? 0}</div>
-            </CardContent>
-          </Card>
+          <KpiCard key={f} label={f} value={byFormat[f] ?? 0} />
         ))}
       </div>
 

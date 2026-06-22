@@ -13,6 +13,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
+import { KpiCard } from "@/components/ui/KpiCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
@@ -311,11 +312,9 @@ export default function CancelledPayments() {
 
 function SimpleKpi({ label, value, loading }: { label: string; value: string; loading?: boolean }) {
   return (
-    <Card className="shadow-card">
-      <CardContent className="p-4">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        {loading ? <Skeleton className="h-7 w-32 mt-2" /> : <div className="text-2xl font-semibold mt-1">{value}</div>}
-      </CardContent>
-    </Card>
+    <KpiCard
+      label={label}
+      value={loading ? <Skeleton className="h-8 w-32" /> : value}
+    />
   );
 }
