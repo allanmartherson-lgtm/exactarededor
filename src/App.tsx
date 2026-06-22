@@ -27,6 +27,7 @@ const loadDashboard = () => import("./pages/Dashboard.tsx");
 const loadExecutiveDashboard = () => import("./pages/ExecutiveDashboard.tsx");
 const loadBiDiretoria = () => import("./pages/BiDiretoria.tsx");
 const loadBiPagamentos = () => import("./pages/BiPagamentos.tsx");
+const loadBiLoteDetalhe = () => import("./pages/BiLoteDetalhe.tsx");
 const loadAgingRecebiveis = () => import("./pages/AgingRecebiveis.tsx");
 const loadHealthMonitoring = () => import("./pages/HealthMonitoring.tsx");
 const loadPayments = () => import("./pages/Payments.tsx");
