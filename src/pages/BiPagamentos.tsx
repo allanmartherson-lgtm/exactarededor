@@ -343,8 +343,8 @@ export default function BiPagamentos() {
             <div className="col-span-2 text-right">Valor</div>
             <div className="col-span-2 text-right">Diferença</div>
             <div className="col-span-1 text-right">Ciclo</div>
-            <div className="col-span-2">Analista</div>
-            <div className="col-span-1 text-right">Status</div>
+            <div className="col-span-1">Analista</div>
+            <div className="col-span-2 text-right">Status</div>
           </div>
 
           <div className="divide-y divide-border">
