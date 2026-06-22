@@ -105,12 +105,22 @@ const rule: RuleInput = {
   ],
 } as any;
 
+function winningCalcId(res: any): string | null {
+  const br = (res.calculation_breakdown ?? []).find((b: any) => b.matched);
+  return br?.calc_id ?? null;
+}
+
 Deno.test("Item eletivo SEM caso especial cai em Dobra Eletivos (não é bloqueado pelo filtro oncológico)", () => {
   const out = analyzePaymentItems([baseItem()], [rule], ctx);
   assertEquals(out[0].matched_rule_id, "r-diego");
-  assertEquals(out[0].matched_calculation_id, "calc-dobra");
-  assert(out[0].selection_trace?.some((t: any) => t.calc_id === "calc-onco" && /caso_especial/.test(t.reason ?? "")),
-    "esperado trace registrando que calc-onco foi descartado por caso_especial_nao_aprovado");
+  assertEquals(winningCalcId(out[0]), "calc-dobra");
+  // 1454.26 (procedure_amount) * 200% = 2908.52
+  assert(Math.abs((out[0].expected_amount ?? 0) - 2908.52) < 0.05,
+    `esperado ~2908.52, recebeu ${out[0].expected_amount}`);
+  // Cálculo oncológico deve aparecer como descartado por caso especial não aprovado
+  const onco = (out[0].calculation_breakdown ?? []).find((b: any) => b.calc_id === "calc-onco");
+  assert(onco && onco.matched === false && /caso_especial/.test(onco.skip_reason ?? ""),
+    `esperado calc-onco com skip_reason caso_especial_*, recebeu ${JSON.stringify(onco)}`);
 });
 
 Deno.test("Item eletivo COM caso especial oncologico aprovado prefere cálculo oncológico (precedência)", () => {
@@ -120,11 +130,11 @@ Deno.test("Item eletivo COM caso especial oncologico aprovado prefere cálculo o
     special_case_status: "approved",
   });
   const out = analyzePaymentItems([onco], [rule], ctx);
-  assertEquals(out[0].matched_calculation_id, "calc-onco");
+  assertEquals(winningCalcId(out[0]), "calc-onco");
 });
 
 Deno.test("Item de urgência sem caso especial NÃO cai em Dobra Eletivos — usa Base 100%", () => {
   const urg = baseItem({ id: "it-urg", attendance_character: "URGENCIA" });
   const out = analyzePaymentItems([urg], [rule], ctx);
-  assertEquals(out[0].matched_calculation_id, "calc-base");
+  assertEquals(winningCalcId(out[0]), "calc-base");
 });
