@@ -1002,7 +1002,6 @@ All colors MUST be HSL.
     height: auto;
   }
   .filter-tabs [data-state] {
-    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -1015,29 +1014,27 @@ All colors MUST be HSL.
     border: 0;
     border-radius: 0 !important;
     box-shadow: none !important;
-    transition: color 0.12s ease;
-  }
-  .filter-tabs [data-state]::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -1px;
-    height: 2px;
-    background: transparent;
-    transition: background-color 0.12s ease;
+    text-decoration: underline transparent solid 2px;
+    text-underline-offset: 8px;
+    transition: color 0.12s ease, text-decoration-color 0.12s ease;
+    outline: none;
   }
   .filter-tabs [data-state]:first-child { margin-left: 0; }
   .filter-tabs [data-state]:last-child { margin-right: 0; }
-  .filter-tabs [data-state]:hover {
+  .filter-tabs [data-state]:not([data-state="active"]):hover,
+  .filter-tabs [data-state]:not([data-state="active"]):focus-visible {
     color: hsl(var(--foreground));
+    text-decoration-color: hsl(var(--muted-foreground) / 0.5);
   }
   .filter-tabs [data-state="active"] {
     color: hsl(var(--primary)) !important;
     background: transparent !important;
+    text-decoration-color: hsl(var(--primary));
   }
-  .filter-tabs [data-state="active"]::after {
-    background: hsl(var(--primary));
+  .filter-tabs [data-state="active"]:focus-visible {
+    text-decoration-thickness: 2px;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.18) !important;
+    border-radius: 4px !important;
   }
   .filter-tabs__count {
     display: inline-flex;
