@@ -1007,8 +1007,42 @@ const NewPayment = () => {
         }
       }
 
+      // === Subtipos mistos (Parecer + Visita) ===
+      // Quando o tipo permite mistura, avaliamos `subtype_split_hint`
+      // (coluna + lista de padrões) para definir o payment_type_id REAL de
+      // cada linha. Vazio = mantém o tipo pai escolhido na criação da base.
+      // Match é case-insensitive, regex se a string começar com `/` ou
+      // substring caso contrário.
+      let payment_type_id_override: string | null = null;
+      if (ptMeta?.allow_mixed_subtypes && ptMeta.subtype_split_hint) {
+        const hint = ptMeta.subtype_split_hint;
+        const cellRaw = row[hint.column];
+        const cell = (cellRaw == null ? "" : String(cellRaw)).toLowerCase();
+        if (cell) {
+          for (const p of hint.patterns) {
+            if (!p.match || !p.target_payment_type_id) continue;
+            const m = p.match.trim();
+            let hit = false;
+            if (m.startsWith("/") && m.lastIndexOf("/") > 0) {
+              try {
+                const lastSlash = m.lastIndexOf("/");
+                const re = new RegExp(m.slice(1, lastSlash), m.slice(lastSlash + 1) || "i");
+                hit = re.test(cell);
+              } catch { hit = false; }
+            } else {
+              hit = cell.includes(m.toLowerCase());
+            }
+            if (hit) {
+              payment_type_id_override = p.target_payment_type_id;
+              (base.raw_data as any).__subtype_split_matched = m;
+              break;
+            }
+          }
+        }
+      }
+
       const tipo_linha = classifyLine(base, paymentKind || null);
-      const withType = { ...base, tipo_linha };
+      const withType = { ...base, tipo_linha, payment_type_id_override };
       const line_issues = validateLine(withType, { modoConfeccao });
       return { ...withType, line_issues } as ParsedRow;
     }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
