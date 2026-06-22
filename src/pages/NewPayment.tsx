@@ -2334,9 +2334,29 @@ const NewPayment = () => {
               {paymentTypeMeta.default_function && (
                 <div>Função padrão: <span className="font-medium">{paymentTypeMeta.default_function}</span> (preenche linhas sem função).</div>
               )}
-              {!paymentTypeMeta.tuss_default && paymentTypeMeta.requires_tuss_in_sheet && !paymentTypeMeta.default_function && (
+              {!paymentTypeMeta.tuss_default && paymentTypeMeta.requires_tuss_in_sheet && !paymentTypeMeta.default_function && !paymentTypeMeta.allow_mixed_subtypes && (
                 <div>Sem defaults — a planilha precisa trazer TUSS e função para cada linha.</div>
               )}
+              {paymentTypeMeta.allow_mixed_subtypes && paymentTypeMeta.subtype_split_hint && (() => {
+                const counts: Record<string, number> = {};
+                let mixed = 0;
+                for (const r of allRows) {
+                  const tid = r.payment_type_id_override ?? paymentTypeMeta.id;
+                  counts[tid] = (counts[tid] ?? 0) + 1;
+                  if (r.payment_type_id_override && r.payment_type_id_override !== paymentTypeMeta.id) mixed++;
+                }
+                const parts = Object.entries(counts).map(([id, n]) =>
+                  `${n} ${subtypeLabels[id] ?? (id === paymentTypeMeta.id ? paymentTypeMeta.label : id.slice(0, 6))}`
+                );
+                return (
+                  <div>
+                    Subtipos mistos ativos via coluna <span className="font-mono">{paymentTypeMeta.subtype_split_hint.column}</span>.
+                    {allRows.length > 0 && (
+                      <span> {allRows.length} linha(s) → {parts.join(" + ")}{mixed > 0 ? ` (${mixed} reclassificada${mixed === 1 ? "" : "s"})` : ""}.</span>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="mt-1">Apenas regras com este tipo (ou sem tipo definido) vão entrar no motor.</div>
             </div>
             <button
