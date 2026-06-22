@@ -81,12 +81,10 @@ export const PageHeader = ({
     else navigate(backFallback);
   };
 
+  // O <Breadcrumbs /> global do AppLayout cobre a navegação por padrão.
+  // Esta prop só é usada quando a página passa um breadcrumb explícito (override).
   const crumbs: Crumb[] | null =
-    breadcrumb === false
-      ? null
-      : breadcrumb && breadcrumb.length
-        ? breadcrumb
-        : deriveCrumbs(location.pathname);
+    breadcrumb === false ? null : breadcrumb && breadcrumb.length ? breadcrumb : null;
 
   return (
     <div className="px-6 pt-6 pb-4">
