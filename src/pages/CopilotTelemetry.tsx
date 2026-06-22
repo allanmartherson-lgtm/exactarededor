@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Hand, Bot, CheckCircle2, XCircle, Clock } from "lucide-react";
@@ -67,18 +68,12 @@ export default function CopilotTelemetry({ embedded = false }: { embedded?: bool
   }
 
   return (
-    <div className={embedded ? "space-y-6" : "container max-w-6xl py-6 space-y-6"}>
+    <div className={embedded ? "space-y-6" : "space-y-6"}>
       {!embedded && (
-        <>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-purple-600" />
-            <h1 className="text-2xl font-semibold">Telemetria do Copiloto</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Monitoramento das sugestões geradas pelo motor fuzzy e pela IA, e as decisões dos analistas.
-            Use para calibrar thresholds e confiança da IA.
-          </p>
-        </>
+        <PageHeader
+          title="Telemetria do Copiloto"
+          description="Monitoramento das sugestões geradas pelo motor fuzzy e pela IA, e as decisões dos analistas. Use para calibrar thresholds e confiança da IA."
+        />
       )}
 
       {loading ? (

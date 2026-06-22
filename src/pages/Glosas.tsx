@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import GlosaResolutionPanel from "@/components/glosas/GlosaResolutionPanel";
 import PotentialDebtsPanel from "@/components/glosas/PotentialDebtsPanel";
 import GlosaDebtAuditLog from "@/components/glosas/GlosaDebtAuditLog";
@@ -602,14 +603,8 @@ export default function Glosas() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
-          <span style={{ fontWeight: 700 }}>Glosas</span>
-        </h1>
-        <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
-          Gestão de glosas do convênio e auditoria
-        </p>
-      </div>
+      <PageHeader title="Glosas" description="Gestão de glosas do convênio e auditoria" />
+
 
       <div className="mt-6">
           <div className="flex flex-col gap-8">

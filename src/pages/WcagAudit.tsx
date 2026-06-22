@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { useTheme } from "@/contexts/ThemeContext";
 
 type Violation = {
@@ -108,13 +109,13 @@ export default function WcagAudit() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">Auditoria WCAG (axe-core)</h1>
-        <p className="text-sm text-muted-foreground">
-          Roda em todas as rotas principais nos modos claro e escuro. Foca em violações de contraste.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <PageHeader
+        title="Auditoria WCAG (axe-core)"
+        description="Roda em todas as rotas principais nos modos claro e escuro. Foca em violações de contraste."
+      />
+      <div className="px-6 max-w-5xl mx-auto space-y-6">
+
 
       {running && (
         <div className="rounded-md border bg-muted p-4 text-sm">

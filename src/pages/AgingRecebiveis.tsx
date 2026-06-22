@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/status";
@@ -214,40 +215,34 @@ export default function AgingRecebiveis() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
-            Aging de <span style={{ fontWeight: 700 }}>Contas a Pagar</span>
-          </h1>
-          <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
-            DF Star · {modeSubtitles[mode]}
-          </p>
-        </div>
-
-        <div
-          role="radiogroup"
-          aria-label="Marco de referência"
-          style={{ display: "inline-flex", background: "hsl(var(--muted))", borderRadius: 8, padding: 3, gap: 2 }}
-        >
-          {(["competencia", "emissao_nf", "aprovacao"] as AgingMode[]).map(m => {
-            const active = mode === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setMode(m)}
-                style={{
-                  padding: "5px 11px", fontSize: 12, fontWeight: 600, borderRadius: 6,
-                  border: "none", cursor: "pointer", transition: "all 0.15s ease",
-                  background: active ? "hsl(var(--primary))" : "transparent",
-                  color: active ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-                }}
-              >
-                {modeLabels[m]}
-              </button>
-            );
+      <PageHeader
+        title="Aging de Contas a Pagar"
+        description={`DF Star · ${modeSubtitles[mode]}`}
+        actions={
+          <div
+            role="radiogroup"
+            aria-label="Marco de referência"
+            style={{ display: "inline-flex", background: "hsl(var(--muted))", borderRadius: 8, padding: 3, gap: 2 }}
+          >
+            {(["competencia", "emissao_nf", "aprovacao"] as AgingMode[]).map(m => {
+              const active = mode === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setMode(m)}
+                  style={{
+                    padding: "5px 11px", fontSize: 12, fontWeight: 600, borderRadius: 6,
+                    border: "none", cursor: "pointer", transition: "all 0.15s ease",
+                    background: active ? "hsl(var(--primary))" : "transparent",
+                    color: active ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                  }}
+                >
+                  {modeLabels[m]}
+                </button>
+              );
           })}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,18 +77,13 @@ export default function SpecialCases({ embedded = false }: { embedded?: boolean 
   };
 
   return (
-    <div className={embedded ? "space-y-6" : "container mx-auto p-6 space-y-6"}>
+    <div className={embedded ? "space-y-6" : "space-y-6"}>
       {!embedded && (
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2"><Stethoscope className="h-6 w-6 text-primary" /> Casos Especiais</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Marque atendimentos com viés assistencial (oncológico, pediátrico complexo, etc.) que devem receber remuneração diferenciada.
-              Gestão médica aprova; o motor então aplica a regra correspondente — sem regra cadastrada, cai na padrão.
-            </p>
-          </div>
-          <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" /> Nova marcação</Button>
-        </div>
+        <PageHeader
+          title="Casos Especiais"
+          description="Marque atendimentos com viés assistencial (oncológico, pediátrico complexo, etc.) que devem receber remuneração diferenciada. Gestão médica aprova; o motor então aplica a regra correspondente — sem regra cadastrada, cai na padrão."
+          actions={<Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" /> Nova marcação</Button>}
+        />
       )}
       {embedded && (
         <div className="flex justify-end">

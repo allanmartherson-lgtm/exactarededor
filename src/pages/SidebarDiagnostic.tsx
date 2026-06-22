@@ -1,4 +1,5 @@
 import { NAV_ITEMS, flattenNav, filterNav, isGroup, ALL_ROLES, type Role } from "@/components/AppLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { ROLE_LABELS } from "@/lib/status";
 
 const ROLES_TO_CHECK: Role[] = ["analista", "validador", "diretor", "admin"];
@@ -19,13 +20,11 @@ const EXPECTED_ORDER = [
 export default function SidebarDiagnostic() {
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold text-foreground">Diagnóstico do Sidebar</h1>
-        <p className="text-sm text-muted-foreground">
-          Lista os itens que cada role visualiza no sidebar (lista plana) e no topbar (com grupos),
-          a partir do mesmo source-of-truth (<code className="font-mono">NAV_ITEMS</code>).
-        </p>
-      </header>
+      <PageHeader
+        title="Diagnóstico do Sidebar"
+        description="Lista os itens que cada role visualiza no sidebar (lista plana) e no topbar (com grupos), a partir do mesmo source-of-truth (NAV_ITEMS)."
+      />
+
 
       <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold text-foreground mb-2">Ordem fixa esperada (sidebar)</h2>

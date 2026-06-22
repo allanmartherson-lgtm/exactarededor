@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -88,14 +89,12 @@ export default function PoolsReport({ embedded = false }: { embedded?: boolean }
   const poolName = (id: string) => pools.find((p) => p.id === id)?.nome ?? id.slice(0, 8);
 
   return (
-    <div className={embedded ? "space-y-6" : "space-y-6 p-6"}>
+    <div className={embedded ? "space-y-6" : "space-y-6"}>
       {!embedded && (
-        <div>
-          <h1 className="text-2xl font-bold">Relatório de Pools</h1>
-          <p className="text-muted-foreground text-sm">
-            Histórico de execuções de cálculo de pools por competência.
-          </p>
-        </div>
+        <PageHeader
+          title="Relatório de Pools"
+          description="Histórico de execuções de cálculo de pools por competência."
+        />
       )}
 
       <div className="flex gap-3 flex-wrap">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -135,28 +136,29 @@ export default function AnalystProductivity() {
   };
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <BarChart2 className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-semibold">Produtividade da Equipe</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <ToggleGroup
-            type="single"
-            value={period}
-            onValueChange={(v) => v && setPeriod(v as Period)}
-            size="sm"
-          >
-            <ToggleGroupItem value="30">30 dias</ToggleGroupItem>
-            <ToggleGroupItem value="60">60 dias</ToggleGroupItem>
-            <ToggleGroupItem value="90">90 dias</ToggleGroupItem>
-          </ToggleGroup>
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!rows.length}>
-            <Download className="h-4 w-4 mr-1" /> Exportar CSV
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Produtividade da Equipe"
+        actions={
+          <>
+            <ToggleGroup
+              type="single"
+              value={period}
+              onValueChange={(v) => v && setPeriod(v as Period)}
+              size="sm"
+            >
+              <ToggleGroupItem value="30">30 dias</ToggleGroupItem>
+              <ToggleGroupItem value="60">60 dias</ToggleGroupItem>
+              <ToggleGroupItem value="90">90 dias</ToggleGroupItem>
+            </ToggleGroup>
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={!rows.length}>
+              <Download className="h-4 w-4 mr-1" /> Exportar CSV
+            </Button>
+          </>
+        }
+      />
+      <div className="px-4 md:px-6 space-y-4">
+
 
       <Card>
         <CardContent className="p-0">

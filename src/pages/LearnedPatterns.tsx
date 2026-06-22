@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,20 +75,18 @@ export default function LearnedPatterns() {
   });
 
   return (
-    <div className="container max-w-6xl mx-auto p-6 space-y-4">
-      <div className="flex items-center gap-3">
-        <BrainCircuit className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-semibold">Aprendizado de padrões</h1>
-          <p className="text-sm text-muted-foreground">
-            Consolida feedbacks aceitos das validações de empresa. Padrões com confiança ≥ 0.6
-            geram alerta visual no próximo lote analisado.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" className="ml-auto" onClick={load} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Atualizar
-        </Button>
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Aprendizado de padrões"
+        description="Consolida feedbacks aceitos das validações de empresa. Padrões com confiança ≥ 0.6 geram alerta visual no próximo lote analisado."
+        actions={
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Atualizar
+          </Button>
+        }
+      />
+      <div className="px-6 space-y-4">
+
 
       <div className="flex gap-2 items-center flex-wrap">
         <Input placeholder="Filtrar por escopo ou tipo..." value={filter} onChange={e => setFilter(e.target.value)} className="max-w-sm" />

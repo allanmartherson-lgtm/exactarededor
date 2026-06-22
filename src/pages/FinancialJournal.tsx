@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,16 +58,13 @@ export default function FinancialJournal() {
   const totalDebito = entries.filter((e) => e.sinal === -1).reduce((s, e) => s + Number(e.valor), 0);
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <BookOpen className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Livro Contábil</h1>
-          <p className="text-sm text-muted-foreground">
-            Registro append-only de todas as movimentações financeiras com idempotência e reversão auditável.
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Livro Contábil"
+        description="Registro append-only de todas as movimentações financeiras com idempotência e reversão auditável."
+      />
+      <div className="px-6 space-y-6">
+
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
