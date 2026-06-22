@@ -111,7 +111,7 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
           style={{
             fontFamily: OUTFIT,
             fontSize: String(item.value).length > 6 ? 22 : String(item.value).length > 4 ? 28 : 38,
-            fontWeight: 700,
+            fontWeight: 600,
             lineHeight: 1,
             letterSpacing: "-0.02em",
             color: valueColor,
