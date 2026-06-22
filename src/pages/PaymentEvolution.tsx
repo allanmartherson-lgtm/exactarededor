@@ -623,7 +623,7 @@ export default function PaymentEvolution() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={chartData} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
+              <LineChart data={chartData} margin={{ top: 24, right: 16, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis

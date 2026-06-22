@@ -256,7 +256,7 @@ export default function ObservationInsights({ embedded = false }: { embedded?: b
                 <BarChart
                   data={categoryCounts}
                   layout="vertical"
-                  margin={{ top: 4, right: 16, bottom: 4, left: 16 }}
+                  margin={{ top: 24, right: 16, left: 0, bottom: 8 }}
                 >
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis dataKey="category" type="category" width={160} />
