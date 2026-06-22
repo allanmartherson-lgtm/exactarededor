@@ -88,7 +88,7 @@ const Logo = ({ compact = false }: { compact?: boolean }) => (
         width: 34,
         height: 34,
         borderRadius: 8,
-        background: "hsl(var(--primary))",
+        background: "hsl(var(--primary-dark))",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
