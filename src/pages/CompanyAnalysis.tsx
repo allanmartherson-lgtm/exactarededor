@@ -845,6 +845,8 @@ export default function CompanyAnalysis() {
       toast.error("Falha ao iniciar reanálise", { description: msg });
     } finally {
       setReanalyzing(false);
+      // Marca como "fresco" — qualquer edição posterior reativa o banner stale.
+      stale.markFresh();
     }
   };
 
