@@ -1504,13 +1504,47 @@ const NewPayment = () => {
     );
   };
 
+  // === Linhas suspeitas (totalizadores/rodapé) ===
+  // Heurística no parser sinaliza linhas que parecem totalizador. O analista
+  // decide caso a caso ("descartar" / "total informativo" remove da base;
+  // "manter como item" preserva). Enquanto houver pendência, envio é bloqueado.
+  const [suspiciousDecisions, setSuspiciousDecisions] = useState<Record<string, SuspiciousDecision>>({});
+  const decisionKey = (fileName: string, rowNumber: number) => `${fileName}::${rowNumber}`;
+
+  const suspiciousByBucket = useMemo(() => {
+    return buckets.map((b) => {
+      const totalRowsInSheet = b.rawMatrix
+        ? Math.max(0, b.rawMatrix.length - ((b.headerRowIndex ?? 0) + 1))
+        : b.rows.length;
+      return detectSuspiciousRows(b.rows, { totalRowsInSheet });
+    });
+  }, [buckets]);
+
+  const pendingSuspiciousCount = useMemo(() => {
+    let c = 0;
+    buckets.forEach((b, i) => {
+      const list = suspiciousByBucket[i] ?? [];
+      for (const r of list) {
+        if (!suspiciousDecisions[decisionKey(b.file.name, r.rowNumber)]) c++;
+      }
+    });
+    return c;
+  }, [buckets, suspiciousByBucket, suspiciousDecisions]);
+
   const allRows = useMemo(() => {
-    return buckets.flatMap((b, bucketIndex) => b.rows.map((r, rowIndex) => ({ ...r, source_bucket_index: bucketIndex, source_row_index: rowIndex }))).map((r) => {
+    return buckets.flatMap((b, bucketIndex) =>
+      b.rows
+        .filter((r) => {
+          const d = suspiciousDecisions[decisionKey(b.file.name, r.source_row_number)];
+          return d !== "discard" && d !== "informative_total";
+        })
+        .map((r, rowIndex) => ({ ...r, source_bucket_index: bucketIndex, source_row_index: rowIndex }))
+    ).map((r) => {
       const tipo_linha = r.tipo_linha_manual ?? classifyLine(r, paymentKind || null);
       const withType = { ...r, tipo_linha };
       return { ...withType, line_issues: validateLine(withType, { modoConfeccao }) };
     });
-  }, [buckets, paymentKind]);
+  }, [buckets, paymentKind, modoConfeccao, suspiciousDecisions]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
 
   // ===== Lookup estrito de cadastros (médicos / convênios / setores) =====
