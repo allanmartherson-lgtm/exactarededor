@@ -308,6 +308,7 @@ const App = () => (
                   <Route path="/relatorios/central" element={<ReportsCentral />} />
                   <Route path="/relatorios/auditoria-exportacoes" element={<Navigate to="/auditoria?tab=exportacoes" replace />} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
+                  <Route path="/bi/diretoria" element={<ProtectedRoute roles={["diretor", "admin"]}><BiDiretoria /></ProtectedRoute>} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><AgingRecebiveis /></ProtectedRoute>} />
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
                   <Route path="/ciclo-nf" element={<Navigate to="/notas-fiscais" replace />} />
