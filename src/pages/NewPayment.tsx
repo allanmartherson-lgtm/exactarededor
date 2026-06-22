@@ -1931,7 +1931,6 @@ const NewPayment = () => {
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
       convenio_value_totalized: b.convenioValueTotalized || false,
-      payment_type_id: (payment as any).payment_type_id ?? null,
     });
 
     const matchedItems: ReturnType<typeof buildItemRow>[] = [];
