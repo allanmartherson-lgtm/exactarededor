@@ -20,12 +20,13 @@ interface Tile {
   tone: Tone;
 }
 
-const toneBorder = (t: Tone) =>
-  t === "alert" ? "border-l-destructive"
-  : t === "warning" ? "border-l-amber-500"
-  : t === "success" ? "border-l-emerald-500"
-  : t === "info" ? "border-l-sky-500"
-  : "border-l-border";
+// Bento: sem stripe lateral colorida. A cor semântica vive no ícone/número.
+const toneIcon = (t: Tone) =>
+  t === "alert" ? "bg-destructive/10 text-destructive"
+  : t === "warning" ? "bg-warning-soft text-warning-text"
+  : t === "success" ? "bg-success-soft text-success"
+  : t === "info" ? "bg-info-soft text-info"
+  : "bg-muted text-muted-foreground";
 
 const toneText = (t: Tone) =>
   t === "alert" ? "text-destructive"
