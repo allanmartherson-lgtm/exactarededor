@@ -198,6 +198,11 @@ export function TussPrincipalAuditPanel({
             variant={showResolved ? "outline" : "default"}
             size="sm"
             onClick={() => setShowResolved(false)}
+            className={
+              !showResolved
+                ? "bg-warning text-warning-foreground hover:bg-warning/90 border-transparent"
+                : "border-warning/40 text-warning-text hover:bg-warning-soft hover:text-warning-text"
+            }
           >
             Abertas ({openCount})
           </Button>
@@ -205,6 +210,11 @@ export function TussPrincipalAuditPanel({
             variant={showResolved ? "default" : "outline"}
             size="sm"
             onClick={() => setShowResolved(true)}
+            className={
+              showResolved
+                ? "bg-success text-success-foreground hover:bg-success/90 border-transparent"
+                : "border-success/40 text-success-text hover:bg-success-soft hover:text-success-text"
+            }
           >
             Resolvidas ({resolvedCount})
           </Button>
