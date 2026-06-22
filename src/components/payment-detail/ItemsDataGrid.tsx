@@ -227,6 +227,74 @@ function CalcExceptionItemAction({
   );
 }
 
+/** Versão compacta em ícone — usada na coluna AÇÕES da grade. */
+function CalcExceptionItemIconAction({
+  paymentId,
+  item,
+}: {
+  paymentId: string;
+  item: PaymentItemRowData & {
+    applied_calc_id?: string | null;
+    company_name?: string | null;
+    calc_exception_skip?: boolean | null;
+    calc_exception_reason?: string | null;
+  };
+}) {
+  const [open, setOpen] = useState(false);
+  const [calcMeta, setCalcMeta] = useState<{ payment_type_id: string | null; label: string | null } | null>(null);
+  const calcId = item.applied_calc_id ?? null;
+  const isMarked = !!item.calc_exception_skip;
+
+  useEffect(() => {
+    if (!calcId) { setCalcMeta(null); return; }
+    let cancelled = false;
+    supabase.from("rule_calculations").select("payment_type_id,label").eq("id", calcId).maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const d = data as any;
+        setCalcMeta(d ? { payment_type_id: d.payment_type_id ?? null, label: d.label ?? null } : null);
+      });
+    return () => { cancelled = true; };
+  }, [calcId]);
+
+  const hasTypedCalc = !!calcMeta?.payment_type_id;
+  if (!isMarked && !hasTypedCalc) return null;
+
+  return (
+    <>
+      <Button
+        size="icon"
+        variant="ghost"
+        className={cn(
+          "h-6 w-6",
+          isMarked && "text-amber-600 hover:text-amber-700 bg-amber-50 dark:bg-amber-950/30"
+        )}
+        title={
+          isMarked
+            ? `Exceção do cálculo ativa — pulando ${calcMeta?.label ?? "cálculo tipado"}. Clique para remover.`
+            : `Marcar exceção — pular cálculo ${calcMeta?.label ?? "tipado"} e pagar pelo próximo da regra`
+        }
+        onClick={() => setOpen(true)}
+      >
+        <FilterX className="h-3.5 w-3.5" />
+      </Button>
+      <CalcExceptionDialog
+        open={open}
+        onOpenChange={setOpen}
+        itemId={item.id}
+        paymentId={paymentId}
+        companyName={(item as any).company_name ?? null}
+        appliedCalcId={calcId}
+        current={{
+          calc_exception_skip: item.calc_exception_skip ?? false,
+          calc_exception_reason: item.calc_exception_reason ?? null,
+        }}
+        skippedCalcLabel={calcMeta?.label ?? null}
+      />
+    </>
+  );
+}
+
 
 
 
