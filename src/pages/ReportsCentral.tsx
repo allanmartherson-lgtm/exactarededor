@@ -152,6 +152,15 @@ const REPORTS: ReportSpec[] = [
     roles: ["analista", "validador", "diretor", "admin"],
   },
   {
+    key: "payment-evolution",
+    label: "Evolução de Pagamentos por CC",
+    description: "Série temporal e comparação mês a mês por centro de custo, com drill-down até o lote.",
+    route: "/relatorios/evolucao-pagamentos",
+    category: "Financeiro",
+    icon: LineChart,
+    roles: ["diretor", "admin", "analista", "validador"],
+  },
+  {
     key: "pools",
     label: "Pools de rateio",
     description: "Distribuição de pools e participantes.",
