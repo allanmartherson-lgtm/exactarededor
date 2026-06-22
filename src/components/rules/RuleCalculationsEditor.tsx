@@ -222,6 +222,7 @@ export type RuleCalculationsEditorProps = {
   onChange: (next: CalcItem[]) => void;
   refTables: RefTable[];
   specialCaseTypes?: { code: string; label: string }[];
+  paymentTypes?: { id: string; label: string }[];
   /** Quando "informativa/bloqueio", o editor fica oculto (regra não calcula). */
   enabled: boolean;
 };
@@ -231,7 +232,7 @@ export type RuleCalculationsEditorProps = {
  * bloco de "Aplica-se a algum período, dia ou horário específico?" porque a
  * janela temporal pertence ao cálculo, não à regra.
  */
-export function RuleCalculationsEditor({ value, onChange, refTables, specialCaseTypes = [], enabled }: RuleCalculationsEditorProps) {
+export function RuleCalculationsEditor({ value, onChange, refTables, specialCaseTypes = [], paymentTypes = [], enabled }: RuleCalculationsEditorProps) {
   const crossErrorsByIndex = useMemo(() => calcCrossItemErrorMessages(value), [value]);
 
   const update = (i: number, patch: Partial<CalcItem>) => {
