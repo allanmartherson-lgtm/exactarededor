@@ -232,6 +232,7 @@ serve(async (req) => {
       bonus_amount,bonus_pct,target_amount,allowed_access_routes,
       force_totalized,application_unit,sectors,specialties,
       special_case_filter,
+      payment_type_id,
       procedure_codes,code_match_mode,doctor_roles,
       agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
       package_roles_distribution,
