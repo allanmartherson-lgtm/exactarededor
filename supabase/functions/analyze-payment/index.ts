@@ -124,14 +124,15 @@ serve(async (req) => {
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase
       .from("payments")
-      .select("sectors,specialties,payment_type,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode")
+      .select("sectors,specialties,payment_type,payment_type_id,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode")
       .eq("id", payment_id)
-      .maybeSingle<PaymentRow & { import_mode?: string | null }>();
+      .maybeSingle<PaymentRow & { import_mode?: string | null; payment_type_id?: string | null }>();
 
     const ctx: PaymentContext = {
       sectors: payment?.sectors ?? [],
       specialties: payment?.specialties ?? [],
       payment_type: payment?.payment_type ?? null,
+      payment_type_id: (payment as any)?.payment_type_id ?? null,
       // Onda 1 — Regra de competência: a vigência é determinada pela
       // `procedure_date` de CADA item dentro do motor (analyzeItem).
       // `reference_date` aqui é apenas informativo e NÃO é usado para
