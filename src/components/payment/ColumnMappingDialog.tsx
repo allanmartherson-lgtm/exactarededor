@@ -101,9 +101,18 @@ export default function ColumnMappingDialog({
    * - analise: mantém o comportamento padrão.
    */
   const effectiveFields = useMemo(() => {
-    if (mode !== "confeccao") return FIELD_DEFINITIONS;
-    return FIELD_DEFINITIONS.filter((f) => f.key !== "gross_amount").map((f) =>
-      f.key === "procedure_amount" ? { ...f, requirement: "required" as const } : f,
+    if (mode === "confeccao") {
+      return FIELD_DEFINITIONS.filter((f) => f.key !== "gross_amount").map((f) =>
+        f.key === "procedure_amount" ? { ...f, requirement: "required" as const } : f,
+      );
+    }
+    // analise: base já tratada pelo analista — Função e Código TUSS são úteis
+    // para matching/relatório, mas não devem bloquear a importação quando a
+    // planilha não os traz. Rebaixamos para "recommended" (gera aviso, não erro).
+    return FIELD_DEFINITIONS.map((f) =>
+      f.key === "doctor_role" || f.key === "procedure_code"
+        ? { ...f, requirement: "recommended" as const }
+        : f,
     );
   }, [mode]);
 
