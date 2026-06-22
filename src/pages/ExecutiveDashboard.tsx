@@ -4,10 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 import { Link } from "react-router-dom";
 import {
-  TrendingUp, ShieldAlert, Clock, Building2,
-  BarChart3, ArrowRight, FileText, CheckCircle,
+  ShieldAlert,
+  Building2,
+  BarChart3,
+  ArrowRight,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
+import { KpiCard } from "@/components/ui/KpiCard";
 
 // --- Primitivos inline (mesmo padrão do Dashboard.tsx) ---
 
@@ -57,62 +61,6 @@ const SurfaceCardHeader = ({ title, icon: Icon, iconColor = "teal", rightAction 
   </div>
 );
 
-interface ExecKpiCardProps {
-  label: string; value: string; sub: string;
-  icon: LucideIcon;
-  color: BubbleColor; badge?: string; badgeColor?: string; delta?: number;
-}
-
-const ExecKpiCard = ({ label, value, sub, icon: Icon, color, badge, badgeColor, delta }: ExecKpiCardProps) => (
-  <div style={{
-    background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12,
-    padding: "22px", display: "flex", flexDirection: "column", gap: 14, position: "relative",
-    overflow: "hidden", minWidth: 0,
-  }}>
-    <div className="flex items-start justify-between gap-3">
-      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.07em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase" as const, lineHeight: 1.4 }}>{label}</span>
-      <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...bubbleStyle(color) }}>
-        <Icon size={18} strokeWidth={2} />
-      </div>
-    </div>
-    <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: "-0.03em", lineHeight: 1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</div>
-    <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{sub}</div>
-    {badge && (
-      <span style={{ background: badgeColor || "hsl(var(--muted))", borderRadius: 20, padding: "3px 10px", fontSize: 10, fontWeight: 700, alignSelf: "flex-start", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{badge}</span>
-    )}
-    {delta !== undefined && (
-      <span style={{ position: "absolute", top: 14, right: 14, fontSize: 11, fontWeight: 600, color: delta >= 0 ? "hsl(var(--bubble-green-fg))" : "hsl(var(--bubble-red-fg))" }}>
-        {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}%
-      </span>
-    )}
-  </div>
-);
-
-export default function ExecutiveDashboard() {
-  const [loading, setLoading] = useState(true);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [validationImpact, setValidationImpact] = useState<{ alertas: number; valor: number; byRule: Map<string, { alertas: number; valor: number }> }>({ alertas: 0, valor: 0, byRule: new Map() });
-  const [monthlyCompetencia, setMonthlyCompetencia] = useState<{ month: string; valor: number }[]>([]);
-  const [monthlyProcessamento, setMonthlyProcessamento] = useState<{ month: string; valor: number }[]>([]);
-  const [topEmpresas, setTopEmpresas] = useState<{ name: string; valor: number }[]>([]);
-  const [chartMode, setChartMode] = useState<"competencia" | "processamento">("competencia");
-
-  useEffect(() => {
-    document.title = "Dashboard Executivo | Exacta";
-    (async () => {
-      const since = new Date();
-      since.setMonth(since.getMonth() - 12);
-      const { data: pays } = await supabase
-        .from("payments")
-        .select("id, reference, status, total_amount, liquido_total, items_count, competence_month, created_at")
-        .gte("created_at", since.toISOString())
-        .not("status", "in", '("cancelado","rascunho")')
-        .order("created_at", { ascending: false });
-      setPayments(pays ?? []);
-
-      const valorOf = (p: any) => Number(p.liquido_total ?? p.total_amount ?? 0);
-
-      const byCompetencia: Record<string, number> = {};
       (pays ?? []).forEach((p: any) => {
         const m = (p.competence_month ?? "").slice(0, 7);
         if (m) byCompetencia[m] = (byCompetencia[m] ?? 0) + valorOf(p);
@@ -244,11 +192,11 @@ export default function ExecutiveDashboard() {
 
       <section>
         <SectionLabel>Visão geral</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" style={{ gap: 14 }}>
-          <ExecKpiCard label="Volume Total" value={formatCurrency(totalVolume)} sub={`${totalItems} itens · ${payments.length} lotes`} icon={TrendingUp} color="copper" />
-          <ExecKpiCard label="Lotes Aprovados" value={String(aprovados)} sub={`${payments.length > 0 ? ((aprovados / payments.length) * 100).toFixed(0) : 0}% do total processado`} icon={CheckCircle} color="green" badge="Concluídos" badgeColor="hsl(var(--bubble-green-bg))" />
-          <ExecKpiCard label="Em Risco — Validação" value={formatCurrency(validationImpact.valor)} sub={`${validationImpact.alertas} alertas ativos`} icon={ShieldAlert} color="red" badge="Requer revisão" badgeColor="hsl(var(--bubble-red-bg))" />
-          <ExecKpiCard label="Lotes em Andamento" value={String(emAnalise)} sub="em análise, validação ou aprovação" icon={Clock} color="blue" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard label="Volume Total" value={formatCurrency(totalVolume)} hint={`${totalItems} itens · ${payments.length} lotes`} tone="primary" />
+          <KpiCard label="Lotes Aprovados" value={String(aprovados)} hint={`${payments.length > 0 ? ((aprovados / payments.length) * 100).toFixed(0) : 0}% do total processado`} tone="success" />
+          <KpiCard label="Em Risco — Validação" value={formatCurrency(validationImpact.valor)} hint={`${validationImpact.alertas} alertas ativos`} tone="danger" />
+          <KpiCard label="Lotes em Andamento" value={String(emAnalise)} hint="em análise, validação ou aprovação" tone="info" />
         </div>
       </section>
 

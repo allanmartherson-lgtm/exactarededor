@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BookOpen, RefreshCw } from "lucide-react";
+import { KpiCard } from "@/components/ui/KpiCard";
 
 type JournalEntry = {
   id: string;
@@ -66,19 +67,10 @@ export default function FinancialJournal() {
       <div className="px-6 space-y-6">
 
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Entradas (200 últimas)</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">{entries.length}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-green-600">Créditos</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold text-green-600">{fmtMoney(totalCredito)}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-red-600">Débitos</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold text-red-600">{fmtMoney(totalDebito)}</CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <KpiCard label="Entradas (200 últimas)" value={entries.length} tone="default" />
+        <KpiCard label="Créditos" value={fmtMoney(totalCredito)} tone="success" />
+        <KpiCard label="Débitos" value={fmtMoney(totalDebito)} tone="danger" />
       </div>
 
       <Card>

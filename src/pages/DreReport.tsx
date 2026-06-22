@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrendingUp, RefreshCw, AlertCircle, ChevronRight, ExternalLink } from "lucide-react";
+import { KpiCard } from "@/components/ui/KpiCard";
 import { PaymentTrackFilter, toRpcTrack, type TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 
 type DreRow = {
@@ -151,11 +152,11 @@ export default function DreReport() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Bruto</CardTitle></CardHeader><CardContent className="text-xl font-bold">{fmt(totalBruto)}</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-red-600">Glosas</CardTitle></CardHeader><CardContent className="text-xl font-bold text-red-600">{fmt(totalGlosas)}</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-green-600">Líquido</CardTitle></CardHeader><CardContent className="text-xl font-bold text-green-600">{fmt(totalLiquido)}</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-orange-600">Em aberto</CardTitle></CardHeader><CardContent className="text-xl font-bold text-orange-600">{fmt(totalAberto)}</CardContent></Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard label="Bruto" value={fmt(totalBruto)} tone="default" />
+        <KpiCard label="Glosas" value={fmt(totalGlosas)} tone="danger" />
+        <KpiCard label="Líquido" value={fmt(totalLiquido)} tone="success" />
+        <KpiCard label="Em aberto" value={fmt(totalAberto)} tone="warning" />
       </div>
 
       <Tabs defaultValue="dre">

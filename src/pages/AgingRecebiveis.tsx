@@ -3,7 +3,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/status";
-import { ArrowRight, Clock, TrendingDown, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowRight, TrendingDown, Wallet, type LucideIcon } from "lucide-react";
+import { KpiCard } from "@/components/ui/KpiCard";
 
 // ── Primitivos inline (padrão Dashboard.tsx) ──────────────────────
 
@@ -213,6 +214,12 @@ export default function AgingRecebiveis() {
     aprovacao: "Tempo que as PJs aguardam pagamento, contado a partir da aprovação pela diretoria",
   };
 
+  const colorToTone: Record<string, "success" | "warning" | "danger"> = {
+    green: "success",
+    yellow: "warning",
+    red: "danger",
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
@@ -250,28 +257,15 @@ export default function AgingRecebiveis() {
 
       <section>
         <SectionLabel>Distribuição por faixa</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" style={{ gap: 14 }}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {kpis.map(f => (
-            <div key={f.label} style={{
-              background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
-              borderRadius: 12, padding: "22px", display: "flex", flexDirection: "column", gap: 14,
-              overflow: "hidden", minWidth: 0, position: "relative",
-            }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.07em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase" as const, lineHeight: 1.4 }}>
-                  {f.label}
-                </span>
-                <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...bubbleStyle(f.color) }}>
-                  <Clock size={16} strokeWidth={2} />
-                </div>
-              </div>
-              <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: "-0.03em", color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {loading ? "—" : formatCurrency(f.valor)}
-              </div>
-              <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
-                {loading ? "—" : `${f.count} PJ${f.count !== 1 ? "s" : ""}`}
-              </div>
-            </div>
+            <KpiCard
+              key={f.label}
+              label={f.label}
+              value={loading ? "—" : formatCurrency(f.valor)}
+              hint={loading ? "—" : `${f.count} PJ${f.count !== 1 ? "s" : ""}`}
+              tone={colorToTone[f.color] ?? "default"}
+            />
           ))}
         </div>
       </section>

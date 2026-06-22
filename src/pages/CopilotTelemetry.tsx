@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Hand, Bot, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTimeBR } from "@/lib/dateUtils";
+import { KpiCard } from "@/components/ui/KpiCard";
 
 interface Row {
   id: string;
@@ -82,29 +83,25 @@ export default function CopilotTelemetry({ embedded = false }: { embedded?: bool
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {(["doctor","company","convenio","sector"] as const).map((k) => {
               const b = byEntity[k] ?? emptyBucket();
               const rate = b.total ? Math.round((b.approved / b.total) * 100) : 0;
               const aiAgreeRate = b.aiInvoked ? Math.round((b.aiAgreed / b.aiInvoked) * 100) : null;
               return (
-                <Card key={k}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm capitalize">{k === "doctor" ? "Médicos" : k === "company" ? "Empresas" : k === "convenio" ? "Convênios" : "Setores"}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-1 text-xs">
-                    <div>Total: <span className="font-medium">{b.total}</span></div>
-                    <div className="flex gap-3">
+                <KpiCard
+                  key={k}
+                  label={k === "doctor" ? "Médicos" : k === "company" ? "Empresas" : k === "convenio" ? "Convênios" : "Setores"}
+                  value={b.total}
+                  hint={`Aprovação: ${rate}%` + (aiAgreeRate != null ? ` · IA acertou: ${aiAgreeRate}% (${b.aiInvoked} cham.)` : "")}
+                  extra={
+                    <div className="flex gap-3 text-xs">
                       <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />{b.approved}</span>
                       <span className="text-red-600 flex items-center gap-1"><XCircle className="h-3 w-3" />{b.rejected}</span>
                       <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />{b.pending}</span>
                     </div>
-                    <div>Taxa aprovação: <span className="font-medium">{rate}%</span></div>
-                    {aiAgreeRate != null && (
-                      <div className="text-purple-700">IA acertou: <span className="font-medium">{aiAgreeRate}%</span> ({b.aiInvoked} chamadas)</div>
-                    )}
-                  </CardContent>
-                </Card>
+                  }
+                />
               );
             })}
           </div>
