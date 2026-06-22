@@ -996,13 +996,11 @@ export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInp
     // de cada item (regra de competência fiscal — Onda 1). Filtro de vigência
     // ocorre por item dentro de `analyzeItem`. ctx.reference_date é informativo.
 
-    // TIPO DE PAGAMENTO: Se a regra está restrita a um payment_type_id e o
-    // pagamento tem um tipo definido diferente, descarta. Regras sem tipo
-    // (NULL) seguem universais — preserva regras legadas. Pagamento sem tipo
-    // (NULL) não filtra — preserva fluxos antigos.
-    const ruleType = (r as any).payment_type_id ?? null;
-    const ctxType = ctx.payment_type_id ?? null;
-    if (ruleType && ctxType && ruleType !== ctxType) return false;
+    // TIPO DE PAGAMENTO: o filtro foi MOVIDO para o nível do cálculo
+    // (`rule_calculations.payment_type_id`). A coluna `rules.payment_type_id`
+    // foi descontinuada — a UI não grava mais nela e o motor não filtra
+    // regras inteiras por tipo. Cada cálculo individualmente decide via
+    // `calcItemMatches` se aplica ao contexto.
 
     // SEGUNDA CAMADA: Filtro por setor do lote (payments.sectors).
     // REGRA DE PROJETO: Se a regra é vinculada (específica ou grupo), ela IGNRORA
