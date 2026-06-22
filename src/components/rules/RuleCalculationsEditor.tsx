@@ -165,6 +165,7 @@ export function makeEmptyCalc(): CalcItem {
     agreement_match_mode: "whitelist",
     doctor_roles: [],
     special_case_filter: [],
+    payment_type_id: null,
     context_conditions: [],
     adicional_fds_pct: "",
     adicional_feriado_pct: "",
