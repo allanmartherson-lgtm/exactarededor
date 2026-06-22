@@ -299,19 +299,19 @@ export default function BiDiretoria() {
       };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-[1400px] space-y-6">
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-[1400px] space-y-4 sm:space-y-6">
       {/* ===== Header ===== */}
       <PageHeader
         title="BI · Diretoria"
         description={`Visão consolidada · competência ${competenciaLabel.toLowerCase()}`}
         actions={
           <>
-            <div className="inline-flex rounded-full bg-muted/60 p-1">
+            <div className="inline-flex rounded-full bg-muted/60 p-1 max-w-full overflow-x-auto no-scrollbar">
               {(["semana", "mes", "trimestre", "ano"] as Period[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPeriod(p)}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                  className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-colors whitespace-nowrap ${
                     period === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -319,13 +319,14 @@ export default function BiDiretoria() {
                 </button>
               ))}
             </div>
-            <button className="inline-flex items-center gap-2 rounded-full bg-card border border-border px-4 py-2 text-sm text-foreground hover:bg-muted/40 transition-colors">
+            <button className="inline-flex items-center gap-2 rounded-full bg-card border border-border px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-foreground hover:bg-muted/40 transition-colors whitespace-nowrap">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               {MONTHS_PT_FULL[now.getMonth()]} {now.getFullYear()}
             </button>
           </>
         }
       />
+
 
       {/* ===== Faixa narrativa ===== */}
       <div className="rounded-2xl bg-card border border-border px-8 py-6 shadow-sm">
