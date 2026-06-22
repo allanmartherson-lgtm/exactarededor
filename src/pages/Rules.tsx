@@ -2660,6 +2660,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                   onChange={setFCalculations}
                                   refTables={refTables}
                                   specialCaseTypes={specialCaseTypes}
+                                  paymentTypes={paymentTypesList}
                                   enabled={true}
                                 />
                               </div>
