@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   CheckSquare,
   FileText,
+  FilterX,
   Pencil,
   RotateCcw,
   Search,
