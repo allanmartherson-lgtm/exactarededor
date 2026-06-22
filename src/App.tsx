@@ -114,6 +114,7 @@ const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
 const BiDiretoria = lazy(loadBiDiretoria);
 const BiPagamentos = lazy(loadBiPagamentos);
+const BiLoteDetalhe = lazy(loadBiLoteDetalhe);
 const AgingRecebiveis = lazy(loadAgingRecebiveis);
 const HealthMonitoring = lazy(loadHealthMonitoring);
 const Payments = lazy(loadPayments);
@@ -313,6 +314,8 @@ const App = () => (
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/bi/diretoria" element={<BiDiretoria />} />
                   <Route path="/bi/pagamentos" element={<BiPagamentos />} />
+                  <Route path="/bi/lote/:id" element={<BiLoteDetalhe />} />
+                  <Route path="/bi/lote" element={<BiLoteDetalhe />} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><AgingRecebiveis /></ProtectedRoute>} />
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
                   <Route path="/ciclo-nf" element={<Navigate to="/notas-fiscais" replace />} />
