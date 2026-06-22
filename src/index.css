@@ -1034,8 +1034,10 @@ All colors MUST be HSL.
   }
   .filter-tabs [data-state="active"] {
     color: hsl(var(--primary)) !important;
-    border-bottom-color: hsl(var(--primary));
     background: transparent !important;
+  }
+  .filter-tabs [data-state="active"]::after {
+    background: hsl(var(--primary));
   }
   .filter-tabs__count {
     display: inline-flex;
