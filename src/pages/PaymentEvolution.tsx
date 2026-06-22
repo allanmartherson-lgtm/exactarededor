@@ -26,7 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TrendingUp, ChevronRight, ChevronDown, ExternalLink, Download } from "lucide-react";
+import { TrendingUp, ChevronRight, ChevronDown, ExternalLink, Download, Filter, X, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { MultiSelectChips } from "@/components/MultiSelectChips";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   ResponsiveContainer,
   LineChart,
@@ -43,7 +48,7 @@ import { useHospital } from "@/contexts/HospitalContext";
 import { cn } from "@/lib/utils";
 
 type Mode = "competencia" | "caixa";
-type Window = "6m" | "12m" | "ytd";
+type Window = "6m" | "12m" | "ytd" | "custom";
 
 interface PaymentRow {
   id: string;
@@ -56,6 +61,7 @@ interface PaymentRow {
   liquido_total: number | null;
   bruto_total: number | null;
   total_amount: number | null;
+  payment_type: string | null;
 }
 
 interface CcMeta {
@@ -91,9 +97,19 @@ const monthLabel = (key: string) => {
   return dt.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
 };
 
-function buildMonthRange(window: Window): string[] {
+function buildMonthRange(window: Window, customStart?: Date, customEnd?: Date): string[] {
   const now = new Date();
   const months: string[] = [];
+  if (window === "custom" && customStart && customEnd) {
+    const start = new Date(customStart.getFullYear(), customStart.getMonth(), 1);
+    const end = new Date(customEnd.getFullYear(), customEnd.getMonth(), 1);
+    const cur = new Date(start);
+    while (cur <= end) {
+      months.push(monthKey(cur));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return months;
+  }
   if (window === "ytd") {
     for (let m = 0; m <= now.getMonth(); m++) {
       months.push(monthKey(new Date(now.getFullYear(), m, 1)));
@@ -113,6 +129,8 @@ export default function PaymentEvolution() {
   const { hospital } = useHospital();
   const [mode, setMode] = useState<Mode>("competencia");
   const [window, setWindow] = useState<Window>("6m");
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [ccMeta, setCcMeta] = useState<Record<string, CcMeta>>({});
@@ -121,20 +139,35 @@ export default function PaymentEvolution() {
   const [drillLoading, setDrillLoading] = useState(false);
   const [dialogCc, setDialogCc] = useState<{ code: string; month: string } | null>(null);
 
-  const months = useMemo(() => buildMonthRange(window), [window]);
+  // Filters
+  const [ccFilter, setCcFilter] = useState<string[]>([]);
+  const [companyFilter, setCompanyFilter] = useState<string[]>([]);
+  const [convenioFilter, setConvenioFilter] = useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+
+  // Option pools (extracted from loaded data)
+  const [paymentCompanies, setPaymentCompanies] = useState<Map<string, Set<string>>>(new Map()); // payment_id → company names
+  const [paymentConvenios, setPaymentConvenios] = useState<Map<string, Set<string>>>(new Map()); // payment_id → convenio slugs
+
+  const months = useMemo(
+    () => buildMonthRange(window, customStart, customEnd),
+    [window, customStart, customEnd],
+  );
   const firstMonth = months[0];
 
   useEffect(() => {
     let cancel = false;
     (async () => {
       if (!hospital?.id) return;
+      if (window === "custom" && (!customStart || !customEnd)) return;
       setLoading(true);
       const fromDate = `${firstMonth}-01`;
+      const lastMk = months[months.length - 1];
       // Pull payments with either competence_month or approved/updated within window.
       let query = supabase
         .from("payments")
         .select(
-          "id,reference,status,cost_center_code,competence_month,approved_at,updated_at,liquido_total,bruto_total,total_amount",
+          "id,reference,status,cost_center_code,competence_month,approved_at,updated_at,liquido_total,bruto_total,total_amount,payment_type",
         )
         .eq("hospital_id", hospital.id)
         .neq("status", "cancelado")
@@ -142,9 +175,19 @@ export default function PaymentEvolution() {
 
       if (mode === "competencia") {
         query = query.gte("competence_month", fromDate);
+        if (window === "custom") {
+          const [ly, lm] = lastMk.split("-").map(Number);
+          const lastDay = new Date(ly, lm, 0).getDate();
+          query = query.lte("competence_month", `${lastMk}-${String(lastDay).padStart(2, "0")}`);
+        }
       } else {
         // caixa: prefer approved_at, fallback updated_at; filter only "pago"
         query = query.eq("status", "pago").gte("updated_at", `${fromDate}T00:00:00`);
+        if (window === "custom") {
+          const [ly, lm] = lastMk.split("-").map(Number);
+          const lastDay = new Date(ly, lm, 0).getDate();
+          query = query.lte("updated_at", `${lastMk}-${String(lastDay).padStart(2, "0")}T23:59:59`);
+        }
       }
       const { data, error } = await query;
       if (cancel) return;
@@ -173,12 +216,47 @@ export default function PaymentEvolution() {
       } else {
         setCcMeta({});
       }
+
+      // Load company & convenio mappings per payment_id (for filters)
+      const pids = (data ?? []).map((p: any) => p.id);
+      if (pids.length > 0) {
+        const [grpsRes, itemsRes] = await Promise.all([
+          supabase
+            .from("payment_company_groups")
+            .select("payment_id,company_name")
+            .in("payment_id", pids)
+            .neq("status", "cancelado"),
+          supabase
+            .from("payment_items")
+            .select("payment_id,convenio_slug")
+            .in("payment_id", pids)
+            .not("convenio_slug", "is", null)
+            .limit(50000),
+        ]);
+        if (!cancel) {
+          const cmap = new Map<string, Set<string>>();
+          (grpsRes.data ?? []).forEach((g: any) => {
+            if (!cmap.has(g.payment_id)) cmap.set(g.payment_id, new Set());
+            cmap.get(g.payment_id)!.add(g.company_name);
+          });
+          setPaymentCompanies(cmap);
+          const vmap = new Map<string, Set<string>>();
+          (itemsRes.data ?? []).forEach((it: any) => {
+            if (!vmap.has(it.payment_id)) vmap.set(it.payment_id, new Set());
+            vmap.get(it.payment_id)!.add(it.convenio_slug);
+          });
+          setPaymentConvenios(vmap);
+        }
+      } else {
+        setPaymentCompanies(new Map());
+        setPaymentConvenios(new Map());
+      }
       setLoading(false);
     })();
     return () => {
       cancel = true;
     };
-  }, [hospital?.id, mode, firstMonth]);
+  }, [hospital?.id, mode, firstMonth, window, customStart?.getTime(), customEnd?.getTime()]);
 
   const ccDisplay = (code: string | null) => {
     if (!code) return { label: "Sem CC", sub: "—" };
@@ -188,11 +266,67 @@ export default function PaymentEvolution() {
     return { label: m.level5 || m.level4 || m.level3 || code, sub: sub || code };
   };
 
+  // Filter option pools (extracted from loaded data)
+  const ccOptions = useMemo(() => {
+    const set = new Set<string>();
+    payments.forEach((p) => set.add(p.cost_center_code ?? "—"));
+    return Array.from(set)
+      .map((c) => ({ code: c, label: ccDisplay(c).label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [payments, ccMeta]);
+  const ccLabelToCode = useMemo(() => {
+    const m = new Map<string, string>();
+    ccOptions.forEach((o) => m.set(o.label, o.code));
+    return m;
+  }, [ccOptions]);
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    paymentCompanies.forEach((s) => s.forEach((c) => set.add(c)));
+    return Array.from(set).sort();
+  }, [paymentCompanies]);
+  const convenioOptions = useMemo(() => {
+    const set = new Set<string>();
+    paymentConvenios.forEach((s) => s.forEach((c) => set.add(c)));
+    return Array.from(set).sort();
+  }, [paymentConvenios]);
+  const typeOptions = useMemo(() => {
+    const set = new Set<string>();
+    payments.forEach((p) => p.payment_type && set.add(p.payment_type));
+    return Array.from(set).sort();
+  }, [payments]);
+
+  // Apply filters
+  const filteredPayments = useMemo(() => {
+    const ccCodes = ccFilter.map((l) => ccLabelToCode.get(l) ?? l);
+    return payments.filter((p) => {
+      if (ccCodes.length && !ccCodes.includes(p.cost_center_code ?? "—")) return false;
+      if (typeFilter.length && !typeFilter.includes(p.payment_type ?? "")) return false;
+      if (companyFilter.length) {
+        const cs = paymentCompanies.get(p.id);
+        if (!cs || !companyFilter.some((c) => cs.has(c))) return false;
+      }
+      if (convenioFilter.length) {
+        const vs = paymentConvenios.get(p.id);
+        if (!vs || !convenioFilter.some((v) => vs.has(v))) return false;
+      }
+      return true;
+    });
+  }, [payments, ccFilter, typeFilter, companyFilter, convenioFilter, paymentCompanies, paymentConvenios, ccLabelToCode]);
+
+  const activeFilterCount =
+    ccFilter.length + companyFilter.length + convenioFilter.length + typeFilter.length;
+  const clearFilters = () => {
+    setCcFilter([]);
+    setCompanyFilter([]);
+    setConvenioFilter([]);
+    setTypeFilter([]);
+  };
+
   // Bucket payments → cost center × month
   const matrix = useMemo(() => {
     const map = new Map<string, Map<string, number>>(); // cc → month → value
     const ccTotals = new Map<string, number>();
-    payments.forEach((p) => {
+    filteredPayments.forEach((p) => {
       const cc = p.cost_center_code ?? "—";
       let dateStr: string | null;
       if (mode === "competencia") dateStr = p.competence_month;
@@ -214,7 +348,7 @@ export default function PaymentEvolution() {
       }))
       .sort((a, b) => b.total - a.total);
     return rows;
-  }, [payments, months, mode]);
+  }, [filteredPayments, months, mode]);
 
   // KPIs
   const grandTotal = matrix.reduce((s, r) => s + r.total, 0);
@@ -331,19 +465,114 @@ export default function PaymentEvolution() {
             </TabsList>
           </Tabs>
           <Select value={window} onValueChange={(v) => setWindow(v as Window)}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="6m">Últimos 6 meses</SelectItem>
               <SelectItem value="12m">Últimos 12 meses</SelectItem>
               <SelectItem value="ytd">YTD (ano atual)</SelectItem>
+              <SelectItem value="custom">Período personalizado</SelectItem>
             </SelectContent>
           </Select>
+          {window === "custom" && (
+            <>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("font-normal", !customStart && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customStart ? format(customStart, "MMM/yy", { locale: ptBR }) : "Início"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customStart} onSelect={setCustomStart} initialFocus className="pointer-events-auto p-3" />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("font-normal", !customEnd && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customEnd ? format(customEnd, "MMM/yy", { locale: ptBR }) : "Fim"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customEnd} onSelect={setCustomEnd} initialFocus className="pointer-events-auto p-3" />
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="font-normal">
+                <Filter className="mr-2 h-4 w-4" />
+                Filtros
+                {activeFilterCount > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5">{activeFilterCount}</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[360px] p-4 space-y-4" align="start">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Centro de custo</label>
+                <MultiSelectChips
+                  values={ccFilter}
+                  onChange={setCcFilter}
+                  options={ccOptions.map((o) => o.label)}
+                  allowCustom={false}
+                  placeholder="Todos"
+                  emptyHint="Vazio = todos os CCs."
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Empresa (PJ)</label>
+                <MultiSelectChips
+                  values={companyFilter}
+                  onChange={setCompanyFilter}
+                  options={companyOptions}
+                  allowCustom={false}
+                  placeholder="Todas"
+                  emptyHint="Vazio = todas as empresas."
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Convênio</label>
+                <MultiSelectChips
+                  values={convenioFilter}
+                  onChange={setConvenioFilter}
+                  options={convenioOptions}
+                  allowCustom={false}
+                  placeholder="Todos"
+                  emptyHint="Vazio = todos os convênios."
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipo de pagamento</label>
+                <MultiSelectChips
+                  values={typeFilter}
+                  onChange={setTypeFilter}
+                  options={typeOptions}
+                  allowCustom={false}
+                  placeholder="Todos"
+                  emptyHint="Vazio = todos os tipos."
+                />
+              </div>
+              {activeFilterCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
+                  <X className="h-3 w-3 mr-1" /> Limpar filtros
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+          {activeFilterCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-muted-foreground">
+              Limpar filtros
+            </Button>
+          )}
           {mode === "caixa" && (
             <span className="text-xs text-muted-foreground">
               Caixa = pagamentos com status <code>pago</code> (data de atualização).
             </span>
           )}
         </div>
+
 
         {/* KPIs */}
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
@@ -558,7 +787,7 @@ export default function PaymentEvolution() {
           </DialogHeader>
           {dialogCc && (
             <LotesList
-              payments={payments.filter((p) => {
+              payments={filteredPayments.filter((p) => {
                 if ((p.cost_center_code ?? "—") !== dialogCc.code) return false;
                 const ds = mode === "competencia"
                   ? p.competence_month
