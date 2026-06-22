@@ -243,9 +243,10 @@ export default function AgingRecebiveis() {
                   {modeLabels[m]}
                 </button>
               );
-          })}
-        </div>
-      </div>
+            })}
+          </div>
+        }
+      />
 
       <section>
         <SectionLabel>Distribuição por faixa</SectionLabel>

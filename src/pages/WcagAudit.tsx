@@ -201,6 +201,7 @@ export default function WcagAudit() {
           ))}
         </section>
       ))}
+      </div>
     </div>
   );
 }

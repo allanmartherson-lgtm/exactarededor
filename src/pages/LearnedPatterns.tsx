@@ -157,6 +157,7 @@ export default function LearnedPatterns() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -243,6 +243,7 @@ export default function AnalystProductivity() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

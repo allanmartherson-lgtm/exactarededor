@@ -150,6 +150,7 @@ export default function FinancialJournal() {
           </Table>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

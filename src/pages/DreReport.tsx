@@ -304,6 +304,7 @@ export default function DreReport() {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
