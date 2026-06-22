@@ -159,13 +159,15 @@ export default function PaymentEvolution() {
     let cancel = false;
     (async () => {
       if (!hospital?.id) return;
+      if (window === "custom" && (!customStart || !customEnd)) return;
       setLoading(true);
       const fromDate = `${firstMonth}-01`;
+      const lastMk = months[months.length - 1];
       // Pull payments with either competence_month or approved/updated within window.
       let query = supabase
         .from("payments")
         .select(
-          "id,reference,status,cost_center_code,competence_month,approved_at,updated_at,liquido_total,bruto_total,total_amount",
+          "id,reference,status,cost_center_code,competence_month,approved_at,updated_at,liquido_total,bruto_total,total_amount,payment_type",
         )
         .eq("hospital_id", hospital.id)
         .neq("status", "cancelado")
@@ -173,9 +175,19 @@ export default function PaymentEvolution() {
 
       if (mode === "competencia") {
         query = query.gte("competence_month", fromDate);
+        if (window === "custom") {
+          const [ly, lm] = lastMk.split("-").map(Number);
+          const lastDay = new Date(ly, lm, 0).getDate();
+          query = query.lte("competence_month", `${lastMk}-${String(lastDay).padStart(2, "0")}`);
+        }
       } else {
         // caixa: prefer approved_at, fallback updated_at; filter only "pago"
         query = query.eq("status", "pago").gte("updated_at", `${fromDate}T00:00:00`);
+        if (window === "custom") {
+          const [ly, lm] = lastMk.split("-").map(Number);
+          const lastDay = new Date(ly, lm, 0).getDate();
+          query = query.lte("updated_at", `${lastMk}-${String(lastDay).padStart(2, "0")}T23:59:59`);
+        }
       }
       const { data, error } = await query;
       if (cancel) return;
@@ -204,12 +216,47 @@ export default function PaymentEvolution() {
       } else {
         setCcMeta({});
       }
+
+      // Load company & convenio mappings per payment_id (for filters)
+      const pids = (data ?? []).map((p: any) => p.id);
+      if (pids.length > 0) {
+        const [grpsRes, itemsRes] = await Promise.all([
+          supabase
+            .from("payment_company_groups")
+            .select("payment_id,company_name")
+            .in("payment_id", pids)
+            .neq("status", "cancelado"),
+          supabase
+            .from("payment_items")
+            .select("payment_id,convenio_slug")
+            .in("payment_id", pids)
+            .not("convenio_slug", "is", null)
+            .limit(50000),
+        ]);
+        if (!cancel) {
+          const cmap = new Map<string, Set<string>>();
+          (grpsRes.data ?? []).forEach((g: any) => {
+            if (!cmap.has(g.payment_id)) cmap.set(g.payment_id, new Set());
+            cmap.get(g.payment_id)!.add(g.company_name);
+          });
+          setPaymentCompanies(cmap);
+          const vmap = new Map<string, Set<string>>();
+          (itemsRes.data ?? []).forEach((it: any) => {
+            if (!vmap.has(it.payment_id)) vmap.set(it.payment_id, new Set());
+            vmap.get(it.payment_id)!.add(it.convenio_slug);
+          });
+          setPaymentConvenios(vmap);
+        }
+      } else {
+        setPaymentCompanies(new Map());
+        setPaymentConvenios(new Map());
+      }
       setLoading(false);
     })();
     return () => {
       cancel = true;
     };
-  }, [hospital?.id, mode, firstMonth]);
+  }, [hospital?.id, mode, firstMonth, window, customStart?.getTime(), customEnd?.getTime()]);
 
   const ccDisplay = (code: string | null) => {
     if (!code) return { label: "Sem CC", sub: "—" };
