@@ -52,6 +52,7 @@ import RecentQuestionsPanel from "@/components/dashboard/RecentQuestionsPanel";
 import { RegistrationPendingCard } from "@/components/dashboard/RegistrationPendingCard";
 import InterventionSavingsCard from "@/components/kpis/InterventionSavingsCard";
 import { ScoreCard, ScoreSection, KpiSectionHeader, type ScoreItemData } from "@/components/dashboard/ScoreCards";
+import { HeroProcessCard } from "@/components/dashboard/HeroProcessCard";
 
 const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
   all: "Todos",
@@ -1985,14 +1986,15 @@ const Dashboard = () => {
         )}
 
 
-        <ScoreSection
-          title="Visão Geral do Processo"
-          tone="transit"
-          items={[
-            { label: "Em andamento", value: lotesEmAberto, hint: "lotes no fluxo" },
-            { label: "Em processamento", value: formatCurrency(totalValorEmProcessamento), hint: "valor pendente" },
-            { label: "Aprovados 30d", value: formatCurrency(valorAprovado30d), hint: `${totalAprovados30d} lotes`, accent: "success" },
-            { label: "Taxa aprovação", value: taxaAprovacao !== null ? `${taxaAprovacao}%` : "—", hint: "últimos 30 dias", accent: taxaAprovacao !== null && taxaAprovacao >= 90 ? "success" : "amber" },
+        <HeroProcessCard
+          primaryLabel="Em processamento"
+          primaryValue={formatCurrency(totalValorEmProcessamento)}
+          primaryHint={`${lotesEmAberto} lote${lotesEmAberto === 1 ? "" : "s"} no fluxo · valor pendente`}
+          primaryTo="/pagamentos"
+          pills={[
+            { label: "Em andamento", value: String(lotesEmAberto), hint: "lotes no fluxo" },
+            { label: "Aprovados 30d", value: formatCurrency(valorAprovado30d), hint: `${totalAprovados30d} lote${totalAprovados30d === 1 ? "" : "s"}` },
+            { label: "Taxa aprovação", value: taxaAprovacao !== null ? `${taxaAprovacao}%` : "—", hint: "últimos 30 dias" },
           ]}
         />
 
