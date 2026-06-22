@@ -61,6 +61,31 @@ const SurfaceCardHeader = ({ title, icon: Icon, iconColor = "teal", rightAction 
   </div>
 );
 
+export default function ExecutiveDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [validationImpact, setValidationImpact] = useState<{ alertas: number; valor: number; byRule: Map<string, { alertas: number; valor: number }> }>({ alertas: 0, valor: 0, byRule: new Map() });
+  const [monthlyCompetencia, setMonthlyCompetencia] = useState<{ month: string; valor: number }[]>([]);
+  const [monthlyProcessamento, setMonthlyProcessamento] = useState<{ month: string; valor: number }[]>([]);
+  const [topEmpresas, setTopEmpresas] = useState<{ name: string; valor: number }[]>([]);
+  const [chartMode, setChartMode] = useState<"competencia" | "processamento">("competencia");
+
+  useEffect(() => {
+    document.title = "Dashboard Executivo | Exacta";
+    (async () => {
+      const since = new Date();
+      since.setMonth(since.getMonth() - 12);
+      const { data: pays } = await supabase
+        .from("payments")
+        .select("id, reference, status, total_amount, liquido_total, items_count, competence_month, created_at")
+        .gte("created_at", since.toISOString())
+        .not("status", "in", '("cancelado","rascunho")')
+        .order("created_at", { ascending: false });
+      setPayments(pays ?? []);
+
+      const valorOf = (p: any) => Number(p.liquido_total ?? p.total_amount ?? 0);
+
+      const byCompetencia: Record<string, number> = {};
       (pays ?? []).forEach((p: any) => {
         const m = (p.competence_month ?? "").slice(0, 7);
         if (m) byCompetencia[m] = (byCompetencia[m] ?? 0) + valorOf(p);
