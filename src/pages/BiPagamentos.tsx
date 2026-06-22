@@ -373,15 +373,15 @@ export default function BiPagamentos() {
                     {r.diferenca === 0 ? "—" : (r.diferenca > 0 ? "+" : "") + fmtFull(r.diferenca)}
                   </div>
                   <div className="col-span-1 text-right text-xs text-muted-foreground">{r.ciclo}</div>
-                  <div className="col-span-2 flex items-center gap-2 min-w-0">
+                  <div className="col-span-1 flex items-center gap-2 min-w-0">
                     <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-[11px] font-semibold text-primary shrink-0">
                       {r.analista.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase() || "—"}
                     </div>
                     <span className="text-xs text-muted-foreground truncate">{r.analista}</span>
                   </div>
-                  <div className="col-span-1 flex justify-end">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 h-6 rounded-full border text-[11px] font-medium ${meta.tone}`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                  <div className="col-span-2 flex justify-end">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 h-6 rounded-full border text-[11px] font-medium whitespace-nowrap ${meta.tone}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${meta.dot}`} />
                       {meta.label}
                     </span>
                   </div>
