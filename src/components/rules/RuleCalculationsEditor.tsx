@@ -113,6 +113,8 @@ export type CalcItem = {
   doctor_roles: string[];
   /** Tipos de caso especial aplicáveis a este cálculo. Vazio = cálculo padrão. */
   special_case_filter: string[];
+  /** Tipo de pagamento aplicável (Parecer, Visita, etc.). null = qualquer tipo. */
+  payment_type_id: string | null;
 
   /** Condições de contexto (somente para valor_fixo). */
   context_conditions: ContextConditionItem[];
