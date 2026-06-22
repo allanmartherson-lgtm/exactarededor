@@ -116,29 +116,29 @@ function Cell({
   tone?: "muted" | "info" | "success" | "warning" | "destructive";
   icon?: React.ReactNode; hint?: string; highlight?: boolean;
 }) {
-  const tones: Record<string, { ring: string; valueCls: string; chip: string }> = {
-    muted: { ring: "border-border", valueCls: "text-muted-foreground", chip: "text-muted-foreground" },
-    info: { ring: "border-info/30", valueCls: "text-foreground", chip: "text-info" },
-    success: { ring: "border-success/30", valueCls: "text-foreground", chip: "text-success" },
-    warning: { ring: "border-warning/30", valueCls: "text-foreground", chip: "text-warning-text" },
-    destructive: { ring: "border-destructive/30", valueCls: "text-foreground", chip: "text-destructive" },
+  // Bento: borda neutra fininha; acento da cor vive no ícone/label.
+  const tones: Record<string, { valueCls: string; chip: string }> = {
+    muted: { valueCls: "text-muted-foreground", chip: "text-muted-foreground" },
+    info: { valueCls: "text-foreground", chip: "text-info" },
+    success: { valueCls: "text-foreground", chip: "text-success" },
+    warning: { valueCls: "text-foreground", chip: "text-warning-text" },
+    destructive: { valueCls: "text-foreground", chip: "text-destructive" },
   };
   const t = tones[tone];
   return (
     <div className={cn(
-      "flex-1 min-w-[120px] rounded-md border bg-background/60 px-2.5 py-1.5",
-      t.ring,
+      "flex-1 min-w-[120px] rounded-2xl border border-border/50 bg-card shadow-card px-2.5 py-1.5",
       highlight && (tone === "warning"
-        ? "bg-amber-500/10 border-amber-500/50 shadow-sm"
-        : "bg-success-soft border-success/50 shadow-sm"),
+        ? "bg-amber-500/5"
+        : "bg-success-soft/40"),
     )}>
-      <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium", t.chip)}>
+      <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-[0.04em] font-medium", t.chip)}>
         {icon}
         <span>{label}</span>
       </div>
       <div className={cn(
         "mt-0.5 font-mono tabular-nums leading-tight",
-        highlight ? "text-base font-bold" : "text-sm font-semibold",
+        highlight ? "text-base font-semibold" : "text-sm font-semibold",
         highlight && tone === "warning" ? "text-amber-700 dark:text-amber-300" : highlight ? "text-success" : "",
         t.valueCls,
       )}>{value}</div>
