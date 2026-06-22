@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, AlertTriangle, TrendingUp } from "lucide-react";
+import { Calendar, AlertTriangle, TrendingUp, ChevronRight, AlertCircle, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 
