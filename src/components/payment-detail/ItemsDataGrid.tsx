@@ -110,6 +110,125 @@ function SpecialCaseItemAction({
   );
 }
 
+/** Botão "Exceção do cálculo" para um item específico — só aparece quando o
+ *  cálculo aplicado ao item tem `payment_type_id` setado (ex.: Parecer).
+ *  Marcar faz o motor pular esse cálculo e cair no próximo elegível. */
+function CalcExceptionItemAction({
+  paymentId,
+  item,
+}: {
+  paymentId: string;
+  item: PaymentItemRowData & {
+    applied_calc_id?: string | null;
+    company_name?: string | null;
+    calc_exception_skip?: boolean | null;
+    calc_exception_reason?: string | null;
+  };
+}) {
+  const [open, setOpen] = useState(false);
+  const [calcMeta, setCalcMeta] = useState<{
+    payment_type_id: string | null;
+    label: string | null;
+  } | null>(null);
+
+  const calcId = item.applied_calc_id ?? null;
+  const isMarked = !!item.calc_exception_skip;
+
+  useEffect(() => {
+    if (!calcId) {
+      setCalcMeta(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("rule_calculations")
+      .select("payment_type_id,label")
+      .eq("id", calcId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const d = data as any;
+        setCalcMeta(
+          d
+            ? { payment_type_id: d.payment_type_id ?? null, label: d.label ?? null }
+            : null,
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [calcId]);
+
+  const hasTypedCalc = !!calcMeta?.payment_type_id;
+  if (!isMarked && !hasTypedCalc) return null;
+
+  return (
+    <>
+      <div
+        className={cn(
+          "rounded-md border border-dashed px-3 py-2 flex items-center justify-between gap-2",
+          isMarked
+            ? "border-amber-400/70 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-800/70"
+            : "border-sky-300/70 bg-sky-50/40 dark:bg-sky-950/15 dark:border-sky-900/60",
+        )}
+      >
+        <p
+          className={cn(
+            "text-xs",
+            isMarked
+              ? "text-amber-900 dark:text-amber-200"
+              : "text-sky-900/80 dark:text-sky-200/80",
+          )}
+        >
+          {isMarked ? (
+            <>
+              <strong>Exceção do cálculo ativa</strong> — pulando
+              {calcMeta?.label ? ` "${calcMeta.label}"` : " cálculo tipado"}.
+            </>
+          ) : (
+            <>
+              Item está usando o cálculo tipado
+              {calcMeta?.label ? ` "${calcMeta.label}"` : ""}. Pular e pagar
+              pelo próximo cálculo da regra?
+            </>
+          )}
+        </p>
+        <Button
+          size="sm"
+          variant={isMarked ? "ghost" : "outline"}
+          className="h-7 text-xs whitespace-nowrap"
+          onClick={() => setOpen(true)}
+        >
+          {isMarked ? (
+            <>
+              <RotateCcw className="h-3.5 w-3.5 mr-1" /> Remover
+            </>
+          ) : (
+            <>
+              <FilterX className="h-3.5 w-3.5 mr-1" /> Marcar exceção
+            </>
+          )}
+        </Button>
+      </div>
+      <CalcExceptionDialog
+        open={open}
+        onOpenChange={setOpen}
+        itemId={item.id}
+        paymentId={paymentId}
+        companyName={(item as any).company_name ?? null}
+        appliedCalcId={calcId}
+        current={{
+          calc_exception_skip: item.calc_exception_skip ?? false,
+          calc_exception_reason: item.calc_exception_reason ?? null,
+        }}
+        skippedCalcLabel={calcMeta?.label ?? null}
+      />
+    </>
+  );
+}
+
+
+
 
 
 // ============ TIPOGRAFIA UNIFICADA (tabela + painel expandido) ============
