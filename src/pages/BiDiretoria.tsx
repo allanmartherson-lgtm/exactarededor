@@ -299,19 +299,19 @@ export default function BiDiretoria() {
       };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-[1400px] space-y-6">
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-[1400px] space-y-4 sm:space-y-6">
       {/* ===== Header ===== */}
       <PageHeader
         title="BI · Diretoria"
         description={`Visão consolidada · competência ${competenciaLabel.toLowerCase()}`}
         actions={
           <>
-            <div className="inline-flex rounded-full bg-muted/60 p-1">
+            <div className="inline-flex rounded-full bg-muted/60 p-1 max-w-full overflow-x-auto no-scrollbar">
               {(["semana", "mes", "trimestre", "ano"] as Period[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPeriod(p)}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                  className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-colors whitespace-nowrap ${
                     period === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -319,7 +319,7 @@ export default function BiDiretoria() {
                 </button>
               ))}
             </div>
-            <button className="inline-flex items-center gap-2 rounded-full bg-card border border-border px-4 py-2 text-sm text-foreground hover:bg-muted/40 transition-colors">
+            <button className="inline-flex items-center gap-2 rounded-full bg-card border border-border px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-foreground hover:bg-muted/40 transition-colors whitespace-nowrap">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               {MONTHS_PT_FULL[now.getMonth()]} {now.getFullYear()}
             </button>
@@ -327,9 +327,10 @@ export default function BiDiretoria() {
         }
       />
 
+
       {/* ===== Faixa narrativa ===== */}
-      <div className="rounded-2xl bg-card border border-border px-8 py-6 shadow-sm">
-        <p className="text-center text-[15px] leading-relaxed text-foreground">
+      <div className="rounded-2xl bg-card border border-border px-5 sm:px-8 py-5 sm:py-6 shadow-sm">
+        <p className="text-center text-[14px] sm:text-[15px] leading-relaxed text-foreground">
           Em {MONTHS_PT_FULL[now.getMonth()].toLowerCase()},{" "}
           <strong className="font-semibold">{fmtMi(display.totalAprov)}</strong> passaram pelo Exacta —{" "}
           <span className="text-primary font-medium">{display.autoPct}% aprovados automaticamente pela IA</span>. Ciclo médio de{" "}
@@ -343,45 +344,46 @@ export default function BiDiretoria() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Card azul */}
         <div
-          className="lg:col-span-8 rounded-2xl p-8 text-primary-foreground relative overflow-hidden shadow-lg"
+          className="lg:col-span-8 rounded-2xl p-5 sm:p-8 text-primary-foreground relative overflow-hidden shadow-lg"
           style={{
             background:
               "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.92) 60%, hsl(var(--primary) / 0.85) 100%)",
           }}
         >
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
               <div className="text-[11px] font-semibold tracking-[0.12em] uppercase opacity-80">Total em aprovação</div>
               <div
-                className="mt-3 text-5xl md:text-6xl font-light tracking-tight"
+                className="mt-2 sm:mt-3 text-3xl sm:text-5xl md:text-6xl font-light tracking-tight break-words"
                 style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em" }}
               >
                 {fmtFull(display.totalAprov).replace("R$\u00a0", "R$ ")}
               </div>
-              <div className="mt-2 text-sm opacity-80">
+              <div className="mt-2 text-xs sm:text-sm opacity-80">
                 {display.lotesAtivos} lotes ativos · {display.periodoLabel}
               </div>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold backdrop-blur-sm">
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold backdrop-blur-sm whitespace-nowrap">
               <TrendingUp className="h-3.5 w-3.5" />+{display.deltaPct}% vs período anterior
             </span>
           </div>
 
           {/* mini-tiles */}
-          <div className="mt-6 grid grid-cols-3 gap-3">
+          <div className="mt-5 sm:mt-6 grid grid-cols-3 gap-2 sm:gap-3">
             {[
               { label: "Pago no mês", value: fmtMi(display.pago) },
               { label: "Lotes encerrados", value: String(display.encerrados) },
               { label: "Taxa de aprovação", value: `${typeof display.taxa === "number" ? display.taxa.toFixed(1).replace(".", ",") : display.taxa}%` },
             ].map((t) => (
-              <div key={t.label} className="rounded-xl bg-white/12 backdrop-blur-sm px-4 py-3">
-                <div className="text-2xl font-semibold tracking-tight" style={{ fontVariantNumeric: "tabular-nums" }}>
+              <div key={t.label} className="rounded-xl bg-white/12 backdrop-blur-sm px-2.5 sm:px-4 py-2.5 sm:py-3 min-w-0">
+                <div className="text-base sm:text-2xl font-semibold tracking-tight truncate" style={{ fontVariantNumeric: "tabular-nums" }}>
                   {t.value}
                 </div>
-                <div className="text-[11px] opacity-80 mt-0.5">{t.label}</div>
+                <div className="text-[10px] sm:text-[11px] opacity-80 mt-0.5">{t.label}</div>
               </div>
             ))}
           </div>
+
 
           {/* sparkline */}
           <div className="mt-6 relative">
