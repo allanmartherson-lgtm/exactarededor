@@ -2364,13 +2364,17 @@ const PaymentDetail = () => {
               </div>
             )}
             {!isConfeccao && (
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)} className="hidden md:block">
-                <TabsList>
-                  <TabsTrigger value="detalhe">Detalhe</TabsTrigger>
-                  <TabsTrigger value="compacto">Compacto</TabsTrigger>
-                  <TabsTrigger value="executivo">Executivo</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <SegmentedControl
+                className="hidden md:inline-flex"
+                value={viewMode}
+                onValueChange={(v) => setViewMode(v as PivotVariant)}
+                ariaLabel="Modo de visualização do pagamento"
+                options={[
+                  { value: "detalhe", label: "Detalhe" },
+                  { value: "compacto", label: "Compacto" },
+                  { value: "executivo", label: "Executivo" },
+                ]}
+              />
             )}
 
 
