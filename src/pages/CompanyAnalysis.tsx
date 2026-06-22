@@ -2266,13 +2266,40 @@ export default function CompanyAnalysis() {
         </CardContent>
       </Card>
 
+      {/* Banner — mudanças detectadas em regras/débitos após a última análise */}
+      {stale.isStale && (isAnalista || isAdminOrDiretor || isValidador) && (
+        <div className="rounded-md border-2 border-warning/40 bg-warning-soft px-4 py-3 flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-start gap-2 min-w-0">
+            <AlertTriangle className="h-4 w-4 text-warning-text shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Há alterações desde a última análise</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {stale.reasons.includes("rules") && "Regras editadas. "}
+                {stale.reasons.includes("adjustments") && "Débitos/créditos atualizados. "}
+                {stale.reasons.includes("glosa") && "Glosas atualizadas. "}
+                Reanalise para refletir as últimas configurações.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => { void reanalyzeGroup(); }}
+            disabled={busy || reanalyzing}
+            className="h-7 text-xs"
+          >
+            <RefreshCcw className={`h-3 w-3 mr-1 ${reanalyzing ? "animate-spin" : ""}`} />
+            Reanalisar agora
+          </Button>
+        </div>
+      )}
+
       {/* Banner de deduções auto-aplicadas (débitos/glosas) */}
       {id && group?.company_id && (
         <DeductionsBanner
           paymentId={id}
           companyId={group.company_id}
           canEdit={isAnalista || isAdminOrDiretor || isValidador}
-          onApplied={composition.refresh}
+          onApplied={async () => { await composition.refresh(); stale.markFresh(); }}
         />
       )}
 
