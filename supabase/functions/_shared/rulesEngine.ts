@@ -361,6 +361,9 @@ export interface ItemInput {
    *  cálculos com payment_type_id setado e cai no próximo cálculo elegível
    *  da regra resolvida (tipicamente o universal / percentual do convênio). */
   calc_exception_skip?: boolean | null;
+  /** ID do cálculo originalmente aplicado, guardado no momento da marcação,
+   *  para o motor saber exatamente qual cálculo pular. */
+  calc_exception_skipped_calc_id?: string | null;
 }
 
 export interface PaymentContext {
@@ -1703,16 +1706,34 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   // (evita aplicar regra de Parecer em base sem classificação).
   const calcPaymentType = c.payment_type_id ?? null;
   if (calcPaymentType) {
-    // Exceção do cálculo: analista marcou o item para pular cálculos tipados.
-    // Item cai no próximo cálculo elegível da regra (tipicamente o universal).
+    // Exceção do cálculo: analista marcou o item para pular cálculos tipados
+    // desta regra. O item cai no próximo cálculo elegível por prioridade,
+    // mesmo que esse próximo cálculo seja tipado de outra forma (ex.: regra
+    // com Parecer + Visita, ambos tipados, sem universal → ao pular Parecer,
+    // aceita o cálculo de Visita / percentual do convênio).
     if (item.calc_exception_skip === true) {
-      return { ok: false, reason: "item_calc_exception_skip" };
-    }
-    const itemPaymentType = item.payment_type_id ?? null;
-    if (!itemPaymentType || itemPaymentType !== calcPaymentType) {
-      return { ok: false, reason: "payment_type_nao_corresponde" };
+      const skippedId = (item as any).calc_exception_skipped_calc_id ?? null;
+      // Pula APENAS o cálculo originalmente aplicado (registrado no flag).
+      // Demais cálculos tipados da mesma regra ficam elegíveis.
+      if (skippedId && c.id === skippedId) {
+        return { ok: false, reason: "item_calc_exception_skip" };
+      }
+      // sem skippedId guardado: pula qualquer cálculo tipado igual ao do item
+      if (!skippedId) {
+        const itemPaymentType = item.payment_type_id ?? null;
+        if (itemPaymentType && itemPaymentType === calcPaymentType) {
+          return { ok: false, reason: "item_calc_exception_skip" };
+        }
+      }
+      // demais cálculos: aceitos (ignora restrição de payment_type)
+    } else {
+      const itemPaymentType = item.payment_type_id ?? null;
+      if (!itemPaymentType || itemPaymentType !== calcPaymentType) {
+        return { ok: false, reason: "payment_type_nao_corresponde" };
+      }
     }
   }
+
 
   // ---- Filtros restritivos por cálculo ----
   // Códigos de procedimento (whitelist/blacklist/any)
