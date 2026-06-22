@@ -3181,6 +3181,9 @@ function RowMain({
                   <RotateCcw className="h-3.5 w-3.5" />
                 </Button>
               )}
+              {!isBonus && (
+                <CalcExceptionItemIconAction paymentId={it.payment_id} item={it as any} />
+              )}
               {!isBonus && onEditItem && (
                 <Button
                   size="icon"
