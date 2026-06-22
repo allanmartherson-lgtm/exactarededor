@@ -266,11 +266,67 @@ export default function PaymentEvolution() {
     return { label: m.level5 || m.level4 || m.level3 || code, sub: sub || code };
   };
 
+  // Filter option pools (extracted from loaded data)
+  const ccOptions = useMemo(() => {
+    const set = new Set<string>();
+    payments.forEach((p) => set.add(p.cost_center_code ?? "—"));
+    return Array.from(set)
+      .map((c) => ({ code: c, label: ccDisplay(c).label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [payments, ccMeta]);
+  const ccLabelToCode = useMemo(() => {
+    const m = new Map<string, string>();
+    ccOptions.forEach((o) => m.set(o.label, o.code));
+    return m;
+  }, [ccOptions]);
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    paymentCompanies.forEach((s) => s.forEach((c) => set.add(c)));
+    return Array.from(set).sort();
+  }, [paymentCompanies]);
+  const convenioOptions = useMemo(() => {
+    const set = new Set<string>();
+    paymentConvenios.forEach((s) => s.forEach((c) => set.add(c)));
+    return Array.from(set).sort();
+  }, [paymentConvenios]);
+  const typeOptions = useMemo(() => {
+    const set = new Set<string>();
+    payments.forEach((p) => p.payment_type && set.add(p.payment_type));
+    return Array.from(set).sort();
+  }, [payments]);
+
+  // Apply filters
+  const filteredPayments = useMemo(() => {
+    const ccCodes = ccFilter.map((l) => ccLabelToCode.get(l) ?? l);
+    return payments.filter((p) => {
+      if (ccCodes.length && !ccCodes.includes(p.cost_center_code ?? "—")) return false;
+      if (typeFilter.length && !typeFilter.includes(p.payment_type ?? "")) return false;
+      if (companyFilter.length) {
+        const cs = paymentCompanies.get(p.id);
+        if (!cs || !companyFilter.some((c) => cs.has(c))) return false;
+      }
+      if (convenioFilter.length) {
+        const vs = paymentConvenios.get(p.id);
+        if (!vs || !convenioFilter.some((v) => vs.has(v))) return false;
+      }
+      return true;
+    });
+  }, [payments, ccFilter, typeFilter, companyFilter, convenioFilter, paymentCompanies, paymentConvenios, ccLabelToCode]);
+
+  const activeFilterCount =
+    ccFilter.length + companyFilter.length + convenioFilter.length + typeFilter.length;
+  const clearFilters = () => {
+    setCcFilter([]);
+    setCompanyFilter([]);
+    setConvenioFilter([]);
+    setTypeFilter([]);
+  };
+
   // Bucket payments → cost center × month
   const matrix = useMemo(() => {
     const map = new Map<string, Map<string, number>>(); // cc → month → value
     const ccTotals = new Map<string, number>();
-    payments.forEach((p) => {
+    filteredPayments.forEach((p) => {
       const cc = p.cost_center_code ?? "—";
       let dateStr: string | null;
       if (mode === "competencia") dateStr = p.competence_month;
@@ -292,7 +348,7 @@ export default function PaymentEvolution() {
       }))
       .sort((a, b) => b.total - a.total);
     return rows;
-  }, [payments, months, mode]);
+  }, [filteredPayments, months, mode]);
 
   // KPIs
   const grandTotal = matrix.reduce((s, r) => s + r.total, 0);
