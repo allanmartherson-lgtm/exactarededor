@@ -22,7 +22,7 @@ export const SafeCard = React.forwardRef<HTMLDivElement, SafeCardProps>(
       <div
         ref={ref}
         className={cn(
-          "rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden min-w-0 flex flex-col relative",
+          "rounded-2xl border border-border/50 bg-card text-card-foreground shadow-card overflow-hidden min-w-0 flex flex-col relative",
           className
         )}
         {...props}
