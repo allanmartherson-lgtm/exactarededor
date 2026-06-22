@@ -529,13 +529,15 @@ const SurfaceCard = ({
     className={className}
     style={{
       background: "hsl(var(--card))",
-      border: "1px solid hsl(var(--border))",
-      borderRadius: 12,
+      border: "1px solid hsl(var(--border) / 0.5)",
+      borderRadius: 16,
+      boxShadow: "var(--shadow-card)",
       ...style,
     }}
   >
     {children}
   </div>
+
 );
 
 const SurfaceCardHeader = ({
