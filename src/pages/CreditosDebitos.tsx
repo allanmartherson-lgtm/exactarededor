@@ -81,7 +81,7 @@ export default function CreditosDebitos() {
     const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
     const [companiesAll, a, g] = await Promise.all([
       fetchAllPaginated<{ id: string; name: string }>((from, to) =>
-        supabase.from("companies").select("id, name").order("name").range(from, to),
+        supabase.from("companies").select("id, name").not("name", "ilike", "\\_\\_E2E%").order("name").range(from, to),
       ),
       supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
       (supabase as any)
@@ -91,7 +91,7 @@ export default function CreditosDebitos() {
         .order("created_at", { ascending: false }),
 
     ]);
-    setCompanies(companiesAll);
+    setCompanies(companiesAll.filter((c) => !c.name.trim().toUpperCase().startsWith("__E2E")));
     const cMap = new Map(companiesAll.map((x) => [x.id, x.name]));
     const adjs = (a.data || []) as Adjustment[];
     setAdjustments(adjs.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
