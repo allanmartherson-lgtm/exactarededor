@@ -472,8 +472,8 @@ export default function PaymentEvolution() {
                     const open = expandedCc === r.cc;
                     const d = ccDisplay(r.cc);
                     return (
-                      <>
-                        <TableRow key={r.cc} className="cursor-pointer" onClick={() => loadDrill(r.cc)}>
+                      <FragmentRow key={r.cc}>
+                        <TableRow className="cursor-pointer" onClick={() => loadDrill(r.cc)}>
                           <TableCell>
                             <div className="flex items-start gap-2">
                               {open ? <ChevronDown className="h-4 w-4 mt-0.5 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-0.5 text-muted-foreground" />}
