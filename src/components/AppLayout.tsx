@@ -1004,9 +1004,9 @@ export const AppLayout = () => {
             ["--card" as any]: "var(--primary-dark)",
             ["--background" as any]: "var(--primary-dark)",
             ["--foreground" as any]: "0 0% 100%",
-            ["--muted-foreground" as any]: "0 0% 100% / 0.78",
-            ["--muted" as any]: "0 0% 100% / 0.10",
-            ["--border" as any]: "0 0% 100% / 0.14",
+            ["--muted-foreground" as any]: "0 0% 100% / 0.85",
+            ["--muted" as any]: "0 0% 100% / 0.12",
+            ["--border" as any]: "0 0% 100% / 0",
           } as React.CSSProperties}
         >
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">

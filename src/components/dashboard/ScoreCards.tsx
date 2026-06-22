@@ -43,9 +43,9 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
           className="exacta-score-label"
           style={{
             fontFamily: OUTFIT,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
+            fontSize: 11,
+            fontWeight: 500,
+            letterSpacing: "0.04em",
             textTransform: "uppercase",
             color: "hsl(var(--muted-foreground))",
             transition: "color 0.3s",
@@ -111,7 +111,7 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
           style={{
             fontFamily: OUTFIT,
             fontSize: String(item.value).length > 6 ? 22 : String(item.value).length > 4 ? 28 : 38,
-            fontWeight: 700,
+            fontWeight: 600,
             lineHeight: 1,
             letterSpacing: "-0.02em",
             color: valueColor,
