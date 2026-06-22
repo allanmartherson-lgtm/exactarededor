@@ -50,6 +50,12 @@ export interface RuleInput {
   active: boolean;
   severity: string;
   scope: "master" | "especifica" | "grupo";
+  /**
+   * FK opcional para payment_types.id. Quando setada, a regra só é considerada
+   * em pagamentos cujo `payment_type_id` bate. NULL = regra universal (legacy).
+   * Usado para diferenciar Parecer × Visita (mesmo TUSS, regras distintas).
+   */
+  payment_type_id?: string | null;
   sectors: string[] | null;
   specialties: string[] | null;
   target_type: "medico" | "empresa" | null;
