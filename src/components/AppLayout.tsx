@@ -115,7 +115,7 @@ const Logo = ({ compact = false }: { compact?: boolean }) => (
           className="font-wordmark"
           style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 400, letterSpacing: "0.04em", color: "hsl(var(--foreground))", lineHeight: 1 }}
         >
-          E<span className="text-[#8A6830] dark:text-[#C8A96E]">x</span>acta
+          E<span style={{ color: "hsl(var(--accent))" }}>x</span>acta
         </p>
         <p
           style={{
