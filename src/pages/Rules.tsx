@@ -223,6 +223,9 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [fDescription, setFDescription] = useState("");
   const [fRuleText, setFRuleText] = useState("");
   const [fSeverity, setFSeverity] = useState<RuleSeverity>("aviso");
+  // Tipo de pagamento opcional — quando setado, a regra só se aplica a bases
+  // com o mesmo payment_type_id (resolve Parecer × Visita com mesmo TUSS).
+  const [fPaymentTypeId, setFPaymentTypeId] = useState<string | null>(null);
   
   const [scope, setScope] = useState<RuleScope>("master");
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
