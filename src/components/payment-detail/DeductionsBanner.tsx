@@ -109,7 +109,12 @@ export function DeductionsBanner({
   }, [loading]);
 
 
-  const totalDebitos = caa.reduce((s, x) => s + Number(x.valor_aplicado || 0), 0);
+  const totalDebitos = caa
+    .filter((x) => x.adjustment?.tipo !== "credito")
+    .reduce((s, x) => s + Number(x.valor_aplicado || 0), 0);
+  const totalCreditos = caa
+    .filter((x) => x.adjustment?.tipo === "credito")
+    .reduce((s, x) => s + Number(x.valor_aplicado || 0), 0);
   const totalGlosas = gpa.filter(g => g.status !== "pending_manual_resolution")
     .reduce((s, x) => s + Number(x.valor_aplicado || 0), 0);
   const pendingResolutions = gpa.filter(g => g.status === "pending_manual_resolution").length;
@@ -128,6 +133,7 @@ export function DeductionsBanner({
       .update({ status: "revertido", reverted_at: new Date().toISOString(), reverted_by: user?.id })
       .eq("id", id);
     await load();
+    await onApplied?.();
   };
   const removeGpa = async (id: string) => {
     const ok = await confirmDialog({
@@ -142,6 +148,7 @@ export function DeductionsBanner({
       .update({ status: "revertido", reverted_at: new Date().toISOString(), reverted_by: user?.id })
       .eq("id", id);
     await load();
+    await onApplied?.();
   };
 
   if (loading) return null;
