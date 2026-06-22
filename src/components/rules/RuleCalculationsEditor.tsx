@@ -998,16 +998,17 @@ function WhenApplySection({
 
         <FilterBtn id="tipo-pagamento" label="Tipo de pagamento" active={hasPaymentTypeFilter} openSection={openSection} onToggle={toggle}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: !c.payment_type_id ? "hsl(var(--accent))" : "transparent" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "8px 10px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: !c.payment_type_id ? "hsl(var(--accent))" : "transparent" }}>
               <input
                 type="radio"
                 name={`payment-type-${c.id ?? "new"}`}
                 checked={!c.payment_type_id}
                 onChange={() => onChange({ payment_type_id: null })}
-                style={{ marginTop: 2 }}
+                style={{ margin: 0, flexShrink: 0 }}
               />
-              <span style={{ fontSize: 12, lineHeight: 1.35 }}>Qualquer tipo (cálculo universal)</span>
+              <span style={{ fontSize: 12, lineHeight: 1.35, marginLeft: 2 }}>Qualquer tipo (cálculo universal)</span>
             </label>
+
             {paymentTypes.length === 0 ? (
               <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontStyle: "italic", marginTop: 2 }}>
                 Nenhum tipo cadastrado em Cadastros → Tipos de pagamento.
@@ -1016,16 +1017,17 @@ function WhenApplySection({
               paymentTypes.map((pt) => {
                 const checked = c.payment_type_id === pt.id;
                 return (
-                  <label key={pt.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: checked ? "hsl(var(--accent))" : "transparent" }}>
+                  <label key={pt.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "8px 10px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: checked ? "hsl(var(--accent))" : "transparent" }}>
                     <input
                       type="radio"
                       name={`payment-type-${c.id ?? "new"}`}
                       checked={checked}
                       onChange={() => onChange({ payment_type_id: pt.id })}
-                      style={{ marginTop: 2 }}
+                      style={{ margin: 0, flexShrink: 0 }}
                     />
-                    <span style={{ fontSize: 12, fontWeight: 500, lineHeight: 1.35 }}>{pt.label}</span>
+                    <span style={{ fontSize: 12, fontWeight: 500, lineHeight: 1.35, marginLeft: 2 }}>{pt.label}</span>
                   </label>
+
                 );
               })
             )}
