@@ -129,6 +129,8 @@ export default function PaymentEvolution() {
   const { hospital } = useHospital();
   const [mode, setMode] = useState<Mode>("competencia");
   const [window, setWindow] = useState<Window>("6m");
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [ccMeta, setCcMeta] = useState<Record<string, CcMeta>>({});
@@ -137,7 +139,20 @@ export default function PaymentEvolution() {
   const [drillLoading, setDrillLoading] = useState(false);
   const [dialogCc, setDialogCc] = useState<{ code: string; month: string } | null>(null);
 
-  const months = useMemo(() => buildMonthRange(window), [window]);
+  // Filters
+  const [ccFilter, setCcFilter] = useState<string[]>([]);
+  const [companyFilter, setCompanyFilter] = useState<string[]>([]);
+  const [convenioFilter, setConvenioFilter] = useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+
+  // Option pools (extracted from loaded data)
+  const [paymentCompanies, setPaymentCompanies] = useState<Map<string, Set<string>>>(new Map()); // payment_id → company names
+  const [paymentConvenios, setPaymentConvenios] = useState<Map<string, Set<string>>>(new Map()); // payment_id → convenio slugs
+
+  const months = useMemo(
+    () => buildMonthRange(window, customStart, customEnd),
+    [window, customStart, customEnd],
+  );
   const firstMonth = months[0];
 
   useEffect(() => {
