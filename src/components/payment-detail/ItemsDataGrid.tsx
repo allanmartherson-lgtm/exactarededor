@@ -3401,6 +3401,9 @@ function ItemDetailsRow({
                 />
               )}
 
+              <CalcExceptionItemAction paymentId={it.payment_id} item={it as any} />
+
+
               {(it.ai_status === "reprovado" || it.ai_status === "alerta") && (it.ai_status as string) !== "acatado" && (() => {
                 const getNextStep = (): string => {
                   if (priority === "sem_regra") {
