@@ -1169,6 +1169,62 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setConflictProblems([]);
     setPendingRuleData(null);
     setPendingCalcs([]);
+
+    // Após salvar: oferecer reanálise dos lotes em aberto impactados
+    // (somente quando a regra tem empresa-alvo definida — escopo bounded).
+    // Master/médico/global não disparam aqui para evitar lote massivo
+    // não solicitado; o painel da empresa detecta a stale ao abrir.
+    if (savedId && (ruleData as any).target_company_id) {
+      void promptReanalysisForRule(savedId, (ruleData as any).target_company_id as string, (ruleData as any).name as string | null);
+    }
+  };
+
+  /** Pergunta ao analista se quer disparar a reanálise dos lotes em aberto da empresa-alvo. */
+  const promptReanalysisForRule = async (
+    ruleId: string,
+    companyId: string,
+    ruleName: string | null,
+  ) => {
+    const OPEN_STATUSES = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_aprovacao", "pedido_nf_enviado", "revisao_pos_aprovacao"];
+    const { data: pcg } = await (supabase as any)
+      .from("payment_company_groups")
+      .select("payment_id, company_name, status")
+      .eq("company_id", companyId)
+      .in("status", OPEN_STATUSES);
+    const groups = (pcg as any[]) ?? [];
+    if (groups.length === 0) return;
+    const ok = await confirmDialog({
+      title: "Reanalisar lotes impactados?",
+      description: `${groups.length} lote(s) em aberto contêm a empresa-alvo desta regra (${ruleName ?? "sem nome"}). Disparar reanálise agora para refletir a nova configuração?`,
+      confirmText: `Reanalisar ${groups.length} lote(s)`,
+      cancelText: "Agora não",
+    });
+    if (!ok) return;
+    const paymentIds = Array.from(new Set(groups.map((g) => g.payment_id))).filter(Boolean) as string[];
+    const companyNames = Array.from(new Set(groups.map((g) => g.company_name))).filter(Boolean) as string[];
+    let dispatched = 0;
+    let failed = 0;
+    await Promise.all(paymentIds.map(async (pid) => {
+      try {
+        const { error } = await supabase.functions.invoke("dispatch-payment-analysis", {
+          body: { payment_id: pid, only_companies: companyNames, force_fresh_rules: true },
+        });
+        if (error) throw error;
+        dispatched++;
+      } catch (e) {
+        console.warn("[Rules] dispatch falhou para", pid, e);
+        failed++;
+      }
+    }));
+    if (failed === 0) {
+      toast({ title: "Reanálise disparada", description: `${dispatched} lote(s) em processamento.` });
+    } else {
+      toast({
+        title: "Reanálise parcialmente disparada",
+        description: `${dispatched} ok · ${failed} falha(s).`,
+        variant: "destructive",
+      });
+    }
   };
 
   /** Handler do modal: aplica correções escolhidas + grava via RPC. */
