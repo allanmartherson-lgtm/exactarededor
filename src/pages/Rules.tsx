@@ -898,7 +898,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
     setRefTableId(r.reference_table_id ?? "");
     setFExceptionTableIds(Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []);
-    setFSpecialCaseFilter(Array.isArray((r as any).special_case_filter) ? (r as any).special_case_filter : []);
+    setFSpecialCaseFilter([]);
     // procedure_codes legados ignorados — agora vivem por Cálculo.
     setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
     setFBonusAmount(r.bonus_amount != null ? String(r.bonus_amount) : "");
