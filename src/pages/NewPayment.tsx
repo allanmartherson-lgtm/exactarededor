@@ -532,6 +532,44 @@ const NewPayment = () => {
     return null;
   })();
   const [paymentTypeId, setPaymentTypeId] = useState<string | null>(initialPaymentTypeId);
+  // Metadados do tipo escolhido — usados pelo parser para injetar TUSS padrão,
+  // função padrão e marcar quando a planilha não precisa trazer TUSS.
+  type PaymentTypeMeta = {
+    id: string;
+    code: string;
+    label: string;
+    tuss_default: string | null;
+    requires_tuss_in_sheet: boolean;
+    default_function: string | null;
+    default_value_column_hint: string | null;
+    expected_headers: string[];
+  };
+  const [paymentTypeMeta, setPaymentTypeMeta] = useState<PaymentTypeMeta | null>(null);
+  const paymentTypeMetaRef = useRef<PaymentTypeMeta | null>(null);
+  useEffect(() => { paymentTypeMetaRef.current = paymentTypeMeta; }, [paymentTypeMeta]);
+  useEffect(() => {
+    if (!paymentTypeId) { setPaymentTypeMeta(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("payment_types")
+        .select("id,code,label,tuss_default,requires_tuss_in_sheet,default_function,default_value_column_hint,expected_headers")
+        .eq("id", paymentTypeId)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setPaymentTypeMeta({
+        id: data.id,
+        code: data.code,
+        label: data.label,
+        tuss_default: (data as any).tuss_default ?? null,
+        requires_tuss_in_sheet: (data as any).requires_tuss_in_sheet ?? true,
+        default_function: (data as any).default_function ?? null,
+        default_value_column_hint: (data as any).default_value_column_hint ?? null,
+        expected_headers: Array.isArray((data as any).expected_headers) ? (data as any).expected_headers : [],
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [paymentTypeId]);
   const [importMode, setImportMode] = useState<"normal" | "historico">("normal");
   const isHistoricoImport = importMode === "historico";
   const HISTORICO_WINDOW = { start: "2026-01", end: "2026-04" };
