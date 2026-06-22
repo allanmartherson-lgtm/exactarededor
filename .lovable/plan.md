@@ -108,11 +108,11 @@ Quando `allow_mixed_subtypes=true` no tipo escolhido:
 - nav (`src/config/navItems.ts`) — entrada "Tipos de Pagamento" no hub de Cadastros
 
 ### Ordem de entrega sugerida (entregar incrementalmente)
-1. Migrações + seed + tela admin de tipos
-2. Campo na rules + select no form de regra
-3. Modal de seleção pós-modo + persistência no payment
-4. Parser sensível ao tipo (TUSS default, função default)
-5. Detecção de linhas suspeitas com painel de revisão
-6. Subtipos mistos
+1. ✅ Migrações + seed + tela admin de tipos
+2. ✅ Campo na rules + select no form de regra
+3. ✅ Modal de seleção pós-modo + persistência no payment
+4. ✅ Parser sensível ao tipo (TUSS default, função default)
+5. ✅ Detecção de linhas suspeitas com painel de revisão
+6. ⏳ Subtipos mistos
 
 Cada passo é shippable sozinho — recomendo aprovar e ir por etapas para validar com base real entre cada uma.

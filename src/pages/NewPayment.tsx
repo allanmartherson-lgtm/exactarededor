@@ -63,6 +63,8 @@ import {
 import { useSheetColumnTemplates } from "@/hooks/useSheetColumnTemplates";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
 import { confirmDialog } from "@/lib/confirm";
+import { detectSuspiciousRows } from "@/lib/detectSuspiciousRows";
+import { SuspiciousRowsReview, type SuspiciousDecision } from "@/components/payment-wizard/SuspiciousRowsReview";
 
 interface ParsedRow {
   doctor_name: string;
@@ -1502,13 +1504,47 @@ const NewPayment = () => {
     );
   };
 
+  // === Linhas suspeitas (totalizadores/rodapé) ===
+  // Heurística no parser sinaliza linhas que parecem totalizador. O analista
+  // decide caso a caso ("descartar" / "total informativo" remove da base;
+  // "manter como item" preserva). Enquanto houver pendência, envio é bloqueado.
+  const [suspiciousDecisions, setSuspiciousDecisions] = useState<Record<string, SuspiciousDecision>>({});
+  const decisionKey = (fileName: string, rowNumber: number) => `${fileName}::${rowNumber}`;
+
+  const suspiciousByBucket = useMemo(() => {
+    return buckets.map((b) => {
+      const totalRowsInSheet = b.rawMatrix
+        ? Math.max(0, b.rawMatrix.length - ((b.headerRowIndex ?? 0) + 1))
+        : b.rows.length;
+      return detectSuspiciousRows(b.rows, { totalRowsInSheet });
+    });
+  }, [buckets]);
+
+  const pendingSuspiciousCount = useMemo(() => {
+    let c = 0;
+    buckets.forEach((b, i) => {
+      const list = suspiciousByBucket[i] ?? [];
+      for (const r of list) {
+        if (!suspiciousDecisions[decisionKey(b.file.name, r.rowNumber)]) c++;
+      }
+    });
+    return c;
+  }, [buckets, suspiciousByBucket, suspiciousDecisions]);
+
   const allRows = useMemo(() => {
-    return buckets.flatMap((b, bucketIndex) => b.rows.map((r, rowIndex) => ({ ...r, source_bucket_index: bucketIndex, source_row_index: rowIndex }))).map((r) => {
+    return buckets.flatMap((b, bucketIndex) =>
+      b.rows
+        .filter((r) => {
+          const d = suspiciousDecisions[decisionKey(b.file.name, r.source_row_number)];
+          return d !== "discard" && d !== "informative_total";
+        })
+        .map((r, rowIndex) => ({ ...r, source_bucket_index: bucketIndex, source_row_index: rowIndex }))
+    ).map((r) => {
       const tipo_linha = r.tipo_linha_manual ?? classifyLine(r, paymentKind || null);
       const withType = { ...r, tipo_linha };
       return { ...withType, line_issues: validateLine(withType, { modoConfeccao }) };
     });
-  }, [buckets, paymentKind]);
+  }, [buckets, paymentKind, modoConfeccao, suspiciousDecisions]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
 
   // ===== Lookup estrito de cadastros (médicos / convênios / setores) =====
@@ -2939,6 +2975,20 @@ const NewPayment = () => {
                           {b.rows.length} linhas · {formatCurrency(b.rows.reduce((s, r) => s + r.gross_amount, 0))}
                         </span>
                       </div>
+                      {(suspiciousByBucket[idx]?.length ?? 0) > 0 && (
+                        <SuspiciousRowsReview
+                          fileName={b.file.name}
+                          rows={suspiciousByBucket[idx]}
+                          decisions={Object.fromEntries(
+                            (suspiciousByBucket[idx] ?? [])
+                              .map((r) => [r.rowNumber, suspiciousDecisions[decisionKey(b.file.name, r.rowNumber)]])
+                              .filter(([, v]) => !!v) as [number, SuspiciousDecision][]
+                          )}
+                          onDecide={(rn, d) =>
+                            setSuspiciousDecisions((prev) => ({ ...prev, [decisionKey(b.file.name, rn)]: d }))
+                          }
+                        />
+                      )}
                     </div>
                     <div className="flex flex-col gap-1 flex-shrink-0">
                       <Button
@@ -3119,9 +3169,13 @@ const NewPayment = () => {
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-            {hasUnresolved ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar` : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
+            {pendingSuspiciousCount > 0
+              ? `Revise ${pendingSuspiciousCount} linha${pendingSuspiciousCount === 1 ? "" : "s"} suspeita${pendingSuspiciousCount === 1 ? "" : "s"}`
+              : hasUnresolved
+                ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar`
+                : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
           </Button>
         </div>
 
