@@ -24,7 +24,7 @@ export default function NotasFiscaisHub() {
         showBack={false}
       />
       <div className="p-6 space-y-6">
-        <nav className="flex flex-wrap gap-2" aria-label="Seções de Notas Fiscais">
+        <nav className="inline-flex flex-wrap gap-1 rounded-xl border border-border bg-muted/50 p-1" aria-label="Seções de Notas Fiscais">
           {TABS.map((item) => {
             const isActive = active === item.value;
             return (
@@ -36,7 +36,7 @@ export default function NotasFiscaisHub() {
                   "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
+                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
                 )}
                 aria-pressed={isActive}
               >
