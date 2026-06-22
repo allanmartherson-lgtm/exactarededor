@@ -65,6 +65,7 @@ import {
 } from "@/components/payment-detail/ReapplyRulesProgressDialog";
 import { MinimumGuaranteeCard } from "@/components/payment-detail/MinimumGuaranteeCard";
 import { useFinancialComposition } from "@/hooks/useFinancialComposition";
+import { useStaleAnalysisIndicator } from "@/hooks/useStaleAnalysisIndicator";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import CancelPaymentDialog from "@/components/payment-detail/CancelPaymentDialog";
