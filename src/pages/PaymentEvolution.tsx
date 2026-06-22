@@ -419,7 +419,21 @@ export default function PaymentEvolution() {
                     stroke={PALETTE[i % PALETTE.length]}
                     strokeWidth={2}
                     dot={{ r: 3 }}
-                  />
+                  >
+                    <LabelList
+                      dataKey={ccDisplay(r.cc).label}
+                      position="top"
+                      offset={8}
+                      style={{ fontSize: 10, fill: PALETTE[i % PALETTE.length], fontWeight: 600 }}
+                      formatter={(v: any) => {
+                        const n = Number(v);
+                        if (!n) return "";
+                        if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+                        if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+                        return String(n);
+                      }}
+                    />
+                  </Line>
                 ))}
               </LineChart>
             </ResponsiveContainer>
