@@ -2989,12 +2989,7 @@ function DivergenceCard({
     ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
     "—";
   return (
-    <Card
-      className={cn(
-        "shadow-card border-l-4",
-        isCritico ? "border-l-destructive" : "border-l-warning",
-      )}
-    >
+    <Card className="shadow-card border-border/50 rounded-2xl">
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
