@@ -63,6 +63,16 @@ interface Props {
    *   e oculta `gross_amount` para evitar que o analista importe valor de repasse pré-existente
    */
   mode?: "analise" | "confeccao";
+  /**
+   * Metadados do tipo de pagamento escolhido. Quando o tipo já injeta
+   * valores padrão (parecer/visita com TUSS e função fixos), os campos
+   * correspondentes deixam de ser obrigatórios na planilha.
+   */
+  paymentTypeMeta?: {
+    tuss_default?: string | null;
+    requires_tuss_in_sheet?: boolean;
+    default_function?: string | null;
+  } | null;
 }
 
 export default function ColumnMappingDialog({
