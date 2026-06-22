@@ -3476,7 +3476,7 @@ function finalizeAnalysis(
     matched_rule_id: rule?.id ?? null,
     matched_rule_name: rule?.name ?? null,
     matched_priority: priority,
-    calculation_type_used: rule?.calculation_type ?? "informativo",
+    calculation_type_used: (calc.winner_calc_type as any) ?? rule?.calculation_type ?? "informativo",
     calculation_explanation: calc.explanation,
     alerts,
     needs_ai_review: status !== "aprovado",
