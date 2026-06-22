@@ -26,6 +26,7 @@ import {
   TrendingUp,
   History,
   Split,
+  LineChart,
 } from "lucide-react";
 
 type Role = "analista" | "validador" | "diretor" | "admin";
@@ -149,6 +150,15 @@ const REPORTS: ReportSpec[] = [
     category: "Financeiro",
     icon: TrendingUp,
     roles: ["analista", "validador", "diretor", "admin"],
+  },
+  {
+    key: "payment-evolution",
+    label: "Evolução de Pagamentos por CC",
+    description: "Série temporal e comparação mês a mês por centro de custo, com drill-down até o lote.",
+    route: "/relatorios/evolucao-pagamentos",
+    category: "Financeiro",
+    icon: LineChart,
+    roles: ["diretor", "admin", "analista", "validador"],
   },
   {
     key: "pools",

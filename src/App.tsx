@@ -109,6 +109,7 @@ const loadDirectors = () => import("./pages/Directors.tsx");
 const loadCadastrosHub = () => import("./pages/CadastrosHub.tsx");
 const loadReportsCentral = () => import("./pages/ReportsCentral.tsx");
 const loadExportAudit = () => import("./pages/ExportAudit.tsx");
+const loadPaymentEvolution = () => import("./pages/PaymentEvolution.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -199,6 +200,7 @@ const CommunicationSupervision = lazy(loadCommunicationSupervision);
 const ProcessHealth = lazy(loadProcessHealth);
 const ReportsCentral = lazy(loadReportsCentral);
 const ExportAudit = lazy(loadExportAudit);
+const PaymentEvolution = lazy(loadPaymentEvolution);
 const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal.tsx"));
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
 const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
@@ -311,6 +313,7 @@ const App = () => (
                   <Route path="/relatorios/pagamentos-cancelados" element={<Navigate to="/relatorios/intervencoes?view=ajustes&role=cancelamento_empresa" replace />} />
                   <Route path="/relatorios/central" element={<ReportsCentral />} />
                   <Route path="/relatorios/auditoria-exportacoes" element={<Navigate to="/auditoria?tab=exportacoes" replace />} />
+                  <Route path="/relatorios/evolucao-pagamentos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><PaymentEvolution /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/bi/diretoria" element={<BiDiretoria />} />
                   <Route path="/bi/pagamentos" element={<BiPagamentos />} />
