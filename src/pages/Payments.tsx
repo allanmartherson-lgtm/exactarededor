@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { SafeCard } from "@/components/ui/SafeCard";
+import { KpiCard } from "@/components/ui/KpiCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
@@ -1150,94 +1151,35 @@ const Payments = () => {
         onSaved={() => load()}
       />
       <div className="p-4 md:px-6 md:py-6 w-full mx-auto space-y-4">
-        {/* KPI Cards — macOS Ventura style: elevated cards com icon chip colorido */}
+        {/* KPI Cards — Padrão BI */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            {
-              label: "Total em aberto",
-              value: formatCurrency(kpis.totalOpen),
-              hint: `${kpis.activeTotal} lote${kpis.activeTotal === 1 ? "" : "s"} ativo${kpis.activeTotal === 1 ? "" : "s"}`,
-              icon: Tag,
-              tone: "primary" as const,
-            },
-            {
-              label: "Pós-aprovação (NF)",
-              value: String(kpis.postApproval),
-              hint: "Aprovados aguardando ciclo de NF",
-              icon: Receipt,
-              tone: "info" as const,
-            },
-            {
-              label: "Aguardando validação",
-              value: String(kpis.waitingValidation),
-              hint: "Analista, supervisor ou devolvido",
-              icon: UserCheck,
-              tone: "warning" as const,
-            },
-            {
-              label: "Aguardando aprovação",
-              value: String(kpis.waitingApproval),
-              hint: kpis.competence
+          <KpiCard
+            label="Total em aberto"
+            value={formatCurrency(kpis.totalOpen)}
+            hint={`${kpis.activeTotal} lote${kpis.activeTotal === 1 ? "" : "s"} ativo${kpis.activeTotal === 1 ? "" : "s"}`}
+            tone="primary"
+          />
+          <KpiCard
+            label="Pós-aprovação (NF)"
+            value={String(kpis.postApproval)}
+            hint="Aprovados aguardando ciclo de NF"
+          />
+          <KpiCard
+            label="Aguardando validação"
+            value={String(kpis.waitingValidation)}
+            hint="Analista, supervisor ou devolvido"
+          />
+          <KpiCard
+            label="Aguardando aprovação"
+            value={String(kpis.waitingApproval)}
+            hint={
+              kpis.competence
                 ? `Diretor · comp. ${formatCompetence(`${kpis.competence}-01`)}`
-                : "Fila do diretor",
-              icon: User,
-              tone: "success" as const,
-            },
-          ].map((kpi) => {
-            const Icon = kpi.icon;
-            const chipMap: Record<string, string> = {
-              primary: "bg-primary/10 text-primary",
-              destructive: "bg-destructive/10 text-destructive",
-              warning: "bg-warning/10 text-warning",
-              success: "bg-success/10 text-success",
-              info: "bg-info/10 text-info",
-            };
-            const isHero = kpi.tone === "primary";
-            return (
-              <div
-                key={kpi.label}
-                className={cn(
-                  "p-5 rounded-2xl border shadow-card",
-                  isHero ? "border-transparent" : "bg-card border-border/50",
-                )}
-                style={isHero ? { background: "hsl(var(--primary-dark))" } : undefined}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div
-                    className={cn("w-8 h-8 rounded-lg flex items-center justify-center", !isHero && chipMap[kpi.tone])}
-                    style={isHero ? { background: "rgba(255,255,255,0.15)", color: "#fff" } : undefined}
-                  >
-                    <Icon className="w-4 h-4" strokeWidth={2} />
-                  </div>
-                  <span
-                    className={cn(
-                      "text-[11px] font-medium uppercase tracking-[0.04em]",
-                      !isHero && "text-muted-foreground",
-                    )}
-                    style={isHero ? { color: "rgba(255,255,255,0.7)" } : undefined}
-                  >
-                    {kpi.label}
-                  </span>
-                </div>
-                <div
-                  className={cn("text-2xl font-semibold tabular-nums", !isHero && "text-foreground")}
-                  style={isHero ? { color: "#fff" } : undefined}
-                >
-                  {kpi.value}
-                </div>
-                <div
-                  className={cn(
-                    "text-[11px] mt-1",
-                    !isHero && ((kpi as any).hintTone === "destructive" ? "text-destructive font-medium" : "text-muted-foreground"),
-                  )}
-                  style={isHero ? { color: "rgba(255,255,255,0.7)" } : undefined}
-                >
-                  {kpi.hint}
-                </div>
-              </div>
-            );
-          })}
+                : "Fila do diretor"
+            }
+          />
         </div>
+
 
         {(() => {
           const activeFilterCount = [
