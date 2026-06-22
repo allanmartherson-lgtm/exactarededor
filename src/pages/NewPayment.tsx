@@ -2975,6 +2975,20 @@ const NewPayment = () => {
                           {b.rows.length} linhas · {formatCurrency(b.rows.reduce((s, r) => s + r.gross_amount, 0))}
                         </span>
                       </div>
+                      {(suspiciousByBucket[idx]?.length ?? 0) > 0 && (
+                        <SuspiciousRowsReview
+                          fileName={b.file.name}
+                          rows={suspiciousByBucket[idx]}
+                          decisions={Object.fromEntries(
+                            (suspiciousByBucket[idx] ?? [])
+                              .map((r) => [r.rowNumber, suspiciousDecisions[decisionKey(b.file.name, r.rowNumber)]])
+                              .filter(([, v]) => !!v) as [number, SuspiciousDecision][]
+                          )}
+                          onDecide={(rn, d) =>
+                            setSuspiciousDecisions((prev) => ({ ...prev, [decisionKey(b.file.name, rn)]: d }))
+                          }
+                        />
+                      )}
                     </div>
                     <div className="flex flex-col gap-1 flex-shrink-0">
                       <Button
