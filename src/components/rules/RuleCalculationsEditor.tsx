@@ -280,6 +280,7 @@ export function RuleCalculationsEditor({ value, onChange, refTables, specialCase
           item={c}
           refTables={refTables}
           specialCaseTypes={specialCaseTypes}
+          paymentTypes={paymentTypes}
           extraErrorMessages={crossErrorsByIndex.get(i) ?? []}
           onChange={(patch) => update(i, patch)}
           onRemove={() => remove(i)}
