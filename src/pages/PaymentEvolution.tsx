@@ -48,7 +48,7 @@ import { useHospital } from "@/contexts/HospitalContext";
 import { cn } from "@/lib/utils";
 
 type Mode = "competencia" | "caixa";
-type Window = "6m" | "12m" | "ytd";
+type Window = "6m" | "12m" | "ytd" | "custom";
 
 interface PaymentRow {
   id: string;
