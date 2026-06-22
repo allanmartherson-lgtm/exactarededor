@@ -448,6 +448,7 @@ serve(async (req) => {
         ai_findings,
         special_case_code,
         special_case_status,
+        calc_exception_skip,
         raw_data
       `)
       .eq("payment_id", payment_id);
