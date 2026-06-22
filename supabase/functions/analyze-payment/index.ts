@@ -216,7 +216,8 @@ serve(async (req) => {
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor,
         force_totalized,
         prevent_external_fallback,
-        special_case_filter
+        special_case_filter,
+        payment_type_id
     `;
 
     const RULE_CALCS_SELECT = `
