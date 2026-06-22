@@ -2792,6 +2792,14 @@ function RowMain({
                   CE
                 </span>
               )}
+              {(it as any).calc_exception_skip === true && (
+                <span
+                  className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800/70"
+                  title="Exceção do cálculo ativa — item pulou o cálculo tipado da regra"
+                >
+                  EX
+                </span>
+              )}
             </div>
           </td>
         )}
