@@ -4925,6 +4925,7 @@ export type Database = {
           package_absorbed_note: string | null
           patient_name: string | null
           payment_id: string
+          payment_type_id: string | null
           procedure_amount: number | null
           procedure_code: string | null
           procedure_date: string | null
@@ -5024,6 +5025,7 @@ export type Database = {
           package_absorbed_note?: string | null
           patient_name?: string | null
           payment_id: string
+          payment_type_id?: string | null
           procedure_amount?: number | null
           procedure_code?: string | null
           procedure_date?: string | null
@@ -5123,6 +5125,7 @@ export type Database = {
           package_absorbed_note?: string | null
           patient_name?: string | null
           payment_id?: string
+          payment_type_id?: string | null
           procedure_amount?: number | null
           procedure_code?: string | null
           procedure_date?: string | null
@@ -5230,6 +5233,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_items_payment_type_id_fkey"
+            columns: ["payment_type_id"]
+            isOneToOne: false
+            referencedRelation: "payment_types"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "payment_items_reconciliation_run_id_fkey"
@@ -5804,38 +5814,62 @@ export type Database = {
       payment_types: {
         Row: {
           active: boolean
+          allow_mixed_subtypes: boolean
+          category: string | null
           code: string
           color: string | null
           created_at: string
           created_by: string | null
+          default_function: string | null
+          default_value_column_hint: string | null
           description: string | null
+          expected_headers: Json
           id: string
           label: string
+          requires_tuss_in_sheet: boolean
           sort_order: number
+          subtype_split_hint: Json | null
+          tuss_default: string | null
           updated_at: string
         }
         Insert: {
           active?: boolean
+          allow_mixed_subtypes?: boolean
+          category?: string | null
           code: string
           color?: string | null
           created_at?: string
           created_by?: string | null
+          default_function?: string | null
+          default_value_column_hint?: string | null
           description?: string | null
+          expected_headers?: Json
           id?: string
           label: string
+          requires_tuss_in_sheet?: boolean
           sort_order?: number
+          subtype_split_hint?: Json | null
+          tuss_default?: string | null
           updated_at?: string
         }
         Update: {
           active?: boolean
+          allow_mixed_subtypes?: boolean
+          category?: string | null
           code?: string
           color?: string | null
           created_at?: string
           created_by?: string | null
+          default_function?: string | null
+          default_value_column_hint?: string | null
           description?: string | null
+          expected_headers?: Json
           id?: string
           label?: string
+          requires_tuss_in_sheet?: boolean
           sort_order?: number
+          subtype_split_hint?: Json | null
+          tuss_default?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -6000,6 +6034,7 @@ export type Database = {
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
           payment_track: Database["public"]["Enums"]["payment_track"] | null
           payment_type: string | null
+          payment_type_id: string | null
           priority_score: number
           processing_diagnostics: Json | null
           processing_timeout_occurred: boolean | null
@@ -6044,6 +6079,7 @@ export type Database = {
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
+          payment_type_id?: string | null
           priority_score?: number
           processing_diagnostics?: Json | null
           processing_timeout_occurred?: boolean | null
@@ -6088,6 +6124,7 @@ export type Database = {
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
+          payment_type_id?: string | null
           priority_score?: number
           processing_diagnostics?: Json | null
           processing_timeout_occurred?: boolean | null
@@ -6107,6 +6144,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_payment_type_id_fkey"
+            columns: ["payment_type_id"]
+            isOneToOne: false
+            referencedRelation: "payment_types"
             referencedColumns: ["id"]
           },
         ]
@@ -7949,6 +7993,7 @@ export type Database = {
           package_opinions_count: boolean
           package_subtype: string | null
           package_visits_count: boolean
+          payment_type_id: string | null
           prevent_external_fallback: boolean
           reference_table_id: string | null
           repasse_pct: number | null
@@ -8024,6 +8069,7 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
+          payment_type_id?: string | null
           prevent_external_fallback?: boolean
           reference_table_id?: string | null
           repasse_pct?: number | null
@@ -8099,6 +8145,7 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
+          payment_type_id?: string | null
           prevent_external_fallback?: boolean
           reference_table_id?: string | null
           repasse_pct?: number | null
@@ -8126,6 +8173,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rules_payment_type_id_fkey"
+            columns: ["payment_type_id"]
+            isOneToOne: false
+            referencedRelation: "payment_types"
             referencedColumns: ["id"]
           },
           {
