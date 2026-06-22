@@ -97,9 +97,19 @@ const monthLabel = (key: string) => {
   return dt.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
 };
 
-function buildMonthRange(window: Window): string[] {
+function buildMonthRange(window: Window, customStart?: Date, customEnd?: Date): string[] {
   const now = new Date();
   const months: string[] = [];
+  if (window === "custom" && customStart && customEnd) {
+    const start = new Date(customStart.getFullYear(), customStart.getMonth(), 1);
+    const end = new Date(customEnd.getFullYear(), customEnd.getMonth(), 1);
+    const cur = new Date(start);
+    while (cur <= end) {
+      months.push(monthKey(cur));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return months;
+  }
   if (window === "ytd") {
     for (let m = 0; m <= now.getMonth(); m++) {
       months.push(monthKey(new Date(now.getFullYear(), m, 1)));
