@@ -99,6 +99,10 @@ interface ParsedRow {
   tipo_linha_manual?: LineType | null;
   tipo_linha: LineType;
   line_issues: LineIssue[];
+  /** Override per-row de payment_type_id quando a base mistura subtipos
+   * (ex.: planilha de Parecer com algumas linhas de Visita). Preenchido pelo
+   * parser via `subtype_split_hint` do tipo escolhido na criação da base. */
+  payment_type_id_override?: string | null;
 }
 
 // === Classificação de tipo_linha (pré-validação) ===
