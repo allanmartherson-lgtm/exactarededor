@@ -74,6 +74,7 @@ const SECTOR_RAW_KEYS = ["setor", "unidade", "unidade de atendimento", "departam
 import { authorRoleLabel } from "@/lib/observations";
 import { MarkSpecialCaseDialog } from "./MarkSpecialCaseDialog";
 import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
+import { CalcExceptionDialog } from "./CalcExceptionDialog";
 import { PaymentItemExplainButton } from "@/components/copilot/PaymentItemExplainButton";
 
 /** Botão "Sinalizar caso especial" para um item específico — só aparece
