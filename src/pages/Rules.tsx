@@ -1205,6 +1205,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       active: fActive,
       name: fName, description: fDescription || null, rule_text: fRuleText,
       severity: fSeverity, scope,
+      payment_type_id: fPaymentTypeId,
       target_type: isEspecifica ? targetType : null,
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
