@@ -80,7 +80,7 @@ All colors MUST be HSL.
     --ring-soft: 214 100% 32% / 0.2;
     --track-soft: 60 8% 80%;
 
-    --radius: 0.625rem;
+    --radius: 0.875rem;
 
     /* ── Sombras ────────────────────────────────────────── */
     --shadow-soft: 0 1px 2px 0 rgb(13 17 23 / 0.05), 0 1px 3px 0 rgb(13 17 23 / 0.04);
