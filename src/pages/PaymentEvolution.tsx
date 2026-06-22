@@ -26,7 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TrendingUp, ChevronRight, ChevronDown, ExternalLink, Download } from "lucide-react";
+import { TrendingUp, ChevronRight, ChevronDown, ExternalLink, Download, Filter, X, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { MultiSelectChips } from "@/components/MultiSelectChips";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   ResponsiveContainer,
   LineChart,
