@@ -1014,25 +1014,33 @@ All colors MUST be HSL.
     border: 0;
     border-radius: 0 !important;
     box-shadow: none !important;
-    text-decoration: underline transparent solid 2px;
-    text-underline-offset: 8px;
-    transition: color 0.12s ease, text-decoration-color 0.12s ease;
+    text-decoration: none !important;
+    transition: color 0.12s ease;
     outline: none;
   }
   .filter-tabs [data-state]:first-child { margin-left: 0; }
   .filter-tabs [data-state]:last-child { margin-right: 0; }
+  .filter-tabs__label {
+    text-decoration: underline transparent solid 2px;
+    text-underline-offset: 8px;
+    transition: text-decoration-color 0.12s ease;
+  }
   .filter-tabs [data-state]:not([data-state="active"]):hover,
   .filter-tabs [data-state]:not([data-state="active"]):focus-visible {
     color: hsl(var(--foreground));
+  }
+  .filter-tabs [data-state]:not([data-state="active"]):hover .filter-tabs__label,
+  .filter-tabs [data-state]:not([data-state="active"]):focus-visible .filter-tabs__label {
     text-decoration-color: hsl(var(--muted-foreground) / 0.5);
   }
   .filter-tabs [data-state="active"] {
     color: hsl(var(--primary)) !important;
     background: transparent !important;
+  }
+  .filter-tabs [data-state="active"] .filter-tabs__label {
     text-decoration-color: hsl(var(--primary));
   }
   .filter-tabs [data-state="active"]:focus-visible {
-    text-decoration-thickness: 2px;
     box-shadow: 0 0 0 2px hsl(var(--primary) / 0.18) !important;
     border-radius: 4px !important;
   }
