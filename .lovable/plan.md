@@ -113,6 +113,6 @@ Quando `allow_mixed_subtypes=true` no tipo escolhido:
 3. ✅ Modal de seleção pós-modo + persistência no payment
 4. ✅ Parser sensível ao tipo (TUSS default, função default)
 5. ✅ Detecção de linhas suspeitas com painel de revisão
-6. ⏳ Subtipos mistos
+6. ✅ Subtipos mistos
 
 Cada passo é shippable sozinho — recomendo aprovar e ir por etapas para validar com base real entre cada uma.
