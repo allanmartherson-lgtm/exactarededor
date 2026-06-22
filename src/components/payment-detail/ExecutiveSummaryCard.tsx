@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, RefreshCw, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { HighlightNarrative } from "./HighlightNarrative";
 
 type RiskLevel = "baixo" | "medio" | "alto" | "critico";
 interface ExecutiveSummary {
@@ -101,8 +102,10 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
   const canToggle = !!summary && (summary.bullets?.length > 0 || !!summary.recommended_action);
 
   return (
-    <Card className="shadow-card border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-      <CardContent className="p-4">
+    <Card className="shadow-card border-border/60 bg-card relative overflow-hidden">
+      {/* Filete azul lateral — acento Apple discreto */}
+      <div aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary/70" />
+      <CardContent className="p-5 pl-6">
         <div className="flex items-start justify-between gap-3">
           <button
             type="button"
@@ -116,7 +119,7 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
             )}
           >
             <Sparkles className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">Resumo IA</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">Resumo IA</span>
             {summary && (
               <Badge variant="outline" className={riskClasses[summary.risk_level]}>
                 {riskLabel[summary.risk_level]}
@@ -144,34 +147,37 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
         </div>
 
         {loading && !summary ? (
-          <div className="space-y-2 mt-2">
+          <div className="space-y-2 mt-3">
             <Skeleton className="h-4 w-4/5" />
             <Skeleton className="h-3 w-full" />
             <Skeleton className="h-3 w-11/12" />
           </div>
         ) : summary ? (
-          <div id="executive-summary-body" className="mt-2">
+          <div id="executive-summary-body" className="mt-3">
             <p
               className={cn(
-                "text-sm font-semibold leading-snug",
+                "text-[15px] leading-[1.55] text-foreground tracking-[-0.005em]",
                 !expanded && "line-clamp-2",
               )}
+              style={{ fontWeight: 500 }}
             >
-              {summary.headline}
+              <HighlightNarrative text={summary.headline} />
             </p>
             {expanded && (
               <>
-                <ul className="mt-2 space-y-1">
+                <ul className="mt-3 space-y-1.5">
                   {summary.bullets.map((b, i) => (
-                    <li key={i} className="text-xs text-foreground/90 flex gap-2 leading-relaxed">
-                      <span aria-hidden className="text-primary mt-[1px]">•</span>
-                      <span className="flex-1">{b}</span>
+                    <li key={i} className="text-[13px] text-foreground/90 flex gap-2 leading-relaxed">
+                      <span aria-hidden className="text-primary mt-[2px]">•</span>
+                      <span className="flex-1">
+                        <HighlightNarrative text={b} />
+                      </span>
                     </li>
                   ))}
                 </ul>
                 {summary.recommended_action && (
-                  <p className="text-xs italic text-foreground/80 mt-3 pt-3 border-t border-border/50">
-                    {summary.recommended_action}
+                  <p className="text-[13px] italic text-foreground/80 mt-3 pt-3 border-t border-border/50">
+                    <HighlightNarrative text={summary.recommended_action} />
                   </p>
                 )}
               </>
