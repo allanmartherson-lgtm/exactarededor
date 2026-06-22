@@ -7,60 +7,49 @@ interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: ReactNode;
-  /** Ícone exibido à esquerda do título, para reforçar a identidade visual da seção. */
+  /** Mantido por compatibilidade; não renderiza mais o quadradinho de ícone. */
   icon?: LucideIcon;
-  /** Mostra o botão "Voltar" à esquerda do título. Default: true. */
+  /** Mostra botão "Voltar" à esquerda do título. Default: false (navegação via breadcrumb). */
   showBack?: boolean;
-  /** Rota de fallback caso não haja histórico (ex: usuário entrou direto via URL). */
   backFallback?: string;
-  /** Fixa o cabeçalho no topo da viewport ao rolar. Default: false. */
+  /** Mantidos por compatibilidade; o novo header não fica mais sticky por default. */
   sticky?: boolean;
-  /** Offset (em px) onde o header deve "grudar". Útil quando há topbar global. Default: 56. */
   stickyOffset?: number;
 }
 
+/**
+ * PageHeader — Padrão visual unificado (Padrão BI).
+ *
+ * Renderizado transparente sobre o fundo da página, com título grande
+ * (text-3xl) e subtítulo discreto. Sem botão voltar por default — a
+ * navegação para trás fica a cargo do breadcrumb global. Ícone fica
+ * preservado na API mas não é renderizado para manter a estética limpa
+ * das telas de BI.
+ */
 export const PageHeader = ({
   title,
   description,
   actions,
-  icon: Icon,
-  showBack = true,
+  showBack = false,
   backFallback = "/",
-  sticky = false,
-  stickyOffset = 56,
 }: PageHeaderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleBack = () => {
-    // Permite que a rota anterior force um destino específico via location.state.backTo
-    // (ex.: depois de criar um pagamento, voltar deve ir para /pagamentos, não para o form).
     const forced = (location.state as { backTo?: string } | null)?.backTo;
     if (forced) {
       navigate(forced);
       return;
     }
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate(backFallback);
-    }
+    if (window.history.length > 1) navigate(-1);
+    else navigate(backFallback);
   };
 
   return (
-    <div
-      className={
-        sticky
-          ? "border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 px-6 py-3 sticky z-30"
-          : "border-b border-border bg-card px-6 py-4"
-      }
-      style={{
-        marginBottom: 16,
-        ...(sticky ? { top: stickyOffset } : {}),
-      }}
-    >
+    <div className="px-6 pt-6 pb-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 min-w-0">
           {showBack && (
             <Button
               type="button"
@@ -68,46 +57,23 @@ export const PageHeader = ({
               size="icon"
               onClick={handleBack}
               aria-label="Voltar"
-              className="-ml-2 mt-0.5 h-8 w-8 shrink-0"
+              className="-ml-2 mt-1 h-9 w-9 shrink-0"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
-          {Icon && (
-            <span
-              aria-hidden
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground shrink-0 mt-0.5"
-            >
-              <Icon className="h-4 w-4" />
-            </span>
-          )}
-          <div>
-            <h1
-              style={{
-                fontSize: 16,
-                fontWeight: 500,
-                color: "hsl(var(--foreground))",
-                letterSpacing: "-0.01em",
-                lineHeight: 1.3,
-              }}
-            >
+          <div className="min-w-0">
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground leading-tight">
               {title}
             </h1>
             {description && (
-              <p
-                style={{
-                  fontSize: 12.5,
-                  color: "hsl(var(--muted-foreground))",
-                  marginTop: 2,
-                  lineHeight: 1.4,
-                }}
-              >
-                {description}
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">{description}</p>
             )}
           </div>
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && (
+          <div className="flex items-center gap-2 flex-wrap shrink-0">{actions}</div>
+        )}
       </div>
     </div>
   );
