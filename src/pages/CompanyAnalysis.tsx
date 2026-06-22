@@ -2930,26 +2930,25 @@ function Stat({
   tone?: "muted" | "info" | "success" | "warning" | "destructive";
   icon?: React.ReactNode;
 }) {
-  // Cada tom tem: chip do ícone (fundo soft + texto da cor) e barra lateral.
-  const tones: Record<typeof tone, { chip: string; bar: string; value: string }> = {
-    muted: { chip: "bg-muted text-muted-foreground", bar: "bg-border", value: "text-foreground" },
-    info: { chip: "bg-info-soft text-info", bar: "bg-info", value: "text-foreground" },
-    success: { chip: "bg-success-soft text-success", bar: "bg-success", value: "text-foreground" },
-    warning: { chip: "bg-warning-soft text-warning-text", bar: "bg-warning", value: "text-foreground" },
-    destructive: { chip: "bg-destructive/10 text-destructive", bar: "bg-destructive", value: "text-foreground" },
+  // Bento: borda fininha + sombra suave + raio 2xl. Acento da cor SÓ no chip do ícone.
+  const tones: Record<typeof tone, { chip: string; value: string }> = {
+    muted: { chip: "bg-muted text-muted-foreground", value: "text-foreground" },
+    info: { chip: "bg-info-soft text-info", value: "text-foreground" },
+    success: { chip: "bg-success-soft text-success", value: "text-foreground" },
+    warning: { chip: "bg-warning-soft text-warning-text", value: "text-foreground" },
+    destructive: { chip: "bg-destructive/10 text-destructive", value: "text-foreground" },
   };
   const t = tones[tone];
   return (
-    <div className="relative overflow-hidden rounded-lg border bg-card shadow-soft">
-      <span aria-hidden className={cn("absolute left-0 top-0 h-full w-1", t.bar)} />
-      <div className="flex items-start gap-3 px-3 py-3 pl-4">
+    <div className="rounded-2xl border border-border/50 bg-card shadow-card">
+      <div className="flex items-start gap-3 px-3 py-3">
         {icon && (
-          <div className={cn("flex h-9 w-9 items-center justify-center rounded-md flex-shrink-0", t.chip)}>
+          <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0", t.chip)}>
             {icon}
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+          <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">{label}</div>
           <div className={cn("mt-1 text-lg sm:text-xl font-semibold leading-tight break-words", mono && "tabular-nums", t.value)}>{value}</div>
           {sub && <div className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">{sub}</div>}
         </div>
@@ -2990,12 +2989,7 @@ function DivergenceCard({
     ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
     "—";
   return (
-    <Card
-      className={cn(
-        "shadow-card border-l-4",
-        isCritico ? "border-l-destructive" : "border-l-warning",
-      )}
-    >
+    <Card className="shadow-card border-border/50 rounded-2xl">
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

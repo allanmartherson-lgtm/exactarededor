@@ -64,7 +64,7 @@ export function MinimumGuaranteeCard({ paymentId, companyId, canRecalc = false }
   if (loading || apps.length === 0) return null;
 
   return (
-    <Card className="p-3 space-y-2 border-l-4 border-l-primary">
+    <Card className="p-3 space-y-2 rounded-2xl border-border/50 shadow-card">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <ShieldCheck className="h-4 w-4 text-primary" />
