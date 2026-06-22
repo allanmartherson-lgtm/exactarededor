@@ -361,6 +361,9 @@ export interface ItemInput {
    *  cálculos com payment_type_id setado e cai no próximo cálculo elegível
    *  da regra resolvida (tipicamente o universal / percentual do convênio). */
   calc_exception_skip?: boolean | null;
+  /** ID do cálculo originalmente aplicado, guardado no momento da marcação,
+   *  para o motor saber exatamente qual cálculo pular. */
+  calc_exception_skipped_calc_id?: string | null;
 }
 
 export interface PaymentContext {
