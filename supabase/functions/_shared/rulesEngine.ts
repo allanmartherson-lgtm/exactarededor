@@ -350,6 +350,9 @@ export interface ItemInput {
   special_case_code?: string | null;
   /** Status da marcação: 'pending' | 'approved' | 'rejected' | 'revoked' | null. */
   special_case_status?: string | null;
+  /** payment_type_id do pagamento a que o item pertence — usado pelo filtro
+   *  de tipo no nível do cálculo (`rule_calculations.payment_type_id`). */
+  payment_type_id?: string | null;
 }
 
 export interface PaymentContext {
