@@ -357,6 +357,10 @@ export interface ItemInput {
   /** payment_type_id do pagamento a que o item pertence — usado pelo filtro
    *  de tipo no nível do cálculo (`rule_calculations.payment_type_id`). */
   payment_type_id?: string | null;
+  /** Exceção do cálculo marcada pelo analista: quando true, o motor pula
+   *  cálculos com payment_type_id setado e cai no próximo cálculo elegível
+   *  da regra resolvida (tipicamente o universal / percentual do convênio). */
+  calc_exception_skip?: boolean | null;
 }
 
 export interface PaymentContext {
