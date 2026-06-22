@@ -105,7 +105,7 @@ const LoginAnimation = () => {
             className="text-white"
             style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 32, fontWeight: 400, letterSpacing: '0.04em', lineHeight: 1 }}
           >
-            E<span style={{ color: '#C8A96E' }}>x</span>acta
+            E<span style={{ color: 'hsl(var(--accent))' }}>x</span>acta
           </p>
           <p
             className="text-white/40 uppercase"
