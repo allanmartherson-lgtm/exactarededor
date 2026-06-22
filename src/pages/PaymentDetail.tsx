@@ -3413,6 +3413,7 @@ const PaymentDetail = () => {
 
 
                 <AlertDialogAction
+                  className="w-full sm:w-auto whitespace-normal text-center h-auto min-h-10 py-2"
                   onClick={async () => {
                     const prontos = pendingSendState?.prontos ?? [];
                     const pendentes = pendingSendState?.pendentes ?? [];
