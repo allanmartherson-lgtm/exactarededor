@@ -1021,7 +1021,7 @@ All colors MUST be HSL.
     color: hsl(var(--foreground));
   }
   .filter-tabs [data-state="active"] {
-    color: hsl(var(--primary));
+    color: hsl(var(--primary)) !important;
     border-bottom-color: hsl(var(--primary));
     background: transparent !important;
   }
