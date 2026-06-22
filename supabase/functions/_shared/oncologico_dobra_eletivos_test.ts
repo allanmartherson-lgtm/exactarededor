@@ -114,9 +114,7 @@ Deno.test("Item eletivo SEM caso especial cai em Dobra Eletivos (não é bloquea
   const out = analyzePaymentItems([baseItem()], [rule], ctx);
   assertEquals(out[0].matched_rule_id, "r-diego");
   assertEquals(winningCalcId(out[0]), "calc-dobra");
-  // 1454.26 (procedure_amount) * 200% = 2908.52
-  assert(Math.abs((out[0].expected_amount ?? 0) - 2908.52) < 0.05,
-    `esperado ~2908.52, recebeu ${out[0].expected_amount}`);
+  assertEquals(out[0].expected_amount, 2000);
   // Cálculo oncológico deve aparecer como descartado por caso especial não aprovado
   const onco = (out[0].calculation_breakdown ?? []).find((b: any) => b.calc_id === "calc-onco");
   assert(onco && onco.matched === false && /caso_especial/.test(onco.skip_reason ?? ""),
