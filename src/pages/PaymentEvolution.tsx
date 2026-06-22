@@ -465,19 +465,114 @@ export default function PaymentEvolution() {
             </TabsList>
           </Tabs>
           <Select value={window} onValueChange={(v) => setWindow(v as Window)}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="6m">Últimos 6 meses</SelectItem>
               <SelectItem value="12m">Últimos 12 meses</SelectItem>
               <SelectItem value="ytd">YTD (ano atual)</SelectItem>
+              <SelectItem value="custom">Período personalizado</SelectItem>
             </SelectContent>
           </Select>
+          {window === "custom" && (
+            <>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("font-normal", !customStart && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customStart ? format(customStart, "MMM/yy", { locale: ptBR }) : "Início"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customStart} onSelect={setCustomStart} initialFocus className="pointer-events-auto p-3" />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("font-normal", !customEnd && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customEnd ? format(customEnd, "MMM/yy", { locale: ptBR }) : "Fim"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customEnd} onSelect={setCustomEnd} initialFocus className="pointer-events-auto p-3" />
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="font-normal">
+                <Filter className="mr-2 h-4 w-4" />
+                Filtros
+                {activeFilterCount > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5">{activeFilterCount}</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[360px] p-4 space-y-4" align="start">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Centro de custo</label>
+                <MultiSelectChips
+                  values={ccFilter}
+                  onChange={setCcFilter}
+                  options={ccOptions.map((o) => o.label)}
+                  allowCustom={false}
+                  placeholder="Todos"
+                  emptyHint="Vazio = todos os CCs."
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Empresa (PJ)</label>
+                <MultiSelectChips
+                  values={companyFilter}
+                  onChange={setCompanyFilter}
+                  options={companyOptions}
+                  allowCustom={false}
+                  placeholder="Todas"
+                  emptyHint="Vazio = todas as empresas."
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Convênio</label>
+                <MultiSelectChips
+                  values={convenioFilter}
+                  onChange={setConvenioFilter}
+                  options={convenioOptions}
+                  allowCustom={false}
+                  placeholder="Todos"
+                  emptyHint="Vazio = todos os convênios."
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipo de pagamento</label>
+                <MultiSelectChips
+                  values={typeFilter}
+                  onChange={setTypeFilter}
+                  options={typeOptions}
+                  allowCustom={false}
+                  placeholder="Todos"
+                  emptyHint="Vazio = todos os tipos."
+                />
+              </div>
+              {activeFilterCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
+                  <X className="h-3 w-3 mr-1" /> Limpar filtros
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+          {activeFilterCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-muted-foreground">
+              Limpar filtros
+            </Button>
+          )}
           {mode === "caixa" && (
             <span className="text-xs text-muted-foreground">
               Caixa = pagamentos com status <code>pago</code> (data de atualização).
             </span>
           )}
         </div>
+
 
         {/* KPIs */}
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
