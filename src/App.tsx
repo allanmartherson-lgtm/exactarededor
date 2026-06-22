@@ -25,6 +25,7 @@ import ForceChangePassword from "./pages/ForceChangePassword.tsx";
 // para podermos dispará-los como prefetch em idle (ver IdlePrefetcher abaixo).
 const loadDashboard = () => import("./pages/Dashboard.tsx");
 const loadExecutiveDashboard = () => import("./pages/ExecutiveDashboard.tsx");
+const loadBiDiretoria = () => import("./pages/BiDiretoria.tsx");
 const loadAgingRecebiveis = () => import("./pages/AgingRecebiveis.tsx");
 const loadHealthMonitoring = () => import("./pages/HealthMonitoring.tsx");
 const loadPayments = () => import("./pages/Payments.tsx");
