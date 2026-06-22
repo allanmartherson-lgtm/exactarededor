@@ -835,6 +835,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFActive(true);
     setFName(""); setFDescription(""); setFRuleText("");
     setFSeverity("aviso");
+    setFPaymentTypeId(null);
     setScope("master"); setTargetType("medico");
     setFTargetIdentifier(""); setFTargetName(""); setFTargetDoctorId(null); setFTargetCompanyId(null);
     setRefTableId(""); setFExceptionTableIds([]); setFSpecialCaseFilter([]);
