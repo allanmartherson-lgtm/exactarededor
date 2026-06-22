@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { Upload, Loader2, Download, FlaskConical, AlertTriangle, XCircle, CheckCircle2, Building2 } from "lucide-react";
+import { KpiCard } from "@/components/ui/KpiCard";
 
 type Status = "ok" | "sem_regra" | "divergente" | "hospital_errado";
 
@@ -260,25 +261,25 @@ export default function RuleSimulatorBatch({ embedded = false }: { embedded?: bo
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {(["ok","divergente","sem_regra","hospital_errado"] as Status[]).map((s) => {
-                const meta = STATUS_LABEL[s]; const Icon = meta.icon;
+                const meta = STATUS_LABEL[s];
                 const count = summary[s];
                 const active = filter === s;
                 return (
-                  <button key={s}
-                    onClick={() => setFilter(active ? "all" : s)}
-                    className={`rounded-lg border p-4 text-left transition hover:bg-muted/50 ${active ? "ring-2 ring-primary" : ""}`}>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Icon className="h-4 w-4" /> {meta.label}
-                    </div>
-                    <div className="text-2xl font-bold mt-1">{count}</div>
+                  <button key={s} onClick={() => setFilter(active ? "all" : s)} className="text-left w-full">
+                    <KpiCard
+                      label={meta.label}
+                      value={count}
+                      tone={s === "ok" ? "success" : s === "divergente" ? "danger" : s === "sem_regra" ? "warning" : "default"}
+                      className={active ? "ring-2 ring-primary" : ""}
+                    />
                   </button>
                 );
               })}
-              <div className="rounded-lg border p-4">
-                <div className="text-sm text-muted-foreground">Regras ativas</div>
-                <div className="text-2xl font-bold mt-1">{summary.rules_hospital}</div>
-                <div className="text-xs text-muted-foreground">+{summary.rules_other} em outros hospitais</div>
-              </div>
+              <KpiCard
+                label="Regras ativas"
+                value={summary.rules_hospital}
+                hint={`+${summary.rules_other} em outros hospitais`}
+              />
             </div>
             <div className="flex justify-between items-center mt-4">
               <Button variant="ghost" size="sm" onClick={() => setFilter("all")} disabled={filter === "all"}>

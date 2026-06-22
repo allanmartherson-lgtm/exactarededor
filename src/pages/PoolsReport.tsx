@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "react-router-dom";
+import { KpiCard } from "@/components/ui/KpiCard";
 
 type Run = {
   id: string;
@@ -122,11 +123,11 @@ export default function PoolsReport({ embedded = false }: { embedded?: boolean }
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Execuções</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{totals.count}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Base total</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{brl(totals.base)}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Deduções</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">−{brl(totals.deducoes)}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Bolo líquido</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{brl(totals.bolo)}</div></CardContent></Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard label="Execuções" value={totals.count} tone="default" />
+        <KpiCard label="Base total" value={brl(totals.base)} tone="default" />
+        <KpiCard label="Deduções" value={`−${brl(totals.deducoes)}`} tone="danger" />
+        <KpiCard label="Bolo líquido" value={brl(totals.bolo)} tone="success" />
       </div>
 
       <Card>
