@@ -1704,6 +1704,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     agreement_match_mode: c.agreement_aliases.length > 0 ? c.agreement_match_mode : null,
     doctor_roles: c.doctor_roles.length > 0 ? c.doctor_roles : null,
     special_case_filter: c.special_case_filter.length > 0 ? c.special_case_filter : null,
+    payment_type_id: c.payment_type_id ?? null,
     context_conditions: c.calculation_type === "valor_fixo"
       ? c.context_conditions
           .filter((cc) => cc.trigger_codes.length > 0)
