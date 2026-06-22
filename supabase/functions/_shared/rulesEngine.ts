@@ -348,6 +348,8 @@ export interface PaymentContext {
   sectors: string[];
   specialties: string[];
   payment_type: string | null;
+  /** FK para payment_types.id — usado para filtrar regras com payment_type_id setado. */
+  payment_type_id?: string | null;
   reference_date: string;
   globalExceptionTableIds?: string[];
 }
