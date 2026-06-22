@@ -260,7 +260,10 @@ serve(async (req) => {
           const ageMs = Date.now() - new Date(cacheRow.built_at as string).getTime();
           if (ageMs < CONTEXT_TTL_MS) {
             const ctxJ = cacheRow.context as any;
-            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs)) {
+            // Bust cache se snapshot foi gerado antes de incluirmos payment_type_id
+            // nas regras (caso contrário, filtro por tipo não funciona até TTL expirar).
+            const snapshotHasTypeField = !ctxJ.rules.length || ("payment_type_id" in ctxJ.rules[0]);
+            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField) {
               cachedRulesAll = ctxJ.rules;
               cachedCalcsByRule = ctxJ.calcs_by_rule;
               cachedConfigs = ctxJ.configs;
