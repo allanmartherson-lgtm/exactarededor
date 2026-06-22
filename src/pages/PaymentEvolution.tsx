@@ -31,6 +31,7 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  LabelList,
   XAxis,
   YAxis,
   Tooltip,
