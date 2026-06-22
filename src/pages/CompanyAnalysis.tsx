@@ -354,6 +354,23 @@ export default function CompanyAnalysis() {
     compMode,
   );
 
+  // Detecta automaticamente edições em regras/débitos/créditos/glosas que
+  // impactam esta empresa após o último processamento. Mostra banner pedindo
+  // rean\u00e1lise — o usu\u00e1rio decide quando aplicar (escolha explicitada na conversa).
+  const doctorIdsForStale = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of items) {
+      const did = (it as any).doctor_id as string | null | undefined;
+      if (did) set.add(did);
+    }
+    return Array.from(set);
+  }, [items]);
+  const stale = useStaleAnalysisIndicator({
+    companyId: group?.company_id ?? null,
+    doctorIds: doctorIdsForStale,
+    enabled: !!id && !!group?.company_id,
+  });
+
 
 
 
