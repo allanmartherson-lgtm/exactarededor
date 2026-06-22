@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, AlertTriangle, TrendingUp } from "lucide-react";
+import { Calendar, AlertTriangle, TrendingUp, ChevronRight, AlertCircle, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 
@@ -117,6 +117,74 @@ function HeroSparkline({ data, height = 180 }: { data: number[]; height?: number
       ))}
       <path d={path} fill="none" stroke="white" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
       <circle cx={last[0]} cy={last[1]} r={5} fill="white" />
+    </svg>
+  );
+}
+
+// ---------- Evolution chart (area + dashed line) ----------
+function EvolutionChart({ data, height = 260 }: { data: number[]; height?: number }) {
+  const width = 720;
+  const pad = 36;
+  if (data.length < 2) return null;
+  const max = Math.max(...data);
+  const min = 0;
+  const range = Math.max(1, max - min);
+  const stepX = (width - pad * 2) / (data.length - 1);
+  const points = data.map((v, i) => {
+    const x = pad + i * stepX;
+    const y = height - pad - ((v - min) / range) * (height - pad * 2);
+    return [x, y] as const;
+  });
+  // "Em risco" line: small fraction of processed, with some noise
+  const riskPoints = data.map((v, i) => {
+    const x = pad + i * stepX;
+    const r = v * (0.08 + (i % 3) * 0.015);
+    const y = height - pad - ((r - min) / range) * (height - pad * 2);
+    return [x, y] as const;
+  });
+  const linePath = (pts: readonly (readonly [number, number])[]) =>
+    pts.reduce((acc, [x, y], i) => acc + (i === 0 ? `M${x},${y}` : ` L${x},${y}`), "");
+  const areaPath =
+    linePath(points) +
+    ` L${points[points.length - 1][0]},${height - pad} L${points[0][0]},${height - pad} Z`;
+  const last = points[points.length - 1];
+  const ymarks = [0, 0.5, 1, 1.5, 2].map((v) => v * 1_000_000).filter((v) => v <= max * 1.05);
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ width: "100%", height, display: "block" }} aria-hidden>
+      <defs>
+        <linearGradient id="bi-area-grad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {/* grid lines */}
+      {ymarks.map((v) => {
+        const y = height - pad - ((v - min) / range) * (height - pad * 2);
+        return (
+          <g key={v}>
+            <line x1={pad} x2={width - pad} y1={y} y2={y} stroke="hsl(var(--border))" strokeWidth={1} />
+            <text x={pad - 6} y={y + 3} textAnchor="end" fontSize={10} fill="hsl(var(--muted-foreground))">
+              {v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1).replace(".", ",")}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
+            </text>
+          </g>
+        );
+      })}
+      <path d={areaPath} fill="url(#bi-area-grad)" />
+      <path d={linePath(points)} fill="none" stroke="hsl(var(--primary))" strokeWidth={2.5} strokeLinejoin="round" />
+      <path d={linePath(riskPoints)} fill="none" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="6 4" />
+      <circle cx={last[0]} cy={last[1]} r={5} fill="hsl(var(--primary))" />
+      {/* x labels */}
+      {data.map((_, i) => {
+        const x = pad + i * stepX;
+        const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        const idx = (new Date().getMonth() - (data.length - 1 - i) + 12) % 12;
+        return (
+          <text key={i} x={x} y={height - 8} textAnchor="middle" fontSize={10} fill="hsl(var(--muted-foreground))">
+            {months[idx]}
+          </text>
+        );
+      })}
     </svg>
   );
 }
@@ -381,8 +449,302 @@ export default function BiDiretoria() {
         </div>
       </div>
 
-      <div className="text-xs text-muted-foreground text-center pt-4">
-        Restante da página (KPIs, Funil, Evolução, Por analista) virá na próxima entrega.
+      {/* ===== Linha de 4 KPIs ===== */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Valor em risco */}
+        <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
+          <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Valor em risco</div>
+          <div className="mt-3 text-4xl font-light tracking-tight text-destructive tabular-nums">{fmtFull(display.valorRisco)}</div>
+          <div className="mt-4 flex items-end gap-1 h-8">
+            {[40, 55, 50, 70, 95, 45].map((h, i) => (
+              <div
+                key={i}
+                className="flex-1 rounded-sm"
+                style={{
+                  height: `${h}%`,
+                  background: i === 4 ? "hsl(var(--destructive))" : "hsl(var(--destructive) / 0.35)",
+                }}
+              />
+            ))}
+          </div>
+          <div className="mt-3 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">1,7%</span> do total ·{" "}
+            <span className="font-semibold text-foreground">1 lote crítico</span>
+          </div>
+        </div>
+
+        {/* Ciclo médio */}
+        <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
+          <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Ciclo médio</div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-4xl font-light tracking-tight text-foreground tabular-nums">1,8</span>
+            <span className="text-base text-muted-foreground">dia</span>
+          </div>
+          <div className="mt-4">
+            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 text-success px-2.5 py-1 text-xs font-medium">
+              <TrendingUp className="h-3 w-3" /> 0,4d mais rápido
+            </span>
+          </div>
+          <div className="mt-3 text-xs text-muted-foreground">
+            Da validação ao <span className="font-semibold text-foreground">pagamento</span>
+          </div>
+        </div>
+
+        {/* Itens aprovados */}
+        <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
+          <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Itens aprovados</div>
+          <div className="mt-3 text-4xl font-light tracking-tight text-foreground tabular-nums">95,5%</div>
+          <div className="mt-4 flex items-center gap-1.5 h-6">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="flex-1 h-full rounded"
+                style={{ background: i === 5 ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.15)" }}
+              />
+            ))}
+          </div>
+          <div className="mt-3 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">21 de 22</span> itens · último lote
+          </div>
+        </div>
+
+        {/* Glosas */}
+        <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
+          <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Glosas registradas</div>
+          <div className="mt-3 text-4xl font-light tracking-tight text-foreground tabular-nums">R$ 0</div>
+          <div className="mt-4">
+            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 text-success px-2.5 py-1 text-xs font-medium">
+              Zero glosas
+            </span>
+          </div>
+          <div className="mt-3 text-xs text-muted-foreground">0 divergências de conciliação neste mês</div>
+        </div>
+      </div>
+
+      {/* ===== Funil de aprovação ===== */}
+      <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Funil de aprovação</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              valor em cada etapa · {display.lotesAtivos} lotes ativos
+            </div>
+          </div>
+          <Link to="/pagamentos" className="text-sm font-medium text-primary hover:underline">
+            Ver detalhes ›
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-stretch">
+          {[
+            { label: "Validação", count: 1, valor: "R$ 431.478", pct: 25, tone: "info" },
+            { label: "Análise IA", count: 2, valor: "R$ 612.040", pct: 50, tone: "info" },
+            { label: "Aprovação dir.", count: 3, valor: "R$ 874.314", pct: 70, tone: "info" },
+            { label: "Pós-aprov. NF", count: 0, valor: "aguardando", pct: 10, tone: "muted" },
+            { label: "Pago", count: "R$ 1,2mi", valor: `${display.encerrados} lotes no mês`, pct: 100, tone: "success" },
+          ].map((step, i, arr) => {
+            const isPago = step.tone === "success";
+            const isMuted = step.tone === "muted";
+            const accent = isPago
+              ? "hsl(var(--success))"
+              : isMuted
+              ? "hsl(var(--muted-foreground) / 0.4)"
+              : "hsl(var(--primary))";
+            return (
+              <div key={step.label} className="relative">
+                <div className="rounded-xl bg-muted/30 border border-border/60 p-4 h-full flex flex-col">
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
+                    {step.label}
+                  </div>
+                  <div
+                    className={`mt-3 text-3xl font-light tracking-tight tabular-nums ${
+                      isPago ? "text-success" : isMuted ? "text-muted-foreground" : "text-foreground"
+                    }`}
+                  >
+                    {step.count}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">{step.valor}</div>
+                  <div className="mt-3 h-1 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${step.pct}%`, background: accent }} />
+                  </div>
+                </div>
+                {i < arr.length - 1 && (
+                  <ChevronRight className="hidden lg:block absolute -right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/40 z-10" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ===== Evolução mensal + Por analista ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 rounded-2xl bg-card border border-border p-6 shadow-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Evolução mensal</div>
+              <div className="mt-1 text-sm text-muted-foreground">processado vs. em risco · 6 meses</div>
+            </div>
+            <div className="flex items-center gap-4 text-xs">
+              <span className="flex items-center gap-2 text-foreground">
+                <span className="h-0.5 w-5 bg-primary rounded-full" /> Processado
+              </span>
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span
+                  className="h-0.5 w-5 rounded-full"
+                  style={{ background: "repeating-linear-gradient(to right, hsl(var(--destructive)) 0 4px, transparent 4px 8px)" }}
+                />{" "}
+                Em risco
+              </span>
+            </div>
+          </div>
+          <EvolutionChart data={display.spark} />
+        </div>
+
+        <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
+          <div>
+            <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Por analista</div>
+            <div className="mt-1 text-sm text-muted-foreground">valor revisado · junho</div>
+          </div>
+          <div className="mt-5 space-y-4">
+            {[
+              { name: "Allan Araújo", initials: "AA", color: "bg-primary/15 text-primary", valor: "R$ 684k", pct: 92 },
+              { name: "Diego Burgardt", initials: "DB", color: "bg-success/15 text-success", valor: "R$ 548k", pct: 74 },
+              { name: "Marina Rocha", initials: "MR", color: "bg-violet-500/15 text-violet-500", valor: "R$ 431k", pct: 58 },
+              { name: "Caio Lima", initials: "CL", color: "bg-amber-500/15 text-amber-600", valor: "R$ 254k", pct: 34 },
+            ].map((a) => (
+              <div key={a.name} className="flex items-center gap-3">
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${a.color}`}>
+                  {a.initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-foreground truncate">{a.name}</div>
+                  <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${a.pct}%` }} />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-semibold text-foreground tabular-nums">{a.valor}</div>
+                  <div className="text-[10px] text-muted-foreground tabular-nums">{a.pct}%</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 text-[11px] text-muted-foreground">Atualizado há 4 min · base Hospital DF Star</div>
+        </div>
+      </div>
+
+      {/* ===== Top empresas + Alertas assistenciais ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 rounded-2xl bg-card border border-border p-6 shadow-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Top empresas</div>
+            <Link to="/empresas" className="text-sm font-medium text-primary hover:underline">
+              Ver todas ›
+            </Link>
+          </div>
+          <div className="grid grid-cols-12 gap-2 text-[10px] font-semibold tracking-[0.1em] uppercase text-muted-foreground pb-2 border-b border-border">
+            <div className="col-span-4">Empresa</div>
+            <div className="col-span-1 text-right">Itens</div>
+            <div className="col-span-3">Volume</div>
+            <div className="col-span-2 text-right">Valor líq.</div>
+            <div className="col-span-2 text-right">Status</div>
+          </div>
+          {[
+            { name: "Cirurgia Cardíaca SA", itens: 142, valor: "R$ 412.880", pct: 90, status: "Aprovado", tone: "success" },
+            { name: "Ortopedia Avançada", itens: 98, valor: "R$ 284.320", pct: 65, status: "Aprovado", tone: "success" },
+            { name: "Hemodinâmica DF", itens: 74, valor: "R$ 215.400", pct: 48, status: "Em análise", tone: "warning" },
+            { name: "Oncologia Central", itens: 56, valor: "R$ 162.960", pct: 35, status: "Aprovado", tone: "success" },
+            { name: "UTI Neonatal Esp.", itens: 57, valor: "R$ 7.619", pct: 2, status: "Risco", tone: "destructive" },
+          ].map((row) => {
+            const toneClass =
+              row.tone === "success"
+                ? "bg-success/15 text-success"
+                : row.tone === "warning"
+                ? "bg-amber-500/15 text-amber-600"
+                : "bg-destructive/15 text-destructive";
+            return (
+              <div key={row.name} className="grid grid-cols-12 gap-2 items-center py-3 border-b border-border last:border-0 text-sm">
+                <div className="col-span-4 text-foreground">{row.name}</div>
+                <div className="col-span-1 text-right text-foreground tabular-nums">{row.itens}</div>
+                <div className="col-span-3">
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${row.pct}%` }} />
+                  </div>
+                </div>
+                <div className="col-span-2 text-right text-foreground tabular-nums">{row.valor}</div>
+                <div className="col-span-2 text-right">
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}>{row.status}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Alertas assistenciais</div>
+            <span className="inline-flex items-center rounded-full bg-destructive/15 text-destructive px-2.5 py-1 text-xs font-semibold">
+              2 abertos
+            </span>
+          </div>
+          <div className="space-y-3">
+            {[
+              {
+                icon: AlertCircle,
+                tone: "amber",
+                title: "Duplicidade de Atendimento",
+                meta: "UTI Neonatal · 2 ocorrências · R$ 2.030,54",
+                time: "agora",
+              },
+              {
+                icon: Search,
+                tone: "muted",
+                title: "Anomalia comportamental detectada",
+                meta: "Hemodinâmica DF · padrão incomum de cobrança",
+                time: "2h",
+              },
+              {
+                icon: null,
+                tone: "success",
+                title: "Cirurgia Cardíaca SA aprovada",
+                meta: "142 itens · R$ 412.880 · sem divergências",
+                time: "3h",
+                check: true,
+              },
+              {
+                icon: null,
+                tone: "success",
+                title: "Oncologia Central aprovada",
+                meta: "56 itens · R$ 162.960 · automático pela IA",
+                time: "5h",
+                check: true,
+              },
+            ].map((a, i) => {
+              const Icon = a.icon;
+              const bubble =
+                a.tone === "amber"
+                  ? "bg-amber-500/15 text-amber-600"
+                  : a.tone === "success"
+                  ? "bg-success/15 text-success"
+                  : "bg-muted text-muted-foreground";
+              return (
+                <div key={i} className="flex items-start gap-3">
+                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bubble}`}>
+                    {Icon ? <Icon className="h-4 w-4" /> : a.check ? <span className="text-sm">✓</span> : null}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-sm font-semibold text-foreground">{a.title}</div>
+                      <div className="text-[11px] text-muted-foreground flex-shrink-0">{a.time}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{a.meta}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
