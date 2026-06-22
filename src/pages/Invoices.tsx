@@ -297,7 +297,7 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
           <TabsList className="filter-tabs">
             {TAB_ORDER.map((t) => (
               <TabsTrigger key={t.key} value={t.key}>
-                {t.label}
+                <span className="filter-tabs__label">{t.label}</span>
                 <span className="filter-tabs__count">{counts[t.key]}</span>
               </TabsTrigger>
             ))}
