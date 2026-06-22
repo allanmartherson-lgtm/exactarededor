@@ -139,16 +139,16 @@ export const NfPhaseSummary = ({ groups, invoices }: Props) => {
     },
   ];
 
-  const toneClass = (tone: string) => {
+  const toneChip = (tone: string) => {
     switch (tone) {
       case "alert":
-        return "border-l-destructive";
+        return "bg-destructive/10 text-destructive";
       case "warning":
-        return "border-l-amber-500";
+        return "bg-warning-soft text-warning-text";
       case "success":
-        return "border-l-emerald-500";
+        return "bg-success-soft text-success";
       default:
-        return "border-l-border";
+        return "bg-muted text-muted-foreground";
     }
   };
 
@@ -182,20 +182,19 @@ export const NfPhaseSummary = ({ groups, invoices }: Props) => {
           {tiles.map((t) => {
             const Icon = t.icon;
             return (
-              <div
-                key={t.label}
-                className={`border-l-2 ${toneClass(t.tone)} pl-3 py-1.5 min-w-0`}
-              >
-                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <Icon className="h-3 w-3" />
-                  <span className="truncate">{t.label}</span>
+              <div key={t.label} className="py-1.5 min-w-0 flex items-start gap-2">
+                <div className={`flex h-7 w-7 items-center justify-center rounded-lg flex-shrink-0 ${toneChip(t.tone)}`}>
+                  <Icon className="h-3.5 w-3.5" />
                 </div>
-                <p className={`text-2xl font-semibold tabular-nums leading-tight ${valueClass(t.tone)}`}>
-                  {t.value}
-                </p>
-                {t.sub && (
-                  <p className="text-[10px] text-muted-foreground truncate">{t.sub}</p>
-                )}
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase tracking-[0.04em] text-muted-foreground truncate">{t.label}</div>
+                  <p className={`text-2xl font-semibold tabular-nums leading-tight ${valueClass(t.tone)}`}>
+                    {t.value}
+                  </p>
+                  {t.sub && (
+                    <p className="text-[10px] text-muted-foreground truncate">{t.sub}</p>
+                  )}
+                </div>
               </div>
             );
           })}
