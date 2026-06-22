@@ -10,7 +10,7 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* ── Superfícies ─────────────────────────────────────── */
-    --background: 48 9% 95.5%;            /* off-white mais presente p/ separar dos cards brancos */
+    --background: 0 0% 96.1%;            /* #f5f5f7 cinza Apple — cards brancos flutuam */
     --foreground: 214 28% 7%;            /* #0D1117 quase-preto (ink) */
 
     --card: 0 0% 100%;                   /* #FFFFFF */
@@ -80,7 +80,7 @@ All colors MUST be HSL.
     --ring-soft: 214 100% 32% / 0.2;
     --track-soft: 60 8% 80%;
 
-    --radius: 0.875rem;
+    --radius: 0.75rem;
 
     /* ── Sombras ────────────────────────────────────────── */
     --shadow-soft: 0 1px 2px 0 rgb(13 17 23 / 0.05), 0 1px 3px 0 rgb(13 17 23 / 0.04);
@@ -150,14 +150,14 @@ All colors MUST be HSL.
 
   .dark {
     /* ── Superfícies — base ink (#0D1117) ─────────────────── */
-    --background: 214 22% 10%;           /* fundo um pouco mais claro p/ reduzir contraste com cards */
-    --foreground: 60 12% 90%;
+    --background: 214 22% 11%;           /* fundo dark profundo */
+    --foreground: 210 17% 93%;
 
-    --card: 214 16% 17%;                 /* mais separação do fundo */
-    --card-foreground: 60 12% 90%;
+    --card: 214 16% 17%;                 /* card ligeiramente acima do bg */
+    --card-foreground: 210 17% 93%;
 
-    --popover: 214 22% 13%;
-    --popover-foreground: 60 15% 92%;
+    --popover: 214 16% 17%;
+    --popover-foreground: 210 17% 93%;
 
     /* ── Brand: verde mais claro no dark ─────────────────── */
     --primary: 211 90% 62%;              /* azul Apple claro p/ dark mode */
@@ -1362,9 +1362,6 @@ All colors MUST be HSL.
  * ============================================================ */
 .app-topbar-navy .font-wordmark,
 .app-topbar-navy .font-wordmark * {
-  color: #ffffff !important;
+  /* no-op: topbar reverted to light */
 }
-.app-topbar-navy button,
-.app-topbar-navy [role="button"] {
-  border-color: transparent !important;
-}
+
