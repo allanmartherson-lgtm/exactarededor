@@ -935,10 +935,10 @@ export const AppLayout = () => {
                 end={item.to === "/"}
                 onClick={() => setMobileNavOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] transition-colors",
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] transition-colors disabled:opacity-50 disabled:pointer-events-none",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
                 )}
               >
                 <item.icon size={20} strokeWidth={1.75} className="flex-shrink-0" />

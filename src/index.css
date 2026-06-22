@@ -356,6 +356,26 @@ All colors MUST be HSL.
   }
 }
 
+/* ============================================================
+   Mobile token overrides (< 768px)
+   Remapeia --accent* para o azul da sidebar para garantir que
+   TODOS os componentes shadcn (dropdown, menu, dialog, command,
+   navigation, calendar, toggle, etc.) e estados hover/focus/
+   disabled/loading sigam o tema padrão no mobile, sem exceções.
+   ============================================================ */
+@media (max-width: 767px) {
+  :root {
+    --accent: var(--sidebar-accent);
+    --accent-foreground: var(--sidebar-accent-foreground);
+    --accent-light: var(--sidebar-accent);
+  }
+  .dark {
+    --accent: var(--sidebar-accent);
+    --accent-foreground: var(--sidebar-accent-foreground);
+    --accent-light: var(--sidebar-accent);
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
