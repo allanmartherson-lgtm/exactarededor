@@ -6,6 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -31,7 +33,7 @@ Deno.serve(async (req) => {
     }
 
     const summary: any = {
-      debitos: { proposed: 0, skipped_existing: 0, items: [] as any[] },
+      debitos: { proposed: 0, updated_existing: 0, skipped_existing: 0, reverted_stale: 0, items: [] as any[] },
       glosas:  { proposed: 0, skipped_existing: 0, ambiguous: 0, sem_pj: 0, items: [] as any[] },
     };
 
@@ -44,18 +46,76 @@ Deno.serve(async (req) => {
 
     const { data: existingCaa } = await supabase
       .from("company_adjustment_applications")
-      .select("adjustment_id, status")
+      .select("id, adjustment_id, status, source, valor_aplicado, parcela_numero")
       .eq("payment_id", payment_id)
-      .in("status", ["proposto", "confirmado"]);
+      .eq("company_id", company_id);
 
-    const existingAdjIds = new Set((existingCaa ?? []).map((r: any) => r.adjustment_id));
+    const existingByAdj = new Map<string, any[]>();
+    for (const row of existingCaa ?? []) {
+      const rows = existingByAdj.get((row as any).adjustment_id) ?? [];
+      rows.push(row);
+      existingByAdj.set((row as any).adjustment_id, rows);
+    }
+
+    const activeAdjustmentIds = new Set((adjustments ?? []).map((a: any) => a.id));
+    for (const row of existingCaa ?? []) {
+      if ((row as any).status === "proposto" && (row as any).source === "auto" && !activeAdjustmentIds.has((row as any).adjustment_id)) {
+        await supabase.from("company_adjustment_applications")
+          .update({ status: "revertido", reverted_at: new Date().toISOString(), reverted_by: user_id, reverted_reason: "Ajuste financeiro inativo/removido antes da reaplicação" })
+          .eq("id", (row as any).id);
+        summary.debitos.reverted_stale++;
+      }
+    }
 
     for (const adj of adjustments ?? []) {
-      if (existingAdjIds.has(adj.id)) { summary.debitos.skipped_existing++; continue; }
       const restantes = (adj.parcelas_total ?? 1) - (adj.parcelas_pagas ?? 0);
-      if (restantes <= 0) continue;
-      const parcelaValor = Number(adj.valor_total) / Number(adj.parcelas_total);
+      const existingRows = existingByAdj.get(adj.id) ?? [];
+      if (restantes <= 0) {
+        for (const row of existingRows.filter((r: any) => r.status === "proposto" && r.source === "auto")) {
+          await supabase.from("company_adjustment_applications")
+            .update({ status: "revertido", reverted_at: new Date().toISOString(), reverted_by: user_id, reverted_reason: "Ajuste sem parcelas pendentes antes da reaplicação" })
+            .eq("id", row.id);
+          summary.debitos.reverted_stale++;
+        }
+        continue;
+      }
+      const parcelaValor = round2(Number(adj.valor_total) / Number(adj.parcelas_total));
       const parcelaNumero = (adj.parcelas_pagas ?? 0) + 1;
+
+      const autoProposto = existingRows.find((r: any) => r.status === "proposto" && r.source === "auto");
+      if (autoProposto) {
+        const needsUpdate = Number(autoProposto.valor_aplicado ?? 0) !== parcelaValor
+          || Number(autoProposto.parcela_numero ?? 0) !== parcelaNumero;
+        if (needsUpdate) {
+          const { error: updErr } = await supabase
+            .from("company_adjustment_applications")
+            .update({ valor_aplicado: parcelaValor, parcela_numero: parcelaNumero, applied_by: user_id })
+            .eq("id", autoProposto.id);
+          if (!updErr) {
+            summary.debitos.updated_existing++;
+            summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: `${parcelaNumero}/${adj.parcelas_total}`, action: "updated" });
+          }
+        } else {
+          summary.debitos.skipped_existing++;
+        }
+        continue;
+      }
+
+      const activeExisting = existingRows.find((r: any) => ["proposto", "confirmado"].includes(r.status));
+      if (activeExisting) { summary.debitos.skipped_existing++; continue; }
+
+      const reusableReverted = existingRows.find((r: any) => r.status === "revertido" && Number(r.parcela_numero ?? 0) === parcelaNumero);
+      if (reusableReverted) {
+        const { error: reviveErr } = await supabase
+          .from("company_adjustment_applications")
+          .update({ valor_aplicado: parcelaValor, parcela_numero: parcelaNumero, applied_by: user_id, status: "proposto", source: "auto", reverted_at: null, reverted_by: null, reverted_reason: null })
+          .eq("id", reusableReverted.id);
+        if (!reviveErr) {
+          summary.debitos.proposed++;
+          summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: `${parcelaNumero}/${adj.parcelas_total}`, action: "revived" });
+        }
+        continue;
+      }
 
       const { error: insErr } = await supabase
         .from("company_adjustment_applications")

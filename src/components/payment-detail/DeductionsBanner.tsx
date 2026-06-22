@@ -24,8 +24,8 @@ type Gpa = {
 const brl = (n: number) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function DeductionsBanner({
-  paymentId, companyId, canEdit,
-}: { paymentId: string; companyId: string; canEdit: boolean }) {
+  paymentId, companyId, canEdit, onApplied,
+}: { paymentId: string; companyId: string; canEdit: boolean; onApplied?: () => void | Promise<void> }) {
   const [caa, setCaa] = useState<Caa[]>([]);
   const [gpa, setGpa] = useState<Gpa[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +83,7 @@ export function DeductionsBanner({
       }
       if (error) throw error;
       await load();
+      await onApplied?.();
     } catch (e: any) {
       if (!opts?.silent) {
         toast.error("Falha ao aplicar deduções", { description: e?.message });
@@ -90,7 +91,7 @@ export function DeductionsBanner({
         console.warn("[DeductionsBanner] auto-apply falhou silenciosamente:", e?.message);
       }
     } finally { setRunning(false); }
-  }, [paymentId, companyId, load]);
+  }, [paymentId, companyId, load, onApplied]);
 
   // First load: trigger auto-apply once if there are no rows yet
   useEffect(() => {
@@ -108,7 +109,12 @@ export function DeductionsBanner({
   }, [loading]);
 
 
-  const totalDebitos = caa.reduce((s, x) => s + Number(x.valor_aplicado || 0), 0);
+  const totalDebitos = caa
+    .filter((x) => x.adjustment?.tipo !== "credito")
+    .reduce((s, x) => s + Number(x.valor_aplicado || 0), 0);
+  const totalCreditos = caa
+    .filter((x) => x.adjustment?.tipo === "credito")
+    .reduce((s, x) => s + Number(x.valor_aplicado || 0), 0);
   const totalGlosas = gpa.filter(g => g.status !== "pending_manual_resolution")
     .reduce((s, x) => s + Number(x.valor_aplicado || 0), 0);
   const pendingResolutions = gpa.filter(g => g.status === "pending_manual_resolution").length;
@@ -127,6 +133,7 @@ export function DeductionsBanner({
       .update({ status: "revertido", reverted_at: new Date().toISOString(), reverted_by: user?.id })
       .eq("id", id);
     await load();
+    await onApplied?.();
   };
   const removeGpa = async (id: string) => {
     const ok = await confirmDialog({
@@ -141,6 +148,7 @@ export function DeductionsBanner({
       .update({ status: "revertido", reverted_at: new Date().toISOString(), reverted_by: user?.id })
       .eq("id", id);
     await load();
+    await onApplied?.();
   };
 
   if (loading) return null;
@@ -171,7 +179,7 @@ export function DeductionsBanner({
                 {running ? "Aplicando deduções…" : `${totalLinhas} dedução(ões) aplicada(s) automaticamente`}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-                Débitos: {brl(totalDebitos)} · Glosas: {brl(totalGlosas)}
+                Débitos: {brl(totalDebitos)} · Créditos: {brl(totalCreditos)} · Glosas: {brl(totalGlosas)}
                 {pendingResolutions > 0 && <span className="text-warning-text"> · {pendingResolutions} pendência(s) de resolução manual</span>}
               </p>
             </div>
@@ -275,7 +283,7 @@ export function DeductionsBanner({
       {addOpen && (
         <AddManualDeductionDialog
           paymentId={paymentId} companyId={companyId}
-          onClose={() => { setAddOpen(false); load(); }}
+          onClose={() => { setAddOpen(false); void load(); void onApplied?.(); }}
         />
       )}
     </>

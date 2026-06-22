@@ -2252,6 +2252,7 @@ export default function CompanyAnalysis() {
           paymentId={id}
           companyId={group.company_id}
           canEdit={isAnalista || isAdminOrDiretor || isValidador}
+          onApplied={composition.refresh}
         />
       )}
 
