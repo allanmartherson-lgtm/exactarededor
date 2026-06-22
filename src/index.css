@@ -1353,3 +1353,18 @@ All colors MUST be HSL.
 .grid-scroll-rail::-webkit-scrollbar-corner {
   background: hsl(var(--muted) / 0.4);
 }
+
+/* ============================================================
+ * Navy app bar — context-scoped overrides
+ * Wordmark accent (X) becomes white; button borders removed;
+ * only active pills and "Nova base" keep fills. Popovers are
+ * portaled to <body>, so they remain on the light theme.
+ * ============================================================ */
+.app-topbar-navy .font-wordmark,
+.app-topbar-navy .font-wordmark * {
+  color: #ffffff !important;
+}
+.app-topbar-navy button,
+.app-topbar-navy [role="button"] {
+  border-color: transparent !important;
+}
