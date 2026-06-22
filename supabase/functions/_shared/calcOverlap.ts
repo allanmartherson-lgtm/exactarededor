@@ -271,7 +271,7 @@ export function detectCalcOverlap(
     for (let j = i + 1; j < restrictive.length; j++) {
       const A = restrictive[i];
       const B = restrictive[j];
-      const r = evaluatePair(A, B);
+      const r = evaluatePair(A, B, true);
       if (!r.conflicts) continue;
       const desc = r.pieces.length > 0
         ? r.pieces.join(", ")
