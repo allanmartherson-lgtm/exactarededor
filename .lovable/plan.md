@@ -1,118 +1,62 @@
-# Plano: Tipo de Pagamento + Saneamento de Base
+# Exceção do cálculo por item
 
-## 1. Cadastro de Tipos de Pagamento (admin)
+Quando uma regra tem um cálculo marcado com **Tipo de pagamento = Parecer** (ou outro), o analista vai poder, **linha a linha**, marcar o item como "Exceção do cálculo". Isso faz o motor ignorar aquele cálculo específico para aquele item e cair no próximo cálculo elegível da mesma regra (ex.: o "Regra Geral 100%" / percentual_convenio).
 
-Estender `payment_types` com metadados que governam parser, motor e UI:
+## Quando o botão aparece
 
-- `tuss_default` (text, nullable) — TUSS aplicado quando a planilha não traz
-- `requires_tuss_in_sheet` (bool, default true) — se false, wizard pula etapa
-- `default_function` (text, nullable) — função aplicada às linhas
-- `default_value_column_hint` (text) — palpite de cabeçalho de valor ("Valor a repassar", "Repasse"…)
-- `expected_headers` (jsonb) — array de cabeçalhos esperados, usado para auto-mapear
-- `allow_mixed_subtypes` (bool) — se true, base pode conter subtipos (ex: Parecer + Visita) e regra de subdivisão se aplica
-- `subtype_split_hint` (jsonb) — `{ column, patterns: [{match, target_payment_type_id}] }`
-- `active`, `display_order`, `description`
+- Apenas em itens cujo `applied_rule_id` aponta para uma regra que tem **pelo menos um cálculo** com `payment_type_id` setado **e cujo `payment_type_id` bate com o tipo do pagamento do item** (ou seja, o item foi resolvido pelo cálculo tipado, não pelo cálculo universal).
+- Se a regra não tem cálculo tipado, ou se o item já caiu no cálculo universal, o botão **não aparece** — sem poluição visual.
 
-Nova tela `/cadastros/tipos-pagamento`: CRUD simples (DataTable + FormDialog), restrito a admin/diretor.
+## Efeito
 
-Seed inicial: Parecer Adulto, Visita, Cirurgia, SADT, Consulta, Exames Cardiologia — pré-preenchidos para Rede D'Or.
+- Item marcado → motor pula o(s) cálculo(s) com `payment_type_id` setado dentro daquela regra e tenta o próximo cálculo (tipicamente o universal / `percentual_convenio`).
+- Se não houver cálculo alternativo elegível → item fica `sem_regra` com motivo `excecao_calculo_sem_fallback` (aviso para o analista).
+- Marcação é **persistente por item**, sobrevive a re-análises (igual aos casos especiais).
+- Toda mudança gera linha em `audit_log` e dispara recompute do grupo daquela PJ.
 
-## 2. Motor de regras: `payment_type_id` opcional em `rules`
+## UI
 
-- Coluna `payment_type_id uuid null references payment_types(id)`
-- Index parcial.
-- `loadScopedRules` / matcher: quando a base tem `payment_type_id`, motor prefere regras com mesmo `payment_type_id`; só cai em regras com `payment_type_id IS NULL` se não houver match específico.
-- Regras existentes continuam funcionando (NULL = qualquer tipo).
-- Form de regra ganha select "Tipo de Pagamento (opcional)" — resolve Parecer × Visita com mesmo TUSS.
+- **Onde:** dentro do card/linha do item no `PaymentConciliationModal`, ao lado do botão de "Caso especial" já existente.
+- **Visual:** ícone pequeno (FilterX / SkipForward) com tooltip "Exceção do cálculo — pular regra tipada". Quando marcado: chip discreto âmbar no header da linha "Exceção: pulou Regra Parecer" + ícone destacado.
+- **Sem nova coluna na tabela** — fica como ação no expand/detalhe da linha, exatamente como o caso especial.
+- Modal de confirmação curto antes de marcar/desmarcar, com motivo opcional (texto livre).
 
-## 3. Modal de tipo após Análise/Confecção
+## Mudanças técnicas
 
-Após o `PaymentModeSelectModal`, abrir `PaymentTypeSelectModal`:
-- Lista `payment_types` ativos
-- Busca + agrupamento por categoria
-- Seleção persistida em `sessionStorage` e como query param `tipo=<id>`
-- `NewPayment` lê e salva em `payments.payment_type_id` (coluna já existe ou criar)
-
-Botão voltar para trocar modo. Tipo escolhido aparece como chip no topo do wizard.
-
-## 4. Wizard de import sensível ao tipo
-
-`parsePaymentFile` / mapeamento de colunas:
-- Recebe o tipo escolhido
-- Se `requires_tuss_in_sheet=false`: oculta etapa TUSS e injeta `tuss_default` por linha (com banner: *"TUSS X aplicado às N linhas conforme tipo Y"*)
-- Auto-mapeia colunas usando `expected_headers`
-- Se `default_function` setado e coluna função ausente, injeta valor
-
-## 5. Detecção de linhas-total/rodapé (sempre perguntar)
-
-Heurística no parser:
-- Linha com chave operacional vazia (atendimento) + algum valor monetário OU
-- Texto regex `/total|valor para emiss[aã]o|subtotal|nota fiscal/i` em qualquer célula OU
-- Linhas finais com ≤2 células preenchidas e número grande na última
-
-Resultado: painel "Linhas suspeitas detectadas" antes do commit, listando:
-- Nº da linha original na planilha
-- Conteúdo
-- Motivo da suspeita
-- Ação por linha: [Descartar] [Manter como item] [Tratar como total informativo]
-
-Bloqueia avanço até decisão. Decisões ficam em `import_log` para auditoria.
-
-## 6. Mistura de subtipos (Parecer + Visita)
-
-Quando `allow_mixed_subtypes=true` no tipo escolhido:
-- Parser aplica `subtype_split_hint` por linha (ex: célula "Médico Solic." contém "Visita" → vira `payment_type_id` de Visita)
-- Preview mostra resumo: *"189 linhas → 187 Parecer + 2 Visita"*
-- Cada item salvo com seu próprio `payment_type_id` real
-- Motor avalia regra correta por item
-
-## Detalhes técnicos
-
-### Migrações
-```text
-1) ALTER TABLE payment_types
-   ADD COLUMN tuss_default text,
-   ADD COLUMN requires_tuss_in_sheet boolean DEFAULT true,
-   ADD COLUMN default_function text,
-   ADD COLUMN default_value_column_hint text,
-   ADD COLUMN expected_headers jsonb DEFAULT '[]'::jsonb,
-   ADD COLUMN allow_mixed_subtypes boolean DEFAULT false,
-   ADD COLUMN subtype_split_hint jsonb,
-   ADD COLUMN display_order int DEFAULT 0;
-
-2) ALTER TABLE rules
-   ADD COLUMN payment_type_id uuid REFERENCES payment_types(id) ON DELETE SET NULL;
-   CREATE INDEX rules_payment_type_idx ON rules(payment_type_id) WHERE payment_type_id IS NOT NULL;
-
-3) ALTER TABLE payments
-   ADD COLUMN payment_type_id uuid REFERENCES payment_types(id);  -- se ainda não existir
-
-4) ALTER TABLE payment_items
-   ADD COLUMN payment_type_id uuid REFERENCES payment_types(id);  -- para mistura subtipo
-
-5) Seed dos tipos Rede D'Or
+**Banco (`payment_items`)**
 ```
+calc_exception_skip          boolean default false   -- flag
+calc_exception_reason        text null               -- motivo opcional do analista
+calc_exception_marked_by     uuid null               -- auth.uid()
+calc_exception_marked_at     timestamptz null
+calc_exception_skipped_calc_id uuid null             -- qual calc foi pulado (auditoria)
+```
+Migration + trigger leve que zera os outros 4 campos quando `calc_exception_skip` vira false.
 
-### Arquivos novos
-- `src/pages/PaymentTypesAdmin.tsx` — CRUD da tela
-- `src/components/PaymentTypeSelectModal.tsx` — modal após modo
-- `src/components/payment-wizard/SuspiciousRowsReview.tsx` — painel de linhas suspeitas
-- `src/lib/detectSuspiciousRows.ts` — heurística + testes
+**Motor (`rulesEngine.ts`)**
+- `calcItemMatches`: novo guard antes do filtro de `payment_type_id` — se `item.calc_exception_skip === true` **e** `c.payment_type_id != null`, retorna `{ ok:false, reason:"item_calc_exception_skip" }`.
+- Passar o flag para o item já lido em `analyze-payment`, `simulate-rule`, `simulate-rule-batch` (todos já lêem o resto das colunas — adicionar à seleção e ao mapper).
+- Quando não há cálculo de fallback elegível para o item marcado: setar `applied_calc_method = 'sem_regra'`, `applied_rule_match_reason = 'excecao_calculo_sem_fallback'`.
 
-### Arquivos editados
-- `src/components/PaymentModeSelectModal.tsx` — após escolha, abre tipo modal
-- `src/pages/NewPayment.tsx` — lê `tipo` query param, repassa ao parser
-- `src/lib/parsePaymentFile.ts` — recebe `paymentType`, injeta TUSS/função, detecta suspeitas
-- `src/pages/ValidationRules.tsx` (form de regra) — select de tipo
-- motor de regras (`loadScopedRules` + matcher) — filtro por tipo
-- nav (`src/config/navItems.ts`) — entrada "Tipos de Pagamento" no hub de Cadastros
+**UI**
+- `PaymentConciliationModal.tsx` (linha do item): novo botão pequeno, controlado por hook `useCalcExceptionEligibility(item)` que verifica:
+  1. `item.applied_rule_id` setado
+  2. fetch (cacheado) das `rule_calculations` da regra → existe alguma com `payment_type_id = item.payment_type_id`
+- Hook novo `useToggleCalcException(itemId)`: faz update + invalidate + dispara recompute do grupo.
+- Indicador visual no header do item quando marcado.
 
-### Ordem de entrega sugerida (entregar incrementalmente)
-1. ✅ Migrações + seed + tela admin de tipos
-2. ✅ Campo na rules + select no form de regra
-3. ✅ Modal de seleção pós-modo + persistência no payment
-4. ✅ Parser sensível ao tipo (TUSS default, função default)
-5. ✅ Detecção de linhas suspeitas com painel de revisão
-6. ✅ Subtipos mistos
+**Auditoria**
+- `audit_log` entry com `entity_type='payment_item'`, `action='calc_exception_toggle'`, diff dos 5 campos.
 
-Cada passo é shippable sozinho — recomendo aprovar e ir por etapas para validar com base real entre cada uma.
+## Arquivos
+
+- `supabase/migrations/<novo>.sql` — colunas + trigger de sanitização
+- `supabase/functions/_shared/rulesEngine.ts` — guard novo + tipo `RuleInput`
+- `supabase/functions/analyze-payment/index.ts` — incluir campos no SELECT/mapper
+- `supabase/functions/simulate-rule/index.ts` e `simulate-rule-batch/index.ts` — mesmo
+- `src/components/payment-detail/PaymentConciliationModal.tsx` — botão + indicador
+- `src/components/payment-detail/useCalcExceptionEligibility.ts` (novo)
+- `src/components/payment-detail/CalcExceptionDialog.tsx` (novo, modal curto)
+- `src/integrations/supabase/types.ts` — auto-regen
+
+Posso seguir?

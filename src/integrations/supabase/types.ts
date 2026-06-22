@@ -4867,6 +4867,11 @@ export type Database = {
           attendance_number: string | null
           authorized_exception: boolean
           basis_confidence: number | null
+          calc_exception_marked_at: string | null
+          calc_exception_marked_by: string | null
+          calc_exception_reason: string | null
+          calc_exception_skip: boolean
+          calc_exception_skipped_calc_id: string | null
           cancellation_note: string | null
           cancellation_reactivated_at: string | null
           cancellation_reactivated_by: string | null
@@ -4967,6 +4972,11 @@ export type Database = {
           attendance_number?: string | null
           authorized_exception?: boolean
           basis_confidence?: number | null
+          calc_exception_marked_at?: string | null
+          calc_exception_marked_by?: string | null
+          calc_exception_reason?: string | null
+          calc_exception_skip?: boolean
+          calc_exception_skipped_calc_id?: string | null
           cancellation_note?: string | null
           cancellation_reactivated_at?: string | null
           cancellation_reactivated_by?: string | null
@@ -5067,6 +5077,11 @@ export type Database = {
           attendance_number?: string | null
           authorized_exception?: boolean
           basis_confidence?: number | null
+          calc_exception_marked_at?: string | null
+          calc_exception_marked_by?: string | null
+          calc_exception_reason?: string | null
+          calc_exception_skip?: boolean
+          calc_exception_skipped_calc_id?: string | null
           cancellation_note?: string | null
           cancellation_reactivated_at?: string | null
           cancellation_reactivated_by?: string | null
