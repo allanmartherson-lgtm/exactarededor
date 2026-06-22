@@ -24,7 +24,7 @@ All colors MUST be HSL.
     --primary-foreground: 0 0% 100%;
     --primary-soft: 214 60% 94%;         /* #EAF0FA — azul suave derivado */
     --primary-glow: 200 68% 68%;         /* #71C5E8 — Pantone 297 C */
-    --primary-dark: 214 100% 17%;        /* #002855 — navy D'Or (âncora preservada) */
+    --primary-dark: 213 65% 28%;         /* navy Rede D'Or mais arejado (longe do preto) */
 
     /* ── Accent: ouro Exacta ─────────────────────────────── */
     --accent: 37 42% 61%;                /* #C6A27C — Pantone 728 C Rede D'Or oficial */
