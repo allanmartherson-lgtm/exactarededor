@@ -996,6 +996,46 @@ function WhenApplySection({
           </div>
         </FilterBtn>
 
+        <FilterBtn id="tipo-pagamento" label="Tipo de pagamento" active={hasPaymentTypeFilter} openSection={openSection} onToggle={toggle}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: !c.payment_type_id ? "hsl(var(--accent))" : "transparent" }}>
+              <input
+                type="radio"
+                name={`payment-type-${c.id ?? "new"}`}
+                checked={!c.payment_type_id}
+                onChange={() => onChange({ payment_type_id: null })}
+                style={{ marginTop: 2 }}
+              />
+              <span style={{ fontSize: 12, lineHeight: 1.35 }}>Qualquer tipo (cálculo universal)</span>
+            </label>
+            {paymentTypes.length === 0 ? (
+              <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontStyle: "italic", marginTop: 2 }}>
+                Nenhum tipo cadastrado em Cadastros → Tipos de pagamento.
+              </p>
+            ) : (
+              paymentTypes.map((pt) => {
+                const checked = c.payment_type_id === pt.id;
+                return (
+                  <label key={pt.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: checked ? "hsl(var(--accent))" : "transparent" }}>
+                    <input
+                      type="radio"
+                      name={`payment-type-${c.id ?? "new"}`}
+                      checked={checked}
+                      onChange={() => onChange({ payment_type_id: pt.id })}
+                      style={{ marginTop: 2 }}
+                    />
+                    <span style={{ fontSize: 12, fontWeight: 500, lineHeight: 1.35 }}>{pt.label}</span>
+                  </label>
+                );
+              })
+            )}
+            <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
+              Use para diferenciar cálculos com mesmo TUSS por tipo de pagamento (ex.: Parecer × Visita). Vazio = vale para qualquer tipo.
+            </p>
+          </div>
+        </FilterBtn>
+
+
         <FilterBtn id="periodo" label="Período, horário, via de acesso e setor" active={hasPeriodoFilter} openSection={openSection} onToggle={toggle}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
