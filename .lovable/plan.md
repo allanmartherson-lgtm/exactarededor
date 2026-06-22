@@ -1,65 +1,73 @@
 ## Objetivo
 
-Aproximar 4 telas do mockup "Apple style" — visual + layout — mantendo dados, rotas e lógica de negócio intactos. Só camada de apresentação.
+Eliminar a convivência de dois dialetos visuais: adotar o **Padrão BI** (telas novas do mockup) como design oficial do sistema, aplicado em todas as 67+ páginas que hoje usam `PageHeader` e `Breadcrumbs`, mais os cards de KPI das telas Financeiras.
 
-## Escopo por tela
+## Diagnóstico das diferenças
 
-### 1. BI · Diretoria (topo)
-Arquivo: `src/pages/ExecutiveDashboard.tsx` (ou equivalente que renderiza a rota atual de BI).
-- Header simplificado: título "BI · Diretoria" + subtítulo "Visão consolidada · competência {mês}", e à direita pills `Semana | Mês | Trimestre | Ano` + date-picker `Mês AAAA`.
-- Faixa narrativa branca em card pill: frase única com destaques coloridos (valor mi azul, % verde, valor em risco vermelho).
-- Hero grid 2 colunas (8/4):
-  - **Esquerda (card azul sólido `--primary`):** TOTAL EM APROVAÇÃO, valor R$ gigante (display font), subtítulo "N lotes ativos · período", badge "+X% vs mês anterior" no canto, três mini-tiles translúcidas (Pago no mês / Lotes encerrados / Taxa de aprovação), e sparkline branca de evolução no rodapé com tooltip ancorado no último ponto.
-  - **Direita (card branco):** APROVAÇÃO AUTOMÁTICA · IA, donut SVG 87%/13% com texto central, legenda dois pontos (Automático / Revisão manual). Abaixo, card vermelho-claro "1 lote crítico · R$ X aguardando revisão" + badge "Urgente".
+| Aspecto | Padrão BI (novo, queremos) | Padrão antigo (Pagamentos, etc.) |
+|---|---|---|
+| Container | `max-w-[1400px]` centralizado, `py-6` | Largura cheia, header colado no topo |
+| Título | 30px, semibold, tracking-tight, sem ícone | 16px, medium, com ícone em quadradinho |
+| Fundo do header | Transparente (mesmo bg da página) | `bg-card` com `border-b` |
+| Botão "voltar" | Não existe (navegação via breadcrumb) | `ArrowLeft` à esquerda do título |
+| Subtítulo | 14px muted, "Visão consolidada · competência …" | 12.5px muted |
+| Cards KPI | `rounded-2xl`, padding generoso, label uppercase tracking-wider, valor 28-32px tabular-nums, sem ícone colorido | `rounded-lg`, ícone colorido em círculo, card azul destacado para o principal |
+| Espaçamento | `space-y-6` entre blocos | Denso, sem ritmo claro |
 
-### 2. KPIs (linha de 4 cards)
-- 4 cards iguais, largura igual, ordem: Valor em risco, Ciclo médio, Itens aprovados, Glosas registradas.
-- Label SMALLCAPS muted, valor display 48px, unidade inline menor.
-- Visualização secundária por card:
-  - Valor em risco: mini bar-chart 6 barras vermelhas + linha "X% do total · 1 lote crítico"
-  - Ciclo médio: pill verde "0,4d mais rápido" + subtítulo
-  - Itens aprovados: 6 mini-blocos azul-claros (último destacado) + subtítulo
-  - Glosas: pill verde "Zero glosas" + subtítulo
+## Estratégia
 
-### 3. Funil + Evolução + Por analista
-- **Funil**: card único largura total, 5 etapas conectadas por chevron `›`, cada etapa mostra dot colorido, label, valor grande, R$ abaixo, barra de progresso fina. Etapa "Pago" em verde, demais em azul/cinza.
-- **Linha inferior 2/3 + 1/3**:
-  - Evolução mensal: gráfico de área azul + linha tracejada vermelha (Em risco), legenda topo-direita, tooltip ancorado.
-  - Por analista: lista 4 linhas com avatar inicial colorido, nome, barra de progresso, valor R$, %.
+Centralizar o design em **3 primitivos compartilhados** e migrar via evolução desses componentes — assim a maior parte das 67 páginas herda o novo visual sem edição individual.
 
-### 4. Detalhe do lote
-Arquivo: `src/pages/PaymentDetail.tsx` (header + abas).
-- Breadcrumb sutil.
-- Título grande + subtítulo "N itens · R$ X".
-- Tabs de modo (Detalhe/Compacto/Executivo) como pill-tabs, ao lado botões `Reanalisar lote`, `Validação assistencial (2)`, `…`, e badge status "Devolvido ao analista".
-- **Stepper horizontal** 5 etapas (Análise → Validação → Aprovação → Pós-NF → Pago) com linha conectora e dot ativo azul preenchido.
-- Linha de metadados em card único com 6 colunas (Competência, Previsão, Tipo, Categoria, Trilha, Centro de Custo, Responsável c/ avatar).
-- Bloco "Auditoria de TUSS principal" com header próprio (ícone + título + chip "0 pendências" + refresh), sub-tabs `Abertas (N) | Resolvidas (N)`, estado vazio em card neutro.
-- Card lateral direito (sticky) com Alertas Assistenciais resumido + botão flutuante "Conversas".
-- Cards "Caso especial" (amarelo suave), "Resumo IA" (com chip Risco baixo verde), "Anomalias comportamentais" (vermelho suave).
+### 1. Evoluir `src/components/PageHeader.tsx`
 
-## Tokens / design system
-- Verificar e ajustar em `src/index.css`:
-  - `--primary` azul forte (mantém HSL atual; checar contraste sobre branco).
-  - Adicionar tokens semânticos faltantes se necessário: `--surface-elevated`, `--success-soft`, `--warning-soft`, `--danger-soft`, `--info-soft` (versões com baixa opacidade para fundos de card).
-  - Raios: cards principais `rounded-2xl`, chips/pills `rounded-full`.
-  - Sombras suaves `shadow-sm` em cards.
-- Tipografia: usar fonte display já existente para números grandes (tabular-nums). Não trocar família principal sem aval.
-- Nenhuma cor hardcoded — só tokens.
+Reescrever para o padrão BI mantendo a mesma API pública (`title`, `description`, `actions`, `icon`, `showBack`). Mudanças:
 
-## Não inclui
-- Mudanças em lógica de cálculo, queries, RLS, edge functions.
-- Mudanças em rotas ou navegação.
-- Trocar família tipográfica global (a menos que você confirme depois).
+- Remover `border-b` + `bg-card`; renderizar transparente.
+- Título: `text-3xl font-semibold tracking-tight`.
+- Subtítulo: `text-sm text-muted-foreground mt-1`.
+- `showBack` default vira `false` (breadcrumb já cobre a navegação). Páginas que dependiam do botão voltar e não têm breadcrumb continuam funcionando passando `showBack`.
+- Remover quadradinho do `icon` (não usado no mockup BI) — manter prop por compat mas no-op visual.
+- Container interno passa a usar `max-w-[1400px] mx-auto` para alinhar com o BI.
 
-## Ordem de execução
-1. Tokens + utilitários compartilhados (cards, pill-tabs, stat-tile com sparkline/mini-bars).
-2. BI · Diretoria (hero + faixa + donut).
-3. Linha de KPIs.
-4. Funil + Evolução + Por analista.
-5. Detalhe do lote (header + stepper + metadados + auditoria + sidebar).
-6. Screenshot de verificação após cada bloco.
+Como todas as 67 páginas chamam `<PageHeader title=... description=... actions=... />`, a alteração é **transparente** — nada precisa ser editado nelas.
+
+### 2. Criar `src/components/ui/KpiCard.tsx` (novo)
+
+Componente único reutilizável que encapsula o card BI:
+
+```tsx
+<KpiCard
+  label="VALOR EM RISCO"
+  value="R$ 7.619"
+  hint="1,7% do total · 1 lote crítico"
+  tone="danger" // default | primary | success | danger | warning
+  trend={<TrendChip pct={8.2} />}
+/>
+```
+
+Visual: `rounded-2xl border bg-card p-6`, label `text-xs uppercase tracking-wider text-muted-foreground`, valor `text-3xl font-semibold tabular-nums`, hint `text-sm text-muted-foreground mt-2`. Variante `primary` aplica `bg-primary text-primary-foreground` para o card destaque (tipo "Total em aprovação").
+
+### 3. Migrar `src/pages/Payments.tsx` (telas Financeiro)
+
+Substituir os 4 cards atuais (Total em aberto / Pós-aprovação / Aguardando validação / Aguardando aprovação) pelo novo `KpiCard`. É a única página onde o KPI velho aparece visualmente diferente — as outras telas Financeiras (Recebíveis, Bônus, Conciliação) já usam `SafeCard` simples e herdam só pela mudança do PageHeader.
+
+### 4. Atualizar `BiDiretoria` e `BiPagamentos` para consumir os primitivos
+
+Trocar o `<header>` inline e os divs de KPI dessas telas pelos novos `PageHeader` e `KpiCard`. Garante que BI e Financeiro renderizam exatamente o mesmo código de header/cards — fonte única de verdade.
+
+## Fora de escopo (deliberado)
+
+- Não tocar em cores/tokens do design system — só estrutura visual dos componentes compartilhados.
+- Não mexer em tabelas, modais, drawers, formulários — só header + KPI cards.
+- Não renomear nem mover páginas.
 
 ## Riscos
-- Algumas seções podem estar em componentes compartilhados — vou ler antes de tocar para não quebrar outras telas.
-- Donut e sparkline simples em SVG inline (sem nova dependência).
+
+- Páginas que dependiam do botão "voltar" do `PageHeader` sem breadcrumbs ficarão sem navegação para trás. Mitigação: rodar grep por `showBack={false}` vs uso implícito e listar páginas afetadas antes de mexer; nessas, passar `showBack` explicitamente.
+- Páginas com `actions` muito grandes podem quebrar layout no header maior. Mitigação: `flex-wrap` no header novo (mesma técnica do BI).
+
+## Validação
+
+1. Abrir `/bi/diretoria`, `/bi/pagamentos`, `/pagamentos`, `/recebiveis`, `/conciliacao`, `/usuarios` e conferir visual consistente.
+2. Build limpo.
+3. Verificar que nenhuma página perdeu o botão voltar onde era essencial.
