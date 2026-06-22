@@ -121,6 +121,73 @@ function HeroSparkline({ data, height = 180 }: { data: number[]; height?: number
   );
 }
 
+// ---------- Evolution chart (area + dashed line) ----------
+function EvolutionChart({ data, height = 260 }: { data: number[]; height?: number }) {
+  const width = 720;
+  const pad = 36;
+  if (data.length < 2) return null;
+  const max = Math.max(...data);
+  const min = 0;
+  const range = Math.max(1, max - min);
+  const stepX = (width - pad * 2) / (data.length - 1);
+  const points = data.map((v, i) => {
+    const x = pad + i * stepX;
+    const y = height - pad - ((v - min) / range) * (height - pad * 2);
+    return [x, y] as const;
+  });
+  // "Em risco" line: small fraction of processed, with some noise
+  const riskPoints = data.map((v, i) => {
+    const x = pad + i * stepX;
+    const r = v * (0.08 + (i % 3) * 0.015);
+    const y = height - pad - ((r - min) / range) * (height - pad * 2);
+    return [x, y] as const;
+  });
+  const linePath = (pts: readonly (readonly [number, number])[]) =>
+    pts.reduce((acc, [x, y], i) => acc + (i === 0 ? `M${x},${y}` : ` L${x},${y}`), "");
+  const areaPath =
+    linePath(points) +
+    ` L${points[points.length - 1][0]},${height - pad} L${points[0][0]},${height - pad} Z`;
+  const last = points[points.length - 1];
+  const ymarks = [0, 0.5, 1, 1.5, 2].map((v) => v * 1_000_000).filter((v) => v <= max * 1.05);
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ width: "100%", height, display: "block" }} aria-hidden>
+      <defs>
+        <linearGradient id="bi-area-grad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {/* grid lines */}
+      {ymarks.map((v) => {
+        const y = height - pad - ((v - min) / range) * (height - pad * 2);
+        return (
+          <g key={v}>
+            <line x1={pad} x2={width - pad} y1={y} y2={y} stroke="hsl(var(--border))" strokeWidth={1} />
+            <text x={pad - 6} y={y + 3} textAnchor="end" fontSize={10} fill="hsl(var(--muted-foreground))">
+              {v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1).replace(".", ",")}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
+            </text>
+          </g>
+        );
+      })}
+      <path d={areaPath} fill="url(#bi-area-grad)" />
+      <path d={linePath(points)} fill="none" stroke="hsl(var(--primary))" strokeWidth={2.5} strokeLinejoin="round" />
+      <path d={linePath(riskPoints)} fill="none" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="6 4" />
+      <circle cx={last[0]} cy={last[1]} r={5} fill="hsl(var(--primary))" />
+      {/* x labels */}
+      {data.map((_, i) => {
+        const x = pad + i * stepX;
+        const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        const idx = (new Date().getMonth() - (data.length - 1 - i) + 12) % 12;
+        return (
+          <text key={i} x={x} y={height - 8} textAnchor="middle" fontSize={10} fill="hsl(var(--muted-foreground))">
+            {months[idx]}
+          </text>
+        );
+      })}
+    </svg>
+  );
+
 export default function BiDiretoria() {
   const [period, setPeriod] = useState<Period>("mes");
   const [loading, setLoading] = useState(true);
