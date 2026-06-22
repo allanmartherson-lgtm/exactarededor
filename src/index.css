@@ -1362,9 +1362,6 @@ All colors MUST be HSL.
  * ============================================================ */
 .app-topbar-navy .font-wordmark,
 .app-topbar-navy .font-wordmark * {
-  color: #ffffff !important;
+  /* no-op: topbar reverted to light */
 }
-.app-topbar-navy button,
-.app-topbar-navy [role="button"] {
-  border-color: transparent !important;
-}
+
