@@ -15,8 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 
 /**
- * BI · Pagamentos — lista executiva (Apple-style)
- * Página puramente visual. Lê payments reais; usa fallback estático se a query falhar.
+ * BI · Pagamentos — lista executiva (Apple-style) ligada aos dados reais.
+ * Lê de `payments` + nome do analista em `profiles`.
  * Não substitui /pagamentos (Payments.tsx).
  */
 
@@ -28,37 +28,61 @@ const fmtMi = (v: number) => {
 const fmtFull = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
+type UiStatus = "pago" | "aprovado" | "em_aprovacao" | "em_analise" | "risco";
+
 type Row = {
   id: string;
-  lote: string;
-  empresa: string;
-  competencia: string;
+  lote: string;            // reference
+  empresa: string;         // empresa principal do lote
+  competencia: string;     // "Mai/26"
   itens: number;
-  valor: number;
-  diferenca: number;
+  valor: number;           // liquido_total
+  diferenca: number;       // bruto-liquido
   ciclo: string;
-  status: "pago" | "aprovado" | "em_aprovacao" | "em_analise" | "risco";
+  status: UiStatus;
   analista: string;
 };
 
-const FALLBACK: Row[] = [
-  { id: "1", lote: "L-2604-018", empresa: "Med Center Brasília", competencia: "Mai/26", itens: 248, valor: 1_842_300, diferenca: 0, ciclo: "1,6 d", status: "pago", analista: "Allan Araújo" },
-  { id: "2", lote: "L-2604-017", empresa: "Clínica São Lucas", competencia: "Mai/26", itens: 192, valor: 1_204_900, diferenca: -3_120, ciclo: "1,8 d", status: "aprovado", analista: "Diego Burgardt" },
-  { id: "3", lote: "L-2604-016", empresa: "Hospital Sírio DF", competencia: "Mai/26", itens: 421, valor: 2_910_400, diferenca: 14_220, ciclo: "2,1 d", status: "em_aprovacao", analista: "Marina Rocha" },
-  { id: "4", lote: "L-2604-015", empresa: "Cardio Vida", competencia: "Mai/26", itens: 86, valor: 482_100, diferenca: 0, ciclo: "1,4 d", status: "pago", analista: "Caio Lima" },
-  { id: "5", lote: "L-2604-014", empresa: "Ortopedia Premium", competencia: "Mai/26", itens: 158, valor: 967_500, diferenca: -8_410, ciclo: "1,9 d", status: "em_analise", analista: "Allan Araújo" },
-  { id: "6", lote: "L-2604-013", empresa: "Instituto da Mulher", competencia: "Mai/26", itens: 312, valor: 1_534_800, diferenca: 22_900, ciclo: "2,4 d", status: "risco", analista: "Marina Rocha" },
-  { id: "7", lote: "L-2604-012", empresa: "Neuro Center", competencia: "Mai/26", itens: 104, valor: 612_300, diferenca: 0, ciclo: "1,7 d", status: "aprovado", analista: "Diego Burgardt" },
-  { id: "8", lote: "L-2604-011", empresa: "Pediatria Mais Vida", competencia: "Mai/26", itens: 67, valor: 298_700, diferenca: 0, ciclo: "1,5 d", status: "pago", analista: "Caio Lima" },
-];
+const STATUS_MAP: Record<string, UiStatus> = {
+  pago: "pago",
+  aprovado: "aprovado",
+  nf_recebida: "aprovado",
+  aguardando_aprovacao: "em_aprovacao",
+  aguardando_validacao: "em_analise",
+  em_validacao: "em_analise",
+  em_analise_ia: "em_analise",
+  revisao_analista: "em_analise",
+  devolvido_analista: "risco",
+};
 
-const STATUS_META: Record<Row["status"], { label: string; tone: string; dot: string }> = {
+const STATUS_META: Record<UiStatus, { label: string; tone: string; dot: string }> = {
   pago: { label: "Pago", tone: "bg-success/10 text-success border-success/20", dot: "bg-success" },
   aprovado: { label: "Aprovado", tone: "bg-primary/10 text-primary border-primary/20", dot: "bg-primary" },
   em_aprovacao: { label: "Em aprovação", tone: "bg-amber-500/10 text-amber-600 border-amber-500/20", dot: "bg-amber-500" },
   em_analise: { label: "Em análise", tone: "bg-muted text-muted-foreground border-border", dot: "bg-muted-foreground" },
   risco: { label: "Em risco", tone: "bg-destructive/10 text-destructive border-destructive/20", dot: "bg-destructive" },
 };
+
+const MONTHS_PT_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+function fmtCompetencia(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return `${MONTHS_PT_SHORT[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
+}
+function daysBetween(a?: string | null, b?: string | null): string {
+  if (!a || !b) return "—";
+  const ms = new Date(b).getTime() - new Date(a).getTime();
+  if (!isFinite(ms) || ms < 0) return "—";
+  const d = ms / 86_400_000;
+  return `${d.toFixed(1).replace(".", ",")} d`;
+}
+function shortenRef(ref: string | null): string {
+  if (!ref) return "";
+  // pega últimos 12 chars úteis pra exibir como código curto
+  const cleaned = ref.replace(/\s+/g, " ").trim();
+  return cleaned.length > 36 ? cleaned.slice(0, 33) + "…" : cleaned;
+}
 
 // ---------- mini bar chart ----------
 function MiniBars({ values, color = "hsl(var(--primary))" }: { values: number[]; color?: string }) {
@@ -85,40 +109,84 @@ function MiniBars({ values, color = "hsl(var(--primary))" }: { values: number[];
 }
 
 export default function BiPagamentos() {
-  const [rows, setRows] = useState<Row[]>(FALLBACK);
+  const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | Row["status"]>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | UiStatus>("all");
 
   useEffect(() => {
+    document.title = "BI · Pagamentos | Exacta";
     (async () => {
       try {
-        const { data, error } = await supabase
+        // 1) últimos pagamentos
+        const { data: payments } = await supabase
           .from("payments")
-          .select("id, batch_code, company_name, competence_month, total_items, total_amount, total_difference, status, analyst_name")
+          .select("id, reference, status, competence_month, bruto_total, liquido_total, items_count, created_by, created_at, approved_at, validated_at")
+          .eq("is_test", false)
           .order("created_at", { ascending: false })
-          .limit(20);
-        if (error || !data || data.length === 0) return;
-        const mapped: Row[] = data.map((p: any) => ({
-          id: p.id,
-          lote: p.batch_code || `L-${String(p.id).slice(0, 8)}`,
-          empresa: p.company_name || "—",
-          competencia: p.competence_month || "—",
-          itens: p.total_items || 0,
-          valor: Number(p.total_amount) || 0,
-          diferenca: Number(p.total_difference) || 0,
-          ciclo: "1,8 d",
-          status:
-            p.status === "pago" ? "pago"
-            : p.status === "aprovado" ? "aprovado"
-            : p.status === "em_aprovacao" ? "em_aprovacao"
-            : p.status === "em_risco" ? "risco"
-            : "em_analise",
-          analista: p.analyst_name || "—",
-        }));
-        if (mapped.length) setRows(mapped);
-      } catch { /* silent */ }
-      finally { setLoading(false); }
+          .limit(40);
+
+        const list = payments ?? [];
+        if (list.length === 0) {
+          setRows([]);
+          return;
+        }
+
+        // 2) nomes dos analistas
+        const userIds = Array.from(new Set(list.map((p: any) => p.created_by).filter(Boolean)));
+        let analystByUser: Record<string, string> = {};
+        if (userIds.length) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("id, full_name, email")
+            .in("id", userIds);
+          analystByUser = Object.fromEntries(
+            (profs ?? []).map((p: any) => [p.id, p.full_name || p.email || "—"]),
+          );
+        }
+
+        // 3) empresa principal de cada lote
+        const paymentIds = list.map((p: any) => p.id);
+        const { data: groups } = await supabase
+          .from("payment_company_groups")
+          .select("payment_id, company_name, bruto_total")
+          .in("payment_id", paymentIds);
+
+        const empresaByPayment: Record<string, string> = {};
+        for (const g of groups ?? []) {
+          const pid = (g as any).payment_id as string;
+          const cur = empresaByPayment[pid];
+          const valor = Number((g as any).bruto_total ?? 0);
+          if (!cur || valor > 0) {
+            // mantém a empresa com maior bruto
+            empresaByPayment[pid] = (g as any).company_name || cur || "—";
+          }
+        }
+
+        const mapped: Row[] = list.map((p: any) => {
+          const bruto = Number(p.bruto_total ?? 0);
+          const liquido = Number(p.liquido_total ?? 0);
+          const ui = STATUS_MAP[p.status] ?? "em_analise";
+          const cycleEnd = p.approved_at || p.validated_at || null;
+          return {
+            id: p.id,
+            lote: shortenRef(p.reference) || `Lote ${String(p.id).slice(0, 8)}`,
+            empresa: empresaByPayment[p.id] || "—",
+            competencia: fmtCompetencia(p.competence_month),
+            itens: Number(p.items_count ?? 0),
+            valor: liquido || bruto,
+            diferenca: liquido - bruto,
+            ciclo: daysBetween(p.created_at, cycleEnd),
+            status: ui,
+            analista: analystByUser[p.created_by] || "—",
+          };
+        });
+        setRows(mapped);
+      } catch (e) {
+        console.warn("[BiPagamentos] erro carregando dados:", e);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
@@ -138,7 +206,14 @@ export default function BiPagamentos() {
     const pago = rows.filter((r) => r.status === "pago").reduce((s, r) => s + r.valor, 0);
     const aprovacao = rows.filter((r) => r.status === "em_aprovacao" || r.status === "em_analise").reduce((s, r) => s + r.valor, 0);
     const risco = rows.filter((r) => r.status === "risco").reduce((s, r) => s + r.valor, 0);
-    return { total, pago, aprovacao, risco, count: rows.length };
+    const itensTotais = rows.reduce((s, r) => s + r.itens, 0);
+    return { total, pago, aprovacao, risco, count: rows.length, itensTotais };
+  }, [rows]);
+
+  // mini-bars: top 7 lotes por valor (asc) pra dar sensação de "tendência"
+  const sparkValues = useMemo(() => {
+    const last = rows.slice(0, 7).map((r) => r.valor).reverse();
+    return last.length ? last : [1, 1, 1, 1, 1, 1, 1];
   }, [rows]);
 
   return (
@@ -156,7 +231,7 @@ export default function BiPagamentos() {
               Pagamentos
             </h1>
             <p className="text-sm text-muted-foreground mt-2">
-              {totals.count} lotes na competência · ciclo médio de 1,8 dias
+              {totals.count} lotes carregados · {totals.itensTotais.toLocaleString("pt-BR")} itens no total
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -174,20 +249,19 @@ export default function BiPagamentos() {
           </div>
         </div>
 
-        {/* HERO + KPIs */}
+        {/* HERO + side */}
         <div className="grid grid-cols-12 gap-5">
-          {/* Hero azul */}
           <div className="col-span-8 rounded-3xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-8 relative overflow-hidden">
             <div className="absolute -right-10 -top-10 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
             <div className="relative">
               <div className="text-xs font-medium uppercase tracking-wider text-primary-foreground/80">
-                Volume processado · Mai/26
+                Volume processado · últimos {Math.min(rows.length, 40)} lotes
               </div>
               <div className="text-[56px] font-semibold tracking-tight leading-none mt-3" style={{ fontVariantNumeric: "tabular-nums" }}>
                 {fmtMi(totals.total)}
               </div>
               <div className="text-sm text-primary-foreground/80 mt-2">
-                {totals.count} lotes · {rows.reduce((s, r) => s + r.itens, 0).toLocaleString("pt-BR")} itens · ciclo 1,8d
+                {totals.count} lotes · {totals.itensTotais.toLocaleString("pt-BR")} itens
               </div>
 
               <div className="grid grid-cols-3 gap-3 mt-8">
@@ -213,26 +287,28 @@ export default function BiPagamentos() {
             </div>
           </div>
 
-          {/* Card lateral */}
           <div className="col-span-4 rounded-3xl bg-card border border-border p-6 flex flex-col">
             <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Tendência semanal</div>
-              <span className="text-xs text-success font-medium">+12,4%</span>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Últimos lotes</div>
+              <span className="text-xs text-muted-foreground">por valor</span>
             </div>
             <div className="mt-4">
-              <MiniBars values={[42, 58, 49, 71, 64, 82, 96]} />
+              <MiniBars values={sparkValues} />
             </div>
             <div className="mt-auto pt-6 border-t border-border">
-              <div className="text-xs text-muted-foreground">Próximo fechamento</div>
-              <div className="text-lg font-semibold text-foreground mt-1">28/Mai · 14h</div>
-              <div className="text-xs text-muted-foreground mt-1">3 lotes aguardando assinatura digital</div>
+              <div className="text-xs text-muted-foreground">Maior lote</div>
+              <div className="text-lg font-semibold text-foreground mt-1" style={{ fontVariantNumeric: "tabular-nums" }}>
+                {rows.length ? fmtMi(Math.max(...rows.map((r) => r.valor))) : "—"}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 truncate">
+                {rows.length ? [...rows].sort((a, b) => b.valor - a.valor)[0].empresa : "Aguardando dados"}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Filtros + Lista */}
         <div className="rounded-3xl bg-card border border-border overflow-hidden">
-          {/* Filtros */}
           <div className="p-5 border-b border-border flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -255,9 +331,7 @@ export default function BiPagamentos() {
                   key={k}
                   onClick={() => setStatusFilter(k as any)}
                   className={`px-3 h-8 rounded-full text-xs font-medium transition-all ${
-                    statusFilter === k
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                    statusFilter === k ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {label}
@@ -270,7 +344,6 @@ export default function BiPagamentos() {
             </button>
           </div>
 
-          {/* Header tabela */}
           <div className="px-6 py-3 grid grid-cols-12 gap-4 text-[11px] uppercase tracking-wider text-muted-foreground font-medium border-b border-border bg-muted/20">
             <div className="col-span-3">Lote · Empresa</div>
             <div className="col-span-1 text-right">Itens</div>
@@ -281,19 +354,19 @@ export default function BiPagamentos() {
             <div className="col-span-1 text-right">Status</div>
           </div>
 
-          {/* Rows */}
           <div className="divide-y divide-border">
             {filtered.map((r) => {
               const meta = STATUS_META[r.status];
               const diffColor = r.diferenca > 0 ? "text-destructive" : r.diferenca < 0 ? "text-amber-600" : "text-muted-foreground";
               return (
-                <div
+                <Link
                   key={r.id}
+                  to={`/bi/lote/${r.id}`}
                   className="px-6 py-4 grid grid-cols-12 gap-4 items-center hover:bg-muted/30 transition-colors cursor-pointer group"
                 >
                   <div className="col-span-3 min-w-0">
                     <div className="text-sm font-semibold text-foreground truncate">{r.empresa}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    <div className="text-xs text-muted-foreground mt-0.5 truncate" style={{ fontVariantNumeric: "tabular-nums" }}>
                       {r.lote} · {r.competencia}
                     </div>
                   </div>
@@ -309,7 +382,7 @@ export default function BiPagamentos() {
                   <div className="col-span-1 text-right text-xs text-muted-foreground">{r.ciclo}</div>
                   <div className="col-span-2 flex items-center gap-2 min-w-0">
                     <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-[11px] font-semibold text-primary shrink-0">
-                      {r.analista.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                      {r.analista.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase() || "—"}
                     </div>
                     <span className="text-xs text-muted-foreground truncate">{r.analista}</span>
                   </div>
@@ -319,17 +392,19 @@ export default function BiPagamentos() {
                       {meta.label}
                     </span>
                   </div>
-                </div>
+                </Link>
               );
             })}
-            {filtered.length === 0 && (
+            {!loading && filtered.length === 0 && (
               <div className="px-6 py-16 text-center text-sm text-muted-foreground">
-                Nenhum lote encontrado com esses filtros.
+                {rows.length === 0 ? "Nenhum pagamento encontrado na base." : "Nenhum lote com esses filtros."}
               </div>
+            )}
+            {loading && (
+              <div className="px-6 py-16 text-center text-sm text-muted-foreground">Carregando lotes…</div>
             )}
           </div>
 
-          {/* Footer */}
           <div className="px-6 py-3 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
             <span>Mostrando {filtered.length} de {rows.length} lotes</span>
             <div className="flex items-center gap-4">
@@ -340,12 +415,12 @@ export default function BiPagamentos() {
           </div>
         </div>
 
-        {/* Atalhos inferiores */}
+        {/* Atalhos */}
         <div className="grid grid-cols-3 gap-5">
           {[
-            { icon: FileText, title: "Conferência de NF", desc: "12 notas aguardando lançamento", href: "/notas-fiscais" },
-            { icon: AlertTriangle, title: "Pendências críticas", desc: "4 lotes acima do SLA", href: "/pendencias" },
-            { icon: CheckCircle2, title: "Aprovações da diretoria", desc: "R$ 2,9 mi para liberar", href: "/aprovacoes" },
+            { icon: FileText, title: "Conferência de NF", desc: "Lançamento e conciliação", href: "/notas-fiscais" },
+            { icon: AlertTriangle, title: "Pendências críticas", desc: "Acompanhar SLA aberto", href: "/pendencias" },
+            { icon: CheckCircle2, title: "Aprovações da diretoria", desc: "Lotes para liberar", href: "/aprovacoes" },
           ].map((card) => (
             <Link
               key={card.title}
@@ -363,10 +438,6 @@ export default function BiPagamentos() {
             </Link>
           ))}
         </div>
-
-        {loading && (
-          <div className="text-center text-xs text-muted-foreground">Carregando dados reais…</div>
-        )}
       </div>
     </div>
   );
