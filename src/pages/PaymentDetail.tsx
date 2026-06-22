@@ -107,7 +107,7 @@ const ObservationTypeSelector = ({
   disabled?: boolean;
 }) => {
   return (
-    <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
+    <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-full border w-fit">
       <Button
         variant={value === "informativo" ? "default" : "ghost"}
         size="sm"
