@@ -26,6 +26,7 @@ import {
   TrendingUp,
   History,
   Split,
+  LineChart,
 } from "lucide-react";
 
 type Role = "analista" | "validador" | "diretor" | "admin";
