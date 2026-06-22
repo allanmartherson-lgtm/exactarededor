@@ -787,7 +787,7 @@ export default function PaymentEvolution() {
           </DialogHeader>
           {dialogCc && (
             <LotesList
-              payments={payments.filter((p) => {
+              payments={filteredPayments.filter((p) => {
                 if ((p.cost_center_code ?? "—") !== dialogCc.code) return false;
                 const ds = mode === "competencia"
                   ? p.competence_month
