@@ -848,12 +848,13 @@ function FilterBtn({ id, label, active, openSection, onToggle, children }: Filte
  *  WhenApplySection — progressive disclosure dos filtros por cálculo
  * ============================================================ */
 function WhenApplySection({
-  c, onChange, isPacote, specialCaseTypes,
-}: { c: CalcItem; onChange: (p: Partial<CalcItem>) => void; isPacote: boolean; specialCaseTypes: { code: string; label: string }[] }) {
+  c, onChange, isPacote, specialCaseTypes, paymentTypes,
+}: { c: CalcItem; onChange: (p: Partial<CalcItem>) => void; isPacote: boolean; specialCaseTypes: { code: string; label: string }[]; paymentTypes: { id: string; label: string }[] }) {
   const hasCodesFilter = c.code_match_mode !== "any" && c.procedure_codes.length > 0;
   const hasConvenioFilter = c.agreement_aliases.length > 0;
   const hasFuncaoFilter = c.doctor_roles.length > 0;
   const hasSpecialCaseFilter = c.special_case_filter.length > 0;
+  const hasPaymentTypeFilter = !!c.payment_type_id;
   const hasTemporalSurcharge = !!(c.adicional_fds_pct || c.adicional_feriado_pct || c.adicional_noturno_pct || c.noturno_inicio || c.noturno_fim);
   const hasPeriodoFilter = (c.has_conditions && (
     c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays ||
