@@ -2,6 +2,7 @@
 // É usada pelo motor de leitura de aprovações por e-mail (parse-email-approval)
 // para validar se quem assinou o e-mail está autorizado.
 import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,24 +107,19 @@ export default function Directors({ embedded = false }: { embedded?: boolean } =
   };
 
   return (
-    <div className={embedded ? "space-y-4" : "container mx-auto p-6 space-y-4 max-w-5xl"}>
+    <div className={embedded ? "space-y-4" : "space-y-4"}>
       {!embedded && (
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold flex items-center gap-2">
-              <ShieldCheck className="h-6 w-6 text-primary" /> Diretores autorizados
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Cadastre os diretores que podem aprovar pagamentos. O sistema usa esta lista para validar
-              automaticamente as <strong>aprovações anexadas por e-mail</strong> (PDF ou print).
-            </p>
-          </div>
-          {canManage && (
-            <Button onClick={startCreate} disabled={!hospital}>
-              <Plus className="h-4 w-4 mr-2" /> Novo diretor
-            </Button>
-          )}
-        </div>
+        <PageHeader
+          title="Diretores autorizados"
+          description="Cadastre os diretores que podem aprovar pagamentos. O sistema usa esta lista para validar automaticamente as aprovações anexadas por e-mail (PDF ou print)."
+          actions={
+            canManage ? (
+              <Button onClick={startCreate} disabled={!hospital}>
+                <Plus className="h-4 w-4 mr-2" /> Novo diretor
+              </Button>
+            ) : null
+          }
+        />
       )}
       {embedded && canManage && (
         <div className="flex justify-end">
