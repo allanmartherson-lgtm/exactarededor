@@ -957,6 +957,27 @@ const NewPayment = () => {
         source_file: f.name,
         source_row_number: headerOffset + 2 + rowIndex,
       };
+
+      // === Injeção de defaults do tipo de pagamento ===
+      // Quando o analista marcou um tipo (ex.: Parecer Adulto), aplicamos:
+      //  - tuss_default → preenche procedure_code vazio (planilhas de parecer
+      //    não trazem coluna TUSS; sem isso a regra com filtro por código
+      //    nunca casaria);
+      //  - default_function → preenche doctor_role vazio (ex.: "Parecerista");
+      // Defaults só atuam quando a célula está vazia — analista pode sempre
+      // sobrescrever pela própria planilha.
+      const ptMeta = paymentTypeMetaRef.current;
+      if (ptMeta) {
+        if (!base.procedure_code && ptMeta.tuss_default) {
+          base.procedure_code = ptMeta.tuss_default;
+          (base.raw_data as any).__tuss_default_applied = ptMeta.tuss_default;
+        }
+        if (!base.doctor_role && ptMeta.default_function) {
+          base.doctor_role = ptMeta.default_function;
+          (base.raw_data as any).__role_default_applied = ptMeta.default_function;
+        }
+      }
+
       const tipo_linha = classifyLine(base, paymentKind || null);
       const withType = { ...base, tipo_linha };
       const line_issues = validateLine(withType, { modoConfeccao });
