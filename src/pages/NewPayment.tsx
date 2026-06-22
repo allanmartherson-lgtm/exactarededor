@@ -2062,9 +2062,11 @@ const NewPayment = () => {
         convenio_matched_by: cRes.matched_by,
         sector_slug: sRes.sector?.slug ?? null,
         sector_matched_by: sRes.matched_by,
-        // Herda o tipo de pagamento escolhido na criação da base.
-        // Motor usa para filtrar regras com payment_type_id setado.
-        payment_type_id: (payment as any).payment_type_id ?? null,
+        // Herda o tipo de pagamento escolhido na criação da base. Quando a
+        // base mistura subtipos (allow_mixed_subtypes), o parser pode ter
+        // marcado um override por linha — ele prevalece sobre o tipo pai.
+        // Motor usa este campo para filtrar regras com payment_type_id setado.
+        payment_type_id: r.payment_type_id_override ?? (payment as any).payment_type_id ?? null,
       });
     };
 
