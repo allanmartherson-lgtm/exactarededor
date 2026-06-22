@@ -665,6 +665,9 @@ serve(async (req) => {
       convenio_value_totalized: it.convenio_value_totalized ?? false,
       special_case_code: it.special_case_code ?? null,
       special_case_status: it.special_case_status ?? null,
+      // Filtro de tipo de pagamento por cálculo (rule_calculations.payment_type_id)
+      // — todos os itens do pagamento herdam o tipo do `payments.payment_type_id`.
+      payment_type_id: ctx.payment_type_id ?? null,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
         ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }
