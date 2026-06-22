@@ -200,6 +200,7 @@ const CommunicationSupervision = lazy(loadCommunicationSupervision);
 const ProcessHealth = lazy(loadProcessHealth);
 const ReportsCentral = lazy(loadReportsCentral);
 const ExportAudit = lazy(loadExportAudit);
+const PaymentEvolution = lazy(loadPaymentEvolution);
 const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal.tsx"));
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
 const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
