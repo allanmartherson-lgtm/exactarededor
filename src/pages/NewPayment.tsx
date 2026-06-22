@@ -1645,6 +1645,9 @@ const NewPayment = () => {
   // (ex.: nome da empresa caindo no campo setor) continua gerando divergência
   // na Resolução de cadastros mesmo após o usuário corrigir.
   const sectorForRow = (r: ParsedRow & { source_bucket_index?: number }): string | null => {
+    // Tipos de pagamento por evento (parecer, visita...) não têm dimensão de setor.
+    // Ignora qualquer valor capturado/override para não cair em Resolução de cadastros.
+    if (paymentTypeMeta?.default_function) return null;
     const bIdx = (r as any).source_bucket_index;
     const override = typeof bIdx === "number" ? buckets[bIdx]?.sectorMapping : null;
     if (override && override.trim()) return override;
