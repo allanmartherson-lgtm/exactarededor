@@ -2223,6 +2223,32 @@ const NewPayment = () => {
           : "Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo."}
       />
       <div className="p-8 max-w-7xl space-y-6">
+        {paymentTypeMeta && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm flex items-start gap-3">
+            <div className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary uppercase tracking-wide">
+              Tipo: {paymentTypeMeta.label}
+            </div>
+            <div className="text-xs text-muted-foreground flex-1 leading-relaxed">
+              {paymentTypeMeta.tuss_default && !paymentTypeMeta.requires_tuss_in_sheet && (
+                <div>TUSS <span className="font-mono">{paymentTypeMeta.tuss_default}</span> será aplicado automaticamente às linhas sem código.</div>
+              )}
+              {paymentTypeMeta.default_function && (
+                <div>Função padrão: <span className="font-medium">{paymentTypeMeta.default_function}</span> (preenche linhas sem função).</div>
+              )}
+              {!paymentTypeMeta.tuss_default && paymentTypeMeta.requires_tuss_in_sheet && !paymentTypeMeta.default_function && (
+                <div>Sem defaults — a planilha precisa trazer TUSS e função para cada linha.</div>
+              )}
+              <div className="mt-1">Apenas regras com este tipo (ou sem tipo definido) vão entrar no motor.</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setPaymentTypeId(null); try { sessionStorage.removeItem("newPaymentTypeId"); } catch {} }}
+              className="text-xs text-muted-foreground hover:text-foreground underline shrink-0"
+            >
+              Remover
+            </button>
+          </div>
+        )}
         {retroHandoff && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
             <div className="font-semibold text-amber-900 dark:text-amber-200">
