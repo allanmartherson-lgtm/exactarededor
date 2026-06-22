@@ -523,7 +523,7 @@ export default function PaymentEvolution() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </FragmentRow>
                     );
                   })
                 )}
