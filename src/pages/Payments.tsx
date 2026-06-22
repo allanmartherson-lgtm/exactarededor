@@ -1211,7 +1211,7 @@ const Payments = () => {
                   </div>
                   <span
                     className={cn(
-                      "text-[11px] font-semibold uppercase tracking-wider",
+                      "text-[11px] font-medium uppercase tracking-[0.04em]",
                       !isHero && "text-muted-foreground",
                     )}
                     style={isHero ? { color: "rgba(255,255,255,0.7)" } : undefined}
@@ -1220,7 +1220,7 @@ const Payments = () => {
                   </span>
                 </div>
                 <div
-                  className={cn("text-2xl font-bold tabular-nums", !isHero && "text-foreground")}
+                  className={cn("text-2xl font-semibold tabular-nums", !isHero && "text-foreground")}
                   style={isHero ? { color: "#fff" } : undefined}
                 >
                   {kpi.value}
