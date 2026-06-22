@@ -275,6 +275,10 @@ export interface RuleCalculationItem {
   specialties?: string[] | null;
   /** Caso especial aplicável neste cálculo. Vazio = padrão; códigos ou '*' exigem caso especial aprovado. */
   special_case_filter?: string[] | null;
+  /** Tipo de pagamento aplicável neste cálculo (Parecer, Visita, etc.).
+   *  NULL = vale para qualquer tipo. Quando setado, só casa se o item
+   *  pertencer a um pagamento com o mesmo `payment_type_id`. */
+  payment_type_id?: string | null;
   /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
   procedure_keywords?: string[] | null;
   /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
