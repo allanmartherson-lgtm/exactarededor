@@ -668,6 +668,9 @@ serve(async (req) => {
       // Filtro de tipo de pagamento por cálculo (rule_calculations.payment_type_id)
       // — todos os itens do pagamento herdam o tipo do `payments.payment_type_id`.
       payment_type_id: ctx.payment_type_id ?? null,
+      // Exceção do cálculo (marcação manual do analista) — motor pula
+      // cálculos tipados e cai no próximo cálculo elegível da regra.
+      calc_exception_skip: (it as any).calc_exception_skip ?? false,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
         ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }
