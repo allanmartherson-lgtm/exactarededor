@@ -19,11 +19,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 
 /**
- * BI · Detalhe do lote (Apple-style)
- *
- * Página puramente visual: stepper, auditoria TUSS, resumo IA.
- * Lê dados reais de payments quando :id existe; fallback estático.
- * Não substitui PaymentDetail.tsx (operacional).
+ * BI · Detalhe do lote (Apple-style) — ligado aos dados reais.
+ * Agrega payment_items por TUSS, calcula divergências e mostra trilha de auditoria
+ * a partir de validated_at / approved_at do payment.
  */
 
 const fmtFull = (v: number) =>
@@ -34,15 +32,28 @@ const fmtMi = (v: number) => {
   return formatCurrency(v);
 };
 
+const MONTHS_PT_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+function fmtCompetencia(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return `${MONTHS_PT_SHORT[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
+}
+function fmtDateTime(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return `${String(d.getDate()).padStart(2, "0")}/${MONTHS_PT_SHORT[d.getMonth()]} · ${String(d.getHours()).padStart(2, "0")}h${String(d.getMinutes()).padStart(2, "0")}`;
+}
+function daysBetween(a?: string | null, b?: string | null): string {
+  if (!a || !b) return "—";
+  const ms = new Date(b).getTime() - new Date(a).getTime();
+  if (!isFinite(ms) || ms < 0) return "—";
+  return `${(ms / 86_400_000).toFixed(1).replace(".", ",")} d`;
+}
+
 type StepKey = "recebido" | "validacao" | "ia" | "diretoria" | "nf" | "pago";
-const STEPS: { key: StepKey; label: string; sub: string }[] = [
-  { key: "recebido", label: "Recebido", sub: "16/Mai · 09h" },
-  { key: "validacao", label: "Validação", sub: "16/Mai · 10h" },
-  { key: "ia", label: "Análise IA", sub: "16/Mai · 10h" },
-  { key: "diretoria", label: "Aprovação dir.", sub: "17/Mai · 14h" },
-  { key: "nf", label: "Pós-aprov. NF", sub: "20/Mai · 09h" },
-  { key: "pago", label: "Pago", sub: "—" },
-];
+type Step = { key: StepKey; label: string; sub: string; reached: boolean };
 
 type TussRow = {
   tuss: string;
@@ -53,81 +64,194 @@ type TussRow = {
   status: "ok" | "divergente" | "alerta";
 };
 
-const FALLBACK_TUSS: TussRow[] = [
-  { tuss: "30602050", desc: "Colecistectomia videolaparoscópica", qtd: 18, esperado: 142_300, pago: 142_300, status: "ok" },
-  { tuss: "30912019", desc: "Herniorrafia inguinal unilateral", qtd: 12, esperado: 86_400, pago: 89_120, status: "divergente" },
-  { tuss: "40601218", desc: "USG abdome total", qtd: 42, esperado: 38_220, pago: 38_220, status: "ok" },
-  { tuss: "30606016", desc: "Apendicectomia", qtd: 7, esperado: 54_600, pago: 54_600, status: "ok" },
-  { tuss: "31309044", desc: "Cesariana", qtd: 9, esperado: 122_400, pago: 118_900, status: "alerta" },
-  { tuss: "40808010", desc: "Tomografia crânio s/ contraste", qtd: 23, esperado: 41_400, pago: 41_400, status: "ok" },
-  { tuss: "30730020", desc: "Histerectomia total", qtd: 4, esperado: 68_200, pago: 71_440, status: "divergente" },
-];
-
 const STATUS_META: Record<TussRow["status"], { label: string; tone: string; dot: string }> = {
   ok: { label: "Conciliado", tone: "bg-success/10 text-success border-success/20", dot: "bg-success" },
   divergente: { label: "Divergente", tone: "bg-destructive/10 text-destructive border-destructive/20", dot: "bg-destructive" },
   alerta: { label: "Alerta", tone: "bg-amber-500/10 text-amber-600 border-amber-500/20", dot: "bg-amber-500" },
 };
 
+const TOL = 0.01;
+function tussStatus(esperado: number, pago: number): TussRow["status"] {
+  const diff = pago - esperado;
+  if (Math.abs(diff) <= TOL) return "ok";
+  if (diff > 0) return "divergente";
+  return "alerta";
+}
+
+const REACHED_BY_STATUS: Record<string, number> = {
+  em_validacao: 1,
+  aguardando_validacao: 1,
+  em_analise_ia: 2,
+  revisao_analista: 2,
+  devolvido_analista: 2,
+  aguardando_aprovacao: 3,
+  aprovado: 4,
+  nf_recebida: 4,
+  pago: 5,
+};
+
 export default function BiLoteDetalhe() {
   const { id } = useParams();
-  const [empresa, setEmpresa] = useState("Med Center Brasília");
-  const [lote, setLote] = useState("L-2604-018");
-  const [competencia, setCompetencia] = useState("Mai/26");
-  const [valor, setValor] = useState(1_842_300);
-  const [diff, setDiff] = useState(2_460);
-  const [itens] = useState(248);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [payment, setPayment] = useState<any | null>(null);
+  const [analystName, setAnalystName] = useState<string>("—");
+  const [empresaPrincipal, setEmpresaPrincipal] = useState<string>("—");
+  const [empresasCount, setEmpresasCount] = useState<number>(0);
+  const [tussRows, setTussRows] = useState<TussRow[]>([]);
+  const [especialidadesTop, setEspecialidadesTop] = useState<string[]>([]);
+  const [especialidadesCount, setEspecialidadesCount] = useState<number>(0);
+
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"todos" | "divergente" | "alerta">("todos");
 
   useEffect(() => {
-    if (!id) return;
+    document.title = "BI · Detalhe do lote | Exacta";
+    if (!id) {
+      setLoading(false);
+      setNotFound(true);
+      return;
+    }
     (async () => {
       try {
-        const { data } = await supabase
+        // 1) lote
+        const { data: pay } = await supabase
           .from("payments")
-          .select("batch_code, company_name, competence_month, total_amount, total_difference")
+          .select("id, reference, status, competence_month, bruto_total, liquido_total, items_count, created_at, validated_at, approved_at, created_by, ai_summary")
           .eq("id", id)
           .maybeSingle();
-        if (data) {
-          setEmpresa((data as any).company_name || empresa);
-          setLote((data as any).batch_code || lote);
-          setCompetencia((data as any).competence_month || competencia);
-          setValor(Number((data as any).total_amount) || valor);
-          setDiff(Number((data as any).total_difference) || diff);
+        if (!pay) {
+          setNotFound(true);
+          return;
         }
-      } catch { /* silent */ }
+        setPayment(pay);
+
+        // 2) analista
+        if ((pay as any).created_by) {
+          const { data: pr } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", (pay as any).created_by)
+            .maybeSingle();
+          if (pr) setAnalystName((pr as any).full_name || (pr as any).email || "—");
+        }
+
+        // 3) empresas do lote
+        const { data: groups } = await supabase
+          .from("payment_company_groups")
+          .select("company_name, bruto_total")
+          .eq("payment_id", id);
+        if (groups && groups.length) {
+          setEmpresasCount(groups.length);
+          const top = [...groups].sort((a: any, b: any) => Number(b.bruto_total ?? 0) - Number(a.bruto_total ?? 0))[0];
+          setEmpresaPrincipal((top as any)?.company_name || "—");
+        }
+
+        // 4) items → TUSS aggregation + especialidades
+        const { data: items } = await supabase
+          .from("payment_items")
+          .select("procedure_code, procedure_name, quantity, expected_amount, gross_amount, specialty, is_cancelled")
+          .eq("payment_id", id)
+          .eq("is_cancelled", false);
+
+        const tussMap = new Map<string, TussRow>();
+        const espMap = new Map<string, number>();
+        for (const it of items ?? []) {
+          const code = (it as any).procedure_code || "—";
+          const nome = (it as any).procedure_name || "—";
+          const qtd = Number((it as any).quantity ?? 0);
+          const esperado = Number((it as any).expected_amount ?? 0);
+          const pago = Number((it as any).gross_amount ?? 0);
+          const cur = tussMap.get(code);
+          if (cur) {
+            cur.qtd += qtd;
+            cur.esperado += esperado;
+            cur.pago += pago;
+          } else {
+            tussMap.set(code, { tuss: code, desc: nome, qtd, esperado, pago, status: "ok" });
+          }
+          const esp = ((it as any).specialty || "").trim();
+          if (esp) espMap.set(esp, (espMap.get(esp) ?? 0) + 1);
+        }
+        const tussList = Array.from(tussMap.values())
+          .map((r) => ({ ...r, status: tussStatus(r.esperado, r.pago) }))
+          .sort((a, b) => b.pago - a.pago);
+        setTussRows(tussList);
+
+        const espSorted = Array.from(espMap.entries()).sort((a, b) => b[1] - a[1]);
+        setEspecialidadesCount(espSorted.length);
+        setEspecialidadesTop(espSorted.slice(0, 3).map(([k]) => k));
+      } catch (e) {
+        console.warn("[BiLoteDetalhe] erro carregando:", e);
+      } finally {
+        setLoading(false);
+      }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const tussFiltered = useMemo(() => {
-    return FALLBACK_TUSS.filter((r) => {
+    return tussRows.filter((r) => {
       if (tab !== "todos" && r.status !== tab) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
-        return r.tuss.includes(q) || r.desc.toLowerCase().includes(q);
+        return r.tuss.toLowerCase().includes(q) || r.desc.toLowerCase().includes(q);
       }
       return true;
     });
-  }, [query, tab]);
+  }, [tussRows, query, tab]);
 
   const totals = useMemo(() => {
-    const esperado = FALLBACK_TUSS.reduce((s, r) => s + r.esperado, 0);
-    const pago = FALLBACK_TUSS.reduce((s, r) => s + r.pago, 0);
-    const divergentes = FALLBACK_TUSS.filter((r) => r.status !== "ok").length;
-    return { esperado, pago, divergentes };
-  }, []);
+    const esperado = tussRows.reduce((s, r) => s + r.esperado, 0);
+    const pago = tussRows.reduce((s, r) => s + r.pago, 0);
+    const divergentes = tussRows.filter((r) => r.status !== "ok").length;
+    const conf = tussRows.length ? Math.round(((tussRows.length - divergentes) / tussRows.length) * 100) : 100;
+    return { esperado, pago, divergentes, conf, anomalies: divergentes };
+  }, [tussRows]);
 
-  // stepper progress: até "nf" concluído, "pago" pendente
-  const currentStepIdx = 4;
+  const steps: Step[] = useMemo(() => {
+    const reached = REACHED_BY_STATUS[payment?.status] ?? 0;
+    return [
+      { key: "recebido", label: "Recebido", sub: fmtDateTime(payment?.created_at), reached: reached >= 0 },
+      { key: "validacao", label: "Validação", sub: fmtDateTime(payment?.validated_at), reached: reached >= 1 },
+      { key: "ia", label: "Análise IA", sub: payment?.ai_summary ? "Concluída" : "—", reached: reached >= 2 },
+      { key: "diretoria", label: "Aprovação dir.", sub: fmtDateTime(payment?.approved_at), reached: reached >= 3 },
+      { key: "nf", label: "Pós-aprov. NF", sub: payment?.status === "nf_recebida" || payment?.status === "pago" ? "OK" : "—", reached: reached >= 4 },
+      { key: "pago", label: "Pago", sub: payment?.status === "pago" ? "OK" : "—", reached: reached >= 5 },
+    ];
+  }, [payment]);
+
+  const currentStepIdx = Math.max(0, steps.filter((s) => s.reached).length - 1);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-sm text-muted-foreground">Carregando lote…</div>
+      </div>
+    );
+  }
+  if (notFound || !payment) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+        <div className="text-sm text-muted-foreground">Lote não encontrado.</div>
+        <Link to="/bi/pagamentos" className="text-sm text-primary hover:underline">← Voltar para a lista</Link>
+      </div>
+    );
+  }
+
+  const empresaTitle = empresaPrincipal || "—";
+  const reference = payment.reference || `Lote ${String(payment.id).slice(0, 8)}`;
+  const competencia = fmtCompetencia(payment.competence_month);
+  const valor = Number(payment.liquido_total ?? payment.bruto_total ?? 0);
+  const diff = Number(payment.liquido_total ?? 0) - Number(payment.bruto_total ?? 0);
+  const itens = Number(payment.items_count ?? 0);
+  const ciclo = daysBetween(payment.created_at, payment.approved_at || payment.validated_at);
 
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1440px] mx-auto px-8 py-10 space-y-8">
         {/* Breadcrumb + header */}
         <div className="flex items-end justify-between gap-6 flex-wrap">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
               <Link to="/bi/diretoria" className="hover:text-foreground transition-colors">BI</Link>
               <ChevronRight className="h-3 w-3" />
@@ -135,9 +259,11 @@ export default function BiLoteDetalhe() {
               <ChevronRight className="h-3 w-3" />
               <span>Detalhe</span>
             </div>
-            <h1 className="text-[34px] font-semibold tracking-tight text-foreground leading-none">{empresa}</h1>
-            <div className="flex items-center gap-3 mt-3 text-sm text-muted-foreground">
-              <span style={{ fontVariantNumeric: "tabular-nums" }}>{lote}</span>
+            <h1 className="text-[34px] font-semibold tracking-tight text-foreground leading-none truncate max-w-[820px]">
+              {empresaTitle}
+            </h1>
+            <div className="flex items-center gap-3 mt-3 text-sm text-muted-foreground flex-wrap">
+              <span className="truncate max-w-[520px]">{reference}</span>
               <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
               <span>Competência {competencia}</span>
               <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
@@ -150,7 +276,7 @@ export default function BiLoteDetalhe() {
               Exportar
             </button>
             <Link
-              to={id ? `/pagamentos/${id}` : "/pagamentos"}
+              to={`/pagamentos/${payment.id}`}
               className="h-9 px-4 rounded-full bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
             >
               Abrir operacional
@@ -171,16 +297,16 @@ export default function BiLoteDetalhe() {
                 {fmtMi(valor)}
               </div>
               <div className="text-sm text-primary-foreground/80 mt-2">
-                Diferença total {diff >= 0 ? "+" : ""}{fmtFull(diff)} · {itens} itens · ciclo 1,6 d
+                Diferença total {diff >= 0 ? "+" : ""}{fmtFull(diff)} · {itens} itens · ciclo {ciclo}
               </div>
 
               {/* Stepper */}
               <div className="mt-8">
                 <div className="relative">
                   <div className="absolute left-0 right-0 top-3 h-px bg-white/20" />
-                  <div className="absolute left-0 top-3 h-px bg-white" style={{ width: `${(currentStepIdx / (STEPS.length - 1)) * 100}%` }} />
-                  <div className="relative grid" style={{ gridTemplateColumns: `repeat(${STEPS.length}, 1fr)` }}>
-                    {STEPS.map((s, i) => {
+                  <div className="absolute left-0 top-3 h-px bg-white" style={{ width: `${(currentStepIdx / (steps.length - 1)) * 100}%` }} />
+                  <div className="relative grid" style={{ gridTemplateColumns: `repeat(${steps.length}, 1fr)` }}>
+                    {steps.map((s, i) => {
                       const done = i < currentStepIdx;
                       const current = i === currentStepIdx;
                       return (
@@ -209,7 +335,7 @@ export default function BiLoteDetalhe() {
             </div>
           </div>
 
-          {/* Card IA — resumo */}
+          {/* Card IA */}
           <div className="col-span-4 rounded-3xl bg-card border border-border p-6 flex flex-col">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
@@ -218,34 +344,49 @@ export default function BiLoteDetalhe() {
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Resumo da IA</div>
             </div>
             <p className="text-sm text-foreground leading-relaxed mt-4">
-              Lote dentro do padrão. <span className="font-semibold">{totals.divergentes} TUSS</span> com
-              divergência marginal (<span className="text-amber-600 font-medium">0,1%</span> do volume).
-              Recomendado aprovação com observação para auditoria pontual em <span className="font-semibold">cesariana</span> e <span className="font-semibold">histerectomia</span>.
+              {payment.ai_summary ? (
+                <span className="line-clamp-5">{payment.ai_summary}</span>
+              ) : totals.divergentes > 0 ? (
+                <>
+                  Lote com <span className="font-semibold">{totals.divergentes} TUSS</span> divergente
+                  {totals.divergentes > 1 ? "s" : ""}. Auditoria recomendada antes da liberação.
+                </>
+              ) : (
+                <>Lote conciliado integralmente. Nenhuma divergência detectada.</>
+              )}
             </p>
             <div className="mt-5 grid grid-cols-2 gap-2">
               <div className="rounded-2xl border border-border p-3">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Confiança</div>
-                <div className="text-lg font-semibold text-foreground mt-1">94%</div>
+                <div className="text-lg font-semibold text-foreground mt-1">{totals.conf}%</div>
               </div>
               <div className="rounded-2xl border border-border p-3">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Anomalias</div>
-                <div className="text-lg font-semibold text-foreground mt-1">2</div>
+                <div className="text-lg font-semibold text-foreground mt-1">{totals.anomalies}</div>
               </div>
             </div>
-            <button className="mt-5 h-9 rounded-full bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+            <Link
+              to={`/pagamentos/${payment.id}`}
+              className="mt-5 h-9 rounded-full bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            >
               <ShieldCheck className="h-4 w-4" />
-              Aprovar com observação
-            </button>
+              Abrir no operacional
+            </Link>
           </div>
         </div>
 
         {/* Metadados rápidos */}
         <div className="grid grid-cols-4 gap-5">
           {[
-            { icon: Building2, label: "Empresa", value: empresa, sub: "CNPJ 12.345.678/0001-90" },
-            { icon: User, label: "Analista", value: "Allan Araújo", sub: "Encerrou em 1,6 d" },
-            { icon: Stethoscope, label: "Especialidades", value: "8 grupos", sub: "Cirurgia · Imagem · GO" },
-            { icon: FileText, label: "Documentos", value: "3 anexos", sub: "NF · Boleto · Recibo" },
+            { icon: Building2, label: "Empresas", value: empresasCount ? `${empresasCount} empresa${empresasCount > 1 ? "s" : ""}` : "—", sub: empresaPrincipal },
+            { icon: User, label: "Analista", value: analystName, sub: `Criado ${fmtDateTime(payment.created_at)}` },
+            {
+              icon: Stethoscope,
+              label: "Especialidades",
+              value: especialidadesCount ? `${especialidadesCount} grupos` : "—",
+              sub: especialidadesTop.join(" · ") || "—",
+            },
+            { icon: FileText, label: "Status", value: payment.status?.replace(/_/g, " ") || "—", sub: `Itens ${itens}` },
           ].map((c) => (
             <div key={c.label} className="rounded-2xl border border-border bg-card p-5">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -264,7 +405,7 @@ export default function BiLoteDetalhe() {
             <div>
               <div className="text-sm font-semibold text-foreground">Auditoria TUSS</div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                {fmtFull(totals.esperado)} esperado · {fmtFull(totals.pago)} pago · {totals.divergentes} divergências
+                {fmtFull(totals.esperado)} esperado · {fmtFull(totals.pago)} pago · {totals.divergentes} divergência{totals.divergentes !== 1 ? "s" : ""}
               </div>
             </div>
             <div className="ml-auto flex items-center gap-3 flex-wrap">
@@ -316,7 +457,7 @@ export default function BiLoteDetalhe() {
                   <div className="col-span-2 text-sm font-semibold text-foreground" style={{ fontVariantNumeric: "tabular-nums" }}>
                     {r.tuss}
                   </div>
-                  <div className="col-span-4 text-sm text-foreground truncate">{r.desc}</div>
+                  <div className="col-span-4 text-sm text-foreground truncate" title={r.desc}>{r.desc}</div>
                   <div className="col-span-1 text-right text-sm text-foreground" style={{ fontVariantNumeric: "tabular-nums" }}>
                     {r.qtd}
                   </div>
@@ -327,7 +468,7 @@ export default function BiLoteDetalhe() {
                     <div className="text-sm font-semibold text-foreground" style={{ fontVariantNumeric: "tabular-nums" }}>
                       {fmtFull(r.pago)}
                     </div>
-                    {delta !== 0 && (
+                    {Math.abs(delta) > TOL && (
                       <div className={`text-[11px] ${deltaColor}`} style={{ fontVariantNumeric: "tabular-nums" }}>
                         {delta > 0 ? "+" : ""}{fmtFull(delta)}
                       </div>
@@ -348,63 +489,95 @@ export default function BiLoteDetalhe() {
           </div>
 
           <div className="px-6 py-3 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Mostrando {tussFiltered.length} de {FALLBACK_TUSS.length} TUSS</span>
+            <span>Mostrando {tussFiltered.length} de {tussRows.length} TUSS</span>
             <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-success" /> {FALLBACK_TUSS.filter(r=>r.status==="ok").length} conciliados</span>
-              <span className="flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5 text-destructive" /> {FALLBACK_TUSS.filter(r=>r.status==="divergente").length} divergentes</span>
-              <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-amber-500" /> {FALLBACK_TUSS.filter(r=>r.status==="alerta").length} alertas</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-success" /> {tussRows.filter(r=>r.status==="ok").length} conciliados</span>
+              <span className="flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5 text-destructive" /> {tussRows.filter(r=>r.status==="divergente").length} divergentes</span>
+              <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-amber-500" /> {tussRows.filter(r=>r.status==="alerta").length} alertas</span>
             </div>
           </div>
         </div>
 
-        {/* Auditoria timeline */}
+        {/* Trilha de auditoria + ações */}
         <div className="grid grid-cols-12 gap-5">
           <div className="col-span-8 rounded-3xl bg-card border border-border p-6">
             <div className="text-sm font-semibold text-foreground">Trilha de auditoria</div>
-            <div className="text-xs text-muted-foreground mt-0.5">7 eventos registrados</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Eventos registrados no lote</div>
 
             <div className="mt-6 relative pl-6">
               <div className="absolute left-2 top-1 bottom-1 w-px bg-border" />
-              {[
-                { who: "Allan Araújo", what: "Encaminhou para diretoria", when: "17/Mai · 09h21", tone: "primary" },
-                { who: "IA Exacta", what: "Identificou 2 divergências marginais em cesariana e histerectomia", when: "16/Mai · 10h48", tone: "amber" },
-                { who: "IA Exacta", what: "Validou 245 itens automaticamente (98,8%)", when: "16/Mai · 10h47", tone: "success" },
-                { who: "Sistema", what: "Lote recebido via integração Tasy", when: "16/Mai · 09h12", tone: "muted" },
-              ].map((e, i) => (
-                <div key={i} className="relative pb-5 last:pb-0">
-                  <div
-                    className={`absolute -left-[18px] top-1 h-3 w-3 rounded-full ring-4 ring-card ${
-                      e.tone === "primary" ? "bg-primary"
-                      : e.tone === "amber" ? "bg-amber-500"
-                      : e.tone === "success" ? "bg-success"
-                      : "bg-muted-foreground/40"
-                    }`}
-                  />
-                  <div className="text-sm text-foreground">
-                    <span className="font-semibold">{e.who}</span> · {e.what}
+              {([
+                payment.approved_at && {
+                  who: analystName !== "—" ? analystName : "Diretoria",
+                  what: `Aprovou o lote (${payment.status})`,
+                  when: fmtDateTime(payment.approved_at),
+                  tone: "primary" as const,
+                },
+                payment.validated_at && {
+                  who: analystName !== "—" ? analystName : "Analista",
+                  what: "Validou o lote",
+                  when: fmtDateTime(payment.validated_at),
+                  tone: "success" as const,
+                },
+                payment.ai_summary && {
+                  who: "IA Exacta",
+                  what: totals.divergentes > 0
+                    ? `Identificou ${totals.divergentes} divergência${totals.divergentes>1?"s":""} em TUSS`
+                    : "Concluiu análise sem divergências",
+                  when: fmtDateTime(payment.validated_at || payment.created_at),
+                  tone: totals.divergentes > 0 ? ("amber" as const) : ("success" as const),
+                },
+                {
+                  who: "Sistema",
+                  what: `Lote recebido (${payment.items_count ?? 0} itens)`,
+                  when: fmtDateTime(payment.created_at),
+                  tone: "muted" as const,
+                },
+              ].filter(Boolean) as { who: string; what: string; when: string; tone: "primary" | "amber" | "success" | "muted" }[])
+                .map((e, i) => (
+                  <div key={i} className="relative pb-5 last:pb-0">
+                    <div
+                      className={`absolute -left-[18px] top-1 h-3 w-3 rounded-full ring-4 ring-card ${
+                        e.tone === "primary" ? "bg-primary"
+                        : e.tone === "amber" ? "bg-amber-500"
+                        : e.tone === "success" ? "bg-success"
+                        : "bg-muted-foreground/40"
+                      }`}
+                    />
+                    <div className="text-sm text-foreground">
+                      <span className="font-semibold">{e.who}</span> · {e.what}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5" style={{ fontVariantNumeric: "tabular-nums" }}>{e.when}</div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5" style={{ fontVariantNumeric: "tabular-nums" }}>{e.when}</div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
 
           <div className="col-span-4 rounded-3xl bg-card border border-border p-6 flex flex-col gap-3">
             <div className="text-sm font-semibold text-foreground">Ações sugeridas</div>
-            <button className="h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-between px-4">
-              <span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Aprovar lote</span>
+            <Link
+              to={`/pagamentos/${payment.id}`}
+              className="h-11 rounded-2xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-between px-4"
+            >
+              <span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Abrir lote no operacional</span>
               <ChevronRight className="h-4 w-4" />
-            </button>
-            <button className="h-11 rounded-2xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors flex items-center justify-between px-4">
-              <span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Solicitar revisão</span>
+            </Link>
+            <Link
+              to="/pendencias"
+              className="h-11 rounded-2xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors flex items-center justify-between px-4"
+            >
+              <span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Ver pendências</span>
               <ChevronRight className="h-4 w-4" />
-            </button>
-            <button className="h-11 rounded-2xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors flex items-center justify-between px-4">
-              <span className="flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" /> Anexar nota fiscal</span>
+            </Link>
+            <Link
+              to="/notas-fiscais"
+              className="h-11 rounded-2xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors flex items-center justify-between px-4"
+            >
+              <span className="flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" /> Conciliar NF</span>
               <ChevronRight className="h-4 w-4" />
-            </button>
+            </Link>
             <div className="mt-auto pt-5 border-t border-border text-xs text-muted-foreground">
-              Última sincronização há <span className="text-foreground font-medium">3 min</span>.
+              Última atualização <span className="text-foreground font-medium">{fmtDateTime(payment.approved_at || payment.validated_at || payment.created_at)}</span>.
             </div>
           </div>
         </div>
