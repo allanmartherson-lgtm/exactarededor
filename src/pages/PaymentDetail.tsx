@@ -46,6 +46,7 @@ import { PreAnalysisScoreCard } from "@/components/payment-detail/PreAnalysisSco
 import { DoctorAnomalyAlerts } from "@/components/payment-detail/DoctorAnomalyAlerts";
 import { EmailApprovalCard } from "@/components/payment-detail/EmailApprovalCard";
 import { ExecutiveSummaryCard } from "@/components/payment-detail/ExecutiveSummaryCard";
+import { PaymentStatusFunnel } from "@/components/payment-detail/PaymentStatusFunnel";
 import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
 import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
 import { PhaseSummary, resolvePhase } from "@/components/payment-detail/PhaseSummary";
@@ -2620,6 +2621,11 @@ const PaymentDetail = () => {
         }
       />
       <div className="p-3 md:px-6 md:py-6 space-y-4 md:space-y-6">
+
+        {/* Funil de etapas — visão Apple do progresso do lote */}
+        {!isConfeccao && payment?.status && (
+          <PaymentStatusFunnel status={payment.status} />
+        )}
 
         {/* Linha compacta: metadados + responsável — sempre primeiro */}
         {(() => {
