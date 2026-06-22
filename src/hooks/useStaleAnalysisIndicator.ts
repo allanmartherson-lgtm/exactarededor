@@ -46,7 +46,7 @@ export function useStaleAnalysisIndicator(params: {
       `target_company_id.eq.${companyId}`,
     ];
     if (doctorIds.length > 0) {
-      const list = doctorIds.map((d) => `"${d}"`).join(",");
+      const list = doctorIds.join(",");
       ruleFilters.push(`target_doctor_id.in.(${list})`);
     }
     // Master/global: nenhum target específico
