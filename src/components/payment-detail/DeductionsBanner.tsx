@@ -179,7 +179,7 @@ export function DeductionsBanner({
                 {running ? "Aplicando deduções…" : `${totalLinhas} dedução(ões) aplicada(s) automaticamente`}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-                Débitos: {brl(totalDebitos)} · Glosas: {brl(totalGlosas)}
+                Débitos: {brl(totalDebitos)} · Créditos: {brl(totalCreditos)} · Glosas: {brl(totalGlosas)}
                 {pendingResolutions > 0 && <span className="text-warning-text"> · {pendingResolutions} pendência(s) de resolução manual</span>}
               </p>
             </div>
@@ -283,7 +283,7 @@ export function DeductionsBanner({
       {addOpen && (
         <AddManualDeductionDialog
           paymentId={paymentId} companyId={companyId}
-          onClose={() => { setAddOpen(false); load(); }}
+          onClose={() => { setAddOpen(false); void load(); void onApplied?.(); }}
         />
       )}
     </>
