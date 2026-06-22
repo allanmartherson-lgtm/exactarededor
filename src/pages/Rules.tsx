@@ -882,6 +882,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFActive(isDuplicate ? true : (r.active !== false));
     setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
     setFSeverity(r.severity ?? "aviso");
+    setFPaymentTypeId(((r as any).payment_type_id as string | null) ?? null);
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
     setFTargetDoctorId((r as any).target_doctor_id ?? null);
