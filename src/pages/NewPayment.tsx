@@ -1772,6 +1772,7 @@ const NewPayment = () => {
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
+        payment_type_id: paymentTypeId,
         import_mode: isHistoricoImport ? "historico" : "normal",
       } as any)
       .select()
