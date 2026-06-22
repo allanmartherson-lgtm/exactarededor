@@ -110,6 +110,7 @@ const loadExportAudit = () => import("./pages/ExportAudit.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
+const BiDiretoria = lazy(loadBiDiretoria);
 const AgingRecebiveis = lazy(loadAgingRecebiveis);
 const HealthMonitoring = lazy(loadHealthMonitoring);
 const Payments = lazy(loadPayments);
