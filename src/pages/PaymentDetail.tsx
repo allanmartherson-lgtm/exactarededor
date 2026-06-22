@@ -3702,7 +3702,7 @@ const PaymentDetail = () => {
             </div>
 
             {!isConfeccao && (
-            <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-full md:w-fit overflow-x-auto flex-nowrap">
+            <div className="flex items-center gap-1.5 p-1.5 bg-muted/50 rounded-full border w-full md:w-fit overflow-x-auto flex-nowrap [&_button]:rounded-full [&_[role=combobox]]:rounded-full">
               <Button
                 variant={criticalFilter === "all" ? "default" : "ghost"}
                 size="sm"
