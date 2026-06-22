@@ -532,6 +532,44 @@ const NewPayment = () => {
     return null;
   })();
   const [paymentTypeId, setPaymentTypeId] = useState<string | null>(initialPaymentTypeId);
+  // Metadados do tipo escolhido — usados pelo parser para injetar TUSS padrão,
+  // função padrão e marcar quando a planilha não precisa trazer TUSS.
+  type PaymentTypeMeta = {
+    id: string;
+    code: string;
+    label: string;
+    tuss_default: string | null;
+    requires_tuss_in_sheet: boolean;
+    default_function: string | null;
+    default_value_column_hint: string | null;
+    expected_headers: string[];
+  };
+  const [paymentTypeMeta, setPaymentTypeMeta] = useState<PaymentTypeMeta | null>(null);
+  const paymentTypeMetaRef = useRef<PaymentTypeMeta | null>(null);
+  useEffect(() => { paymentTypeMetaRef.current = paymentTypeMeta; }, [paymentTypeMeta]);
+  useEffect(() => {
+    if (!paymentTypeId) { setPaymentTypeMeta(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("payment_types")
+        .select("id,code,label,tuss_default,requires_tuss_in_sheet,default_function,default_value_column_hint,expected_headers")
+        .eq("id", paymentTypeId)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setPaymentTypeMeta({
+        id: data.id,
+        code: data.code,
+        label: data.label,
+        tuss_default: (data as any).tuss_default ?? null,
+        requires_tuss_in_sheet: (data as any).requires_tuss_in_sheet ?? true,
+        default_function: (data as any).default_function ?? null,
+        default_value_column_hint: (data as any).default_value_column_hint ?? null,
+        expected_headers: Array.isArray((data as any).expected_headers) ? (data as any).expected_headers : [],
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [paymentTypeId]);
   const [importMode, setImportMode] = useState<"normal" | "historico">("normal");
   const isHistoricoImport = importMode === "historico";
   const HISTORICO_WINDOW = { start: "2026-01", end: "2026-04" };
@@ -919,6 +957,27 @@ const NewPayment = () => {
         source_file: f.name,
         source_row_number: headerOffset + 2 + rowIndex,
       };
+
+      // === Injeção de defaults do tipo de pagamento ===
+      // Quando o analista marcou um tipo (ex.: Parecer Adulto), aplicamos:
+      //  - tuss_default → preenche procedure_code vazio (planilhas de parecer
+      //    não trazem coluna TUSS; sem isso a regra com filtro por código
+      //    nunca casaria);
+      //  - default_function → preenche doctor_role vazio (ex.: "Parecerista");
+      // Defaults só atuam quando a célula está vazia — analista pode sempre
+      // sobrescrever pela própria planilha.
+      const ptMeta = paymentTypeMetaRef.current;
+      if (ptMeta) {
+        if (!base.procedure_code && ptMeta.tuss_default) {
+          base.procedure_code = ptMeta.tuss_default;
+          (base.raw_data as any).__tuss_default_applied = ptMeta.tuss_default;
+        }
+        if (!base.doctor_role && ptMeta.default_function) {
+          base.doctor_role = ptMeta.default_function;
+          (base.raw_data as any).__role_default_applied = ptMeta.default_function;
+        }
+      }
+
       const tipo_linha = classifyLine(base, paymentKind || null);
       const withType = { ...base, tipo_linha };
       const line_issues = validateLine(withType, { modoConfeccao });
@@ -2164,6 +2223,32 @@ const NewPayment = () => {
           : "Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo."}
       />
       <div className="p-8 max-w-7xl space-y-6">
+        {paymentTypeMeta && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm flex items-start gap-3">
+            <div className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary uppercase tracking-wide">
+              Tipo: {paymentTypeMeta.label}
+            </div>
+            <div className="text-xs text-muted-foreground flex-1 leading-relaxed">
+              {paymentTypeMeta.tuss_default && !paymentTypeMeta.requires_tuss_in_sheet && (
+                <div>TUSS <span className="font-mono">{paymentTypeMeta.tuss_default}</span> será aplicado automaticamente às linhas sem código.</div>
+              )}
+              {paymentTypeMeta.default_function && (
+                <div>Função padrão: <span className="font-medium">{paymentTypeMeta.default_function}</span> (preenche linhas sem função).</div>
+              )}
+              {!paymentTypeMeta.tuss_default && paymentTypeMeta.requires_tuss_in_sheet && !paymentTypeMeta.default_function && (
+                <div>Sem defaults — a planilha precisa trazer TUSS e função para cada linha.</div>
+              )}
+              <div className="mt-1">Apenas regras com este tipo (ou sem tipo definido) vão entrar no motor.</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setPaymentTypeId(null); try { sessionStorage.removeItem("newPaymentTypeId"); } catch {} }}
+              className="text-xs text-muted-foreground hover:text-foreground underline shrink-0"
+            >
+              Remover
+            </button>
+          </div>
+        )}
         {retroHandoff && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
             <div className="font-semibold text-amber-900 dark:text-amber-200">
