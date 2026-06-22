@@ -37,6 +37,9 @@ interface SimInput {
   attendance_number?: string | null;
   patient_name?: string | null;
   procedure_date?: string | null;
+  attendance_character?: string | null;
+  special_case_code?: string | null;
+  special_case_status?: string | null;
   gross_amount?: number | null;
   procedure_amount?: number | null;
   quantity?: number | null;
@@ -78,11 +81,14 @@ serve(async (req) => {
       attendance_number: body.attendance_number ?? null,
       patient_name: body.patient_name ?? null,
       procedure_date: body.procedure_date ?? null,
+      attendance_character: body.attendance_character ?? null,
       quantity: body.quantity ?? 1,
       agreement_name: body.agreement_name ?? null,
       specialty: body.specialty ?? null,
       sector: body.sector ?? null,
       tipo_linha: body.tipo_linha ?? null,
+      special_case_code: body.special_case_code ?? null,
+      special_case_status: body.special_case_status ?? null,
     };
 
     // Resolve company_document quando company_id veio
