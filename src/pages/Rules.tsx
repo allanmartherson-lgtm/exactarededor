@@ -884,7 +884,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFActive(isDuplicate ? true : (r.active !== false));
     setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
     setFSeverity(r.severity ?? "aviso");
-    setFPaymentTypeId(((r as any).payment_type_id as string | null) ?? null);
+    setFPaymentTypeId(null);
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
     setFTargetDoctorId((r as any).target_doctor_id ?? null);
@@ -1256,7 +1256,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       active: fActive,
       name: fName, description: fDescription || null, rule_text: fRuleText,
       severity: fSeverity, scope,
-      payment_type_id: fPaymentTypeId,
+      payment_type_id: null,
       target_type: isEspecifica ? targetType : null,
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
@@ -2026,22 +2026,14 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                     </SelectContent>
                                   </Select>
                                 </div>
-                                <div className="space-y-1.5">
-                                  <Label>Tipo de pagamento (opcional)</Label>
-                                  <Select
-                                    value={fPaymentTypeId ?? "__any__"}
-                                    onValueChange={(v) => setFPaymentTypeId(v === "__any__" ? null : v)}
-                                  >
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="__any__">Qualquer tipo (regra universal)</SelectItem>
-                                      {paymentTypesList.map((pt) => (
-                                        <SelectItem key={pt.id} value={pt.id}>{pt.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <div className="text-xs text-muted-foreground">
-                                    Use para diferenciar regras com mesmo TUSS (ex.: Parecer × Visita). Em branco = vale para qualquer tipo.
+                                <div className="space-y-1.5 col-span-2">
+                                  <Label>Tipo de pagamento</Label>
+                                  <div className="rounded-md border border-dashed border-border bg-muted/30 p-2.5">
+                                    <p className="text-xs text-muted-foreground">
+                                      Agora configurado dentro de cada <strong>cálculo</strong> (etapa <em>Cálculo → filtro "Tipo de pagamento"</em>).
+                                      Permite ter, na mesma regra, um cálculo para <strong>Parecer</strong> e outro para <strong>Visita</strong> com o mesmo TUSS,
+                                      sem precisar duplicar a regra inteira.
+                                    </p>
                                   </div>
                                 </div>
                               </div>
@@ -2660,6 +2652,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                   onChange={setFCalculations}
                                   refTables={refTables}
                                   specialCaseTypes={specialCaseTypes}
+                                  paymentTypes={paymentTypesList}
                                   enabled={true}
                                 />
                               </div>

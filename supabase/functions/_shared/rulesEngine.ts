@@ -275,6 +275,10 @@ export interface RuleCalculationItem {
   specialties?: string[] | null;
   /** Caso especial aplicável neste cálculo. Vazio = padrão; códigos ou '*' exigem caso especial aprovado. */
   special_case_filter?: string[] | null;
+  /** Tipo de pagamento aplicável neste cálculo (Parecer, Visita, etc.).
+   *  NULL = vale para qualquer tipo. Quando setado, só casa se o item
+   *  pertencer a um pagamento com o mesmo `payment_type_id`. */
+  payment_type_id?: string | null;
   /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
   procedure_keywords?: string[] | null;
   /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
@@ -350,6 +354,9 @@ export interface ItemInput {
   special_case_code?: string | null;
   /** Status da marcação: 'pending' | 'approved' | 'rejected' | 'revoked' | null. */
   special_case_status?: string | null;
+  /** payment_type_id do pagamento a que o item pertence — usado pelo filtro
+   *  de tipo no nível do cálculo (`rule_calculations.payment_type_id`). */
+  payment_type_id?: string | null;
 }
 
 export interface PaymentContext {
@@ -996,13 +1003,11 @@ export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInp
     // de cada item (regra de competência fiscal — Onda 1). Filtro de vigência
     // ocorre por item dentro de `analyzeItem`. ctx.reference_date é informativo.
 
-    // TIPO DE PAGAMENTO: Se a regra está restrita a um payment_type_id e o
-    // pagamento tem um tipo definido diferente, descarta. Regras sem tipo
-    // (NULL) seguem universais — preserva regras legadas. Pagamento sem tipo
-    // (NULL) não filtra — preserva fluxos antigos.
-    const ruleType = (r as any).payment_type_id ?? null;
-    const ctxType = ctx.payment_type_id ?? null;
-    if (ruleType && ctxType && ruleType !== ctxType) return false;
+    // TIPO DE PAGAMENTO: o filtro foi MOVIDO para o nível do cálculo
+    // (`rule_calculations.payment_type_id`). A coluna `rules.payment_type_id`
+    // foi descontinuada — a UI não grava mais nela e o motor não filtra
+    // regras inteiras por tipo. Cada cálculo individualmente decide via
+    // `calcItemMatches` se aplica ao contexto.
 
     // SEGUNDA CAMADA: Filtro por setor do lote (payments.sectors).
     // REGRA DE PROJETO: Se a regra é vinculada (específica ou grupo), ela IGNRORA
@@ -1684,6 +1689,19 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
     if (!itemCaseApproved) return { ok: false, reason: "caso_especial_nao_aprovado" };
     if (!specialCases.includes("*") && !specialCases.includes(itemCaseCode)) {
       return { ok: false, reason: "caso_especial_nao_listado" };
+    }
+  }
+
+  // ---- Tipo de pagamento (Parecer × Visita etc.) ----
+  // Cálculo restrito a um payment_type_id só casa se o item pertencer a um
+  // pagamento com o mesmo tipo. NULL no cálculo = vale para qualquer tipo.
+  // NULL no item = pagamento sem tipo definido → NÃO casa cálculos tipados
+  // (evita aplicar regra de Parecer em base sem classificação).
+  const calcPaymentType = c.payment_type_id ?? null;
+  if (calcPaymentType) {
+    const itemPaymentType = item.payment_type_id ?? null;
+    if (!itemPaymentType || itemPaymentType !== calcPaymentType) {
+      return { ok: false, reason: "payment_type_nao_corresponde" };
     }
   }
 

@@ -232,6 +232,7 @@ serve(async (req) => {
       bonus_amount,bonus_pct,target_amount,allowed_access_routes,
       force_totalized,application_unit,sectors,specialties,
       special_case_filter,
+      payment_type_id,
       procedure_codes,code_match_mode,doctor_roles,
       agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
       package_roles_distribution,
@@ -268,7 +269,10 @@ serve(async (req) => {
             const snapshotHasCalcSpecialCaseField = cachedCalcLists.every((list: any) =>
               !Array.isArray(list) || list.every((c: any) => "special_case_filter" in c),
             );
-            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField && snapshotHasCalcSpecialCaseField) {
+            const snapshotHasCalcPaymentTypeField = cachedCalcLists.every((list: any) =>
+              !Array.isArray(list) || list.every((c: any) => "payment_type_id" in c),
+            );
+            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField && snapshotHasCalcSpecialCaseField && snapshotHasCalcPaymentTypeField) {
               cachedRulesAll = ctxJ.rules;
               cachedCalcsByRule = ctxJ.calcs_by_rule;
               cachedConfigs = ctxJ.configs;
@@ -661,6 +665,9 @@ serve(async (req) => {
       convenio_value_totalized: it.convenio_value_totalized ?? false,
       special_case_code: it.special_case_code ?? null,
       special_case_status: it.special_case_status ?? null,
+      // Filtro de tipo de pagamento por cálculo (rule_calculations.payment_type_id)
+      // — todos os itens do pagamento herdam o tipo do `payments.payment_type_id`.
+      payment_type_id: ctx.payment_type_id ?? null,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
         ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }

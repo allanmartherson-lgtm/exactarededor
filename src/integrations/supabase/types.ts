@@ -7744,6 +7744,7 @@ export type Database = {
           package_roles_distribution: Json | null
           package_subtype: string | null
           package_visits_count: boolean
+          payment_type_id: string | null
           procedure_codes: string[] | null
           procedure_keywords: string[] | null
           reference_table_id: string | null
@@ -7806,6 +7807,7 @@ export type Database = {
           package_roles_distribution?: Json | null
           package_subtype?: string | null
           package_visits_count?: boolean
+          payment_type_id?: string | null
           procedure_codes?: string[] | null
           procedure_keywords?: string[] | null
           reference_table_id?: string | null
@@ -7868,6 +7870,7 @@ export type Database = {
           package_roles_distribution?: Json | null
           package_subtype?: string | null
           package_visits_count?: boolean
+          payment_type_id?: string | null
           procedure_codes?: string[] | null
           procedure_keywords?: string[] | null
           reference_table_id?: string | null
@@ -7890,6 +7893,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rule_calculations_payment_type_id_fkey"
+            columns: ["payment_type_id"]
+            isOneToOne: false
+            referencedRelation: "payment_types"
             referencedColumns: ["id"]
           },
           {
