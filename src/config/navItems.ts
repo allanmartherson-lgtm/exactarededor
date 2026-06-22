@@ -105,6 +105,16 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    label: "BI",
+    icon: TrendingUp,
+    iconName: "TrendingUp",
+    roles: ALL_ROLES,
+    children: [
+      { to: "/bi/diretoria", label: "Diretoria", icon: BarChart3, iconName: "BarChart3", roles: ALL_ROLES },
+      { to: "/bi/pagamentos", label: "Pagamentos", icon: Wallet, iconName: "Wallet", roles: ALL_ROLES },
+    ],
+  },
+  {
     label: "Relatórios",
     icon: FileBarChart,
     iconName: "FileBarChart",
