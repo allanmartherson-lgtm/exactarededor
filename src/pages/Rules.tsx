@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
@@ -223,6 +224,10 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [fDescription, setFDescription] = useState("");
   const [fRuleText, setFRuleText] = useState("");
   const [fSeverity, setFSeverity] = useState<RuleSeverity>("aviso");
+  // Tipo de pagamento opcional — quando setado, a regra só se aplica a bases
+  // com o mesmo payment_type_id (resolve Parecer × Visita com mesmo TUSS).
+  const [fPaymentTypeId, setFPaymentTypeId] = useState<string | null>(null);
+  const { list: paymentTypesList } = usePaymentTypes({ onlyActive: true });
   
   const [scope, setScope] = useState<RuleScope>("master");
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
@@ -832,6 +837,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFActive(true);
     setFName(""); setFDescription(""); setFRuleText("");
     setFSeverity("aviso");
+    setFPaymentTypeId(null);
     setScope("master"); setTargetType("medico");
     setFTargetIdentifier(""); setFTargetName(""); setFTargetDoctorId(null); setFTargetCompanyId(null);
     setRefTableId(""); setFExceptionTableIds([]); setFSpecialCaseFilter([]);
@@ -878,6 +884,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFActive(isDuplicate ? true : (r.active !== false));
     setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
     setFSeverity(r.severity ?? "aviso");
+    setFPaymentTypeId(((r as any).payment_type_id as string | null) ?? null);
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
     setFTargetDoctorId((r as any).target_doctor_id ?? null);
@@ -1200,6 +1207,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       active: fActive,
       name: fName, description: fDescription || null, rule_text: fRuleText,
       severity: fSeverity, scope,
+      payment_type_id: fPaymentTypeId,
       target_type: isEspecifica ? targetType : null,
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
@@ -1969,8 +1977,27 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                     </SelectContent>
                                   </Select>
                                 </div>
+                                <div className="space-y-1.5">
+                                  <Label>Tipo de pagamento (opcional)</Label>
+                                  <Select
+                                    value={fPaymentTypeId ?? "__any__"}
+                                    onValueChange={(v) => setFPaymentTypeId(v === "__any__" ? null : v)}
+                                  >
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="__any__">Qualquer tipo (regra universal)</SelectItem>
+                                      {paymentTypesList.map((pt) => (
+                                        <SelectItem key={pt.id} value={pt.id}>{pt.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <div className="text-xs text-muted-foreground">
+                                    Use para diferenciar regras com mesmo TUSS (ex.: Parecer × Visita). Em branco = vale para qualquer tipo.
+                                  </div>
+                                </div>
                               </div>
                             </div>
+
 
                             {/* Vigência */}
                             <div className="field-section">

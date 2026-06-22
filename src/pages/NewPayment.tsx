@@ -1893,6 +1893,9 @@ const NewPayment = () => {
         convenio_matched_by: cRes.matched_by,
         sector_slug: sRes.sector?.slug ?? null,
         sector_matched_by: sRes.matched_by,
+        // Herda o tipo de pagamento escolhido na criação da base.
+        // Motor usa para filtrar regras com payment_type_id setado.
+        payment_type_id: (payment as any).payment_type_id ?? null,
       });
     };
 

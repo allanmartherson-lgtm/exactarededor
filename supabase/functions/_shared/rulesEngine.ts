@@ -50,6 +50,12 @@ export interface RuleInput {
   active: boolean;
   severity: string;
   scope: "master" | "especifica" | "grupo";
+  /**
+   * FK opcional para payment_types.id. Quando setada, a regra só é considerada
+   * em pagamentos cujo `payment_type_id` bate. NULL = regra universal (legacy).
+   * Usado para diferenciar Parecer × Visita (mesmo TUSS, regras distintas).
+   */
+  payment_type_id?: string | null;
   sectors: string[] | null;
   specialties: string[] | null;
   target_type: "medico" | "empresa" | null;
@@ -348,6 +354,8 @@ export interface PaymentContext {
   sectors: string[];
   specialties: string[];
   payment_type: string | null;
+  /** FK para payment_types.id — usado para filtrar regras com payment_type_id setado. */
+  payment_type_id?: string | null;
   reference_date: string;
   globalExceptionTableIds?: string[];
 }
@@ -985,6 +993,14 @@ export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInp
     // VIGÊNCIA: NÃO checa aqui. A vigência da regra depende da `procedure_date`
     // de cada item (regra de competência fiscal — Onda 1). Filtro de vigência
     // ocorre por item dentro de `analyzeItem`. ctx.reference_date é informativo.
+
+    // TIPO DE PAGAMENTO: Se a regra está restrita a um payment_type_id e o
+    // pagamento tem um tipo definido diferente, descarta. Regras sem tipo
+    // (NULL) seguem universais — preserva regras legadas. Pagamento sem tipo
+    // (NULL) não filtra — preserva fluxos antigos.
+    const ruleType = (r as any).payment_type_id ?? null;
+    const ctxType = ctx.payment_type_id ?? null;
+    if (ruleType && ctxType && ruleType !== ctxType) return false;
 
     // SEGUNDA CAMADA: Filtro por setor do lote (payments.sectors).
     // REGRA DE PROJETO: Se a regra é vinculada (específica ou grupo), ela IGNRORA

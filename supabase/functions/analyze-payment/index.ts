@@ -124,14 +124,15 @@ serve(async (req) => {
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase
       .from("payments")
-      .select("sectors,specialties,payment_type,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode")
+      .select("sectors,specialties,payment_type,payment_type_id,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode")
       .eq("id", payment_id)
-      .maybeSingle<PaymentRow & { import_mode?: string | null }>();
+      .maybeSingle<PaymentRow & { import_mode?: string | null; payment_type_id?: string | null }>();
 
     const ctx: PaymentContext = {
       sectors: payment?.sectors ?? [],
       specialties: payment?.specialties ?? [],
       payment_type: payment?.payment_type ?? null,
+      payment_type_id: (payment as any)?.payment_type_id ?? null,
       // Onda 1 — Regra de competência: a vigência é determinada pela
       // `procedure_date` de CADA item dentro do motor (analyzeItem).
       // `reference_date` aqui é apenas informativo e NÃO é usado para
@@ -215,7 +216,8 @@ serve(async (req) => {
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor,
         force_totalized,
         prevent_external_fallback,
-        special_case_filter
+        special_case_filter,
+        payment_type_id
     `;
 
     const RULE_CALCS_SELECT = `
@@ -258,7 +260,10 @@ serve(async (req) => {
           const ageMs = Date.now() - new Date(cacheRow.built_at as string).getTime();
           if (ageMs < CONTEXT_TTL_MS) {
             const ctxJ = cacheRow.context as any;
-            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs)) {
+            // Bust cache se snapshot foi gerado antes de incluirmos payment_type_id
+            // nas regras (caso contrário, filtro por tipo não funciona até TTL expirar).
+            const snapshotHasTypeField = !ctxJ.rules.length || ("payment_type_id" in ctxJ.rules[0]);
+            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField) {
               cachedRulesAll = ctxJ.rules;
               cachedCalcsByRule = ctxJ.calcs_by_rule;
               cachedConfigs = ctxJ.configs;
