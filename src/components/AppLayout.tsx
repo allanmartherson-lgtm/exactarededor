@@ -993,7 +993,7 @@ export const AppLayout = () => {
       <div className="min-h-screen bg-background flex flex-col">
         {canRetryInvoices && <InvoiceRetryMonitor />}
         <header
-          className="sticky top-0 z-40 bg-background border-b border-border/60"
+          className="sticky top-0 z-40 bg-card border-b border-border/60"
           style={{ height: 60 }}
         >
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
