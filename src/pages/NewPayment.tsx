@@ -99,6 +99,10 @@ interface ParsedRow {
   tipo_linha_manual?: LineType | null;
   tipo_linha: LineType;
   line_issues: LineIssue[];
+  /** Override per-row de payment_type_id quando a base mistura subtipos
+   * (ex.: planilha de Parecer com algumas linhas de Visita). Preenchido pelo
+   * parser via `subtype_split_hint` do tipo escolhido na criação da base. */
+  payment_type_id_override?: string | null;
 }
 
 // === Classificação de tipo_linha (pré-validação) ===
@@ -536,6 +540,8 @@ const NewPayment = () => {
   const [paymentTypeId, setPaymentTypeId] = useState<string | null>(initialPaymentTypeId);
   // Metadados do tipo escolhido — usados pelo parser para injetar TUSS padrão,
   // função padrão e marcar quando a planilha não precisa trazer TUSS.
+  type SubtypePattern = { match: string; target_payment_type_id: string };
+  type SubtypeSplitHint = { column: string; patterns: SubtypePattern[] } | null;
   type PaymentTypeMeta = {
     id: string;
     code: string;
@@ -545,21 +551,27 @@ const NewPayment = () => {
     default_function: string | null;
     default_value_column_hint: string | null;
     expected_headers: string[];
+    allow_mixed_subtypes: boolean;
+    subtype_split_hint: SubtypeSplitHint;
   };
   const [paymentTypeMeta, setPaymentTypeMeta] = useState<PaymentTypeMeta | null>(null);
   const paymentTypeMetaRef = useRef<PaymentTypeMeta | null>(null);
   useEffect(() => { paymentTypeMetaRef.current = paymentTypeMeta; }, [paymentTypeMeta]);
+  // Cache de labels dos subtipos referenciados em subtype_split_hint — usado
+  // no resumo "187 Parecer + 2 Visita" do preview.
+  const [subtypeLabels, setSubtypeLabels] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!paymentTypeId) { setPaymentTypeMeta(null); return; }
     let cancelled = false;
     (async () => {
       const { data } = await supabase
         .from("payment_types")
-        .select("id,code,label,tuss_default,requires_tuss_in_sheet,default_function,default_value_column_hint,expected_headers")
+        .select("id,code,label,tuss_default,requires_tuss_in_sheet,default_function,default_value_column_hint,expected_headers,allow_mixed_subtypes,subtype_split_hint")
         .eq("id", paymentTypeId)
         .maybeSingle();
       if (cancelled || !data) return;
-      setPaymentTypeMeta({
+      const hint = (data as any).subtype_split_hint ?? null;
+      const meta: PaymentTypeMeta = {
         id: data.id,
         code: data.code,
         label: data.label,
@@ -568,7 +580,22 @@ const NewPayment = () => {
         default_function: (data as any).default_function ?? null,
         default_value_column_hint: (data as any).default_value_column_hint ?? null,
         expected_headers: Array.isArray((data as any).expected_headers) ? (data as any).expected_headers : [],
-      });
+        allow_mixed_subtypes: !!(data as any).allow_mixed_subtypes,
+        subtype_split_hint: hint && hint.column && Array.isArray(hint.patterns) ? hint as SubtypeSplitHint : null,
+      };
+      setPaymentTypeMeta(meta);
+      // Carrega labels dos tipos referenciados + o próprio
+      const ids = new Set<string>([meta.id]);
+      meta.subtype_split_hint?.patterns.forEach((p) => p.target_payment_type_id && ids.add(p.target_payment_type_id));
+      if (ids.size > 0) {
+        const { data: types } = await supabase
+          .from("payment_types")
+          .select("id,label")
+          .in("id", Array.from(ids));
+        if (!cancelled && types) {
+          setSubtypeLabels(Object.fromEntries(types.map((t: any) => [t.id, t.label])));
+        }
+      }
     })();
     return () => { cancelled = true; };
   }, [paymentTypeId]);
@@ -980,8 +1007,42 @@ const NewPayment = () => {
         }
       }
 
+      // === Subtipos mistos (Parecer + Visita) ===
+      // Quando o tipo permite mistura, avaliamos `subtype_split_hint`
+      // (coluna + lista de padrões) para definir o payment_type_id REAL de
+      // cada linha. Vazio = mantém o tipo pai escolhido na criação da base.
+      // Match é case-insensitive, regex se a string começar com `/` ou
+      // substring caso contrário.
+      let payment_type_id_override: string | null = null;
+      if (ptMeta?.allow_mixed_subtypes && ptMeta.subtype_split_hint) {
+        const hint = ptMeta.subtype_split_hint;
+        const cellRaw = row[hint.column];
+        const cell = (cellRaw == null ? "" : String(cellRaw)).toLowerCase();
+        if (cell) {
+          for (const p of hint.patterns) {
+            if (!p.match || !p.target_payment_type_id) continue;
+            const m = p.match.trim();
+            let hit = false;
+            if (m.startsWith("/") && m.lastIndexOf("/") > 0) {
+              try {
+                const lastSlash = m.lastIndexOf("/");
+                const re = new RegExp(m.slice(1, lastSlash), m.slice(lastSlash + 1) || "i");
+                hit = re.test(cell);
+              } catch { hit = false; }
+            } else {
+              hit = cell.includes(m.toLowerCase());
+            }
+            if (hit) {
+              payment_type_id_override = p.target_payment_type_id;
+              (base.raw_data as any).__subtype_split_matched = m;
+              break;
+            }
+          }
+        }
+      }
+
       const tipo_linha = classifyLine(base, paymentKind || null);
-      const withType = { ...base, tipo_linha };
+      const withType = { ...base, tipo_linha, payment_type_id_override };
       const line_issues = validateLine(withType, { modoConfeccao });
       return { ...withType, line_issues } as ParsedRow;
     }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
@@ -2001,9 +2062,11 @@ const NewPayment = () => {
         convenio_matched_by: cRes.matched_by,
         sector_slug: sRes.sector?.slug ?? null,
         sector_matched_by: sRes.matched_by,
-        // Herda o tipo de pagamento escolhido na criação da base.
-        // Motor usa para filtrar regras com payment_type_id setado.
-        payment_type_id: (payment as any).payment_type_id ?? null,
+        // Herda o tipo de pagamento escolhido na criação da base. Quando a
+        // base mistura subtipos (allow_mixed_subtypes), o parser pode ter
+        // marcado um override por linha — ele prevalece sobre o tipo pai.
+        // Motor usa este campo para filtrar regras com payment_type_id setado.
+        payment_type_id: r.payment_type_id_override ?? (payment as any).payment_type_id ?? null,
       });
     };
 
@@ -2271,9 +2334,29 @@ const NewPayment = () => {
               {paymentTypeMeta.default_function && (
                 <div>Função padrão: <span className="font-medium">{paymentTypeMeta.default_function}</span> (preenche linhas sem função).</div>
               )}
-              {!paymentTypeMeta.tuss_default && paymentTypeMeta.requires_tuss_in_sheet && !paymentTypeMeta.default_function && (
+              {!paymentTypeMeta.tuss_default && paymentTypeMeta.requires_tuss_in_sheet && !paymentTypeMeta.default_function && !paymentTypeMeta.allow_mixed_subtypes && (
                 <div>Sem defaults — a planilha precisa trazer TUSS e função para cada linha.</div>
               )}
+              {paymentTypeMeta.allow_mixed_subtypes && paymentTypeMeta.subtype_split_hint && (() => {
+                const counts: Record<string, number> = {};
+                let mixed = 0;
+                for (const r of allRows) {
+                  const tid = r.payment_type_id_override ?? paymentTypeMeta.id;
+                  counts[tid] = (counts[tid] ?? 0) + 1;
+                  if (r.payment_type_id_override && r.payment_type_id_override !== paymentTypeMeta.id) mixed++;
+                }
+                const parts = Object.entries(counts).map(([id, n]) =>
+                  `${n} ${subtypeLabels[id] ?? (id === paymentTypeMeta.id ? paymentTypeMeta.label : id.slice(0, 6))}`
+                );
+                return (
+                  <div>
+                    Subtipos mistos ativos via coluna <span className="font-mono">{paymentTypeMeta.subtype_split_hint.column}</span>.
+                    {allRows.length > 0 && (
+                      <span> {allRows.length} linha(s) → {parts.join(" + ")}{mixed > 0 ? ` (${mixed} reclassificada${mixed === 1 ? "" : "s"})` : ""}.</span>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="mt-1">Apenas regras com este tipo (ou sem tipo definido) vão entrar no motor.</div>
             </div>
             <button
