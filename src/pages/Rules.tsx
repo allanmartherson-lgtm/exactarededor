@@ -227,6 +227,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   // Tipo de pagamento opcional — quando setado, a regra só se aplica a bases
   // com o mesmo payment_type_id (resolve Parecer × Visita com mesmo TUSS).
   const [fPaymentTypeId, setFPaymentTypeId] = useState<string | null>(null);
+  const { list: paymentTypesList } = usePaymentTypes({ onlyActive: true });
   
   const [scope, setScope] = useState<RuleScope>("master");
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
