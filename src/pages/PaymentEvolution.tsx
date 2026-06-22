@@ -61,6 +61,7 @@ interface PaymentRow {
   liquido_total: number | null;
   bruto_total: number | null;
   total_amount: number | null;
+  payment_type: string | null;
 }
 
 interface CcMeta {
