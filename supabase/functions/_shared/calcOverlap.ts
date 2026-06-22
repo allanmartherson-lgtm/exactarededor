@@ -19,6 +19,7 @@
  *   7) vias de acesso (apply_access_route + allowed_access_routes)
  *   8) sectors
  *   9) specialties
+ *   10) special_case_filter
  *
  * Algoritmo: para cada par (A, B), se EM ALGUM eixo a interseção for vazia,
  * o par NÃO conflita. Caso contrário (todos os eixos com interseção
@@ -210,6 +211,13 @@ function axisElective(a: RuleCalculationItem, b: RuleCalculationItem): AxisResul
   return { empty: false, shared: true, description: `Modalidade {${A}}` };
 }
 
+function axisSpecialCase(a: RuleCalculationItem, b: RuleCalculationItem, sameRulePrecedence: boolean): AxisResult {
+  const aHas = _hasItems((a as any).special_case_filter);
+  const bHas = _hasItems((b as any).special_case_filter);
+  if (sameRulePrecedence && aHas !== bHas) return { empty: true };
+  return axisSimpleArray((a as any).special_case_filter, (b as any).special_case_filter, "Caso especial");
+}
+
 // ===== Eixo 7: vias de acesso =====
 function axisAccessRoutes(a: RuleCalculationItem, b: RuleCalculationItem): AxisResult {
   const aOn = a.apply_access_route === true && _hasItems(a.allowed_access_routes);
@@ -224,6 +232,7 @@ function axisAccessRoutes(a: RuleCalculationItem, b: RuleCalculationItem): AxisR
 function evaluatePair(
   a: RuleCalculationItem,
   b: RuleCalculationItem,
+  sameRulePrecedence = false,
 ): { conflicts: boolean; pieces: string[] } {
   const results: AxisResult[] = [
     axisCodes(a, b),
@@ -235,6 +244,7 @@ function evaluatePair(
     axisAccessRoutes(a, b),
     axisSimpleArray(a.sectors, b.sectors, "Setor"),
     axisSimpleArray(a.specialties, b.specialties, "Especialidade"),
+    axisSpecialCase(a, b, sameRulePrecedence),
   ];
   const pieces: string[] = [];
   for (const r of results) {
@@ -261,7 +271,7 @@ export function detectCalcOverlap(
     for (let j = i + 1; j < restrictive.length; j++) {
       const A = restrictive[i];
       const B = restrictive[j];
-      const r = evaluatePair(A, B);
+      const r = evaluatePair(A, B, true);
       if (!r.conflicts) continue;
       const desc = r.pieces.length > 0
         ? r.pieces.join(", ")
