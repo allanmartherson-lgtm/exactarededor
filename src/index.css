@@ -11,7 +11,7 @@ All colors MUST be HSL.
   :root {
     /* ── Superfícies ─────────────────────────────────────── */
     --background: 0 0% 96.1%;            /* #f5f5f7 cinza Apple — cards brancos flutuam */
-    --foreground: 214 28% 7%;            /* #0D1117 quase-preto (ink) */
+    --foreground: 214 22% 20%;           /* #2A323E grafite suave (menos preto puro) */
 
     --card: 0 0% 100%;                   /* #FFFFFF */
     --card-foreground: 214 28% 7%;
