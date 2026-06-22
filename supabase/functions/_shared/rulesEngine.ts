@@ -1692,6 +1692,19 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
     }
   }
 
+  // ---- Tipo de pagamento (Parecer × Visita etc.) ----
+  // Cálculo restrito a um payment_type_id só casa se o item pertencer a um
+  // pagamento com o mesmo tipo. NULL no cálculo = vale para qualquer tipo.
+  // NULL no item = pagamento sem tipo definido → NÃO casa cálculos tipados
+  // (evita aplicar regra de Parecer em base sem classificação).
+  const calcPaymentType = c.payment_type_id ?? null;
+  if (calcPaymentType) {
+    const itemPaymentType = item.payment_type_id ?? null;
+    if (!itemPaymentType || itemPaymentType !== calcPaymentType) {
+      return { ok: false, reason: "payment_type_nao_corresponde" };
+    }
+  }
+
   // ---- Filtros restritivos por cálculo ----
   // Códigos de procedimento (whitelist/blacklist/any)
   // Convenção pós-refactor: lista vazia = sem filtro de código (fallback).
