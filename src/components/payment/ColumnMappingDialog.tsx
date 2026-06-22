@@ -85,6 +85,7 @@ export default function ColumnMappingDialog({
   hospitalId,
   onApply,
   mode = "analise",
+  paymentTypeMeta = null,
 }: Props) {
 
   const [mapping, setMapping] = useState<ManualMapping>(initialMapping);
@@ -104,11 +105,12 @@ export default function ColumnMappingDialog({
   }, [open, initialMapping, fileName]);
 
   /**
-   * Definições efetivas conforme o modo:
-   * - confeccao: oculta `gross_amount` (motor é quem calcula o repasse) e
-   *   promove `procedure_amount` (valor convênio) a obrigatório, já que é
-   *   a base de cálculo das regras.
-   * - analise: mantém o comportamento padrão.
+   * Definições efetivas conforme o modo + metadados do tipo de pagamento:
+   * - confeccao: oculta `gross_amount` e promove `procedure_amount` a obrigatório.
+   * - analise: comportamento padrão, mas quando o tipo escolhido (parecer, visita,
+   *   plantão fixo etc.) já injeta TUSS e/ou função padrão, rebaixamos esses
+   *   campos para "recommended" — não faz sentido exigir da planilha algo que o
+   *   próprio tipo de pagamento preenche automaticamente.
    */
   const effectiveFields = useMemo(() => {
     if (mode === "confeccao") {
@@ -116,15 +118,20 @@ export default function ColumnMappingDialog({
         f.key === "procedure_amount" ? { ...f, requirement: "required" as const } : f,
       );
     }
-    // analise: base já tratada pelo analista — Função e Código TUSS são úteis
-    // para matching/relatório, mas não devem bloquear a importação quando a
-    // planilha não os traz. Rebaixamos para "recommended" (gera aviso, não erro).
-    return FIELD_DEFINITIONS.map((f) =>
-      f.key === "doctor_role" || f.key === "procedure_code"
-        ? { ...f, requirement: "recommended" as const }
-        : f,
-    );
-  }, [mode]);
+    const tussInjected =
+      !!paymentTypeMeta?.tuss_default || paymentTypeMeta?.requires_tuss_in_sheet === false;
+    const funcInjected = !!paymentTypeMeta?.default_function;
+    if (!tussInjected && !funcInjected) return FIELD_DEFINITIONS;
+    return FIELD_DEFINITIONS.map((f) => {
+      if (f.key === "procedure_code" && tussInjected) {
+        return { ...f, requirement: "recommended" as const };
+      }
+      if (f.key === "doctor_role" && funcInjected) {
+        return { ...f, requirement: "recommended" as const };
+      }
+      return f;
+    });
+  }, [mode, paymentTypeMeta]);
 
   const requirementByField = useMemo(() => {
     const m: Partial<Record<FieldKey, FieldDefinition["requirement"]>> = {};
