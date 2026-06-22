@@ -14,10 +14,10 @@ All colors MUST be HSL.
     --foreground: 214 22% 20%;           /* #2A323E grafite suave (menos preto puro) */
 
     --card: 0 0% 100%;                   /* #FFFFFF */
-    --card-foreground: 214 28% 7%;
+    --card-foreground: 214 22% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 214 28% 7%;
+    --popover-foreground: 214 22% 20%;
 
     /* ── Brand: verde-floresta Exacta ─────────────────────── */
     --primary: 211 100% 45%;             /* #0071E3 — Apple blue (re-skin) */
