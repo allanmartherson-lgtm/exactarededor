@@ -214,10 +214,7 @@ function ProdutividadeSection() {
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <BarChart2 className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Produtividade da Equipe</h2>
-          </div>
+          <h2 className="text-base font-semibold text-foreground">Produtividade da Equipe</h2>
           <p className="text-xs text-muted-foreground max-w-2xl">
             Quantas ações cada pessoa fez no período (lotes processados, validações, aprovações) e quantas devoluções recebeu. Menos devolução = melhor qualidade.
           </p>
@@ -298,8 +295,8 @@ function ProdutividadeSection() {
           <CardTitle className="text-base">Destaque do período</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-amber-600" />
+          <div className="rounded-2xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm flex items-center gap-2 text-warning-text">
+            <Trophy className="h-4 w-4 flex-shrink-0" />
             {topProcessor ? (
               <span>
                 <strong>{topProcessor.name}</strong> — {topProcessor.lotesProcessados} lotes
@@ -309,8 +306,8 @@ function ProdutividadeSection() {
               <span className="text-muted-foreground">Sem dados</span>
             )}
           </div>
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm flex items-center gap-2">
-            <Star className="h-4 w-4 text-emerald-600" />
+          <div className="rounded-2xl border border-success/30 bg-success/5 px-4 py-3 text-sm flex items-center gap-2 text-success">
+            <Star className="h-4 w-4 flex-shrink-0" />
             {bestQuality ? (
               <span>
                 <strong>{bestQuality.r.name}</strong> — {(bestQuality.rate * 100).toFixed(1)}% de
@@ -379,28 +376,14 @@ function AccuracySection() {
         Mede a confiabilidade da pré-classificação da IA: a "Acurácia" é a % de itens em que o analista manteve a sugestão da IA sem sobrescrever.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Itens analisados</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">{accuracy?.total_analyzed ?? 0}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">IA mantida</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold text-green-600">{accuracy?.kept_count ?? 0}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Override do analista</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold text-amber-600">{accuracy?.overridden_count ?? 0}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Acurácia</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">{accuracy?.accuracy_pct ?? 0}%</CardContent>
-        </Card>
+        <KpiCard label="Itens analisados" value={accuracy?.total_analyzed ?? 0} />
+        <KpiCard label="IA mantida" value={accuracy?.kept_count ?? 0} tone="success" />
+        <KpiCard label="Override do analista" value={accuracy?.overridden_count ?? 0} tone="warning" />
+        <KpiCard label="Acurácia" value={`${accuracy?.accuracy_pct ?? 0}%`} tone="primary" />
       </div>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <BrainCircuit className="h-4 w-4" /> Distribuição por classificação da IA
-          </CardTitle>
+          <CardTitle className="text-base">Distribuição por classificação da IA</CardTitle>
         </CardHeader>
         <CardContent>
           {loading && <p className="text-sm text-muted-foreground">Carregando…</p>}
@@ -426,9 +409,7 @@ function DwellSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Clock className="h-4 w-4" /> Tempo médio em cada status (últimos 90 dias)
-        </CardTitle>
+        <CardTitle className="text-base">Tempo médio em cada status (últimos 90 dias)</CardTitle>
         <p className="text-xs text-muted-foreground">
           Quanto tempo os pagamentos ficam parados em cada status. P50 = mediana; P90 = 90% levam até esse tempo (P90 alto indica uma cauda de casos muito lentos).
         </p>
@@ -470,9 +451,7 @@ function ReturnsSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Undo2 className="h-4 w-4" /> Taxa de devolução (últimos 30 dias)
-        </CardTitle>
+        <CardTitle className="text-base">Taxa de devolução (últimos 30 dias)</CardTitle>
         <p className="text-xs text-muted-foreground">
           % de pagamentos devolvidos entre etapas — mede retrabalho. Quanto menor, melhor.
         </p>

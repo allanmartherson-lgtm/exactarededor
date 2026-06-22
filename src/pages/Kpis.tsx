@@ -232,21 +232,20 @@ const KpiGroup = ({ title, children }: { title: string; children: React.ReactNod
 );
 
 const KpiCard = ({
-  icon: Icon, label, value, hint, tone = "muted", delta, higherIsBetter, unit = "%", definition,
+  icon: _Icon, label, value, hint, tone = "muted", delta, higherIsBetter, unit = "%", definition,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon?: React.ComponentType<{ className?: string }>;
   label: string; value: string; hint?: string;
   tone?: "muted" | "info" | "success" | "warning" | "destructive";
   delta?: number | null; higherIsBetter?: boolean; unit?: "%" | "pp";
   definition?: string;
 }) => {
-  const toneRing: Record<string, string> = {
-    muted: "border-border", info: "border-info/30", success: "border-success/30",
-    warning: "border-warning/30", destructive: "border-destructive/30",
-  };
-  const toneIcon: Record<string, string> = {
-    muted: "text-muted-foreground", info: "text-info", success: "text-success",
-    warning: "text-warning-text", destructive: "text-destructive",
+  const valueTone: Record<string, string> = {
+    muted: "text-foreground",
+    info: "text-info",
+    success: "text-success",
+    warning: "text-warning-text",
+    destructive: "text-destructive",
   };
 
   let deltaEl: React.ReactNode = null;
@@ -267,35 +266,34 @@ const KpiCard = ({
   }
 
   return (
-    <Card className={`shadow-card ${toneRing[tone]}`}>
-      <CardContent className="p-4 space-y-1.5">
-        <div className="flex items-center gap-2">
-          <Icon className={`h-4 w-4 ${toneIcon[tone]}`} aria-hidden />
-          <span className="text-xs uppercase tracking-wider text-muted-foreground flex-1 min-w-0">{label}</span>
-          {definition && (
-            <Tooltip delayDuration={200}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={`Como ${label} é calculado`}
-                  className="text-muted-foreground/60 hover:text-foreground transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-                >
-                  <Info className="h-3.5 w-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-                {definition}
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <p className="text-2xl font-semibold tabular-nums">{value}</p>
-          {deltaEl}
-        </div>
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-      </CardContent>
-    </Card>
+    <div className="rounded-2xl border border-border/60 bg-card p-6 transition-colors">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex-1 min-w-0">
+          {label}
+        </span>
+        {definition && (
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Como ${label} é calculado`}
+                className="text-muted-foreground/60 hover:text-foreground transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              >
+                <Info className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+              {definition}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+      <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+        <p className={cn("text-3xl font-semibold tracking-tight tabular-nums leading-none", valueTone[tone])}>{value}</p>
+        {deltaEl}
+      </div>
+      {hint && <p className="text-xs text-muted-foreground mt-3">{hint}</p>}
+    </div>
   );
 };
 
