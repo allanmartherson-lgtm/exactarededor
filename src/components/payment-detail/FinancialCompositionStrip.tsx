@@ -110,39 +110,53 @@ export function FinancialCompositionStrip({
 }
 
 function Cell({
-  label, value, tone = "muted", icon, hint, highlight,
+  label, value, tone = "muted", icon, hint, highlight, ratio,
 }: {
   label: string; value: string;
   tone?: "muted" | "info" | "success" | "warning" | "destructive";
   icon?: React.ReactNode; hint?: string; highlight?: boolean;
+  /** Proporção 0–1 da parcela em relação ao bruto (mini-viz). */
+  ratio?: number;
 }) {
-  // Bento: borda neutra fininha; acento da cor vive no ícone/label.
-  const tones: Record<string, { valueCls: string; chip: string }> = {
-    muted: { valueCls: "text-muted-foreground", chip: "text-muted-foreground" },
-    info: { valueCls: "text-foreground", chip: "text-info" },
-    success: { valueCls: "text-foreground", chip: "text-success" },
-    warning: { valueCls: "text-foreground", chip: "text-warning-text" },
-    destructive: { valueCls: "text-foreground", chip: "text-destructive" },
+  // Bento Apple: card branco com radius 12, label discreta, valor proeminente,
+  // mini-barra de proporção embaixo. O acento vive na barra e na label, não na borda.
+  const tones: Record<string, { chip: string; bar: string }> = {
+    muted: { chip: "text-muted-foreground", bar: "bg-muted-foreground/25" },
+    info: { chip: "text-info", bar: "bg-info/60" },
+    success: { chip: "text-success", bar: "bg-success/70" },
+    warning: { chip: "text-warning-text", bar: "bg-amber-500/70" },
+    destructive: { chip: "text-destructive", bar: "bg-destructive/70" },
   };
   const t = tones[tone];
+  const pct = typeof ratio === "number" && isFinite(ratio)
+    ? Math.max(0, Math.min(1, ratio))
+    : null;
   return (
     <div className={cn(
-      "flex-1 min-w-[120px] rounded-2xl border border-border/50 bg-card shadow-card px-2.5 py-1.5",
+      "flex-1 min-w-[120px] rounded-[12px] border border-border/40 bg-card shadow-card px-3 py-2",
+      "flex flex-col justify-between",
       highlight && (tone === "warning"
-        ? "bg-amber-500/5"
-        : "bg-success-soft/40"),
+        ? "ring-1 ring-amber-500/40 bg-amber-500/5"
+        : "ring-1 ring-success/40 bg-success-soft/40"),
     )}>
-      <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-[0.04em] font-medium", t.chip)}>
+      <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-[0.06em] font-semibold", t.chip)}>
         {icon}
         <span>{label}</span>
       </div>
       <div className={cn(
-        "mt-0.5 font-mono tabular-nums leading-tight",
-        highlight ? "text-base font-semibold" : "text-sm font-semibold",
-        highlight && tone === "warning" ? "text-amber-700 dark:text-amber-300" : highlight ? "text-success" : "",
-        t.valueCls,
+        "mt-1 tabular-nums leading-tight font-semibold text-foreground",
+        highlight ? "text-[15px]" : "text-[13.5px]",
       )}>{value}</div>
-      {hint && <div className="text-[10px] text-muted-foreground italic mt-0.5">{hint}</div>}
+      {/* mini-viz: proporção em relação ao bruto */}
+      {pct !== null && (
+        <div className="mt-1.5 h-1 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className={cn("h-full rounded-full transition-[width] duration-300", t.bar)}
+            style={{ width: `${Math.max(2, pct * 100)}%` }}
+          />
+        </div>
+      )}
+      {hint && <div className="text-[10px] text-muted-foreground italic mt-1">{hint}</div>}
     </div>
   );
 }
