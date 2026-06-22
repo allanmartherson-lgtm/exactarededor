@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, type LucideIcon } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft, ChevronRight, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NAV_ITEMS, type NavItem, type NavLeaf } from "@/config/navItems";
 
 interface PageHeaderProps {
   title: string;
@@ -15,16 +16,49 @@ interface PageHeaderProps {
   /** Mantidos por compatibilidade; o novo header não fica mais sticky por default. */
   sticky?: boolean;
   stickyOffset?: number;
+  /** Sobrescreve/desliga o breadcrumb derivado do nav. Use `false` para ocultar. */
+  breadcrumb?: Array<{ label: string; to?: string }> | false;
+}
+
+type Crumb = { label: string; to?: string };
+
+function isLeaf(item: NavItem): item is NavLeaf {
+  return (item as NavLeaf).to !== undefined;
+}
+
+/** Deriva breadcrumb a partir do NAV_ITEMS com base no pathname atual. */
+function deriveCrumbs(pathname: string): Crumb[] {
+  let best: { leaf: NavLeaf; parentLabel?: string; score: number } | null = null;
+  for (const item of NAV_ITEMS) {
+    if (isLeaf(item)) {
+      const score =
+        item.to === pathname ? 1000 : pathname.startsWith(item.to + "/") ? item.to.length : 0;
+      if (score && (!best || score > best.score)) best = { leaf: item, score };
+    } else {
+      for (const child of item.children) {
+        const score =
+          child.to === pathname
+            ? 1000
+            : pathname.startsWith(child.to + "/")
+              ? child.to.length
+              : 0;
+        if (score && (!best || score > best.score))
+          best = { leaf: child, parentLabel: item.label, score };
+      }
+    }
+  }
+  const crumbs: Crumb[] = [{ label: "Dashboard", to: "/" }];
+  if (!best) return crumbs;
+  if (best.parentLabel) crumbs.push({ label: best.parentLabel });
+  crumbs.push({ label: best.leaf.label });
+  return crumbs;
 }
 
 /**
  * PageHeader — Padrão visual unificado (Padrão BI).
  *
- * Renderizado transparente sobre o fundo da página, com título grande
- * (text-3xl) e subtítulo discreto. Sem botão voltar por default — a
- * navegação para trás fica a cargo do breadcrumb global. Ícone fica
- * preservado na API mas não é renderizado para manter a estética limpa
- * das telas de BI.
+ * Breadcrumb derivado do nav + título grande (text-[34px]) + subtítulo discreto.
+ * Sem botão voltar por default — a navegação para trás fica a cargo do breadcrumb.
  */
 export const PageHeader = ({
   title,
@@ -32,6 +66,7 @@ export const PageHeader = ({
   actions,
   showBack = false,
   backFallback = "/",
+  breadcrumb,
 }: PageHeaderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,8 +81,37 @@ export const PageHeader = ({
     else navigate(backFallback);
   };
 
+  const crumbs: Crumb[] | null =
+    breadcrumb === false
+      ? null
+      : breadcrumb && breadcrumb.length
+        ? breadcrumb
+        : deriveCrumbs(location.pathname);
+
   return (
     <div className="px-6 pt-6 pb-4">
+      {crumbs && crumbs.length > 1 && (
+        <nav
+          aria-label="Breadcrumb"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2"
+        >
+          {crumbs.map((c, i) => {
+            const isLast = i === crumbs.length - 1;
+            return (
+              <span key={`${c.label}-${i}`} className="flex items-center gap-1.5">
+                {i > 0 && <ChevronRight className="h-3 w-3 opacity-60" />}
+                {c.to && !isLast ? (
+                  <Link to={c.to} className="hover:text-foreground transition-colors">
+                    {c.label}
+                  </Link>
+                ) : (
+                  <span className={isLast ? "text-foreground" : ""}>{c.label}</span>
+                )}
+              </span>
+            );
+          })}
+        </nav>
+      )}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-3 min-w-0">
           {showBack && (
@@ -63,11 +127,11 @@ export const PageHeader = ({
             </Button>
           )}
           <div className="min-w-0">
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground leading-tight">
+            <h1 className="text-[34px] font-semibold tracking-tight text-foreground leading-none">
               {title}
             </h1>
             {description && (
-              <p className="text-sm text-muted-foreground mt-1">{description}</p>
+              <p className="text-sm text-muted-foreground mt-2">{description}</p>
             )}
           </div>
         </div>
