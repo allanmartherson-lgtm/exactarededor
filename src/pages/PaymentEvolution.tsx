@@ -472,7 +472,7 @@ export default function PaymentEvolution() {
                     const open = expandedCc === r.cc;
                     const d = ccDisplay(r.cc);
                     return (
-                      <FragmentRow key={r.cc}>
+                      <Fragment key={r.cc}>
                         <TableRow className="cursor-pointer" onClick={() => loadDrill(r.cc)}>
                           <TableCell>
                             <div className="flex items-start gap-2">
@@ -523,7 +523,7 @@ export default function PaymentEvolution() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </FragmentRow>
+                      </Fragment>
                     );
                   })
                 )}
