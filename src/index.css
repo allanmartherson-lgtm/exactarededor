@@ -150,14 +150,14 @@ All colors MUST be HSL.
 
   .dark {
     /* ── Superfícies — base ink (#0D1117) ─────────────────── */
-    --background: 214 22% 10%;           /* fundo um pouco mais claro p/ reduzir contraste com cards */
-    --foreground: 60 12% 90%;
+    --background: 214 22% 11%;           /* fundo dark profundo */
+    --foreground: 210 17% 93%;
 
-    --card: 214 16% 17%;                 /* mais separação do fundo */
-    --card-foreground: 60 12% 90%;
+    --card: 214 16% 17%;                 /* card ligeiramente acima do bg */
+    --card-foreground: 210 17% 93%;
 
-    --popover: 214 22% 13%;
-    --popover-foreground: 60 15% 92%;
+    --popover: 214 16% 17%;
+    --popover-foreground: 210 17% 93%;
 
     /* ── Brand: verde mais claro no dark ─────────────────── */
     --primary: 211 90% 62%;              /* azul Apple claro p/ dark mode */
