@@ -313,6 +313,7 @@ const App = () => (
                   <Route path="/relatorios/pagamentos-cancelados" element={<Navigate to="/relatorios/intervencoes?view=ajustes&role=cancelamento_empresa" replace />} />
                   <Route path="/relatorios/central" element={<ReportsCentral />} />
                   <Route path="/relatorios/auditoria-exportacoes" element={<Navigate to="/auditoria?tab=exportacoes" replace />} />
+                  <Route path="/relatorios/evolucao-pagamentos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><PaymentEvolution /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/bi/diretoria" element={<BiDiretoria />} />
                   <Route path="/bi/pagamentos" element={<BiPagamentos />} />
