@@ -898,7 +898,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
     setRefTableId(r.reference_table_id ?? "");
     setFExceptionTableIds(Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []);
-    setFSpecialCaseFilter(Array.isArray((r as any).special_case_filter) ? (r as any).special_case_filter : []);
+    setFSpecialCaseFilter([]);
     // procedure_codes legados ignorados — agora vivem por Cálculo.
     setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
     setFBonusAmount(r.bonus_amount != null ? String(r.bonus_amount) : "");
@@ -1073,15 +1073,8 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
         console.warn("[Rules] Falha ao persistir prevent_external_fallback:", flagErr.message);
       }
     }
-    if (savedId && "special_case_filter" in (ruleData as any)) {
-      const { error: scErr } = await supabase
-        .from("rules")
-        .update({ special_case_filter: (ruleData as any).special_case_filter })
-        .eq("id", savedId);
-      if (scErr) {
-        console.warn("[Rules] Falha ao persistir special_case_filter:", scErr.message);
-      }
-    }
+    // special_case_filter no nível da regra foi descontinuado — o filtro
+    // agora vive em cada cálculo (rule_calculations.special_case_filter).
     if (savedId) {
       await recordAudit({
         entityType: "rule", entityId: savedId, action: meta.wasEditing ? "update" : "create",
@@ -1302,7 +1295,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
       allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
       exception_table_ids: fExceptionTableIds,
-      special_case_filter: fSpecialCaseFilter.length > 0 ? fSpecialCaseFilter : null,
+      special_case_filter: null,
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       minimo_garantido_ativo: fMinGarantidoAtivo,
@@ -2877,57 +2870,12 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                               })()}
                             </div>
 
-                            <div>
-                              <div className="flex items-center text-sm font-semibold mb-2">
-                                Caso especial (oncológico, pediátrico…)
-                                {fSpecialCaseFilter.length > 0 && (
-                                  <span className="ml-2 text-xs font-normal text-muted-foreground">({fSpecialCaseFilter.length})</span>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground mb-3">
-                                Por padrão a regra <strong>NÃO</strong> se aplica a itens marcados como caso especial aprovado.
-                                Marque um ou mais tipos para que esta regra atue <strong>apenas</strong> quando o item tiver caso especial aprovado correspondente.
-                                Marque <strong>"Qualquer caso especial"</strong> para aplicar a todos.
+                            <div className="rounded-md border border-dashed border-border bg-muted/30 p-3">
+                              <p className="text-xs text-muted-foreground">
+                                <strong>Caso especial</strong> (oncológico, pediátrico, etc.) agora é configurado dentro de cada <strong>cálculo</strong> da regra
+                                (etapa <em>Cálculo → filtro "Caso especial"</em>). Assim você pode ter um cálculo padrão e outro que só ativa quando o item
+                                tem caso especial aprovado, sem precisar duplicar a regra inteira.
                               </p>
-                              <div className="space-y-1.5">
-                                <label className="flex items-start gap-2 rounded-md border border-border bg-background p-2 cursor-pointer hover:bg-muted/40">
-                                  <Checkbox
-                                    checked={fSpecialCaseFilter.includes("*")}
-                                    onCheckedChange={(v) => {
-                                      setFSpecialCaseFilter((prev) =>
-                                        v ? Array.from(new Set([...prev, "*"])) : prev.filter((c) => c !== "*")
-                                      );
-                                    }}
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium leading-tight">Qualquer caso especial aprovado</p>
-                                    <p className="text-xs text-muted-foreground">Aplica a qualquer tipo, desde que aprovado pela gestão médica.</p>
-                                  </div>
-                                </label>
-                                {specialCaseTypes.length === 0 ? (
-                                  <p className="text-xs text-muted-foreground italic">Nenhum tipo cadastrado em Casos Especiais.</p>
-                                ) : (
-                                  specialCaseTypes.map((t) => {
-                                    const checked = fSpecialCaseFilter.includes(t.code);
-                                    return (
-                                      <label key={t.code} className="flex items-start gap-2 rounded-md border border-border bg-background p-2 cursor-pointer hover:bg-muted/40">
-                                        <Checkbox
-                                          checked={checked}
-                                          onCheckedChange={(v) => {
-                                            setFSpecialCaseFilter((prev) =>
-                                              v ? Array.from(new Set([...prev, t.code])) : prev.filter((c) => c !== t.code)
-                                            );
-                                          }}
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-medium leading-tight">{t.label}</p>
-                                          <p className="text-xs text-muted-foreground font-mono">{t.code}</p>
-                                        </div>
-                                      </label>
-                                    );
-                                  })
-                                )}
-                              </div>
                             </div>
                           </div>
                         ),

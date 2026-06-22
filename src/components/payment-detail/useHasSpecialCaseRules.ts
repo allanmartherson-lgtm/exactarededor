@@ -2,16 +2,18 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Retorna true quando existe pelo menos 1 regra ATIVA com special_case_filter
- * relevante para o contexto atual.
+ * Retorna true quando existe pelo menos 1 regra ATIVA cujo cálculo tem
+ * `special_case_filter` preenchido e que é relevante para o contexto atual.
  *
- * - Sem `companyId`: regra escopada ao hospital do pagamento (uso legado em PaymentDetail).
- * - Com `companyId`: além do hospital, a regra precisa estar realmente vinculada
- *   à PJ que está sendo analisada — via `target_company_id` igual a essa PJ,
- *   ou via `target_doctor_id` de um médico que tem itens dessa PJ no pagamento,
- *   ou via regra global (sem target). Sem isso, o banner aparecia para qualquer
- *   PJ desde que houvesse alguma regra de caso especial no hospital, mesmo que
- *   nenhuma se aplicasse à PJ em questão.
+ * Após a unificação (jun/2026) o filtro de caso especial vive APENAS no nível
+ * do cálculo (`rule_calculations.special_case_filter`). A coluna equivalente
+ * em `rules` foi descontinuada e não é mais lida.
+ *
+ * - Sem `companyId`: regras escopadas ao hospital do pagamento (uso legado em PaymentDetail).
+ * - Com `companyId`: além do hospital, a regra precisa estar vinculada à PJ
+ *   (via `target_company_id` igual a essa PJ, ou via `target_doctor_id` de um
+ *   médico que tem itens dessa PJ no pagamento). Regras globais (sem target)
+ *   NÃO contam — analistas reportaram banner aparecendo em PJs sem vínculo real.
  */
 export function useHasSpecialCaseRules(
   paymentId: string | null | undefined,
@@ -30,13 +32,30 @@ export function useHasSpecialCaseRules(
         .maybeSingle();
       const hospitalId = (pay as { hospital_id?: string | null } | null)?.hospital_id ?? null;
 
+      // 1) Coleta IDs de regras que têm pelo menos 1 cálculo com special_case_filter preenchido.
+      const { data: calcs } = await supabase
+        .from("rule_calculations")
+        .select("rule_id")
+        .not("special_case_filter", "is", null);
+      const ruleIdsWithSpecialCalc = Array.from(
+        new Set(
+          ((calcs ?? []) as Array<{ rule_id: string | null }>)
+            .map((c) => c.rule_id)
+            .filter((id): id is string => !!id),
+        ),
+      );
+      if (ruleIdsWithSpecialCalc.length === 0) {
+        if (!cancelled) setHasRules(false);
+        return;
+      }
+
       // Modo legado: filtra só por hospital.
       if (!companyId) {
         let q = supabase
           .from("rules")
           .select("id", { count: "exact", head: true })
           .eq("active", true)
-          .not("special_case_filter", "is", null);
+          .in("id", ruleIdsWithSpecialCalc);
         if (hospitalId) q = q.eq("hospital_id", hospitalId);
         const { count } = await q;
         if (!cancelled) setHasRules((count ?? 0) > 0);
@@ -60,17 +79,12 @@ export function useHasSpecialCaseRules(
         ),
       );
 
-      // Monta filtro: target_company_id = PJ
-      //              OU target_doctor_id IN (médicos desta PJ)
-      // Regras "globais" (sem target) NÃO contam — analistas reportaram banner
-      // aparecendo em PJs sem vínculo real com a regra cadastrada.
       const orParts: string[] = [
         `target_company_id.eq.${companyId}`,
       ];
       if (doctorIds.length > 0) {
         orParts.push(`target_doctor_id.in.(${doctorIds.join(",")})`);
       } else {
-        // Sem médicos elegíveis e sem target_company match possível → não há regra escopada.
         if (!cancelled) setHasRules(false);
         return;
       }
@@ -79,7 +93,7 @@ export function useHasSpecialCaseRules(
         .from("rules")
         .select("id", { count: "exact", head: true })
         .eq("active", true)
-        .not("special_case_filter", "is", null)
+        .in("id", ruleIdsWithSpecialCalc)
         .or(orParts.join(","));
       if (hospitalId) q = q.eq("hospital_id", hospitalId);
 

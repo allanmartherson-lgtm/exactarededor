@@ -2978,36 +2978,13 @@ export function analyzeItem(
   }
 
   // ===== Caso especial (oncológico, pediátrico, etc.) =====
-  // Item com special_case_status='approved' + code=X tenta primeiro regras
-  // cujo `special_case_filter` contém X ou '*'. Se nenhuma se aplicar, cai
-  // para regras padrão (filter null/vazio). Itens SEM marcação aprovada
-  // ignoram regras filtradas — só veem as padrão.
-  const scItemCode = (item.special_case_code ?? "").trim();
-  const scItemApproved = item.special_case_status === "approved" && !!scItemCode;
-  const ruleIsDefault = (r: RuleInput) => !Array.isArray(r.special_case_filter) || r.special_case_filter.length === 0;
-  const ruleMatchesSpecialCase = (r: RuleInput, code: string) => {
-    const f = Array.isArray(r.special_case_filter) ? r.special_case_filter : [];
-    if (f.length === 0) return false;
-    return f.includes("*") || f.includes(code);
-  };
-  const ruleHasCalculationForSpecialCase = (r: RuleInput, code: string) => {
-    const calcs = Array.isArray(r.calculations) ? r.calculations : [];
-    return calcs.some((c) => {
-      const f = Array.isArray(c.special_case_filter) ? c.special_case_filter : [];
-      return f.includes("*") || f.includes(code);
-    });
-  };
-  let scopedRulesForItem: RuleInput[];
-  if (scItemApproved) {
-    const matchingFiltered = rulesForItem.filter((r) =>
-      ruleMatchesSpecialCase(r, scItemCode) || ruleHasCalculationForSpecialCase(r, scItemCode),
-    );
-    scopedRulesForItem = matchingFiltered.length > 0
-      ? matchingFiltered
-      : rulesForItem.filter(ruleIsDefault);
-  } else {
-    scopedRulesForItem = rulesForItem.filter(ruleIsDefault);
-  }
+  // O filtro foi UNIFICADO no nível do cálculo (`rule_calculations.special_case_filter`).
+  // O escopo de regra (`rules.special_case_filter`) foi descontinuado — a UI não
+  // grava mais e o motor não filtra mais regras inteiras por caso especial. Cada
+  // cálculo individualmente decide via `calcItemMatches` se aplica ao item, e a
+  // precedência de "caso especial vence cálculo padrão" da mesma regra é tratada
+  // mais acima em `validCalcs`.
+  const scopedRulesForItem: RuleInput[] = rulesForItem;
 
   // Desempate de pacotes: quando múltiplos pacotes são elegíveis para o mesmo
   // item, o de maior score (mais específico) deve ser avaliado primeiro.
