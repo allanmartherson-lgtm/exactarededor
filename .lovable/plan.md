@@ -1,73 +1,118 @@
-## Objetivo
+# Plano: Tipo de Pagamento + Saneamento de Base
 
-Eliminar a convivência de dois dialetos visuais: adotar o **Padrão BI** (telas novas do mockup) como design oficial do sistema, aplicado em todas as 67+ páginas que hoje usam `PageHeader` e `Breadcrumbs`, mais os cards de KPI das telas Financeiras.
+## 1. Cadastro de Tipos de Pagamento (admin)
 
-## Diagnóstico das diferenças
+Estender `payment_types` com metadados que governam parser, motor e UI:
 
-| Aspecto | Padrão BI (novo, queremos) | Padrão antigo (Pagamentos, etc.) |
-|---|---|---|
-| Container | `max-w-[1400px]` centralizado, `py-6` | Largura cheia, header colado no topo |
-| Título | 30px, semibold, tracking-tight, sem ícone | 16px, medium, com ícone em quadradinho |
-| Fundo do header | Transparente (mesmo bg da página) | `bg-card` com `border-b` |
-| Botão "voltar" | Não existe (navegação via breadcrumb) | `ArrowLeft` à esquerda do título |
-| Subtítulo | 14px muted, "Visão consolidada · competência …" | 12.5px muted |
-| Cards KPI | `rounded-2xl`, padding generoso, label uppercase tracking-wider, valor 28-32px tabular-nums, sem ícone colorido | `rounded-lg`, ícone colorido em círculo, card azul destacado para o principal |
-| Espaçamento | `space-y-6` entre blocos | Denso, sem ritmo claro |
+- `tuss_default` (text, nullable) — TUSS aplicado quando a planilha não traz
+- `requires_tuss_in_sheet` (bool, default true) — se false, wizard pula etapa
+- `default_function` (text, nullable) — função aplicada às linhas
+- `default_value_column_hint` (text) — palpite de cabeçalho de valor ("Valor a repassar", "Repasse"…)
+- `expected_headers` (jsonb) — array de cabeçalhos esperados, usado para auto-mapear
+- `allow_mixed_subtypes` (bool) — se true, base pode conter subtipos (ex: Parecer + Visita) e regra de subdivisão se aplica
+- `subtype_split_hint` (jsonb) — `{ column, patterns: [{match, target_payment_type_id}] }`
+- `active`, `display_order`, `description`
 
-## Estratégia
+Nova tela `/cadastros/tipos-pagamento`: CRUD simples (DataTable + FormDialog), restrito a admin/diretor.
 
-Centralizar o design em **3 primitivos compartilhados** e migrar via evolução desses componentes — assim a maior parte das 67 páginas herda o novo visual sem edição individual.
+Seed inicial: Parecer Adulto, Visita, Cirurgia, SADT, Consulta, Exames Cardiologia — pré-preenchidos para Rede D'Or.
 
-### 1. Evoluir `src/components/PageHeader.tsx`
+## 2. Motor de regras: `payment_type_id` opcional em `rules`
 
-Reescrever para o padrão BI mantendo a mesma API pública (`title`, `description`, `actions`, `icon`, `showBack`). Mudanças:
+- Coluna `payment_type_id uuid null references payment_types(id)`
+- Index parcial.
+- `loadScopedRules` / matcher: quando a base tem `payment_type_id`, motor prefere regras com mesmo `payment_type_id`; só cai em regras com `payment_type_id IS NULL` se não houver match específico.
+- Regras existentes continuam funcionando (NULL = qualquer tipo).
+- Form de regra ganha select "Tipo de Pagamento (opcional)" — resolve Parecer × Visita com mesmo TUSS.
 
-- Remover `border-b` + `bg-card`; renderizar transparente.
-- Título: `text-3xl font-semibold tracking-tight`.
-- Subtítulo: `text-sm text-muted-foreground mt-1`.
-- `showBack` default vira `false` (breadcrumb já cobre a navegação). Páginas que dependiam do botão voltar e não têm breadcrumb continuam funcionando passando `showBack`.
-- Remover quadradinho do `icon` (não usado no mockup BI) — manter prop por compat mas no-op visual.
-- Container interno passa a usar `max-w-[1400px] mx-auto` para alinhar com o BI.
+## 3. Modal de tipo após Análise/Confecção
 
-Como todas as 67 páginas chamam `<PageHeader title=... description=... actions=... />`, a alteração é **transparente** — nada precisa ser editado nelas.
+Após o `PaymentModeSelectModal`, abrir `PaymentTypeSelectModal`:
+- Lista `payment_types` ativos
+- Busca + agrupamento por categoria
+- Seleção persistida em `sessionStorage` e como query param `tipo=<id>`
+- `NewPayment` lê e salva em `payments.payment_type_id` (coluna já existe ou criar)
 
-### 2. Criar `src/components/ui/KpiCard.tsx` (novo)
+Botão voltar para trocar modo. Tipo escolhido aparece como chip no topo do wizard.
 
-Componente único reutilizável que encapsula o card BI:
+## 4. Wizard de import sensível ao tipo
 
-```tsx
-<KpiCard
-  label="VALOR EM RISCO"
-  value="R$ 7.619"
-  hint="1,7% do total · 1 lote crítico"
-  tone="danger" // default | primary | success | danger | warning
-  trend={<TrendChip pct={8.2} />}
-/>
+`parsePaymentFile` / mapeamento de colunas:
+- Recebe o tipo escolhido
+- Se `requires_tuss_in_sheet=false`: oculta etapa TUSS e injeta `tuss_default` por linha (com banner: *"TUSS X aplicado às N linhas conforme tipo Y"*)
+- Auto-mapeia colunas usando `expected_headers`
+- Se `default_function` setado e coluna função ausente, injeta valor
+
+## 5. Detecção de linhas-total/rodapé (sempre perguntar)
+
+Heurística no parser:
+- Linha com chave operacional vazia (atendimento) + algum valor monetário OU
+- Texto regex `/total|valor para emiss[aã]o|subtotal|nota fiscal/i` em qualquer célula OU
+- Linhas finais com ≤2 células preenchidas e número grande na última
+
+Resultado: painel "Linhas suspeitas detectadas" antes do commit, listando:
+- Nº da linha original na planilha
+- Conteúdo
+- Motivo da suspeita
+- Ação por linha: [Descartar] [Manter como item] [Tratar como total informativo]
+
+Bloqueia avanço até decisão. Decisões ficam em `import_log` para auditoria.
+
+## 6. Mistura de subtipos (Parecer + Visita)
+
+Quando `allow_mixed_subtypes=true` no tipo escolhido:
+- Parser aplica `subtype_split_hint` por linha (ex: célula "Médico Solic." contém "Visita" → vira `payment_type_id` de Visita)
+- Preview mostra resumo: *"189 linhas → 187 Parecer + 2 Visita"*
+- Cada item salvo com seu próprio `payment_type_id` real
+- Motor avalia regra correta por item
+
+## Detalhes técnicos
+
+### Migrações
+```text
+1) ALTER TABLE payment_types
+   ADD COLUMN tuss_default text,
+   ADD COLUMN requires_tuss_in_sheet boolean DEFAULT true,
+   ADD COLUMN default_function text,
+   ADD COLUMN default_value_column_hint text,
+   ADD COLUMN expected_headers jsonb DEFAULT '[]'::jsonb,
+   ADD COLUMN allow_mixed_subtypes boolean DEFAULT false,
+   ADD COLUMN subtype_split_hint jsonb,
+   ADD COLUMN display_order int DEFAULT 0;
+
+2) ALTER TABLE rules
+   ADD COLUMN payment_type_id uuid REFERENCES payment_types(id) ON DELETE SET NULL;
+   CREATE INDEX rules_payment_type_idx ON rules(payment_type_id) WHERE payment_type_id IS NOT NULL;
+
+3) ALTER TABLE payments
+   ADD COLUMN payment_type_id uuid REFERENCES payment_types(id);  -- se ainda não existir
+
+4) ALTER TABLE payment_items
+   ADD COLUMN payment_type_id uuid REFERENCES payment_types(id);  -- para mistura subtipo
+
+5) Seed dos tipos Rede D'Or
 ```
 
-Visual: `rounded-2xl border bg-card p-6`, label `text-xs uppercase tracking-wider text-muted-foreground`, valor `text-3xl font-semibold tabular-nums`, hint `text-sm text-muted-foreground mt-2`. Variante `primary` aplica `bg-primary text-primary-foreground` para o card destaque (tipo "Total em aprovação").
+### Arquivos novos
+- `src/pages/PaymentTypesAdmin.tsx` — CRUD da tela
+- `src/components/PaymentTypeSelectModal.tsx` — modal após modo
+- `src/components/payment-wizard/SuspiciousRowsReview.tsx` — painel de linhas suspeitas
+- `src/lib/detectSuspiciousRows.ts` — heurística + testes
 
-### 3. Migrar `src/pages/Payments.tsx` (telas Financeiro)
+### Arquivos editados
+- `src/components/PaymentModeSelectModal.tsx` — após escolha, abre tipo modal
+- `src/pages/NewPayment.tsx` — lê `tipo` query param, repassa ao parser
+- `src/lib/parsePaymentFile.ts` — recebe `paymentType`, injeta TUSS/função, detecta suspeitas
+- `src/pages/ValidationRules.tsx` (form de regra) — select de tipo
+- motor de regras (`loadScopedRules` + matcher) — filtro por tipo
+- nav (`src/config/navItems.ts`) — entrada "Tipos de Pagamento" no hub de Cadastros
 
-Substituir os 4 cards atuais (Total em aberto / Pós-aprovação / Aguardando validação / Aguardando aprovação) pelo novo `KpiCard`. É a única página onde o KPI velho aparece visualmente diferente — as outras telas Financeiras (Recebíveis, Bônus, Conciliação) já usam `SafeCard` simples e herdam só pela mudança do PageHeader.
+### Ordem de entrega sugerida (entregar incrementalmente)
+1. Migrações + seed + tela admin de tipos
+2. Campo na rules + select no form de regra
+3. Modal de seleção pós-modo + persistência no payment
+4. Parser sensível ao tipo (TUSS default, função default)
+5. Detecção de linhas suspeitas com painel de revisão
+6. Subtipos mistos
 
-### 4. Atualizar `BiDiretoria` e `BiPagamentos` para consumir os primitivos
-
-Trocar o `<header>` inline e os divs de KPI dessas telas pelos novos `PageHeader` e `KpiCard`. Garante que BI e Financeiro renderizam exatamente o mesmo código de header/cards — fonte única de verdade.
-
-## Fora de escopo (deliberado)
-
-- Não tocar em cores/tokens do design system — só estrutura visual dos componentes compartilhados.
-- Não mexer em tabelas, modais, drawers, formulários — só header + KPI cards.
-- Não renomear nem mover páginas.
-
-## Riscos
-
-- Páginas que dependiam do botão "voltar" do `PageHeader` sem breadcrumbs ficarão sem navegação para trás. Mitigação: rodar grep por `showBack={false}` vs uso implícito e listar páginas afetadas antes de mexer; nessas, passar `showBack` explicitamente.
-- Páginas com `actions` muito grandes podem quebrar layout no header maior. Mitigação: `flex-wrap` no header novo (mesma técnica do BI).
-
-## Validação
-
-1. Abrir `/bi/diretoria`, `/bi/pagamentos`, `/pagamentos`, `/recebiveis`, `/conciliacao`, `/usuarios` e conferir visual consistente.
-2. Build limpo.
-3. Verificar que nenhuma página perdeu o botão voltar onde era essencial.
+Cada passo é shippable sozinho — recomendo aprovar e ir por etapas para validar com base real entre cada uma.
