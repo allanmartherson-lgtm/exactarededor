@@ -1181,11 +1181,12 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     const OPEN_STATUSES = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_aprovacao", "pedido_nf_enviado", "revisao_pos_aprovacao"];
     const { data: pcg } = await (supabase as any)
       .from("payment_company_groups")
-      .select("payment_id, company_name, status")
+      .select("payment_id, company_name, status, payment:payments!inner(id)")
       .eq("company_id", companyId)
       .in("status", OPEN_STATUSES);
-    const groups = (pcg as any[]) ?? [];
+    const groups = ((pcg as any[]) ?? []).filter((g) => g?.payment?.id);
     if (groups.length === 0) return;
+
     const ok = await confirmDialog({
       title: "Reanalisar lotes impactados?",
       description: `${groups.length} lote(s) em aberto contêm a empresa-alvo desta regra (${ruleName ?? "sem nome"}). Disparar reanálise agora para refletir a nova configuração?`,
