@@ -24,8 +24,8 @@ type Gpa = {
 const brl = (n: number) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function DeductionsBanner({
-  paymentId, companyId, canEdit,
-}: { paymentId: string; companyId: string; canEdit: boolean }) {
+  paymentId, companyId, canEdit, onApplied,
+}: { paymentId: string; companyId: string; canEdit: boolean; onApplied?: () => void | Promise<void> }) {
   const [caa, setCaa] = useState<Caa[]>([]);
   const [gpa, setGpa] = useState<Gpa[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +83,7 @@ export function DeductionsBanner({
       }
       if (error) throw error;
       await load();
+      await onApplied?.();
     } catch (e: any) {
       if (!opts?.silent) {
         toast.error("Falha ao aplicar deduções", { description: e?.message });
@@ -90,7 +91,7 @@ export function DeductionsBanner({
         console.warn("[DeductionsBanner] auto-apply falhou silenciosamente:", e?.message);
       }
     } finally { setRunning(false); }
-  }, [paymentId, companyId, load]);
+  }, [paymentId, companyId, load, onApplied]);
 
   // First load: trigger auto-apply once if there are no rows yet
   useEffect(() => {
