@@ -1601,6 +1601,7 @@ export function calcFromDb(r: any): CalcItem {
     agreement_match_mode: r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist",
     doctor_roles: Array.isArray(r.doctor_roles) ? r.doctor_roles : [],
     special_case_filter: Array.isArray(r.special_case_filter) ? r.special_case_filter : [],
+    payment_type_id: (r as any).payment_type_id ?? null,
     context_conditions: Array.isArray(r.context_conditions)
       ? r.context_conditions.map((cc: any) => ({
           trigger_codes: Array.isArray(cc?.trigger_codes) ? cc.trigger_codes.map((x: any) => String(x)) : [],
