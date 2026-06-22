@@ -1977,8 +1977,27 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                     </SelectContent>
                                   </Select>
                                 </div>
+                                <div className="space-y-1.5">
+                                  <Label>Tipo de pagamento (opcional)</Label>
+                                  <Select
+                                    value={fPaymentTypeId ?? "__any__"}
+                                    onValueChange={(v) => setFPaymentTypeId(v === "__any__" ? null : v)}
+                                  >
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="__any__">Qualquer tipo (regra universal)</SelectItem>
+                                      {paymentTypesList.map((pt) => (
+                                        <SelectItem key={pt.id} value={pt.id}>{pt.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <div className="text-xs text-muted-foreground">
+                                    Use para diferenciar regras com mesmo TUSS (ex.: Parecer × Visita). Em branco = vale para qualquer tipo.
+                                  </div>
+                                </div>
                               </div>
                             </div>
+
 
                             {/* Vigência */}
                             <div className="field-section">
