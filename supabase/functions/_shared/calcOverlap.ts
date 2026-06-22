@@ -19,6 +19,7 @@
  *   7) vias de acesso (apply_access_route + allowed_access_routes)
  *   8) sectors
  *   9) specialties
+ *   10) special_case_filter
  *
  * Algoritmo: para cada par (A, B), se EM ALGUM eixo a interseção for vazia,
  * o par NÃO conflita. Caso contrário (todos os eixos com interseção
@@ -235,6 +236,7 @@ function evaluatePair(
     axisAccessRoutes(a, b),
     axisSimpleArray(a.sectors, b.sectors, "Setor"),
     axisSimpleArray(a.specialties, b.specialties, "Especialidade"),
+    axisSimpleArray((a as any).special_case_filter, (b as any).special_case_filter, "Caso especial"),
   ];
   const pieces: string[] = [];
   for (const r of results) {

@@ -2610,6 +2610,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                   value={fCalculations}
                                   onChange={setFCalculations}
                                   refTables={refTables}
+                                  specialCaseTypes={specialCaseTypes}
                                   enabled={true}
                                 />
                               </div>

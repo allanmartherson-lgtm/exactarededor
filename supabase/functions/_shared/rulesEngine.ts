@@ -273,6 +273,8 @@ export interface RuleCalculationItem {
   sectors?: string[] | null;
   /** Especialidades aplicáveis (vazio = qualquer). */
   specialties?: string[] | null;
+  /** Caso especial aplicável neste cálculo. Vazio = padrão; códigos ou '*' exigem caso especial aprovado. */
+  special_case_filter?: string[] | null;
   /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
   procedure_keywords?: string[] | null;
   /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
@@ -1675,6 +1677,16 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   // continuam aplicáveis — catch-all só relaxa a dimensão de código.
   const isCatchAll = c.is_catch_all === true;
 
+  const specialCases = Array.isArray(c.special_case_filter) ? c.special_case_filter.filter(Boolean) : [];
+  if (specialCases.length > 0) {
+    const itemCaseCode = (item.special_case_code ?? "").trim();
+    const itemCaseApproved = item.special_case_status === "approved" && !!itemCaseCode;
+    if (!itemCaseApproved) return { ok: false, reason: "caso_especial_nao_aprovado" };
+    if (!specialCases.includes("*") && !specialCases.includes(itemCaseCode)) {
+      return { ok: false, reason: "caso_especial_nao_listado" };
+    }
+  }
+
   // ---- Filtros restritivos por cálculo ----
   // Códigos de procedimento (whitelist/blacklist/any)
   // Convenção pós-refactor: lista vazia = sem filtro de código (fallback).
@@ -1897,6 +1909,7 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     procedure_codes: Array.isArray(c.procedure_codes) ? c.procedure_codes : [],
     sectors: Array.isArray(c.sectors) ? c.sectors : [],
     specialties: [],
+    special_case_filter: Array.isArray(c.special_case_filter) ? c.special_case_filter : null,
     agreement_aliases: Array.isArray(c.agreement_aliases) ? c.agreement_aliases : [],
     agreement_match_mode: (c.agreement_match_mode ?? "whitelist") as any,
     allowed_access_routes: Array.isArray(c.allowed_access_routes) ? c.allowed_access_routes : [],
@@ -1989,7 +2002,7 @@ export interface ExpectedCalc {
  * "regra inteira só vale no fim de semana, com 3 cálculos por código"
  * gerariam falsa duplicidade).
  *
- * Eixos avaliados (1..9):
+ * Eixos avaliados (1..10):
  *   1) procedure_codes + code_match_mode
  *   2) extras_codes
  *   3) agreement_aliases (+ agreement_match_mode no comparativo, mas não
@@ -2000,6 +2013,7 @@ export interface ExpectedCalc {
  *   7) vias de acesso (apply_access_route === true E lista preenchida)
  *   8) sectors
  *   9) specialties
+ *   10) special_case_filter
  *
  * Casos limite:
  *  - Regra com 1 único cálculo → não há peer com quem comparar → catch-all
@@ -2074,6 +2088,7 @@ function _axisHasFilter(c: RuleCalculationItem, axis: number): boolean {
         c.allowed_access_routes.length > 0;
     case 8: return Array.isArray(c.sectors) && c.sectors.length > 0;
     case 9: return Array.isArray(c.specialties) && c.specialties.length > 0;
+    case 10: return Array.isArray(c.special_case_filter) && c.special_case_filter.length > 0;
   }
   return false;
 }
@@ -2095,6 +2110,7 @@ function _axisSig(c: RuleCalculationItem, axis: number): string {
         : "OFF";
     case 8: return _arrSig(c.sectors);
     case 9: return _arrSig(c.specialties);
+    case 10: return _arrSig(c.special_case_filter);
   }
   return "";
 }
@@ -2108,7 +2124,7 @@ export function isRestrictiveCalculation(
   if (c.is_catch_all === true) return false;
   // Único cálculo da regra → sem diferenciação possível → catch-all.
   if (!Array.isArray(peers) || peers.length <= 1) return false;
-  for (let axis = 1; axis <= 9; axis++) {
+  for (let axis = 1; axis <= 10; axis++) {
     if (!_axisHasFilter(c, axis)) continue;
     const me = _axisSig(c, axis);
     // Filtro compartilhado entre TODOS os peers = contexto da regra,
@@ -2355,6 +2371,38 @@ export function applyCalculation(
                 if (b.matched && b.calc_id === dropped.id) {
                   b.matched = false;
                   b.skip_reason = "preterido_por_codigo_explicito";
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // ---- Precedência por caso especial explícito ----
+    // Quando o atendimento está aprovado como caso especial e algum cálculo da
+    // regra declara esse filtro, ele representa a linha mais específica e vence
+    // os cálculos padrão/eletivos da mesma regra.
+    {
+      const itemCaseCode = (item.special_case_code ?? "").trim();
+      const itemCaseApproved = item.special_case_status === "approved" && !!itemCaseCode;
+      if (itemCaseApproved && validCalcs.length > 1) {
+        const matchesSpecialCase = (v: ValidCalc): boolean => {
+          const cItem = list.find((c) => (c.id ?? null) === v.id);
+          const filters = Array.isArray(cItem?.special_case_filter) ? cItem.special_case_filter.filter(Boolean) : [];
+          return filters.includes("*") || filters.includes(itemCaseCode);
+        };
+        const specialCaseCalcs = validCalcs.filter(matchesSpecialCase);
+        if (specialCaseCalcs.length > 0 && specialCaseCalcs.length < validCalcs.length) {
+          const winnerIds = new Set(specialCaseCalcs.map((v) => v.id));
+          for (let i = validCalcs.length - 1; i >= 0; i--) {
+            if (!winnerIds.has(validCalcs[i].id)) {
+              const dropped = validCalcs[i];
+              validCalcs.splice(i, 1);
+              for (const b of breakdown) {
+                if (b.matched && b.calc_id === dropped.id) {
+                  b.matched = false;
+                  b.skip_reason = "preterido_por_caso_especial";
                 }
               }
             }
@@ -2942,9 +2990,18 @@ export function analyzeItem(
     if (f.length === 0) return false;
     return f.includes("*") || f.includes(code);
   };
+  const ruleHasCalculationForSpecialCase = (r: RuleInput, code: string) => {
+    const calcs = Array.isArray(r.calculations) ? r.calculations : [];
+    return calcs.some((c) => {
+      const f = Array.isArray(c.special_case_filter) ? c.special_case_filter : [];
+      return f.includes("*") || f.includes(code);
+    });
+  };
   let scopedRulesForItem: RuleInput[];
   if (scItemApproved) {
-    const matchingFiltered = rulesForItem.filter((r) => ruleMatchesSpecialCase(r, scItemCode));
+    const matchingFiltered = rulesForItem.filter((r) =>
+      ruleMatchesSpecialCase(r, scItemCode) || ruleHasCalculationForSpecialCase(r, scItemCode),
+    );
     scopedRulesForItem = matchingFiltered.length > 0
       ? matchingFiltered
       : rulesForItem.filter(ruleIsDefault);

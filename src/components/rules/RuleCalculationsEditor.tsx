@@ -111,6 +111,8 @@ export type CalcItem = {
   agreement_match_mode: "whitelist" | "blacklist";
   /** Funções do médico aplicáveis. */
   doctor_roles: string[];
+  /** Tipos de caso especial aplicáveis a este cálculo. Vazio = cálculo padrão. */
+  special_case_filter: string[];
 
   /** Condições de contexto (somente para valor_fixo). */
   context_conditions: ContextConditionItem[];
@@ -160,6 +162,7 @@ export function makeEmptyCalc(): CalcItem {
     agreement_aliases: [],
     agreement_match_mode: "whitelist",
     doctor_roles: [],
+    special_case_filter: [],
     context_conditions: [],
     adicional_fds_pct: "",
     adicional_feriado_pct: "",
@@ -215,6 +218,7 @@ export type RuleCalculationsEditorProps = {
   value: CalcItem[];
   onChange: (next: CalcItem[]) => void;
   refTables: RefTable[];
+  specialCaseTypes?: { code: string; label: string }[];
   /** Quando "informativa/bloqueio", o editor fica oculto (regra não calcula). */
   enabled: boolean;
 };
@@ -224,7 +228,7 @@ export type RuleCalculationsEditorProps = {
  * bloco de "Aplica-se a algum período, dia ou horário específico?" porque a
  * janela temporal pertence ao cálculo, não à regra.
  */
-export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: RuleCalculationsEditorProps) {
+export function RuleCalculationsEditor({ value, onChange, refTables, specialCaseTypes = [], enabled }: RuleCalculationsEditorProps) {
   const crossErrorsByIndex = useMemo(() => calcCrossItemErrorMessages(value), [value]);
 
   const update = (i: number, patch: Partial<CalcItem>) => {
@@ -271,6 +275,7 @@ export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: 
           total={value.length}
           item={c}
           refTables={refTables}
+          specialCaseTypes={specialCaseTypes}
           extraErrorMessages={crossErrorsByIndex.get(i) ?? []}
           onChange={(patch) => update(i, patch)}
           onRemove={() => remove(i)}
@@ -838,11 +843,12 @@ function FilterBtn({ id, label, active, openSection, onToggle, children }: Filte
  *  WhenApplySection — progressive disclosure dos filtros por cálculo
  * ============================================================ */
 function WhenApplySection({
-  c, onChange, isPacote,
-}: { c: CalcItem; onChange: (p: Partial<CalcItem>) => void; isPacote: boolean }) {
+  c, onChange, isPacote, specialCaseTypes,
+}: { c: CalcItem; onChange: (p: Partial<CalcItem>) => void; isPacote: boolean; specialCaseTypes: { code: string; label: string }[] }) {
   const hasCodesFilter = c.code_match_mode !== "any" && c.procedure_codes.length > 0;
   const hasConvenioFilter = c.agreement_aliases.length > 0;
   const hasFuncaoFilter = c.doctor_roles.length > 0;
+  const hasSpecialCaseFilter = c.special_case_filter.length > 0;
   const hasTemporalSurcharge = !!(c.adicional_fds_pct || c.adicional_feriado_pct || c.adicional_noturno_pct || c.noturno_inicio || c.noturno_fim);
   const hasPeriodoFilter = (c.has_conditions && (
     c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays ||
@@ -954,6 +960,34 @@ function WhenApplySection({
             })}
           </div>
           <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 6 }}>Vazio = qualquer função.</p>
+        </FilterBtn>
+
+        <FilterBtn id="caso-especial" label="Caso especial" active={hasSpecialCaseFilter} openSection={openSection} onToggle={toggle}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: c.special_case_filter.includes("*") ? "hsl(var(--accent))" : "transparent" }}>
+              <Checkbox
+                checked={c.special_case_filter.includes("*")}
+                onCheckedChange={(v) => onChange({ special_case_filter: v ? Array.from(new Set([...c.special_case_filter, "*"])) : c.special_case_filter.filter((x) => x !== "*") })}
+              />
+              <span style={{ fontSize: 12, lineHeight: 1.35 }}>Qualquer caso especial aprovado</span>
+            </label>
+            {specialCaseTypes.map((t) => {
+              const checked = c.special_case_filter.includes(t.code);
+              return (
+                <label key={t.code} style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: checked ? "hsl(var(--accent))" : "transparent" }}>
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) => onChange({ special_case_filter: v ? Array.from(new Set([...c.special_case_filter, t.code])) : c.special_case_filter.filter((x) => x !== t.code) })}
+                  />
+                  <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+                    <span style={{ fontSize: 12, fontWeight: 500 }}>{t.label}</span>
+                    <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontFamily: "monospace" }}>{t.code}</span>
+                  </span>
+                </label>
+              );
+            })}
+            <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Vazio = cálculo padrão. Preenchido = só itens com caso especial aprovado correspondente.</p>
+          </div>
         </FilterBtn>
 
         <FilterBtn id="periodo" label="Período, horário, via de acesso e setor" active={hasPeriodoFilter} openSection={openSection} onToggle={toggle}>
@@ -1070,9 +1104,10 @@ function WhenApplySection({
  *  Card de UM cálculo (método + parâmetros + condições)
  * ============================================================ */
 function CalcCard({
-  index, total, item, refTables, extraErrorMessages, onChange, onRemove, onDuplicate,
+  index, total, item, refTables, specialCaseTypes, extraErrorMessages, onChange, onRemove, onDuplicate,
 }: {
   index: number; total: number; item: CalcItem; refTables: RefTable[];
+  specialCaseTypes: { code: string; label: string }[];
   extraErrorMessages: string[];
   onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void; onDuplicate: () => void;
 }) {
@@ -1477,7 +1512,7 @@ function CalcCard({
             </div>
           )}
 
-          <WhenApplySection c={c} onChange={onChange} isPacote={isPacote} />
+          <WhenApplySection c={c} onChange={onChange} isPacote={isPacote} specialCaseTypes={specialCaseTypes} />
 
           {c.calculation_type === "valor_fixo" && (
             <ComplementosBlock c={c} onChange={onChange} />
@@ -1562,6 +1597,7 @@ export function calcFromDb(r: any): CalcItem {
     agreement_aliases: Array.isArray(r.agreement_aliases) ? r.agreement_aliases : [],
     agreement_match_mode: r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist",
     doctor_roles: Array.isArray(r.doctor_roles) ? r.doctor_roles : [],
+    special_case_filter: Array.isArray(r.special_case_filter) ? r.special_case_filter : [],
     context_conditions: Array.isArray(r.context_conditions)
       ? r.context_conditions.map((cc: any) => ({
           trigger_codes: Array.isArray(cc?.trigger_codes) ? cc.trigger_codes.map((x: any) => String(x)) : [],
@@ -1663,6 +1699,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     agreement_aliases: c.agreement_aliases.length > 0 ? c.agreement_aliases : null,
     agreement_match_mode: c.agreement_aliases.length > 0 ? c.agreement_match_mode : null,
     doctor_roles: c.doctor_roles.length > 0 ? c.doctor_roles : null,
+    special_case_filter: c.special_case_filter.length > 0 ? c.special_case_filter : null,
     context_conditions: c.calculation_type === "valor_fixo"
       ? c.context_conditions
           .filter((cc) => cc.trigger_codes.length > 0)

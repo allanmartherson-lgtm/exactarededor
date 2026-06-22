@@ -7751,6 +7751,7 @@ export type Database = {
           rule_id: string
           sectors: string[] | null
           sort_order: number
+          special_case_filter: string[] | null
           specialties: string[] | null
           target_amount: number | null
           time_end: string | null
@@ -7812,6 +7813,7 @@ export type Database = {
           rule_id: string
           sectors?: string[] | null
           sort_order?: number
+          special_case_filter?: string[] | null
           specialties?: string[] | null
           target_amount?: number | null
           time_end?: string | null
@@ -7873,6 +7875,7 @@ export type Database = {
           rule_id?: string
           sectors?: string[] | null
           sort_order?: number
+          special_case_filter?: string[] | null
           specialties?: string[] | null
           target_amount?: number | null
           time_end?: string | null

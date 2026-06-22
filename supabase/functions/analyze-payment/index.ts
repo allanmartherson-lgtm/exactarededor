@@ -231,6 +231,7 @@ serve(async (req) => {
       auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
       bonus_amount,bonus_pct,target_amount,allowed_access_routes,
       force_totalized,application_unit,sectors,specialties,
+      special_case_filter,
       procedure_codes,code_match_mode,doctor_roles,
       agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
       package_roles_distribution,
@@ -263,7 +264,11 @@ serve(async (req) => {
             // Bust cache se snapshot foi gerado antes de incluirmos payment_type_id
             // nas regras (caso contrário, filtro por tipo não funciona até TTL expirar).
             const snapshotHasTypeField = !ctxJ.rules.length || ("payment_type_id" in ctxJ.rules[0]);
-            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField) {
+            const cachedCalcLists = Object.values(ctxJ.calcs_by_rule ?? {}) as any[];
+            const snapshotHasCalcSpecialCaseField = cachedCalcLists.every((list: any) =>
+              !Array.isArray(list) || list.every((c: any) => "special_case_filter" in c),
+            );
+            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField && snapshotHasCalcSpecialCaseField) {
               cachedRulesAll = ctxJ.rules;
               cachedCalcsByRule = ctxJ.calcs_by_rule;
               cachedConfigs = ctxJ.configs;
