@@ -520,6 +520,18 @@ const NewPayment = () => {
   })();
   const modoConfeccao = initialMode === "confeccao";
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(initialMode);
+  // Tipo de pagamento escolhido no modal pré-wizard (Parecer/Visita/Cirurgia/etc.).
+  // Persistido em payments.payment_type_id no insert e propagado para payment_items.
+  const initialPaymentTypeId: string | null = (() => {
+    const fromUrl = searchParams.get("tipo");
+    if (fromUrl) return fromUrl;
+    try {
+      const fromStorage = sessionStorage.getItem("newPaymentTypeId");
+      if (fromStorage) return fromStorage;
+    } catch { /* ignore */ }
+    return null;
+  })();
+  const [paymentTypeId, setPaymentTypeId] = useState<string | null>(initialPaymentTypeId);
   const [importMode, setImportMode] = useState<"normal" | "historico">("normal");
   const isHistoricoImport = importMode === "historico";
   const HISTORICO_WINDOW = { start: "2026-01", end: "2026-04" };
@@ -1760,6 +1772,7 @@ const NewPayment = () => {
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
+        payment_type_id: paymentTypeId,
         import_mode: isHistoricoImport ? "historico" : "normal",
       } as any)
       .select()
