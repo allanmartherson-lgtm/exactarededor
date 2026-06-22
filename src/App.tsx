@@ -26,6 +26,7 @@ import ForceChangePassword from "./pages/ForceChangePassword.tsx";
 const loadDashboard = () => import("./pages/Dashboard.tsx");
 const loadExecutiveDashboard = () => import("./pages/ExecutiveDashboard.tsx");
 const loadBiDiretoria = () => import("./pages/BiDiretoria.tsx");
+const loadBiPagamentos = () => import("./pages/BiPagamentos.tsx");
 const loadAgingRecebiveis = () => import("./pages/AgingRecebiveis.tsx");
 const loadHealthMonitoring = () => import("./pages/HealthMonitoring.tsx");
 const loadPayments = () => import("./pages/Payments.tsx");
@@ -111,6 +112,7 @@ const loadExportAudit = () => import("./pages/ExportAudit.tsx");
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
 const BiDiretoria = lazy(loadBiDiretoria);
+const BiPagamentos = lazy(loadBiPagamentos);
 const AgingRecebiveis = lazy(loadAgingRecebiveis);
 const HealthMonitoring = lazy(loadHealthMonitoring);
 const Payments = lazy(loadPayments);
@@ -309,6 +311,7 @@ const App = () => (
                   <Route path="/relatorios/auditoria-exportacoes" element={<Navigate to="/auditoria?tab=exportacoes" replace />} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/bi/diretoria" element={<BiDiretoria />} />
+                  <Route path="/bi/pagamentos" element={<BiPagamentos />} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><AgingRecebiveis /></ProtectedRoute>} />
                   <Route path="/inteligencia-financeira" element={<FinancialIntelligence />} />
                   <Route path="/ciclo-nf" element={<Navigate to="/notas-fiscais" replace />} />
