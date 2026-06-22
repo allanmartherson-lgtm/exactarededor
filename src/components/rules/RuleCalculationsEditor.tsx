@@ -1519,7 +1519,7 @@ function CalcCard({
             </div>
           )}
 
-          <WhenApplySection c={c} onChange={onChange} isPacote={isPacote} specialCaseTypes={specialCaseTypes} />
+          <WhenApplySection c={c} onChange={onChange} isPacote={isPacote} specialCaseTypes={specialCaseTypes} paymentTypes={paymentTypes} />
 
           {c.calculation_type === "valor_fixo" && (
             <ComplementosBlock c={c} onChange={onChange} />
