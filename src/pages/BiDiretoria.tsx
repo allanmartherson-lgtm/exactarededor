@@ -187,6 +187,7 @@ function EvolutionChart({ data, height = 260 }: { data: number[]; height?: numbe
       })}
     </svg>
   );
+}
 
 export default function BiDiretoria() {
   const [period, setPeriod] = useState<Period>("mes");
