@@ -33,12 +33,15 @@ const normHeader = (s: string) =>
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "");
 
-function pick(row: Record<string, any>, aliases: string[]): any {
-  for (const a of aliases) {
-    const key = normHeader(a);
-    if (key in row && row[key] !== "" && row[key] != null) return row[key];
-  }
-  return null;
+function valueFromMapping(
+  rec: Record<string, any>,
+  mapping: ParecerMapping,
+  key: keyof ParecerMapping,
+): any {
+  const header = mapping[key];
+  if (!header) return null;
+  const v = rec[header];
+  return v === "" || v == null ? null : v;
 }
 
 function normalizeCrm(input: any): string | null {
