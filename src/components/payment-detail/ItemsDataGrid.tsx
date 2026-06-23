@@ -865,6 +865,12 @@ export function ItemsDataGrid({
         }
       }
       if (onlyAdjusted && !adjustedItemIds.has(it.id)) return false;
+      if (isParecerPayment && parecerFilter !== "__all__") {
+        const evidence = ((it as any).parecer_evidence ?? null) as string | null;
+        const isWeak = (it as any).parecer_evidence_weak === true;
+        if (parecerFilter === "missing" && evidence !== "not_found") return false;
+        if (parecerFilter === "weak" && !(evidence === "confirmed" && isWeak)) return false;
+      }
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
@@ -988,7 +994,7 @@ export function ItemsDataGrid({
     }
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, groupStatus, sortKey, sortDir]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
 
   // Reagrupa por atendimento: TODOS os itens do mesmo atendimento ficam
   // contíguos (não só os do pacote). Itens sem atendimento mantêm a ordem
