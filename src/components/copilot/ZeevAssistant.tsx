@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { ZeevBulkManualDialog, type ZeevBulkItem } from "./ZeevBulkManualDialog";
+import { ZeevSuggestRuleDialog } from "./ZeevSuggestRuleDialog";
 
 /**
  * Zeev — mascote assistente do Exacta.
