@@ -80,8 +80,8 @@ interface Props {
   extraInsights?: ZeevInsight[];
   /** Filtro sugerido pelo Zeev (deep link nos filtros do grid). */
   onApplyFilter?: (filter: "divergentes" | "sem_regra" | "reprovados") => void;
-  /** Contexto necessário pra ações em lote (paymentId + companyName). */
-  bulkContext?: { paymentId: string; companyName: string | null };
+  /** Contexto necessário pra ações em lote (paymentId + companyName + companyGroupId opcional pra sugestões). */
+  bulkContext?: { paymentId: string; companyName: string | null; companyGroupId?: string | null };
   /** Callback chamado após o Zeev aplicar uma ação em lote. */
   onBulkApplied?: () => void;
   /** Posicionamento (default: bottom-left). */
