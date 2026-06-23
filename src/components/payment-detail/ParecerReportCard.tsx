@@ -90,24 +90,26 @@ export function ParecerReportCard({
     }
     setUploading(true);
     try {
-      const buf = await file.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      // base64
-      let bin = "";
-      for (let i = 0; i < bytes.length; i += 0x8000) {
-        bin += String.fromCharCode.apply(
-          null,
-          Array.from(bytes.subarray(i, i + 0x8000)) as any,
-        );
-      }
-      const b64 = btoa(bin);
+      // Upload do arquivo para Storage (evita limite de body em functions.invoke)
+      const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+      const storagePath = `parecer-reports/${paymentId}/${Date.now()}_${safeName}`;
+      const { error: upErr } = await supabase.storage
+        .from("payment-files")
+        .upload(storagePath, file, {
+          upsert: false,
+          contentType:
+            file.type ||
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+      if (upErr) throw upErr;
 
       const { data, error } = await supabase.functions.invoke(
         "import-parecer-report",
         {
           body: {
             payment_id: paymentId,
-            file_base64: b64,
+            storage_bucket: "payment-files",
+            storage_path: storagePath,
             filename: file.name,
             period_start: periodStart,
             period_end: periodEnd,
@@ -139,6 +141,7 @@ export function ParecerReportCard({
       setUploading(false);
     }
   };
+
 
   const cross = async () => {
     setCrossing(true);
