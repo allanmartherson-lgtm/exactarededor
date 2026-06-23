@@ -1205,6 +1205,22 @@ export function ItemsDataGrid({
     [items],
   );
 
+  const parecerCounts = useMemo(() => {
+    if (!isParecerPayment) return { checked: 0, confirmed: 0, missing: 0, weak: 0 };
+    return items.reduce(
+      (acc, it) => {
+        const evidence = ((it as any).parecer_evidence ?? null) as string | null;
+        const isWeak = (it as any).parecer_evidence_weak === true;
+        if (evidence) acc.checked += 1;
+        if (evidence === "confirmed") acc.confirmed += 1;
+        if (evidence === "not_found") acc.missing += 1;
+        if (evidence === "confirmed" && isWeak) acc.weak += 1;
+        return acc;
+      },
+      { checked: 0, confirmed: 0, missing: 0, weak: 0 },
+    );
+  }, [items, isParecerPayment]);
+
   const counts = useMemo(() => {
     const c = { alerta: 0, critico: 0, total: items.length };
     for (const it of items) {
