@@ -162,12 +162,17 @@ function buildItemInsights(items: ZeevItem[], onApplyFilter?: Props["onApplyFilt
       priority: semRegra.length >= 10 ? "alta" : "media",
       icon: ShieldQuestion,
       title: `${semRegra.length} itens sem regra cadastrada`,
-      message: `Esses itens não tiveram repasse calculado. Pode valer a pena cadastrar uma regra nova ou tratar manualmente em lote.`,
+      message: `Esses itens não tiveram repasse calculado. Você pode sugerir regra nova ao diretor ou tratar manualmente em lote.`,
       bulk: {
         itemIds: semRegra.map((i) => i.id),
         subtitle: `${semRegra.length} itens sem regra cadastrada. Marcar todos como tratativa manual (aceita o valor do convênio)?`,
       },
-      linkTo: { href: "/regras?tab=pagamento", label: "Criar regra" },
+      suggestRule: {
+        sample_item_ids: semRegra.slice(0, 30).map((i) => i.id),
+        occurrences: semRegra.length,
+        context: { trigger: "sem_regra", total: semRegra.length },
+        initialJustification: `Identifiquei ${semRegra.length} itens sem regra cadastrada nessa competência. Vale a pena revisar o cadastro pra eles passarem a ser calculados automaticamente.`,
+      },
     });
   }
 
