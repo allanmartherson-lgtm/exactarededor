@@ -23,6 +23,8 @@ import ParecerColumnMappingDialog, {
   loadSavedMapping,
   saveMappingTemplate,
 } from "./ParecerColumnMappingDialog";
+import { confirmDialog } from "@/lib/confirm";
+import { notify } from "@/lib/uiSignals";
 
 // Helpers de parsing (rodam no browser para não estourar memória do worker)
 const normHeader = (s: string) =>
@@ -367,16 +369,52 @@ export function ParecerReportCard({
   };
 
   const removeReport = async (reportId: string) => {
-    if (!confirm("Remover este relatório? As linhas importadas serão apagadas e você poderá reenviar o arquivo correto.")) return;
+    const report = reports.find((r) => r.id === reportId);
+    const filename = report?.source_filename ?? "(sem nome)";
+    const rowCount = report?.row_count ?? 0;
+
+    const ok = await confirmDialog({
+      title: "Remover relatório de parecer?",
+      description: (
+        <>
+          O arquivo <strong>{filename}</strong> ({rowCount} linha{rowCount === 1 ? "" : "s"}) será
+          apagado do banco junto com todas as linhas importadas. Esta ação não pode ser desfeita.
+        </>
+      ),
+      tone: "danger",
+      confirmText: "Remover relatório",
+      cancelText: "Manter",
+    });
+    if (!ok) return;
+
     try {
       const { error } = await supabase.functions.invoke("delete-parecer-report", {
         body: { report_id: reportId },
       });
       if (error) throw error;
-      toast({ title: "Relatório removido", description: "Reenvie o arquivo correto." });
+
+      // Confirma no banco que o registro realmente sumiu antes de avisar sucesso.
+      const { data: stillThere, error: checkErr } = await supabase
+        .from("payment_parecer_reports")
+        .select("id")
+        .eq("id", reportId)
+        .maybeSingle();
+      if (checkErr) throw checkErr;
+      if (stillThere) {
+        throw new Error(
+          "O servidor respondeu sucesso, mas o relatório ainda existe no banco. Tente novamente ou contate o suporte.",
+        );
+      }
+
       await load();
+      notify.success("Relatório removido", {
+        description: `"${filename}" foi apagado. Reenvie o arquivo correto para continuar.`,
+      });
     } catch (e: any) {
-      toast({ title: "Falha ao remover", description: e?.message ?? String(e), variant: "destructive" });
+      await load(); // garante que UI reflete o estado real mesmo em erro
+      notify.error("Falha ao remover relatório", {
+        description: e?.message ?? String(e),
+      });
     }
   };
 
