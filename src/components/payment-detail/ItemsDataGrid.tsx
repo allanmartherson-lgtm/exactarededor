@@ -3242,6 +3242,7 @@ function RowMain({
   showDiferencaCol = true,
   mode = "analise",
   isParecerPayment = false,
+  onChangeCaseSubtype,
   onRefresh,
 }: {
   it: PaymentItemRowData;
