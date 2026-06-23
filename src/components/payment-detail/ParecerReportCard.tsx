@@ -425,8 +425,12 @@ export function ParecerReportCard({
               <Button
                 variant="outline"
                 onClick={cross}
-                disabled={crossing}
-                title="Recruza items × relatórios e reaplica motivos automáticos"
+                disabled={crossing || hasEmpty}
+                title={
+                  hasEmpty
+                    ? "Reimporte o relatório — há arquivos sem linhas gravadas"
+                    : "Recruza items × relatórios e reaplica motivos automáticos"
+                }
               >
                 {crossing ? (
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
