@@ -244,13 +244,11 @@ export function ZeevAssistant({
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
 
-  const insights = useMemo(() => {
+  const insights = useMemo<ZeevInsight[]>(() => {
     const auto = items ? buildItemInsights(items, onApplyFilter) : [];
-    const merged = [...(extraInsights ?? []), ...auto];
-    // Quando as ações inteligentes estão desligadas (ex.: pagamento não-parecer),
-    // removemos bulk/suggestRule de cada insight pra que os botões não apareçam.
+    const merged: ZeevInsight[] = [...(extraInsights ?? []), ...auto];
     if (!smartActionsEnabled) {
-      return merged.map(({ bulk: _b, suggestRule: _s, ...rest }) => rest);
+      return merged.map((i) => ({ ...i, bulk: undefined, suggestRule: undefined }));
     }
     return merged;
   }, [items, extraInsights, onApplyFilter, smartActionsEnabled]);
