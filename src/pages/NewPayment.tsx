@@ -1388,7 +1388,32 @@ const NewPayment = () => {
       if (r.ok && r.bucket) newBuckets.push(r.bucket);
       else if (!r.ok) reportParseError(r.file.name, r.error);
     }
-    setBuckets((prev) => [...prev, ...newBuckets]);
+    // Aplica decisões restauradas do rascunho (por chave nome::size::lastModified).
+    const pending = pendingFileDecisionsRef.current;
+    const merged = newBuckets.map((b) => {
+      const k = fileKey(b.file);
+      const dec = pending[k];
+      if (!dec) return b;
+      delete pending[k];
+      return {
+        ...b,
+        sectorMapping: dec.sectorMapping ?? b.sectorMapping,
+        matchedCompany: dec.matchedCompany ?? b.matchedCompany,
+        matchScore: dec.matchedCompany ? Math.max(b.matchScore, 1) : b.matchScore,
+        manualOverride: dec.manualOverride ?? b.manualOverride,
+        convenioValueTotalized: dec.convenioValueTotalized ?? b.convenioValueTotalized,
+        headerRowIndex: dec.headerRowIndex ?? b.headerRowIndex,
+        sectorColumnUsed: dec.sectorColumnUsed ?? b.sectorColumnUsed,
+        columnOverrides: (dec.columnOverrides as typeof b.columnOverrides) ?? b.columnOverrides,
+        columnMapping: (dec.columnMapping as typeof b.columnMapping) ?? b.columnMapping,
+      } as FileBucket;
+    });
+    const restoredCount = newBuckets.length - Object.keys(pending).length - (newBuckets.length - merged.filter((b, i) => b !== newBuckets[i]).length);
+    const appliedCount = merged.filter((b, i) => b !== newBuckets[i]).length;
+    setBuckets((prev) => [...prev, ...merged]);
+    if (appliedCount > 0) {
+      toast({ title: "Decisões do rascunho aplicadas", description: `${appliedCount} arquivo(s) com setor/PJ/mapeamento restaurados.` });
+    }
     if (!reference && newBuckets.length === 1) {
       setReference(newBuckets[0].file.name.replace(/\.[^.]+$/, ""));
     } else if (!reference && newBuckets.length > 1) {
@@ -1396,6 +1421,7 @@ const NewPayment = () => {
       setReference(`Pagamento ${today.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`);
     }
   };
+
 
   /** Substitui o arquivo de um bucket existente sem perder os demais arquivos do lote. */
   const replaceBucketFile = async (idx: number, f: File) => {
