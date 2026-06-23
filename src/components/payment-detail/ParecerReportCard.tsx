@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
+  Trash2,
+
 } from "lucide-react";
 
 // Helpers de parsing (rodam no browser para não estourar memória do worker)
