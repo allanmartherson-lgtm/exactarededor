@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { ZeevIcon } from "./ZeevIcon";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CopilotCard } from "./CopilotCard";
@@ -22,7 +22,7 @@ export function PaymentItemExplainButton({ item, candidateRules = [], itemStatus
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size={size === "icon" ? "icon" : "sm"} className="h-7 text-xs">
-          <Sparkles className="h-3 w-3 mr-1 text-purple-600" />
+          <ZeevIcon className="h-3 w-3 mr-1 text-primary" />
           {size === "icon" ? null : "Por quê?"}
         </Button>
       </PopoverTrigger>
