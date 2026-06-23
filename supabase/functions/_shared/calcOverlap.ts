@@ -261,6 +261,8 @@ function evaluatePair(
     axisSimpleArray(a.specialties, b.specialties, "Especialidade"),
     axisSpecialCase(a, b, sameRulePrecedence),
     axisPaymentType(a, b),
+  ];
+
 
   const pieces: string[] = [];
   for (const r of results) {
