@@ -1,11 +1,13 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { Sparkles, X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Sparkles, X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { ZeevBulkManualDialog, type ZeevBulkItem } from "./ZeevBulkManualDialog";
 
 /**
  * Zeev — mascote assistente do Exacta.
