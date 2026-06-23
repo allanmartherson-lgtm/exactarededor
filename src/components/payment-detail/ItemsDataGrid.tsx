@@ -2999,6 +2999,8 @@ function RowMain({
   showProcedureColumn = false,
   showDiferencaCol = true,
   mode = "analise",
+  isParecerPayment = false,
+  onRefresh,
 }: {
   it: PaymentItemRowData;
   allItems: PaymentItemRowData[];
@@ -3029,6 +3031,8 @@ function RowMain({
   showProcedureColumn?: boolean;
   showDiferencaCol?: boolean;
   mode?: "analise" | "confeccao";
+  isParecerPayment?: boolean;
+  onRefresh?: () => void;
 }) {
   const convenio = getAgreement(it);
   // Itens absorvidos manualmente em pacote: zerados visualmente — o valor
@@ -3444,7 +3448,7 @@ function RowMain({
                 </Button>
               )}
               {!isBonus && (
-                <ManualInterventionItemIconAction paymentId={it.payment_id} item={it as any} />
+                <ManualInterventionItemIconAction paymentId={it.payment_id} item={it as any} onApplied={onRefresh} />
               )}
 
 
