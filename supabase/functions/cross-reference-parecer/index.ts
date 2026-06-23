@@ -63,6 +63,16 @@ Deno.serve(async (req) => {
     if (repErr) throw repErr;
     const hasReport = (reports ?? []).length > 0;
 
+    if (!hasReport) {
+      return new Response(
+        JSON.stringify({
+          error: "Nenhum relatório de parecer importado para este lote.",
+          code: "no_report",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     let allRows: any[] = [];
     if (hasReport) {
       const ids = reports!.map((r) => r.id);
