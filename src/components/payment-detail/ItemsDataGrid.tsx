@@ -653,6 +653,9 @@ function CaseSubtypeBadge({
       </PopoverContent>
     </Popover>
   );
+}
+
+
 
 /**
  * Data grid compartilhado de itens de uma empresa dentro de um lote.
