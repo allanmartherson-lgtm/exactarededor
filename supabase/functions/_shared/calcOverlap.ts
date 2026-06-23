@@ -260,7 +260,8 @@ function evaluatePair(
     axisSimpleArray(a.sectors, b.sectors, "Setor"),
     axisSimpleArray(a.specialties, b.specialties, "Especialidade"),
     axisSpecialCase(a, b, sameRulePrecedence),
-  ];
+    axisPaymentType(a, b),
+
   const pieces: string[] = [];
   for (const r of results) {
     if (r.empty) return { conflicts: false, pieces: [] };
