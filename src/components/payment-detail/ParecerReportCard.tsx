@@ -512,7 +512,7 @@ export function ParecerReportCard({
             />
           </div>
           <div className="flex gap-2">
-            <Button onClick={upload} disabled={uploading || !file}>
+            <Button onClick={startUpload} disabled={uploading || !file}>
               {uploading ? (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               ) : (
@@ -520,6 +520,17 @@ export function ParecerReportCard({
               )}
               Importar
             </Button>
+            {file && parsed && (
+              <Button
+                variant="outline"
+                onClick={() => setMappingOpen(true)}
+                disabled={uploading}
+                title="Ajustar mapeamento de colunas"
+              >
+                <Settings2 className="h-4 w-4 mr-1" />
+                Mapeamento
+              </Button>
+            )}
             {hasReport && (
               <Button
                 variant="outline"
