@@ -555,6 +555,109 @@ function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
 }
 
 /**
+ * Badge clicável que mostra/alterna o subtipo do caso (Parecer × Visita)
+ * dentro de um lote de Parecer. Clique → menu para alternar entre os dois
+ * (com escopo: só este item ou todo o atendimento). NULL = não classificado.
+ */
+function CaseSubtypeBadge({
+  item,
+  allItems,
+  onChange,
+  canEdit,
+}: {
+  item: PaymentItemRowData;
+  allItems: PaymentItemRowData[];
+  onChange?: (ids: string[], newSubtype: "parecer" | "visita", source: "manual" | "attendance_override") => void;
+  canEdit: boolean;
+}) {
+  const subtype = ((item as any).case_subtype ?? null) as "parecer" | "visita" | null;
+  const source = ((item as any).case_subtype_source ?? null) as string | null;
+
+  const label = subtype === "visita" ? "V" : subtype === "parecer" ? "P" : "?";
+  const tone =
+    subtype === "visita"
+      ? "bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-800"
+      : subtype === "parecer"
+      ? "bg-violet-50 text-violet-800 border-violet-300 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-800"
+      : "bg-muted text-muted-foreground border-border";
+  const sourceLabel: Record<string, string> = {
+    base: "lido da planilha",
+    report_cross: "cruzamento com relatório de parecer",
+    manual: "marcação manual do analista",
+    company_override: "padrão da empresa no lote",
+    attendance_override: "padrão do atendimento",
+    default: "padrão do lote",
+  };
+  const sourceText = source ? sourceLabel[source] ?? source : "não classificado";
+  const title = subtype
+    ? `Subtipo: ${subtype === "visita" ? "Visita" : "Parecer"} — origem: ${sourceText}. Clique para alterar.`
+    : "Subtipo não classificado. Clique para marcar.";
+
+  if (!canEdit || !onChange) {
+    return (
+      <span className={cn("inline-flex items-center h-4 px-1 rounded text-[10px] border", tone)} title={title}>
+        {label}
+      </span>
+    );
+  }
+
+  const flip: "parecer" | "visita" = subtype === "visita" ? "parecer" : "visita";
+  const attendIds = (() => {
+    const att = String((item as any).attendance_number ?? "").trim();
+    if (!att) return [item.id];
+    return allItems
+      .filter((x) => String((x as any).attendance_number ?? "").trim() === att)
+      .map((x) => x.id);
+  })();
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn("inline-flex items-center h-4 px-1 rounded text-[10px] border hover:opacity-80", tone)}
+          title={title}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {label}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 p-2 space-y-1">
+        <div className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground mb-1 px-1">
+          Marcar como {flip === "visita" ? "Visita" : "Parecer"}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start h-7 text-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange([item.id], flip, "manual");
+          }}
+        >
+          Só este item
+        </Button>
+        {attendIds.length > 1 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start h-7 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(attendIds, flip, "attendance_override");
+            }}
+          >
+            Todo o atendimento ({attendIds.length} itens)
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+
+
+/**
  * Data grid compartilhado de itens de uma empresa dentro de um lote.
  * Usado pela página dedicada `/pagamentos/:id/empresa/:groupId` —
  * é a única fonte de trabalho da empresa (tabela densa com filtros,
@@ -572,7 +675,8 @@ type OptionalColKey =
   | "regra"
   | "diferenca"
   | "observacao"
-  | "tipo_entrada";
+  | "tipo_entrada"
+  | "subtipo";
 
 const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "atendimento", label: "Atendimento" },
@@ -583,6 +687,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "setor_lido", label: "Setor (Planilha)" },
   { key: "setor_inferido", label: "Setor (Sistema)" },
   { key: "tipo_entrada", label: "Tipo de entrada (caráter)" },
+  { key: "subtipo", label: "Subtipo (Parecer/Visita)" },
   { key: "regra", label: "Regra aplicada" },
   { key: "diferenca", label: "Diferença" },
   { key: "observacao", label: "Observação" },
@@ -597,6 +702,7 @@ const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   setor_lido: true,
   setor_inferido: true,
   tipo_entrada: false,
+  subtipo: false,
   regra: false,
   diferenca: false,
   observacao: false,
@@ -750,6 +856,46 @@ export function ItemsDataGrid({
       setSavingAbsorcao(null);
     }
   };
+
+  const changeCaseSubtype = async (
+    itemIds: string[],
+    newSubtype: "parecer" | "visita",
+    source: "manual" | "attendance_override",
+  ) => {
+    if (!itemIds.length) return;
+    try {
+      const { error } = await supabase
+        .from("payment_items")
+        .update({ case_subtype: newSubtype, case_subtype_source: source } as any)
+        .in("id", itemIds);
+      if (error) {
+        console.error("Erro ao alterar subtipo:", error);
+        toast.error(`Não foi possível alterar o subtipo: ${error.message}`);
+        return;
+      }
+      toast.success(
+        itemIds.length > 1
+          ? `${itemIds.length} itens marcados como ${newSubtype === "visita" ? "Visita" : "Parecer"}. Reanalisando…`
+          : `Item marcado como ${newSubtype === "visita" ? "Visita" : "Parecer"}. Reanalisando…`,
+      );
+      // Dispara reanálise para o motor reaplicar regras com o novo subtipo.
+      try {
+        const paymentId = (items[0] as any)?.payment_id;
+        if (paymentId) {
+          await supabase.functions.invoke("dispatch-payment-analysis", {
+            body: { payment_id: paymentId, force_fresh_rules: true },
+          });
+        }
+      } catch (e) {
+        console.warn("[changeCaseSubtype] dispatch falhou", e);
+      }
+      onRefresh?.();
+    } catch (e: any) {
+      console.error("Erro ao alterar subtipo:", e);
+      toast.error(`Erro inesperado: ${e?.message ?? e}`);
+    }
+  };
+
 
 
 
@@ -2410,6 +2556,7 @@ export function ItemsDataGrid({
                         showDiferencaCol={showDiferencaCol}
                         mode={mode}
                         isParecerPayment={isParecerPayment}
+                        onChangeCaseSubtype={changeCaseSubtype}
                         onRefresh={onRefresh}
                       />
                     )}
@@ -3095,6 +3242,7 @@ function RowMain({
   showDiferencaCol = true,
   mode = "analise",
   isParecerPayment = false,
+  onChangeCaseSubtype,
   onRefresh,
 }: {
   it: PaymentItemRowData;
@@ -3127,6 +3275,11 @@ function RowMain({
   showDiferencaCol?: boolean;
   mode?: "analise" | "confeccao";
   isParecerPayment?: boolean;
+  onChangeCaseSubtype?: (
+    itemIds: string[],
+    newSubtype: "parecer" | "visita",
+    source: "manual" | "attendance_override",
+  ) => void;
   onRefresh?: () => void;
 }) {
   const convenio = getAgreement(it);
@@ -3232,6 +3385,14 @@ function RowMain({
                 </span>
               )}
               {isParecerPayment && <ParecerEvidenceBadge item={it} />}
+              {isParecerPayment && (
+                <CaseSubtypeBadge
+                  item={it}
+                  allItems={allItems}
+                  canEdit={canEdit}
+                  onChange={onChangeCaseSubtype}
+                />
+              )}
             </div>
           </td>
         )}

@@ -279,6 +279,11 @@ export interface RuleCalculationItem {
    *  NULL = vale para qualquer tipo. Quando setado, só casa se o item
    *  pertencer a um pagamento com o mesmo `payment_type_id`. */
   payment_type_id?: string | null;
+  /** Subtipo de caso dentro de Parecer ('parecer' | 'visita'). NULL = vale
+   *  para qualquer subtipo. Quando setado, só casa se o item tiver o mesmo
+   *  `case_subtype`. Permite uma regra específica para Visita dentro de um
+   *  lote de Parecer. */
+  case_subtype?: "parecer" | "visita" | null;
   /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
   procedure_keywords?: string[] | null;
   /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
@@ -357,6 +362,11 @@ export interface ItemInput {
   /** payment_type_id do pagamento a que o item pertence — usado pelo filtro
    *  de tipo no nível do cálculo (`rule_calculations.payment_type_id`). */
   payment_type_id?: string | null;
+  /** Subtipo do caso dentro de Parecer ('parecer' | 'visita'). Definido por
+   *  cruzamento com relatório de parecer, herança da empresa/atendimento ou
+   *  marcação manual do analista. NULL = não classificado (cai em regra sem
+   *  subtipo). */
+  case_subtype?: "parecer" | "visita" | null;
   /** @deprecated — substituído por manual_intervention_reason_id. Mantido para
    *  itens ainda não migrados. */
   calc_exception_skip?: boolean | null;
@@ -1741,6 +1751,18 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
       if (!itemPaymentType || itemPaymentType !== calcPaymentType) {
         return { ok: false, reason: "payment_type_nao_corresponde" };
       }
+    }
+  }
+
+
+  // ---- Subtipo de caso (Parecer × Visita dentro do mesmo lote) ----
+  // Quando o cálculo é restrito a um subtipo, só casa com itens marcados
+  // com esse subtipo. NULL no cálculo = vale para qualquer subtipo (legacy/universal).
+  const calcCaseSubtype = (c as any).case_subtype ?? null;
+  if (calcCaseSubtype) {
+    const itemCaseSubtype = (item as any).case_subtype ?? null;
+    if (itemCaseSubtype !== calcCaseSubtype) {
+      return { ok: false, reason: "case_subtype_nao_corresponde" };
     }
   }
 

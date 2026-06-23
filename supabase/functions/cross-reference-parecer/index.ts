@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       const { data: page, error } = await supabase
         .from("payment_items")
         .select(
-          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, manual_intervention_reason_id, manual_intervention_source",
+          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, manual_intervention_reason_id, manual_intervention_source, case_subtype, case_subtype_source",
         )
         .eq("payment_id", payment_id)
         .range(from, from + pageSize - 1);
@@ -240,6 +240,17 @@ Deno.serve(async (req) => {
     let confirmed = 0;
     let notFound = 0;
     let autoApplied = 0;
+    // Subtipo do caso (Visita × Parecer) — só atualizado pelo cruzamento
+    // quando o item AINDA NÃO tem override manual/empresa/atendimento.
+    const PROTECTED_SOURCES = new Set([
+      "manual",
+      "company_override",
+      "attendance_override",
+    ]);
+    const itemById = new Map(items.map((i: any) => [i.id, i]));
+    let subtypeParecer = 0;
+    let subtypeVisita = 0;
+
     for (const u of updates) {
       const patch: Record<string, any> = {
         parecer_evidence: u.evidence,
@@ -247,6 +258,20 @@ Deno.serve(async (req) => {
         parecer_evidence_weak: u.weak,
         parecer_checked_at: now,
       };
+      const current = itemById.get(u.id) as any;
+      const currentSource = current?.case_subtype_source ?? null;
+      const protectedSubtype = PROTECTED_SOURCES.has(currentSource);
+      if (!protectedSubtype) {
+        if (u.evidence === "confirmed") {
+          patch.case_subtype = "parecer";
+          patch.case_subtype_source = "report_cross";
+          subtypeParecer++;
+        } else if (u.evidence === "not_found") {
+          patch.case_subtype = "visita";
+          patch.case_subtype_source = "report_cross";
+          subtypeVisita++;
+        }
+      }
       if (u.apply_auto_reason) {
         patch.manual_intervention_reason_id = autoReasonId;
         patch.manual_intervention_source = "auto_parecer_report";
@@ -304,6 +329,8 @@ Deno.serve(async (req) => {
         confirmed,
         not_found: notFound,
         auto_applied: autoApplied,
+        subtype_parecer: subtypeParecer,
+        subtype_visita: subtypeVisita,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

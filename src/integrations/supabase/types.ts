@@ -4430,6 +4430,7 @@ export type Database = {
             | Database["public"]["Enums"]["confeccao_status"]
             | null
           created_at: string
+          default_case_subtype: string | null
           hospital_id: string
           id: string
           is_test: boolean
@@ -4490,6 +4491,7 @@ export type Database = {
             | Database["public"]["Enums"]["confeccao_status"]
             | null
           created_at?: string
+          default_case_subtype?: string | null
           hospital_id: string
           id?: string
           is_test?: boolean
@@ -4550,6 +4552,7 @@ export type Database = {
             | Database["public"]["Enums"]["confeccao_status"]
             | null
           created_at?: string
+          default_case_subtype?: string | null
           hospital_id?: string
           id?: string
           is_test?: boolean
@@ -4934,6 +4937,8 @@ export type Database = {
           cancellation_source: string | null
           cancelled_at: string | null
           cancelled_by: string | null
+          case_subtype: string | null
+          case_subtype_source: string | null
           company_id: string | null
           company_name: string | null
           complement_reason: string | null
@@ -5048,6 +5053,8 @@ export type Database = {
           cancellation_source?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          case_subtype?: string | null
+          case_subtype_source?: string | null
           company_id?: string | null
           company_name?: string | null
           complement_reason?: string | null
@@ -5162,6 +5169,8 @@ export type Database = {
           cancellation_source?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          case_subtype?: string | null
+          case_subtype_source?: string | null
           company_id?: string | null
           company_name?: string | null
           complement_reason?: string | null
@@ -7959,6 +7968,7 @@ export type Database = {
           bonus_amount: number | null
           bonus_pct: number | null
           calculation_type: Database["public"]["Enums"]["rule_calculation_type"]
+          case_subtype: string | null
           code_match_mode: string
           context_conditions: Json
           convenio_percentage: number | null
@@ -8022,6 +8032,7 @@ export type Database = {
           bonus_amount?: number | null
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          case_subtype?: string | null
           code_match_mode?: string
           context_conditions?: Json
           convenio_percentage?: number | null
@@ -8085,6 +8096,7 @@ export type Database = {
           bonus_amount?: number | null
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          case_subtype?: string | null
           code_match_mode?: string
           context_conditions?: Json
           convenio_percentage?: number | null
@@ -8342,6 +8354,7 @@ export type Database = {
           bonus_amount: number | null
           bonus_pct: number | null
           calculation_type: Database["public"]["Enums"]["rule_calculation_type"]
+          case_subtype: string | null
           code: string
           convenio_percentage: number | null
           created_at: string
@@ -8418,6 +8431,7 @@ export type Database = {
           bonus_amount?: number | null
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          case_subtype?: string | null
           code: string
           convenio_percentage?: number | null
           created_at?: string
@@ -8494,6 +8508,7 @@ export type Database = {
           bonus_amount?: number | null
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          case_subtype?: string | null
           code?: string
           convenio_percentage?: number | null
           created_at?: string
