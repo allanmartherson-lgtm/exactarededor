@@ -10032,6 +10032,15 @@ export type Database = {
         }
         Returns: Json
       }
+      change_group_company: {
+        Args: {
+          p_new_company_id: string
+          p_new_company_name: string
+          p_reason?: string
+          p_source_group_id: string
+        }
+        Returns: Json
+      }
       claim_ai_retry_batch: {
         Args: { p_limit?: number }
         Returns: {
