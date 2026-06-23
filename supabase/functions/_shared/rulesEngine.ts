@@ -2900,6 +2900,39 @@ export function analyzeItem(
   preFilteredRules: RuleInput[],
   ctx?: EngineCtx,
 ): AnalysisResult {
+  // === Tratamento Manual (Fase 1) ===
+  // Quando o analista marcou o item com um motivo de intervenção manual
+  // (reclassificação clínica ou aceite financeiro), o motor NÃO aplica regra:
+  // aceita `procedure_amount` (valor do convênio) como esperado, diff = 0,
+  // status = aprovado. Auditoria preserva o motivo via calculation_explanation.
+  if (item.manual_intervention_reason_id) {
+    const code = item.manual_intervention_reason_code ?? "manual";
+    const category = item.manual_intervention_reason_category ?? "";
+    const source = item.manual_intervention_source ?? "manual";
+    const isAuto = source === "auto_parecer_report";
+    const procAmount = Number(item.procedure_amount ?? 0);
+    const grossAmount = Number(item.gross_amount ?? 0);
+    const expected = procAmount;
+    const explanation = `Tratamento ${isAuto ? "automático (relatório de parecer)" : "manual"} — motivo "${code}"${category ? ` (${category})` : ""}. Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).`;
+    const alerts: string[] = [];
+    if (Math.abs(expected - grossAmount) > 0.01) {
+      alerts.push(`Pago (R$ ${grossAmount.toFixed(2)}) difere do convênio (R$ ${procAmount.toFixed(2)}) — diferença assumida pelo tratamento manual.`);
+    }
+    return {
+      item_id: item.id,
+      status: "aprovado",
+      expected_amount: expected,
+      diff_pct: 0,
+      matched_rule_id: null,
+      matched_rule_name: null,
+      matched_priority: "default_setor",
+      calculation_type_used: "tratamento_manual",
+      calculation_explanation: explanation,
+      alerts,
+      needs_ai_review: false,
+    };
+  }
+
   // === Tratamento especial: complemento/bônus, glosa, reprocessamento ===
   // Estes lançamentos NÃO são itens independentes para o motor de regras:
   // não exigem código TUSS, tabela ou regra de procedimento. A vinculação
