@@ -229,9 +229,58 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
         validation_findings: [],
       } as PaymentItemRow;
     });
+
+    // Consistência: item com tratativa manual SEMPRE deve ficar aprovado, com
+    // expected_amount = procedure_amount. Se algo (reanálise antiga, race,
+    // backfill incompleto) deixou um item manual em status divergente,
+    // corrigimos aqui de forma idempotente para que analista e validador vejam
+    // o mesmo estado. Espelha a lógica determinística de
+    // ManualInterventionDialog e do edge cross-reference-parecer.
+    try {
+      const inconsistent = sanitizedItems.filter(
+        (r: any) =>
+          r.manual_intervention_reason_id &&
+          r.ai_status !== "aprovado",
+      );
+      if (inconsistent.length > 0) {
+        console.warn(
+          "[PaymentDetail] tratativa manual inconsistente; auto-corrigindo",
+          { count: inconsistent.length, ids: inconsistent.slice(0, 5).map((r: any) => r.id) },
+        );
+        await Promise.all(
+          inconsistent.map((r: any) => {
+            const procAmt =
+              r.procedure_amount == null ? null : Number(r.procedure_amount);
+            const patch: any = { ai_status: "aprovado" };
+            if (procAmt != null && Number.isFinite(procAmt)) {
+              patch.expected_amount = procAmt;
+            }
+            return supabase
+              .from("payment_items")
+              .update(patch)
+              .eq("id", r.id);
+          }),
+        );
+        // Reflete imediatamente na UI sem esperar realtime
+        for (const r of inconsistent) {
+          (r as any).ai_status = "aprovado";
+          const procAmt =
+            (r as any).procedure_amount == null
+              ? null
+              : Number((r as any).procedure_amount);
+          if (procAmt != null && Number.isFinite(procAmt)) {
+            (r as any).expected_amount = procAmt;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[PaymentDetail] auto-correção de tratativa manual falhou", e);
+    }
+
     setItems(sanitizedItems);
     setItemsLoading(false);
     setItemsLoadIssue(null);
+
     setObs(o ?? []);
     setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
     setGroups(gs ?? []);
