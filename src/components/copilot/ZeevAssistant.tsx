@@ -462,19 +462,6 @@ export function ZeevAssistant({
                     >
                       Dispensar
                     </Button>
-                    {ins.linkTo && (
-                      <Button
-                        asChild
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-[11px]"
-                      >
-                        <Link to={ins.linkTo.href} onClick={() => setOpen(false)}>
-                          {ins.linkTo.label}
-                          <ChevronRight className="h-3 w-3 ml-1" />
-                        </Link>
-                      </Button>
-                    )}
                     {ins.actionLabel && ins.onAction && (
                       <Button
                         size="sm"
@@ -487,6 +474,20 @@ export function ZeevAssistant({
                       >
                         {ins.actionLabel}
                         <ChevronRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    )}
+                    {ins.suggestRule && bulkContext && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSuggestOpen(ins);
+                          setOpen(false);
+                        }}
+                        className="h-7 text-[11px]"
+                      >
+                        <Lightbulb className="h-3 w-3 mr-1" />
+                        Sugerir regra
                       </Button>
                     )}
                     {ins.bulk && bulkContext && ins.bulk.itemIds.length > 0 && (
@@ -507,6 +508,7 @@ export function ZeevAssistant({
               );
             })}
           </div>
+
 
           <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground italic bg-muted/40">
             Zeev observa padrões — nada é alterado sem você confirmar.
