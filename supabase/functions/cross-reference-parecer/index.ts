@@ -232,7 +232,9 @@ Deno.serve(async (req) => {
       else if (u.evidence === "not_found") notFound++;
     }
 
-    if (trigger_reanalysis && autoApplied > 0) {
+    // Sempre dispara reanálise após cruzamento bem-sucedido — mesmo com 0
+    // auto-aplicados, o lote pode estar bloqueado pelo gate de parecer.
+    if (trigger_reanalysis && hasReport) {
       try {
         await fetch(`${SUPABASE_URL}/functions/v1/dispatch-payment-analysis`, {
           method: "POST",
@@ -249,6 +251,7 @@ Deno.serve(async (req) => {
         console.warn("[cross-reference-parecer] dispatch falhou", e);
       }
     }
+
 
     return new Response(
       JSON.stringify({
