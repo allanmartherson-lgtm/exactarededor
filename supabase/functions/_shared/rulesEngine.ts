@@ -1755,6 +1755,18 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   }
 
 
+  // ---- Subtipo de caso (Parecer × Visita dentro do mesmo lote) ----
+  // Quando o cálculo é restrito a um subtipo, só casa com itens marcados
+  // com esse subtipo. NULL no cálculo = vale para qualquer subtipo (legacy/universal).
+  const calcCaseSubtype = (c as any).case_subtype ?? null;
+  if (calcCaseSubtype) {
+    const itemCaseSubtype = (item as any).case_subtype ?? null;
+    if (itemCaseSubtype !== calcCaseSubtype) {
+      return { ok: false, reason: "case_subtype_nao_corresponde" };
+    }
+  }
+
+
   // ---- Filtros restritivos por cálculo ----
   // Códigos de procedimento (whitelist/blacklist/any)
   // Convenção pós-refactor: lista vazia = sem filtro de código (fallback).
