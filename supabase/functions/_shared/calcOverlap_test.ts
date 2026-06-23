@@ -168,12 +168,13 @@ Deno.test("2D/payment-type — payment_type_id apenas em um lado (universo vs re
     {
       id: "any-pt", sort_order: 0, label: "Sem PT",
       calculation_type: "valor_fixo", fixed_amount: 100,
-      procedure_codes: ["X"], code_match_mode: "whitelist",
+      procedure_codes: ["X", "Y"], code_match_mode: "whitelist",
     } as any,
     {
       id: "with-pt", sort_order: 1, label: "Com PT",
       calculation_type: "valor_fixo", fixed_amount: 200,
-      procedure_codes: ["X"], code_match_mode: "whitelist",
+      procedure_codes: ["X", "Z"], code_match_mode: "whitelist",
+
       payment_type_id: "pt-visita",
     } as any,
   ];
