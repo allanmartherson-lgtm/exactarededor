@@ -1311,7 +1311,7 @@ export function ItemsDataGrid({
     (colVis.via ? 110 : 0) +
     88 +
     56 +
-    200 +
+    (colVis.procedimento ? 200 : 0) +
     (colVis.setor_lido ? 110 : 0) +
     (colVis.setor_inferido ? 110 : 0) +
     (colVis.tipo_entrada ? 110 : 0) +
@@ -1824,7 +1824,7 @@ export function ItemsDataGrid({
               {colVis.via && <col style={{ width: 110 }} />}
               <col style={{ width: 88 }} />
               <col style={{ width: 56 }} />
-              <col style={{ width: 200 }} />
+              {colVis.procedimento && <col style={{ width: 200 }} />}
               {colVis.setor_lido && <col style={{ width: 110 }} />}
               {colVis.setor_inferido && <col style={{ width: 110 }} />}
               {colVis.tipo_entrada && <col style={{ width: 110 }} />}
@@ -1974,7 +1974,7 @@ export function ItemsDataGrid({
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
                 </th>
-                <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>
+                {colVis.procedimento && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>}
                 {colVis.setor_lido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)</th>}
                 {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Sistema)</th>}
                 {colVis.tipo_entrada && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Caráter</th>}
@@ -2427,7 +2427,7 @@ export function ItemsDataGrid({
                 (colVis.via ? 1 : 0) +
                 1 /* tuss */ +
                 1 /* qtd */ +
-                1 /* procedimento */ +
+                (colVis.procedimento ? 1 : 0) /* procedimento */ +
                 (colVis.setor_lido ? 1 : 0) +
                 (colVis.setor_inferido ? 1 : 0) +
                 (colVis.tipo_entrada ? 1 : 0) +
@@ -3273,24 +3273,26 @@ function RowMain({
             ? "—"
             : (Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Number(it.quantity) : 1)}
         </td>
-        <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? (it as any).applied_rule_label ?? it.description ?? ""}>
-          {isBonus ? (
-            <span className="inline-flex items-center gap-1.5 min-w-0">
-              <span
-                role="img"
-                aria-label="Bônus de plantão de final de semana"
-                className="inline-flex items-center rounded border border-indigo-400 bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-100 dark:border-indigo-700 px-1 text-[10px] font-bold shrink-0"
-              >
-                <span aria-hidden="true">🎯 FdS</span>
+        {colVis.procedimento && (
+          <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? (it as any).applied_rule_label ?? it.description ?? ""}>
+            {isBonus ? (
+              <span className="inline-flex items-center gap-1.5 min-w-0">
+                <span
+                  role="img"
+                  aria-label="Bônus de plantão de final de semana"
+                  className="inline-flex items-center rounded border border-indigo-400 bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-100 dark:border-indigo-700 px-1 text-[10px] font-bold shrink-0"
+                >
+                  <span aria-hidden="true">🎯 FdS</span>
+                </span>
+                <span className={cn(wrapClass, "text-indigo-900 dark:text-indigo-100")}>
+                  {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
+                </span>
               </span>
-              <span className={cn(wrapClass, "text-indigo-900 dark:text-indigo-100")}>
-                {it.procedure_name ?? (it as any).applied_rule_label ?? "Bônus Final de Semana"}
-              </span>
-            </span>
-          ) : (
-            <span className={wrapClass}>{it.procedure_name ?? it.description ?? "—"}</span>
-          )}
-        </td>
+            ) : (
+              <span className={wrapClass}>{it.procedure_name ?? it.description ?? "—"}</span>
+            )}
+          </td>
+        )}
         {colVis.setor_lido && (() => {
           const planilhaSetor = rawSetor ?? it.sector ?? null;
           return (
