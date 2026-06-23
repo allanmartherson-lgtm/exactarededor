@@ -3142,7 +3142,7 @@ function RowMain({
       >
         {colVis.atendimento && (
           <td className={cn(cell, "font-mono", TEXT_META)} title={it.attendance_number ?? ""}>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               <span>{it.attendance_number ?? "—"}</span>
               {(it as any).special_case_status === "approved" && (it as any).special_case_code && (
                 <span
