@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 
-import { X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2, Users, Lightbulb, Sparkles } from "lucide-react";
+import { X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Loader2, Users, Lightbulb } from "lucide-react";
 import { ZeevIcon } from "./ZeevIcon";
 
 import { Button } from "@/components/ui/button";
@@ -505,7 +505,7 @@ export function ZeevAssistant({
                   </div>
                 )}
                 {visible.map((ins) => {
-                  const Icon = ins.icon ?? Sparkles;
+                  const Icon = ins.icon ?? ((props: { className?: string }) => <ZeevIcon variant="mark" className={props.className} />);
                   return (
                     <div
                       key={ins.id}
@@ -589,7 +589,7 @@ export function ZeevAssistant({
                             }}
                             className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
                           >
-                            <Wand2 className="h-3 w-3 mr-1" />
+                            <ZeevIcon variant="mark" className="h-3 w-3 mr-1" />
                             {ins.chatActionLabel ?? "Resolver com o Zeev"}
                           </Button>
                         )}
