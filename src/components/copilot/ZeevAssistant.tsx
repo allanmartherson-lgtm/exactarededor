@@ -231,9 +231,10 @@ export function ZeevAssistant({
                   aria-label="Zeev — assistente"
                   className={cn(
                     "group relative flex items-center gap-2 rounded-full shadow-lg transition-all",
-                    "bg-gradient-to-br from-violet-600 via-fuchsia-600 to-purple-700 text-white",
-                    "hover:scale-105 hover:shadow-xl",
-                    hasInsights ? "pl-2 pr-3 py-2 opacity-100" : "h-9 w-9 justify-center opacity-70 hover:opacity-100",
+                    "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]",
+                    "ring-1 ring-[hsl(var(--primary-dark))]/40",
+                    "hover:scale-105 hover:shadow-xl hover:bg-[hsl(var(--primary-dark))]",
+                    hasInsights ? "pl-2 pr-3 py-2 opacity-100" : "h-9 w-9 justify-center opacity-80 hover:opacity-100",
                   )}
                 >
                   <div
@@ -242,9 +243,9 @@ export function ZeevAssistant({
                       hasInsights ? "h-8 w-8 bg-white/15 backdrop-blur" : "h-full w-full",
                     )}
                   >
-                    <Sparkles className={cn(hasInsights ? "h-4 w-4" : "h-4 w-4")} />
+                    <Sparkles className="h-4 w-4" />
                     {hasInsights && (
-                      <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold ring-2 ring-purple-700">
+                      <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground ring-2 ring-[hsl(var(--primary-dark))]">
                         {visible.length}
                       </span>
                     )}
@@ -271,23 +272,35 @@ export function ZeevAssistant({
         <PopoverContent
           side="top"
           align={side === "bottom-right" ? "end" : "start"}
-          className="w-[380px] p-0 overflow-hidden border-purple-200 dark:border-purple-900"
+          sideOffset={12}
+          className="w-[360px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden rounded-2xl border-[hsl(var(--primary))]/20 shadow-2xl"
         >
-          <div className="bg-gradient-to-br from-violet-600 via-fuchsia-600 to-purple-700 px-4 py-3 text-white">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
+          {/* Cabeçalho */}
+          <div className="relative bg-gradient-to-br from-[hsl(var(--primary))] via-[hsl(var(--primary))] to-[hsl(var(--primary-dark))] px-4 py-3.5 text-[hsl(var(--primary-foreground))]">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
                 <Wand2 className="h-4 w-4" />
               </div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold">Oi, sou o Zeev 👋</div>
-                <div className="text-[11px] opacity-90 truncate">
+              <div className="flex-1 min-w-0 pr-6">
+                <div className="text-sm font-semibold leading-tight">Oi, sou o Zeev 👋</div>
+                <div
+                  className="text-[11px] opacity-90 leading-snug mt-0.5 break-words"
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                  title={pageLabel}
+                >
                   {pageLabel}
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-white hover:bg-white/15"
+                aria-label="Fechar"
+                className="absolute top-2.5 right-2.5 h-6 w-6 text-[hsl(var(--primary-foreground))] hover:bg-white/15"
                 onClick={() => setOpen(false)}
               >
                 <X className="h-3.5 w-3.5" />
@@ -297,30 +310,46 @@ export function ZeevAssistant({
 
           {/* IA conversacional */}
           <div className="px-3 pt-3">
-            <div className="rounded-lg border border-purple-200/70 dark:border-purple-900/60 bg-purple-50/40 dark:bg-purple-950/20 p-2.5">
+            <div className="rounded-xl border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary-soft))]/60 dark:bg-[hsl(var(--primary-soft))]/30 p-3">
               {aiLoading ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin" /> Pensando…
                 </div>
               ) : aiTip ? (
-                <p className="text-xs leading-relaxed text-foreground/90">{aiTip}</p>
+                <p className="text-[13px] leading-relaxed text-foreground break-words hyphens-auto">
+                  {aiTip}
+                </p>
               ) : (
                 <button
                   type="button"
                   onClick={() => void fetchTip()}
-                  className="text-xs text-purple-700 dark:text-purple-300 hover:underline"
+                  className="text-xs font-medium text-[hsl(var(--primary))] hover:underline"
                 >
-                  Pedir uma dica para esta tela
+                  Pedir uma dica para esta tela →
                 </button>
               )}
-              <div className="text-[9px] text-muted-foreground italic mt-1">IA · apoio analítico</div>
+              <div className="text-[9px] text-muted-foreground italic mt-1.5 uppercase tracking-wider">
+                IA · apoio analítico
+              </div>
+            </div>
+          </div>
+
+
+          {/* Separador discreto */}
+          <div className="px-3 pt-3">
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span>Sinais detectados</span>
+              <div className="flex-1 h-px bg-border" />
+              {visible.length > 0 && (
+                <span className="text-foreground/60">{visible.length}</span>
+              )}
             </div>
           </div>
 
           {/* Sinais determinísticos */}
-          <div className="max-h-[50vh] overflow-y-auto p-3 space-y-2">
+          <div className="max-h-[44vh] overflow-y-auto p-3 pt-2 space-y-2">
             {visible.length === 0 && (
-              <div className="text-xs text-muted-foreground text-center py-4">
+              <div className="text-xs text-muted-foreground text-center py-4 px-2 leading-relaxed">
                 Sem alertas por aqui. Estou de olho — se algo aparecer, eu aviso.
               </div>
             )}
@@ -329,26 +358,38 @@ export function ZeevAssistant({
               return (
                 <div
                   key={ins.id}
-                  className={cn("rounded-lg border p-3 space-y-2", PRIORITY_STYLE[ins.priority])}
+                  className={cn(
+                    "rounded-xl border p-3 space-y-2.5 transition-shadow hover:shadow-sm",
+                    PRIORITY_STYLE[ins.priority],
+                  )}
                 >
-                  <div className="flex items-start gap-2">
-                    <Icon className="h-4 w-4 mt-0.5 shrink-0 text-foreground/70" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium leading-tight">{ins.title}</p>
-                        <Badge variant="outline" className="text-[9px] h-4 px-1 capitalize shrink-0">
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-background/80 ring-1 ring-border/50">
+                      <Icon className="h-3.5 w-3.5 text-foreground/70" />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[13px] font-semibold leading-snug break-words hyphens-auto text-foreground">
+                          {ins.title}
+                        </p>
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] h-4 px-1.5 capitalize shrink-0 mt-0.5 bg-background/60"
+                        >
                           {ins.priority}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{ins.message}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed break-words hyphens-auto">
+                        {ins.message}
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-end gap-1">
+                  <div className="flex items-center justify-end gap-1 pt-0.5 border-t border-border/40 -mx-3 px-3 pt-2">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => dismiss(ins.id)}
-                      className="h-7 text-[11px] text-muted-foreground"
+                      className="h-7 text-[11px] text-muted-foreground hover:text-foreground"
                     >
                       Dispensar
                     </Button>
@@ -359,7 +400,7 @@ export function ZeevAssistant({
                           ins.onAction?.();
                           setOpen(false);
                         }}
-                        className="h-7 text-[11px]"
+                        className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
                       >
                         {ins.actionLabel}
                         <ChevronRight className="h-3 w-3 ml-1" />
@@ -371,9 +412,10 @@ export function ZeevAssistant({
             })}
           </div>
 
-          <div className="border-t px-3 py-2 text-[10px] text-muted-foreground italic bg-muted/30">
+          <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground italic bg-muted/40">
             Zeev observa padrões — nada é alterado sem você confirmar.
           </div>
+
         </PopoverContent>
       </Popover>
     </div>
