@@ -1829,6 +1829,34 @@ export function ItemsDataGrid({
                     >
                       Marcar todos como Parecer ({items.length})
                     </Button>
+                    <div className="border-t my-1" />
+                    <div className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground mb-1 px-1">
+                      Padrão para próximos lotes
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start h-7 text-xs"
+                      onClick={() => saveCompanyDefaultType(visitaPaymentTypeId, "Visita")}
+                    >
+                      Empresa é sempre Visita
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start h-7 text-xs"
+                      onClick={() => saveCompanyDefaultType(parecerPaymentTypeId, "Parecer")}
+                    >
+                      Empresa é sempre Parecer
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start h-7 text-xs text-muted-foreground"
+                      onClick={() => saveCompanyDefaultType(null, "—")}
+                    >
+                      Remover padrão (segue o lote)
+                    </Button>
                   </PopoverContent>
                 </Popover>
               )}
