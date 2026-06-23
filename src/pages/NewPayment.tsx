@@ -1593,6 +1593,97 @@ const NewPayment = () => {
   const [suspiciousDecisions, setSuspiciousDecisions] = useState<Record<string, SuspiciousDecision>>({});
   const decisionKey = (fileName: string, rowNumber: number) => `${fileName}::${rowNumber}`;
 
+  // ===== Carregar rascunho ao montar (uma vez por hospital/modo/tipo) =====
+  useEffect(() => {
+    if (draftLoadedRef.current) return;
+    if (!hospital?.id) return; // espera hospital resolver
+    draftLoadedRef.current = true;
+    const draft = loadDraft(hospital.id, analysisMode, paymentTypeId);
+    if (!isDraftMeaningful(draft) || !draft) return;
+    const f = draft.form ?? {};
+    if (f.reference) setReference((cur) => cur || f.reference!);
+    if (f.description) setDescription((cur) => cur || f.description!);
+    if (f.competenceMonths?.length) setCompetenceMonths((cur) => cur.length ? cur : f.competenceMonths!);
+    if (f.paymentDueDate) setPaymentDueDate((cur) => cur || f.paymentDueDate!);
+    if (f.paymentKind) setPaymentKind((cur) => cur || (f.paymentKind as PaymentKind));
+    if (f.paymentTrack) setPaymentTrack((cur) => cur || (f.paymentTrack as PaymentTrack));
+    if (f.costCenterCode) setCostCenterCode((cur) => cur || f.costCenterCode!);
+    if (f.pSectors?.length) setPSectors((cur) => cur.length ? cur : f.pSectors!);
+    if (f.pSpecialties?.length) setPSpecialties((cur) => cur.length ? cur : f.pSpecialties!);
+    if (typeof f.autoSectors === "boolean") setAutoSectors(f.autoSectors);
+    if (typeof f.autoSpecialties === "boolean") setAutoSpecialties(f.autoSpecialties);
+    if (typeof f.autoPaymentKind === "boolean") setAutoPaymentKind(f.autoPaymentKind);
+    if (f.importMode === "historico" || f.importMode === "normal") setImportMode(f.importMode);
+    if (draft.suspiciousDecisions) {
+      setSuspiciousDecisions(draft.suspiciousDecisions as Record<string, SuspiciousDecision>);
+    }
+    if (draft.fileDecisions) {
+      pendingFileDecisionsRef.current = draft.fileDecisions;
+    }
+    setDraftRestoredAt(draft.savedAt);
+    const filesPending = Object.keys(draft.fileDecisions ?? {}).length;
+    toast({
+      title: "Rascunho restaurado",
+      description: filesPending
+        ? `Campos do formulário reaplicados. Re-anexe ${filesPending} arquivo(s) para restaurar setor/PJ/mapeamento.`
+        : "Campos do formulário reaplicados.",
+    });
+  }, [hospital?.id, analysisMode, paymentTypeId]);
+
+  // ===== Autosave (debounced) =====
+  useEffect(() => {
+    if (!draftLoadedRef.current) return;
+    if (draftClearedRef.current) return;
+    if (!hospital?.id) return;
+    draftDirtyRef.current = true;
+    const t = setTimeout(() => {
+      const fileDecisions: Record<string, FileDecision> = { ...pendingFileDecisionsRef.current };
+      for (const b of buckets) {
+        const k = fileKey(b.file);
+        fileDecisions[k] = {
+          sectorMapping: b.sectorMapping ?? null,
+          matchedCompany: b.matchedCompany,
+          manualOverride: b.manualOverride,
+          convenioValueTotalized: b.convenioValueTotalized,
+          headerRowIndex: b.headerRowIndex,
+          sectorColumnUsed: b.sectorColumnUsed ?? null,
+          columnOverrides: b.columnOverrides as Record<string, unknown> | undefined,
+          columnMapping: b.columnMapping as Record<string, unknown> | undefined,
+        };
+      }
+      saveDraft(hospital.id, analysisMode, paymentTypeId, {
+        form: {
+          reference, description, competenceMonths, paymentDueDate,
+          paymentKind: paymentKind || undefined,
+          paymentTrack: paymentTrack || undefined,
+          costCenterCode, pSectors, pSpecialties,
+          autoSectors, autoSpecialties, autoPaymentKind,
+          importMode,
+        },
+        suspiciousDecisions,
+        fileDecisions,
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [
+    hospital?.id, analysisMode, paymentTypeId,
+    reference, description, competenceMonths, paymentDueDate,
+    paymentKind, paymentTrack, costCenterCode, pSectors, pSpecialties,
+    autoSectors, autoSpecialties, autoPaymentKind, importMode,
+    suspiciousDecisions, buckets,
+  ]);
+
+  const discardDraft = useCallback(() => {
+    if (!hospital?.id) return;
+    clearDraft(hospital.id, analysisMode, paymentTypeId);
+    pendingFileDecisionsRef.current = {};
+    setDraftRestoredAt(null);
+    draftClearedRef.current = true;
+    setTimeout(() => { draftClearedRef.current = false; }, 1500);
+    toast({ title: "Rascunho descartado" });
+  }, [hospital?.id, analysisMode, paymentTypeId]);
+
+
   const suspiciousByBucket = useMemo(() => {
     return buckets.map((b) => {
       const totalRowsInSheet = b.rawMatrix
