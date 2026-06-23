@@ -15,8 +15,14 @@ import {
   AlertTriangle,
   RefreshCw,
   Trash2,
-
+  Settings2,
 } from "lucide-react";
+import ParecerColumnMappingDialog, {
+  type ParecerMapping,
+  autoSuggestMapping,
+  loadSavedMapping,
+  saveMappingTemplate,
+} from "./ParecerColumnMappingDialog";
 
 // Helpers de parsing (rodam no browser para não estourar memória do worker)
 const normHeader = (s: string) =>
