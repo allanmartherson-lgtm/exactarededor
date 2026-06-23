@@ -517,6 +517,4 @@ export function ZeevAssistant({
     </div>
   );
 }
-    </div>
-  );
-}
+
