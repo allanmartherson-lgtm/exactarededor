@@ -2932,6 +2932,18 @@ function RowMain({
                   EX
                 </span>
               )}
+              {!!(it as any).manual_intervention_reason_id && (
+                <span
+                  className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-violet-100 text-violet-900 border border-violet-300 dark:bg-violet-950/40 dark:text-violet-200 dark:border-violet-800/70"
+                  title={
+                    (it as any).manual_intervention_source === "auto_parecer_report"
+                      ? "Tratamento manual aplicado automaticamente via relatório de parecer"
+                      : "Tratamento manual ativo — motor aceitou valor do convênio"
+                  }
+                >
+                  MAN
+                </span>
+              )}
             </div>
           </td>
         )}
