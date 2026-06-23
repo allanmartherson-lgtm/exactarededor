@@ -818,7 +818,16 @@ const NewPayment = () => {
   const [autoSpecialties, setAutoSpecialties] = useState(true);
   const [autoPaymentKind, setAutoPaymentKind] = useState(true);
 
+  // ===== Autosave / rascunho =====
+  // Decisões por arquivo aguardando re-anexação (após reload). Aplicadas no onFiles.
+  const pendingFileDecisionsRef = useRef<Record<string, FileDecision>>({});
+  const [draftRestoredAt, setDraftRestoredAt] = useState<number | null>(null);
+  const draftLoadedRef = useRef(false);
+  const draftDirtyRef = useRef(false);
+  const draftClearedRef = useRef(false);
+
   useEffect(() => { document.title = "Nova base | Exacta Approval"; }, []);
+
 
   // Evita que o navegador abra o arquivo (navegação) se o usuário soltar
   // fora da área de upload, o que aparenta um "refresh" e descarta o trabalho.
