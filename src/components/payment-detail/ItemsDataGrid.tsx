@@ -2401,6 +2401,7 @@ export function ItemsDataGrid({
                   (colVis.setor_lido ? 1 : 0) +
                   (colVis.setor_inferido ? 1 : 0) +
                   (colVis.tipo_entrada ? 1 : 0) +
+                  (colVis.subtipo && isParecerPayment ? 1 : 0) +
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (showDiferencaCol ? 1 : 0) +
