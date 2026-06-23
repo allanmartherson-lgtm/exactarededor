@@ -11,6 +11,7 @@ import { ZeevAssistant } from "./ZeevAssistant";
 // rotas que têm Zeev próprio com contexto detalhado
 const SUPPRESSED_PATTERNS: RegExp[] = [
   /^\/pagamentos\/[^/]+\/empresa\/[^/]+/, // CompanyAnalysis
+  /^\/pagamentos\/novo/, // NewPayment monta seu próprio Zeev com stagingContext
 ];
 
 // mapa de label amigável por rota (prefixo)
