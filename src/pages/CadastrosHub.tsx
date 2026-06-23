@@ -12,6 +12,7 @@ import ProcedureSpecialtyMap from "./ProcedureSpecialtyMap";
 import Convenios from "./Convenios";
 import CostCenters from "./CostCenters";
 import PaymentTypes from "./PaymentTypes";
+import ManualInterventionReasons from "./ManualInterventionReasons";
 
 type TabValue =
   | "empresas"
@@ -19,6 +20,7 @@ type TabValue =
   | "convenios"
   | "centros-de-custo"
   | "tipos-pagamento"
+  | "motivos-intervencao-manual"
   | "mapa-especialidades";
 
 const TABS: { value: TabValue; label: string }[] = [
@@ -27,6 +29,7 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "convenios", label: "Convênios" },
   { value: "centros-de-custo", label: "Setores e Centros" },
   { value: "tipos-pagamento", label: "Tipos de Pagamento" },
+  { value: "motivos-intervencao-manual", label: "Motivos de Tratamento Manual" },
   { value: "mapa-especialidades", label: "Mapa de Especialidades" },
 ];
 
