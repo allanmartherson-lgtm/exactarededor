@@ -149,13 +149,14 @@ Deno.test("2D/payment-type — mesmo código + mesmo payment_type_id → conflit
     {
       id: "a", sort_order: 0, label: "A",
       calculation_type: "valor_fixo", fixed_amount: 150,
-      procedure_codes: ["10101012"], code_match_mode: "whitelist",
+      procedure_codes: ["10101012", "10101020"], code_match_mode: "whitelist",
       payment_type_id: "pt-parecer",
     } as any,
     {
       id: "b", sort_order: 1, label: "B",
       calculation_type: "valor_fixo", fixed_amount: 200,
-      procedure_codes: ["10101012"], code_match_mode: "whitelist",
+      procedure_codes: ["10101012", "10101030"], code_match_mode: "whitelist",
+
       payment_type_id: "pt-parecer",
     } as any,
   ];
