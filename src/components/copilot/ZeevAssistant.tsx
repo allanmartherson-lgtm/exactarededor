@@ -145,10 +145,18 @@ function buildItemInsights(items: ZeevItem[], onApplyFilter?: Props["onApplyFilt
       priority: g.items.length >= 5 ? "alta" : "media",
       icon: GitBranch,
       title: `Padrão repetido (${g.items.length}× reprovado)`,
-      message: `${g.doctor} · TUSS ${g.tuss} reprovou ${g.items.length}× — provavelmente cabe a mesma justificativa em todos.`,
+      message: `${g.doctor} · TUSS ${g.tuss} reprovou ${g.items.length}× — provavelmente cabe a mesma justificativa em todos, ou uma regra nova.`,
       bulk: {
         itemIds: g.items.map((i) => i.id),
         subtitle: `${g.items.length} reprovações de ${g.doctor} no TUSS ${g.tuss}. Aplicar a mesma tratativa manual nos selecionados?`,
+      },
+      suggestRule: {
+        doctor_name: g.doctor,
+        procedure_code: g.tuss,
+        sample_item_ids: g.items.map((i) => i.id),
+        occurrences: g.items.length,
+        context: { trigger: "padrao_repetido" },
+        initialJustification: `${g.doctor} reprovou ${g.items.length}× no TUSS ${g.tuss} nesta competência. Sugiro avaliar uma regra específica pra esse caso.`,
       },
     });
   }
