@@ -124,3 +124,77 @@ Deno.test("2D/extra — agreements whitelist disjuntos → sem conflito", () => 
   ];
   assertEquals(detectCalcOverlap(calcs), []);
 });
+
+// --- payment_type_id separa Parecer × Visita (regressão do falso-positivo) ---
+Deno.test("2D/payment-type — mesmo código, payment_type_id diferente (Parecer × Visita) → sem conflito", () => {
+  const calcs: RuleCalculationItem[] = [
+    {
+      id: "parecer", sort_order: 0, label: "Parecer",
+      calculation_type: "valor_fixo", fixed_amount: 150,
+      procedure_codes: ["10101012"], code_match_mode: "whitelist",
+      payment_type_id: "pt-parecer",
+    } as any,
+    {
+      id: "visita", sort_order: 1, label: "Visita",
+      calculation_type: "valor_fixo", fixed_amount: 80,
+      procedure_codes: ["10101012"], code_match_mode: "whitelist",
+      payment_type_id: "pt-visita",
+    } as any,
+  ];
+  assertEquals(detectCalcOverlap(calcs), []);
+});
+
+Deno.test("2D/payment-type — mesmo código + mesmo payment_type_id → conflita", () => {
+  const calcs: RuleCalculationItem[] = [
+    {
+      id: "a", sort_order: 0, label: "A",
+      calculation_type: "valor_fixo", fixed_amount: 150,
+      procedure_codes: ["10101012"], code_match_mode: "whitelist",
+      payment_type_id: "pt-parecer",
+    } as any,
+    {
+      id: "b", sort_order: 1, label: "B",
+      calculation_type: "valor_fixo", fixed_amount: 200,
+      procedure_codes: ["10101012"], code_match_mode: "whitelist",
+      payment_type_id: "pt-parecer",
+    } as any,
+  ];
+  assertEquals(detectCalcOverlap(calcs).length, 1);
+});
+
+Deno.test("2D/payment-type — payment_type_id apenas em um lado (universo vs restrito) → não bloqueia outros eixos", () => {
+  const calcs: RuleCalculationItem[] = [
+    {
+      id: "any-pt", sort_order: 0, label: "Sem PT",
+      calculation_type: "valor_fixo", fixed_amount: 100,
+      procedure_codes: ["X"], code_match_mode: "whitelist",
+    } as any,
+    {
+      id: "with-pt", sort_order: 1, label: "Com PT",
+      calculation_type: "valor_fixo", fixed_amount: 200,
+      procedure_codes: ["X"], code_match_mode: "whitelist",
+      payment_type_id: "pt-visita",
+    } as any,
+  ];
+  // Eixo PT: um lado é "any" → shared:false (não vazio). Códigos conflitam → conflita.
+  assertEquals(detectCalcOverlap(calcs).length, 1);
+});
+
+// --- Cross-rule: payment_type_id diferente em regras distintas → sem overlap ---
+import { detectCrossRuleOverlap } from "./calcOverlap.ts";
+Deno.test("2D/payment-type cross-rule — Parecer (regra X) × Visita (regra Y) mesmo código → sem overlap cruzado", () => {
+  const ruleA: RuleCalculationItem[] = [{
+    id: "ra-parecer", sort_order: 0, label: "Parecer",
+    calculation_type: "valor_fixo", fixed_amount: 150,
+    procedure_codes: ["10101012"], code_match_mode: "whitelist",
+    payment_type_id: "pt-parecer",
+  } as any];
+  const ruleB: RuleCalculationItem[] = [{
+    id: "rb-visita", sort_order: 0, label: "Visita",
+    calculation_type: "valor_fixo", fixed_amount: 80,
+    procedure_codes: ["10101012"], code_match_mode: "whitelist",
+    payment_type_id: "pt-visita",
+  } as any];
+  assertEquals(detectCrossRuleOverlap(ruleA, ruleB), []);
+});
+
