@@ -256,7 +256,7 @@ export function ZeevAssistant({
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
   const [tab, setTab] = useState<"insights" | "chat">("insights");
-  const [chatInitialPrompt, setChatInitialPrompt] = useState<string>("");
+  const [chatInitialPrompt, setChatInitialPrompt] = useState<{ text: string; nonce: number } | null>(null);
   const executorEnabled = !!bulkContext?.paymentId || !!stagingContext;
   const stagingMode = !!stagingContext && !bulkContext?.paymentId;
 
