@@ -4986,6 +4986,10 @@ export type Database = {
           package_absorbed_by: string | null
           package_absorbed_calc_id: string | null
           package_absorbed_note: string | null
+          parecer_checked_at: string | null
+          parecer_evidence: string | null
+          parecer_evidence_weak: boolean
+          parecer_report_row_id: string | null
           patient_name: string | null
           payment_id: string
           payment_type_id: string | null
@@ -5096,6 +5100,10 @@ export type Database = {
           package_absorbed_by?: string | null
           package_absorbed_calc_id?: string | null
           package_absorbed_note?: string | null
+          parecer_checked_at?: string | null
+          parecer_evidence?: string | null
+          parecer_evidence_weak?: boolean
+          parecer_report_row_id?: string | null
           patient_name?: string | null
           payment_id: string
           payment_type_id?: string | null
@@ -5206,6 +5214,10 @@ export type Database = {
           package_absorbed_by?: string | null
           package_absorbed_calc_id?: string | null
           package_absorbed_note?: string | null
+          parecer_checked_at?: string | null
+          parecer_evidence?: string | null
+          parecer_evidence_weak?: boolean
+          parecer_report_row_id?: string | null
           patient_name?: string | null
           payment_id?: string
           payment_type_id?: string | null
@@ -5301,6 +5313,13 @@ export type Database = {
             columns: ["package_absorbed_calc_id"]
             isOneToOne: false
             referencedRelation: "rule_calculations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_parecer_report_row_id_fkey"
+            columns: ["parecer_report_row_id"]
+            isOneToOne: false
+            referencedRelation: "payment_parecer_report_rows"
             referencedColumns: ["id"]
           },
           {
@@ -5488,6 +5507,142 @@ export type Database = {
           },
           {
             foreignKeyName: "payment_observations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
+      payment_parecer_report_rows: {
+        Row: {
+          atendimento: string | null
+          created_at: string
+          dt_resposta_parecer: string | null
+          dt_solic_parecer: string | null
+          espec_destino: string | null
+          espec_origem: string | null
+          id: string
+          medico_resposta: string | null
+          medico_resposta_crm: string | null
+          medico_solicitante: string | null
+          paciente: string | null
+          raw: Json | null
+          report_id: string
+          situacao: string | null
+        }
+        Insert: {
+          atendimento?: string | null
+          created_at?: string
+          dt_resposta_parecer?: string | null
+          dt_solic_parecer?: string | null
+          espec_destino?: string | null
+          espec_origem?: string | null
+          id?: string
+          medico_resposta?: string | null
+          medico_resposta_crm?: string | null
+          medico_solicitante?: string | null
+          paciente?: string | null
+          raw?: Json | null
+          report_id: string
+          situacao?: string | null
+        }
+        Update: {
+          atendimento?: string | null
+          created_at?: string
+          dt_resposta_parecer?: string | null
+          dt_solic_parecer?: string | null
+          espec_destino?: string | null
+          espec_origem?: string | null
+          id?: string
+          medico_resposta?: string | null
+          medico_resposta_crm?: string | null
+          medico_solicitante?: string | null
+          paciente?: string | null
+          raw?: Json | null
+          report_id?: string
+          situacao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_parecer_report_rows_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "payment_parecer_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_parecer_reports: {
+        Row: {
+          created_at: string
+          hospital_id: string | null
+          id: string
+          imported_at: string
+          imported_by: string | null
+          notes: string | null
+          payment_id: string
+          period_end: string
+          period_start: string
+          row_count: number
+          source_file_hash: string | null
+          source_filename: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          notes?: string | null
+          payment_id: string
+          period_end: string
+          period_start: string
+          row_count?: number
+          source_file_hash?: string | null
+          source_filename?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          notes?: string | null
+          payment_id?: string
+          period_end?: string
+          period_start?: string
+          row_count?: number
+          source_file_hash?: string | null
+          source_filename?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_parecer_reports_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_parecer_reports_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_parecer_reports_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_parecer_reports_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
