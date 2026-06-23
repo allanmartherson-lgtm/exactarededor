@@ -2467,6 +2467,7 @@ export default function CompanyAnalysis() {
               />
             </CardContent>
           </Card>
+          <ZeevAssistant items={items as never[]} />
           {group && (
             <AddManualItemDialog
               open={manualItemOpen}
