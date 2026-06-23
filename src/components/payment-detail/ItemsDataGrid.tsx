@@ -26,6 +26,7 @@ import {
   CheckSquare,
   FileText,
   FilterX,
+  MoreHorizontal,
   Pencil,
   RotateCcw,
   Search,
