@@ -344,6 +344,23 @@ export function ParecerReportCard({
           </p>
         )}
 
+        {hasEmpty && (
+          <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
+            <div>
+              <div className="font-medium text-destructive">
+                Relatório sem linhas gravadas
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {emptyReports.length === 1
+                  ? `O arquivo "${emptyReports[0].source_filename ?? "(sem nome)"}" foi importado, mas nenhuma linha foi gravada (apenas cabeçalho).`
+                  : `${emptyReports.length} relatórios foram importados sem linhas gravadas.`}{" "}
+                O cruzamento está bloqueado. Reimporte o arquivo correto antes de iniciar a análise.
+              </div>
+            </div>
+          </div>
+        )}
+
         {hasReport && (
           <ul className="text-sm space-y-1">
             {reports.map((r) => (
