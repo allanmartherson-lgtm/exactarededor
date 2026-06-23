@@ -1467,7 +1467,20 @@ export function ItemsDataGrid({
             <ShieldAlert className="h-3.5 w-3.5 mr-1" />
             Alertas assistenciais
           </Button>
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted) && (
+          {isParecerPayment && (
+            <Select value={parecerFilter} onValueChange={(v) => setParecerFilter(v as typeof parecerFilter)}>
+              <SelectTrigger className="h-8 w-44 text-xs">
+                <FileText className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="Parecer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos pareceres</SelectItem>
+                <SelectItem value="missing">Sem parecer cruzado ({parecerCounts.missing})</SelectItem>
+                <SelectItem value="weak">Parecer divergente ({parecerCounts.weak})</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || (isParecerPayment && parecerFilter !== "__all__")) && (
             <Button
               size="sm"
               variant="ghost"
@@ -1476,7 +1489,7 @@ export function ItemsDataGrid({
                 setFilter(""); setPatientFilter("");
                 setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
                 setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyNeedsReview(false);
-                setOnlyValidationAlerts(false); setOnlyAdjusted(false);
+                setOnlyValidationAlerts(false); setOnlyAdjusted(false); setParecerFilter("__all__");
               }}
             >
               Limpar
