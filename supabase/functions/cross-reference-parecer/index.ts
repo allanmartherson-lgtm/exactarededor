@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       const { data: page, error } = await supabase
         .from("payment_items")
         .select(
-          "id, attendance_number, doctor_name, doctor_id, procedure_date, manual_intervention_reason_id, manual_intervention_source",
+          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, manual_intervention_reason_id, manual_intervention_source",
         )
         .eq("payment_id", payment_id)
         .range(from, from + pageSize - 1);
@@ -169,9 +169,12 @@ Deno.serve(async (req) => {
       row_id: string | null;
       weak: boolean;
       apply_auto_reason: boolean;
+      procedure_amount: number | null;
     }> = [];
 
     for (const it of items) {
+      const procAmt =
+        it.procedure_amount == null ? null : Number(it.procedure_amount);
       if (!hasReport) {
         updates.push({
           id: it.id,
@@ -179,6 +182,7 @@ Deno.serve(async (req) => {
           row_id: null,
           weak: false,
           apply_auto_reason: false,
+          procedure_amount: procAmt,
         });
         continue;
       }
@@ -217,6 +221,7 @@ Deno.serve(async (req) => {
           row_id: hit.id,
           weak,
           apply_auto_reason: !alreadyManual && !!autoReasonId,
+          procedure_amount: procAmt,
         });
       } else {
         updates.push({
@@ -225,6 +230,7 @@ Deno.serve(async (req) => {
           row_id: null,
           weak: false,
           apply_auto_reason: false,
+          procedure_amount: procAmt,
         });
       }
     }
@@ -246,6 +252,14 @@ Deno.serve(async (req) => {
         patch.manual_intervention_source = "auto_parecer_report";
         patch.manual_intervention_notes =
           "Aplicado automaticamente: item confirmado no relatório de parecer.";
+        // Resultado determinístico do tratamento manual (espelha rulesEngine):
+        // motor aceita procedure_amount como esperado e aprova o item. Aplicado
+        // direto aqui para evitar inconsistência caso a reanálise seja pulada
+        // pelo gate de "job em andamento".
+        if (u.procedure_amount != null && Number.isFinite(u.procedure_amount)) {
+          patch.expected_amount = u.procedure_amount;
+        }
+        patch.ai_status = "aprovado";
         autoApplied++;
       }
       const { error } = await supabase

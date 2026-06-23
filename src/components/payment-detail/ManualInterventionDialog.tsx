@@ -128,6 +128,28 @@ export function ManualInterventionDialog({
             manual_intervention_source: null,
           };
 
+
+      // Aplica o resultado determinístico do tratamento manual no próprio
+      // update — espelha rulesEngine (item.manual_intervention_reason_id =>
+      // aprovado, expected = procedure_amount). Garante consistência mesmo se
+      // a reanálise for pulada (gate de job em andamento, empresa não-editável
+      // etc.). A reanálise abaixo continua útil para recompor totais.
+      if (next) {
+        const { data: row, error: readErr } = await supabase
+          .from("payment_items")
+          .select("procedure_amount")
+          .eq("id", itemId)
+          .maybeSingle();
+        if (readErr) throw readErr;
+        const procAmt = row?.procedure_amount == null
+          ? null
+          : Number(row.procedure_amount);
+        if (procAmt != null && Number.isFinite(procAmt)) {
+          (patch as any).expected_amount = procAmt;
+        }
+        (patch as any).ai_status = "aprovado";
+      }
+
       const { error } = await supabase
         .from("payment_items")
         .update(patch as any)
