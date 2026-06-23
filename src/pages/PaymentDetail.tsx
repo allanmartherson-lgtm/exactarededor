@@ -20,6 +20,7 @@ import { humanizeCompanyGroupStatus } from "@/lib/companyGroupGuards";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
+import { ParecerReportCard } from "@/components/payment-detail/ParecerReportCard";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
@@ -2621,6 +2622,16 @@ const PaymentDetail = () => {
         }
       />
       <div className="p-3 md:px-6 md:py-6 space-y-4 md:space-y-6">
+
+        {/* Card de Relatório de Parecer — só para lotes do tipo parecer */}
+        {!isConfeccao &&
+          String(payment?.payment_type ?? "").toLowerCase().includes("parecer") && (
+            <ParecerReportCard
+              paymentId={payment.id}
+              competenceMonth={payment.competence_month ?? null}
+              competenceMonths={(payment as any).competence_months ?? null}
+            />
+          )}
 
         {/* Funil de etapas — visão Apple do progresso do lote */}
         {!isConfeccao && payment?.status && (

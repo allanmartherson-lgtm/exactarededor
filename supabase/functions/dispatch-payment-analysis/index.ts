@@ -115,11 +115,42 @@ Deno.serve(async (req) => {
     //     se confeccao_status='em_confeccao'.
     const { data: paymentRow, error: payErr } = await supabase
       .from("payments")
-      .select("analysis_mode")
+      .select("analysis_mode, payment_type, competence_month")
       .eq("id", payment_id)
       .single();
     if (payErr) throw payErr;
     const isConfeccao = (paymentRow as any)?.analysis_mode === "confeccao";
+
+    // Gate de Parecer: lotes do tipo 'parecer' exigem ao menos um relatório
+    // de parecer importado para o período (payment_parecer_reports). Sem isso,
+    // o analista não consegue distinguir visita sequencial vinda de parecer
+    // (paga pelo convênio) de visita comum (regra normal). Bloqueia o
+    // dispatch e devolve sinal para a UI cobrar o upload.
+    const ptype = String((paymentRow as any)?.payment_type ?? "").toLowerCase();
+    if (!isConfeccao && ptype.includes("parecer")) {
+      const { data: reports, error: repErr } = await supabase
+        .from("payment_parecer_reports")
+        .select("id")
+        .eq("payment_id", payment_id)
+        .limit(1);
+      if (repErr) throw repErr;
+      if (!reports || reports.length === 0) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            blocked: true,
+            reason: "missing_parecer_report",
+            message:
+              "Lote de Parecer exige o relatório de Parecer Solicitado/Respondido do Tasy antes de iniciar a análise.",
+          }),
+          {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
+
     const EDITABLE_STATUSES = ["revisao_analista", "devolvido_analista"];
     const { data: companyGroupsForGate, error: gateErr } = await supabase
       .from("payment_company_groups")
