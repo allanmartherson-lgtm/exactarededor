@@ -2534,18 +2534,62 @@ const NewPayment = () => {
                 <p className="text-xs text-muted-foreground">Pode ser sobrescrito por item depois. Itens sem centro herdam este.</p>
               </div>
               {!modoConfeccao && (
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Modo de análise</Label>
-                <RadioGroup value={analysisMode} onValueChange={(v) => setAnalysisMode(v as PaymentAnalysisMode)} className="grid gap-2">
-                  {(Object.keys(PAYMENT_ANALYSIS_MODE_LABELS) as PaymentAnalysisMode[]).filter((k) => k !== "confeccao").map((k) => (
-                    <label key={k} htmlFor={`am-${k}`} className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-colors ${analysisMode === k ? "border-primary bg-primary-soft/30" : "border-border hover:bg-muted/40"}`}>
-                      <RadioGroupItem id={`am-${k}`} value={k} className="mt-0.5" />
-                      <div className="space-y-0.5">
-                        <div className="text-sm font-medium">{PAYMENT_ANALYSIS_MODE_LABELS[k]}</div>
-                        <div className="text-xs text-muted-foreground">{PAYMENT_ANALYSIS_MODE_DESCRIPTIONS[k]}</div>
-                      </div>
-                    </label>
-                  ))}
+              <div className="space-y-4 sm:col-span-2">
+                {/* Header Zeev */}
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/20">
+                      <Bot className="h-5 w-5 text-primary-foreground" />
+                    </div>
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-background rounded-full" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-foreground tracking-tight">
+                      Padrão de análise do Zeev <span className="text-primary">— IA de Pagamento</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Como o Zeev deve interpretar o contexto deste lote.</p>
+                  </div>
+                </div>
+
+                {/* Cards */}
+                <RadioGroup
+                  value={analysisMode}
+                  onValueChange={(v) => setAnalysisMode(v as PaymentAnalysisMode)}
+                  className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+                >
+                  {([
+                    { k: "padrao" as const, title: "Padrão", badge: "Com histórico", Icon: History },
+                    { k: "isolado" as const, title: "Isolado", badge: "Sem histórico", Icon: Focus },
+                    { k: "empresa_prioritaria" as const, title: "Prioritário", badge: "Empresa isolada", Icon: Target },
+                  ]).map(({ k, title, badge, Icon }) => {
+                    const active = analysisMode === k;
+                    return (
+                      <label
+                        key={k}
+                        htmlFor={`am-${k}`}
+                        className={`group relative flex flex-col items-center text-center p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                          active
+                            ? "border-primary bg-primary-soft/30 shadow-md shadow-primary/10"
+                            : "border-border bg-card hover:border-primary/40 hover:-translate-y-0.5 hover:shadow-sm"
+                        }`}
+                      >
+                        <RadioGroupItem id={`am-${k}`} value={k} className="sr-only" />
+                        <span className={`absolute top-2.5 right-2.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${active ? "border-primary bg-background" : "border-border bg-muted/40"}`}>
+                          {active && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                        </span>
+                        <div className={`w-12 h-12 mb-3 rounded-2xl flex items-center justify-center transition-colors ${active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground group-hover:bg-primary/5 group-hover:text-primary"}`}>
+                          <Icon className="h-6 w-6" />
+                        </div>
+                        <div className="text-sm font-bold text-foreground mb-1">{title}</div>
+                        <span className={`inline-block px-2 py-0.5 mb-2 text-[9px] font-bold uppercase tracking-widest rounded-full ${active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                          {badge}
+                        </span>
+                        <p className="text-[11px] text-muted-foreground leading-snug">
+                          {PAYMENT_ANALYSIS_MODE_DESCRIPTIONS[k]}
+                        </p>
+                      </label>
+                    );
+                  })}
                 </RadioGroup>
               </div>
               )}
