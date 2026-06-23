@@ -273,7 +273,10 @@ serve(async (req) => {
             const snapshotHasCalcPaymentTypeField = cachedCalcLists.every((list: any) =>
               !Array.isArray(list) || list.every((c: any) => "payment_type_id" in c),
             );
-            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField && snapshotHasCalcSpecialCaseField && snapshotHasCalcPaymentTypeField) {
+            const snapshotHasCalcCaseSubtypeField = cachedCalcLists.every((list: any) =>
+              !Array.isArray(list) || list.every((c: any) => "case_subtype" in c),
+            );
+            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField && snapshotHasCalcSpecialCaseField && snapshotHasCalcPaymentTypeField && snapshotHasCalcCaseSubtypeField) {
               cachedRulesAll = ctxJ.rules;
               cachedCalcsByRule = ctxJ.calcs_by_rule;
               cachedConfigs = ctxJ.configs;
