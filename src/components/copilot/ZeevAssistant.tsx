@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ZeevBulkManualDialog, type ZeevBulkItem } from "./ZeevBulkManualDialog";
 import { ZeevSuggestRuleDialog } from "./ZeevSuggestRuleDialog";
 import { ZeevExecutorChat } from "./ZeevExecutorChat";
+import { ZeevStagingChat, type StagingContext } from "./ZeevStagingChat";
 
 /**
  * Zeev — mascote assistente do Exacta.
@@ -94,6 +95,11 @@ interface Props {
    * o Zeev fica como dica/insight informativo, sem oferecer os botões de ação.
    */
   smartActionsEnabled?: boolean;
+  /**
+   * Quando definido, habilita o Zeev Executor sobre o LOTE EM CONSTRUÇÃO (pré-envio).
+   * Mutuamente exclusivo com bulkContext (que é pós-envio).
+   */
+  stagingContext?: StagingContext;
 }
 
 const norm = (s: string | null | undefined) =>
@@ -230,6 +236,7 @@ export function ZeevAssistant({
   onBulkApplied,
   side = "bottom-left",
   smartActionsEnabled = false,
+  stagingContext,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
@@ -245,7 +252,8 @@ export function ZeevAssistant({
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
   const [tab, setTab] = useState<"insights" | "chat">("insights");
-  const executorEnabled = !!bulkContext?.paymentId;
+  const executorEnabled = !!bulkContext?.paymentId || !!stagingContext;
+  const stagingMode = !!stagingContext && !bulkContext?.paymentId;
 
   const insights = useMemo<ZeevInsight[]>(() => {
     const auto = items ? buildItemInsights(items, onApplyFilter) : [];
@@ -569,9 +577,13 @@ export function ZeevAssistant({
           )}
 
           {/* === ABA: CONVERSAR (EXECUTOR) === */}
-          {tab === "chat" && executorEnabled && bulkContext && (
+          {tab === "chat" && executorEnabled && (
             <>
-              <ZeevExecutorChat paymentId={bulkContext.paymentId} onApplied={onBulkApplied} />
+              {stagingMode && stagingContext ? (
+                <ZeevStagingChat staging={stagingContext} />
+              ) : bulkContext ? (
+                <ZeevExecutorChat paymentId={bulkContext.paymentId} onApplied={onBulkApplied} />
+              ) : null}
               <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground italic bg-muted/40">
                 Zeev sempre pede sua confirmação antes de aplicar.
               </div>

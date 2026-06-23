@@ -65,6 +65,8 @@ import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
 import { confirmDialog } from "@/lib/confirm";
 import { detectSuspiciousRows } from "@/lib/detectSuspiciousRows";
 import { SuspiciousRowsReview, type SuspiciousDecision } from "@/components/payment-wizard/SuspiciousRowsReview";
+import { ZeevAssistant } from "@/components/copilot/ZeevAssistant";
+import type { StagingContext, StagingDecision } from "@/components/copilot/ZeevStagingChat";
 
 interface ParsedRow {
   doctor_name: string;
@@ -1600,6 +1602,19 @@ const NewPayment = () => {
     });
     return c;
   }, [buckets, suspiciousByBucket, suspiciousDecisions]);
+
+  // === Zeev — contexto de staging (pré-envio) ===
+  const stagingContext = useMemo<StagingContext>(() => ({
+    files: buckets.map((b, i) => ({ fileName: b.file.name, rows: suspiciousByBucket[i] ?? [] })),
+    decisions: suspiciousDecisions as Record<string, StagingDecision>,
+    applyDecisions: (changes) => {
+      setSuspiciousDecisions((prev) => {
+        const next = { ...prev };
+        for (const c of changes) next[decisionKey(c.fileName, c.rowNumber)] = c.decision;
+        return next;
+      });
+    },
+  }), [buckets, suspiciousByBucket, suspiciousDecisions]);
 
   const allRows = useMemo(() => {
     return buckets.flatMap((b, bucketIndex) =>
@@ -3376,6 +3391,12 @@ const NewPayment = () => {
 
         />
       )}
+
+      <ZeevAssistant
+        pageLabel={modoConfeccao ? "Confecção de pagamento" : "Novo lote de pagamento"}
+        summary={{ arquivos: buckets.length, linhas: allRows.length, suspeitas_pendentes: pendingSuspiciousCount }}
+        stagingContext={stagingContext}
+      />
     </>
   );
 };
