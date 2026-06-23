@@ -9971,6 +9971,10 @@ export type Database = {
         Returns: string
       }
       current_active_hospital: { Args: never; Returns: string }
+      delete_parecer_report: {
+        Args: { p_report_id: string }
+        Returns: undefined
+      }
       delete_payment_batch: { Args: { p_payment_id: string }; Returns: Json }
       enqueue_ai_retry: {
         Args: {

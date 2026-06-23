@@ -1,0 +1,1 @@
+SELECT public.delete_parecer_report('eb8ffabc-5c7d-49ec-bd3b-6645e6545b62'::uuid);
