@@ -572,7 +572,8 @@ type OptionalColKey =
   | "regra"
   | "diferenca"
   | "observacao"
-  | "tipo_entrada";
+  | "tipo_entrada"
+  | "subtipo";
 
 const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "atendimento", label: "Atendimento" },
@@ -583,6 +584,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "setor_lido", label: "Setor (Planilha)" },
   { key: "setor_inferido", label: "Setor (Sistema)" },
   { key: "tipo_entrada", label: "Tipo de entrada (caráter)" },
+  { key: "subtipo", label: "Subtipo (Parecer/Visita)" },
   { key: "regra", label: "Regra aplicada" },
   { key: "diferenca", label: "Diferença" },
   { key: "observacao", label: "Observação" },
@@ -597,6 +599,7 @@ const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   setor_lido: true,
   setor_inferido: true,
   tipo_entrada: false,
+  subtipo: false,
   regra: false,
   diferenca: false,
   observacao: false,
