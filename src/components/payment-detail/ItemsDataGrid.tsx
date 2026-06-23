@@ -570,6 +570,8 @@ export type ItemsDataGridProps = {
   groupStatus: PaymentStatus;
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
+  /** Habilita indicadores/filtros específicos do cruzamento com relatório de Parecer. */
+  isParecerPayment?: boolean;
   observations?: ObservationRow[];
   /** Mapa author_id → nome completo (rastreabilidade no histórico). */
   profiles?: Record<string, string>;
@@ -605,6 +607,7 @@ export function ItemsDataGrid({
   groupStatus,
   rulesIndex,
   rulesByName,
+  isParecerPayment = false,
   observations = [],
   profiles = {},
   storageKey = "itemsDataGrid.default",
@@ -643,6 +646,7 @@ export function ItemsDataGrid({
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
   const [onlyAdjusted, setOnlyAdjusted] = useState(false);
+  const [parecerFilter, setParecerFilter] = useState<"__all__" | "missing" | "weak">("__all__");
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
