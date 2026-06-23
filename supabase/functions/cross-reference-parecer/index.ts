@@ -252,6 +252,14 @@ Deno.serve(async (req) => {
         patch.manual_intervention_source = "auto_parecer_report";
         patch.manual_intervention_notes =
           "Aplicado automaticamente: item confirmado no relatório de parecer.";
+        // Resultado determinístico do tratamento manual (espelha rulesEngine):
+        // motor aceita procedure_amount como esperado e aprova o item. Aplicado
+        // direto aqui para evitar inconsistência caso a reanálise seja pulada
+        // pelo gate de "job em andamento".
+        if (u.procedure_amount != null && Number.isFinite(u.procedure_amount)) {
+          patch.expected_amount = u.procedure_amount;
+        }
+        patch.ai_status = "aprovado";
         autoApplied++;
       }
       const { error } = await supabase
