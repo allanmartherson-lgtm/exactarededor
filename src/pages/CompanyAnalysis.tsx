@@ -122,6 +122,7 @@ import { cn, normalizeString } from "@/lib/utils";
 import { Info, ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon } from "lucide-react";
 import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
+import { ParecerCrossReferencePanel } from "@/components/payment-detail/ParecerCrossReferencePanel";
 
 const HighlightBanner = ({
   observations,
@@ -1841,6 +1842,7 @@ export default function CompanyAnalysis() {
   // em 'rascunho' como placeholder). Em ANÁLISE, o estado vivo é gStatus.
   const gConfeccaoStatus = (group as any)?.confeccao_status as string | null | undefined;
   const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+  const isParecerPayment = String((payment as any)?.payment_type ?? "").toLowerCase().includes("parecer");
   const isConfeccaoEditable = isConfeccao && gConfeccaoStatus === "em_confeccao";
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
@@ -2359,6 +2361,11 @@ export default function CompanyAnalysis() {
               )}
             </TabsTrigger>
           )}
+          {!isConfeccao && isParecerPayment && (
+            <TabsTrigger value="parecer">
+              <FileText className="h-3.5 w-3.5 mr-1" /> Parecer
+            </TabsTrigger>
+          )}
           <TabsTrigger value="historico">
             <History className="h-3.5 w-3.5 mr-1" /> Histórico
           </TabsTrigger>
@@ -2454,6 +2461,7 @@ export default function CompanyAnalysis() {
                 onAcceptItem={acceptItem}
                 onUndoAcceptItem={undoAcceptItem}
                 mode={(payment as any).analysis_mode === "confeccao" ? "confeccao" : "analise"}
+                isParecerPayment={isParecerPayment}
                 onRefresh={() => { void (async () => { await load(); await composition.refresh(); })(); }}
               />
             </CardContent>
@@ -2539,6 +2547,16 @@ export default function CompanyAnalysis() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {!isConfeccao && isParecerPayment && (
+          <TabsContent value="parecer" className="space-y-3">
+            <ParecerCrossReferencePanel
+              paymentId={id!}
+              companyName={group.company_name}
+              enabled={isParecerPayment}
+            />
+          </TabsContent>
+        )}
 
         {/* ABA 2 — Divergências (não existe em confecção) */}
         {!isConfeccao && (

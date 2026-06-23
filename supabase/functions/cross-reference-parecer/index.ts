@@ -81,7 +81,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Indexa por (atend + crmDigits)
+    // Indexa por (atendimento + médico). A confirmação final também exige
+    // mesma data de resposta/procedimento; sem data, o item permanece not_found.
     const byAttendCrm = new Map<string, any[]>();
     const byAttendName = new Map<string, any[]>();
     for (const r of allRows) {
@@ -167,8 +168,11 @@ Deno.serve(async (req) => {
         const list = byAttendCrm.get(`${att}|${cd}`) ?? [];
         hit =
           list.find((r) =>
+            sameDayUtc(r.dt_resposta_parecer, it.procedure_date) &&
             String(r.situacao ?? "").toLowerCase().includes("com parecer"),
-          ) ?? list[0];
+          ) ?? list.find((r) =>
+            sameDayUtc(r.dt_resposta_parecer, it.procedure_date),
+          ) ?? null;
       }
       if (!hit && att && nm) {
         const list = byAttendName.get(`${att}|${nm}`) ?? [];

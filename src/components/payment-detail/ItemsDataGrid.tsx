@@ -306,6 +306,7 @@ function ManualInterventionItemIconAction({
   paymentId,
   item,
   preferCategory,
+  onApplied,
 }: {
   paymentId: string;
   item: PaymentItemRowData & {
@@ -315,6 +316,7 @@ function ManualInterventionItemIconAction({
     manual_intervention_source?: string | null;
   };
   preferCategory?: "reclassificacao_clinica" | "aceite_financeiro";
+  onApplied?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const isMarked = !!item.manual_intervention_reason_id;
@@ -353,6 +355,7 @@ function ManualInterventionItemIconAction({
           manual_intervention_notes: item.manual_intervention_notes ?? null,
         }}
         preferCategory={preferCategory}
+        onApplied={onApplied}
       />
     </>
   );
@@ -515,6 +518,41 @@ export const TEXT_BODY = "text-xs leading-snug tracking-normal";
 export const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight";
 export const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-foreground";
 
+function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
+  const evidence = ((item as any).parecer_evidence ?? null) as string | null;
+  const isWeak = (item as any).parecer_evidence_weak === true;
+  if (!evidence) return null;
+  if (evidence === "confirmed") {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border",
+          isWeak
+            ? "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800"
+            : "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-200 dark:border-emerald-800",
+        )}
+        title={
+          isWeak
+            ? "Parecer cruzado por atendimento e médico, mas com confirmação fraca/divergente"
+            : "Parecer cruzado por atendimento, data e médico"
+        }
+      >
+        <FileText className="h-2.5 w-2.5" />
+        {isWeak ? "P?" : "P✓"}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] bg-muted text-muted-foreground border border-border"
+      title={evidence === "no_report" ? "Nenhum relatório de parecer importado" : "Sem parecer cruzado para atendimento/data/médico"}
+    >
+      <FileText className="h-2.5 w-2.5" />
+      P×
+    </span>
+  );
+}
+
 /**
  * Data grid compartilhado de itens de uma empresa dentro de um lote.
  * Usado pela página dedicada `/pagamentos/:id/empresa/:groupId` —
@@ -570,6 +608,8 @@ export type ItemsDataGridProps = {
   groupStatus: PaymentStatus;
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
+  /** Habilita indicadores/filtros específicos do cruzamento com relatório de Parecer. */
+  isParecerPayment?: boolean;
   observations?: ObservationRow[];
   /** Mapa author_id → nome completo (rastreabilidade no histórico). */
   profiles?: Record<string, string>;
@@ -605,6 +645,7 @@ export function ItemsDataGrid({
   groupStatus,
   rulesIndex,
   rulesByName,
+  isParecerPayment = false,
   observations = [],
   profiles = {},
   storageKey = "itemsDataGrid.default",
@@ -643,6 +684,7 @@ export function ItemsDataGrid({
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
   const [onlyAdjusted, setOnlyAdjusted] = useState(false);
+  const [parecerFilter, setParecerFilter] = useState<"__all__" | "missing" | "weak">("__all__");
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
@@ -861,6 +903,12 @@ export function ItemsDataGrid({
         }
       }
       if (onlyAdjusted && !adjustedItemIds.has(it.id)) return false;
+      if (isParecerPayment && parecerFilter !== "__all__") {
+        const evidence = ((it as any).parecer_evidence ?? null) as string | null;
+        const isWeak = (it as any).parecer_evidence_weak === true;
+        if (parecerFilter === "missing" && evidence !== "not_found") return false;
+        if (parecerFilter === "weak" && !(evidence === "confirmed" && isWeak)) return false;
+      }
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
@@ -984,7 +1032,7 @@ export function ItemsDataGrid({
     }
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, groupStatus, sortKey, sortDir]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
 
   // Reagrupa por atendimento: TODOS os itens do mesmo atendimento ficam
   // contíguos (não só os do pacote). Itens sem atendimento mantêm a ordem
@@ -1194,6 +1242,22 @@ export function ItemsDataGrid({
     () => items.filter((it) => !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review).length,
     [items],
   );
+
+  const parecerCounts = useMemo(() => {
+    if (!isParecerPayment) return { checked: 0, confirmed: 0, missing: 0, weak: 0 };
+    return items.reduce(
+      (acc, it) => {
+        const evidence = ((it as any).parecer_evidence ?? null) as string | null;
+        const isWeak = (it as any).parecer_evidence_weak === true;
+        if (evidence) acc.checked += 1;
+        if (evidence === "confirmed") acc.confirmed += 1;
+        if (evidence === "not_found") acc.missing += 1;
+        if (evidence === "confirmed" && isWeak) acc.weak += 1;
+        return acc;
+      },
+      { checked: 0, confirmed: 0, missing: 0, weak: 0 },
+    );
+  }, [items, isParecerPayment]);
 
   const counts = useMemo(() => {
     const c = { alerta: 0, critico: 0, total: items.length };
@@ -1441,7 +1505,20 @@ export function ItemsDataGrid({
             <ShieldAlert className="h-3.5 w-3.5 mr-1" />
             Alertas assistenciais
           </Button>
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted) && (
+          {isParecerPayment && (
+            <Select value={parecerFilter} onValueChange={(v) => setParecerFilter(v as typeof parecerFilter)}>
+              <SelectTrigger className="h-8 w-44 text-xs">
+                <FileText className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="Parecer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos pareceres</SelectItem>
+                <SelectItem value="missing">Sem parecer cruzado ({parecerCounts.missing})</SelectItem>
+                <SelectItem value="weak">Parecer divergente ({parecerCounts.weak})</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || (isParecerPayment && parecerFilter !== "__all__")) && (
             <Button
               size="sm"
               variant="ghost"
@@ -1450,7 +1527,7 @@ export function ItemsDataGrid({
                 setFilter(""); setPatientFilter("");
                 setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
                 setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyNeedsReview(false);
-                setOnlyValidationAlerts(false); setOnlyAdjusted(false);
+                setOnlyValidationAlerts(false); setOnlyAdjusted(false); setParecerFilter("__all__");
               }}
             >
               Limpar
@@ -2275,6 +2352,8 @@ export function ItemsDataGrid({
                         showProcedureColumn={showProcedureColumn}
                         showDiferencaCol={showDiferencaCol}
                         mode={mode}
+                        isParecerPayment={isParecerPayment}
+                        onRefresh={onRefresh}
                       />
                     )}
                   </Fragment>
@@ -2958,6 +3037,8 @@ function RowMain({
   showProcedureColumn = false,
   showDiferencaCol = true,
   mode = "analise",
+  isParecerPayment = false,
+  onRefresh,
 }: {
   it: PaymentItemRowData;
   allItems: PaymentItemRowData[];
@@ -2988,6 +3069,8 @@ function RowMain({
   showProcedureColumn?: boolean;
   showDiferencaCol?: boolean;
   mode?: "analise" | "confeccao";
+  isParecerPayment?: boolean;
+  onRefresh?: () => void;
 }) {
   const convenio = getAgreement(it);
   // Itens absorvidos manualmente em pacote: zerados visualmente — o valor
@@ -3089,6 +3172,7 @@ function RowMain({
                   MAN
                 </span>
               )}
+              {isParecerPayment && <ParecerEvidenceBadge item={it} />}
             </div>
           </td>
         )}
@@ -3403,7 +3487,7 @@ function RowMain({
                 </Button>
               )}
               {!isBonus && (
-                <ManualInterventionItemIconAction paymentId={it.payment_id} item={it as any} />
+                <ManualInterventionItemIconAction paymentId={it.payment_id} item={it as any} onApplied={onRefresh} />
               )}
 
 
