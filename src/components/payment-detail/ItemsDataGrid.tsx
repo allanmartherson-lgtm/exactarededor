@@ -916,6 +916,14 @@ export function ItemsDataGrid({
   ) => {
     if (!itemIds.length) return;
     try {
+      // Snapshot do estado anterior para auditoria
+      const beforeById = new Map<string, string | null>();
+      for (const it of items) {
+        if (itemIds.includes(it.id)) {
+          beforeById.set(it.id, ((it as any).payment_type_id ?? null) as string | null);
+        }
+      }
+
       const { error } = await supabase
         .from("payment_items")
         .update({ payment_type_id: newTypeId, payment_type_source: "manual" } as any)
@@ -925,6 +933,39 @@ export function ItemsDataGrid({
         toast.error(`Não foi possível reclassificar: ${error.message}`);
         return;
       }
+
+      // Auditoria — um único registro por operação, com diff agregado.
+      try {
+        const { data: userRes } = await supabase.auth.getUser();
+        const actorId = userRes?.user?.id;
+        const paymentId = (items[0] as any)?.payment_id ?? null;
+        const companyName = (items.find((i) => itemIds.includes(i.id)) as any)?.company_name ?? null;
+        if (actorId) {
+          const fromCounts: Record<string, number> = {};
+          for (const v of beforeById.values()) {
+            const k = v ?? "null";
+            fromCounts[k] = (fromCounts[k] ?? 0) + 1;
+          }
+          await supabase.from("audit_log").insert([{
+            entity_type: "payment_item",
+            entity_id: paymentId ?? itemIds[0],
+            action: "reclassify_payment_type",
+            actor_id: actorId,
+            company_name: companyName,
+            diff: {
+              item_ids: itemIds,
+              count: itemIds.length,
+              to_payment_type_id: newTypeId,
+              to_label: newTypeLabel,
+              from_payment_type_id_counts: fromCounts,
+              source: "manual",
+            } as any,
+          }] as any);
+        }
+      } catch (e) {
+        console.warn("[changeCaseSubtype] audit falhou", e);
+      }
+
       toast.success(
         itemIds.length > 1
           ? `${itemIds.length} itens reclassificados como ${newTypeLabel}. Reanalisando…`
