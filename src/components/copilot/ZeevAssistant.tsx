@@ -228,6 +228,7 @@ export function ZeevAssistant({
   bulkContext,
   onBulkApplied,
   side = "bottom-left",
+  smartActionsEnabled = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
@@ -245,8 +246,14 @@ export function ZeevAssistant({
 
   const insights = useMemo(() => {
     const auto = items ? buildItemInsights(items, onApplyFilter) : [];
-    return [...(extraInsights ?? []), ...auto];
-  }, [items, extraInsights, onApplyFilter]);
+    const merged = [...(extraInsights ?? []), ...auto];
+    // Quando as ações inteligentes estão desligadas (ex.: pagamento não-parecer),
+    // removemos bulk/suggestRule de cada insight pra que os botões não apareçam.
+    if (!smartActionsEnabled) {
+      return merged.map(({ bulk: _b, suggestRule: _s, ...rest }) => rest);
+    }
+    return merged;
+  }, [items, extraInsights, onApplyFilter, smartActionsEnabled]);
 
   const visible = insights.filter((i) => !dismissed.has(i.id));
   const highPriority = visible.filter((i) => i.priority === "alta").length;
