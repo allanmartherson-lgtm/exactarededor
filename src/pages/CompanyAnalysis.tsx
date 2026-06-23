@@ -1090,106 +1090,37 @@ export default function CompanyAnalysis() {
     setChangingCompany(true);
     try {
       const oldName = group.company_name;
-      const sourceGroupId = group.id;
-      const itemIds = items.map((it) => it.id);
 
-      // 1) reatribui itens
-      const { error: itErr } = await supabase
-        .from("payment_items")
-        .update({ company_id: newCompany.id, company_name: newCompany.name })
-        .in("id", itemIds);
-      if (itErr) throw itErr;
+      // Tudo atômico no banco: reatribui itens, cria/atualiza grupo destino,
+      // apaga origem (ou marca p/ reapproval), aprende alias. Evita o timeout
+      // de 8s do PostgREST que estourava com lotes grandes (>50 itens).
+      const { data: rpcData, error: rpcErr } = await supabase.rpc(
+        "change_group_company",
+        {
+          p_source_group_id: group.id,
+          p_new_company_id: newCompany.id,
+          p_new_company_name: newCompany.name,
+          p_reason: wasApproved ? reason : null,
+        },
+      );
+      if (rpcErr) throw rpcErr;
 
-      // 2) acha/cria grupo destino
-      const { data: existing } = await supabase
-        .from("payment_company_groups")
-        .select("id, items_count, total_amount")
-        .eq("payment_id", id)
-        .eq("company_id", newCompany.id)
-        .maybeSingle();
+      const result = (rpcData ?? {}) as {
+        dest_group_id?: string;
+        source_deleted?: boolean;
+        was_approved?: boolean;
+      };
+      const destGroupId = result.dest_group_id;
+      const sourceDeleted = result.source_deleted === true;
 
-      const total = items.reduce((s, it) => s + Number(it.gross_amount ?? 0), 0);
-
-      let destGroupId = existing?.id ?? null;
-      if (destGroupId) {
-        await supabase
-          .from("payment_company_groups")
-          .update({
-            items_count: (existing!.items_count ?? 0) + items.length,
-            total_amount: Number(existing!.total_amount ?? 0) + total,
-          })
-          .eq("id", destGroupId);
-      } else {
-        const { data: created, error: cErr } = await supabase
-          .from("payment_company_groups")
-          .insert({
-            hospital_id: (payment as any).hospital_id,
-            payment_id: id,
-            company_id: newCompany.id,
-            company_name: newCompany.name,
-            items_count: items.length,
-            total_amount: total,
-            status: "em_analise_ia",
-          })
-          .select("id")
-          .single();
-        if (cErr) throw cErr;
-        destGroupId = created.id;
+      if (!destGroupId) {
+        throw new Error("RPC change_group_company não retornou dest_group_id");
       }
 
-      // 3) Se grupo de origem não esvaziar (caso de troca parcial via UI futura),
-      //    a deleção abaixo só ocorre quando vazio. Hoje a troca é total → apaga.
-      let sourceDeleted = false;
-      if (!wasApproved) {
-        await supabase.from("payment_company_groups").delete().eq("id", sourceGroupId);
-        sourceDeleted = true;
-      }
-      // Se grupo origem foi aprovado, mantemos ele vivo (com itens=0) para
-      // o fluxo de re-aprovação enxergar a versão anterior e o diretor decidir.
-
-      // 4) aprendizado de alias
-      const { data: comp } = await supabase
-        .from("companies")
-        .select("aliases")
-        .eq("id", newCompany.id)
-        .single();
-      const aliases = new Set<string>((comp?.aliases ?? []) as string[]);
-      aliases.add(oldName);
-      await supabase
-        .from("companies")
-        .update({ aliases: Array.from(aliases) })
-        .eq("id", newCompany.id);
-
-      // 5) Re-aprovação: grava motivo nos dois grupos (origem se ainda existir + destino).
-      //    Triggers do banco já marcam reapproval_pending quando company_id muda em
-      //    item de grupo com approval_version>0.
+      // Notificação para diretor (best-effort, fora da transação).
       if (wasApproved) {
-        const updates: Promise<unknown>[] = [];
-        if (!sourceDeleted) {
-          updates.push(
-            Promise.resolve(
-              supabase
-                .from("payment_company_groups")
-                .update({ reapproval_reason: reason })
-                .eq("id", sourceGroupId),
-            ),
-          );
-        }
-        if (destGroupId) {
-          updates.push(
-            Promise.resolve(
-              supabase
-                .from("payment_company_groups")
-                .update({ reapproval_reason: reason })
-                .eq("id", destGroupId),
-            ),
-          );
-        }
-        await Promise.all(updates);
-
-        // dispara notificação para diretor em cada grupo afetado
         const notifyTargets = [
-          !sourceDeleted ? sourceGroupId : null,
+          !sourceDeleted ? group.id : null,
           destGroupId,
         ].filter(Boolean) as string[];
         await Promise.all(
@@ -1216,7 +1147,7 @@ export default function CompanyAnalysis() {
         status_to: group.status,
       });
 
-      // 6) reanálise da IA para a empresa nova via orquestrador
+      // Reanálise da IA para a empresa nova via orquestrador.
       try {
         await supabase.functions.invoke("dispatch-payment-analysis", {
           body: { payment_id: id, only_companies: [newCompany.name] },
@@ -1235,13 +1166,24 @@ export default function CompanyAnalysis() {
       setChangeCompanyReason("");
       navigate(`/pagamentos/${id}/empresa/${destGroupId}`);
     } catch (e) {
-      toast.error("Falha ao trocar empresa", {
-        description: e instanceof Error ? e.message : String(e),
-      });
+      // Extrai mensagem útil de PostgrestError / FunctionsError / Error.
+      const err = e as any;
+      const parts = [
+        err?.message,
+        err?.details,
+        err?.hint,
+        err?.code ? `(${err.code})` : null,
+      ].filter((s) => typeof s === "string" && s.length > 0);
+      const description = parts.length > 0
+        ? parts.join(" — ")
+        : (() => { try { return JSON.stringify(err); } catch { return "Erro desconhecido"; } })();
+      console.error("Falha ao trocar empresa:", err);
+      toast.error("Falha ao trocar empresa", { description });
     } finally {
       setChangingCompany(false);
     }
   };
+
 
   const doReimport = async (files: File[], extraOverrides?: Record<string, Record<string, string>>) => {
     if (!id || !payment || !user || !group) return;
