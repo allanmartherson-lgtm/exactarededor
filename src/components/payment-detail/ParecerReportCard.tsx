@@ -170,40 +170,77 @@ export function ParecerReportCard({
       });
       if (!raw.length) throw new Error("Planilha vazia ou sem cabeçalho");
 
+      // "Sabrina ... (CRM 306134)" → { name, crm }
+      const splitMedicoCrm = (raw: any): { name: string | null; crm: string | null } => {
+        if (raw == null) return { name: null, crm: null };
+        const s = String(raw).trim();
+        if (!s) return { name: null, crm: null };
+        const m = s.match(/^(.*?)\s*[\(\[]\s*CRM[^\d]*?(\d{2,7})(?:[\s\/\-]*([A-Z]{2}))?\s*[\)\]]\s*$/i);
+        if (m) {
+          const name = m[1].trim() || null;
+          const crm = m[3] ? `${m[2]}/${m[3].toUpperCase()}` : m[2];
+          return { name, crm };
+        }
+        return { name: s, crm: null };
+      };
+
       const rows = raw.map((rec) => {
         const norm: Record<string, any> = {};
         for (const k of Object.keys(rec)) norm[normHeader(k)] = rec[k];
-        const medicoResp =
-          pick(norm, [
-            "medico_resposta",
-            "medico_que_respondeu",
-            "medico_responde",
-            "medico_executor",
-            "responsavel",
-          ]) ?? null;
-        const crm = normalizeCrm(
-          pick(norm, [
-            "crm_resposta",
-            "crm_medico_resposta",
-            "crm",
-            "conselho",
-            "conselho_resposta",
-          ]) ?? medicoResp,
-        );
+
+        const medicoRespRaw = pick(norm, [
+          "medico_resposta_parecer",
+          "medico_resposta",
+          "medico_que_respondeu",
+          "medico_responde",
+          "medico_executor",
+          "responsavel",
+        ]);
+        const { name: medicoResp, crm: crmFromName } = splitMedicoCrm(medicoRespRaw);
+
+        const crmRaw = pick(norm, [
+          "crm_resposta",
+          "crm_medico_resposta",
+          "crm_medico_resposta_parecer",
+          "crm",
+          "conselho",
+          "conselho_resposta",
+        ]);
+        const crm = normalizeCrm(crmRaw) ?? crmFromName ?? null;
+
+        const medicoSolicRaw = pick(norm, [
+          "medico_solic_parecer",
+          "medico_solicitante",
+          "solicitante",
+          "medico_solic",
+        ]);
+        const { name: medicoSolic } = splitMedicoCrm(medicoSolicRaw);
+
         return {
           atendimento:
-            pick(norm, ["atendimento", "nr_atendimento", "atend", "nr_atend"]) ??
-            null,
+            pick(norm, [
+              "atend_paciente",
+              "atendimento",
+              "nr_atendimento",
+              "atend",
+              "nr_atend",
+            ]) ?? null,
           paciente: pick(norm, ["paciente", "nome_paciente"]) ?? null,
-          medico_solicitante:
-            pick(norm, ["medico_solicitante", "solicitante", "medico_solic"]) ??
-            null,
+          medico_solicitante: medicoSolic,
           medico_resposta: medicoResp,
           medico_resposta_crm: crm,
           espec_origem:
-            pick(norm, ["espec_origem", "especialidade_origem"]) ?? null,
+            pick(norm, [
+              "espec_med_solic_parecer",
+              "espec_origem",
+              "especialidade_origem",
+            ]) ?? null,
           espec_destino:
-            pick(norm, ["espec_destino", "especialidade_destino"]) ?? null,
+            pick(norm, [
+              "espec_dest_parecer",
+              "espec_destino",
+              "especialidade_destino",
+            ]) ?? null,
           dt_solic_parecer: parseExcelDate(
             pick(norm, [
               "dt_solic_parecer",
@@ -215,7 +252,7 @@ export function ParecerReportCard({
             pick(norm, ["dt_resposta_parecer", "data_resposta", "dt_resposta"]),
           ),
           situacao:
-            pick(norm, ["situacao", "status", "situacao_parecer"]) ?? null,
+            pick(norm, ["situacao_parecer", "situacao", "status"]) ?? null,
           raw: rec,
         };
       });
