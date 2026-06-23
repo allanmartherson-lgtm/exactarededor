@@ -76,6 +76,7 @@ import { authorRoleLabel } from "@/lib/observations";
 import { MarkSpecialCaseDialog } from "./MarkSpecialCaseDialog";
 import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
 import { CalcExceptionDialog } from "./CalcExceptionDialog";
+import { ManualInterventionDialog } from "./ManualInterventionDialog";
 import { PaymentItemExplainButton } from "@/components/copilot/PaymentItemExplainButton";
 
 /** Botão "Sinalizar caso especial" para um item específico — só aparece
