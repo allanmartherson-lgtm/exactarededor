@@ -518,6 +518,41 @@ export const TEXT_BODY = "text-xs leading-snug tracking-normal";
 export const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight";
 export const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-foreground";
 
+function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
+  const evidence = ((item as any).parecer_evidence ?? null) as string | null;
+  const isWeak = (item as any).parecer_evidence_weak === true;
+  if (!evidence) return null;
+  if (evidence === "confirmed") {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border",
+          isWeak
+            ? "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800"
+            : "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-200 dark:border-emerald-800",
+        )}
+        title={
+          isWeak
+            ? "Parecer cruzado por atendimento e médico, mas com confirmação fraca/divergente"
+            : "Parecer cruzado por atendimento, data e médico"
+        }
+      >
+        <FileText className="h-2.5 w-2.5" />
+        {isWeak ? "P?" : "P✓"}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] bg-muted text-muted-foreground border border-border"
+      title={evidence === "no_report" ? "Nenhum relatório de parecer importado" : "Sem parecer cruzado para atendimento/data/médico"}
+    >
+      <FileText className="h-2.5 w-2.5" />
+      P×
+    </span>
+  );
+}
+
 /**
  * Data grid compartilhado de itens de uma empresa dentro de um lote.
  * Usado pela página dedicada `/pagamentos/:id/empresa/:groupId` —
