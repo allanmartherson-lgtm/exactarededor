@@ -362,6 +362,11 @@ export interface ItemInput {
   /** payment_type_id do pagamento a que o item pertence — usado pelo filtro
    *  de tipo no nível do cálculo (`rule_calculations.payment_type_id`). */
   payment_type_id?: string | null;
+  /** Subtipo do caso dentro de Parecer ('parecer' | 'visita'). Definido por
+   *  cruzamento com relatório de parecer, herança da empresa/atendimento ou
+   *  marcação manual do analista. NULL = não classificado (cai em regra sem
+   *  subtipo). */
+  case_subtype?: "parecer" | "visita" | null;
   /** @deprecated — substituído por manual_intervention_reason_id. Mantido para
    *  itens ainda não migrados. */
   calc_exception_skip?: boolean | null;
