@@ -3488,6 +3488,7 @@ const NewPayment = () => {
         pageLabel={modoConfeccao ? "Confecção de pagamento" : "Novo lote de pagamento"}
         summary={{ arquivos: buckets.length, linhas: allRows.length, suspeitas_pendentes: pendingSuspiciousCount }}
         stagingContext={stagingContext}
+        extraInsights={zeevStagingInsights}
       />
     </>
   );
