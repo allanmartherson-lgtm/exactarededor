@@ -1089,6 +1089,7 @@ export const AppLayout = () => {
           </div>
         </main>
         <PaymentModeSelectModal open={modeModalOpen} onOpenChange={setModeModalOpen} />
+        <ZeevGlobalMount />
       </div>
     );
   }
