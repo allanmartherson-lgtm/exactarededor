@@ -450,6 +450,9 @@ serve(async (req) => {
         special_case_status,
         calc_exception_skip,
         calc_exception_skipped_calc_id,
+        manual_intervention_reason_id,
+        manual_intervention_source,
+        manual_intervention_reason:manual_intervention_reasons!manual_intervention_reason_id(code,category),
         raw_data
       `)
       .eq("payment_id", payment_id);
@@ -670,10 +673,15 @@ serve(async (req) => {
       // Filtro de tipo de pagamento por cálculo (rule_calculations.payment_type_id)
       // — todos os itens do pagamento herdam o tipo do `payments.payment_type_id`.
       payment_type_id: ctx.payment_type_id ?? null,
-      // Exceção do cálculo (marcação manual do analista) — motor pula
-      // cálculos tipados e cai no próximo cálculo elegível da regra.
+      // Exceção do cálculo (LEGADO) — substituída por manual_intervention_reason_id.
       calc_exception_skip: (it as any).calc_exception_skip ?? false,
       calc_exception_skipped_calc_id: (it as any).calc_exception_skipped_calc_id ?? null,
+      // Tratamento Manual (Fase 1) — motor aceita procedure_amount como esperado
+      // e marca o item como aprovado, com o motivo registrado no explanation.
+      manual_intervention_reason_id: (it as any).manual_intervention_reason_id ?? null,
+      manual_intervention_reason_code: ((it as any).manual_intervention_reason?.code) ?? null,
+      manual_intervention_reason_category: ((it as any).manual_intervention_reason?.category) ?? null,
+      manual_intervention_source: (it as any).manual_intervention_source ?? null,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
         ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }

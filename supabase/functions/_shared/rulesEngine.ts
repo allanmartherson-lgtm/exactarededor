@@ -357,13 +357,23 @@ export interface ItemInput {
   /** payment_type_id do pagamento a que o item pertence — usado pelo filtro
    *  de tipo no nível do cálculo (`rule_calculations.payment_type_id`). */
   payment_type_id?: string | null;
-  /** Exceção do cálculo marcada pelo analista: quando true, o motor pula
-   *  cálculos com payment_type_id setado e cai no próximo cálculo elegível
-   *  da regra resolvida (tipicamente o universal / percentual do convênio). */
+  /** @deprecated — substituído por manual_intervention_reason_id. Mantido para
+   *  itens ainda não migrados. */
   calc_exception_skip?: boolean | null;
-  /** ID do cálculo originalmente aplicado, guardado no momento da marcação,
-   *  para o motor saber exatamente qual cálculo pular. */
+  /** @deprecated */
   calc_exception_skipped_calc_id?: string | null;
+  /** Tratamento manual aplicado pelo analista. Quando setado, o motor pula
+   *  toda a aplicação de regras e aceita `procedure_amount` como valor
+   *  esperado (= valor do convênio). diff fica zerado, status = aprovado,
+   *  calculation_type_used = 'tratamento_manual'. */
+  manual_intervention_reason_id?: string | null;
+  /** code do motivo (ex.: 'visita_sequencial_parecer') — informativo para
+   *  trace/relatórios; o efeito no cálculo é o mesmo para qualquer code. */
+  manual_intervention_reason_code?: string | null;
+  /** Categoria do motivo: 'reclassificacao_clinica' | 'aceite_financeiro'. */
+  manual_intervention_reason_category?: string | null;
+  /** Origem: 'manual' (analista) | 'auto_parecer_report' (Fase 2). */
+  manual_intervention_source?: string | null;
 }
 
 export interface PaymentContext {
@@ -407,7 +417,7 @@ export interface AnalysisResult {
   matched_rule_id: string | null;
   matched_rule_name: string | null;
   matched_priority: RuleMatchPriority;
-  calculation_type_used: CalculationType | "default_geral" | "default_hemodinamica" | "exclusao" | "pacote_fixo";
+  calculation_type_used: CalculationType | "default_geral" | "default_hemodinamica" | "exclusao" | "pacote_fixo" | "tratamento_manual";
   calculation_explanation: string;
   alerts: string[];
   needs_ai_review: boolean;
@@ -2890,6 +2900,39 @@ export function analyzeItem(
   preFilteredRules: RuleInput[],
   ctx?: EngineCtx,
 ): AnalysisResult {
+  // === Tratamento Manual (Fase 1) ===
+  // Quando o analista marcou o item com um motivo de intervenção manual
+  // (reclassificação clínica ou aceite financeiro), o motor NÃO aplica regra:
+  // aceita `procedure_amount` (valor do convênio) como esperado, diff = 0,
+  // status = aprovado. Auditoria preserva o motivo via calculation_explanation.
+  if (item.manual_intervention_reason_id) {
+    const code = item.manual_intervention_reason_code ?? "manual";
+    const category = item.manual_intervention_reason_category ?? "";
+    const source = item.manual_intervention_source ?? "manual";
+    const isAuto = source === "auto_parecer_report";
+    const procAmount = Number(item.procedure_amount ?? 0);
+    const grossAmount = Number(item.gross_amount ?? 0);
+    const expected = procAmount;
+    const explanation = `Tratamento ${isAuto ? "automático (relatório de parecer)" : "manual"} — motivo "${code}"${category ? ` (${category})` : ""}. Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).`;
+    const alerts: string[] = [];
+    if (Math.abs(expected - grossAmount) > 0.01) {
+      alerts.push(`Pago (R$ ${grossAmount.toFixed(2)}) difere do convênio (R$ ${procAmount.toFixed(2)}) — diferença assumida pelo tratamento manual.`);
+    }
+    return {
+      item_id: item.id,
+      status: "aprovado",
+      expected_amount: expected,
+      diff_pct: 0,
+      matched_rule_id: null,
+      matched_rule_name: null,
+      matched_priority: "default_setor",
+      calculation_type_used: "tratamento_manual",
+      calculation_explanation: explanation,
+      alerts,
+      needs_ai_review: false,
+    };
+  }
+
   // === Tratamento especial: complemento/bônus, glosa, reprocessamento ===
   // Estes lançamentos NÃO são itens independentes para o motor de regras:
   // não exigem código TUSS, tabela ou regra de procedimento. A vinculação
