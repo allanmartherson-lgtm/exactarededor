@@ -329,6 +329,8 @@ Deno.serve(async (req) => {
         confirmed,
         not_found: notFound,
         auto_applied: autoApplied,
+        subtype_parecer: subtypeParecer,
+        subtype_visita: subtypeVisita,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
