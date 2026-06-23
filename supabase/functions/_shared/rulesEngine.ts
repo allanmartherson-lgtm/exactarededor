@@ -417,7 +417,7 @@ export interface AnalysisResult {
   matched_rule_id: string | null;
   matched_rule_name: string | null;
   matched_priority: RuleMatchPriority;
-  calculation_type_used: CalculationType | "default_geral" | "default_hemodinamica" | "exclusao" | "pacote_fixo";
+  calculation_type_used: CalculationType | "default_geral" | "default_hemodinamica" | "exclusao" | "pacote_fixo" | "tratamento_manual";
   calculation_explanation: string;
   alerts: string[];
   needs_ai_review: boolean;
