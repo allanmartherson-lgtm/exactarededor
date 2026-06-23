@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { Send, Loader2, CheckCircle2, AlertCircle, RotateCcw, Sparkles, Building2, FolderTree } from "lucide-react";
+import { Send, Loader2, CheckCircle2, AlertCircle, RotateCcw, Building2, FolderTree } from "lucide-react";
+import { ZeevIcon } from "./ZeevIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -343,7 +344,7 @@ export function ZeevStagingChat({ staging, initialPrompt }: Props) {
             return (
               <div key={i} className="flex items-start gap-2">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary mt-0.5">
-                  <Sparkles className="h-3 w-3" />
+                  <ZeevIcon className="h-3 w-3" />
                 </div>
                 <div className="max-w-[85%] text-[13px] text-foreground leading-snug break-words">{m.text}</div>
               </div>
@@ -359,7 +360,7 @@ export function ZeevStagingChat({ staging, initialPrompt }: Props) {
           return (
             <div key={i} className="flex items-start gap-2">
               <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary mt-0.5">
-                <Sparkles className="h-3 w-3" />
+                <ZeevIcon className="h-3 w-3" />
               </div>
               <div className={cn(
                 "flex-1 rounded-xl border p-3 space-y-2",

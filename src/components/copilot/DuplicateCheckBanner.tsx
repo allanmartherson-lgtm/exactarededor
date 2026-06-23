@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Sparkles, Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { ZeevIcon } from "./ZeevIcon";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -73,7 +74,7 @@ export function DuplicateCheckBanner({ newEntity, candidates, debounceMs = 800 }
       <div className="flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-200">
         <AlertTriangle className="h-4 w-4" /> Possível duplicata
         <Badge variant="outline" className="gap-1 text-[10px]">
-          <Sparkles className="h-3 w-3" /> IA · {Math.round(hit.confidence * 100)}%
+          <ZeevIcon className="h-3 w-3" /> IA · {Math.round(hit.confidence * 100)}%
         </Badge>
       </div>
       <p className="text-xs text-amber-900/90 dark:text-amber-200/90">

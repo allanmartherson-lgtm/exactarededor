@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 
-import { Sparkles, X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2, Users, Lightbulb } from "lucide-react";
+import { X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2, Users, Lightbulb, Sparkles } from "lucide-react";
+import { ZeevIcon } from "./ZeevIcon";
+
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -358,7 +360,7 @@ export function ZeevAssistant({
                       hasInsights ? "h-8 w-8 bg-white/15 backdrop-blur" : "h-full w-full",
                     )}
                   >
-                    <Sparkles className="h-4 w-4" />
+                    <ZeevIcon className="h-5 w-5 text-white" />
                     {hasInsights && (
                       <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground ring-2 ring-[hsl(var(--primary-dark))]">
                         {visible.length}
@@ -394,8 +396,9 @@ export function ZeevAssistant({
           <div className="relative bg-gradient-to-br from-[hsl(var(--primary))] via-[hsl(var(--primary))] to-[hsl(var(--primary-dark))] px-4 py-3.5 text-[hsl(var(--primary-foreground))]">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
-                <Wand2 className="h-4 w-4" />
+                <ZeevIcon className="h-5 w-5 text-white" />
               </div>
+
               <div className="flex-1 min-w-0 pr-6">
                 <div className="text-sm font-semibold leading-tight">Oi, sou o Zeev 👋</div>
                 <div

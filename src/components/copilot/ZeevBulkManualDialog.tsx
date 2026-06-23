@@ -25,7 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Wand2, Sparkles } from "lucide-react";
+import { Loader2, Wand2 } from "lucide-react";
+import { ZeevIcon } from "./ZeevIcon";
 import {
   useManualInterventionReasons,
   type ManualInterventionReason,
@@ -210,7 +211,7 @@ export function ZeevBulkManualDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <ZeevIcon variant="circle" size={20} />
             {title ?? "Aplicar tratativa manual em lote"}
           </DialogTitle>
           <DialogDescription>

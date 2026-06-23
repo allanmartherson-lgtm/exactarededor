@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Sparkles, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { ZeevIcon } from "./ZeevIcon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +83,7 @@ export function CopilotCard({
       <CardContent className="p-3 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-purple-600" />
+            <ZeevIcon variant="circle" size={18} />
             <span className="text-sm font-medium">{title}</span>
             <Badge variant="outline" className="text-[10px] h-5">IA · sugestão</Badge>
           </div>
@@ -95,7 +96,7 @@ export function CopilotCard({
 
         {!result && !loading && (
           <Button variant="outline" size="sm" onClick={run} className="h-7 text-xs">
-            <Sparkles className="h-3 w-3 mr-1" />
+            <ZeevIcon className="h-3 w-3 mr-1 text-primary" />
             {triggerLabel}
           </Button>
         )}
