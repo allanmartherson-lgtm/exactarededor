@@ -173,6 +173,8 @@ Deno.serve(async (req) => {
     }> = [];
 
     for (const it of items) {
+      const procAmt =
+        it.procedure_amount == null ? null : Number(it.procedure_amount);
       if (!hasReport) {
         updates.push({
           id: it.id,
@@ -180,6 +182,7 @@ Deno.serve(async (req) => {
           row_id: null,
           weak: false,
           apply_auto_reason: false,
+          procedure_amount: procAmt,
         });
         continue;
       }
@@ -218,6 +221,7 @@ Deno.serve(async (req) => {
           row_id: hit.id,
           weak,
           apply_auto_reason: !alreadyManual && !!autoReasonId,
+          procedure_amount: procAmt,
         });
       } else {
         updates.push({
@@ -226,6 +230,7 @@ Deno.serve(async (req) => {
           row_id: null,
           weak: false,
           apply_auto_reason: false,
+          procedure_amount: procAmt,
         });
       }
     }
