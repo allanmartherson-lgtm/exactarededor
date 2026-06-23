@@ -688,6 +688,9 @@ serve(async (req) => {
       manual_intervention_reason_code: ((it as any).manual_intervention_reason?.code) ?? null,
       manual_intervention_reason_category: ((it as any).manual_intervention_reason?.category) ?? null,
       manual_intervention_source: (it as any).manual_intervention_source ?? null,
+      // Subtipo de caso (Parecer × Visita dentro do mesmo lote de Parecer).
+      // Permite cálculos restritos via `rule_calculations.case_subtype`.
+      case_subtype: (it as any).case_subtype ?? null,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
         ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }
