@@ -357,13 +357,23 @@ export interface ItemInput {
   /** payment_type_id do pagamento a que o item pertence — usado pelo filtro
    *  de tipo no nível do cálculo (`rule_calculations.payment_type_id`). */
   payment_type_id?: string | null;
-  /** Exceção do cálculo marcada pelo analista: quando true, o motor pula
-   *  cálculos com payment_type_id setado e cai no próximo cálculo elegível
-   *  da regra resolvida (tipicamente o universal / percentual do convênio). */
+  /** @deprecated — substituído por manual_intervention_reason_id. Mantido para
+   *  itens ainda não migrados. */
   calc_exception_skip?: boolean | null;
-  /** ID do cálculo originalmente aplicado, guardado no momento da marcação,
-   *  para o motor saber exatamente qual cálculo pular. */
+  /** @deprecated */
   calc_exception_skipped_calc_id?: string | null;
+  /** Tratamento manual aplicado pelo analista. Quando setado, o motor pula
+   *  toda a aplicação de regras e aceita `procedure_amount` como valor
+   *  esperado (= valor do convênio). diff fica zerado, status = aprovado,
+   *  calculation_type_used = 'tratamento_manual'. */
+  manual_intervention_reason_id?: string | null;
+  /** code do motivo (ex.: 'visita_sequencial_parecer') — informativo para
+   *  trace/relatórios; o efeito no cálculo é o mesmo para qualquer code. */
+  manual_intervention_reason_code?: string | null;
+  /** Categoria do motivo: 'reclassificacao_clinica' | 'aceite_financeiro'. */
+  manual_intervention_reason_category?: string | null;
+  /** Origem: 'manual' (analista) | 'auto_parecer_report' (Fase 2). */
+  manual_intervention_source?: string | null;
 }
 
 export interface PaymentContext {
