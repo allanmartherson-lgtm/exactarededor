@@ -555,6 +555,106 @@ function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
 }
 
 /**
+ * Badge clicável que mostra/alterna o subtipo do caso (Parecer × Visita)
+ * dentro de um lote de Parecer. Clique → menu para alternar entre os dois
+ * (com escopo: só este item ou todo o atendimento). NULL = não classificado.
+ */
+function CaseSubtypeBadge({
+  item,
+  allItems,
+  onChange,
+  canEdit,
+}: {
+  item: PaymentItemRowData;
+  allItems: PaymentItemRowData[];
+  onChange?: (ids: string[], newSubtype: "parecer" | "visita", source: "manual" | "attendance_override") => void;
+  canEdit: boolean;
+}) {
+  const subtype = ((item as any).case_subtype ?? null) as "parecer" | "visita" | null;
+  const source = ((item as any).case_subtype_source ?? null) as string | null;
+
+  const label = subtype === "visita" ? "V" : subtype === "parecer" ? "P" : "?";
+  const tone =
+    subtype === "visita"
+      ? "bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-800"
+      : subtype === "parecer"
+      ? "bg-violet-50 text-violet-800 border-violet-300 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-800"
+      : "bg-muted text-muted-foreground border-border";
+  const sourceLabel: Record<string, string> = {
+    base: "lido da planilha",
+    report_cross: "cruzamento com relatório de parecer",
+    manual: "marcação manual do analista",
+    company_override: "padrão da empresa no lote",
+    attendance_override: "padrão do atendimento",
+    default: "padrão do lote",
+  };
+  const sourceText = source ? sourceLabel[source] ?? source : "não classificado";
+  const title = subtype
+    ? `Subtipo: ${subtype === "visita" ? "Visita" : "Parecer"} — origem: ${sourceText}. Clique para alterar.`
+    : "Subtipo não classificado. Clique para marcar.";
+
+  if (!canEdit || !onChange) {
+    return (
+      <span className={cn("inline-flex items-center h-4 px-1 rounded text-[10px] border", tone)} title={title}>
+        {label}
+      </span>
+    );
+  }
+
+  const flip: "parecer" | "visita" = subtype === "visita" ? "parecer" : "visita";
+  const attendIds = (() => {
+    const att = String((item as any).attendance_number ?? "").trim();
+    if (!att) return [item.id];
+    return allItems
+      .filter((x) => String((x as any).attendance_number ?? "").trim() === att)
+      .map((x) => x.id);
+  })();
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn("inline-flex items-center h-4 px-1 rounded text-[10px] border hover:opacity-80", tone)}
+          title={title}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {label}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 p-2 space-y-1">
+        <div className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground mb-1 px-1">
+          Marcar como {flip === "visita" ? "Visita" : "Parecer"}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start h-7 text-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange([item.id], flip, "manual");
+          }}
+        >
+          Só este item
+        </Button>
+        {attendIds.length > 1 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start h-7 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(attendIds, flip, "attendance_override");
+            }}
+          >
+            Todo o atendimento ({attendIds.length} itens)
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+
+/**
  * Data grid compartilhado de itens de uma empresa dentro de um lote.
  * Usado pela página dedicada `/pagamentos/:id/empresa/:groupId` —
  * é a única fonte de trabalho da empresa (tabela densa com filtros,
