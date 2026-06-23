@@ -23,6 +23,8 @@ import ParecerColumnMappingDialog, {
   loadSavedMapping,
   saveMappingTemplate,
 } from "./ParecerColumnMappingDialog";
+import { confirmDialog } from "@/lib/confirm";
+import { notify } from "@/lib/uiSignals";
 
 // Helpers de parsing (rodam no browser para não estourar memória do worker)
 const normHeader = (s: string) =>
