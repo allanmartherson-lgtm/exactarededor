@@ -321,6 +321,27 @@ export function ParecerReportCard({
     }
   };
 
+  const removeReport = async (reportId: string) => {
+    if (!confirm("Remover este relatório? As linhas importadas serão apagadas e você poderá reenviar o arquivo correto.")) return;
+    try {
+      const { error: rowsErr } = await supabase
+        .from("payment_parecer_report_rows")
+        .delete()
+        .eq("report_id", reportId);
+      if (rowsErr) throw rowsErr;
+      const { error: hdrErr } = await supabase
+        .from("payment_parecer_reports")
+        .delete()
+        .eq("id", reportId);
+      if (hdrErr) throw hdrErr;
+      toast({ title: "Relatório removido", description: "Reenvie o arquivo correto." });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Falha ao remover", description: e?.message ?? String(e), variant: "destructive" });
+    }
+  };
+
+
   const hasReport = reports.length > 0;
   const emptyReports = reports.filter((r) => (r.row_count ?? 0) === 0);
   const hasEmpty = emptyReports.length > 0;
