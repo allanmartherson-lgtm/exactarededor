@@ -1,11 +1,13 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { Sparkles, X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Sparkles, X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { ZeevBulkManualDialog, type ZeevBulkItem } from "./ZeevBulkManualDialog";
 
 /**
  * Zeev — mascote assistente do Exacta.
@@ -23,12 +25,21 @@ type ZeevItem = {
   ai_status?: string | null;
   doctor_name?: string | null;
   procedure_code?: string | null;
+  procedure_description?: string | null;
+  attendance_number?: string | null;
   applied_calc_method?: string | null;
   applied_rule_id?: string | null;
   manual_intervention_reason_id?: string | null;
   gross_amount?: number | null;
   expected_amount?: number | null;
   procedure_amount?: number | null;
+};
+
+export type ZeevBulkPayload = {
+  /** Itens a tratar em lote. */
+  itemIds: string[];
+  /** Subtítulo do diálogo de confirmação. */
+  subtitle?: string;
 };
 
 export type ZeevInsight = {
@@ -39,6 +50,10 @@ export type ZeevInsight = {
   message: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Quando presente, Zeev oferece "Tratar em lote" e abre o diálogo de preview. */
+  bulk?: ZeevBulkPayload;
+  /** Quando presente, Zeev oferece um link de navegação (ex.: criar nova regra). */
+  linkTo?: { href: string; label: string };
 };
 
 interface Props {
@@ -52,6 +67,10 @@ interface Props {
   extraInsights?: ZeevInsight[];
   /** Filtro sugerido pelo Zeev (deep link nos filtros do grid). */
   onApplyFilter?: (filter: "divergentes" | "sem_regra" | "reprovados") => void;
+  /** Contexto necessário pra ações em lote (paymentId + companyName). */
+  bulkContext?: { paymentId: string; companyName: string | null };
+  /** Callback chamado após o Zeev aplicar uma ação em lote. */
+  onBulkApplied?: () => void;
   /** Posicionamento (default: bottom-left). */
   side?: "bottom-left" | "bottom-right";
 }
@@ -76,30 +95,49 @@ function buildItemInsights(items: ZeevItem[], onApplyFilter?: Props["onApplyFilt
       priority: pctDiv >= 0.3 ? "alta" : "media",
       icon: AlertTriangle,
       title: `${divergentes.length} itens divergentes`,
-      message: `${Math.round(pctDiv * 100)}% dos itens estão reprovado/alerta sem tratativa manual. Quer filtrar pra revisar em bloco?`,
-      actionLabel: onApplyFilter ? "Filtrar divergentes" : undefined,
+      message: `${Math.round(pctDiv * 100)}% dos itens estão reprovado/alerta sem tratativa manual. Posso aplicar a mesma justificativa em todos de uma vez.`,
+      actionLabel: onApplyFilter ? "Filtrar no grid" : undefined,
       onAction: onApplyFilter ? () => onApplyFilter("divergentes") : undefined,
+      bulk: {
+        itemIds: divergentes.map((i) => i.id),
+        subtitle: `Zeev encontrou ${divergentes.length} itens divergentes sem tratativa. Selecione os que devem receber a mesma justificativa em lote.`,
+      },
     });
   }
 
-  const groupCounts = new Map<string, { count: number; doctor: string; tuss: string }>();
+  const groupBuckets = new Map<
+    string,
+    { doctor: string; tuss: string; items: ZeevItem[] }
+  >();
   for (const it of items) {
     if (it.ai_status !== "reprovado") continue;
     if (it.manual_intervention_reason_id) continue;
     const k = `${norm(it.doctor_name)}|${norm(it.procedure_code)}`;
     if (k === "|") continue;
-    const prev = groupCounts.get(k);
-    if (prev) prev.count += 1;
-    else groupCounts.set(k, { count: 1, doctor: it.doctor_name ?? "—", tuss: it.procedure_code ?? "—" });
+    const prev = groupBuckets.get(k);
+    if (prev) prev.items.push(it);
+    else
+      groupBuckets.set(k, {
+        doctor: it.doctor_name ?? "—",
+        tuss: it.procedure_code ?? "—",
+        items: [it],
+      });
   }
-  const repeated = [...groupCounts.values()].filter((g) => g.count >= 3).sort((a, b) => b.count - a.count).slice(0, 3);
+  const repeated = [...groupBuckets.values()]
+    .filter((g) => g.items.length >= 3)
+    .sort((a, b) => b.items.length - a.items.length)
+    .slice(0, 3);
   for (const g of repeated) {
     out.push({
       id: `padrao-${g.doctor}-${g.tuss}`,
-      priority: g.count >= 5 ? "alta" : "media",
+      priority: g.items.length >= 5 ? "alta" : "media",
       icon: GitBranch,
-      title: `Padrão repetido (${g.count}× reprovado)`,
-      message: `${g.doctor} · TUSS ${g.tuss} reprovou ${g.count}× — provavelmente cabe a mesma justificativa.`,
+      title: `Padrão repetido (${g.items.length}× reprovado)`,
+      message: `${g.doctor} · TUSS ${g.tuss} reprovou ${g.items.length}× — provavelmente cabe a mesma justificativa em todos.`,
+      bulk: {
+        itemIds: g.items.map((i) => i.id),
+        subtitle: `${g.items.length} reprovações de ${g.doctor} no TUSS ${g.tuss}. Aplicar a mesma tratativa manual nos selecionados?`,
+      },
     });
   }
 
@@ -112,9 +150,12 @@ function buildItemInsights(items: ZeevItem[], onApplyFilter?: Props["onApplyFilt
       priority: semRegra.length >= 10 ? "alta" : "media",
       icon: ShieldQuestion,
       title: `${semRegra.length} itens sem regra cadastrada`,
-      message: `Esses itens não tiveram repasse calculado. Vale revisar o cadastro de regras ou tratar manualmente.`,
-      actionLabel: onApplyFilter ? "Ver sem regra" : undefined,
-      onAction: onApplyFilter ? () => onApplyFilter("sem_regra") : undefined,
+      message: `Esses itens não tiveram repasse calculado. Pode valer a pena cadastrar uma regra nova ou tratar manualmente em lote.`,
+      bulk: {
+        itemIds: semRegra.map((i) => i.id),
+        subtitle: `${semRegra.length} itens sem regra cadastrada. Marcar todos como tratativa manual (aceita o valor do convênio)?`,
+      },
+      linkTo: { href: "/regras?tab=pagamento", label: "Criar regra" },
     });
   }
 
@@ -148,6 +189,8 @@ export function ZeevAssistant({
   items,
   extraInsights,
   onApplyFilter,
+  bulkContext,
+  onBulkApplied,
   side = "bottom-left",
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -161,6 +204,7 @@ export function ZeevAssistant({
   });
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
 
   const insights = useMemo(() => {
     const auto = items ? buildItemInsights(items, onApplyFilter) : [];
@@ -384,7 +428,7 @@ export function ZeevAssistant({
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-end gap-1 pt-0.5 border-t border-border/40 -mx-3 px-3 pt-2">
+                  <div className="flex items-center justify-end gap-1 pt-0.5 border-t border-border/40 -mx-3 px-3 pt-2 flex-wrap">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -393,17 +437,44 @@ export function ZeevAssistant({
                     >
                       Dispensar
                     </Button>
+                    {ins.linkTo && (
+                      <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px]"
+                      >
+                        <Link to={ins.linkTo.href} onClick={() => setOpen(false)}>
+                          {ins.linkTo.label}
+                          <ChevronRight className="h-3 w-3 ml-1" />
+                        </Link>
+                      </Button>
+                    )}
                     {ins.actionLabel && ins.onAction && (
                       <Button
                         size="sm"
+                        variant="outline"
                         onClick={() => {
                           ins.onAction?.();
                           setOpen(false);
                         }}
-                        className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
+                        className="h-7 text-[11px]"
                       >
                         {ins.actionLabel}
                         <ChevronRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    )}
+                    {ins.bulk && bulkContext && ins.bulk.itemIds.length > 0 && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setBulkOpen(ins);
+                          setOpen(false);
+                        }}
+                        className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
+                      >
+                        <Users className="h-3 w-3 mr-1" />
+                        Tratar {ins.bulk.itemIds.length} em lote
                       </Button>
                     )}
                   </div>
@@ -418,6 +489,32 @@ export function ZeevAssistant({
 
         </PopoverContent>
       </Popover>
+
+      {bulkOpen && bulkContext && bulkOpen.bulk && (
+        <ZeevBulkManualDialog
+          open={!!bulkOpen}
+          onOpenChange={(v) => !v && setBulkOpen(null)}
+          paymentId={bulkContext.paymentId}
+          companyName={bulkContext.companyName}
+          title={bulkOpen.title}
+          subtitle={bulkOpen.bulk.subtitle}
+          items={(items ?? [])
+            .filter((it) => bulkOpen.bulk!.itemIds.includes(it.id))
+            .map<ZeevBulkItem>((it) => ({
+              id: it.id,
+              doctor_name: it.doctor_name,
+              procedure_code: it.procedure_code,
+              procedure_description: it.procedure_description,
+              attendance_number: it.attendance_number,
+              procedure_amount: it.procedure_amount,
+            }))}
+          onApplied={() => {
+            setBulkOpen(null);
+            onBulkApplied?.();
+          }}
+        />
+      )}
     </div>
   );
 }
+
