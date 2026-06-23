@@ -148,45 +148,122 @@ export function ParecerReportCard({
     }
     setUploading(true);
     try {
-      // Upload do arquivo para Storage (evita limite de body em functions.invoke)
-      const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-      const storagePath = `parecer-reports/${paymentId}/${Date.now()}_${safeName}`;
-      const { error: upErr } = await supabase.storage
-        .from("payment-files")
-        .upload(storagePath, file, {
-          upsert: false,
-          contentType:
-            file.type ||
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        });
-      if (upErr) throw upErr;
+      // 1) Lê + faz parse no browser (evita estouro de memória no edge worker)
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      // Copia para um ArrayBuffer "puro" para satisfazer o TS (BufferSource).
+      const hashBytes = new Uint8Array(bytes).slice().buffer;
+      const fileHash = await sha256Hex(new Uint8Array(hashBytes));
 
-      const { data, error } = await supabase.functions.invoke(
-        "import-parecer-report",
-        {
-          body: {
-            payment_id: paymentId,
-            storage_bucket: "payment-files",
-            storage_path: storagePath,
-            filename: file.name,
-            period_start: periodStart,
-            period_end: periodEnd,
-          },
+      const wb = XLSX.read(bytes, { type: "array", cellDates: true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
+        defval: "",
+        raw: false,
+      });
+      if (!raw.length) throw new Error("Planilha vazia ou sem cabeçalho");
+
+      const rows = raw.map((rec) => {
+        const norm: Record<string, any> = {};
+        for (const k of Object.keys(rec)) norm[normHeader(k)] = rec[k];
+        const medicoResp =
+          pick(norm, [
+            "medico_resposta",
+            "medico_que_respondeu",
+            "medico_responde",
+            "medico_executor",
+            "responsavel",
+          ]) ?? null;
+        const crm = normalizeCrm(
+          pick(norm, [
+            "crm_resposta",
+            "crm_medico_resposta",
+            "crm",
+            "conselho",
+            "conselho_resposta",
+          ]) ?? medicoResp,
+        );
+        return {
+          atendimento:
+            pick(norm, ["atendimento", "nr_atendimento", "atend", "nr_atend"]) ??
+            null,
+          paciente: pick(norm, ["paciente", "nome_paciente"]) ?? null,
+          medico_solicitante:
+            pick(norm, ["medico_solicitante", "solicitante", "medico_solic"]) ??
+            null,
+          medico_resposta: medicoResp,
+          medico_resposta_crm: crm,
+          espec_origem:
+            pick(norm, ["espec_origem", "especialidade_origem"]) ?? null,
+          espec_destino:
+            pick(norm, ["espec_destino", "especialidade_destino"]) ?? null,
+          dt_solic_parecer: parseExcelDate(
+            pick(norm, [
+              "dt_solic_parecer",
+              "data_solicitacao",
+              "dt_solicitacao",
+            ]),
+          ),
+          dt_resposta_parecer: parseExcelDate(
+            pick(norm, ["dt_resposta_parecer", "data_resposta", "dt_resposta"]),
+          ),
+          situacao:
+            pick(norm, ["situacao", "status", "situacao_parecer"]) ?? null,
+          raw: rec,
+        };
+      });
+
+      // 2) Init: cria/encontra cabeçalho (idempotente por hash)
+      const initRes = await supabase.functions.invoke("import-parecer-report", {
+        body: {
+          mode: "init",
+          payment_id: paymentId,
+          filename: file.name,
+          file_hash: fileHash,
+          period_start: periodStart,
+          period_end: periodEnd,
         },
-      );
-      if (error) throw error;
-      if ((data as any)?.duplicate) {
-        toast({
-          title: "Arquivo já importado",
-          description: "Este relatório já foi enviado para este lote.",
-        });
-      } else {
-        toast({
-          title: "Relatório importado",
-          description: `${(data as any)?.rows ?? 0} linhas carregadas.`,
-        });
-        setFile(null);
+      });
+      if (initRes.error) {
+        // O SDK trata 409 como erro; tenta extrair o corpo
+        const ctx: any = (initRes.error as any)?.context;
+        const dup = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
+        if (dup?.duplicate) {
+          toast({
+            title: "Arquivo já importado",
+            description: "Este relatório já foi enviado para este lote.",
+          });
+          await load();
+          return;
+        }
+        throw initRes.error;
       }
+      const reportId = (initRes.data as any)?.report_id as string;
+      if (!reportId) throw new Error("Falha ao criar cabeçalho do relatório");
+
+      // 3) Append em chunks de 300 linhas
+      const CHUNK = 300;
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error: appErr } = await supabase.functions.invoke(
+          "import-parecer-report",
+          { body: { mode: "append", report_id: reportId, rows: chunk } },
+        );
+        if (appErr) throw appErr;
+        inserted += chunk.length;
+      }
+
+      // 4) Finaliza
+      await supabase.functions.invoke("import-parecer-report", {
+        body: { mode: "finalize", report_id: reportId, row_count: inserted },
+      });
+
+      toast({
+        title: "Relatório importado",
+        description: `${inserted} linhas carregadas.`,
+      });
+      setFile(null);
       await load();
       await cross();
     } catch (e: any) {
@@ -199,6 +276,7 @@ export function ParecerReportCard({
       setUploading(false);
     }
   };
+
 
 
   const cross = async () => {
