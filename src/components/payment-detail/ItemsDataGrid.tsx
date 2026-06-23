@@ -1814,7 +1814,7 @@ export function ItemsDataGrid({
             style={{ width: tableMinWidth, minWidth: tableMinWidth }}
           >
             <colgroup>
-              {colVis.atendimento && <col style={{ width: 96 }} />}
+              {colVis.atendimento && <col style={{ width: 160 }} />}
               <col style={{ width: 160 }} />
               {colVis.convenio && <col style={{ width: 120 }} />}
               {colVis.via && <col style={{ width: 110 }} />}
