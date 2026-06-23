@@ -249,18 +249,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Aplica em chunks
+    // Aplica em batches agrupados por patch (reduz deadlocks e overhead de triggers)
     const now = new Date().toISOString();
     let confirmed = 0;
     let notFound = 0;
     let autoApplied = 0;
-    // Reclassificação por payment_type_id (Parecer × Visita) — só atualizado
-    // pelo cruzamento quando o item AINDA NÃO tem override manual.
     const PROTECTED_SOURCES = new Set(["manual", "company_override"]);
     const itemById = new Map(items.map((i: any) => [i.id, i]));
     let subtypeParecer = 0;
     let subtypeVisita = 0;
 
+    console.log(
+      `[cross-reference-parecer] reclass_ready loteType=${lotePaymentTypeId} visitaType=${visitaPaymentTypeId} updates=${updates.length}`,
+    );
+
+    // Agrupa updates por chave-de-patch (mesmo conjunto de colunas/valores)
+    // para fazer 1 update batch por grupo via .in("id", [...]).
+    type Group = { patch: Record<string, any>; ids: string[]; evidence: string };
+    const groups = new Map<string, Group>();
     for (const u of updates) {
       const patch: Record<string, any> = {
         parecer_evidence: u.evidence,
@@ -273,12 +279,10 @@ Deno.serve(async (req) => {
       const protectedType = PROTECTED_SOURCES.has(currentSource);
       if (!protectedType && lotePaymentTypeId && visitaPaymentTypeId) {
         if (u.evidence === "confirmed") {
-          // confirmado no relatório → mantém o tipo do lote (Parecer)
           patch.payment_type_id = lotePaymentTypeId;
           patch.payment_type_source = "report_cross";
           subtypeParecer++;
         } else if (u.evidence === "not_found") {
-          // não encontrado → reclassifica como Visita
           patch.payment_type_id = visitaPaymentTypeId;
           patch.payment_type_source = "report_cross";
           subtypeVisita++;
@@ -289,27 +293,46 @@ Deno.serve(async (req) => {
         patch.manual_intervention_source = "auto_parecer_report";
         patch.manual_intervention_notes =
           "Aplicado automaticamente: item confirmado no relatório de parecer.";
-        // Resultado determinístico do tratamento manual (espelha rulesEngine):
-        // motor aceita procedure_amount como esperado e aprova o item. Aplicado
-        // direto aqui para evitar inconsistência caso a reanálise seja pulada
-        // pelo gate de "job em andamento".
         if (u.procedure_amount != null && Number.isFinite(u.procedure_amount)) {
           patch.expected_amount = u.procedure_amount;
         }
         patch.ai_status = "aprovado";
         autoApplied++;
       }
-      const { error } = await supabase
-        .from("payment_items")
-        .update(patch as any)
-        .eq("id", u.id);
-      if (error) {
-        console.error("[cross-reference-parecer] update", u.id, error.message);
-        continue;
+      // Chave: stringify do patch (ignora ordem das keys pequena variação)
+      const key = JSON.stringify(patch);
+      let g = groups.get(key);
+      if (!g) {
+        g = { patch, ids: [], evidence: u.evidence };
+        groups.set(key, g);
       }
-      if (u.evidence === "confirmed") confirmed++;
-      else if (u.evidence === "not_found") notFound++;
+      g.ids.push(u.id);
     }
+
+    console.log(
+      `[cross-reference-parecer] grouped into ${groups.size} batch(es); subtypeParecer=${subtypeParecer} subtypeVisita=${subtypeVisita}`,
+    );
+
+    const CHUNK = 200;
+    for (const g of groups.values()) {
+      for (let i = 0; i < g.ids.length; i += CHUNK) {
+        const slice = g.ids.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from("payment_items")
+          .update(g.patch as any)
+          .in("id", slice);
+        if (error) {
+          console.error(
+            `[cross-reference-parecer] batch update fail (${slice.length} ids)`,
+            error.message,
+          );
+          continue;
+        }
+        if (g.evidence === "confirmed") confirmed += slice.length;
+        else if (g.evidence === "not_found") notFound += slice.length;
+      }
+    }
+
 
     // Sempre dispara reanálise após cruzamento bem-sucedido — mesmo com 0
     // auto-aplicados, o lote pode estar bloqueado pelo gate de parecer.
