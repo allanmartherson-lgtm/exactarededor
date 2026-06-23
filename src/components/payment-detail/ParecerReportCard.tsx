@@ -168,13 +168,36 @@ export function ParecerReportCard({
     if (!periodStart || !periodEnd) {
       toast({ title: "Informe o período do relatório", variant: "destructive" });
       return;
+  /** Helper compartilhado: parser de "Nome (CRM 123/UF)". */
+  const splitMedicoCrm = (raw: any): { name: string | null; crm: string | null } => {
+    if (raw == null) return { name: null, crm: null };
+    const s = String(raw).trim();
+    if (!s) return { name: null, crm: null };
+    const m = s.match(
+      /^(.*?)\s*[\(\[]\s*CRM[^\d]*?(\d{2,7})(?:[\s\/\-]*([A-Z]{2}))?\s*[\)\]]\s*$/i,
+    );
+    if (m) {
+      const name = m[1].trim() || null;
+      const crm = m[3] ? `${m[2]}/${m[3].toUpperCase()}` : m[2];
+      return { name, crm };
+    }
+    return { name: s, crm: null };
+  };
+
+  /** Passo 1: ler arquivo, extrair headers e abrir diálogo (ou aplicar template salvo). */
+  const startUpload = async () => {
+    if (!file) {
+      toast({ title: "Selecione um arquivo .xls/.xlsx", variant: "destructive" });
+      return;
+    }
+    if (!periodStart || !periodEnd) {
+      toast({ title: "Informe o período do relatório", variant: "destructive" });
+      return;
     }
     setUploading(true);
     try {
-      // 1) Lê + faz parse no browser (evita estouro de memória no edge worker)
       const buf = await file.arrayBuffer();
       const bytes = new Uint8Array(buf);
-      // Copia para um ArrayBuffer "puro" para satisfazer o TS (BufferSource).
       const hashBytes = new Uint8Array(bytes).slice().buffer;
       const fileHash = await sha256Hex(new Uint8Array(hashBytes));
 
@@ -186,89 +209,61 @@ export function ParecerReportCard({
       });
       if (!raw.length) throw new Error("Planilha vazia ou sem cabeçalho");
 
-      // "Sabrina ... (CRM 306134)" → { name, crm }
-      const splitMedicoCrm = (raw: any): { name: string | null; crm: string | null } => {
-        if (raw == null) return { name: null, crm: null };
-        const s = String(raw).trim();
-        if (!s) return { name: null, crm: null };
-        const m = s.match(/^(.*?)\s*[\(\[]\s*CRM[^\d]*?(\d{2,7})(?:[\s\/\-]*([A-Z]{2}))?\s*[\)\]]\s*$/i);
-        if (m) {
-          const name = m[1].trim() || null;
-          const crm = m[3] ? `${m[2]}/${m[3].toUpperCase()}` : m[2];
-          return { name, crm };
-        }
-        return { name: s, crm: null };
-      };
+      const headers = Object.keys(raw[0] ?? {});
+      const parsedState = { fileHash, raw, headers, sampleRow: raw[0] ?? null };
+      setParsed(parsedState);
 
+      // Se já há template salvo para essa assinatura, vai direto.
+      const saved = loadSavedMapping(headers);
+      if (saved && Object.keys(saved).length > 0) {
+        await runImport(saved, parsedState);
+      } else {
+        setMappingOpen(true);
+        setUploading(false);
+      }
+    } catch (e: any) {
+      toast({
+        title: "Falha ao ler arquivo",
+        description: e?.message ?? String(e),
+        variant: "destructive",
+      });
+      setUploading(false);
+    }
+  };
+
+  /** Passo 2: aplica mapping + envia para o backend. */
+  const runImport = async (
+    mapping: ParecerMapping,
+    state: NonNullable<typeof parsed>,
+  ) => {
+    setUploading(true);
+    try {
+      const { raw, fileHash } = state;
       const rows = raw.map((rec) => {
-        const norm: Record<string, any> = {};
-        for (const k of Object.keys(rec)) norm[normHeader(k)] = rec[k];
-
-        const medicoRespRaw = pick(norm, [
-          "medico_resposta_parecer",
-          "medico_resposta",
-          "medico_que_respondeu",
-          "medico_responde",
-          "medico_executor",
-          "responsavel",
-        ]);
+        const medicoRespRaw = valueFromMapping(rec, mapping, "medico_resposta");
         const { name: medicoResp, crm: crmFromName } = splitMedicoCrm(medicoRespRaw);
 
-        const crmRaw = pick(norm, [
-          "crm_resposta",
-          "crm_medico_resposta",
-          "crm_medico_resposta_parecer",
-          "crm",
-          "conselho",
-          "conselho_resposta",
-        ]);
+        const crmRaw = valueFromMapping(rec, mapping, "crm_resposta");
         const crm = normalizeCrm(crmRaw) ?? crmFromName ?? null;
 
-        const medicoSolicRaw = pick(norm, [
-          "medico_solic_parecer",
-          "medico_solicitante",
-          "solicitante",
-          "medico_solic",
-        ]);
+        const medicoSolicRaw = valueFromMapping(rec, mapping, "medico_solicitante");
         const { name: medicoSolic } = splitMedicoCrm(medicoSolicRaw);
 
         return {
-          atendimento:
-            pick(norm, [
-              "atend_paciente",
-              "atendimento",
-              "nr_atendimento",
-              "atend",
-              "nr_atend",
-            ]) ?? null,
-          paciente: pick(norm, ["paciente", "nome_paciente"]) ?? null,
+          atendimento: valueFromMapping(rec, mapping, "atendimento"),
+          paciente: valueFromMapping(rec, mapping, "paciente"),
           medico_solicitante: medicoSolic,
           medico_resposta: medicoResp,
           medico_resposta_crm: crm,
-          espec_origem:
-            pick(norm, [
-              "espec_med_solic_parecer",
-              "espec_origem",
-              "especialidade_origem",
-            ]) ?? null,
-          espec_destino:
-            pick(norm, [
-              "espec_dest_parecer",
-              "espec_destino",
-              "especialidade_destino",
-            ]) ?? null,
+          espec_origem: valueFromMapping(rec, mapping, "espec_origem"),
+          espec_destino: valueFromMapping(rec, mapping, "espec_destino"),
           dt_solic_parecer: parseExcelDate(
-            pick(norm, [
-              "dt_solic_parecer",
-              "data_solicitacao",
-              "dt_solicitacao",
-            ]),
+            valueFromMapping(rec, mapping, "dt_solic_parecer"),
           ),
           dt_resposta_parecer: parseExcelDate(
-            pick(norm, ["dt_resposta_parecer", "data_resposta", "dt_resposta"]),
+            valueFromMapping(rec, mapping, "dt_resposta_parecer"),
           ),
-          situacao:
-            pick(norm, ["situacao_parecer", "situacao", "status"]) ?? null,
+          situacao: valueFromMapping(rec, mapping, "situacao"),
           raw: rec,
         };
       });
@@ -278,14 +273,13 @@ export function ParecerReportCard({
         body: {
           mode: "init",
           payment_id: paymentId,
-          filename: file.name,
+          filename: file?.name,
           file_hash: fileHash,
           period_start: periodStart,
           period_end: periodEnd,
         },
       });
       if (initRes.error) {
-        // O SDK trata 409 como erro; tenta extrair o corpo
         const ctx: any = (initRes.error as any)?.context;
         const dup = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
         if (dup?.duplicate) {
@@ -327,6 +321,7 @@ export function ParecerReportCard({
           variant: "destructive",
         });
         setFile(null);
+        setParsed(null);
         await load();
         return;
       }
@@ -336,6 +331,7 @@ export function ParecerReportCard({
         description: `${inserted} linhas carregadas.`,
       });
       setFile(null);
+      setParsed(null);
       await load();
       await cross();
     } catch (e: any) {
@@ -348,6 +344,7 @@ export function ParecerReportCard({
       setUploading(false);
     }
   };
+
 
 
 
