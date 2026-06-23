@@ -20,6 +20,7 @@ import { humanizeCompanyGroupStatus } from "@/lib/companyGroupGuards";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
+import { ParecerReportCard } from "@/components/payment-detail/ParecerReportCard";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
