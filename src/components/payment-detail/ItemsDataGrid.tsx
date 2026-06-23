@@ -665,9 +665,8 @@ export function ItemsDataGrid({
   const isConfeccao = mode === "confeccao";
   // Em confecção a base não traz "Valor Repasse" — o sistema gera. Esperado vira o repasse calculado.
   const showGrossColumn = !isConfeccao;
-  // Em confecção exibimos o valor cru de faturamento (procedure_amount) que o analista subiu.
-  // Só faz sentido em confecção, mas o analista pode ocultar pelo seletor de colunas.
-  // (a definição efetiva considera `colVis.procedimento`, declarado abaixo)
+  // Em confecção exibimos o valor cru de faturamento (procedure_amount) como coluna extra.
+  const showProcedureColumn = isConfeccao;
   const expectedLabel = isConfeccao ? "Repasse calculado" : "Esperado";
   const expectedColWidth = isConfeccao ? 160 : 110;
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
@@ -823,8 +822,7 @@ export function ItemsDataGrid({
   // Em confecção, "Diferença" não faz sentido (gross e expected coincidem por
   // construção). Forçamos invisível independentemente da preferência salva.
   const showDiferencaCol = colVis.diferenca && !isConfeccao;
-  // Coluna "Procedimento" só é renderizada em modo confecção, e ainda pode ser ocultada manualmente.
-  const showProcedureColumn = isConfeccao && colVis.procedimento;
+
 
 
 
