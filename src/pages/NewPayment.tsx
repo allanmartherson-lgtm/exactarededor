@@ -2811,14 +2811,17 @@ const NewPayment = () => {
                         );
                       })()}
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <Badge variant="outline" className="gap-1">
-                          <Building2 className="h-3 w-3" />
-                          {(() => {
-                            const seen = new Set();
-                            b.rows.forEach(r => { if (r.company_id) seen.add(r.company_id); else if (r.company_name) seen.add(r.company_name); });
-                            return seen.size > 1 ? `Múltiplas empresas (${seen.size})` : (b.matchedCompany?.name ?? b.rawCompanyName);
-                          })()}
-                        </Badge>
+                        {(() => {
+                          const seen = new Set();
+                          b.rows.forEach(r => { if (r.company_id) seen.add(r.company_id); else if (r.company_name) seen.add(r.company_name); });
+                          const label = seen.size > 1 ? `Múltiplas empresas (${seen.size})` : (b.matchedCompany?.name ?? b.rawCompanyName ?? "");
+                          return (
+                            <Badge variant="outline" className="gap-1 max-w-[280px] min-w-0" title={label}>
+                              <Building2 className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{label}</span>
+                            </Badge>
+                          );
+                        })()}
                         {b.manualOverride ? (
                           <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> empresa confirmada
