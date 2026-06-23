@@ -15,7 +15,8 @@ type Task =
   | "explain_value"          // narra cálculo passo a passo
   | "summarize_inconsistencies" // resumo após upload
   | "suggest_duplicate"      // possível duplicata no cadastro
-  | "disambiguate_entity";   // IA decide se 2 nomes são mesma entidade (etapa 3)
+  | "disambiguate_entity"    // IA decide se 2 nomes são mesma entidade (etapa 3)
+  | "zeev_tip";              // dica conversacional do mascote Zeev por contexto de tela
 
 interface CopilotRequest {
   task: Task;
