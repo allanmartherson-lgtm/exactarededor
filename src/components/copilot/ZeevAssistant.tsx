@@ -58,6 +58,15 @@ export type ZeevSuggestPayload = {
   initialJustification?: string;
 };
 
+export type ZeevInlineAction = {
+  id: string;
+  label: string;
+  /** Texto opcional acima da grade (ex.: "Aplicar em 3 arquivos:"). */
+  hint?: string;
+  onClick: () => void;
+  tone?: "primary" | "outline";
+};
+
 export type ZeevInsight = {
   id: string;
   priority: "alta" | "media" | "baixa";
@@ -74,6 +83,10 @@ export type ZeevInsight = {
   chatPrompt?: string;
   /** Label do botão que dispara o chatPrompt. Default: "Resolver com o Zeev". */
   chatActionLabel?: string;
+  /** Botões de aplicação direta — clique já executa (com toast). Sem chat, sem digitar. */
+  inlineActions?: ZeevInlineAction[];
+  /** Texto opcional acima da grade de inlineActions. */
+  inlineActionsHint?: string;
 };
 
 interface Props {
