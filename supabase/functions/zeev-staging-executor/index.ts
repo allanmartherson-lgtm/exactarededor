@@ -1,0 +1,134 @@
+// Zeev Staging Executor — interpreta pedidos em linguagem natural sobre o
+// LOTE EM CONSTRUÇÃO (pré-envio), antes de existir payment_id.
+//
+// Diferente do zeev-executor:
+//   - Não acessa banco. Só LLM. O cliente é quem conhece o estado do staging
+//     (buckets/arquivos/linhas suspeitas) e aplica a ação localmente.
+//   - Esta função SÓ devolve a intenção estruturada. A confirmação e a
+//     execução acontecem no front, sempre com card de preview.
+//
+// Ações suportadas (v1):
+//   - decide_suspicious  payload: { decision: 'discard'|'informative_total'|'keep' }
+//                        scope:   { file_name?, reason?, all? }
+//   - unsupported / clarify
+
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+const SYSTEM_PROMPT = [
+  "Você é o Zeev — assistente do Exacta. Aqui o analista está montando um LOTE de pagamento (pré-envio).",
+  "Sua função: interpretar o pedido e devolver uma AÇÃO estruturada. Você NÃO executa nada — quem aplica é o front, e sempre pede confirmação humana.",
+  "",
+  "AÇÕES DISPONÍVEIS (v1 do staging):",
+  "1) decide_suspicious — aplica uma decisão em lote para as linhas marcadas como suspeitas (totalizadores/rodapé).",
+  "   payload.decision: 'discard' | 'informative_total' | 'keep'",
+  "   scope.file_name (opcional): nome do arquivo (string) — restringe ao arquivo X",
+  "   scope.reason (opcional): 'footer-text' | 'value-without-key' | 'tail-summary'",
+  "   scope.all (opcional, bool): true se aplicar em todas as suspeitas pendentes",
+  "",
+  "REGRAS:",
+  "- Se o pedido pede setor/centro de custos/vincular médico a empresa em lote no PRÉ-ENVIO, devolva action='unsupported' e explique que essa ação está disponível APÓS o envio do lote, na tela de detalhe do pagamento.",
+  "- Se ambíguo, action='clarify' e peça o esclarecimento curto no 'summary'.",
+  "- 'summary' = 1 frase em PT-BR, sem números (a contagem é calculada no front).",
+  "- Sinônimos importantes: 'descartar', 'tirar', 'remover' = discard. 'informativo', 'total informativo' = informative_total. 'manter', 'aceitar como item' = keep.",
+  "- 'totalizadores', 'rodapé', 'linhas suspeitas', 'totais', 'NF', 'subtotal' → ação decide_suspicious.",
+].join("\n");
+
+const RESPOND_SCHEMA = {
+  type: "object",
+  properties: {
+    action: {
+      type: "string",
+      enum: ["decide_suspicious", "unsupported", "clarify"],
+    },
+    scope: {
+      type: "object",
+      properties: {
+        file_name: { type: "string" },
+        reason: { type: "string", enum: ["footer-text", "value-without-key", "tail-summary"] },
+        all: { type: "boolean" },
+      },
+      additionalProperties: false,
+    },
+    payload: {
+      type: "object",
+      properties: {
+        decision: { type: "string", enum: ["discard", "informative_total", "keep"] },
+      },
+      additionalProperties: false,
+    },
+    summary: { type: "string" },
+  },
+  required: ["action", "summary"],
+};
+
+function jsonResp(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+interface RequestBody {
+  prompt: string;
+  context?: {
+    file_names?: string[];
+    suspicious_total?: number;
+    pending_total?: number;
+    reasons_present?: string[];
+  };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  try {
+    if (!LOVABLE_API_KEY) return jsonResp({ error: "LOVABLE_API_KEY missing" }, 500);
+    const body = (await req.json()) as RequestBody;
+    if (!body.prompt) return jsonResp({ error: "prompt obrigatório" }, 400);
+
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Lovable-API-Key": LOVABLE_API_KEY,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Contexto do staging:\n${JSON.stringify(body.context ?? {}, null, 2)}\n\nPedido do analista:\n"${body.prompt}"\n\nDevolva via tool 'respond'.`,
+          },
+        ],
+        tools: [{
+          type: "function",
+          function: { name: "respond", description: "Devolve a proposta estruturada", parameters: RESPOND_SCHEMA },
+        }],
+        tool_choice: { type: "function", function: { name: "respond" } },
+      }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      const status = resp.status === 429 || resp.status === 402 ? resp.status : 500;
+      return jsonResp({ error: `ai_gateway_${resp.status}: ${text}` }, status);
+    }
+
+    const data = await resp.json();
+    const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) return jsonResp({ error: "LLM não retornou tool call" }, 500);
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(toolCall.function.arguments ?? "{}");
+    } catch {
+      return jsonResp({ error: "falha ao parsear tool call" }, 500);
+    }
+
+    return jsonResp(parsed);
+  } catch (err) {
+    return jsonResp({ error: (err as Error).message ?? String(err) }, 500);
+  }
+});
