@@ -230,6 +230,7 @@ export function ZeevAssistant({
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
 
   const insights = useMemo(() => {
     const auto = items ? buildItemInsights(items, onApplyFilter) : [];
