@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       const { data: page, error } = await supabase
         .from("payment_items")
         .select(
-          "id, attendance_number, doctor_name, doctor_id, procedure_date, manual_intervention_reason_id, manual_intervention_source",
+          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, manual_intervention_reason_id, manual_intervention_source",
         )
         .eq("payment_id", payment_id)
         .range(from, from + pageSize - 1);
