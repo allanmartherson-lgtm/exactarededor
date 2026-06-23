@@ -1637,19 +1637,34 @@ const NewPayment = () => {
     const out: ZeevInsight[] = [];
     if (buckets.length === 0) return out;
 
-    // 1) Setor faltando
-    const missingSector = buckets.filter((b) => b.sectorMissing && !b.sectorMapping);
+    // 1) Setor faltando — botões de aplicação direta por setor (sem digitar nada).
+    const missingSector = buckets
+      .map((b, idx) => ({ b, idx }))
+      .filter(({ b }) => b.sectorMissing && !b.sectorMapping);
     if (missingSector.length > 0) {
-      const names = missingSector.map((b) => b.file.name);
+      const names = missingSector.map(({ b }) => b.file.name);
       const preview = names.slice(0, 3).join(", ") + (names.length > 3 ? ` (+${names.length - 3})` : "");
+      const applySector = (sector: RuleSector) => {
+        const idxs = missingSector.map(({ idx }) => idx);
+        setBuckets((prev) => prev.map((bk, i) => idxs.includes(i) ? { ...bk, sectorMapping: sector } : bk));
+        toast({
+          title: `Setor ${RULE_SECTOR_LABELS[sector]} aplicado`,
+          description: `${idxs.length} ${idxs.length === 1 ? "arquivo" : "arquivos"} sem setor agora usam ${RULE_SECTOR_LABELS[sector]}.`,
+        });
+      };
       out.push({
         id: `staging-sector-missing-${missingSector.length}`,
         priority: missingSector.length >= 3 ? "alta" : "media",
         icon: AlertTriangle,
         title: `${missingSector.length} arquivo${missingSector.length === 1 ? "" : "s"} sem setor`,
-        message: `Sem setor o motor não calcula. Me peça: "setor CC em todos sem setor" — ou troque por UPA/UTI/etc. Afetados: ${preview}.`,
-        chatPrompt: `setor [CC|UPA|UTI|ambulatorio|pronto_socorro|cti|sala_cirurgica] em todos sem setor`,
-        chatActionLabel: "Definir setor em lote",
+        message: `Sem setor o motor não calcula. Escolha um setor abaixo pra aplicar de uma vez. Afetados: ${preview}.`,
+        inlineActionsHint: `Aplicar em ${missingSector.length} ${missingSector.length === 1 ? "arquivo" : "arquivos"}:`,
+        inlineActions: (Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((s) => ({
+          id: `apply-${s}`,
+          label: RULE_SECTOR_LABELS[s],
+          onClick: () => applySector(s),
+          tone: "outline" as const,
+        })),
       });
     }
 
@@ -1668,16 +1683,38 @@ const NewPayment = () => {
       });
     }
 
-    // 3) Linhas suspeitas pendentes
+    // 3) Linhas suspeitas pendentes — botões diretos (descartar / informativo / manter).
     if (pendingSuspiciousCount > 0) {
+      const applyAll = (decision: "discard" | "informative_total" | "keep") => {
+        const labelMap = { discard: "Descartadas", informative_total: "Marcadas como informativo", keep: "Mantidas como item" };
+        setSuspiciousDecisions((prev) => {
+          const next = { ...prev };
+          buckets.forEach((b, i) => {
+            const rows = suspiciousByBucket[i] ?? [];
+            for (const r of rows) {
+              const k = decisionKey(b.file.name, r.rowNumber);
+              if (!next[k]) next[k] = decision;
+            }
+          });
+          return next;
+        });
+        toast({
+          title: `${labelMap[decision]}`,
+          description: `${pendingSuspiciousCount} ${pendingSuspiciousCount === 1 ? "linha suspeita" : "linhas suspeitas"} processadas.`,
+        });
+      };
       out.push({
         id: `staging-suspicious-${pendingSuspiciousCount}`,
         priority: pendingSuspiciousCount >= 5 ? "alta" : "media",
         icon: AlertCircle,
         title: `${pendingSuspiciousCount} linha${pendingSuspiciousCount === 1 ? "" : "s"} suspeita${pendingSuspiciousCount === 1 ? "" : "s"} pendente${pendingSuspiciousCount === 1 ? "" : "s"}`,
-        message: `Provavelmente totalizadores/rodapé. Posso descartar tudo de uma vez ou marcar como "total informativo".`,
-        chatPrompt: "descartar todos os totalizadores",
-        chatActionLabel: "Descartar em lote",
+        message: `Provavelmente totalizadores/rodapé. Posso aplicar a mesma decisão em todas de uma vez.`,
+        inlineActionsHint: "Aplicar em todas:",
+        inlineActions: [
+          { id: "discard-all", label: "Descartar tudo", onClick: () => applyAll("discard"), tone: "primary" },
+          { id: "informative-all", label: "Total informativo", onClick: () => applyAll("informative_total"), tone: "outline" },
+          { id: "keep-all", label: "Manter como item", onClick: () => applyAll("keep"), tone: "outline" },
+        ],
       });
     }
 
