@@ -169,6 +169,7 @@ Deno.serve(async (req) => {
       row_id: string | null;
       weak: boolean;
       apply_auto_reason: boolean;
+      procedure_amount: number | null;
     }> = [];
 
     for (const it of items) {
