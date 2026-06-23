@@ -989,6 +989,59 @@ export function ItemsDataGrid({
     }
   };
 
+  /**
+   * Persiste o tipo padrão da empresa em companies.default_payment_type_id.
+   * NÃO altera os itens deste lote — só passa a valer dos próximos lotes em
+   * diante (na importação). Quem quer mudar o atual também → usa o botão
+   * "Marcar todos" acima antes.
+   */
+  const saveCompanyDefaultType = async (
+    typeId: string | null,
+    label: string,
+  ) => {
+    try {
+      const companyId = (items[0] as any)?.company_id ?? null;
+      const companyName = (items[0] as any)?.company_name ?? null;
+      if (!companyId) {
+        toast.error("Empresa sem cadastro vinculado — não dá para salvar padrão.");
+        return;
+      }
+      const { error } = await supabase
+        .from("companies")
+        .update({ default_payment_type_id: typeId } as any)
+        .eq("id", companyId);
+      if (error) {
+        toast.error(`Não foi possível salvar padrão: ${error.message}`);
+        return;
+      }
+      toast.success(
+        typeId
+          ? `Padrão da empresa salvo como ${label}. Próximos lotes já entram classificados.`
+          : "Padrão da empresa removido.",
+      );
+      // Auditoria
+      try {
+        const { data: userRes } = await supabase.auth.getUser();
+        const actorId = userRes?.user?.id;
+        if (actorId) {
+          await supabase.from("audit_log").insert([{
+            entity_type: "company",
+            entity_id: companyId,
+            action: "set_default_payment_type",
+            actor_id: actorId,
+            company_id: companyId,
+            company_name: companyName,
+            diff: { default_payment_type_id: typeId, label } as any,
+          }] as any);
+        }
+      } catch (e) {
+        console.warn("[saveCompanyDefaultType] audit falhou", e);
+      }
+    } catch (e: any) {
+      toast.error(`Erro inesperado: ${e?.message ?? e}`);
+    }
+  };
+
 
 
 
