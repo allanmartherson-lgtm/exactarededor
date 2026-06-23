@@ -139,7 +139,7 @@ export function ZeevBulkManualDialog({
 
         const { error } = await supabase
           .from("payment_items")
-          .update(patch)
+          .update(patch as never)
           .eq("id", it.id);
         if (error) throw error;
 
