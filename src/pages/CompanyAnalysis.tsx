@@ -2475,7 +2475,7 @@ export default function CompanyAnalysis() {
               empresa: group?.company_name,
             }}
             items={items as never[]}
-            bulkContext={{ paymentId: id!, companyName: group?.company_name ?? null }}
+            bulkContext={{ paymentId: id!, companyName: group?.company_name ?? null, companyGroupId: group?.id ?? null }}
             onBulkApplied={() => { void (async () => { await load(); await composition.refresh(); })(); }}
           />
           {group && (

@@ -8196,6 +8196,139 @@ export type Database = {
         }
         Relationships: []
       }
+      rule_suggestions: {
+        Row: {
+          company_group_id: string | null
+          context: Json
+          created_at: string
+          created_rule_id: string | null
+          doctor_id: string | null
+          doctor_name: string | null
+          hospital_id: string
+          id: string
+          justification: string
+          occurrences: number
+          payment_id: string | null
+          procedure_code: string | null
+          procedure_description: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sample_item_ids: string[]
+          status: Database["public"]["Enums"]["rule_suggestion_status"]
+          suggested_by: string
+          updated_at: string
+        }
+        Insert: {
+          company_group_id?: string | null
+          context?: Json
+          created_at?: string
+          created_rule_id?: string | null
+          doctor_id?: string | null
+          doctor_name?: string | null
+          hospital_id: string
+          id?: string
+          justification: string
+          occurrences?: number
+          payment_id?: string | null
+          procedure_code?: string | null
+          procedure_description?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sample_item_ids?: string[]
+          status?: Database["public"]["Enums"]["rule_suggestion_status"]
+          suggested_by: string
+          updated_at?: string
+        }
+        Update: {
+          company_group_id?: string | null
+          context?: Json
+          created_at?: string
+          created_rule_id?: string | null
+          doctor_id?: string | null
+          doctor_name?: string | null
+          hospital_id?: string
+          id?: string
+          justification?: string
+          occurrences?: number
+          payment_id?: string | null
+          procedure_code?: string | null
+          procedure_description?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sample_item_ids?: string[]
+          status?: Database["public"]["Enums"]["rule_suggestion_status"]
+          suggested_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rule_suggestions_company_group_id_fkey"
+            columns: ["company_group_id"]
+            isOneToOne: false
+            referencedRelation: "payment_company_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rule_suggestions_company_group_id_fkey"
+            columns: ["company_group_id"]
+            isOneToOne: false
+            referencedRelation: "vw_group_rule_totals"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "rule_suggestions_created_rule_id_fkey"
+            columns: ["created_rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rule_suggestions_created_rule_id_fkey"
+            columns: ["created_rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules_pending_doctors_summary"
+            referencedColumns: ["rule_id"]
+          },
+          {
+            foreignKeyName: "rule_suggestions_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rule_suggestions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rule_suggestions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "rule_suggestions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rule_suggestions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
       rules: {
         Row: {
           active: boolean
@@ -11134,6 +11267,7 @@ export type Database = {
         | "outro"
         | "sadt_endoscopia"
       rule_severity: "info" | "aviso" | "bloqueio"
+      rule_suggestion_status: "pending" | "approved" | "rejected" | "converted"
       rule_target_type: "medico" | "empresa"
       special_case_origin: "medico_portal" | "analista" | "gestao_medica"
       special_case_status: "pending" | "approved" | "rejected" | "revoked"
@@ -11442,6 +11576,7 @@ export const Constants = {
         "sadt_endoscopia",
       ],
       rule_severity: ["info", "aviso", "bloqueio"],
+      rule_suggestion_status: ["pending", "approved", "rejected", "converted"],
       rule_target_type: ["medico", "empresa"],
       special_case_origin: ["medico_portal", "analista", "gestao_medica"],
       special_case_status: ["pending", "approved", "rejected", "revoked"],

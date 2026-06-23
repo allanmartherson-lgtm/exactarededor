@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
-import { Sparkles, X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2, Users } from "lucide-react";
+
+import { Sparkles, X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2, Users, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { ZeevBulkManualDialog, type ZeevBulkItem } from "./ZeevBulkManualDialog";
+import { ZeevSuggestRuleDialog } from "./ZeevSuggestRuleDialog";
 
 /**
  * Zeev — mascote assistente do Exacta.
@@ -42,6 +43,18 @@ export type ZeevBulkPayload = {
   subtitle?: string;
 };
 
+export type ZeevSuggestPayload = {
+  /** Médico (quando o padrão é específico) ou null se múltiplos. */
+  doctor_name?: string | null;
+  doctor_id?: string | null;
+  procedure_code?: string | null;
+  procedure_description?: string | null;
+  occurrences?: number;
+  sample_item_ids: string[];
+  context?: Record<string, unknown>;
+  initialJustification?: string;
+};
+
 export type ZeevInsight = {
   id: string;
   priority: "alta" | "media" | "baixa";
@@ -52,8 +65,8 @@ export type ZeevInsight = {
   onAction?: () => void;
   /** Quando presente, Zeev oferece "Tratar em lote" e abre o diálogo de preview. */
   bulk?: ZeevBulkPayload;
-  /** Quando presente, Zeev oferece um link de navegação (ex.: criar nova regra). */
-  linkTo?: { href: string; label: string };
+  /** Quando presente, Zeev oferece "Sugerir regra" e abre o diálogo de sugestão. */
+  suggestRule?: ZeevSuggestPayload;
 };
 
 interface Props {
@@ -67,8 +80,8 @@ interface Props {
   extraInsights?: ZeevInsight[];
   /** Filtro sugerido pelo Zeev (deep link nos filtros do grid). */
   onApplyFilter?: (filter: "divergentes" | "sem_regra" | "reprovados") => void;
-  /** Contexto necessário pra ações em lote (paymentId + companyName). */
-  bulkContext?: { paymentId: string; companyName: string | null };
+  /** Contexto necessário pra ações em lote (paymentId + companyName + companyGroupId opcional pra sugestões). */
+  bulkContext?: { paymentId: string; companyName: string | null; companyGroupId?: string | null };
   /** Callback chamado após o Zeev aplicar uma ação em lote. */
   onBulkApplied?: () => void;
   /** Posicionamento (default: bottom-left). */
@@ -133,10 +146,18 @@ function buildItemInsights(items: ZeevItem[], onApplyFilter?: Props["onApplyFilt
       priority: g.items.length >= 5 ? "alta" : "media",
       icon: GitBranch,
       title: `Padrão repetido (${g.items.length}× reprovado)`,
-      message: `${g.doctor} · TUSS ${g.tuss} reprovou ${g.items.length}× — provavelmente cabe a mesma justificativa em todos.`,
+      message: `${g.doctor} · TUSS ${g.tuss} reprovou ${g.items.length}× — provavelmente cabe a mesma justificativa em todos, ou uma regra nova.`,
       bulk: {
         itemIds: g.items.map((i) => i.id),
         subtitle: `${g.items.length} reprovações de ${g.doctor} no TUSS ${g.tuss}. Aplicar a mesma tratativa manual nos selecionados?`,
+      },
+      suggestRule: {
+        doctor_name: g.doctor,
+        procedure_code: g.tuss,
+        sample_item_ids: g.items.map((i) => i.id),
+        occurrences: g.items.length,
+        context: { trigger: "padrao_repetido" },
+        initialJustification: `${g.doctor} reprovou ${g.items.length}× no TUSS ${g.tuss} nesta competência. Sugiro avaliar uma regra específica pra esse caso.`,
       },
     });
   }
@@ -150,12 +171,17 @@ function buildItemInsights(items: ZeevItem[], onApplyFilter?: Props["onApplyFilt
       priority: semRegra.length >= 10 ? "alta" : "media",
       icon: ShieldQuestion,
       title: `${semRegra.length} itens sem regra cadastrada`,
-      message: `Esses itens não tiveram repasse calculado. Pode valer a pena cadastrar uma regra nova ou tratar manualmente em lote.`,
+      message: `Esses itens não tiveram repasse calculado. Você pode sugerir regra nova ao diretor ou tratar manualmente em lote.`,
       bulk: {
         itemIds: semRegra.map((i) => i.id),
         subtitle: `${semRegra.length} itens sem regra cadastrada. Marcar todos como tratativa manual (aceita o valor do convênio)?`,
       },
-      linkTo: { href: "/regras?tab=pagamento", label: "Criar regra" },
+      suggestRule: {
+        sample_item_ids: semRegra.slice(0, 30).map((i) => i.id),
+        occurrences: semRegra.length,
+        context: { trigger: "sem_regra", total: semRegra.length },
+        initialJustification: `Identifiquei ${semRegra.length} itens sem regra cadastrada nessa competência. Vale a pena revisar o cadastro pra eles passarem a ser calculados automaticamente.`,
+      },
     });
   }
 
@@ -205,6 +231,7 @@ export function ZeevAssistant({
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
 
   const insights = useMemo(() => {
     const auto = items ? buildItemInsights(items, onApplyFilter) : [];
@@ -437,19 +464,6 @@ export function ZeevAssistant({
                     >
                       Dispensar
                     </Button>
-                    {ins.linkTo && (
-                      <Button
-                        asChild
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-[11px]"
-                      >
-                        <Link to={ins.linkTo.href} onClick={() => setOpen(false)}>
-                          {ins.linkTo.label}
-                          <ChevronRight className="h-3 w-3 ml-1" />
-                        </Link>
-                      </Button>
-                    )}
                     {ins.actionLabel && ins.onAction && (
                       <Button
                         size="sm"
@@ -462,6 +476,20 @@ export function ZeevAssistant({
                       >
                         {ins.actionLabel}
                         <ChevronRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    )}
+                    {ins.suggestRule && bulkContext && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSuggestOpen(ins);
+                          setOpen(false);
+                        }}
+                        className="h-7 text-[11px]"
+                      >
+                        <Lightbulb className="h-3 w-3 mr-1" />
+                        Sugerir regra
                       </Button>
                     )}
                     {ins.bulk && bulkContext && ins.bulk.itemIds.length > 0 && (
@@ -482,6 +510,7 @@ export function ZeevAssistant({
               );
             })}
           </div>
+
 
           <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground italic bg-muted/40">
             Zeev observa padrões — nada é alterado sem você confirmar.
@@ -514,7 +543,19 @@ export function ZeevAssistant({
           }}
         />
       )}
+
+      {suggestOpen && bulkContext && suggestOpen.suggestRule && (
+        <ZeevSuggestRuleDialog
+          open={!!suggestOpen}
+          onOpenChange={(v) => !v && setSuggestOpen(null)}
+          paymentId={bulkContext.paymentId}
+          companyGroupId={bulkContext.companyGroupId ?? null}
+          payload={suggestOpen.suggestRule}
+          onSubmitted={() => setSuggestOpen(null)}
+        />
+      )}
     </div>
   );
 }
+
 
