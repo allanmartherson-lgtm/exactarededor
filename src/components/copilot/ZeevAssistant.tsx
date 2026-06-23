@@ -428,7 +428,7 @@ export function ZeevAssistant({
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-end gap-1 pt-0.5 border-t border-border/40 -mx-3 px-3 pt-2">
+                  <div className="flex items-center justify-end gap-1 pt-0.5 border-t border-border/40 -mx-3 px-3 pt-2 flex-wrap">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -437,17 +437,44 @@ export function ZeevAssistant({
                     >
                       Dispensar
                     </Button>
+                    {ins.linkTo && (
+                      <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px]"
+                      >
+                        <Link to={ins.linkTo.href} onClick={() => setOpen(false)}>
+                          {ins.linkTo.label}
+                          <ChevronRight className="h-3 w-3 ml-1" />
+                        </Link>
+                      </Button>
+                    )}
                     {ins.actionLabel && ins.onAction && (
                       <Button
                         size="sm"
+                        variant="outline"
                         onClick={() => {
                           ins.onAction?.();
                           setOpen(false);
                         }}
-                        className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
+                        className="h-7 text-[11px]"
                       >
                         {ins.actionLabel}
                         <ChevronRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    )}
+                    {ins.bulk && bulkContext && ins.bulk.itemIds.length > 0 && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setBulkOpen(ins);
+                          setOpen(false);
+                        }}
+                        className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
+                      >
+                        <Users className="h-3 w-3 mr-1" />
+                        Tratar {ins.bulk.itemIds.length} em lote
                       </Button>
                     )}
                   </div>
@@ -462,6 +489,34 @@ export function ZeevAssistant({
 
         </PopoverContent>
       </Popover>
+
+      {bulkOpen && bulkContext && bulkOpen.bulk && (
+        <ZeevBulkManualDialog
+          open={!!bulkOpen}
+          onOpenChange={(v) => !v && setBulkOpen(null)}
+          paymentId={bulkContext.paymentId}
+          companyName={bulkContext.companyName}
+          title={bulkOpen.title}
+          subtitle={bulkOpen.bulk.subtitle}
+          items={(items ?? [])
+            .filter((it) => bulkOpen.bulk!.itemIds.includes(it.id))
+            .map<ZeevBulkItem>((it) => ({
+              id: it.id,
+              doctor_name: it.doctor_name,
+              procedure_code: it.procedure_code,
+              procedure_description: it.procedure_description,
+              attendance_number: it.attendance_number,
+              procedure_amount: it.procedure_amount,
+            }))}
+          onApplied={() => {
+            setBulkOpen(null);
+            onBulkApplied?.();
+          }}
+        />
+      )}
+    </div>
+  );
+}
     </div>
   );
 }
