@@ -555,45 +555,56 @@ function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
 }
 
 /**
- * Badge clicável que mostra/alterna o subtipo do caso (Parecer × Visita)
- * dentro de um lote de Parecer. Clique → menu para alternar entre os dois
- * (com escopo: só este item ou todo o atendimento). NULL = não classificado.
+ * Tipo de pagamento por item (mostra/alterna entre Parecer × Visita).
+ * Reusa `payment_items.payment_type_id`: cada item pode pertencer a um
+ * payment_type diferente do tipo do lote — é assim que a base mista
+ * (Parecer Adulto com algumas visitas) é tratada sem criar lotes separados.
  */
 function CaseSubtypeBadge({
   item,
   allItems,
+  lotePaymentTypeId,
+  visitaPaymentTypeId,
+  parecerPaymentTypeId,
   onChange,
   canEdit,
 }: {
   item: PaymentItemRowData;
   allItems: PaymentItemRowData[];
-  onChange?: (ids: string[], newSubtype: "parecer" | "visita", source: "manual" | "attendance_override") => void;
+  lotePaymentTypeId: string | null;
+  visitaPaymentTypeId: string | null;
+  parecerPaymentTypeId: string | null;
+  onChange?: (
+    ids: string[],
+    newTypeId: string,
+    newTypeLabel: "Visita" | "Parecer",
+  ) => void;
   canEdit: boolean;
 }) {
-  const subtype = ((item as any).case_subtype ?? null) as "parecer" | "visita" | null;
-  const source = ((item as any).case_subtype_source ?? null) as string | null;
+  const itemTypeId = ((item as any).payment_type_id ?? null) as string | null;
+  const source = ((item as any).payment_type_source ?? null) as string | null;
+  const effectiveTypeId = itemTypeId ?? lotePaymentTypeId;
+  const isVisita = !!visitaPaymentTypeId && effectiveTypeId === visitaPaymentTypeId;
+  const isParecer = !!parecerPaymentTypeId && effectiveTypeId === parecerPaymentTypeId;
 
-  const label = subtype === "visita" ? "V" : subtype === "parecer" ? "P" : "?";
-  const tone =
-    subtype === "visita"
-      ? "bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-800"
-      : subtype === "parecer"
-      ? "bg-violet-50 text-violet-800 border-violet-300 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-800"
-      : "bg-muted text-muted-foreground border-border";
+  // Só mostra badge para itens de Parecer/Visita (não polui outros tipos)
+  if (!isVisita && !isParecer) return null;
+
+  const label = isVisita ? "V" : "P";
+  const tone = isVisita
+    ? "bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-800"
+    : "bg-violet-50 text-violet-800 border-violet-300 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-800";
   const sourceLabel: Record<string, string> = {
     base: "lido da planilha",
     report_cross: "cruzamento com relatório de parecer",
     manual: "marcação manual do analista",
     company_override: "padrão da empresa no lote",
-    attendance_override: "padrão do atendimento",
     default: "padrão do lote",
   };
-  const sourceText = source ? sourceLabel[source] ?? source : "não classificado";
-  const title = subtype
-    ? `Subtipo: ${subtype === "visita" ? "Visita" : "Parecer"} — origem: ${sourceText}. Clique para alterar.`
-    : "Subtipo não classificado. Clique para marcar.";
+  const sourceText = source ? sourceLabel[source] ?? source : "herdado do lote";
+  const title = `${isVisita ? "Visita" : "Parecer"} — origem: ${sourceText}. Clique para alterar.`;
 
-  if (!canEdit || !onChange) {
+  if (!canEdit || !onChange || !visitaPaymentTypeId || !parecerPaymentTypeId) {
     return (
       <span className={cn("inline-flex items-center h-4 px-1 rounded text-[10px] border", tone)} title={title}>
         {label}
@@ -601,7 +612,8 @@ function CaseSubtypeBadge({
     );
   }
 
-  const flip: "parecer" | "visita" = subtype === "visita" ? "parecer" : "visita";
+  const flipId = isVisita ? parecerPaymentTypeId : visitaPaymentTypeId;
+  const flipLabel: "Visita" | "Parecer" = isVisita ? "Parecer" : "Visita";
   const attendIds = (() => {
     const att = String((item as any).attendance_number ?? "").trim();
     if (!att) return [item.id];
@@ -624,7 +636,7 @@ function CaseSubtypeBadge({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 p-2 space-y-1">
         <div className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground mb-1 px-1">
-          Marcar como {flip === "visita" ? "Visita" : "Parecer"}
+          Reclassificar como {flipLabel}
         </div>
         <Button
           variant="ghost"
@@ -632,7 +644,7 @@ function CaseSubtypeBadge({
           className="w-full justify-start h-7 text-xs"
           onClick={(e) => {
             e.stopPropagation();
-            onChange([item.id], flip, "manual");
+            onChange([item.id], flipId, flipLabel);
           }}
         >
           Só este item
@@ -644,7 +656,7 @@ function CaseSubtypeBadge({
             className="w-full justify-start h-7 text-xs"
             onClick={(e) => {
               e.stopPropagation();
-              onChange(attendIds, flip, "attendance_override");
+              onChange(attendIds, flipId, flipLabel);
             }}
           >
             Todo o atendimento ({attendIds.length} itens)
@@ -795,6 +807,46 @@ export function ItemsDataGrid({
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
+  // Tipos de pagamento usados pela reclassificação Visita × Parecer dentro do lote.
+  // O tipo do lote (geralmente Parecer Adulto/Pediátrico) é lido do primeiro item;
+  // Visita é resolvido por code='visita' no cadastro de tipos.
+  const [paymentTypesIndex, setPaymentTypesIndex] = useState<{
+    lote: string | null;
+    visita: string | null;
+    parecer: string | null;
+  }>({ lote: null, visita: null, parecer: null });
+  useEffect(() => {
+    if (!isParecerPayment) return;
+    const firstWithType = items.find((i: any) => i.payment_type_id);
+    const loteId = (firstWithType as any)?.payment_type_id ?? null;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("payment_types")
+        .select("id, code")
+        .in("code", ["visita", "parecer_adulto", "parecer_pediatrico"]);
+      if (cancelled) return;
+      const byCode: Record<string, string> = {};
+      for (const t of (data ?? []) as any[]) byCode[t.code] = t.id;
+      // Parecer "alvo" para retorno = o tipo do lote, se for parecer_*, senão parecer_adulto.
+      const parecerId =
+        loteId && (loteId === byCode.parecer_adulto || loteId === byCode.parecer_pediatrico)
+          ? loteId
+          : byCode.parecer_adulto ?? null;
+      setPaymentTypesIndex({
+        lote: loteId,
+        visita: byCode.visita ?? null,
+        parecer: parecerId,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isParecerPayment, items]);
+  const lotePaymentTypeId = paymentTypesIndex.lote;
+  const visitaPaymentTypeId = paymentTypesIndex.visita;
+  const parecerPaymentTypeId = paymentTypesIndex.parecer;
+
   // Painel de absorção manual de códigos no pacote (analista).
   const [absorcoesOpenAtt, setAbsorcoesOpenAtt] = useState<string | null>(null);
   const [absorcaoNoteDraft, setAbsorcaoNoteDraft] = useState<Record<string, string>>({});
@@ -859,26 +911,26 @@ export function ItemsDataGrid({
 
   const changeCaseSubtype = async (
     itemIds: string[],
-    newSubtype: "parecer" | "visita",
-    source: "manual" | "attendance_override",
+    newTypeId: string,
+    newTypeLabel: "Visita" | "Parecer",
   ) => {
     if (!itemIds.length) return;
     try {
       const { error } = await supabase
         .from("payment_items")
-        .update({ case_subtype: newSubtype, case_subtype_source: source } as any)
+        .update({ payment_type_id: newTypeId, payment_type_source: "manual" } as any)
         .in("id", itemIds);
       if (error) {
-        console.error("Erro ao alterar subtipo:", error);
-        toast.error(`Não foi possível alterar o subtipo: ${error.message}`);
+        console.error("Erro ao reclassificar:", error);
+        toast.error(`Não foi possível reclassificar: ${error.message}`);
         return;
       }
       toast.success(
         itemIds.length > 1
-          ? `${itemIds.length} itens marcados como ${newSubtype === "visita" ? "Visita" : "Parecer"}. Reanalisando…`
-          : `Item marcado como ${newSubtype === "visita" ? "Visita" : "Parecer"}. Reanalisando…`,
+          ? `${itemIds.length} itens reclassificados como ${newTypeLabel}. Reanalisando…`
+          : `Item reclassificado como ${newTypeLabel}. Reanalisando…`,
       );
-      // Dispara reanálise para o motor reaplicar regras com o novo subtipo.
+      // Dispara reanálise para o motor reaplicar regras com o novo tipo.
       try {
         const paymentId = (items[0] as any)?.payment_id;
         if (paymentId) {
@@ -891,10 +943,11 @@ export function ItemsDataGrid({
       }
       onRefresh?.();
     } catch (e: any) {
-      console.error("Erro ao alterar subtipo:", e);
+      console.error("Erro ao reclassificar:", e);
       toast.error(`Erro inesperado: ${e?.message ?? e}`);
     }
   };
+
 
 
 
@@ -1409,6 +1462,21 @@ export function ItemsDataGrid({
     );
   }, [items, isParecerPayment]);
 
+  // Contagem por tipo (Parecer × Visita) — só em lotes de Parecer com tipos resolvidos.
+  const subtypeCounts = useMemo(() => {
+    if (!isParecerPayment || !visitaPaymentTypeId || !parecerPaymentTypeId) {
+      return { parecer: 0, visita: 0, total: 0 };
+    }
+    let parecer = 0;
+    let visita = 0;
+    for (const it of items) {
+      const tid = ((it as any).payment_type_id ?? lotePaymentTypeId) as string | null;
+      if (tid === visitaPaymentTypeId) visita += 1;
+      else if (tid === parecerPaymentTypeId || tid === lotePaymentTypeId) parecer += 1;
+    }
+    return { parecer, visita, total: parecer + visita };
+  }, [items, isParecerPayment, visitaPaymentTypeId, parecerPaymentTypeId, lotePaymentTypeId]);
+
   const counts = useMemo(() => {
     const c = { alerta: 0, critico: 0, total: items.length };
     for (const it of items) {
@@ -1461,6 +1529,7 @@ export function ItemsDataGrid({
     (colVis.setor_lido ? 110 : 0) +
     (colVis.setor_inferido ? 110 : 0) +
     (colVis.tipo_entrada ? 110 : 0) +
+    (colVis.subtipo && isParecerPayment ? 80 : 0) +
     150 +
     (colVis.funcao ? 100 : 0) +
     (colVis.regra ? 150 : 0) +
@@ -1667,6 +1736,62 @@ export function ItemsDataGrid({
                 <SelectItem value="weak">Parecer divergente ({parecerCounts.weak})</SelectItem>
               </SelectContent>
             </Select>
+          )}
+          {isParecerPayment && subtypeCounts.total > 0 && (
+            <div
+              className="inline-flex items-center h-8 px-2 rounded-md border bg-card text-xs gap-2"
+              title="Distribuição dos itens por tipo de pagamento (Parecer × Visita)"
+            >
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block h-2 w-2 rounded-full bg-violet-500" />
+                <span className="font-medium">Parecer:</span> {subtypeCounts.parecer}
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
+                <span className="font-medium">Visita:</span> {subtypeCounts.visita}
+              </span>
+              {canEdit && visitaPaymentTypeId && parecerPaymentTypeId && items.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="ml-1 text-muted-foreground hover:text-foreground"
+                      title="Reclassificar empresa inteira"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-64 p-2 space-y-1">
+                    <div className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground mb-1 px-1">
+                      Reclassificar empresa
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start h-7 text-xs"
+                      onClick={() => {
+                        const ids = items.map((i) => i.id);
+                        changeCaseSubtype(ids, visitaPaymentTypeId, "Visita");
+                      }}
+                    >
+                      Marcar todos como Visita ({items.length})
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start h-7 text-xs"
+                      onClick={() => {
+                        const ids = items.map((i) => i.id);
+                        changeCaseSubtype(ids, parecerPaymentTypeId, "Parecer");
+                      }}
+                    >
+                      Marcar todos como Parecer ({items.length})
+                    </Button>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
           )}
           {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || (isParecerPayment && parecerFilter !== "__all__")) && (
             <Button
@@ -1974,6 +2099,7 @@ export function ItemsDataGrid({
               {colVis.setor_lido && <col style={{ width: 110 }} />}
               {colVis.setor_inferido && <col style={{ width: 110 }} />}
               {colVis.tipo_entrada && <col style={{ width: 110 }} />}
+              {colVis.subtipo && isParecerPayment && <col style={{ width: 80 }} />}
               <col style={{ width: 150 }} />
               {colVis.funcao && <col style={{ width: 100 }} />}
               {colVis.regra && <col style={{ width: 150 }} />}
@@ -2124,6 +2250,7 @@ export function ItemsDataGrid({
                 {colVis.setor_lido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)</th>}
                 {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Sistema)</th>}
                 {colVis.tipo_entrada && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Caráter</th>}
+                {colVis.subtipo && isParecerPayment && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")} title="Tipo de pagamento do item (Parecer × Visita)">Subtipo</th>}
                 <th
                   scope="col"
                   aria-sort={sortKey === "medico" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -2274,6 +2401,7 @@ export function ItemsDataGrid({
                   (colVis.setor_lido ? 1 : 0) +
                   (colVis.setor_inferido ? 1 : 0) +
                   (colVis.tipo_entrada ? 1 : 0) +
+                  (colVis.subtipo && isParecerPayment ? 1 : 0) +
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (showDiferencaCol ? 1 : 0) +
@@ -2556,6 +2684,9 @@ export function ItemsDataGrid({
                         showDiferencaCol={showDiferencaCol}
                         mode={mode}
                         isParecerPayment={isParecerPayment}
+                        lotePaymentTypeId={lotePaymentTypeId}
+                        visitaPaymentTypeId={visitaPaymentTypeId}
+                        parecerPaymentTypeId={parecerPaymentTypeId}
                         onChangeCaseSubtype={changeCaseSubtype}
                         onRefresh={onRefresh}
                       />
@@ -2578,6 +2709,7 @@ export function ItemsDataGrid({
                 (colVis.setor_lido ? 1 : 0) +
                 (colVis.setor_inferido ? 1 : 0) +
                 (colVis.tipo_entrada ? 1 : 0) +
+                (colVis.subtipo && isParecerPayment ? 1 : 0) +
                 1 /* medico */ +
                 (colVis.funcao ? 1 : 0) +
                 (colVis.regra ? 1 : 0);
@@ -3242,6 +3374,9 @@ function RowMain({
   showDiferencaCol = true,
   mode = "analise",
   isParecerPayment = false,
+  lotePaymentTypeId = null,
+  visitaPaymentTypeId = null,
+  parecerPaymentTypeId = null,
   onChangeCaseSubtype,
   onRefresh,
 }: {
@@ -3275,10 +3410,13 @@ function RowMain({
   showDiferencaCol?: boolean;
   mode?: "analise" | "confeccao";
   isParecerPayment?: boolean;
+  lotePaymentTypeId?: string | null;
+  visitaPaymentTypeId?: string | null;
+  parecerPaymentTypeId?: string | null;
   onChangeCaseSubtype?: (
     itemIds: string[],
-    newSubtype: "parecer" | "visita",
-    source: "manual" | "attendance_override",
+    newTypeId: string,
+    newTypeLabel: "Visita" | "Parecer",
   ) => void;
   onRefresh?: () => void;
 }) {
@@ -3389,6 +3527,9 @@ function RowMain({
                 <CaseSubtypeBadge
                   item={it}
                   allItems={allItems}
+                  lotePaymentTypeId={lotePaymentTypeId}
+                  visitaPaymentTypeId={visitaPaymentTypeId}
+                  parecerPaymentTypeId={parecerPaymentTypeId}
                   canEdit={canEdit}
                   onChange={onChangeCaseSubtype}
                 />
@@ -3470,6 +3611,19 @@ function RowMain({
             : "—";
           return <td className={cn(cell, TEXT_META)} title={raw}>{label}</td>;
         })()}
+        {colVis.subtipo && isParecerPayment && (
+          <td className={cn(cell, TEXT_META)}>
+            <CaseSubtypeBadge
+              item={it}
+              allItems={allItems}
+              lotePaymentTypeId={lotePaymentTypeId}
+              visitaPaymentTypeId={visitaPaymentTypeId}
+              parecerPaymentTypeId={parecerPaymentTypeId}
+              canEdit={canEdit}
+              onChange={onChangeCaseSubtype}
+            />
+          </td>
+        )}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
           <span className={wrapClass}>{it.doctor_name}</span>
         </td>

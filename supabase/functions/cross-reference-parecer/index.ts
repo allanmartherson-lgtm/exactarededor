@@ -57,6 +57,20 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+    // Tipo do lote (parecer_adulto, normalmente) e tipo Visita (alvo da reclassificação)
+    const { data: paymentRow } = await supabase
+      .from("payments")
+      .select("payment_type_id")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const lotePaymentTypeId = (paymentRow as any)?.payment_type_id ?? null;
+    const { data: visitaType } = await supabase
+      .from("payment_types")
+      .select("id")
+      .eq("code", "visita")
+      .maybeSingle();
+    const visitaPaymentTypeId = (visitaType as any)?.id ?? null;
+
     // Reports do lote
     const { data: reports, error: repErr } = await supabase
       .from("payment_parecer_reports")
@@ -139,7 +153,7 @@ Deno.serve(async (req) => {
       const { data: page, error } = await supabase
         .from("payment_items")
         .select(
-          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, manual_intervention_reason_id, manual_intervention_source, case_subtype, case_subtype_source",
+          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, manual_intervention_reason_id, manual_intervention_source, payment_type_id, payment_type_source",
         )
         .eq("payment_id", payment_id)
         .range(from, from + pageSize - 1);
@@ -240,13 +254,9 @@ Deno.serve(async (req) => {
     let confirmed = 0;
     let notFound = 0;
     let autoApplied = 0;
-    // Subtipo do caso (Visita × Parecer) — só atualizado pelo cruzamento
-    // quando o item AINDA NÃO tem override manual/empresa/atendimento.
-    const PROTECTED_SOURCES = new Set([
-      "manual",
-      "company_override",
-      "attendance_override",
-    ]);
+    // Reclassificação por payment_type_id (Parecer × Visita) — só atualizado
+    // pelo cruzamento quando o item AINDA NÃO tem override manual.
+    const PROTECTED_SOURCES = new Set(["manual", "company_override"]);
     const itemById = new Map(items.map((i: any) => [i.id, i]));
     let subtypeParecer = 0;
     let subtypeVisita = 0;
@@ -259,16 +269,18 @@ Deno.serve(async (req) => {
         parecer_checked_at: now,
       };
       const current = itemById.get(u.id) as any;
-      const currentSource = current?.case_subtype_source ?? null;
-      const protectedSubtype = PROTECTED_SOURCES.has(currentSource);
-      if (!protectedSubtype) {
+      const currentSource = current?.payment_type_source ?? null;
+      const protectedType = PROTECTED_SOURCES.has(currentSource);
+      if (!protectedType && lotePaymentTypeId && visitaPaymentTypeId) {
         if (u.evidence === "confirmed") {
-          patch.case_subtype = "parecer";
-          patch.case_subtype_source = "report_cross";
+          // confirmado no relatório → mantém o tipo do lote (Parecer)
+          patch.payment_type_id = lotePaymentTypeId;
+          patch.payment_type_source = "report_cross";
           subtypeParecer++;
         } else if (u.evidence === "not_found") {
-          patch.case_subtype = "visita";
-          patch.case_subtype_source = "report_cross";
+          // não encontrado → reclassifica como Visita
+          patch.payment_type_id = visitaPaymentTypeId;
+          patch.payment_type_source = "report_cross";
           subtypeVisita++;
         }
       }
