@@ -2296,6 +2296,29 @@ const NewPayment = () => {
       return slug ?? (String(raw).trim().toLowerCase() || null);
     };
 
+    // Pré-carrega o default_payment_type_id de cada empresa vinculada ao lote.
+    // Permite, p.ex., uma PJ marcada como "sempre Visita" entrar pré-classificada
+    // mesmo num lote criado como Parecer Adulto — sem o analista reclassificar
+    // toda vez. NÃO usa allow_mixed_subtypes como gate: se a empresa tem default,
+    // respeita.
+    const companyDefaultTypeMap = new Map<string, string | null>();
+    {
+      const ids = new Set<string>();
+      for (const b of (buckets ?? [])) {
+        const cid = b.matchedCompany?.id;
+        if (cid) ids.add(cid);
+      }
+      if (ids.size > 0) {
+        const { data } = await supabase
+          .from("companies")
+          .select("id, default_payment_type_id")
+          .in("id", Array.from(ids));
+        for (const c of ((data ?? []) as any[])) {
+          companyDefaultTypeMap.set(c.id, c.default_payment_type_id ?? null);
+        }
+      }
+    }
+
 
     // Constrói uma linha de payment_items para uma row "matched"
     const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => {
