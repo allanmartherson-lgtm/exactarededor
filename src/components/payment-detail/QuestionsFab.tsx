@@ -28,15 +28,17 @@ export function QuestionsFab({ openCount, onClick, className }: Props) {
         onClick={onClick}
         size="lg"
         aria-label="Abrir conversas"
+        title="Conversas"
         className={cn(
-          "h-12 w-12 p-0 sm:h-14 sm:w-auto sm:px-6 rounded-full shadow-elevated gap-2 ring-1 ring-primary/20",
-          "bg-primary text-primary-foreground hover:bg-primary/90",
+          "h-12 w-12 sm:h-14 sm:w-14 p-0 rounded-full shadow-elevated ring-1",
+          // Cor distinta do Zeev (que usa primary/azul Rede D'Or):
+          // tom escuro neutro para diferenciar claramente os dois FABs.
+          "bg-foreground text-background hover:bg-foreground/90 ring-foreground/20",
         )}
       >
-        <MessageCircleQuestion className="h-5 w-5" />
-        <span className="font-medium hidden sm:inline">Conversas</span>
+        <MessageCircleQuestion className="h-5 w-5 sm:h-6 sm:w-6" />
         {openCount > 0 && (
-          <span className="absolute -top-1 -right-1 sm:static sm:ml-1 inline-flex items-center justify-center min-w-[20px] h-[20px] sm:min-w-[22px] sm:h-[22px] px-1.5 rounded-full bg-warning text-warning-foreground text-[11px] font-semibold">
+          <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-warning text-warning-foreground text-[11px] font-semibold">
             {openCount}
           </span>
         )}
