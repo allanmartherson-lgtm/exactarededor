@@ -122,6 +122,7 @@ import { cn, normalizeString } from "@/lib/utils";
 import { Info, ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon } from "lucide-react";
 import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
+import { ParecerCrossReferencePanel } from "@/components/payment-detail/ParecerCrossReferencePanel";
 
 const HighlightBanner = ({
   observations,
