@@ -3275,6 +3275,11 @@ function RowMain({
   showDiferencaCol?: boolean;
   mode?: "analise" | "confeccao";
   isParecerPayment?: boolean;
+  onChangeCaseSubtype?: (
+    itemIds: string[],
+    newSubtype: "parecer" | "visita",
+    source: "manual" | "attendance_override",
+  ) => void;
   onRefresh?: () => void;
 }) {
   const convenio = getAgreement(it);
