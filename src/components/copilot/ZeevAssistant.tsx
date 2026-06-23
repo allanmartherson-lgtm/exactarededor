@@ -70,6 +70,10 @@ export type ZeevInsight = {
   bulk?: ZeevBulkPayload;
   /** Quando presente, Zeev oferece "Sugerir regra" e abre o diálogo de sugestão. */
   suggestRule?: ZeevSuggestPayload;
+  /** Quando presente, Zeev troca pra aba "Conversar" e pré-preenche essa frase. */
+  chatPrompt?: string;
+  /** Label do botão que dispara o chatPrompt. Default: "Resolver com o Zeev". */
+  chatActionLabel?: string;
 };
 
 interface Props {
