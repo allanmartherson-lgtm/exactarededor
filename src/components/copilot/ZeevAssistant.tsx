@@ -244,6 +244,8 @@ export function ZeevAssistant({
   const [aiLoading, setAiLoading] = useState(false);
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
+  const [tab, setTab] = useState<"insights" | "chat">("insights");
+  const executorEnabled = !!bulkContext?.paymentId;
 
   const insights = useMemo<ZeevInsight[]>(() => {
     const auto = items ? buildItemInsights(items, onApplyFilter) : [];
