@@ -1614,6 +1614,22 @@ const NewPayment = () => {
         return next;
       });
     },
+    buckets: buckets.map((b, idx) => ({
+      idx,
+      fileName: b.file.name,
+      matchScore: b.matchScore,
+      manualOverride: !!b.manualOverride,
+      sectorMissing: !!b.sectorMissing,
+      sectorMapping: b.sectorMapping ?? null,
+    })),
+    setBucketSectors: (changes) => {
+      if (changes.length === 0) return;
+      const byIdx = new Map(changes.map((c) => [c.idx, c.sector]));
+      setBuckets((prev) => prev.map((b, i) => {
+        const s = byIdx.get(i);
+        return s ? { ...b, sectorMapping: s } : b;
+      }));
+    },
   }), [buckets, suspiciousByBucket, suspiciousDecisions]);
 
   const allRows = useMemo(() => {
