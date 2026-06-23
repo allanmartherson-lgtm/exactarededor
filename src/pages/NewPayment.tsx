@@ -28,6 +28,7 @@ import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { normalizeNumericValue } from "@/lib/utils";
 import { loadSectorAliases } from "@/hooks/useSectorAliases";
 import { learnCompanyAlias, shouldLearnAlias } from "@/lib/learnCompanyAlias";
+import { loadDraft, saveDraft, clearDraft, fileKey, isDraftMeaningful, type FileDecision } from "@/lib/newPaymentDraft";
 import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -817,7 +818,16 @@ const NewPayment = () => {
   const [autoSpecialties, setAutoSpecialties] = useState(true);
   const [autoPaymentKind, setAutoPaymentKind] = useState(true);
 
+  // ===== Autosave / rascunho =====
+  // Decisões por arquivo aguardando re-anexação (após reload). Aplicadas no onFiles.
+  const pendingFileDecisionsRef = useRef<Record<string, FileDecision>>({});
+  const [draftRestoredAt, setDraftRestoredAt] = useState<number | null>(null);
+  const draftLoadedRef = useRef(false);
+  const draftDirtyRef = useRef(false);
+  const draftClearedRef = useRef(false);
+
   useEffect(() => { document.title = "Nova base | Exacta Approval"; }, []);
+
 
   // Evita que o navegador abra o arquivo (navegação) se o usuário soltar
   // fora da área de upload, o que aparenta um "refresh" e descarta o trabalho.
@@ -1378,7 +1388,32 @@ const NewPayment = () => {
       if (r.ok && r.bucket) newBuckets.push(r.bucket);
       else if (!r.ok) reportParseError(r.file.name, r.error);
     }
-    setBuckets((prev) => [...prev, ...newBuckets]);
+    // Aplica decisões restauradas do rascunho (por chave nome::size::lastModified).
+    const pending = pendingFileDecisionsRef.current;
+    const merged = newBuckets.map((b) => {
+      const k = fileKey(b.file);
+      const dec = pending[k];
+      if (!dec) return b;
+      delete pending[k];
+      return {
+        ...b,
+        sectorMapping: dec.sectorMapping ?? b.sectorMapping,
+        matchedCompany: dec.matchedCompany ?? b.matchedCompany,
+        matchScore: dec.matchedCompany ? Math.max(b.matchScore, 1) : b.matchScore,
+        manualOverride: dec.manualOverride ?? b.manualOverride,
+        convenioValueTotalized: dec.convenioValueTotalized ?? b.convenioValueTotalized,
+        headerRowIndex: dec.headerRowIndex ?? b.headerRowIndex,
+        sectorColumnUsed: dec.sectorColumnUsed ?? b.sectorColumnUsed,
+        columnOverrides: (dec.columnOverrides as typeof b.columnOverrides) ?? b.columnOverrides,
+        columnMapping: (dec.columnMapping as typeof b.columnMapping) ?? b.columnMapping,
+      } as FileBucket;
+    });
+    const restoredCount = newBuckets.length - Object.keys(pending).length - (newBuckets.length - merged.filter((b, i) => b !== newBuckets[i]).length);
+    const appliedCount = merged.filter((b, i) => b !== newBuckets[i]).length;
+    setBuckets((prev) => [...prev, ...merged]);
+    if (appliedCount > 0) {
+      toast({ title: "Decisões do rascunho aplicadas", description: `${appliedCount} arquivo(s) com setor/PJ/mapeamento restaurados.` });
+    }
     if (!reference && newBuckets.length === 1) {
       setReference(newBuckets[0].file.name.replace(/\.[^.]+$/, ""));
     } else if (!reference && newBuckets.length > 1) {
@@ -1386,6 +1421,7 @@ const NewPayment = () => {
       setReference(`Pagamento ${today.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`);
     }
   };
+
 
   /** Substitui o arquivo de um bucket existente sem perder os demais arquivos do lote. */
   const replaceBucketFile = async (idx: number, f: File) => {
@@ -1582,6 +1618,97 @@ const NewPayment = () => {
   // "manter como item" preserva). Enquanto houver pendência, envio é bloqueado.
   const [suspiciousDecisions, setSuspiciousDecisions] = useState<Record<string, SuspiciousDecision>>({});
   const decisionKey = (fileName: string, rowNumber: number) => `${fileName}::${rowNumber}`;
+
+  // ===== Carregar rascunho ao montar (uma vez por hospital/modo/tipo) =====
+  useEffect(() => {
+    if (draftLoadedRef.current) return;
+    if (!hospital?.id) return; // espera hospital resolver
+    draftLoadedRef.current = true;
+    const draft = loadDraft(hospital.id, analysisMode, paymentTypeId);
+    if (!isDraftMeaningful(draft) || !draft) return;
+    const f = draft.form ?? {};
+    if (f.reference) setReference((cur) => cur || f.reference!);
+    if (f.description) setDescription((cur) => cur || f.description!);
+    if (f.competenceMonths?.length) setCompetenceMonths((cur) => cur.length ? cur : f.competenceMonths!);
+    if (f.paymentDueDate) setPaymentDueDate((cur) => cur || f.paymentDueDate!);
+    if (f.paymentKind) setPaymentKind((cur) => cur || (f.paymentKind as PaymentKind));
+    if (f.paymentTrack) setPaymentTrack((cur) => cur || (f.paymentTrack as PaymentTrack));
+    if (f.costCenterCode) setCostCenterCode((cur) => cur || f.costCenterCode!);
+    if (f.pSectors?.length) setPSectors((cur) => cur.length ? cur : f.pSectors!);
+    if (f.pSpecialties?.length) setPSpecialties((cur) => cur.length ? cur : f.pSpecialties!);
+    if (typeof f.autoSectors === "boolean") setAutoSectors(f.autoSectors);
+    if (typeof f.autoSpecialties === "boolean") setAutoSpecialties(f.autoSpecialties);
+    if (typeof f.autoPaymentKind === "boolean") setAutoPaymentKind(f.autoPaymentKind);
+    if (f.importMode === "historico" || f.importMode === "normal") setImportMode(f.importMode);
+    if (draft.suspiciousDecisions) {
+      setSuspiciousDecisions(draft.suspiciousDecisions as Record<string, SuspiciousDecision>);
+    }
+    if (draft.fileDecisions) {
+      pendingFileDecisionsRef.current = draft.fileDecisions;
+    }
+    setDraftRestoredAt(draft.savedAt);
+    const filesPending = Object.keys(draft.fileDecisions ?? {}).length;
+    toast({
+      title: "Rascunho restaurado",
+      description: filesPending
+        ? `Campos do formulário reaplicados. Re-anexe ${filesPending} arquivo(s) para restaurar setor/PJ/mapeamento.`
+        : "Campos do formulário reaplicados.",
+    });
+  }, [hospital?.id, analysisMode, paymentTypeId]);
+
+  // ===== Autosave (debounced) =====
+  useEffect(() => {
+    if (!draftLoadedRef.current) return;
+    if (draftClearedRef.current) return;
+    if (!hospital?.id) return;
+    draftDirtyRef.current = true;
+    const t = setTimeout(() => {
+      const fileDecisions: Record<string, FileDecision> = { ...pendingFileDecisionsRef.current };
+      for (const b of buckets) {
+        const k = fileKey(b.file);
+        fileDecisions[k] = {
+          sectorMapping: b.sectorMapping ?? null,
+          matchedCompany: b.matchedCompany,
+          manualOverride: b.manualOverride,
+          convenioValueTotalized: b.convenioValueTotalized,
+          headerRowIndex: b.headerRowIndex,
+          sectorColumnUsed: b.sectorColumnUsed ?? null,
+          columnOverrides: b.columnOverrides as Record<string, unknown> | undefined,
+          columnMapping: b.columnMapping as Record<string, unknown> | undefined,
+        };
+      }
+      saveDraft(hospital.id, analysisMode, paymentTypeId, {
+        form: {
+          reference, description, competenceMonths, paymentDueDate,
+          paymentKind: paymentKind || undefined,
+          paymentTrack: paymentTrack || undefined,
+          costCenterCode, pSectors, pSpecialties,
+          autoSectors, autoSpecialties, autoPaymentKind,
+          importMode,
+        },
+        suspiciousDecisions,
+        fileDecisions,
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [
+    hospital?.id, analysisMode, paymentTypeId,
+    reference, description, competenceMonths, paymentDueDate,
+    paymentKind, paymentTrack, costCenterCode, pSectors, pSpecialties,
+    autoSectors, autoSpecialties, autoPaymentKind, importMode,
+    suspiciousDecisions, buckets,
+  ]);
+
+  const discardDraft = useCallback(() => {
+    if (!hospital?.id) return;
+    clearDraft(hospital.id, analysisMode, paymentTypeId);
+    pendingFileDecisionsRef.current = {};
+    setDraftRestoredAt(null);
+    draftClearedRef.current = true;
+    setTimeout(() => { draftClearedRef.current = false; }, 1500);
+    toast({ title: "Rascunho descartado" });
+  }, [hospital?.id, analysisMode, paymentTypeId]);
+
 
   const suspiciousByBucket = useMemo(() => {
     return buckets.map((b) => {
@@ -2491,6 +2618,11 @@ const NewPayment = () => {
 
     // Substitui a entrada "/pagamentos/novo" no histórico para que o botão Voltar
     // do detalhe leve à lista de pagamentos, e não de volta ao formulário de criação.
+    // Submissão concluída: rascunho não é mais necessário.
+    if (hospital?.id) {
+      clearDraft(hospital.id, analysisMode, paymentTypeId);
+      draftClearedRef.current = true;
+    }
     navigate(`/pagamentos/${payment.id}`, { replace: true, state: { backTo: "/pagamentos" } });
   };
 
@@ -2503,6 +2635,26 @@ const NewPayment = () => {
           : "Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo."}
       />
       <div className="p-8 max-w-7xl space-y-6">
+        {draftRestoredAt && (
+          <div className="rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-3 text-sm flex items-start gap-3">
+            <div className="flex-1">
+              <div className="font-semibold text-blue-900 dark:text-blue-200">Rascunho restaurado</div>
+              <div className="text-xs text-blue-800 dark:text-blue-300 mt-1">
+                Salvo automaticamente em {new Date(draftRestoredAt).toLocaleString("pt-BR")}.
+                {Object.keys(pendingFileDecisionsRef.current).length > 0 && (
+                  <> Re-anexe os {Object.keys(pendingFileDecisionsRef.current).length} arquivo(s) originais para reaplicar setor, PJ e mapeamento de colunas.</>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={discardDraft}
+              className="text-xs text-blue-900 dark:text-blue-200 hover:underline shrink-0"
+            >
+              Descartar
+            </button>
+          </div>
+        )}
         {paymentTypeMeta && (
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm flex items-start gap-3">
             <div className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary uppercase tracking-wide">
