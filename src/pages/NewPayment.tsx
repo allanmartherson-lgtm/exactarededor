@@ -2598,11 +2598,43 @@ const NewPayment = () => {
     // Aguarda confirmação do dispatcher. Se falhar (timeout, boot error), reverte
     // status para 'rascunho' para não deixar o lote travado em 'em_analise_ia'.
     try {
-      const { error: dispatchErr } = await supabase.functions.invoke(
+      const { data: dispatchData, error: dispatchErr } = await supabase.functions.invoke(
         "dispatch-payment-analysis",
         { body: { payment_id: payment.id } }
       );
-      if (dispatchErr) throw dispatchErr;
+      if (dispatchErr) {
+        // FunctionsHttpError expõe a Response em .context — usamos para detectar
+        // gates de negócio (409 missing_parecer_report) e mostrar mensagem amigável
+        // em vez do erro genérico "non-2xx status code".
+        let blockedPayload: any = null;
+        try {
+          const ctx = (dispatchErr as any)?.context;
+          if (ctx && typeof ctx.json === "function") {
+            blockedPayload = await ctx.clone().json();
+          }
+        } catch { /* noop */ }
+        if (blockedPayload?.blocked && blockedPayload?.reason === "missing_parecer_report") {
+          toast({
+            title: "Relatório de Parecer obrigatório",
+            description: blockedPayload.message || "Anexe o relatório de Parecer do Tasy antes de iniciar a análise. O lote ficou em rascunho — abra o detalhe para enviar o relatório e reanalisar.",
+            variant: "destructive",
+          });
+          if (analysisMode !== "confeccao") {
+            await supabase.from("payments").update({ status: "rascunho" as any }).eq("id", payment.id);
+          }
+        } else {
+          throw dispatchErr;
+        }
+      } else if (dispatchData?.blocked && dispatchData?.reason === "missing_parecer_report") {
+        toast({
+          title: "Relatório de Parecer obrigatório",
+          description: dispatchData.message,
+          variant: "destructive",
+        });
+        if (analysisMode !== "confeccao") {
+          await supabase.from("payments").update({ status: "rascunho" as any }).eq("id", payment.id);
+        }
+      }
     } catch (dispatchErr) {
       const msg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
       console.error("[dispatch-payment-analysis] falhou ao iniciar", dispatchErr);
@@ -2615,6 +2647,7 @@ const NewPayment = () => {
         variant: "destructive",
       });
     }
+
 
     // Substitui a entrada "/pagamentos/novo" no histórico para que o botão Voltar
     // do detalhe leve à lista de pagamentos, e não de volta ao formulário de criação.
