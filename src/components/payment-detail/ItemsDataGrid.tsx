@@ -35,6 +35,7 @@ import {
   Sparkles,
   Square,
   Trash2,
+  Wand2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
