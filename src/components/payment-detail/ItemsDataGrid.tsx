@@ -3403,8 +3403,9 @@ function RowMain({
                 </Button>
               )}
               {!isBonus && (
-                <RowMoreActionsMenu paymentId={it.payment_id} item={it as any} />
+                <ManualInterventionItemIconAction paymentId={it.payment_id} item={it as any} />
               )}
+
 
               {!isBonus && onEditItem && (
                 <Button
