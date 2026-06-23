@@ -233,6 +233,7 @@ serve(async (req) => {
       force_totalized,application_unit,sectors,specialties,
       special_case_filter,
       payment_type_id,
+      case_subtype,
       procedure_codes,code_match_mode,doctor_roles,
       agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
       package_roles_distribution,
