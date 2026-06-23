@@ -3609,6 +3609,19 @@ function RowMain({
             : "—";
           return <td className={cn(cell, TEXT_META)} title={raw}>{label}</td>;
         })()}
+        {colVis.subtipo && isParecerPayment && (
+          <td className={cn(cell, TEXT_META)}>
+            <CaseSubtypeBadge
+              item={it}
+              allItems={allItems}
+              lotePaymentTypeId={lotePaymentTypeId}
+              visitaPaymentTypeId={visitaPaymentTypeId}
+              parecerPaymentTypeId={parecerPaymentTypeId}
+              canEdit={canEdit}
+              onChange={onChangeCaseSubtype}
+            />
+          </td>
+        )}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
           <span className={wrapClass}>{it.doctor_name}</span>
         </td>
