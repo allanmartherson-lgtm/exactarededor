@@ -83,17 +83,29 @@ Deno.serve(async (req) => {
     const {
       payment_id,
       file_base64,
+      storage_bucket,
+      storage_path,
       filename,
       period_start,
       period_end,
       notes,
     } = body ?? {};
 
-    if (!payment_id || !file_base64 || !period_start || !period_end) {
+    if (!payment_id || !period_start || !period_end) {
       return new Response(
         JSON.stringify({
-          error:
-            "payment_id, file_base64, period_start, period_end são obrigatórios",
+          error: "payment_id, period_start, period_end são obrigatórios",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    if (!file_base64 && !storage_path) {
+      return new Response(
+        JSON.stringify({
+          error: "Forneça file_base64 ou storage_path",
         }),
         {
           status: 400,
@@ -116,12 +128,27 @@ Deno.serve(async (req) => {
       data: { user },
     } = await userClient.auth.getUser();
 
-    // Decode base64 (pode vir como data URL)
-    const b64 = file_base64.includes(",")
-      ? file_base64.split(",")[1]
-      : file_base64;
-    const binary = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    // Carrega bytes: storage > base64
+    let binary: Uint8Array;
+    if (storage_path) {
+      const bucket = storage_bucket || "payment-files";
+      const { data: dl, error: dlErr } = await supabase.storage
+        .from(bucket)
+        .download(storage_path);
+      if (dlErr || !dl) {
+        throw new Error(
+          `Falha ao baixar arquivo do storage: ${dlErr?.message ?? "not found"}`,
+        );
+      }
+      binary = new Uint8Array(await dl.arrayBuffer());
+    } else {
+      const b64 = file_base64.includes(",")
+        ? file_base64.split(",")[1]
+        : file_base64;
+      binary = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    }
     const fileHash = await sha256Hex(binary);
+
 
     // Idempotência: mesmo hash já importado para este pagamento → 409
     const { data: existing } = await supabase
