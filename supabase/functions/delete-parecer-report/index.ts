@@ -43,17 +43,12 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-    const { error: rowsErr } = await admin
-      .from("payment_parecer_report_rows")
-      .delete()
-      .eq("report_id", report_id);
-    if (rowsErr) throw rowsErr;
-
-    const { error: hdrErr } = await admin
-      .from("payment_parecer_reports")
-      .delete()
-      .eq("id", report_id);
-    if (hdrErr) throw hdrErr;
+    // RPC eleva statement_timeout p/ 120s — DELETE direto via PostgREST
+    // estourava o limite em relatórios com milhares de linhas.
+    const { error: rpcErr } = await admin.rpc("delete_parecer_report", {
+      p_report_id: report_id,
+    });
+    if (rpcErr) throw rpcErr;
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
