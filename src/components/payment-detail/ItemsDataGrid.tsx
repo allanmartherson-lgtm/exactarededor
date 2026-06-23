@@ -857,6 +857,46 @@ export function ItemsDataGrid({
     }
   };
 
+  const changeCaseSubtype = async (
+    itemIds: string[],
+    newSubtype: "parecer" | "visita",
+    source: "manual" | "attendance_override",
+  ) => {
+    if (!itemIds.length) return;
+    try {
+      const { error } = await supabase
+        .from("payment_items")
+        .update({ case_subtype: newSubtype, case_subtype_source: source } as any)
+        .in("id", itemIds);
+      if (error) {
+        console.error("Erro ao alterar subtipo:", error);
+        toast.error(`Não foi possível alterar o subtipo: ${error.message}`);
+        return;
+      }
+      toast.success(
+        itemIds.length > 1
+          ? `${itemIds.length} itens marcados como ${newSubtype === "visita" ? "Visita" : "Parecer"}. Reanalisando…`
+          : `Item marcado como ${newSubtype === "visita" ? "Visita" : "Parecer"}. Reanalisando…`,
+      );
+      // Dispara reanálise para o motor reaplicar regras com o novo subtipo.
+      try {
+        const paymentId = (items[0] as any)?.payment_id;
+        if (paymentId) {
+          await supabase.functions.invoke("dispatch-payment-analysis", {
+            body: { payment_id: paymentId, force_fresh_rules: true },
+          });
+        }
+      } catch (e) {
+        console.warn("[changeCaseSubtype] dispatch falhou", e);
+      }
+      onRefresh?.();
+    } catch (e: any) {
+      console.error("Erro ao alterar subtipo:", e);
+      toast.error(`Erro inesperado: ${e?.message ?? e}`);
+    }
+  };
+
+
 
 
   // IDs dos itens que tiveram valor corrigido pelo analista (mesma fonte do
