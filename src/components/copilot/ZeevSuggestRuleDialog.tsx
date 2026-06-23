@@ -16,7 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
+import { ZeevIcon } from "./ZeevIcon";
 
 export type ZeevSuggestRulePayload = {
   /** Pré-preenche: nome do médico (ou null se múltiplos). */
@@ -136,7 +137,7 @@ export function ZeevSuggestRuleDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <ZeevIcon variant="circle" size={20} />
             Sugerir nova regra ao diretor
           </DialogTitle>
           <DialogDescription>
