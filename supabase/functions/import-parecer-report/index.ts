@@ -49,6 +49,15 @@ Deno.serve(async (req) => {
         .eq("source_file_hash", file_hash)
         .maybeSingle();
       if (existing) {
+        // Header órfão de tentativa anterior (rows nunca chegaram) → reusa.
+        if ((existing as any).row_count === 0) {
+          // Limpa qualquer linha parcial e libera append
+          await supabase
+            .from("payment_parecer_report_rows")
+            .delete()
+            .eq("report_id", (existing as any).id);
+          return json({ ok: true, report_id: (existing as any).id, resumed: true });
+        }
         return json(
           {
             ok: false,
@@ -59,6 +68,7 @@ Deno.serve(async (req) => {
           409,
         );
       }
+
 
       const authHeader = req.headers.get("authorization") ?? "";
       const userClient = createClient(
