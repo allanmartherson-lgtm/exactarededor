@@ -360,7 +360,7 @@ export function ZeevAssistant({
                       hasInsights ? "h-8 w-8 bg-white/15 backdrop-blur" : "h-full w-full",
                     )}
                   >
-                    <Sparkles className="h-4 w-4" />
+                    <ZeevIcon className="h-5 w-5 text-white" />
                     {hasInsights && (
                       <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground ring-2 ring-[hsl(var(--primary-dark))]">
                         {visible.length}
