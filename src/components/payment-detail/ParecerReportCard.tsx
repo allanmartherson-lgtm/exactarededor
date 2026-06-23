@@ -115,6 +115,13 @@ export function ParecerReportCard({
   const [uploading, setUploading] = useState(false);
   const [crossing, setCrossing] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [mappingOpen, setMappingOpen] = useState(false);
+  const [parsed, setParsed] = useState<{
+    fileHash: string;
+    raw: Record<string, any>[];
+    headers: string[];
+    sampleRow: Record<string, any> | null;
+  } | null>(null);
 
   // Defaults de período baseados na competência do lote
   const defaultStart = (() => {
