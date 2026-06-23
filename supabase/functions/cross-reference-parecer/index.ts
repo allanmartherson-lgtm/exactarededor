@@ -63,6 +63,16 @@ Deno.serve(async (req) => {
     if (repErr) throw repErr;
     const hasReport = (reports ?? []).length > 0;
 
+    if (!hasReport) {
+      return new Response(
+        JSON.stringify({
+          error: "Nenhum relatório de parecer importado para este lote.",
+          code: "no_report",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     let allRows: any[] = [];
     if (hasReport) {
       const ids = reports!.map((r) => r.id);
@@ -79,6 +89,18 @@ Deno.serve(async (req) => {
         allRows.push(...(page ?? []));
         if (!page || page.length < pageSize) break;
       }
+    }
+
+    if (allRows.length === 0) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Relatório de parecer importado, mas sem linhas gravadas. Reimporte o arquivo — o cabeçalho está vazio.",
+          code: "empty_report",
+          reports: reports?.length ?? 0,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // Indexa por (atendimento + médico). A confirmação final também exige

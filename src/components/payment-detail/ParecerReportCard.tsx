@@ -261,6 +261,18 @@ export function ParecerReportCard({
         body: { mode: "finalize", report_id: reportId, row_count: inserted },
       });
 
+      if (inserted === 0) {
+        toast({
+          title: "Relatório sem linhas",
+          description:
+            "O arquivo foi lido mas nenhuma linha foi reconhecida. Verifique se os cabeçalhos batem com o relatório do Tasy e reimporte.",
+          variant: "destructive",
+        });
+        setFile(null);
+        await load();
+        return;
+      }
+
       toast({
         title: "Relatório importado",
         description: `${inserted} linhas carregadas.`,
@@ -308,6 +320,8 @@ export function ParecerReportCard({
   };
 
   const hasReport = reports.length > 0;
+  const emptyReports = reports.filter((r) => (r.row_count ?? 0) === 0);
+  const hasEmpty = emptyReports.length > 0;
 
   return (
     <Card
@@ -340,6 +354,23 @@ export function ParecerReportCard({
             cruza cada item com o relatório para identificar visitas
             sequenciais geradas por parecer.
           </p>
+        )}
+
+        {hasEmpty && (
+          <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
+            <div>
+              <div className="font-medium text-destructive">
+                Relatório sem linhas gravadas
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {emptyReports.length === 1
+                  ? `O arquivo "${emptyReports[0].source_filename ?? "(sem nome)"}" foi importado, mas nenhuma linha foi gravada (apenas cabeçalho).`
+                  : `${emptyReports.length} relatórios foram importados sem linhas gravadas.`}{" "}
+                O cruzamento está bloqueado. Reimporte o arquivo correto antes de iniciar a análise.
+              </div>
+            </div>
+          </div>
         )}
 
         {hasReport && (
@@ -406,8 +437,12 @@ export function ParecerReportCard({
               <Button
                 variant="outline"
                 onClick={cross}
-                disabled={crossing}
-                title="Recruza items × relatórios e reaplica motivos automáticos"
+                disabled={crossing || hasEmpty}
+                title={
+                  hasEmpty
+                    ? "Reimporte o relatório — há arquivos sem linhas gravadas"
+                    : "Recruza items × relatórios e reaplica motivos automáticos"
+                }
               >
                 {crossing ? (
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
