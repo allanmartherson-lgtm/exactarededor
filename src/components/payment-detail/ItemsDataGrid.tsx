@@ -3248,6 +3248,9 @@ function RowMain({
               {!isBonus && (
                 <CalcExceptionItemIconAction paymentId={it.payment_id} item={it as any} />
               )}
+              {!isBonus && (
+                <ManualInterventionItemIconAction paymentId={it.payment_id} item={it as any} />
+              )}
               {!isBonus && onEditItem && (
                 <Button
                   size="icon"
