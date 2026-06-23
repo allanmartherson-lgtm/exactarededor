@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Wand2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ZeevIcon } from "./ZeevIcon";
 import {
   useManualInterventionReasons,
@@ -348,7 +348,7 @@ export function ZeevBulkManualDialog({
             {submitting ? (
               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
             ) : (
-              <Wand2 className="h-4 w-4 mr-1" />
+              <ZeevIcon variant="mark" className="h-4 w-4 mr-1" />
             )}
             Aplicar em {selected.size} {selected.size === 1 ? "item" : "itens"}
           </Button>
