@@ -3184,13 +3184,15 @@ function RowMain({
   return (
     <>
       <tr
-        onClick={() => { onSelect(); onOpen(); }}
+        onClick={() => { onSelect(); }}
+        onDoubleClick={() => { onSelect(); onOpen(); }}
         data-row-id={it.id}
         aria-selected={isActive}
         aria-expanded={isExpanded}
         tabIndex={-1}
+        title="Duplo clique para expandir detalhes"
         className={cn(
-          "group cursor-pointer hover:bg-muted/40 transition-colors",
+          "group cursor-pointer hover:bg-muted/40 transition-colors select-text",
           isExpanded && "ring-1 ring-inset ring-primary/40",
         )}
       >
