@@ -1,40 +1,73 @@
 ## Objetivo
-Hoje o Zeev em `/pagamentos/novo` só conversa sobre **linhas suspeitas**. Com vários arquivos, o analista precisa: escolher setor em cada um, descartar rodapés/totalizadores, e confirmar PJ. Vamos transformar o Zeev em apoio ativo nessa etapa, mantendo a regra de **sempre confirmar antes de aplicar**.
+Permitir que, dentro de um lote de **Parecer**, alguns casos sejam tratados como **Visita** (regra/valor diferente), com marcação em **item, atendimento ou empresa** e classificação automática quando possível.
 
-## Mudanças
+## Modelo de dados
 
-### 1. Insights automáticos de staging (aba "Apoio analítico")
-Em `src/pages/NewPayment.tsx`, montar `extraInsights` a partir dos buckets e passar pro `ZeevAssistant`:
+Novo campo em `payment_items`:
+- `case_subtype text` — valores: `parecer` (default) | `visita`
+- `case_subtype_source text` — `base` | `report_cross` | `manual` | `company_override` | `attendance_override`
+- índice em `(payment_id, case_subtype)`
 
-- **Setor faltando** — lista os N arquivos com `sectorMissing && !sectorMapping`. Ação: "Resolver com o Zeev" → muda pra aba **Conversar** e pré-preenche `"definir setor <X> para os arquivos: A.xlsx, B.xlsx"`.
-- **PJ não confirmada** — arquivos com `matchScore < MATCH_AUTO_THRESHOLD` e sem `manualOverride`. Ação: rola até o card do arquivo (scroll-into-view via ref por bucket).
-- **Linhas suspeitas pendentes** — usa `pendingSuspiciousCount` já calculado. Ação: muda pra aba **Conversar** e pré-preenche `"descartar todos os totalizadores"`.
-- **Mapeamento incompleto** — buckets com `summary.missingRequired.length > 0`. Ação: abre o `ColumnMappingDialog` daquele bucket.
+Novo campo em `payment_company_groups`:
+- `default_case_subtype text` — quando o analista define a empresa inteira como Visita dentro do lote, todos os itens herdam (a menos que override por atendimento/item)
 
-Os insights respeitam o `dismissed` (sessionStorage) já existente no Zeev.
+Hierarquia de precedência (maior → menor):
+1. Override manual no item
+2. Override por atendimento (todas as linhas do mesmo nr. atendimento)
+3. Default da empresa dentro do lote
+4. Classificação automática (base / cruzamento relatório)
+5. Default do lote = `parecer`
 
-### 2. Comando "definir setor" no executor de staging
-- `supabase/functions/zeev-staging-executor/index.ts`: adicionar intent `set_sector_bulk` com `scope: { file_names?: string[]; all?: boolean }` e `payload: { sector: RuleSector }`. LLM passa a aceitar frases como *"setor CC em todos sem setor"* ou *"setor UPA no arquivo Brasilia.xlsx"*.
-- `src/components/copilot/ZeevStagingChat.tsx`: renderizar **proposal card** com lista de arquivos afetados (nome + setor proposto), botão Confirmar/Cancelar igual ao de suspeitas. Ao confirmar, chama `staging.setBucketSectors(changes)`.
-- `StagingContext` ganha:
-  - `buckets: Array<{ idx; fileName; matchScore; manualOverride; sectorMissing; sectorMapping; sectorOptions }>`
-  - `setBucketSectors: (changes: Array<{ idx: number; sector: RuleSector }>) => void`
-- `NewPayment.tsx`: implementa `setBucketSectors` reutilizando o `setBuckets(prev => prev.map(...))` que já existe no seletor inline (linhas ~2900).
+## Classificação automática
 
-### 3. Pré-preenchimento da aba Conversar
-- `ZeevAssistant`: aceita prop opcional `onOpenChatWith?: (prompt: string) => void` (não precisa — usar estado interno). Mais simples: quando o insight é clicado e tem `chatPrompt`, o Zeev troca pra `tab="chat"` e empurra a frase via prop nova `initialPrompt` do `ZeevStagingChat`.
-- `ZeevStagingChat`: `useEffect` que, quando `initialPrompt` muda e não está vazio, preenche o textarea (não envia automaticamente — analista revisa).
+Função `classifyCaseSubtype(item, paymentContext)`:
+- Se a base traz coluna `tipo`/`subtipo` com "visita" → `visita` (source=base)
+- Senão, cruza com `payment_parecer_report_rows` do lote: se atendimento+médico+TUSS **não** aparece no relatório → `visita` (source=report_cross)
+- Caso contrário → `parecer`
 
-### 4. Não-objetivos (continua fora de escopo do staging)
-- CC e médico→PJ em lote no pré-envio. O LLM continua respondendo `unsupported` com mensagem explicando que essas ações ficam pós-envio (já implementado).
+Roda no momento de importação e re-roda quando o analista anexa/atualiza o relatório de parecer.
 
-## Arquivos
-- editar `src/pages/NewPayment.tsx` (montar `extraInsights`, expandir `stagingContext`)
-- editar `src/components/copilot/ZeevAssistant.tsx` (aceitar `extraInsights` no modo staging, callback pra trocar aba + pré-preencher)
-- editar `src/components/copilot/ZeevStagingChat.tsx` (renderizar proposal de setor, aceitar `initialPrompt`)
-- editar `supabase/functions/zeev-staging-executor/index.ts` (intent `set_sector_bulk` + tools/whitelist)
+## Motor de regras
 
-## Confirmações antes de implementar
-1. **Setor em lote no staging** — confirma que quando o analista pedir *"setor CC em todos sem setor"*, aplico **apenas** nos arquivos onde `sectorMissing && !sectorMapping`, ignorando arquivos que já têm setor escolhido?
-2. **Mapeamento incompleto** — o insight só abre o diálogo do **primeiro** bucket com problema, ou lista todos com botão por arquivo?
-3. **Auto-envio de comando** — quando o insight troca pra aba Conversar com frase pré-preenchida, eu **só preencho** (analista clica enviar), ou **envio automaticamente** já mostrando o proposal card?
+A `rules` já distingue por `payment_type`. Adicionar dimensão `case_subtype` no matcher:
+- Regra cadastrada com `case_subtype = 'visita'` só casa com itens marcados como visita
+- Regra sem `case_subtype` (NULL) casa com qualquer subtipo (compatibilidade com regras atuais de parecer)
+- O analista cadastra a regra de Visita normalmente em /regras, escolhendo subtipo
+
+Coluna nova em `rules`:
+- `case_subtype text NULL` (NULL = ambos)
+
+## UI
+
+**Grid de itens (ItemsDataGrid):**
+- Nova coluna opcional "Subtipo" (Parecer/Visita) — toggleável como as demais
+- Badge colorido no item (Visita = azul, Parecer = roxo)
+- Ação em linha: "Marcar como Visita" / "Marcar como Parecer"
+- Seleção múltipla: aplicar a N itens ou ao atendimento inteiro
+
+**Card de empresa no lote:**
+- Botão "Definir subtipo padrão da empresa" → Parecer / Visita / Misto (default)
+- Mostra contagem: `12 parecer · 3 visita`
+
+**Header do lote:**
+- Resumo: `Parecer: 45 · Visita: 8 · Total: 53`
+- Filtro rápido por subtipo
+
+## Auditoria
+
+Toda mudança de `case_subtype` grava em `audit_log` com: item_id, valor anterior, novo, source, usuário. Recompute do motor é disparado automaticamente após mudança (mesmo fluxo do recálculo de regra).
+
+## Entregáveis (ordem)
+
+1. Migration: campos em `payment_items`, `payment_company_groups`, `rules` + grants
+2. Função `classifyCaseSubtype` + hook na importação e no anexar-relatório
+3. Matcher do motor lê `case_subtype` da regra
+4. UI no grid (coluna + ação por item/seleção/atendimento)
+5. UI no card de empresa (default por empresa)
+6. UI no header do lote (resumo + filtro)
+7. Auditoria + trigger de recompute
+
+## Fora de escopo
+
+- Não muda regras de **Plantão/Cirurgia/Procedimento** — `case_subtype` só faz sentido para `payment_type = parecer`
+- Não cria payment_type novo "Visita" — fica como subtipo de Parecer (lote permanece um só)
