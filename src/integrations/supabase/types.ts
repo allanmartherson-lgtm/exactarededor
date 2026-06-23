@@ -3791,6 +3791,59 @@ export type Database = {
         }
         Relationships: []
       }
+      manual_intervention_reasons: {
+        Row: {
+          category: string
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          hospital_id: string | null
+          id: string
+          is_active: boolean
+          is_seed: boolean
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          is_active?: boolean
+          is_seed?: boolean
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          is_active?: boolean
+          is_seed?: boolean
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_intervention_reasons_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_telemetry: {
         Row: {
           ai_confidence: number | null
@@ -4920,6 +4973,11 @@ export type Database = {
           item_origin: string
           manual_edit: boolean
           manual_entry: boolean
+          manual_intervention_at: string | null
+          manual_intervention_by: string | null
+          manual_intervention_notes: string | null
+          manual_intervention_reason_id: string | null
+          manual_intervention_source: string | null
           manual_note: string | null
           origem_reconciliation_item_id: string | null
           origem_referencia: string | null
@@ -5025,6 +5083,11 @@ export type Database = {
           item_origin?: string
           manual_edit?: boolean
           manual_entry?: boolean
+          manual_intervention_at?: string | null
+          manual_intervention_by?: string | null
+          manual_intervention_notes?: string | null
+          manual_intervention_reason_id?: string | null
+          manual_intervention_source?: string | null
           manual_note?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
@@ -5130,6 +5193,11 @@ export type Database = {
           item_origin?: string
           manual_edit?: boolean
           manual_entry?: boolean
+          manual_intervention_at?: string | null
+          manual_intervention_by?: string | null
+          manual_intervention_notes?: string | null
+          manual_intervention_reason_id?: string | null
+          manual_intervention_source?: string | null
           manual_note?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
@@ -5212,6 +5280,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_manual_intervention_reason_id_fkey"
+            columns: ["manual_intervention_reason_id"]
+            isOneToOne: false
+            referencedRelation: "manual_intervention_reasons"
             referencedColumns: ["id"]
           },
           {
