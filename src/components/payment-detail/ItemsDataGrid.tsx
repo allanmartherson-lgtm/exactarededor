@@ -2099,6 +2099,7 @@ export function ItemsDataGrid({
               {colVis.setor_lido && <col style={{ width: 110 }} />}
               {colVis.setor_inferido && <col style={{ width: 110 }} />}
               {colVis.tipo_entrada && <col style={{ width: 110 }} />}
+              {colVis.subtipo && isParecerPayment && <col style={{ width: 80 }} />}
               <col style={{ width: 150 }} />
               {colVis.funcao && <col style={{ width: 100 }} />}
               {colVis.regra && <col style={{ width: 150 }} />}
