@@ -84,7 +84,9 @@ export function ZeevBulkManualDialog({
       setNotes("");
       setProgress(null);
     }
-  }, [open, items]);
+    // Reset somente ao abrir; mudanças de referência em `items` não devem limpar o motivo escolhido
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const selectedReason = useMemo(
     () => reasons.find((r) => r.id === reasonId) ?? null,
