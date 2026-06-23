@@ -1301,7 +1301,7 @@ export function ItemsDataGrid({
   }, [activeId, filtered, expandedId]);
 
   const tableMinWidth = 24 +
-    (colVis.atendimento ? 96 : 0) +
+    (colVis.atendimento ? 160 : 0) +
     160 +
     (colVis.convenio ? 120 : 0) +
     (colVis.via ? 110 : 0) +
