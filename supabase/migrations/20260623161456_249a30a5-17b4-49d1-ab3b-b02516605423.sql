@@ -1,0 +1,2 @@
+ALTER TABLE public.payment_items DROP CONSTRAINT IF EXISTS payment_items_manual_intervention_source_check;
+ALTER TABLE public.payment_items ADD CONSTRAINT payment_items_manual_intervention_source_check CHECK (manual_intervention_source IS NULL OR manual_intervention_source = ANY (ARRAY['manual'::text, 'auto_parecer_report'::text, 'zeev_bulk'::text]));
