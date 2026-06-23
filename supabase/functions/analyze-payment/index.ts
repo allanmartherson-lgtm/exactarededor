@@ -233,7 +233,6 @@ serve(async (req) => {
       force_totalized,application_unit,sectors,specialties,
       special_case_filter,
       payment_type_id,
-      case_subtype,
       procedure_codes,code_match_mode,doctor_roles,
       agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
       package_roles_distribution,
@@ -273,10 +272,7 @@ serve(async (req) => {
             const snapshotHasCalcPaymentTypeField = cachedCalcLists.every((list: any) =>
               !Array.isArray(list) || list.every((c: any) => "payment_type_id" in c),
             );
-            const snapshotHasCalcCaseSubtypeField = cachedCalcLists.every((list: any) =>
-              !Array.isArray(list) || list.every((c: any) => "case_subtype" in c),
-            );
-            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField && snapshotHasCalcSpecialCaseField && snapshotHasCalcPaymentTypeField && snapshotHasCalcCaseSubtypeField) {
+            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField && snapshotHasCalcSpecialCaseField && snapshotHasCalcPaymentTypeField) {
               cachedRulesAll = ctxJ.rules;
               cachedCalcsByRule = ctxJ.calcs_by_rule;
               cachedConfigs = ctxJ.configs;
@@ -457,8 +453,8 @@ serve(async (req) => {
         manual_intervention_reason_id,
         manual_intervention_source,
         manual_intervention_reason:manual_intervention_reasons!manual_intervention_reason_id(code,category),
-        case_subtype,
-        case_subtype_source,
+        payment_type_id,
+        payment_type_source,
         raw_data
       `)
       .eq("payment_id", payment_id);
@@ -677,8 +673,9 @@ serve(async (req) => {
       special_case_code: it.special_case_code ?? null,
       special_case_status: it.special_case_status ?? null,
       // Filtro de tipo de pagamento por cálculo (rule_calculations.payment_type_id)
-      // — todos os itens do pagamento herdam o tipo do `payments.payment_type_id`.
-      payment_type_id: ctx.payment_type_id ?? null,
+      // — usa o tipo do ITEM quando setado (reclassificação Visita × Parecer no
+      // mesmo lote); cai para o tipo do lote como fallback.
+      payment_type_id: (it as any).payment_type_id ?? ctx.payment_type_id ?? null,
       // Exceção do cálculo (LEGADO) — substituída por manual_intervention_reason_id.
       calc_exception_skip: (it as any).calc_exception_skip ?? false,
       calc_exception_skipped_calc_id: (it as any).calc_exception_skipped_calc_id ?? null,
@@ -688,9 +685,6 @@ serve(async (req) => {
       manual_intervention_reason_code: ((it as any).manual_intervention_reason?.code) ?? null,
       manual_intervention_reason_category: ((it as any).manual_intervention_reason?.category) ?? null,
       manual_intervention_source: (it as any).manual_intervention_source ?? null,
-      // Subtipo de caso (Parecer × Visita dentro do mesmo lote de Parecer).
-      // Permite cálculos restritos via `rule_calculations.case_subtype`.
-      case_subtype: (it as any).case_subtype ?? null,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
         ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }
