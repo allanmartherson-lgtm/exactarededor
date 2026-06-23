@@ -87,6 +87,12 @@ interface Props {
   onBulkApplied?: () => void;
   /** Posicionamento (default: bottom-left). */
   side?: "bottom-left" | "bottom-right";
+  /**
+   * Habilita as ações inteligentes do Zeev (tratativa manual em lote + sugerir regra).
+   * Default: false. Hoje só faz sentido em pagamentos de parecer — em outros tipos,
+   * o Zeev fica como dica/insight informativo, sem oferecer os botões de ação.
+   */
+  smartActionsEnabled?: boolean;
 }
 
 const norm = (s: string | null | undefined) =>
@@ -222,6 +228,7 @@ export function ZeevAssistant({
   bulkContext,
   onBulkApplied,
   side = "bottom-left",
+  smartActionsEnabled = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
@@ -237,10 +244,14 @@ export function ZeevAssistant({
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
 
-  const insights = useMemo(() => {
+  const insights = useMemo<ZeevInsight[]>(() => {
     const auto = items ? buildItemInsights(items, onApplyFilter) : [];
-    return [...(extraInsights ?? []), ...auto];
-  }, [items, extraInsights, onApplyFilter]);
+    const merged: ZeevInsight[] = [...(extraInsights ?? []), ...auto];
+    if (!smartActionsEnabled) {
+      return merged.map((i) => ({ ...i, bulk: undefined, suggestRule: undefined }));
+    }
+    return merged;
+  }, [items, extraInsights, onApplyFilter, smartActionsEnabled]);
 
   const visible = insights.filter((i) => !dismissed.has(i.id));
   const highPriority = visible.filter((i) => i.priority === "alta").length;
