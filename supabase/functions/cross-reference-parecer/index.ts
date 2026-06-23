@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
             String(r.situacao ?? "").toLowerCase().includes("com parecer"),
           ) ?? list.find((r) =>
             sameDayUtc(r.dt_resposta_parecer, it.procedure_date),
-          ) ?? list[0];
+          ) ?? null;
       }
       if (!hit && att && nm) {
         const list = byAttendName.get(`${att}|${nm}`) ?? [];
