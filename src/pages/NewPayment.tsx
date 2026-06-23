@@ -2635,6 +2635,26 @@ const NewPayment = () => {
           : "Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo."}
       />
       <div className="p-8 max-w-7xl space-y-6">
+        {draftRestoredAt && (
+          <div className="rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-3 text-sm flex items-start gap-3">
+            <div className="flex-1">
+              <div className="font-semibold text-blue-900 dark:text-blue-200">Rascunho restaurado</div>
+              <div className="text-xs text-blue-800 dark:text-blue-300 mt-1">
+                Salvo automaticamente em {new Date(draftRestoredAt).toLocaleString("pt-BR")}.
+                {Object.keys(pendingFileDecisionsRef.current).length > 0 && (
+                  <> Re-anexe os {Object.keys(pendingFileDecisionsRef.current).length} arquivo(s) originais para reaplicar setor, PJ e mapeamento de colunas.</>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={discardDraft}
+              className="text-xs text-blue-900 dark:text-blue-200 hover:underline shrink-0"
+            >
+              Descartar
+            </button>
+          </div>
+        )}
         {paymentTypeMeta && (
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm flex items-start gap-3">
             <div className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary uppercase tracking-wide">
