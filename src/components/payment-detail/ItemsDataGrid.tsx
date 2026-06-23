@@ -2556,6 +2556,7 @@ export function ItemsDataGrid({
                         showDiferencaCol={showDiferencaCol}
                         mode={mode}
                         isParecerPayment={isParecerPayment}
+                        onChangeCaseSubtype={changeCaseSubtype}
                         onRefresh={onRefresh}
                       />
                     )}
