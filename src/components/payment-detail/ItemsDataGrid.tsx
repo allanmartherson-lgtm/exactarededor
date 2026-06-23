@@ -36,7 +36,7 @@ import {
   Sparkles,
   Square,
   Trash2,
-  Wand2,
+  Wrench,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -339,7 +339,7 @@ function ManualInterventionItemIconAction({
         }
         onClick={() => setOpen(true)}
       >
-        <Wand2 className="h-3.5 w-3.5" />
+        <Wrench className="h-3.5 w-3.5" />
       </Button>
       <ManualInterventionDialog
         open={open}
@@ -431,7 +431,7 @@ function RowMoreActionsMenu({
           <DropdownMenuLabel className="text-xs">Ações avançadas</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setManualOpen(true)}>
-            <Wand2
+            <Wrench
               className={cn(
                 "h-3.5 w-3.5 mr-2",
                 manualMarked ? "text-violet-600" : "text-muted-foreground",
