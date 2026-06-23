@@ -543,7 +543,19 @@ export function ZeevAssistant({
           }}
         />
       )}
+
+      {suggestOpen && bulkContext && suggestOpen.suggestRule && (
+        <ZeevSuggestRuleDialog
+          open={!!suggestOpen}
+          onOpenChange={(v) => !v && setSuggestOpen(null)}
+          paymentId={bulkContext.paymentId}
+          companyGroupId={bulkContext.companyGroupId ?? null}
+          payload={suggestOpen.suggestRule}
+          onSubmitted={() => setSuggestOpen(null)}
+        />
+      )}
     </div>
   );
 }
+
 
