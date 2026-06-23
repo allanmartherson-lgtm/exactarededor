@@ -597,6 +597,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           deactivated_at: string | null
+          default_payment_type_id: string | null
           document: string | null
           id: string
           invoice_emails: string[]
@@ -613,6 +614,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deactivated_at?: string | null
+          default_payment_type_id?: string | null
           document?: string | null
           id?: string
           invoice_emails?: string[]
@@ -629,6 +631,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deactivated_at?: string | null
+          default_payment_type_id?: string | null
           document?: string | null
           id?: string
           invoice_emails?: string[]
@@ -638,7 +641,15 @@ export type Database = {
           tem_pool?: boolean
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companies_default_payment_type_id_fkey"
+            columns: ["default_payment_type_id"]
+            isOneToOne: false
+            referencedRelation: "payment_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_access_log: {
         Row: {
