@@ -162,8 +162,11 @@ function buildItemInsights(items: ZeevItem[], onApplyFilter?: Props["onApplyFilt
     });
   }
 
+  // Usa o MESMO critério do filtro "Sem regra" do grid (ItemsDataGrid):
+  // ai_findings.needs_human_review === true. Garante que o número que o Zeev
+  // mostra bata exatamente com o contador do botão de filtro.
   const semRegra = items.filter(
-    (i) => i.applied_calc_method === "sem_regra" || (!i.applied_rule_id && !i.applied_calc_method),
+    (i) => !!(i.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review,
   );
   if (semRegra.length >= 3) {
     out.push({
