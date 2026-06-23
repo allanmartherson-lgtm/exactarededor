@@ -31,12 +31,14 @@ function crmDigits(crm: string | null) {
   return onlyDigits(crm);
 }
 
+// Compara apenas a porção YYYY-MM-DD em UTC, ignorando hora/timezone.
+// Chave do parecer = atendimento + médico + DATA (sem hora).
 function sameDayUtc(a: string | null, b: string | null) {
   if (!a || !b) return false;
   const da = new Date(a);
   const db = new Date(b);
-  const diff = Math.abs(+da - +db);
-  return diff <= 36 * 60 * 60 * 1000; // ±36h cobre cutoff timezone
+  if (isNaN(+da) || isNaN(+db)) return false;
+  return da.toISOString().slice(0, 10) === db.toISOString().slice(0, 10);
 }
 
 Deno.serve(async (req) => {
