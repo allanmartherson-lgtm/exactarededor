@@ -1301,7 +1301,7 @@ export function ItemsDataGrid({
   }, [activeId, filtered, expandedId]);
 
   const tableMinWidth = 24 +
-    (colVis.atendimento ? 96 : 0) +
+    (colVis.atendimento ? 160 : 0) +
     160 +
     (colVis.convenio ? 120 : 0) +
     (colVis.via ? 110 : 0) +
@@ -1814,7 +1814,7 @@ export function ItemsDataGrid({
             style={{ width: tableMinWidth, minWidth: tableMinWidth }}
           >
             <colgroup>
-              {colVis.atendimento && <col style={{ width: 96 }} />}
+              {colVis.atendimento && <col style={{ width: 160 }} />}
               <col style={{ width: 160 }} />
               {colVis.convenio && <col style={{ width: 120 }} />}
               {colVis.via && <col style={{ width: 110 }} />}
@@ -3142,7 +3142,7 @@ function RowMain({
       >
         {colVis.atendimento && (
           <td className={cn(cell, "font-mono", TEXT_META)} title={it.attendance_number ?? ""}>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               <span>{it.attendance_number ?? "—"}</span>
               {(it as any).special_case_status === "approved" && (it as any).special_case_code && (
                 <span
