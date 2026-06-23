@@ -143,8 +143,40 @@ Deno.serve(async (req) => {
         .from("payment_parecer_reports")
         .update({ row_count: Number(row_count) || 0 } as any)
         .eq("id", report_id);
-      return json({ ok: true, report_id, row_count: Number(row_count) || 0 });
+
+      // Dispara cruzamento automático com os itens do lote — reclassifica
+      // Parecer × Visita e enriquece evidências sem ação manual do analista.
+      let crossRef: any = null;
+      try {
+        const { data: rep } = await supabase
+          .from("payment_parecer_reports")
+          .select("payment_id")
+          .eq("id", report_id)
+          .maybeSingle();
+        const paymentId = (rep as any)?.payment_id ?? null;
+        if (paymentId) {
+          const { data: cr, error: crErr } = await supabase.functions.invoke(
+            "cross-reference-parecer",
+            { body: { payment_id: paymentId } },
+          );
+          if (crErr) {
+            console.warn("[import-parecer-report] cross-reference falhou", crErr);
+          } else {
+            crossRef = cr;
+          }
+        }
+      } catch (e) {
+        console.warn("[import-parecer-report] cross-reference erro", e);
+      }
+
+      return json({
+        ok: true,
+        report_id,
+        row_count: Number(row_count) || 0,
+        cross_reference: crossRef,
+      });
     }
+
 
     return json({ error: `mode inválido: ${mode}` }, 400);
   } catch (e: any) {
