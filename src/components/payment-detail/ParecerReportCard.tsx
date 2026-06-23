@@ -261,6 +261,18 @@ export function ParecerReportCard({
         body: { mode: "finalize", report_id: reportId, row_count: inserted },
       });
 
+      if (inserted === 0) {
+        toast({
+          title: "Relatório sem linhas",
+          description:
+            "O arquivo foi lido mas nenhuma linha foi reconhecida. Verifique se os cabeçalhos batem com o relatório do Tasy e reimporte.",
+          variant: "destructive",
+        });
+        setFile(null);
+        await load();
+        return;
+      }
+
       toast({
         title: "Relatório importado",
         description: `${inserted} linhas carregadas.`,
