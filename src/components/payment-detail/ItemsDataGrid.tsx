@@ -2314,6 +2314,8 @@ export function ItemsDataGrid({
                         showProcedureColumn={showProcedureColumn}
                         showDiferencaCol={showDiferencaCol}
                         mode={mode}
+                        isParecerPayment={isParecerPayment}
+                        onRefresh={onRefresh}
                       />
                     )}
                   </Fragment>
