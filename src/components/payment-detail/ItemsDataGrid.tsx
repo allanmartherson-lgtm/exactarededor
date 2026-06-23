@@ -306,6 +306,7 @@ function ManualInterventionItemIconAction({
   paymentId,
   item,
   preferCategory,
+  onApplied,
 }: {
   paymentId: string;
   item: PaymentItemRowData & {
@@ -315,6 +316,7 @@ function ManualInterventionItemIconAction({
     manual_intervention_source?: string | null;
   };
   preferCategory?: "reclassificacao_clinica" | "aceite_financeiro";
+  onApplied?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const isMarked = !!item.manual_intervention_reason_id;
@@ -353,6 +355,7 @@ function ManualInterventionItemIconAction({
           manual_intervention_notes: item.manual_intervention_notes ?? null,
         }}
         preferCategory={preferCategory}
+        onApplied={onApplied}
       />
     </>
   );
