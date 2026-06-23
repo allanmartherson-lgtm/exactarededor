@@ -557,6 +557,21 @@ export function ParecerReportCard({
           <p className="text-xs text-muted-foreground">Carregando relatórios…</p>
         )}
       </CardContent>
+
+      {parsed && (
+        <ParecerColumnMappingDialog
+          open={mappingOpen}
+          onOpenChange={setMappingOpen}
+          fileName={file?.name ?? ""}
+          headers={parsed.headers}
+          sampleRow={parsed.sampleRow}
+          onApply={async (mapping, persist) => {
+            if (persist) saveMappingTemplate(parsed.headers, mapping);
+            setMappingOpen(false);
+            await runImport(mapping, parsed);
+          }}
+        />
+      )}
     </Card>
   );
 }
