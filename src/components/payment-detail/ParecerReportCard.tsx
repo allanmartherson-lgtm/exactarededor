@@ -160,14 +160,6 @@ export function ParecerReportCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentId]);
 
-  const upload = async () => {
-    if (!file) {
-      toast({ title: "Selecione um arquivo .xls/.xlsx", variant: "destructive" });
-      return;
-    }
-    if (!periodStart || !periodEnd) {
-      toast({ title: "Informe o período do relatório", variant: "destructive" });
-      return;
   /** Helper compartilhado: parser de "Nome (CRM 123/UF)". */
   const splitMedicoCrm = (raw: any): { name: string | null; crm: string | null } => {
     if (raw == null) return { name: null, crm: null };
