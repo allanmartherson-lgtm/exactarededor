@@ -43,6 +43,7 @@ import { useConversasUnread } from "@/hooks/useConversasUnread";
 import { Link } from "react-router-dom";
 import { HospitalSwitcher } from "@/components/HospitalSwitcher";
 import { PaymentModeSelectModal } from "@/components/PaymentModeSelectModal";
+import { ZeevGlobalMount } from "@/components/copilot/ZeevGlobalMount";
 
 /** Bolinha vermelha de não lidas para o item Conversas. */
 const ConversasBadgeDot = ({ count, absolute = false }: { count: number; absolute?: boolean }) => {
@@ -1088,6 +1089,7 @@ export const AppLayout = () => {
           </div>
         </main>
         <PaymentModeSelectModal open={modeModalOpen} onOpenChange={setModeModalOpen} />
+        <ZeevGlobalMount />
       </div>
     );
   }
@@ -1333,6 +1335,7 @@ export const AppLayout = () => {
         </main>
       </div>
       <PaymentModeSelectModal open={modeModalOpen} onOpenChange={setModeModalOpen} />
+      <ZeevGlobalMount />
     </div>
   );
 };

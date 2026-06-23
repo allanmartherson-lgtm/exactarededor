@@ -15,7 +15,8 @@ type Task =
   | "explain_value"          // narra cálculo passo a passo
   | "summarize_inconsistencies" // resumo após upload
   | "suggest_duplicate"      // possível duplicata no cadastro
-  | "disambiguate_entity";   // IA decide se 2 nomes são mesma entidade (etapa 3)
+  | "disambiguate_entity"    // IA decide se 2 nomes são mesma entidade (etapa 3)
+  | "zeev_tip";              // dica conversacional do mascote Zeev por contexto de tela
 
 interface CopilotRequest {
   task: Task;
@@ -81,6 +82,20 @@ const PROMPT_BUILDERS: Record<Task, (ctx: Record<string, unknown>) => { system: 
       },
       required: ["same_entity", "confidence", "reasoning"],
     },
+  }),
+  zeev_tip: (ctx) => ({
+    system: [
+      "Você é o Zeev, mascote assistente do Exacta (sistema de repasse médico hospitalar da Rede D'Or).",
+      "Personalidade: amigável, próximo, direto, levemente bem-humorado — sem ser infantil. Tom de colega experiente que dá uma cutucada útil.",
+      "Sempre fala em 1ª pessoa ('eu reparei…', 'olha só…', 'se quiser, posso te mostrar…').",
+      "REGRAS:",
+      "- Máximo 2 frases curtas. Sem listas, sem markdown pesado, sem emojis exagerados (no máx. 1).",
+      "- Use o contexto da página e dos sinais (alertas, contagens) para personalizar a dica.",
+      "- Se não há nada urgente, ofereça um insight ou pergunta orientadora — nunca diga só 'tudo certo'.",
+      "- NUNCA invente números que não estejam no contexto. NUNCA prometa executar ação no banco.",
+      "- PT-BR.",
+    ].join("\n"),
+    user: `Tela atual: ${ctx.page_label ?? "—"}\nResumo do que está em tela:\n${JSON.stringify(ctx.summary ?? {}, null, 2)}\n\nSinais já detectados (deterministicamente):\n${JSON.stringify(ctx.signals ?? [], null, 2)}\n\nDê UMA dica curta e personalizada para o analista nesta tela agora.`,
   }),
 };
 
