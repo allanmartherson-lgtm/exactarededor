@@ -3385,6 +3385,14 @@ function RowMain({
                 </span>
               )}
               {isParecerPayment && <ParecerEvidenceBadge item={it} />}
+              {isParecerPayment && (
+                <CaseSubtypeBadge
+                  item={it}
+                  allItems={allItems}
+                  canEdit={canEdit}
+                  onChange={onChangeCaseSubtype}
+                />
+              )}
             </div>
           </td>
         )}
