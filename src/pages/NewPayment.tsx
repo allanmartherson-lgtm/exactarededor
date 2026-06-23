@@ -1632,6 +1632,79 @@ const NewPayment = () => {
     },
   }), [buckets, suspiciousByBucket, suspiciousDecisions]);
 
+  // === Zeev — insights automáticos de staging ===
+  const zeevStagingInsights = useMemo<ZeevInsight[]>(() => {
+    const out: ZeevInsight[] = [];
+    if (buckets.length === 0) return out;
+
+    // 1) Setor faltando
+    const missingSector = buckets.filter((b) => b.sectorMissing && !b.sectorMapping);
+    if (missingSector.length > 0) {
+      const names = missingSector.map((b) => b.file.name);
+      const preview = names.slice(0, 3).join(", ") + (names.length > 3 ? ` (+${names.length - 3})` : "");
+      out.push({
+        id: `staging-sector-missing-${missingSector.length}`,
+        priority: missingSector.length >= 3 ? "alta" : "media",
+        icon: AlertTriangle,
+        title: `${missingSector.length} arquivo${missingSector.length === 1 ? "" : "s"} sem setor`,
+        message: `Sem setor o motor não calcula. Me peça: "setor CC em todos sem setor" — ou troque por UPA/UTI/etc. Afetados: ${preview}.`,
+        chatPrompt: `setor [CC|UPA|UTI|ambulatorio|pronto_socorro|cti|sala_cirurgica] em todos sem setor`,
+        chatActionLabel: "Definir setor em lote",
+      });
+    }
+
+    // 2) PJ não confirmada
+    const noPj = buckets
+      .map((b, idx) => ({ b, idx }))
+      .filter(({ b }) => !b.manualOverride && (!b.matchedCompany || b.matchScore < MATCH_AUTO_THRESHOLD));
+    if (noPj.length > 0) {
+      const names = noPj.map(({ b }) => b.file.name).slice(0, 3).join(", ");
+      out.push({
+        id: `staging-pj-${noPj.length}`,
+        priority: noPj.length >= 3 ? "alta" : "media",
+        icon: Building2,
+        title: `${noPj.length} arquivo${noPj.length === 1 ? "" : "s"} sem PJ confirmada`,
+        message: `Itens sem PJ ficam isolados no pagamento. Confirme/troque a empresa no card. Afetados: ${names}${noPj.length > 3 ? "…" : ""}.`,
+      });
+    }
+
+    // 3) Linhas suspeitas pendentes
+    if (pendingSuspiciousCount > 0) {
+      out.push({
+        id: `staging-suspicious-${pendingSuspiciousCount}`,
+        priority: pendingSuspiciousCount >= 5 ? "alta" : "media",
+        icon: AlertCircle,
+        title: `${pendingSuspiciousCount} linha${pendingSuspiciousCount === 1 ? "" : "s"} suspeita${pendingSuspiciousCount === 1 ? "" : "s"} pendente${pendingSuspiciousCount === 1 ? "" : "s"}`,
+        message: `Provavelmente totalizadores/rodapé. Posso descartar tudo de uma vez ou marcar como "total informativo".`,
+        chatPrompt: "descartar todos os totalizadores",
+        chatActionLabel: "Descartar em lote",
+      });
+    }
+
+    // 4) Mapeamento incompleto
+    const mappingProblems = buckets
+      .map((b, idx) => {
+        const hits = b.mappingHits ?? [];
+        const summary = hits.length ? summarizeMissing(hits) : { missingRequired: [], lowConfidence: [] };
+        return { idx, name: b.file.name, missing: summary.missingRequired.length, low: summary.lowConfidence.length };
+      })
+      .filter((m) => m.missing > 0);
+    if (mappingProblems.length > 0) {
+      const first = mappingProblems[0];
+      out.push({
+        id: `staging-mapping-${mappingProblems.length}`,
+        priority: "alta",
+        icon: AlertTriangle,
+        title: `${mappingProblems.length} arquivo${mappingProblems.length === 1 ? "" : "s"} com mapeamento incompleto`,
+        message: `Sem mapear as colunas obrigatórias o lote não pode ser enviado. Comece por: ${first.name} (${first.missing} faltando).`,
+        actionLabel: "Abrir mapeamento",
+        onAction: () => setMappingDialog({ open: true, bucketIdx: first.idx }),
+      });
+    }
+
+    return out;
+  }, [buckets, pendingSuspiciousCount]);
+
   const allRows = useMemo(() => {
     return buckets.flatMap((b, bucketIndex) =>
       b.rows
