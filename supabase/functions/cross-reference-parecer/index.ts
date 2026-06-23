@@ -91,6 +91,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (allRows.length === 0) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Relatório de parecer importado, mas sem linhas gravadas. Reimporte o arquivo — o cabeçalho está vazio.",
+          code: "empty_report",
+          reports: reports?.length ?? 0,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Indexa por (atendimento + médico). A confirmação final também exige
     // mesma data de resposta/procedimento; sem data, o item permanece not_found.
     const byAttendCrm = new Map<string, any[]>();
