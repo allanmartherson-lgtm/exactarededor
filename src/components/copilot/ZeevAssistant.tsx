@@ -87,6 +87,12 @@ interface Props {
   onBulkApplied?: () => void;
   /** Posicionamento (default: bottom-left). */
   side?: "bottom-left" | "bottom-right";
+  /**
+   * Habilita as ações inteligentes do Zeev (tratativa manual em lote + sugerir regra).
+   * Default: false. Hoje só faz sentido em pagamentos de parecer — em outros tipos,
+   * o Zeev fica como dica/insight informativo, sem oferecer os botões de ação.
+   */
+  smartActionsEnabled?: boolean;
 }
 
 const norm = (s: string | null | undefined) =>
