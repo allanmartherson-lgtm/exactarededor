@@ -969,32 +969,24 @@ function WhenApplySection({
         </FilterBtn>
 
         <FilterBtn id="caso-especial" label="Caso especial" active={hasSpecialCaseFilter} openSection={openSection} onToggle={toggle}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: c.special_case_filter.includes("*") ? "hsl(var(--accent))" : "transparent" }}>
-              <Checkbox
-                checked={c.special_case_filter.includes("*")}
-                onCheckedChange={(v) => onChange({ special_case_filter: v ? Array.from(new Set([...c.special_case_filter, "*"])) : c.special_case_filter.filter((x) => x !== "*") })}
-              />
-              <span style={{ fontSize: 12, lineHeight: 1.35 }}>Qualquer caso especial aprovado</span>
-            </label>
-            {specialCaseTypes.map((t) => {
-              const checked = c.special_case_filter.includes(t.code);
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {[{ code: "*", label: "Qualquer caso especial aprovado" }, ...specialCaseTypes].map((t) => {
+              const sel = c.special_case_filter.includes(t.code);
               return (
-                <label key={t.code} style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: checked ? "hsl(var(--accent))" : "transparent" }}>
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={(v) => onChange({ special_case_filter: v ? Array.from(new Set([...c.special_case_filter, t.code])) : c.special_case_filter.filter((x) => x !== t.code) })}
-                  />
-                  <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-                    <span style={{ fontSize: 12, fontWeight: 500 }}>{t.label}</span>
-                    <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontFamily: "monospace" }}>{t.code}</span>
-                  </span>
-                </label>
+                <button
+                  key={t.code}
+                  type="button"
+                  onClick={() => onChange({ special_case_filter: sel ? c.special_case_filter.filter((x) => x !== t.code) : Array.from(new Set([...c.special_case_filter, t.code])) })}
+                  style={{ padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 500, border: `1px solid ${sel ? "hsl(var(--primary))" : "hsl(var(--border))"}`, background: sel ? "hsl(var(--accent))" : "hsl(var(--card))", color: sel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", cursor: "pointer" }}
+                >
+                  {t.label}
+                </button>
               );
             })}
-            <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Vazio = cálculo padrão. Preenchido = só itens com caso especial aprovado correspondente.</p>
           </div>
+          <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 6 }}>Vazio = cálculo padrão. Preenchido = só itens com caso especial aprovado correspondente.</p>
         </FilterBtn>
+
 
         <FilterBtn id="tipo-pagamento" label="Tipo de pagamento" active={hasPaymentTypeFilter} openSection={openSection} onToggle={toggle}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
