@@ -23,12 +23,21 @@ type ZeevItem = {
   ai_status?: string | null;
   doctor_name?: string | null;
   procedure_code?: string | null;
+  procedure_description?: string | null;
+  attendance_number?: string | null;
   applied_calc_method?: string | null;
   applied_rule_id?: string | null;
   manual_intervention_reason_id?: string | null;
   gross_amount?: number | null;
   expected_amount?: number | null;
   procedure_amount?: number | null;
+};
+
+export type ZeevBulkPayload = {
+  /** Itens a tratar em lote. */
+  itemIds: string[];
+  /** Subtítulo do diálogo de confirmação. */
+  subtitle?: string;
 };
 
 export type ZeevInsight = {
@@ -39,6 +48,10 @@ export type ZeevInsight = {
   message: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Quando presente, Zeev oferece "Tratar em lote" e abre o diálogo de preview. */
+  bulk?: ZeevBulkPayload;
+  /** Quando presente, Zeev oferece um link de navegação (ex.: criar nova regra). */
+  linkTo?: { href: string; label: string };
 };
 
 interface Props {
@@ -52,6 +65,10 @@ interface Props {
   extraInsights?: ZeevInsight[];
   /** Filtro sugerido pelo Zeev (deep link nos filtros do grid). */
   onApplyFilter?: (filter: "divergentes" | "sem_regra" | "reprovados") => void;
+  /** Contexto necessário pra ações em lote (paymentId + companyName). */
+  bulkContext?: { paymentId: string; companyName: string | null };
+  /** Callback chamado após o Zeev aplicar uma ação em lote. */
+  onBulkApplied?: () => void;
   /** Posicionamento (default: bottom-left). */
   side?: "bottom-left" | "bottom-right";
 }
