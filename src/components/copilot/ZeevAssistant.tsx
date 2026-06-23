@@ -34,6 +34,7 @@ type ZeevItem = {
   gross_amount?: number | null;
   expected_amount?: number | null;
   procedure_amount?: number | null;
+  ai_findings?: { needs_human_review?: boolean } | Record<string, unknown> | null;
 };
 
 export type ZeevBulkPayload = {
