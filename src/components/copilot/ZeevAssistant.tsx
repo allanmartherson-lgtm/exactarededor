@@ -93,30 +93,49 @@ function buildItemInsights(items: ZeevItem[], onApplyFilter?: Props["onApplyFilt
       priority: pctDiv >= 0.3 ? "alta" : "media",
       icon: AlertTriangle,
       title: `${divergentes.length} itens divergentes`,
-      message: `${Math.round(pctDiv * 100)}% dos itens estão reprovado/alerta sem tratativa manual. Quer filtrar pra revisar em bloco?`,
-      actionLabel: onApplyFilter ? "Filtrar divergentes" : undefined,
+      message: `${Math.round(pctDiv * 100)}% dos itens estão reprovado/alerta sem tratativa manual. Posso aplicar a mesma justificativa em todos de uma vez.`,
+      actionLabel: onApplyFilter ? "Filtrar no grid" : undefined,
       onAction: onApplyFilter ? () => onApplyFilter("divergentes") : undefined,
+      bulk: {
+        itemIds: divergentes.map((i) => i.id),
+        subtitle: `Zeev encontrou ${divergentes.length} itens divergentes sem tratativa. Selecione os que devem receber a mesma justificativa em lote.`,
+      },
     });
   }
 
-  const groupCounts = new Map<string, { count: number; doctor: string; tuss: string }>();
+  const groupBuckets = new Map<
+    string,
+    { doctor: string; tuss: string; items: ZeevItem[] }
+  >();
   for (const it of items) {
     if (it.ai_status !== "reprovado") continue;
     if (it.manual_intervention_reason_id) continue;
     const k = `${norm(it.doctor_name)}|${norm(it.procedure_code)}`;
     if (k === "|") continue;
-    const prev = groupCounts.get(k);
-    if (prev) prev.count += 1;
-    else groupCounts.set(k, { count: 1, doctor: it.doctor_name ?? "—", tuss: it.procedure_code ?? "—" });
+    const prev = groupBuckets.get(k);
+    if (prev) prev.items.push(it);
+    else
+      groupBuckets.set(k, {
+        doctor: it.doctor_name ?? "—",
+        tuss: it.procedure_code ?? "—",
+        items: [it],
+      });
   }
-  const repeated = [...groupCounts.values()].filter((g) => g.count >= 3).sort((a, b) => b.count - a.count).slice(0, 3);
+  const repeated = [...groupBuckets.values()]
+    .filter((g) => g.items.length >= 3)
+    .sort((a, b) => b.items.length - a.items.length)
+    .slice(0, 3);
   for (const g of repeated) {
     out.push({
       id: `padrao-${g.doctor}-${g.tuss}`,
-      priority: g.count >= 5 ? "alta" : "media",
+      priority: g.items.length >= 5 ? "alta" : "media",
       icon: GitBranch,
-      title: `Padrão repetido (${g.count}× reprovado)`,
-      message: `${g.doctor} · TUSS ${g.tuss} reprovou ${g.count}× — provavelmente cabe a mesma justificativa.`,
+      title: `Padrão repetido (${g.items.length}× reprovado)`,
+      message: `${g.doctor} · TUSS ${g.tuss} reprovou ${g.items.length}× — provavelmente cabe a mesma justificativa em todos.`,
+      bulk: {
+        itemIds: g.items.map((i) => i.id),
+        subtitle: `${g.items.length} reprovações de ${g.doctor} no TUSS ${g.tuss}. Aplicar a mesma tratativa manual nos selecionados?`,
+      },
     });
   }
 
@@ -129,9 +148,12 @@ function buildItemInsights(items: ZeevItem[], onApplyFilter?: Props["onApplyFilt
       priority: semRegra.length >= 10 ? "alta" : "media",
       icon: ShieldQuestion,
       title: `${semRegra.length} itens sem regra cadastrada`,
-      message: `Esses itens não tiveram repasse calculado. Vale revisar o cadastro de regras ou tratar manualmente.`,
-      actionLabel: onApplyFilter ? "Ver sem regra" : undefined,
-      onAction: onApplyFilter ? () => onApplyFilter("sem_regra") : undefined,
+      message: `Esses itens não tiveram repasse calculado. Pode valer a pena cadastrar uma regra nova ou tratar manualmente em lote.`,
+      bulk: {
+        itemIds: semRegra.map((i) => i.id),
+        subtitle: `${semRegra.length} itens sem regra cadastrada. Marcar todos como tratativa manual (aceita o valor do convênio)?`,
+      },
+      linkTo: { href: "/regras?tab=pagamento", label: "Criar regra" },
     });
   }
 
