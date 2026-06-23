@@ -2618,6 +2618,11 @@ const NewPayment = () => {
 
     // Substitui a entrada "/pagamentos/novo" no histórico para que o botão Voltar
     // do detalhe leve à lista de pagamentos, e não de volta ao formulário de criação.
+    // Submissão concluída: rascunho não é mais necessário.
+    if (hospital?.id) {
+      clearDraft(hospital.id, analysisMode, paymentTypeId);
+      draftClearedRef.current = true;
+    }
     navigate(`/pagamentos/${payment.id}`, { replace: true, state: { backTo: "/pagamentos" } });
   };
 
