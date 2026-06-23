@@ -396,8 +396,9 @@ export function ZeevAssistant({
           <div className="relative bg-gradient-to-br from-[hsl(var(--primary))] via-[hsl(var(--primary))] to-[hsl(var(--primary-dark))] px-4 py-3.5 text-[hsl(var(--primary-foreground))]">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
-                <Wand2 className="h-4 w-4" />
+                <ZeevIcon className="h-5 w-5 text-white" />
               </div>
+
               <div className="flex-1 min-w-0 pr-6">
                 <div className="text-sm font-semibold leading-tight">Oi, sou o Zeev 👋</div>
                 <div
