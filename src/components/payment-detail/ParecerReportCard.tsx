@@ -117,9 +117,12 @@ export function ParecerReportCard({
     const m =
       competenceMonths?.[competenceMonths.length - 1] ?? competenceMonth;
     if (!m) return "";
-    const d = new Date(m);
-    // último dia do mês
-    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    // Parse YYYY-MM-DD em UTC para evitar shift de fuso (BRT -3h vira mês anterior)
+    const iso = m.slice(0, 10);
+    const [y, mo] = iso.split("-").map(Number);
+    if (!y || !mo) return "";
+    // último dia do mês em UTC
+    const last = new Date(Date.UTC(y, mo, 0));
     return last.toISOString().slice(0, 10);
   })();
   const [periodStart, setPeriodStart] = useState(defaultStart);
