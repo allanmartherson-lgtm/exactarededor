@@ -542,6 +542,21 @@ export function ZeevAssistant({
                             <ChevronRight className="h-3 w-3 ml-1" />
                           </Button>
                         )}
+                        {ins.chatPrompt && executorEnabled && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setChatInitialPrompt(`${ins.chatPrompt!}\u200B${Date.now()}`.replace(/\u200B\d+$/, ""));
+                              // garante que o useEffect do filho dispare mesmo se a frase repetir
+                              setTimeout(() => setChatInitialPrompt(ins.chatPrompt!), 0);
+                              setTab("chat");
+                            }}
+                            className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
+                          >
+                            <Wand2 className="h-3 w-3 mr-1" />
+                            {ins.chatActionLabel ?? "Resolver com o Zeev"}
+                          </Button>
+                        )}
                         {ins.suggestRule && bulkContext && (
                           <Button
                             size="sm"
