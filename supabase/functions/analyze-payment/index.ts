@@ -452,6 +452,7 @@ serve(async (req) => {
         calc_exception_skipped_calc_id,
         manual_intervention_reason_id,
         manual_intervention_source,
+        manual_intervention_reason:manual_intervention_reasons!manual_intervention_reason_id(code,category),
         raw_data
       `)
       .eq("payment_id", payment_id);
