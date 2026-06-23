@@ -369,22 +369,17 @@ export function ParecerReportCard({
   const removeReport = async (reportId: string) => {
     if (!confirm("Remover este relatório? As linhas importadas serão apagadas e você poderá reenviar o arquivo correto.")) return;
     try {
-      const { error: rowsErr } = await supabase
-        .from("payment_parecer_report_rows")
-        .delete()
-        .eq("report_id", reportId);
-      if (rowsErr) throw rowsErr;
-      const { error: hdrErr } = await supabase
-        .from("payment_parecer_reports")
-        .delete()
-        .eq("id", reportId);
-      if (hdrErr) throw hdrErr;
+      const { error } = await supabase.functions.invoke("delete-parecer-report", {
+        body: { report_id: reportId },
+      });
+      if (error) throw error;
       toast({ title: "Relatório removido", description: "Reenvie o arquivo correto." });
       await load();
     } catch (e: any) {
       toast({ title: "Falha ao remover", description: e?.message ?? String(e), variant: "destructive" });
     }
   };
+
 
 
   const hasReport = reports.length > 0;
