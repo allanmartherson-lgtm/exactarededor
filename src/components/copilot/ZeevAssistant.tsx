@@ -42,6 +42,18 @@ export type ZeevBulkPayload = {
   subtitle?: string;
 };
 
+export type ZeevSuggestPayload = {
+  /** Médico (quando o padrão é específico) ou null se múltiplos. */
+  doctor_name?: string | null;
+  doctor_id?: string | null;
+  procedure_code?: string | null;
+  procedure_description?: string | null;
+  occurrences?: number;
+  sample_item_ids: string[];
+  context?: Record<string, unknown>;
+  initialJustification?: string;
+};
+
 export type ZeevInsight = {
   id: string;
   priority: "alta" | "media" | "baixa";
@@ -52,8 +64,8 @@ export type ZeevInsight = {
   onAction?: () => void;
   /** Quando presente, Zeev oferece "Tratar em lote" e abre o diálogo de preview. */
   bulk?: ZeevBulkPayload;
-  /** Quando presente, Zeev oferece um link de navegação (ex.: criar nova regra). */
-  linkTo?: { href: string; label: string };
+  /** Quando presente, Zeev oferece "Sugerir regra" e abre o diálogo de sugestão. */
+  suggestRule?: ZeevSuggestPayload;
 };
 
 interface Props {
