@@ -8,8 +8,10 @@
 //     execução acontecem no front, sempre com card de preview.
 //
 // Ações suportadas (v1):
-//   - decide_suspicious  payload: { decision: 'discard'|'informative_total'|'keep' }
-//                        scope:   { file_name?, reason?, all? }
+//   - decide_suspicious   payload: { decision: 'discard'|'informative_total'|'keep' }
+//                         scope:   { file_name?, reason?, all? }
+//   - set_sector_bulk     payload: { sector: 'CC'|'UPA'|'UTI'|...} (rule sector code)
+//                         scope:   { file_names?: string[], only_missing?: bool, all?: bool }
 //   - unsupported / clarify
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
@@ -27,12 +29,21 @@ const SYSTEM_PROMPT = [
   "   scope.reason (opcional): 'footer-text' | 'value-without-key' | 'tail-summary'",
   "   scope.all (opcional, bool): true se aplicar em todas as suspeitas pendentes",
   "",
+  "2) set_sector_bulk — define o SETOR (RuleSector) em todos/alguns arquivos do lote.",
+  "   payload.sector: o código exato do setor (vindo do contexto.available_sectors).",
+  "   scope.only_missing (opcional, default true): só aplica em arquivos que ainda NÃO têm setor escolhido (sector_missing=true).",
+  "   scope.file_names (opcional): lista de nomes de arquivo para restringir.",
+  "   scope.all (opcional): true para aplicar em todos os arquivos (sobrescreve setor já escolhido).",
+  "   Use only_missing=true quando o analista disser 'nos que faltam', 'sem setor', 'pendentes'. Use all=true só se ele disser 'em todos' / 'todos os arquivos'.",
+  "",
   "REGRAS:",
-  "- Se o pedido pede setor/centro de custos/vincular médico a empresa em lote no PRÉ-ENVIO, devolva action='unsupported' e explique que essa ação está disponível APÓS o envio do lote, na tela de detalhe do pagamento.",
+  "- Se o pedido pede CENTRO DE CUSTOS ou VINCULAR MÉDICO À EMPRESA em lote no PRÉ-ENVIO, devolva action='unsupported' e explique que essas ações ficam disponíveis APÓS o envio do lote, na tela de detalhe do pagamento.",
+  "- Se o setor solicitado não existir em context.available_sectors, devolva action='clarify' e liste as opções no summary.",
   "- Se ambíguo, action='clarify' e peça o esclarecimento curto no 'summary'.",
   "- 'summary' = 1 frase em PT-BR, sem números (a contagem é calculada no front).",
-  "- Sinônimos importantes: 'descartar', 'tirar', 'remover' = discard. 'informativo', 'total informativo' = informative_total. 'manter', 'aceitar como item' = keep.",
-  "- 'totalizadores', 'rodapé', 'linhas suspeitas', 'totais', 'NF', 'subtotal' → ação decide_suspicious.",
+  "- Sinônimos de decisão: 'descartar', 'tirar', 'remover' = discard. 'informativo', 'total informativo' = informative_total. 'manter', 'aceitar como item' = keep.",
+  "- 'totalizadores', 'rodapé', 'linhas suspeitas', 'totais', 'NF', 'subtotal' → action=decide_suspicious.",
+  "- 'setor', 'CC', 'UPA', 'UTI', 'ambulatório', 'pronto socorro' → action=set_sector_bulk.",
 ].join("\n");
 
 const RESPOND_SCHEMA = {
@@ -40,13 +51,15 @@ const RESPOND_SCHEMA = {
   properties: {
     action: {
       type: "string",
-      enum: ["decide_suspicious", "unsupported", "clarify"],
+      enum: ["decide_suspicious", "set_sector_bulk", "unsupported", "clarify"],
     },
     scope: {
       type: "object",
       properties: {
         file_name: { type: "string" },
+        file_names: { type: "array", items: { type: "string" } },
         reason: { type: "string", enum: ["footer-text", "value-without-key", "tail-summary"] },
+        only_missing: { type: "boolean" },
         all: { type: "boolean" },
       },
       additionalProperties: false,
@@ -55,6 +68,7 @@ const RESPOND_SCHEMA = {
       type: "object",
       properties: {
         decision: { type: "string", enum: ["discard", "informative_total", "keep"] },
+        sector: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -77,6 +91,8 @@ interface RequestBody {
     suspicious_total?: number;
     pending_total?: number;
     reasons_present?: string[];
+    files_missing_sector?: string[];
+    available_sectors?: Array<{ code: string; label: string }>;
   };
 }
 

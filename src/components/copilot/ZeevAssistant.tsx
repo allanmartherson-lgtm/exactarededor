@@ -70,6 +70,10 @@ export type ZeevInsight = {
   bulk?: ZeevBulkPayload;
   /** Quando presente, Zeev oferece "Sugerir regra" e abre o diálogo de sugestão. */
   suggestRule?: ZeevSuggestPayload;
+  /** Quando presente, Zeev troca pra aba "Conversar" e pré-preenche essa frase. */
+  chatPrompt?: string;
+  /** Label do botão que dispara o chatPrompt. Default: "Resolver com o Zeev". */
+  chatActionLabel?: string;
 };
 
 interface Props {
@@ -252,6 +256,7 @@ export function ZeevAssistant({
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
   const [tab, setTab] = useState<"insights" | "chat">("insights");
+  const [chatInitialPrompt, setChatInitialPrompt] = useState<{ text: string; nonce: number } | null>(null);
   const executorEnabled = !!bulkContext?.paymentId || !!stagingContext;
   const stagingMode = !!stagingContext && !bulkContext?.paymentId;
 
@@ -537,6 +542,19 @@ export function ZeevAssistant({
                             <ChevronRight className="h-3 w-3 ml-1" />
                           </Button>
                         )}
+                        {ins.chatPrompt && executorEnabled && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setChatInitialPrompt({ text: ins.chatPrompt!, nonce: Date.now() });
+                              setTab("chat");
+                            }}
+                            className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
+                          >
+                            <Wand2 className="h-3 w-3 mr-1" />
+                            {ins.chatActionLabel ?? "Resolver com o Zeev"}
+                          </Button>
+                        )}
                         {ins.suggestRule && bulkContext && (
                           <Button
                             size="sm"
@@ -580,7 +598,11 @@ export function ZeevAssistant({
           {tab === "chat" && executorEnabled && (
             <>
               {stagingMode && stagingContext ? (
-                <ZeevStagingChat staging={stagingContext} />
+                <ZeevStagingChat
+                  key={chatInitialPrompt?.nonce ?? "default"}
+                  staging={stagingContext}
+                  initialPrompt={chatInitialPrompt?.text}
+                />
               ) : bulkContext ? (
                 <ZeevExecutorChat paymentId={bulkContext.paymentId} onApplied={onBulkApplied} />
               ) : null}

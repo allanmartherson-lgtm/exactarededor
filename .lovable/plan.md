@@ -1,98 +1,40 @@
+## Objetivo
+Hoje o Zeev em `/pagamentos/novo` só conversa sobre **linhas suspeitas**. Com vários arquivos, o analista precisa: escolher setor em cada um, descartar rodapés/totalizadores, e confirmar PJ. Vamos transformar o Zeev em apoio ativo nessa etapa, mantendo a regra de **sempre confirmar antes de aplicar**.
 
-# Zeev Executor — chat com ações automáticas
+## Mudanças
 
-Transforma o Zeev de "observador" em "executor" via chat natural, com confirmação humana obrigatória, snapshot para rollback e log em `audit_log`.
+### 1. Insights automáticos de staging (aba "Apoio analítico")
+Em `src/pages/NewPayment.tsx`, montar `extraInsights` a partir dos buckets e passar pro `ZeevAssistant`:
 
-## Princípios
+- **Setor faltando** — lista os N arquivos com `sectorMissing && !sectorMapping`. Ação: "Resolver com o Zeev" → muda pra aba **Conversar** e pré-preenche `"definir setor <X> para os arquivos: A.xlsx, B.xlsx"`.
+- **PJ não confirmada** — arquivos com `matchScore < MATCH_AUTO_THRESHOLD` e sem `manualOverride`. Ação: rola até o card do arquivo (scroll-into-view via ref por bucket).
+- **Linhas suspeitas pendentes** — usa `pendingSuspiciousCount` já calculado. Ação: muda pra aba **Conversar** e pré-preenche `"descartar todos os totalizadores"`.
+- **Mapeamento incompleto** — buckets com `summary.missingRequired.length > 0`. Ação: abre o `ColumnMappingDialog` daquele bucket.
 
-- **Nada executa sem confirmar.** O LLM monta uma proposta; o usuário clica Confirmar.
-- **Whitelist no servidor.** O LLM só chama tools cadastradas — não escreve SQL.
-- **Reversível.** Toda ação grava snapshot dos valores antigos (`audit_log.before_state`).
-- **Escopo limitado por rota.** Em `/pagamentos/novo` opera sobre o `staging` da importação; em `/pagamento/:id` opera sobre `payment_items` do lote.
-- **Não toca `rule_calculations`.** Mantém a regra de governança existente.
+Os insights respeitam o `dismissed` (sessionStorage) já existente no Zeev.
 
-## Tools liberadas (v1)
+### 2. Comando "definir setor" no executor de staging
+- `supabase/functions/zeev-staging-executor/index.ts`: adicionar intent `set_sector_bulk` com `scope: { file_names?: string[]; all?: boolean }` e `payload: { sector: RuleSector }`. LLM passa a aceitar frases como *"setor CC em todos sem setor"* ou *"setor UPA no arquivo Brasilia.xlsx"*.
+- `src/components/copilot/ZeevStagingChat.tsx`: renderizar **proposal card** com lista de arquivos afetados (nome + setor proposto), botão Confirmar/Cancelar igual ao de suspeitas. Ao confirmar, chama `staging.setBucketSectors(changes)`.
+- `StagingContext` ganha:
+  - `buckets: Array<{ idx; fileName; matchScore; manualOverride; sectorMissing; sectorMapping; sectorOptions }>`
+  - `setBucketSectors: (changes: Array<{ idx: number; sector: RuleSector }>) => void`
+- `NewPayment.tsx`: implementa `setBucketSectors` reutilizando o `setBuckets(prev => prev.map(...))` que já existe no seletor inline (linhas ~2900).
 
-| Tool | O que faz | Confirmação | Reversível |
-|---|---|---|---|
-| `preview_items` | Lista itens que casam com filtro (somente leitura) | não | n/a |
-| `bulk_set_sector` | Aplica `sector_code` em itens de um escopo | sim | sim (snapshot por item) |
-| `bulk_set_cost_center` | Idem para `cost_center_code` | sim | sim |
-| `bulk_link_doctor_company` | Cria/atualiza `doctor_companies` para médicos sem PJ | sim | sim (lista de IDs criados) |
-| `bulk_mark_glosa_pattern` | Marca itens como glosa por descrição/convênio | sim | sim |
+### 3. Pré-preenchimento da aba Conversar
+- `ZeevAssistant`: aceita prop opcional `onOpenChatWith?: (prompt: string) => void` (não precisa — usar estado interno). Mais simples: quando o insight é clicado e tem `chatPrompt`, o Zeev troca pra `tab="chat"` e empurra a frase via prop nova `initialPrompt` do `ZeevStagingChat`.
+- `ZeevStagingChat`: `useEffect` que, quando `initialPrompt` muda e não está vazio, preenche o textarea (não envia automaticamente — analista revisa).
 
-Cada tool recebe `scope` (filtros: `sem_setor`, `convenio_code`, `descricao_like`, `medico_code`, etc.) + payload (`sector_code`, etc.).
-
-## Fluxo no chat
-
-1. Usuário: *"coloca setor Centro Cirúrgico em todos sem setor identificado"*.
-2. LLM chama `preview_items({ scope: { sector: null } })` → 47 itens.
-3. LLM responde com **card de proposta**:
-   - Ação, escopo, contagem, exemplos (3 itens), botões **Confirmar** / **Cancelar**.
-4. Confirmar → roda `bulk_set_sector` (edge function) → grava `audit_log` → toast de sucesso + link "desfazer" (válido por 10 min).
-5. Cancelar → descarta a proposta, mantém histórico no chat.
-
-## Onde aparece
-
-- **`/pagamentos/novo`** (esta tela): chat já existe (FAB Zeev). Ganha modo "executor" — tools operam sobre os itens do lote em criação.
-- **`/pagamento/:id`** (detalhe): mesmo FAB, contexto = lote aberto.
-- Mesma UI/componente, contexto trocado pela rota.
-
-## Arquitetura técnica
-
-```
-Cliente (FAB Zeev)
-  └─ useChat → /functions/v1/zeev-executor
-                   ├─ streamText (Lovable AI, gemini-3-flash-preview)
-                   ├─ tools: preview_items, bulk_set_sector, ...
-                   │   ├─ execute=preview → roda direto
-                   │   └─ execute=mutate → needsApproval=true (UI mostra card)
-                   └─ onFinish → persiste mensagens (localStorage no v1)
-```
-
-### Persistência do chat
-
-- **v1**: localStorage por `paymentId || "novo-lote"`. Sem threads — uma conversa por lote. Botão "limpar conversa".
-- Suficiente porque o Zeev é assistente contextual, não histórico de longa duração.
-
-### Auditoria
-
-Toda ação grava em `audit_log`:
-- `actor = 'zeev'`, `actor_user_id = auth.uid()`
-- `action = 'bulk_set_sector'`
-- `prompt_original = "coloca setor CC em..."`
-- `affected_ids = [...]`, `before_state = {...}`, `after_state = {...}`
-- `payment_id`, `hospital_id`
-
-### Desfazer
-
-Botão "desfazer" no toast → chama tool inversa lendo `before_state` do `audit_log` mais recente daquele usuário+ação. Janela: 10 min.
+### 4. Não-objetivos (continua fora de escopo do staging)
+- CC e médico→PJ em lote no pré-envio. O LLM continua respondendo `unsupported` com mensagem explicando que essas ações ficam pós-envio (já implementado).
 
 ## Arquivos
+- editar `src/pages/NewPayment.tsx` (montar `extraInsights`, expandir `stagingContext`)
+- editar `src/components/copilot/ZeevAssistant.tsx` (aceitar `extraInsights` no modo staging, callback pra trocar aba + pré-preencher)
+- editar `src/components/copilot/ZeevStagingChat.tsx` (renderizar proposal de setor, aceitar `initialPrompt`)
+- editar `supabase/functions/zeev-staging-executor/index.ts` (intent `set_sector_bulk` + tools/whitelist)
 
-**Novos:**
-- `supabase/functions/zeev-executor/index.ts` — streamText + tools whitelisted
-- `supabase/functions/zeev-executor/tools.ts` — definição/execução das 4 tools + preview
-- `src/components/copilot/ZeevExecutorChat.tsx` — chat UI (AI Elements) com card de proposta
-- `src/components/copilot/ProposalCard.tsx` — card de confirmação (ação, escopo, count, Confirmar/Cancelar)
-- `src/hooks/useZeevExecutor.ts` — useChat + persistência localStorage por lote
-
-**Alterados:**
-- `src/components/copilot/ZeevAssistant.tsx` — adiciona aba "Conversar" ao lado do "Apoio analítico" atual
-- `src/pages/NewPayment.tsx` e `src/pages/PaymentDetail.tsx` — passam `executorContext` para o FAB
-- `supabase/migrations/<ts>_audit_log_zeev.sql` — colunas `prompt_original`, `before_state`, `after_state` se ainda não existem
-
-## Fora de escopo (v1)
-
-- Threads / histórico de conversas anteriores
-- Ações que mexem em `rule_calculations`, `rules`, `pools`
-- Ações financeiras (`payments`, `glosa_debts`)
-- Execução agendada / disparo automático sem confirmação
-
-## Verificação antes de fechar
-
-1. Pedir setor em lote → preview mostra contagem certa.
-2. Confirmar → itens atualizados, `audit_log` registrado.
-3. Desfazer → estado anterior restaurado.
-4. Cancelar → nada muda no banco.
-5. Pedir ação fora da whitelist (ex: "deleta o lote") → Zeev recusa explicitamente.
+## Confirmações antes de implementar
+1. **Setor em lote no staging** — confirma que quando o analista pedir *"setor CC em todos sem setor"*, aplico **apenas** nos arquivos onde `sectorMissing && !sectorMapping`, ignorando arquivos que já têm setor escolhido?
+2. **Mapeamento incompleto** — o insight só abre o diálogo do **primeiro** bucket com problema, ou lista todos com botão por arquivo?
+3. **Auto-envio de comando** — quando o insight troca pra aba Conversar com frase pré-preenchida, eu **só preencho** (analista clica enviar), ou **envio automaticamente** já mostrando o proposal card?
