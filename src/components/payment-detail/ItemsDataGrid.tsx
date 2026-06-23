@@ -358,6 +358,150 @@ function ManualInterventionItemIconAction({
   );
 }
 
+/** Menu compacto "Mais ações" — agrupa Exceção de cálculo + Tratar manualmente
+ *  para não poluir a coluna AÇÕES. Mostra ponto colorido quando há algo ativo. */
+function RowMoreActionsMenu({
+  paymentId,
+  item,
+}: {
+  paymentId: string;
+  item: PaymentItemRowData & {
+    applied_calc_id?: string | null;
+    company_name?: string | null;
+    calc_exception_skip?: boolean | null;
+    calc_exception_reason?: string | null;
+    manual_intervention_reason_id?: string | null;
+    manual_intervention_notes?: string | null;
+    manual_intervention_source?: string | null;
+  };
+}) {
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [calcMeta, setCalcMeta] = useState<{ payment_type_id: string | null; label: string | null } | null>(null);
+  const calcId = item.applied_calc_id ?? null;
+
+  useEffect(() => {
+    if (!calcId) { setCalcMeta(null); return; }
+    let cancelled = false;
+    supabase.from("rule_calculations").select("payment_type_id,label").eq("id", calcId).maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const d = data as any;
+        setCalcMeta(d ? { payment_type_id: d.payment_type_id ?? null, label: d.label ?? null } : null);
+      });
+    return () => { cancelled = true; };
+  }, [calcId]);
+
+  const hasTypedCalc = !!calcMeta?.payment_type_id;
+  const calcMarked = !!item.calc_exception_skip;
+  const manualMarked = !!item.manual_intervention_reason_id;
+  const isAuto = item.manual_intervention_source === "auto_parecer_report";
+  const anyActive = calcMarked || manualMarked;
+  // Esconde quando nada faz sentido para esse item (sem cálculo tipado e sem nada ativo)
+  if (!hasTypedCalc && !anyActive && !calcMarked) {
+    // ainda assim mostramos o menu para permitir "tratar manualmente"
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn(
+              "h-6 w-6 relative",
+              anyActive && "text-foreground",
+            )}
+            title="Mais ações (exceção de cálculo, tratamento manual)"
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+            {anyActive && (
+              <span
+                className={cn(
+                  "absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full",
+                  manualMarked ? "bg-violet-500" : "bg-amber-500",
+                )}
+                aria-hidden="true"
+              />
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuLabel className="text-xs">Ações avançadas</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setManualOpen(true)}>
+            <Wand2
+              className={cn(
+                "h-3.5 w-3.5 mr-2",
+                manualMarked ? "text-violet-600" : "text-muted-foreground",
+              )}
+            />
+            <div className="flex flex-col">
+              <span className="text-sm">
+                {manualMarked ? "Revisar tratamento manual" : "Tratar manualmente"}
+              </span>
+              {manualMarked && (
+                <span className="text-[11px] text-muted-foreground">
+                  {isAuto ? "Aplicado automaticamente via parecer" : "Tratamento ativo"}
+                </span>
+              )}
+            </div>
+          </DropdownMenuItem>
+          {(hasTypedCalc || calcMarked) && (
+            <DropdownMenuItem onClick={() => setCalcOpen(true)}>
+              <FilterX
+                className={cn(
+                  "h-3.5 w-3.5 mr-2",
+                  calcMarked ? "text-amber-600" : "text-muted-foreground",
+                )}
+              />
+              <div className="flex flex-col">
+                <span className="text-sm">
+                  {calcMarked ? "Remover exceção de cálculo" : "Marcar exceção de cálculo"}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {calcMarked
+                    ? `Pulando ${calcMeta?.label ?? "cálculo tipado"}`
+                    : `Pular ${calcMeta?.label ?? "cálculo tipado"} e ir para o próximo`}
+                </span>
+              </div>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ManualInterventionDialog
+        open={manualOpen}
+        onOpenChange={setManualOpen}
+        itemId={item.id}
+        paymentId={paymentId}
+        companyName={(item as any).company_name ?? null}
+        current={{
+          manual_intervention_reason_id: item.manual_intervention_reason_id ?? null,
+          manual_intervention_notes: item.manual_intervention_notes ?? null,
+        }}
+      />
+
+      {(hasTypedCalc || calcMarked) && (
+        <CalcExceptionDialog
+          open={calcOpen}
+          onOpenChange={setCalcOpen}
+          itemId={item.id}
+          paymentId={paymentId}
+          companyName={(item as any).company_name ?? null}
+          appliedCalcId={calcId}
+          current={{
+            calc_exception_skip: item.calc_exception_skip ?? false,
+            calc_exception_reason: item.calc_exception_reason ?? null,
+          }}
+          skippedCalcLabel={calcMeta?.label ?? null}
+        />
+      )}
+    </>
+  );
+}
+
 
 
 
