@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { ZeevBulkManualDialog, type ZeevBulkItem } from "./ZeevBulkManualDialog";
 import { ZeevSuggestRuleDialog } from "./ZeevSuggestRuleDialog";
+import { ZeevExecutorChat } from "./ZeevExecutorChat";
 
 /**
  * Zeev — mascote assistente do Exacta.
