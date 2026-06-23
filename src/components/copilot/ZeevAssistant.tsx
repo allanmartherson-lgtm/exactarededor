@@ -598,7 +598,11 @@ export function ZeevAssistant({
           {tab === "chat" && executorEnabled && (
             <>
               {stagingMode && stagingContext ? (
-                <ZeevStagingChat staging={stagingContext} />
+                <ZeevStagingChat
+                  key={chatInitialPrompt?.nonce ?? "default"}
+                  staging={stagingContext}
+                  initialPrompt={chatInitialPrompt?.text}
+                />
               ) : bulkContext ? (
                 <ZeevExecutorChat paymentId={bulkContext.paymentId} onApplied={onBulkApplied} />
               ) : null}
