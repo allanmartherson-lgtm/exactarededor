@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,63 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
+
+// Helpers de parsing (rodam no browser para não estourar memória do worker)
+const normHeader = (s: string) =>
+  String(s ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+
+function pick(row: Record<string, any>, aliases: string[]): any {
+  for (const a of aliases) {
+    const key = normHeader(a);
+    if (key in row && row[key] !== "" && row[key] != null) return row[key];
+  }
+  return null;
+}
+
+function normalizeCrm(input: any): string | null {
+  if (input == null) return null;
+  const s = String(input).toUpperCase();
+  const m = s.match(/(\d{2,7})\s*[\/\-\s]*([A-Z]{2})/);
+  if (m) return `${m[1]}/${m[2]}`;
+  const onlyDigits = s.match(/\d{2,7}/);
+  if (onlyDigits) return onlyDigits[0];
+  return null;
+}
+
+function parseExcelDate(v: any): string | null {
+  if (v == null || v === "") return null;
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "number") {
+    const epoch = new Date(Date.UTC(1899, 11, 30));
+    return new Date(epoch.getTime() + v * 86400 * 1000).toISOString();
+  }
+  const s = String(v).trim();
+  const m = s.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/,
+  );
+  if (m) {
+    const [, d, mo, y, h = "0", mi = "0", se = "0"] = m;
+    const year = y.length === 2 ? 2000 + Number(y) : Number(y);
+    const dt = new Date(
+      Date.UTC(year, Number(mo) - 1, Number(d), Number(h), Number(mi), Number(se)),
+    );
+    return isNaN(+dt) ? null : dt.toISOString();
+  }
+  const dt = new Date(s);
+  return isNaN(+dt) ? null : dt.toISOString();
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 type ReportRow = {
   id: string;
