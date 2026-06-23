@@ -1689,12 +1689,13 @@ const NewPayment = () => {
         const labelMap = { discard: "Descartadas", informative_total: "Marcadas como informativo", keep: "Mantidas como item" };
         setSuspiciousDecisions((prev) => {
           const next = { ...prev };
-          for (const f of suspiciousByBucket) {
-            for (const r of f.rows) {
-              const k = decisionKey(f.fileName, r.rowNumber);
+          buckets.forEach((b, i) => {
+            const rows = suspiciousByBucket[i] ?? [];
+            for (const r of rows) {
+              const k = decisionKey(b.file.name, r.rowNumber);
               if (!next[k]) next[k] = decision;
             }
-          }
+          });
           return next;
         });
         toast({
