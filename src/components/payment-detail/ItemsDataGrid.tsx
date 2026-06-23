@@ -298,6 +298,68 @@ function CalcExceptionItemIconAction({
 }
 
 
+/** Botão de ícone "Tratar manualmente" — abre o ManualInterventionDialog
+ *  unificado (reclassificação clínica + aceite financeiro). Sempre visível
+ *  para itens não-bonus; muda de cor quando há um tratamento manual ativo. */
+function ManualInterventionItemIconAction({
+  paymentId,
+  item,
+  preferCategory,
+}: {
+  paymentId: string;
+  item: PaymentItemRowData & {
+    company_name?: string | null;
+    manual_intervention_reason_id?: string | null;
+    manual_intervention_notes?: string | null;
+    manual_intervention_source?: string | null;
+  };
+  preferCategory?: "reclassificacao_clinica" | "aceite_financeiro";
+}) {
+  const [open, setOpen] = useState(false);
+  const isMarked = !!item.manual_intervention_reason_id;
+  const isAuto = item.manual_intervention_source === "auto_parecer_report";
+
+  return (
+    <>
+      <Button
+        size="icon"
+        variant="ghost"
+        className={cn(
+          "h-6 w-6",
+          isMarked &&
+            "text-violet-600 hover:text-violet-700 bg-violet-50 dark:bg-violet-950/30",
+        )}
+        title={
+          isMarked
+            ? `Tratamento manual ativo${
+                isAuto ? " (aplicado automaticamente via relatório de parecer)" : ""
+              }. Clique para revisar ou remover.`
+            : "Tratar item manualmente — aceitar valor do convênio com motivo"
+        }
+        onClick={() => setOpen(true)}
+      >
+        <Wand2 className="h-3.5 w-3.5" />
+      </Button>
+      <ManualInterventionDialog
+        open={open}
+        onOpenChange={setOpen}
+        itemId={item.id}
+        paymentId={paymentId}
+        companyName={(item as any).company_name ?? null}
+        current={{
+          manual_intervention_reason_id:
+            item.manual_intervention_reason_id ?? null,
+          manual_intervention_notes: item.manual_intervention_notes ?? null,
+        }}
+        preferCategory={preferCategory}
+      />
+    </>
+  );
+}
+
+
+
+
 
 
 
