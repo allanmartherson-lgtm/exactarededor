@@ -279,6 +279,11 @@ export interface RuleCalculationItem {
    *  NULL = vale para qualquer tipo. Quando setado, só casa se o item
    *  pertencer a um pagamento com o mesmo `payment_type_id`. */
   payment_type_id?: string | null;
+  /** Subtipo de caso dentro de Parecer ('parecer' | 'visita'). NULL = vale
+   *  para qualquer subtipo. Quando setado, só casa se o item tiver o mesmo
+   *  `case_subtype`. Permite uma regra específica para Visita dentro de um
+   *  lote de Parecer. */
+  case_subtype?: "parecer" | "visita" | null;
   /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
   procedure_keywords?: string[] | null;
   /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
