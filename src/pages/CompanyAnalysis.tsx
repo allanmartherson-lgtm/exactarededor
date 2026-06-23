@@ -2467,7 +2467,15 @@ export default function CompanyAnalysis() {
               />
             </CardContent>
           </Card>
-          <ZeevAssistant items={items as never[]} />
+          <ZeevAssistant
+            pageLabel={`Análise da empresa${group?.company_name ? ` · ${group.company_name}` : ""}`}
+            summary={{
+              total_itens: items.length,
+              status_grupo: gStatus,
+              empresa: group?.company_name,
+            }}
+            items={items as never[]}
+          />
           {group && (
             <AddManualItemDialog
               open={manualItemOpen}
