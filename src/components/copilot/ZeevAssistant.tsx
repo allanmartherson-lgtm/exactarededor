@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 
-import { Sparkles, X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2, Users, Lightbulb } from "lucide-react";
+import { X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Wand2, Loader2, Users, Lightbulb, Sparkles } from "lucide-react";
+import { ZeevIcon } from "./ZeevIcon";
+
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
