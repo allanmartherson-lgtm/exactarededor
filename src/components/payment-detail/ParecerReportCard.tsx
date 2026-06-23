@@ -308,6 +308,8 @@ export function ParecerReportCard({
   };
 
   const hasReport = reports.length > 0;
+  const emptyReports = reports.filter((r) => (r.row_count ?? 0) === 0);
+  const hasEmpty = emptyReports.length > 0;
 
   return (
     <Card
