@@ -916,6 +916,14 @@ export function ItemsDataGrid({
   ) => {
     if (!itemIds.length) return;
     try {
+      // Snapshot do estado anterior para auditoria
+      const beforeById = new Map<string, string | null>();
+      for (const it of items) {
+        if (itemIds.includes(it.id)) {
+          beforeById.set(it.id, ((it as any).payment_type_id ?? null) as string | null);
+        }
+      }
+
       const { error } = await supabase
         .from("payment_items")
         .update({ payment_type_id: newTypeId, payment_type_source: "manual" } as any)
@@ -925,6 +933,39 @@ export function ItemsDataGrid({
         toast.error(`Não foi possível reclassificar: ${error.message}`);
         return;
       }
+
+      // Auditoria — um único registro por operação, com diff agregado.
+      try {
+        const { data: userRes } = await supabase.auth.getUser();
+        const actorId = userRes?.user?.id;
+        const paymentId = (items[0] as any)?.payment_id ?? null;
+        const companyName = (items.find((i) => itemIds.includes(i.id)) as any)?.company_name ?? null;
+        if (actorId) {
+          const fromCounts: Record<string, number> = {};
+          for (const v of beforeById.values()) {
+            const k = v ?? "null";
+            fromCounts[k] = (fromCounts[k] ?? 0) + 1;
+          }
+          await supabase.from("audit_log").insert([{
+            entity_type: "payment_item",
+            entity_id: paymentId ?? itemIds[0],
+            action: "reclassify_payment_type",
+            actor_id: actorId,
+            company_name: companyName,
+            diff: {
+              item_ids: itemIds,
+              count: itemIds.length,
+              to_payment_type_id: newTypeId,
+              to_label: newTypeLabel,
+              from_payment_type_id_counts: fromCounts,
+              source: "manual",
+            } as any,
+          }] as any);
+        }
+      } catch (e) {
+        console.warn("[changeCaseSubtype] audit falhou", e);
+      }
+
       toast.success(
         itemIds.length > 1
           ? `${itemIds.length} itens reclassificados como ${newTypeLabel}. Reanalisando…`
@@ -944,6 +985,59 @@ export function ItemsDataGrid({
       onRefresh?.();
     } catch (e: any) {
       console.error("Erro ao reclassificar:", e);
+      toast.error(`Erro inesperado: ${e?.message ?? e}`);
+    }
+  };
+
+  /**
+   * Persiste o tipo padrão da empresa em companies.default_payment_type_id.
+   * NÃO altera os itens deste lote — só passa a valer dos próximos lotes em
+   * diante (na importação). Quem quer mudar o atual também → usa o botão
+   * "Marcar todos" acima antes.
+   */
+  const saveCompanyDefaultType = async (
+    typeId: string | null,
+    label: string,
+  ) => {
+    try {
+      const companyId = (items[0] as any)?.company_id ?? null;
+      const companyName = (items[0] as any)?.company_name ?? null;
+      if (!companyId) {
+        toast.error("Empresa sem cadastro vinculado — não dá para salvar padrão.");
+        return;
+      }
+      const { error } = await supabase
+        .from("companies")
+        .update({ default_payment_type_id: typeId } as any)
+        .eq("id", companyId);
+      if (error) {
+        toast.error(`Não foi possível salvar padrão: ${error.message}`);
+        return;
+      }
+      toast.success(
+        typeId
+          ? `Padrão da empresa salvo como ${label}. Próximos lotes já entram classificados.`
+          : "Padrão da empresa removido.",
+      );
+      // Auditoria
+      try {
+        const { data: userRes } = await supabase.auth.getUser();
+        const actorId = userRes?.user?.id;
+        if (actorId) {
+          await supabase.from("audit_log").insert([{
+            entity_type: "company",
+            entity_id: companyId,
+            action: "set_default_payment_type",
+            actor_id: actorId,
+            company_id: companyId,
+            company_name: companyName,
+            diff: { default_payment_type_id: typeId, label } as any,
+          }] as any);
+        }
+      } catch (e) {
+        console.warn("[saveCompanyDefaultType] audit falhou", e);
+      }
+    } catch (e: any) {
       toast.error(`Erro inesperado: ${e?.message ?? e}`);
     }
   };
@@ -1787,6 +1881,34 @@ export function ItemsDataGrid({
                       }}
                     >
                       Marcar todos como Parecer ({items.length})
+                    </Button>
+                    <div className="border-t my-1" />
+                    <div className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground mb-1 px-1">
+                      Padrão para próximos lotes
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start h-7 text-xs"
+                      onClick={() => saveCompanyDefaultType(visitaPaymentTypeId, "Visita")}
+                    >
+                      Empresa é sempre Visita
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start h-7 text-xs"
+                      onClick={() => saveCompanyDefaultType(parecerPaymentTypeId, "Parecer")}
+                    >
+                      Empresa é sempre Parecer
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start h-7 text-xs text-muted-foreground"
+                      onClick={() => saveCompanyDefaultType(null, "—")}
+                    >
+                      Remover padrão (segue o lote)
                     </Button>
                   </PopoverContent>
                 </Popover>

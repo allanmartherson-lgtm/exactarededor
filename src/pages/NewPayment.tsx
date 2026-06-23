@@ -2296,6 +2296,29 @@ const NewPayment = () => {
       return slug ?? (String(raw).trim().toLowerCase() || null);
     };
 
+    // Pré-carrega o default_payment_type_id de cada empresa vinculada ao lote.
+    // Permite, p.ex., uma PJ marcada como "sempre Visita" entrar pré-classificada
+    // mesmo num lote criado como Parecer Adulto — sem o analista reclassificar
+    // toda vez. NÃO usa allow_mixed_subtypes como gate: se a empresa tem default,
+    // respeita.
+    const companyDefaultTypeMap = new Map<string, string | null>();
+    {
+      const ids = new Set<string>();
+      for (const b of (buckets ?? [])) {
+        const cid = b.matchedCompany?.id;
+        if (cid) ids.add(cid);
+      }
+      if (ids.size > 0) {
+        const { data } = await supabase
+          .from("companies")
+          .select("id, default_payment_type_id")
+          .in("id", Array.from(ids));
+        for (const c of ((data ?? []) as any[])) {
+          companyDefaultTypeMap.set(c.id, c.default_payment_type_id ?? null);
+        }
+      }
+    }
+
 
     // Constrói uma linha de payment_items para uma row "matched"
     const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => {
@@ -2342,11 +2365,25 @@ const NewPayment = () => {
         convenio_matched_by: cRes.matched_by,
         sector_slug: sRes.sector?.slug ?? null,
         sector_matched_by: sRes.matched_by,
-        // Herda o tipo de pagamento escolhido na criação da base. Quando a
-        // base mistura subtipos (allow_mixed_subtypes), o parser pode ter
-        // marcado um override por linha — ele prevalece sobre o tipo pai.
+        // Herda o tipo de pagamento na seguinte ordem de precedência:
+        //   1) override por linha do parser (subtype_split_hint) — fonte 'base'
+        //   2) default da empresa (companies.default_payment_type_id) — fonte 'company_override'
+        //   3) tipo do lote (payment.payment_type_id) — fonte 'default'
         // Motor usa este campo para filtrar regras com payment_type_id setado.
-        payment_type_id: r.payment_type_id_override ?? (payment as any).payment_type_id ?? null,
+        ...(() => {
+          const cid = (currentBucket?.manualOverride
+            ? currentBucket?.matchedCompany?.id
+            : r.company_id) ?? currentBucket?.matchedCompany?.id ?? null;
+          const companyDefault = cid ? companyDefaultTypeMap.get(cid) ?? null : null;
+          const loteId = (payment as any).payment_type_id ?? null;
+          if (r.payment_type_id_override) {
+            return { payment_type_id: r.payment_type_id_override, payment_type_source: "base" };
+          }
+          if (companyDefault && companyDefault !== loteId) {
+            return { payment_type_id: companyDefault, payment_type_source: "company_override" };
+          }
+          return { payment_type_id: loteId, payment_type_source: loteId ? "default" : null };
+        })(),
       });
     };
 
