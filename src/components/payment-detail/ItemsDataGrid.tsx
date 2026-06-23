@@ -26,6 +26,7 @@ import {
   CheckSquare,
   FileText,
   FilterX,
+  HelpCircle,
   MoreHorizontal,
   Pencil,
   RotateCcw,
@@ -1837,7 +1838,60 @@ export function ItemsDataGrid({
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
-                {colVis.atendimento && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Atend.</th>}
+                {colVis.atendimento && (
+                  <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>
+                    <div className="inline-flex items-center gap-1">
+                      <span>Atend.</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center h-3.5 w-3.5 rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label="Legenda dos selos do atendimento"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <HelpCircle className="h-3 w-3" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="start" className="w-72 p-3 text-xs">
+                          <div className="font-semibold text-foreground mb-2">Selos do atendimento</div>
+                          <ul className="space-y-2">
+                            <li className="flex items-start gap-2">
+                              <span className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-muted text-muted-foreground border border-border shrink-0">CE</span>
+                              <span className="text-muted-foreground">Caso especial aprovado para este item.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-amber-100 text-amber-900 border border-amber-300 shrink-0">EX</span>
+                              <span className="text-muted-foreground">Exceção de cálculo — o motor pulou o cálculo tipado da regra.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-violet-100 text-violet-900 border border-violet-300 shrink-0">MAN</span>
+                              <span className="text-muted-foreground">Tratamento manual — analista (ou auto via parecer) aceitou valor diferente do calculado.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 shrink-0">
+                                <FileText className="h-2.5 w-2.5 mr-0.5" />P✓
+                              </span>
+                              <span className="text-muted-foreground">Parecer cruzado: atendimento + data + médico bateram com o relatório.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-amber-50 text-amber-800 border border-amber-300 shrink-0">
+                                <FileText className="h-2.5 w-2.5 mr-0.5" />P?
+                              </span>
+                              <span className="text-muted-foreground">Parecer cruzado fraco: bateu atendimento e médico, mas data diverge.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="inline-flex items-center h-4 px-1 rounded text-[10px] bg-muted text-muted-foreground border border-border shrink-0">
+                                <FileText className="h-2.5 w-2.5 mr-0.5" />P×
+                              </span>
+                              <span className="text-muted-foreground">Sem parecer cruzado para este atendimento/médico no relatório importado.</span>
+                            </li>
+                          </ul>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
+                )}
                 <th
                   scope="col"
                   aria-sort={sortKey === "paciente" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
