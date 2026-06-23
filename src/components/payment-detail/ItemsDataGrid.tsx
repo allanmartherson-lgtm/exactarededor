@@ -3172,6 +3172,7 @@ function RowMain({
                   MAN
                 </span>
               )}
+              {isParecerPayment && <ParecerEvidenceBadge item={it} />}
             </div>
           </td>
         )}
