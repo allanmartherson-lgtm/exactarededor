@@ -222,21 +222,20 @@ Deno.serve(async (req) => {
         const list = byAttendCrm.get(`${att}|${cd}`) ?? [];
         hit =
           list.find((r) =>
-            sameDayUtc(r.dt_resposta_parecer, it.procedure_date) &&
+            matchesParecerDate(r, it.procedure_date) &&
             String(r.situacao ?? "").toLowerCase().includes("com parecer"),
           ) ?? list.find((r) =>
-            sameDayUtc(r.dt_resposta_parecer, it.procedure_date),
+            matchesParecerDate(r, it.procedure_date),
           ) ?? null;
       }
       if (!hit && att && nm) {
         const list = byAttendName.get(`${att}|${nm}`) ?? [];
-        // fallback exige mesma data (parecer respondido no dia do lançamento)
+        // fallback exige mesma data (solicitação OU resposta do parecer)
         hit =
-          list.find((r) =>
-            sameDayUtc(r.dt_resposta_parecer, it.procedure_date),
-          ) ?? null;
+          list.find((r) => matchesParecerDate(r, it.procedure_date)) ?? null;
         if (hit) weak = true;
       }
+
 
       if (hit) {
         // Já tratado manualmente? Não sobrescreve.
