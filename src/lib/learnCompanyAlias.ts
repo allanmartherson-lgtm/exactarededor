@@ -12,6 +12,7 @@
  * Não joga exceções: retorna `{ ok, aliases?, error? }` para o caller decidir o toast.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { extractCompanyFromFilename } from "./parsePaymentFile";
 
 export type LearnCompanyAliasResult = {
   ok: boolean;
