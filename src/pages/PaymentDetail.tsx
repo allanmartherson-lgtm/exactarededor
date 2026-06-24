@@ -1693,24 +1693,20 @@ const PaymentDetail = () => {
     setReprocessingAi(true);
     try {
       const isConfeccaoMode = payment?.analysis_mode === "confeccao";
-      // Sempre usamos o dispatcher para reanálise do lote para garantir processamento paralelo por empresa.
-      const fnName = "dispatch-payment-analysis";
       const isBatch = !statuses || statuses.length === 0;
-      
-      let jobId = null;
-      // Removido a criação manual de job no frontend para operações de lote, 
-      // o dispatch-payment-analysis cuidará disso internamente de forma exaustiva.
 
-      const { data, error } = await supabase.functions.invoke(fnName, {
-        body: {
-          payment_id: id,
-          ai_statuses: statuses && statuses.length > 0 ? statuses : undefined,
-          tolerance_pct: toleranceValue,
-          _job_id: jobId,
-          _company_label: !isBatch ? "Processamento por filtro" : undefined
-        },
+      const result = await invokeDispatchAnalysis({
+        payment_id: id,
+        ai_statuses: statuses && statuses.length > 0 ? statuses : undefined,
+        tolerance_pct: toleranceValue,
+        _job_id: null,
+        _company_label: !isBatch ? "Processamento por filtro" : undefined,
       });
-      if (error) throw error;
+      if (!result.ok) {
+        if (result.blocked) return; // toast já exibido pelo wrapper (ex.: missing_parecer_report)
+        throw result.error;
+      }
+      const data = result.data;
       const skipped = isConfeccaoMode ? [] : ((data as any)?.skipped_companies ?? []);
       setSkippedCompanies(Array.isArray(skipped) ? skipped : []);
 
