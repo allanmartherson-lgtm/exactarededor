@@ -595,6 +595,19 @@ export default function CompanyAnalysis() {
   );
   const itemComments = (itemId: string) => obs.filter((o) => o.item_id === itemId);
 
+  // Estado colapsado/expandido do histórico de comentários da empresa.
+  // Persistido em localStorage por (paymentId, companyId) para sobreviver a reload.
+  const historyCollapseKey = `companyAnalysis:groupCommentsCollapsed:${id ?? "_"}:${companyId ?? "_"}`;
+  const [groupCommentsCollapsed, setGroupCommentsCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const saved = window.localStorage.getItem(historyCollapseKey);
+    return saved === null ? true : saved === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(historyCollapseKey, groupCommentsCollapsed ? "1" : "0");
+  }, [historyCollapseKey, groupCommentsCollapsed]);
+
   const isValidador = hasRole("validador") || hasRole("admin");
   const isDiretor = hasRole("diretor") || hasRole("admin");
   const isAnalistaRole = hasRole("analista") || hasRole("admin");
