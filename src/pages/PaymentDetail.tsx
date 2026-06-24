@@ -1794,10 +1794,11 @@ const PaymentDetail = () => {
         message: `Modo de análise alterado para CONFECÇÃO pelo analista. Reanálise iniciada.`,
         status_from: payment?.status ?? null, status_to: payment?.status ?? null,
       });
-      const { error } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: id },
-      });
-      if (error) throw error;
+      const dispRes = await invokeDispatchAnalysis({ payment_id: id });
+      if (!dispRes.ok) {
+        if (dispRes.blocked) return; // wrapper já exibiu toast (ex.: missing_parecer_report)
+        throw dispRes.error;
+      }
       toast({ title: "Convertido para Confecção", description: "Reanálise em andamento. Acompanhe a barra de progresso." });
       await load();
     } catch (e: unknown) {
