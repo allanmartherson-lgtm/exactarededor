@@ -294,13 +294,16 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                       </div>
                       <div className="col-span-2">
                         <Label className="text-xs">Empresa origem</Label>
-                        <Select value={d.company_id ?? "none"} onValueChange={v => { const n = [...editDeds]; n[i] = { ...d, company_id: v === "none" ? null : v }; setEditDeds(n); }}>
-                          <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">—</SelectItem>
-                            {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex gap-1 items-center">
+                          <CompanyCombobox
+                            value={d.company_id ? { id: d.company_id, name: companies.find(c => c.id === d.company_id)?.name ?? "", document: null } : null}
+                            onChange={(c) => { const n = [...editDeds]; n[i] = { ...d, company_id: c?.id ?? null }; setEditDeds(n); }}
+                            placeholder="—"
+                          />
+                          {d.company_id && (
+                            <Button size="icon" variant="ghost" onClick={() => { const n = [...editDeds]; n[i] = { ...d, company_id: null }; setEditDeds(n); }}><X className="w-3 h-3" /></Button>
+                          )}
+                        </div>
                       </div>
                       <div className="col-span-1 flex gap-1">
                         {i > 0 && <Button size="icon" variant="ghost" onClick={() => { const n = [...editDeds]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; setEditDeds(n); }}><ArrowUp className="w-3 h-3" /></Button>}
