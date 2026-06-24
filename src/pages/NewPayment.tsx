@@ -2467,11 +2467,14 @@ const NewPayment = () => {
     }
     const resolveSpecialty = (r: ParsedRow): string | null => {
       if (r.specialty) return r.specialty;
+      const ov = specialtyOverrides[getRowKey(r as any)];
+      if (ov) return ov;
       const crm = onlyDigits(r.doctor_document);
       if (crm && doctorSpecByCRM[crm]) return doctorSpecByCRM[crm];
       if (r.doctor_name && doctorSpecByName[r.doctor_name]) return doctorSpecByName[r.doctor_name];
       return null;
     };
+
 
     // Normaliza o setor lido (ou herdado do bucket) para o slug canônico via
     // tabela `sectors` + aliases. Garante que "Hemodinâmica (DFStar)" e variações
