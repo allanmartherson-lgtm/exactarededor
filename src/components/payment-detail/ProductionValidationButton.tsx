@@ -33,8 +33,6 @@ export function ProductionValidationButton({ paymentId, groups, currentUserId, o
     ["revisao_analista", "concluida_analista", "devolvido_analista"].includes(String(g.status))
   );
 
-  if (eligible.length === 0) return null;
-
   const toggle = (id: string) => {
     setSelected(prev => {
       const n = new Set(prev);
@@ -84,6 +82,8 @@ export function ProductionValidationButton({ paymentId, groups, currentUserId, o
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  if (eligible.length === 0) return null;
 
   return (
     <>
