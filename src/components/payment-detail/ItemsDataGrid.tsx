@@ -2836,8 +2836,10 @@ export function ItemsDataGrid({
             {filtered.length > 0 && (() => {
               const leadingCols =
                 (colVis.atendimento ? 1 : 0) +
+                (colVis.data ? 1 : 0) +
                 1 /* paciente */ +
                 (colVis.convenio ? 1 : 0) +
+
                 (colVis.via ? 1 : 0) +
                 1 /* tuss */ +
                 1 /* qtd */ +
