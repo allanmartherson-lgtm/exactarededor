@@ -604,6 +604,10 @@ const NewPayment = () => {
     return () => { cancelled = true; };
   }, [paymentTypeId]);
   const [importMode, setImportMode] = useState<"normal" | "historico">("normal");
+  // Relatório de pareceres anexado no wizard (modo confecção + tipo parecer).
+  const [parecerPayload, setParecerPayload] = useState<ParecerWizardPayload | null>(null);
+  const isParecerType = !!paymentTypeMeta?.code?.startsWith("parecer");
+  const requiresParecerReport = modoConfeccao && isParecerType;
   const isHistoricoImport = importMode === "historico";
   const HISTORICO_WINDOW = { start: "2026-01", end: "2026-04" };
   const competenceOutOfWindow = isHistoricoImport
