@@ -6731,6 +6731,12 @@ export type Database = {
       }
       pool_deduction_values: {
         Row: {
+          attachment_mime: string | null
+          attachment_name: string | null
+          attachment_path: string | null
+          attachment_size: number | null
+          attachment_uploaded_at: string | null
+          attachment_uploaded_by: string | null
           competence_month: string
           created_at: string
           created_by: string | null
@@ -6744,6 +6750,12 @@ export type Database = {
           valor: number
         }
         Insert: {
+          attachment_mime?: string | null
+          attachment_name?: string | null
+          attachment_path?: string | null
+          attachment_size?: number | null
+          attachment_uploaded_at?: string | null
+          attachment_uploaded_by?: string | null
           competence_month: string
           created_at?: string
           created_by?: string | null
@@ -6757,6 +6769,12 @@ export type Database = {
           valor: number
         }
         Update: {
+          attachment_mime?: string | null
+          attachment_name?: string | null
+          attachment_path?: string | null
+          attachment_size?: number | null
+          attachment_uploaded_at?: string | null
+          attachment_uploaded_by?: string | null
           competence_month?: string
           created_at?: string
           created_by?: string | null
