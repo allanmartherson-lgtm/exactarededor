@@ -3671,7 +3671,16 @@ function RowMain({
             </div>
           </td>
         )}
+        {colVis.data && (() => {
+          const pd = (it as any).procedure_date as string | null | undefined;
+          return (
+            <td className={cn(cell, TEXT_META, "whitespace-nowrap")} title={pd ?? ""}>
+              {formatDateBR(pd)}
+            </td>
+          );
+        })()}
         <td className={cn(stickyCell, TEXT_BODY)} title={paciente}>
+
           <div className="flex items-center gap-1.5 min-w-0">
             {observations.some(o => o.item_id === it.id && o.observation_type === "justificativa_override") && (
               <Badge 
