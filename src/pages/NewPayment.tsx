@@ -2074,13 +2074,15 @@ const NewPayment = () => {
 
 
   const uniqueCompanyNames = useMemo(() => {
+    // Em rateio: empresas vêm do pool (pool_participants), não da planilha.
+    if (paymentMode === "rateio") return poolCompanyNames;
     const set = new Set<string>();
     for (const r of allRows) {
       const n = (r.company_name ?? "").trim();
       if (n) set.add(n);
     }
     return Array.from(set);
-  }, [allRows]);
+  }, [allRows, paymentMode, poolCompanyNames]);
 
 
 
