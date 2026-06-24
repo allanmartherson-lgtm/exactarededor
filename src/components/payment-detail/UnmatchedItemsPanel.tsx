@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   XCircle,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import {
