@@ -5,11 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Upload, CheckCircle2, AlertTriangle, Settings2, Loader2, X } from "lucide-react";
+import { FileText, Upload, CheckCircle2, AlertTriangle, Loader2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ParecerColumnMappingDialog, {
   type ParecerMapping,
-  autoSuggestMapping,
 } from "@/components/payment-detail/ParecerColumnMappingDialog";
 
 const normalizeCrm = (input: any): string | null => {
