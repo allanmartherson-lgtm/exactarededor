@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Save, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle, Paperclip, Download, X } from "lucide-react";
 import { toast } from "sonner";
 
 type Pool = { id: string; nome: string; hospital_id: string };
@@ -18,8 +18,12 @@ type ValueRow = {
   competence_month: string; // YYYY-MM-01
   valor: number | null;
   observacao: string | null;
+  attachment_path?: string | null;
+  attachment_name?: string | null;
 };
 type Run = { id: string; competence_month: string | null; invalidated_at: string | null; invalidated_reason: string | null };
+
+const BUCKET = "pool-deduction-attachments";
 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
