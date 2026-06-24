@@ -147,6 +147,7 @@ const PaymentTypes = lazy(loadPaymentTypes);
 const Pools = lazy(loadPools);
 const PoolsReport = lazy(loadPoolsReport);
 const PoolsHub = lazy(loadPoolsHub);
+const PoolMonthlyValues = lazy(loadPoolMonthlyValues);
 const CreditosDebitos = lazy(loadCreditosDebitos);
 const Profile = lazy(loadProfile);
 const AuditLog = lazy(loadAuditLog);
