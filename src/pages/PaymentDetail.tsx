@@ -1455,12 +1455,16 @@ const PaymentDetail = () => {
       // Aguarda confirmação do dispatcher; se falhar, reverte o status para
       // não deixar o lote travado em 'em_analise_ia'.
       try {
-        const { error: dispatchErr } = await supabase.functions.invoke(
-          "dispatch-payment-analysis",
-          { body: { payment_id: id } }
-        );
-        if (dispatchErr) throw dispatchErr;
-        toast({ title: "Base reimportada", description: "Análise iniciada por empresa em background." });
+        const dispRes = await invokeDispatchAnalysis({ payment_id: id });
+        if (!dispRes.ok) {
+          if (dispRes.blocked) {
+            await supabase.from("payments").update({ status: previousStatus as any }).eq("id", id);
+          } else {
+            throw dispRes.error;
+          }
+        } else {
+          toast({ title: "Base reimportada", description: "Análise iniciada por empresa em background." });
+        }
       } catch (dispatchErr) {
         const msg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
         console.error("[dispatch-payment-analysis] falhou no reimport", dispatchErr);
