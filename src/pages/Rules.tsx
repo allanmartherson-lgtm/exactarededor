@@ -1638,6 +1638,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     }
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
+      if (!showInactive && r.active === false) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
       if (tokens.length) {
         const parts: (string | null | undefined)[] = [
