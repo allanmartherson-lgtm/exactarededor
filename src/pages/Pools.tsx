@@ -84,6 +84,17 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
   const [editDeds, setEditDeds] = useState<Deduction[]>([]);
   const [editParts, setEditParts] = useState<Participant[]>([]);
   const [showPoolDialog, setShowPoolDialog] = useState(false);
+  const [filtrosRaw, setFiltrosRaw] = useState<Record<string, string>>({});
+
+  const parseCsv = (s: string) => s.split(",").map(x => x.trim()).filter(Boolean);
+  const bindFiltro = (key: "tipo_ato_ids" | "setor_slugs" | "convenio_slugs" | "funcoes" | "doctor_include_ids" | "doctor_exclude_ids") => ({
+    value: filtrosRaw[key] ?? ((editing?.filtros_captura as any)?.[key] ?? []).join(", "),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value;
+      setFiltrosRaw(prev => ({ ...prev, [key]: raw }));
+      setEditing(ed => ed ? { ...ed, filtros_captura: { ...ed.filtros_captura, [key]: parseCsv(raw) } } : ed);
+    },
+  });
 
   const loadAll = async () => {
     setLoading(true);
