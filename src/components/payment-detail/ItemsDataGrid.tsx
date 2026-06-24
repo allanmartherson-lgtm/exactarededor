@@ -2297,7 +2297,11 @@ export function ItemsDataGrid({
                     </div>
                   </th>
                 )}
+                {colVis.data && (
+                  <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Data</th>
+                )}
                 <th
+
                   scope="col"
                   aria-sort={sortKey === "paciente" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
                   className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]")}
