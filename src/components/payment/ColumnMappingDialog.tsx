@@ -90,9 +90,11 @@ export default function ColumnMappingDialog({
   sampleRow,
   hospitalId,
   onApply,
+  compatibleCount = 0,
   mode = "analise",
   paymentTypeMeta = null,
 }: Props) {
+
 
   const [mapping, setMapping] = useState<ManualMapping>(initialMapping);
   const [showSave, setShowSave] = useState(false);
