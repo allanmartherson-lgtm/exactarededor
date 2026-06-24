@@ -678,6 +678,7 @@ function CaseSubtypeBadge({
 
 type OptionalColKey =
   | "atendimento"
+  | "data"
   | "convenio"
   | "via"
   | "funcao"
@@ -692,6 +693,7 @@ type OptionalColKey =
 
 const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "atendimento", label: "Atendimento" },
+  { key: "data", label: "Data" },
   { key: "convenio", label: "Convênio" },
   { key: "via", label: "Via de acesso" },
   { key: "funcao", label: "Função" },
@@ -707,6 +709,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
 
 const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   atendimento: true,
+  data: false,
   convenio: true,
   via: false,
   funcao: false,
@@ -718,6 +721,7 @@ const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   regra: false,
   diferenca: false,
   observacao: false,
+
 };
 
 type Density = "compact" | "comfortable";
@@ -1614,7 +1618,9 @@ export function ItemsDataGrid({
 
   const tableMinWidth = 24 +
     (colVis.atendimento ? 160 : 0) +
+    (colVis.data ? 90 : 0) +
     160 +
+
     (colVis.convenio ? 120 : 0) +
     (colVis.via ? 110 : 0) +
     88 +
@@ -2212,7 +2218,9 @@ export function ItemsDataGrid({
           >
             <colgroup>
               {colVis.atendimento && <col style={{ width: 160 }} />}
+              {colVis.data && <col style={{ width: 90 }} />}
               <col style={{ width: 160 }} />
+
               {colVis.convenio && <col style={{ width: 120 }} />}
               {colVis.via && <col style={{ width: 110 }} />}
               <col style={{ width: 88 }} />
@@ -2289,7 +2297,11 @@ export function ItemsDataGrid({
                     </div>
                   </th>
                 )}
+                {colVis.data && (
+                  <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Data</th>
+                )}
                 <th
+
                   scope="col"
                   aria-sort={sortKey === "paciente" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
                   className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]")}
@@ -2518,7 +2530,9 @@ export function ItemsDataGrid({
                   (showGrossColumn ? 1 : 0) +
                   (showProcedureColumn ? 1 : 0) - 1 +
                   (colVis.atendimento ? 1 : 0) +
+                  (colVis.data ? 1 : 0) +
                   (colVis.convenio ? 1 : 0) +
+
                   (colVis.via ? 1 : 0) +
                   (colVis.setor_lido ? 1 : 0) +
                   (colVis.setor_inferido ? 1 : 0) +
@@ -2822,8 +2836,10 @@ export function ItemsDataGrid({
             {filtered.length > 0 && (() => {
               const leadingCols =
                 (colVis.atendimento ? 1 : 0) +
+                (colVis.data ? 1 : 0) +
                 1 /* paciente */ +
                 (colVis.convenio ? 1 : 0) +
+
                 (colVis.via ? 1 : 0) +
                 1 /* tuss */ +
                 1 /* qtd */ +
@@ -3659,7 +3675,16 @@ function RowMain({
             </div>
           </td>
         )}
+        {colVis.data && (() => {
+          const pd = (it as any).procedure_date as string | null | undefined;
+          return (
+            <td className={cn(cell, TEXT_META, "whitespace-nowrap")} title={pd ?? ""}>
+              {formatDateBR(pd)}
+            </td>
+          );
+        })()}
         <td className={cn(stickyCell, TEXT_BODY)} title={paciente}>
+
           <div className="flex items-center gap-1.5 min-w-0">
             {observations.some(o => o.item_id === it.id && o.observation_type === "justificativa_override") && (
               <Badge 
