@@ -118,6 +118,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
       ativo: true, vigencia_inicio: null, vigencia_fim: null,
       escopo_producao: "participantes", filtros_captura: {},
     });
+    setFiltrosRaw({});
     if (pool?.id) {
       const [d, pp] = await Promise.all([
         supabase.from("pool_deductions").select("*").eq("pool_id", pool.id).order("ordem"),
