@@ -670,7 +670,7 @@ const PaymentDetail = () => {
       const dispatchRes = await invokeDispatchAnalysis({ payment_id: id, only_companies: [g.company_name] });
       if (dispatchRes.ok === false) {
         if (dispatchRes.blocked) return;
-        throw dispatchRes.error;
+        else throw dispatchRes.error;
       }
       const obsRes = await recordObservation({
         payment_id: id,
