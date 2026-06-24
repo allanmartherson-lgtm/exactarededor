@@ -55,7 +55,12 @@ interface Props {
   /** Hospital atual para salvar template. null = global. */
   hospitalId: string | null;
   /** Callback quando o usuário confirma o mapeamento. */
-  onApply: (mapping: ManualMapping) => void;
+  onApply: (mapping: ManualMapping, applyToCompatible: boolean) => void;
+  /**
+   * Quantidade de OUTRAS planilhas no lote atual que compartilham o mesmo
+   * cabeçalho — quando > 0 o diálogo mostra a opção "aplicar a todas".
+   */
+  compatibleCount?: number;
   /**
    * Modo de uso da base:
    * - "analise" (default): planilha de pagamento real → exige `gross_amount` (valor repasse)
@@ -75,6 +80,7 @@ interface Props {
   } | null;
 }
 
+
 export default function ColumnMappingDialog({
   open,
   onOpenChange,
@@ -84,15 +90,18 @@ export default function ColumnMappingDialog({
   sampleRow,
   hospitalId,
   onApply,
+  compatibleCount = 0,
   mode = "analise",
   paymentTypeMeta = null,
 }: Props) {
+
 
   const [mapping, setMapping] = useState<ManualMapping>(initialMapping);
   const [showSave, setShowSave] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [scopeGlobal, setScopeGlobal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [applyToCompatible, setApplyToCompatible] = useState(true);
   const { save } = useSheetColumnTemplates(hospitalId);
 
   useEffect(() => {
@@ -101,8 +110,10 @@ export default function ColumnMappingDialog({
       setShowSave(false);
       setTemplateName(`Template — ${fileName.replace(/\.[^.]+$/, "").slice(0, 60)}`);
       setScopeGlobal(false);
+      setApplyToCompatible(true);
     }
   }, [open, initialMapping, fileName]);
+
 
   /**
    * Definições efetivas conforme o modo + metadados do tipo de pagamento:
@@ -177,7 +188,7 @@ export default function ColumnMappingDialog({
     }
     const out = hitsToMapping(hits);
     if (mode === "confeccao") delete out.gross_amount;
-    onApply(out);
+    onApply(out, compatibleCount > 0 && applyToCompatible);
     onOpenChange(false);
   };
 
@@ -316,6 +327,20 @@ export default function ColumnMappingDialog({
           </div>
         )}
 
+        {compatibleCount > 0 && (
+          <div className="flex items-center justify-between rounded-md border bg-primary/5 px-3 py-2 text-xs">
+            <div>
+              <div className="font-medium text-foreground">
+                Aplicar a {compatibleCount} outro{compatibleCount === 1 ? "" : "s"} arquivo{compatibleCount === 1 ? "" : "s"} com o mesmo cabeçalho
+              </div>
+              <div className="text-muted-foreground">
+                As mesmas colunas serão mapeadas em todas as planilhas compatíveis deste lote.
+              </div>
+            </div>
+            <Switch checked={applyToCompatible} onCheckedChange={setApplyToCompatible} />
+          </div>
+        )}
+
         <DialogFooter className="flex-row justify-between sm:justify-between">
           {!showSave ? (
             <Button variant="outline" size="sm" onClick={() => setShowSave(true)} disabled={missingRequired.length > 0}>
@@ -326,10 +351,13 @@ export default function ColumnMappingDialog({
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button onClick={handleApply} disabled={missingRequired.length > 0}>
-              Aplicar mapeamento
+              {compatibleCount > 0 && applyToCompatible
+                ? `Aplicar a ${compatibleCount + 1} arquivo${compatibleCount === 0 ? "" : "s"}`
+                : "Aplicar mapeamento"}
             </Button>
           </div>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );
