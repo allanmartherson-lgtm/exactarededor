@@ -3608,8 +3608,10 @@ const NewPayment = () => {
                               />
                             </PopoverContent>
                           </Popover>
+                          </div>
                           </>
                         )}
+
 
 
                           <div className="flex items-center gap-1.5 px-2 border-l border-r border-border/50 h-6">
