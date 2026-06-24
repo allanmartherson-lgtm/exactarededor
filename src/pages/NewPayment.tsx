@@ -3507,6 +3507,29 @@ const NewPayment = () => {
                         );
                       })()}
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {paymentMode === "rateio" ? (
+                          <>
+                            <div
+                              className="inline-flex items-center gap-2 rounded-md px-2.5 py-1 max-w-[520px] min-w-0 border border-primary/30 bg-primary/5 text-foreground"
+                              title={poolCompanyNames.join(" · ")}
+                            >
+                              <Building2 className="h-4 w-4 flex-shrink-0 opacity-80" />
+                              <span className="truncate font-semibold text-sm">
+                                {poolCompanyNames.length === 0
+                                  ? "Selecione um pool para ver as PJs"
+                                  : poolCompanyNames.length === 1
+                                    ? poolCompanyNames[0]
+                                    : `Rateio entre ${poolCompanyNames.length} PJs do pool`}
+                              </span>
+                            </div>
+                            {poolCompanyNames.length > 1 && (
+                              <Badge variant="secondary" className="gap-1 text-primary border-primary/30 bg-primary/10">
+                                PJs: {poolCompanyNames.slice(0, 3).join(", ")}{poolCompanyNames.length > 3 ? ` +${poolCompanyNames.length - 3}` : ""}
+                              </Badge>
+                            )}
+                          </>
+                        ) : (
+                          <>
                         {(() => {
                           const seen = new Set();
                           b.rows.forEach(r => { if (r.company_id) seen.add(r.company_id); else if (r.company_name) seen.add(r.company_name); });
@@ -3556,8 +3579,7 @@ const NewPayment = () => {
                             <AlertCircle className="h-3 w-3" /> sem PJ — itens ficam isolados ({Math.round(b.matchScore * 100)}%)
                           </Badge>
                         )}
-                        <div className="flex items-center gap-2 flex-wrap flex-1">
-                          <Popover>
+                        <Popover>
                             <PopoverTrigger asChild>
                               <Button
                                 type="button"
@@ -3585,6 +3607,12 @@ const NewPayment = () => {
                               />
                             </PopoverContent>
                           </Popover>
+                          </>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap flex-1">
+
+
+
 
                           <div className="flex items-center gap-1.5 px-2 border-l border-r border-border/50 h-6">
                             <Switch 
