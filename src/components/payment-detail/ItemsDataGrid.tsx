@@ -2218,7 +2218,9 @@ export function ItemsDataGrid({
           >
             <colgroup>
               {colVis.atendimento && <col style={{ width: 160 }} />}
+              {colVis.data && <col style={{ width: 90 }} />}
               <col style={{ width: 160 }} />
+
               {colVis.convenio && <col style={{ width: 120 }} />}
               {colVis.via && <col style={{ width: 110 }} />}
               <col style={{ width: 88 }} />
