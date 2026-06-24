@@ -2563,17 +2563,57 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     }
 
     // ---------- 11. Atualiza Diagnósticos no Banco ----------
+    // 2026-06-24: analyze-payment é invocado UMA VEZ POR EMPRESA. Antes, cada
+    // invocação sobrescrevia `processing_diagnostics` e zerava
+    // `processing_timeout_occurred` — a última empresa apagava o registro de
+    // falhas das anteriores. Agora fazemos MERGE preservando o status por
+    // empresa em `per_company`, e só limpamos o flag de timeout se NENHUMA
+    // empresa registrou falha/parcial-IA. O reset completo acontece no
+    // dispatch (início de nova reanálise).
     diagnostics.execution_time_ms = Date.now() - startTime;
     diagnostics.status = "success";
     diagnostics.total_items = results.length;
     diagnostics.ai_processed_items = itemsToReview.length;
+    diagnostics.ai_chunks_total = __telemetry.ai_chunks_total ?? 0;
+    diagnostics.ai_chunks_failed = __telemetry.ai_chunks_failed ?? 0;
+    const __companyKey = __company_label ?? __company_name ?? "Sem empresa";
+    const __thisPartial = (__telemetry.ai_chunks_failed ?? 0) > 0;
 
     console.time(`${__t} update_payments_diagnostics`);
+    // Lê estado atual para merge (não-bloqueante: se falhar, prossegue sem merge)
+    const { data: __existingPay } = await supabase
+      .from("payments")
+      .select("processing_diagnostics, processing_timeout_occurred")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const __existingDiag = (__existingPay?.processing_diagnostics ?? {}) as Record<string, any>;
+    const __perCompany = (__existingDiag.per_company ?? {}) as Record<string, any>;
+    __perCompany[__companyKey] = {
+      status: "success",
+      total_items: results.length,
+      ai_processed_items: itemsToReview.length,
+      ai_chunks_total: __telemetry.ai_chunks_total ?? 0,
+      ai_chunks_failed: __telemetry.ai_chunks_failed ?? 0,
+      execution_time_ms: Date.now() - startTime,
+      partial_ai_failure: __thisPartial,
+      finished_at: new Date().toISOString(),
+    };
+    const __anyPartial = Object.values(__perCompany).some((c: any) => c?.partial_ai_failure === true);
+    const __anyError = Object.values(__perCompany).some((c: any) => c?.status === "error");
+    const __mergedDiag = {
+      ...__existingDiag,
+      ...diagnostics,
+      per_company: __perCompany,
+      partial_ai_failure: __anyPartial,
+      has_company_error: __anyError,
+    };
     await supabase.from("payments").update({
-      processing_diagnostics: diagnostics,
-      processing_timeout_occurred: false
+      processing_diagnostics: __mergedDiag,
+      // Só limpa o flag se nenhuma empresa registrou erro
+      processing_timeout_occurred: __anyError ? true : false,
     }).eq("id", payment_id);
     console.timeEnd(`${__t} update_payments_diagnostics`);
+
 
     // Reporta progresso ao job de dispatch (se houver)
     if (_job_id) {
