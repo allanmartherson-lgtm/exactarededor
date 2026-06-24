@@ -3751,34 +3751,42 @@ const NewPayment = () => {
 
       </div>
 
-      {mappingDialog.bucketIdx !== null && buckets[mappingDialog.bucketIdx] && (
-        <ColumnMappingDialog
-          open={mappingDialog.open}
-          onOpenChange={(open) => setMappingDialog((d) => ({ ...d, open }))}
-          fileName={buckets[mappingDialog.bucketIdx].file.name}
-          headers={buckets[mappingDialog.bucketIdx].detectedHeaders ?? []}
-          initialMapping={
-            buckets[mappingDialog.bucketIdx].columnMapping
-            ?? Object.fromEntries(
-              (buckets[mappingDialog.bucketIdx].mappingHits ?? [])
-                .filter((h) => h.header)
-                .map((h) => [h.field, h.header!]),
-            )
-          }
-          sampleRow={buckets[mappingDialog.bucketIdx].sampleRow}
-          hospitalId={hospital?.id ?? null}
-          mode={modoConfeccao ? "confeccao" : "analise"}
-          paymentTypeMeta={paymentTypeMeta ? {
-            tuss_default: paymentTypeMeta.tuss_default,
-            requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
-            default_function: paymentTypeMeta.default_function,
-          } : null}
-          onApply={(mapping) => {
-            applyColumnMappingOverride(mappingDialog.bucketIdx!, mapping);
-          }}
+      {mappingDialog.bucketIdx !== null && buckets[mappingDialog.bucketIdx] && (() => {
+        const refHeaders = buckets[mappingDialog.bucketIdx].detectedHeaders ?? [];
+        const compatibleCount = buckets.reduce((acc, b, i) => {
+          if (i === mappingDialog.bucketIdx) return acc;
+          return sameHeaderSet(refHeaders, b.detectedHeaders) ? acc + 1 : acc;
+        }, 0);
+        return (
+          <ColumnMappingDialog
+            open={mappingDialog.open}
+            onOpenChange={(open) => setMappingDialog((d) => ({ ...d, open }))}
+            fileName={buckets[mappingDialog.bucketIdx].file.name}
+            headers={buckets[mappingDialog.bucketIdx].detectedHeaders ?? []}
+            initialMapping={
+              buckets[mappingDialog.bucketIdx].columnMapping
+              ?? Object.fromEntries(
+                (buckets[mappingDialog.bucketIdx].mappingHits ?? [])
+                  .filter((h) => h.header)
+                  .map((h) => [h.field, h.header!]),
+              )
+            }
+            sampleRow={buckets[mappingDialog.bucketIdx].sampleRow}
+            hospitalId={hospital?.id ?? null}
+            mode={modoConfeccao ? "confeccao" : "analise"}
+            compatibleCount={compatibleCount}
+            paymentTypeMeta={paymentTypeMeta ? {
+              tuss_default: paymentTypeMeta.tuss_default,
+              requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
+              default_function: paymentTypeMeta.default_function,
+            } : null}
+            onApply={(mapping, applyToCompatible) => {
+              applyColumnMappingOverride(mappingDialog.bucketIdx!, mapping, applyToCompatible);
+            }}
+          />
+        );
+      })()}
 
-        />
-      )}
 
       <ZeevAssistant
         pageLabel={modoConfeccao ? "Confecção de pagamento" : "Novo lote de pagamento"}
