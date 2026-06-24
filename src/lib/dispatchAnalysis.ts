@@ -2,9 +2,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 export type DispatchResult =
-  | { ok: true; data: any }
-  | { ok: false; blocked: true; reason: string; message: string }
-  | { ok: false; blocked: false; error: any };
+  | { ok: true; data: any; blocked?: false; reason?: undefined; message?: undefined; error?: undefined }
+  | { ok: false; blocked: true; reason: string; message: string; data?: undefined; error?: undefined }
+  | { ok: false; blocked: false; error: any; data?: undefined; reason?: undefined; message?: undefined };
 
 /**
  * Wrapper de supabase.functions.invoke("dispatch-payment-analysis") que detecta
