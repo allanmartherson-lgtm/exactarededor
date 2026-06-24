@@ -269,6 +269,9 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                       <p className="text-sm text-muted-foreground">{BASE_LABELS[p.base_calculo]} · {p.descricao || "—"}</p>
                     </div>
                     <div className="flex gap-1">
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to={`/pools/${p.id}/valores-mensais`}>Valores mensais</Link>
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => openPool(p)}><Pencil className="w-4 h-4" /></Button>
                       <Button size="sm" variant="ghost" onClick={() => removePool(p.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                     </div>
