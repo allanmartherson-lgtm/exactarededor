@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Pencil, Calculator, ArrowUp, ArrowDown } from "lucide-react";
+import { Trash2, Plus, Pencil, Calculator, ArrowUp, ArrowDown, X } from "lucide-react";
 import { toast } from "sonner";
+import { CompanyCombobox } from "@/components/CompanyCombobox";
 
 type Pool = {
   id: string;
