@@ -162,10 +162,29 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
       if (error) { toast.error(error.message); return; }
     }
 
+    // Normaliza filtros antes de persistir: trim, dedupe, lowercase em slugs.
+    const normList = (arr: any, lower = false): string[] => {
+      if (!Array.isArray(arr)) return [];
+      const out = arr
+        .flatMap((v: any) => String(v ?? "").split(","))
+        .map((s: string) => s.trim())
+        .filter(Boolean)
+        .map((s: string) => (lower ? s.toLowerCase() : s));
+      return Array.from(new Set(out));
+    };
+    const fc = (editing.filtros_captura ?? {}) as any;
+    const filtrosNorm = {
+      tipo_ato_ids: normList(fc.tipo_ato_ids),
+      setor_slugs: normList(fc.setor_slugs, true),
+      convenio_slugs: normList(fc.convenio_slugs, true),
+      funcoes: normList(fc.funcoes),
+      doctor_include_ids: normList(fc.doctor_include_ids),
+      doctor_exclude_ids: normList(fc.doctor_exclude_ids),
+    };
     // Salva escopo + filtros (separado para não quebrar caso o type ainda não esteja regenerado)
     await supabase.from("pools").update({
       escopo_producao: editing.escopo_producao ?? "participantes",
-      filtros_captura: editing.filtros_captura ?? {},
+      filtros_captura: filtrosNorm,
     } as any).eq("id", poolId);
 
     await supabase.from("pool_deductions").delete().eq("pool_id", poolId);
