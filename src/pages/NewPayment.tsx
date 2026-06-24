@@ -4203,11 +4203,32 @@ const NewPayment = () => {
           />
         )}
 
+        {requiresParecerReport && pendingSpecialtyRows.length > 0 && (
+          <div className="rounded-md border border-warning/40 bg-warning/5 p-3 flex items-center justify-between gap-2">
+            <div className="text-sm">
+              <strong>{pendingSpecialtyRows.length}</strong> item(ns) sem especialidade. Em confecção parecer,
+              a especialidade é obrigatória para o motor decidir Parecer vs Visita.
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setSpecialtyModalOpen(true)}>
+              Informar especialidades
+            </Button>
+          </div>
+        )}
+
+        <SpecialtyResolutionModal
+          open={specialtyModalOpen}
+          onOpenChange={setSpecialtyModalOpen}
+          rows={pendingSpecialtyRows}
+          initialOverrides={specialtyOverrides}
+          onConfirm={(ov) => setSpecialtyOverrides((prev) => ({ ...prev, ...ov }))}
+        />
+
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || (requiresParecerReport && !parecerPayload)}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || (requiresParecerReport && (!parecerPayload || pendingSpecialtyRows.length > 0))}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             {pendingSuspiciousCount > 0
+
               ? `Revise ${pendingSuspiciousCount} linha${pendingSuspiciousCount === 1 ? "" : "s"} suspeita${pendingSuspiciousCount === 1 ? "" : "s"}`
               : hasUnresolved
                 ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar`
