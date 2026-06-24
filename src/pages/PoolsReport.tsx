@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "react-router-dom";
 import { KpiCard } from "@/components/ui/KpiCard";
+import { AlertTriangle } from "lucide-react";
 
 type Run = {
   id: string;
@@ -18,6 +19,11 @@ type Run = {
   quotas: any;
   snapshot: any;
   created_at: string;
+  competence_month: string | null;
+  captured_item_ids: string[] | null;
+  invalidated_at: string | null;
+  invalidated_reason: string | null;
+  error_detail: any;
 };
 
 type Pool = { id: string; nome: string };
@@ -155,12 +161,27 @@ export default function PoolsReport({ embedded = false }: { embedded?: boolean }
                   const pay = payments[r.payment_id];
                   const quotas = Array.isArray(r.quotas) ? r.quotas : [];
                   return (
-                    <TableRow key={r.id}>
+                    <TableRow key={r.id} className={r.invalidated_at ? "bg-destructive/5" : ""}>
                       <TableCell className="text-xs">
                         {new Date(r.created_at).toLocaleDateString("pt-BR")}
                       </TableCell>
-                      <TableCell>{poolName(r.pool_id)}</TableCell>
-                      <TableCell>{pay?.competence_month ?? "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <span>{poolName(r.pool_id)}</span>
+                          {r.invalidated_at && (
+                            <Badge variant="destructive" className="gap-1 w-fit">
+                              <AlertTriangle className="w-3 h-3" />
+                              {r.invalidated_reason ?? "Invalidado"}
+                            </Badge>
+                          )}
+                          {Array.isArray(r.captured_item_ids) && r.captured_item_ids.length > 0 && (
+                            <Badge variant="outline" className="w-fit text-xs">
+                              {r.captured_item_ids.length} itens capturados
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{r.competence_month ?? pay?.competence_month ?? "—"}</TableCell>
                       <TableCell>
                         <Link className="underline text-primary" to={`/pagamentos/${r.payment_id}`}>
                           {pay?.reference ?? r.payment_id.slice(0, 8)}

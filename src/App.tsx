@@ -55,6 +55,7 @@ const loadPaymentTypes = () => import("./pages/PaymentTypes.tsx");
 const loadPools = () => import("./pages/Pools.tsx");
 const loadPoolsReport = () => import("./pages/PoolsReport.tsx");
 const loadPoolsHub = () => import("./pages/PoolsHub.tsx");
+const loadPoolMonthlyValues = () => import("./pages/PoolMonthlyValues.tsx");
 const loadCreditosDebitos = () => import("./pages/CreditosDebitos.tsx");
 const loadProfile = () => import("./pages/Profile.tsx");
 const loadAuditLog = () => import("./pages/AuditLog.tsx");
@@ -146,6 +147,7 @@ const PaymentTypes = lazy(loadPaymentTypes);
 const Pools = lazy(loadPools);
 const PoolsReport = lazy(loadPoolsReport);
 const PoolsHub = lazy(loadPoolsHub);
+const PoolMonthlyValues = lazy(loadPoolMonthlyValues);
 const CreditosDebitos = lazy(loadCreditosDebitos);
 const Profile = lazy(loadProfile);
 const AuditLog = lazy(loadAuditLog);
@@ -356,6 +358,7 @@ const App = () => (
                   <Route path="/centros-de-custo" element={<Navigate to="/cadastros?tab=centros-de-custo" replace />} />
                   <Route path="/tipos-pagamento" element={<Navigate to="/cadastros?tab=tipos-pagamento" replace />} />
                   <Route path="/pools" element={<ProtectedRoute roles={["diretor", "admin"]}><PoolsHub /></ProtectedRoute>} />
+                  <Route path="/pools/:id/valores-mensais" element={<ProtectedRoute roles={["diretor", "admin"]}><PoolMonthlyValues /></ProtectedRoute>} />
                   <Route path="/pools/relatorios" element={<Navigate to="/pools" replace />} />
                   <Route path="/financeiro/creditos-debitos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><CreditosDebitos /></ProtectedRoute>} />
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />

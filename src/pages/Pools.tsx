@@ -11,9 +11,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Pencil, Calculator, ArrowUp, ArrowDown, X } from "lucide-react";
+import { Trash2, Plus, Pencil, Calculator, ArrowUp, ArrowDown, X, CalendarRange, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyCombobox } from "@/components/CompanyCombobox";
+import { Link } from "react-router-dom";
+
+type FiltrosCaptura = {
+  tipo_ato_ids?: string[];
+  setor_slugs?: string[];
+  convenio_slugs?: string[];
+  funcoes?: string[];
+  doctor_include_ids?: string[];
+  doctor_exclude_ids?: string[];
+};
 
 type Pool = {
   id: string;
@@ -23,6 +33,8 @@ type Pool = {
   ativo: boolean;
   vigencia_inicio: string | null;
   vigencia_fim: string | null;
+  escopo_producao: "participantes" | "filtrado";
+  filtros_captura: FiltrosCaptura;
 };
 type Deduction = {
   id?: string;
@@ -33,6 +45,7 @@ type Deduction = {
   valor: number | null;
   company_id: string | null;
   obrigatoria: boolean;
+  valor_variavel: boolean;
 };
 type Participant = {
   id?: string;
@@ -89,16 +102,17 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
   useEffect(() => { loadAll(); }, []);
 
   const openPool = async (pool: Pool | null) => {
-    setEditing(pool ?? {
+    setEditing(pool ? { ...pool, filtros_captura: pool.filtros_captura ?? {} } : {
       id: "", nome: "", descricao: "", base_calculo: "soma_convenio_100",
       ativo: true, vigencia_inicio: null, vigencia_fim: null,
+      escopo_producao: "participantes", filtros_captura: {},
     });
     if (pool?.id) {
       const [d, pp] = await Promise.all([
         supabase.from("pool_deductions").select("*").eq("pool_id", pool.id).order("ordem"),
         supabase.from("pool_participants").select("*").eq("pool_id", pool.id).order("ordem_exibicao"),
       ]);
-      setEditDeds((d.data || []) as Deduction[]);
+      setEditDeds(((d.data || []) as any[]).map((x) => ({ ...x, valor_variavel: !!x.valor_variavel })) as Deduction[]);
       const cMap = new Map(companies.map(c => [c.id, c.name]));
       setEditParts(((pp.data || []) as Participant[]).map(x => ({
         ...x, _label: x.participant_type === "hospital_nao_paga" ? "Hospital (não paga)" : (x.company_id ? cMap.get(x.company_id) : ""),
@@ -136,13 +150,20 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
       if (error) { toast.error(error.message); return; }
     }
 
+    // Salva escopo + filtros (separado para não quebrar caso o type ainda não esteja regenerado)
+    await supabase.from("pools").update({
+      escopo_producao: editing.escopo_producao ?? "participantes",
+      filtros_captura: editing.filtros_captura ?? {},
+    } as any).eq("id", poolId);
+
     await supabase.from("pool_deductions").delete().eq("pool_id", poolId);
     if (editDeds.length) {
       const rows = editDeds.map((d, i) => ({
         pool_id: poolId, ordem: i, tipo: d.tipo, descricao: d.descricao,
-        valor: d.valor, company_id: d.company_id, obrigatoria: d.obrigatoria,
+        valor: d.valor_variavel ? null : d.valor, company_id: d.company_id,
+        obrigatoria: d.obrigatoria, valor_variavel: d.valor_variavel,
       }));
-      const { error } = await supabase.from("pool_deductions").insert(rows);
+      const { error } = await supabase.from("pool_deductions").insert(rows as any);
       if (error) { toast.error(error.message); return; }
     }
 
@@ -266,13 +287,102 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                 </div>
               </div>
 
+              {/* Escopo de produção */}
+              <div className="border rounded-md p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4" />
+                  <Label className="text-base">Escopo de produção</Label>
+                </div>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="escopo"
+                      checked={(editing.escopo_producao ?? "participantes") === "participantes"}
+                      onChange={() => setEditing({ ...editing, escopo_producao: "participantes" })}
+                    />
+                    Produção das empresas participantes (padrão)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="escopo"
+                      checked={editing.escopo_producao === "filtrado"}
+                      onChange={() => setEditing({ ...editing, escopo_producao: "filtrado" })}
+                    />
+                    Captura por filtro (ignora empresa do médico)
+                  </label>
+                </div>
+                {editing.escopo_producao === "filtrado" && (
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="col-span-2 text-xs text-muted-foreground">
+                      Liste valores separados por vírgula. Use slugs/IDs conforme cadastrado. Itens que casarem com TODOS os filtros serão absorvidos pelo pool.
+                    </div>
+                    <div>
+                      <Label className="text-xs">Slugs de tipo de ato (separados por vírgula)</Label>
+                      <Input
+                        value={(editing.filtros_captura?.tipo_ato_ids ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, tipo_ato_ids: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        placeholder="ex: <uuid do payment_type 'visita'>"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Setores (slugs)</Label>
+                      <Input
+                        value={(editing.filtros_captura?.setor_slugs ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, setor_slugs: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        placeholder="ex: cti-adulto, uti-coronariana"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Convênios (slugs)</Label>
+                      <Input
+                        value={(editing.filtros_captura?.convenio_slugs ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, convenio_slugs: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Funções no ato</Label>
+                      <Input
+                        value={(editing.filtros_captura?.funcoes ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, funcoes: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        placeholder="ex: Visita, Parecer"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">IDs de médicos a INCLUIR (vazio = todos)</Label>
+                      <Input
+                        value={(editing.filtros_captura?.doctor_include_ids ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, doctor_include_ids: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">IDs de médicos a EXCLUIR</Label>
+                      <Input
+                        value={(editing.filtros_captura?.doctor_exclude_ids ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, doctor_exclude_ids: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Deduções */}
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <Label className="text-base">Deduções (aplicadas em ordem)</Label>
-                  <Button size="sm" variant="outline" onClick={() => setEditDeds([...editDeds, { ordem: editDeds.length, tipo: "fixo_mensal", descricao: "", valor: 0, company_id: null, obrigatoria: true }])}>
-                    <Plus className="w-4 h-4 mr-1" />Dedução
-                  </Button>
+                  <div className="flex gap-2">
+                    {editing.id && editDeds.some(d => d.valor_variavel) && (
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to={`/pools/${editing.id}/valores-mensais`}>
+                          <CalendarRange className="w-4 h-4 mr-1" /> Valores mensais
+                        </Link>
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => setEditDeds([...editDeds, { ordem: editDeds.length, tipo: "fixo_mensal", descricao: "", valor: 0, company_id: null, obrigatoria: true, valor_variavel: false }])}>
+                      <Plus className="w-4 h-4 mr-1" />Dedução
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   {editDeds.map((d, i) => (
@@ -284,13 +394,24 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                           <SelectContent>{Object.entries(DED_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
-                      <div className="col-span-4">
+                      <div className="col-span-3">
                         <Label className="text-xs">Descrição</Label>
                         <Input value={d.descricao} onChange={e => { const n = [...editDeds]; n[i] = { ...d, descricao: e.target.value }; setEditDeds(n); }} />
                       </div>
                       <div className="col-span-2">
                         <Label className="text-xs">Valor (R$)</Label>
-                        <Input type="number" step="0.01" value={d.valor ?? ""} onChange={e => { const n = [...editDeds]; n[i] = { ...d, valor: e.target.value === "" ? null : parseFloat(e.target.value) }; setEditDeds(n); }} />
+                        {d.valor_variavel ? (
+                          <div className="h-9 flex items-center px-3 border rounded-md bg-muted text-xs text-muted-foreground">por competência</div>
+                        ) : (
+                          <Input type="number" step="0.01" value={d.valor ?? ""} onChange={e => { const n = [...editDeds]; n[i] = { ...d, valor: e.target.value === "" ? null : parseFloat(e.target.value) }; setEditDeds(n); }} />
+                        )}
+                      </div>
+                      <div className="col-span-1 flex flex-col items-center pb-1">
+                        <Label className="text-[10px] text-center">Mensal</Label>
+                        <Switch
+                          checked={d.valor_variavel}
+                          onCheckedChange={(v) => { const n = [...editDeds]; n[i] = { ...d, valor_variavel: v, valor: v ? null : (d.valor ?? 0) }; setEditDeds(n); }}
+                        />
                       </div>
                       <div className="col-span-2">
                         <Label className="text-xs">Empresa origem</Label>

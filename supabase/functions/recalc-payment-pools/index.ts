@@ -47,12 +47,17 @@ Deno.serve(async (req) => {
 
     // 1. Carrega payment + grupos atuais
     const { data: payment, error: payErr } = await supabase
-      .from("payments").select("id, reference, competence_month").eq("id", payment_id).single();
+      .from("payments").select("id, reference, competence_month, hospital_id").eq("id", payment_id).single();
     if (payErr || !payment) {
       return new Response(JSON.stringify({ error: "payment não encontrado" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Normaliza competence_month para o dia 01 (date) para casar com pool_deduction_values
+    const competenceDate: string | null = payment.competence_month
+      ? String(payment.competence_month).slice(0, 7) + "-01"
+      : null;
 
     const { data: groups } = await supabase
       .from("payment_company_groups")
@@ -64,20 +69,29 @@ Deno.serve(async (req) => {
     for (const g of realGroups) if (g.company_id) groupByCompany.set(g.company_id, g);
     const presentCompanyIds = Array.from(groupByCompany.keys());
 
-    if (presentCompanyIds.length === 0) {
-      return new Response(JSON.stringify({ ok: true, pools_processed: 0, reason: "sem grupos com company_id" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // 2. Pools ativos: (a) cujos participantes incluem alguma empresa presente
+    //                   OU (b) escopo_producao='filtrado' do mesmo hospital
+    const { data: matchedParts } = presentCompanyIds.length
+      ? await supabase
+          .from("pool_participants")
+          .select("pool_id")
+          .in("company_id", presentCompanyIds)
+      : { data: [] as Array<{ pool_id: string }> };
+
+    const candidatePoolIds = new Set<string>((matchedParts ?? []).map(p => p.pool_id));
+
+    // Filtered pools do hospital
+    if (payment.hospital_id) {
+      const { data: filteredPools } = await supabase
+        .from("pools")
+        .select("id")
+        .eq("hospital_id", payment.hospital_id)
+        .eq("escopo_producao", "filtrado")
+        .eq("ativo", true);
+      for (const p of filteredPools ?? []) candidatePoolIds.add(p.id);
     }
 
-    // 2. Pools ativos cujos participantes incluem alguma empresa presente
-    const { data: matchedParts } = await supabase
-      .from("pool_participants")
-      .select("pool_id, company_id, percentual, ordem_exibicao, participant_type")
-      .in("company_id", presentCompanyIds);
-
-    const candidatePoolIds = Array.from(new Set((matchedParts ?? []).map(p => p.pool_id)));
-    if (candidatePoolIds.length === 0) {
+    if (candidatePoolIds.size === 0) {
       return new Response(JSON.stringify({ ok: true, pools_processed: 0 }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -86,7 +100,7 @@ Deno.serve(async (req) => {
     const today = new Date().toISOString().slice(0, 10);
     const { data: pools } = await supabase
       .from("pools").select("*")
-      .in("id", candidatePoolIds).eq("ativo", true);
+      .in("id", Array.from(candidatePoolIds)).eq("ativo", true);
 
     const activePools = (pools ?? []).filter(p => {
       if (p.vigencia_inicio && p.vigencia_inicio > today) return false;
@@ -105,14 +119,65 @@ Deno.serve(async (req) => {
       const realParticipants = participants.filter(p => p.participant_type !== "hospital_nao_paga" && p.company_id);
       const participantCompanyIds = realParticipants.map(p => p.company_id!).filter(Boolean);
 
-      // Itens elegíveis: payment_items cujo company_id está entre os participantes reais
-      const { data: items } = await supabase
-        .from("payment_items")
-        .select("id, company_id, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
-        .eq("payment_id", payment_id)
-        .in("company_id", participantCompanyIds);
+      // Itens elegíveis: por escopo do pool
+      let elig: any[] = [];
+      const isFiltered = pool.escopo_producao === "filtrado";
 
-      const elig = items ?? [];
+      if (isFiltered) {
+        const filtros = (pool.filtros_captura ?? {}) as Record<string, any>;
+        let q = supabase
+          .from("payment_items")
+          .select("id, company_id, doctor_id, doctor_name, doctor_role, payment_type_id, sector_slug, convenio_slug, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
+          .eq("payment_id", payment_id);
+        if (Array.isArray(filtros.tipo_ato_ids) && filtros.tipo_ato_ids.length) q = q.in("payment_type_id", filtros.tipo_ato_ids);
+        if (Array.isArray(filtros.setor_slugs) && filtros.setor_slugs.length)   q = q.in("sector_slug", filtros.setor_slugs);
+        if (Array.isArray(filtros.convenio_slugs) && filtros.convenio_slugs.length) q = q.in("convenio_slug", filtros.convenio_slugs);
+        if (Array.isArray(filtros.funcoes) && filtros.funcoes.length)            q = q.in("doctor_role", filtros.funcoes);
+        if (Array.isArray(filtros.doctor_include_ids) && filtros.doctor_include_ids.length) q = q.in("doctor_id", filtros.doctor_include_ids);
+        if (Array.isArray(filtros.doctor_exclude_ids) && filtros.doctor_exclude_ids.length) q = q.not("doctor_id", "in", `(${filtros.doctor_exclude_ids.join(",")})`);
+        const { data: fitems } = await q;
+        elig = fitems ?? [];
+      } else {
+        if (participantCompanyIds.length === 0) { continue; }
+        const { data: items } = await supabase
+          .from("payment_items")
+          .select("id, company_id, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
+          .eq("payment_id", payment_id)
+          .in("company_id", participantCompanyIds);
+        elig = items ?? [];
+      }
+
+      // Bloqueio de duplicidade: o mesmo item não pode estar em 2 pools na mesma competência
+      // (Em escopo filtrado isso é crítico — uma visita só pode ser absorvida por um pool.)
+      if (isFiltered && competenceDate && elig.length) {
+        const itemIds = elig.map(it => it.id);
+        const { data: conflicts } = await supabase
+          .from("pool_item_claims")
+          .select("payment_item_id, pool_id")
+          .in("payment_item_id", itemIds)
+          .eq("competence_month", competenceDate)
+          .neq("pool_id", pool.id);
+        if ((conflicts ?? []).length) {
+          // Marca run com erro e segue para o próximo pool
+          await supabase.from("pool_calculation_runs").insert({
+            payment_id, pool_id: pool.id,
+            base_amount: 0, bolo_liquido: 0,
+            deductions_applied: [],
+            quotas: [],
+            competence_month: competenceDate,
+            captured_item_ids: itemIds,
+            invalidated_at: new Date().toISOString(),
+            invalidated_reason: "item_duplicado_em_outro_pool",
+            error_detail: { conflicts },
+            hospital_id: payment.hospital_id ?? null,
+            snapshot: { pool_nome: pool.nome, executed_at: new Date().toISOString() },
+            created_by: userId,
+          } as any);
+          results.push({ pool_id: pool.id, pool_nome: pool.nome, error: "item_duplicado_em_outro_pool", conflicts });
+          continue;
+        }
+      }
+
       const baseField = pool.base_calculo === "soma_expected" ? "expected_amount" : "gross_amount";
       const base = elig.reduce((acc, it) => acc + Number((it as any)[baseField] ?? 0), 0);
 
@@ -124,8 +189,44 @@ Deno.serve(async (req) => {
         adjustment_id?: string; parcela?: number;
       }> = [];
       const adjustmentApplications: Array<{ adjustment_id: string; parcela_numero: number; valor: number }> = [];
+      const variableValuesUsed: Array<{ deduction_id: string; descricao: string; valor: number; observacao: string | null; competence_month: string }> = [];
       let bolo = base;
+      let blockedReason: string | null = null;
+      const blockedDetail: any[] = [];
+
       for (const d of (dedRows ?? [])) {
+        // Caso 1: dedução com valor variável por competência
+        if (d.valor_variavel) {
+          if (!competenceDate) {
+            blockedReason = "competencia_nao_definida_para_valor_variavel";
+            blockedDetail.push({ deduction_id: d.id, descricao: d.descricao });
+            continue;
+          }
+          const { data: pdv } = await supabase
+            .from("pool_deduction_values")
+            .select("valor, observacao, competence_month")
+            .eq("pool_deduction_id", d.id)
+            .eq("competence_month", competenceDate)
+            .maybeSingle();
+          if (!pdv) {
+            blockedReason = "valor_variavel_competencia_nao_cadastrado";
+            blockedDetail.push({ deduction_id: d.id, descricao: d.descricao, competence_month: competenceDate });
+            continue;
+          }
+          const v = Number(pdv.valor ?? 0);
+          bolo -= v;
+          deductionsApplied.push({
+            ordem: d.ordem, tipo: d.tipo,
+            descricao: `${d.descricao}${pdv.observacao ? ` — ${pdv.observacao}` : ""}`,
+            valor: round2(v),
+          });
+          variableValuesUsed.push({
+            deduction_id: d.id, descricao: d.descricao, valor: round2(v),
+            observacao: pdv.observacao ?? null, competence_month: competenceDate,
+          });
+          continue;
+        }
+
         const dynTypes = new Set(["ajuste_credito", "ajuste_debito", "glosa_parcelada"]);
         if (dynTypes.has(d.tipo) && d.company_id) {
           // Busca ajuste ativo com parcelas pendentes
@@ -143,7 +244,6 @@ Deno.serve(async (req) => {
             const pagas = Number(adj.parcelas_pagas ?? 0);
             const total = Number(adj.parcelas_total ?? 1);
             if (pagas >= total) continue;
-            // Já aplicado neste payment? (idempotência)
             const { data: existingApp } = await supabase
               .from("company_adjustment_applications")
               .select("id, valor_aplicado, parcela_numero")
@@ -174,6 +274,26 @@ Deno.serve(async (req) => {
         }
       }
       bolo = round2(bolo);
+
+      // Se houve bloqueio (valor variável faltando), grava run inválido e segue
+      if (blockedReason) {
+        await supabase.from("pool_calculation_runs").insert({
+          payment_id, pool_id: pool.id,
+          base_amount: round2(base), bolo_liquido: 0,
+          deductions_applied: deductionsApplied,
+          quotas: [],
+          competence_month: competenceDate,
+          captured_item_ids: isFiltered ? elig.map(it => it.id) : null,
+          invalidated_at: new Date().toISOString(),
+          invalidated_reason: blockedReason,
+          error_detail: { items: blockedDetail },
+          hospital_id: payment.hospital_id ?? null,
+          snapshot: { pool_nome: pool.nome, executed_at: new Date().toISOString() },
+          created_by: userId,
+        } as any);
+        results.push({ pool_id: pool.id, pool_nome: pool.nome, error: blockedReason, detail: blockedDetail });
+        continue;
+      }
 
       // Quotas
       const quotas = participants.map(p => {
@@ -270,20 +390,45 @@ Deno.serve(async (req) => {
       // Persiste run (1 por payment+pool — substitui anterior)
       await supabase.from("pool_calculation_runs")
         .delete().eq("payment_id", payment_id).eq("pool_id", pool.id);
-      await supabase.from("pool_calculation_runs").insert({
+      const { data: runRow } = await supabase.from("pool_calculation_runs").insert({
         payment_id, pool_id: pool.id,
         base_amount: round2(base),
         bolo_liquido: bolo,
         deductions_applied: deductionsApplied,
         quotas,
+        competence_month: competenceDate,
+        captured_item_ids: isFiltered ? elig.map(it => it.id) : null,
+        hospital_id: payment.hospital_id ?? null,
         snapshot: {
           pool_nome: pool.nome,
           base_calculo: pool.base_calculo,
+          escopo_producao: pool.escopo_producao,
+          filtros_captura: pool.filtros_captura ?? {},
           items_count: elig.length,
+          variable_values_used: variableValuesUsed,
           executed_at: new Date().toISOString(),
         },
         created_by: userId,
-      } as any);
+      } as any).select("id").maybeSingle();
+
+      // Reset claims antigos deste pool/competência e regrava (auditoria + bloqueio)
+      if (isFiltered && competenceDate && elig.length) {
+        await supabase.from("pool_item_claims")
+          .delete().eq("pool_id", pool.id).eq("competence_month", competenceDate);
+        await supabase.from("pool_item_claims").insert(
+          elig.map((it: any) => ({
+            payment_item_id: it.id,
+            pool_id: pool.id,
+            run_id: runRow?.id ?? null,
+            competence_month: competenceDate,
+            hospital_id: payment.hospital_id ?? null,
+          })) as any,
+        );
+        // Marca itens como absorvidos pelo pool (médico não recebe direto)
+        await supabase.from("payment_items")
+          .update({ absorbed_by_pool_id: pool.id, absorbed_by_run_id: runRow?.id ?? null })
+          .in("id", elig.map((it: any) => it.id));
+      }
 
       // Persiste aplicações novas e incrementa parcelas_pagas (idempotente: skip se já existir)
       for (const app of adjustmentApplications) {
