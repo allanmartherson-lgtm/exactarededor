@@ -390,20 +390,45 @@ Deno.serve(async (req) => {
       // Persiste run (1 por payment+pool — substitui anterior)
       await supabase.from("pool_calculation_runs")
         .delete().eq("payment_id", payment_id).eq("pool_id", pool.id);
-      await supabase.from("pool_calculation_runs").insert({
+      const { data: runRow } = await supabase.from("pool_calculation_runs").insert({
         payment_id, pool_id: pool.id,
         base_amount: round2(base),
         bolo_liquido: bolo,
         deductions_applied: deductionsApplied,
         quotas,
+        competence_month: competenceDate,
+        captured_item_ids: isFiltered ? elig.map(it => it.id) : null,
+        hospital_id: payment.hospital_id ?? null,
         snapshot: {
           pool_nome: pool.nome,
           base_calculo: pool.base_calculo,
+          escopo_producao: pool.escopo_producao,
+          filtros_captura: pool.filtros_captura ?? {},
           items_count: elig.length,
+          variable_values_used: variableValuesUsed,
           executed_at: new Date().toISOString(),
         },
         created_by: userId,
-      } as any);
+      } as any).select("id").maybeSingle();
+
+      // Reset claims antigos deste pool/competência e regrava (auditoria + bloqueio)
+      if (isFiltered && competenceDate && elig.length) {
+        await supabase.from("pool_item_claims")
+          .delete().eq("pool_id", pool.id).eq("competence_month", competenceDate);
+        await supabase.from("pool_item_claims").insert(
+          elig.map((it: any) => ({
+            payment_item_id: it.id,
+            pool_id: pool.id,
+            run_id: runRow?.id ?? null,
+            competence_month: competenceDate,
+            hospital_id: payment.hospital_id ?? null,
+          })) as any,
+        );
+        // Marca itens como absorvidos pelo pool (médico não recebe direto)
+        await supabase.from("payment_items")
+          .update({ absorbed_by_pool_id: pool.id, absorbed_by_run_id: runRow?.id ?? null })
+          .in("id", elig.map((it: any) => it.id));
+      }
 
       // Persiste aplicações novas e incrementa parcelas_pagas (idempotente: skip se já existir)
       for (const app of adjustmentApplications) {
