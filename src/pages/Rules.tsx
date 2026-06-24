@@ -404,6 +404,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   
   const [filterTarget, setFilterTarget] = useState("");
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const [pendingByRule, setPendingByRule] = useState<Record<string, number>>({});
@@ -1637,6 +1638,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     }
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
+      if (!showInactive && r.active === false) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
       if (tokens.length) {
         const parts: (string | null | undefined)[] = [
@@ -1676,7 +1678,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       }
       return true;
     });
-  }, [rules, filterScope, filterTarget, onlyIncomplete, companies]);
+  }, [rules, filterScope, filterTarget, onlyIncomplete, showInactive, companies]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
@@ -2931,7 +2933,14 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
             <Checkbox checked={onlyIncomplete} onCheckedChange={(c) => setOnlyIncomplete(!!c)} />
             <span>Só desatualizadas</span>
           </label>
-          <p className="text-xs text-muted-foreground ml-auto">{filtered.length} de {rules.length}</p>
+          <label className="flex items-center gap-2 text-xs">
+            <Checkbox checked={showInactive} onCheckedChange={(c) => setShowInactive(!!c)} />
+            <span>Mostrar inativas</span>
+          </label>
+          <p className="text-xs text-muted-foreground ml-auto">
+            {filtered.length} de {rules.length}
+            {!showInactive && rules.some(r => r.active === false) ? ` (${rules.filter(r => r.active === false).length} inativa${rules.filter(r => r.active === false).length > 1 ? "s" : ""} oculta${rules.filter(r => r.active === false).length > 1 ? "s" : ""})` : ""}
+          </p>
         </div>
 
         {groups.length === 0 ? (
