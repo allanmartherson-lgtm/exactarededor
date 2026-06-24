@@ -327,6 +327,20 @@ export default function ColumnMappingDialog({
           </div>
         )}
 
+        {compatibleCount > 0 && (
+          <div className="flex items-center justify-between rounded-md border bg-primary/5 px-3 py-2 text-xs">
+            <div>
+              <div className="font-medium text-foreground">
+                Aplicar a {compatibleCount} outro{compatibleCount === 1 ? "" : "s"} arquivo{compatibleCount === 1 ? "" : "s"} com o mesmo cabeçalho
+              </div>
+              <div className="text-muted-foreground">
+                As mesmas colunas serão mapeadas em todas as planilhas compatíveis deste lote.
+              </div>
+            </div>
+            <Switch checked={applyToCompatible} onCheckedChange={setApplyToCompatible} />
+          </div>
+        )}
+
         <DialogFooter className="flex-row justify-between sm:justify-between">
           {!showSave ? (
             <Button variant="outline" size="sm" onClick={() => setShowSave(true)} disabled={missingRequired.length > 0}>
@@ -337,10 +351,13 @@ export default function ColumnMappingDialog({
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button onClick={handleApply} disabled={missingRequired.length > 0}>
-              Aplicar mapeamento
+              {compatibleCount > 0 && applyToCompatible
+                ? `Aplicar a ${compatibleCount + 1} arquivo${compatibleCount === 0 ? "" : "s"}`
+                : "Aplicar mapeamento"}
             </Button>
           </div>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );
