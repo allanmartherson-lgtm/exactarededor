@@ -1658,23 +1658,21 @@ const PaymentDetail = () => {
       });
 
       // Dispara análise apenas para as empresas adicionadas.
-      try {
-        const { error: dispatchErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
-          body: { payment_id: id, only_companies: addedCompanies },
-        });
-        if (dispatchErr) throw dispatchErr;
+      const dispRes = await invokeDispatchAnalysis({ payment_id: id, only_companies: addedCompanies });
+      if (dispRes.ok) {
         toast({
           title: "Empresa(s) adicionada(s)",
           description: `${addedCompanies.length} empresa(s), ${newRows.length} itens. Análise iniciada.${skippedSuffix}`,
         });
-      } catch (dispatchErr) {
-        const msg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
+      } else if (!dispRes.blocked) {
+        const msg = dispRes.error instanceof Error ? dispRes.error.message : String(dispRes.error);
         toast({
           title: "Itens inseridos, mas análise não iniciou",
           description: `${msg}. Use "Reanalisar lote" para tentar novamente.`,
           variant: "destructive",
         });
       }
+      // se blocked (ex.: missing_parecer_report), o wrapper já mostrou o toast amigável
       load();
     } catch (e) {
       const msg = (e as any)?.message || (e as any)?.error?.message || (e as any)?.details || (typeof e === "string" ? e : JSON.stringify(e));
@@ -1796,10 +1794,11 @@ const PaymentDetail = () => {
         message: `Modo de análise alterado para CONFECÇÃO pelo analista. Reanálise iniciada.`,
         status_from: payment?.status ?? null, status_to: payment?.status ?? null,
       });
-      const { error } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: id },
-      });
-      if (error) throw error;
+      const dispRes = await invokeDispatchAnalysis({ payment_id: id });
+      if (!dispRes.ok) {
+        if (dispRes.blocked) return; // wrapper já exibiu toast (ex.: missing_parecer_report)
+        throw dispRes.error;
+      }
       toast({ title: "Convertido para Confecção", description: "Reanálise em andamento. Acompanhe a barra de progresso." });
       await load();
     } catch (e: unknown) {
