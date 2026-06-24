@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   XCircle,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import {
@@ -299,6 +300,55 @@ export function UnmatchedItemsPanel({
     }
   };
 
+  const distributeByDoctor = async (g: UnmatchedGroup) => {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.rpc(
+        "distribute_unmatched_items_by_doctor",
+        { _payment_id: paymentId, _raw_company_name: g.raw_company_name },
+      );
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      const linked = Number(row?.linked ?? 0);
+      const unresolved = Number(row?.unresolved ?? 0);
+
+      // Recalibra totais do payment
+      const { data: items } = await supabase
+        .from("payment_items")
+        .select("gross_amount, procedure_amount")
+        .eq("payment_id", paymentId);
+      const total = (items ?? []).reduce((s, r: any) => {
+        const paidValue = Number(r.gross_amount ?? 0);
+        const baseValue = Number(r.procedure_amount ?? 0);
+        return s + (paidValue !== 0 ? paidValue : baseValue);
+      }, 0);
+      await supabase
+        .from("payments")
+        .update({ items_count: items?.length ?? 0, total_amount: total })
+        .eq("id", paymentId);
+
+      if (linked > 0) {
+        toast.success(
+          `${linked} item(ns) distribuídos entre PJs do pool. ${unresolved > 0 ? `${unresolved} sem vínculo médico→PJ permanecem pendentes.` : ""} Disparando análise…`,
+        );
+        await supabase.functions.invoke("dispatch-payment-analysis", {
+          body: { payment_id: paymentId },
+        });
+      } else {
+        toast.warning(
+          `Nenhum item pôde ser distribuído. ${unresolved} item(ns) sem vínculo médico→PJ entre os participantes. Cadastre os vínculos em Médicos ou vincule manualmente.`,
+        );
+      }
+
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(`Erro ao distribuir: ${e?.message ?? e}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -391,6 +441,15 @@ export function UnmatchedItemsPanel({
                     <Sparkles className="h-3.5 w-3.5 mr-1" /> Aceitar sugestão
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => distributeByDoctor(g)}
+                  disabled={busy}
+                  title="Distribui os itens entre as PJs do pool conforme o vínculo médico→PJ cadastrado"
+                >
+                  <Users className="h-3.5 w-3.5 mr-1" /> Distribuir por médico (pool)
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
