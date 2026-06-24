@@ -1994,6 +1994,24 @@ const NewPayment = () => {
     0,
   );
 
+  // === Confecção parecer: rowKey estável + cálculo de pendentes ===
+  // rowKey == `${source_bucket_index}|${source_row_index}` é único por allRows
+  // e sobrevive a re-renders enquanto buckets não mudarem.
+  const getRowKey = (r: any) => `${r.source_bucket_index ?? 0}|${r.source_row_index ?? 0}`;
+  const pendingSpecialtyRows = useMemo(() => {
+    if (!requiresParecerReport) return [];
+    return allRows
+      .filter((r) => !r.specialty && !specialtyOverrides[getRowKey(r)])
+      .map((r) => ({
+        rowKey: getRowKey(r),
+        attendance_number: r.attendance_number ?? null,
+        doctor_name: r.doctor_name ?? null,
+        patient_name: r.patient_name ?? null,
+        procedure_date: r.procedure_date ?? null,
+      }));
+  }, [allRows, requiresParecerReport, specialtyOverrides]);
+
+
   // ===== Lookup estrito de cadastros (médicos / convênios / setores) =====
   const [doctorReg, setDoctorReg] = useState<DoctorRegistry | null>(null);
   const [convenioReg, setConvenioReg] = useState<ConvenioRegistry | null>(null);
