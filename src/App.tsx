@@ -358,6 +358,7 @@ const App = () => (
                   <Route path="/centros-de-custo" element={<Navigate to="/cadastros?tab=centros-de-custo" replace />} />
                   <Route path="/tipos-pagamento" element={<Navigate to="/cadastros?tab=tipos-pagamento" replace />} />
                   <Route path="/pools" element={<ProtectedRoute roles={["diretor", "admin"]}><PoolsHub /></ProtectedRoute>} />
+                  <Route path="/pools/:id/valores-mensais" element={<ProtectedRoute roles={["diretor", "admin"]}><PoolMonthlyValues /></ProtectedRoute>} />
                   <Route path="/pools/relatorios" element={<Navigate to="/pools" replace />} />
                   <Route path="/financeiro/creditos-debitos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><CreditosDebitos /></ProtectedRoute>} />
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
