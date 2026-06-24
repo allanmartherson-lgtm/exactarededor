@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "react-router-dom";
 import { KpiCard } from "@/components/ui/KpiCard";
+import { AlertTriangle } from "lucide-react";
 
 type Run = {
   id: string;
@@ -18,6 +19,11 @@ type Run = {
   quotas: any;
   snapshot: any;
   created_at: string;
+  competence_month: string | null;
+  captured_item_ids: string[] | null;
+  invalidated_at: string | null;
+  invalidated_reason: string | null;
+  error_detail: any;
 };
 
 type Pool = { id: string; nome: string };
