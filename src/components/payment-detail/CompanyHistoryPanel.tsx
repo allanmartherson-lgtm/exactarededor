@@ -89,6 +89,13 @@ export function CompanyHistoryPanel({
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [expanded, setExpanded] = useState(false);
+  const [openEntries, setOpenEntries] = useState<Set<string>>(new Set());
+  const toggleEntry = (id: string) =>
+    setOpenEntries((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   const DEFAULT_LIMIT = 5;
 
   const entries = useMemo<Entry[]>(() => {
