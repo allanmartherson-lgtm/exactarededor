@@ -336,10 +336,11 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                         {p.participant_type === "hospital_nao_paga" ? (
                           <div className="h-9 flex items-center px-3 border rounded-md bg-muted text-sm">Hospital (não paga) — sentinela informativa</div>
                         ) : (
-                          <Select value={p.company_id ?? ""} onValueChange={v => { const n = [...editParts]; const company = companies.find(c => c.id === v); n[i] = { ...p, company_id: v, _label: company?.name }; setEditParts(n); }}>
-                            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                            <SelectContent>{companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                          </Select>
+                          <CompanyCombobox
+                            value={p.company_id ? { id: p.company_id, name: companies.find(c => c.id === p.company_id)?.name ?? p._label ?? "", document: null } : null}
+                            onChange={(c) => { const n = [...editParts]; n[i] = { ...p, company_id: c?.id ?? null, _label: c?.name }; setEditParts(n); }}
+                            placeholder="Selecione…"
+                          />
                         )}
                       </div>
                       <div className="col-span-3">
