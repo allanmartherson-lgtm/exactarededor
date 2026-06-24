@@ -11102,6 +11102,14 @@ export type Database = {
         Args: { p_company_id: string; p_payment_id: string }
         Returns: undefined
       }
+      test_group_reconciliation_gate: {
+        Args: never
+        Returns: {
+          detail: string
+          passed: boolean
+          test_name: string
+        }[]
+      }
       unaccent: { Args: { "": string }; Returns: string }
       undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
       unignore_glosa_debt: { Args: { _debt_id: string }; Returns: undefined }
