@@ -608,7 +608,12 @@ const NewPayment = () => {
   const [parecerPayload, setParecerPayload] = useState<ParecerWizardPayload | null>(null);
   const isParecerType = !!paymentTypeMeta?.code?.startsWith("parecer");
   const requiresParecerReport = modoConfeccao && isParecerType;
+  // Especialidade é obrigatória em todo item de confecção parecer.
+  // Quando a base Tasy não traz, o modal abaixo coleta antes do submit.
+  const [specialtyOverrides, setSpecialtyOverrides] = useState<Record<string, string>>({});
+  const [specialtyModalOpen, setSpecialtyModalOpen] = useState(false);
   const isHistoricoImport = importMode === "historico";
+
   const HISTORICO_WINDOW = { start: "2026-01", end: "2026-04" };
   const competenceOutOfWindow = isHistoricoImport
     ? competenceMonths.some((m) => m < HISTORICO_WINDOW.start || m > HISTORICO_WINDOW.end)
