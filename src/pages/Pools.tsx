@@ -150,13 +150,20 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
       if (error) { toast.error(error.message); return; }
     }
 
+    // Salva escopo + filtros (separado para não quebrar caso o type ainda não esteja regenerado)
+    await supabase.from("pools").update({
+      escopo_producao: editing.escopo_producao ?? "participantes",
+      filtros_captura: editing.filtros_captura ?? {},
+    } as any).eq("id", poolId);
+
     await supabase.from("pool_deductions").delete().eq("pool_id", poolId);
     if (editDeds.length) {
       const rows = editDeds.map((d, i) => ({
         pool_id: poolId, ordem: i, tipo: d.tipo, descricao: d.descricao,
-        valor: d.valor, company_id: d.company_id, obrigatoria: d.obrigatoria,
+        valor: d.valor_variavel ? null : d.valor, company_id: d.company_id,
+        obrigatoria: d.obrigatoria, valor_variavel: d.valor_variavel,
       }));
-      const { error } = await supabase.from("pool_deductions").insert(rows);
+      const { error } = await supabase.from("pool_deductions").insert(rows as any);
       if (error) { toast.error(error.message); return; }
     }
 
