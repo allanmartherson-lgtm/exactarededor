@@ -260,6 +260,27 @@ const PaymentDetail = () => {
   useEffect(() => {
     if (payment?.analysis_mode === "confeccao") setSkippedCompanies([]);
   }, [payment?.analysis_mode]);
+
+  // Carrega info do pool/dedução vinculados ao pagamento (para badge no header).
+  useEffect(() => {
+    const pid = (payment as any)?.pool_id as string | null | undefined;
+    const did = (payment as any)?.pool_deduction_id as string | null | undefined;
+    if (!pid) { setPoolInfo(null); return; }
+    let alive = true;
+    (async () => {
+      const [pRes, dRes] = await Promise.all([
+        supabase.from("pools").select("id, nome").eq("id", pid).maybeSingle(),
+        did ? supabase.from("pool_deductions").select("descricao, tipo").eq("id", did).maybeSingle() : Promise.resolve({ data: null } as any),
+      ]);
+      if (!alive || !pRes.data) return;
+      setPoolInfo({
+        id: pRes.data.id,
+        nome: (pRes.data as any).nome,
+        deducao: dRes?.data ? ((dRes.data as any).descricao || (dRes.data as any).tipo) : null,
+      });
+    })();
+    return () => { alive = false; };
+  }, [(payment as any)?.pool_id, (payment as any)?.pool_deduction_id]);
   // Diálogo de "Fazer questionamento" — escopo lote ou empresa específica.
   const [askQuestion, setAskQuestion] = useState<
     null | { groupId?: string | null; companyName?: string | null }
