@@ -454,11 +454,19 @@ export const extractCompanyFromFilename = (filename: string): string => {
 
 export const matchCompany = (rawName: string, companies: CompanyRow[]): { company: CompanyRow | null; score: number } => {
   if (!companies.length || !rawName) return { company: null, score: 0 };
+  // Limpa rawName de sufixos de setor/período (vindos do nome do arquivo). Sem isso,
+  // dois arquivos com o MESMO sufixo (ex.: "- Parecer Adulto") casam 100% nesse sufixo
+  // via aliases contaminados — gera falso positivo absurdo (SINUS sugerindo R E I).
+  const rawClean = extractCompanyFromFilename(rawName);
   let best: { company: CompanyRow | null; score: number } = { company: null, score: 0 };
   for (const c of companies) {
     const candidates = [c.name, ...(c.aliases || [])];
     for (const cand of candidates) {
-      const s = similarity(rawName, cand);
+      // Compara também a versão limpa do candidato; pega o MAIOR para não regredir matches legítimos.
+      const candClean = extractCompanyFromFilename(cand);
+      const sRaw = similarity(rawName, cand);
+      const sClean = similarity(rawClean, candClean);
+      const s = Math.max(sRaw, sClean);
       if (s > best.score) best = { company: c, score: s };
       if (best.score >= 0.999) return best; // early exit em match exato
     }
