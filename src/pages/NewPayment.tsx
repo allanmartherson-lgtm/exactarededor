@@ -66,6 +66,7 @@ import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
 import { confirmDialog } from "@/lib/confirm";
 import { detectSuspiciousRows } from "@/lib/detectSuspiciousRows";
 import { SuspiciousRowsReview, type SuspiciousDecision } from "@/components/payment-wizard/SuspiciousRowsReview";
+import { ParecerReportWizardCard, type ParecerWizardPayload } from "@/components/payment-wizard/ParecerReportWizardCard";
 import { ZeevAssistant, type ZeevInsight } from "@/components/copilot/ZeevAssistant";
 import type { StagingContext, StagingDecision } from "@/components/copilot/ZeevStagingChat";
 
@@ -603,6 +604,10 @@ const NewPayment = () => {
     return () => { cancelled = true; };
   }, [paymentTypeId]);
   const [importMode, setImportMode] = useState<"normal" | "historico">("normal");
+  // Relatório de pareceres anexado no wizard (modo confecção + tipo parecer).
+  const [parecerPayload, setParecerPayload] = useState<ParecerWizardPayload | null>(null);
+  const isParecerType = !!paymentTypeMeta?.code?.startsWith("parecer");
+  const requiresParecerReport = modoConfeccao && isParecerType;
   const isHistoricoImport = importMode === "historico";
   const HISTORICO_WINDOW = { start: "2026-01", end: "2026-04" };
   const competenceOutOfWindow = isHistoricoImport
@@ -2164,6 +2169,14 @@ const NewPayment = () => {
       );
       if (!ok) return;
     }
+    if (requiresParecerReport && !parecerPayload) {
+      toast({
+        title: "Anexe o relatório de pareceres",
+        description: "Em confecção de Parecer, o relatório do Tasy é obrigatório para cruzar com a base e classificar cada item.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (competenceMonths.length === 0) {
       toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
     }
@@ -2762,6 +2775,56 @@ const NewPayment = () => {
       })));
     } catch (e) {
       console.warn("[audit] falha não-fatal ao registrar pagamento", e);
+    }
+
+    // [Confecção parecer] Antes de disparar o motor, sobe o relatório de pareceres
+    // e cruza items↔linhas. Sem isso, o motor não tem como classificar item por
+    // item entre Parecer e Visita.
+    if (requiresParecerReport && parecerPayload) {
+      try {
+        const initRes = await supabase.functions.invoke("import-parecer-report", {
+          body: {
+            mode: "init",
+            payment_id: payment.id,
+            filename: parecerPayload.fileName,
+            file_hash: parecerPayload.fileHash,
+            period_start: parecerPayload.periodStart,
+            period_end: parecerPayload.periodEnd,
+          },
+        });
+        if (initRes.error) throw initRes.error;
+        const reportId = (initRes.data as any)?.report_id as string;
+        if (!reportId) throw new Error("Falha ao criar cabeçalho do relatório de parecer");
+        const CHUNK = 300;
+        let inserted = 0;
+        for (let i = 0; i < parecerPayload.rows.length; i += CHUNK) {
+          const chunk = parecerPayload.rows.slice(i, i + CHUNK);
+          const { error: appErr } = await supabase.functions.invoke("import-parecer-report", {
+            body: { mode: "append", report_id: reportId, rows: chunk },
+          });
+          if (appErr) throw appErr;
+          inserted += chunk.length;
+        }
+        await supabase.functions.invoke("import-parecer-report", {
+          body: { mode: "finalize", report_id: reportId, row_count: inserted },
+        });
+        // Cruza items↔relatório (sem disparar reanalysis — vamos disparar dispatch logo abaixo)
+        await supabase.functions.invoke("cross-reference-parecer", {
+          body: { payment_id: payment.id, trigger_reanalysis: false },
+        });
+        toast({
+          title: "Relatório de pareceres importado",
+          description: `${inserted} linhas · cruzamento concluído.`,
+        });
+      } catch (e: any) {
+        toast({
+          title: "Falha ao processar relatório de parecer",
+          description: e?.message ?? String(e),
+          variant: "destructive",
+        });
+        // Não bloqueia: o lote já foi criado em rascunho/confecção e o analista
+        // pode reanexar pelo PaymentDetail.
+      }
     }
 
     toast({ title: "Lote criado", description: "Iniciando análise por IA..." });
@@ -3920,15 +3983,47 @@ const NewPayment = () => {
           />
         )}
 
+        {requiresParecerReport && (
+          <ParecerReportWizardCard
+            competenceMonths={competenceMonths}
+            tasyAttendanceKeys={(() => {
+              const byCrm = new Set<string>();
+              const byName = new Set<string>();
+              const onlyD = (s: any) => String(s ?? "").replace(/\D+/g, "");
+              const norm = (s: any) =>
+                String(s ?? "")
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .toLowerCase()
+                  .replace(/[^a-z0-9 ]+/g, " ")
+                  .replace(/\s+/g, " ")
+                  .trim();
+              for (const r of allRows) {
+                const att = onlyD(r.attendance_number);
+                if (!att) continue;
+                const crmD = onlyD(r.doctor_document);
+                if (crmD) byCrm.add(`${att}|${crmD}`);
+                const nm = norm(r.doctor_name);
+                if (nm) byName.add(`${att}|${nm}`);
+              }
+              return { byCrm, byName };
+            })()}
+            value={parecerPayload}
+            onChange={setParecerPayload}
+          />
+        )}
+
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || (requiresParecerReport && !parecerPayload)}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             {pendingSuspiciousCount > 0
               ? `Revise ${pendingSuspiciousCount} linha${pendingSuspiciousCount === 1 ? "" : "s"} suspeita${pendingSuspiciousCount === 1 ? "" : "s"}`
               : hasUnresolved
                 ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar`
-                : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
+                : requiresParecerReport && !parecerPayload
+                  ? "Anexe o relatório de pareceres"
+                  : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
           </Button>
         </div>
 
