@@ -101,6 +101,7 @@ export default function ColumnMappingDialog({
   const [templateName, setTemplateName] = useState("");
   const [scopeGlobal, setScopeGlobal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [applyToCompatible, setApplyToCompatible] = useState(true);
   const { save } = useSheetColumnTemplates(hospitalId);
 
   useEffect(() => {
@@ -109,8 +110,10 @@ export default function ColumnMappingDialog({
       setShowSave(false);
       setTemplateName(`Template — ${fileName.replace(/\.[^.]+$/, "").slice(0, 60)}`);
       setScopeGlobal(false);
+      setApplyToCompatible(true);
     }
   }, [open, initialMapping, fileName]);
+
 
   /**
    * Definições efetivas conforme o modo + metadados do tipo de pagamento:
