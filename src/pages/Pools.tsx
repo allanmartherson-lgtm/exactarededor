@@ -287,13 +287,102 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                 </div>
               </div>
 
+              {/* Escopo de produção */}
+              <div className="border rounded-md p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4" />
+                  <Label className="text-base">Escopo de produção</Label>
+                </div>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="escopo"
+                      checked={(editing.escopo_producao ?? "participantes") === "participantes"}
+                      onChange={() => setEditing({ ...editing, escopo_producao: "participantes" })}
+                    />
+                    Produção das empresas participantes (padrão)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="escopo"
+                      checked={editing.escopo_producao === "filtrado"}
+                      onChange={() => setEditing({ ...editing, escopo_producao: "filtrado" })}
+                    />
+                    Captura por filtro (ignora empresa do médico)
+                  </label>
+                </div>
+                {editing.escopo_producao === "filtrado" && (
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="col-span-2 text-xs text-muted-foreground">
+                      Liste valores separados por vírgula. Use slugs/IDs conforme cadastrado. Itens que casarem com TODOS os filtros serão absorvidos pelo pool.
+                    </div>
+                    <div>
+                      <Label className="text-xs">Slugs de tipo de ato (separados por vírgula)</Label>
+                      <Input
+                        value={(editing.filtros_captura?.tipo_ato_ids ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, tipo_ato_ids: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        placeholder="ex: <uuid do payment_type 'visita'>"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Setores (slugs)</Label>
+                      <Input
+                        value={(editing.filtros_captura?.setor_slugs ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, setor_slugs: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        placeholder="ex: cti-adulto, uti-coronariana"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Convênios (slugs)</Label>
+                      <Input
+                        value={(editing.filtros_captura?.convenio_slugs ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, convenio_slugs: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Funções no ato</Label>
+                      <Input
+                        value={(editing.filtros_captura?.funcoes ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, funcoes: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        placeholder="ex: Visita, Parecer"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">IDs de médicos a INCLUIR (vazio = todos)</Label>
+                      <Input
+                        value={(editing.filtros_captura?.doctor_include_ids ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, doctor_include_ids: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">IDs de médicos a EXCLUIR</Label>
+                      <Input
+                        value={(editing.filtros_captura?.doctor_exclude_ids ?? []).join(", ")}
+                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, doctor_exclude_ids: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Deduções */}
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <Label className="text-base">Deduções (aplicadas em ordem)</Label>
-                  <Button size="sm" variant="outline" onClick={() => setEditDeds([...editDeds, { ordem: editDeds.length, tipo: "fixo_mensal", descricao: "", valor: 0, company_id: null, obrigatoria: true }])}>
-                    <Plus className="w-4 h-4 mr-1" />Dedução
-                  </Button>
+                  <div className="flex gap-2">
+                    {editing.id && editDeds.some(d => d.valor_variavel) && (
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to={`/pools/${editing.id}/valores-mensais`}>
+                          <CalendarRange className="w-4 h-4 mr-1" /> Valores mensais
+                        </Link>
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => setEditDeds([...editDeds, { ordem: editDeds.length, tipo: "fixo_mensal", descricao: "", valor: 0, company_id: null, obrigatoria: true, valor_variavel: false }])}>
+                      <Plus className="w-4 h-4 mr-1" />Dedução
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   {editDeds.map((d, i) => (
@@ -305,13 +394,24 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                           <SelectContent>{Object.entries(DED_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
-                      <div className="col-span-4">
+                      <div className="col-span-3">
                         <Label className="text-xs">Descrição</Label>
                         <Input value={d.descricao} onChange={e => { const n = [...editDeds]; n[i] = { ...d, descricao: e.target.value }; setEditDeds(n); }} />
                       </div>
                       <div className="col-span-2">
                         <Label className="text-xs">Valor (R$)</Label>
-                        <Input type="number" step="0.01" value={d.valor ?? ""} onChange={e => { const n = [...editDeds]; n[i] = { ...d, valor: e.target.value === "" ? null : parseFloat(e.target.value) }; setEditDeds(n); }} />
+                        {d.valor_variavel ? (
+                          <div className="h-9 flex items-center px-3 border rounded-md bg-muted text-xs text-muted-foreground">por competência</div>
+                        ) : (
+                          <Input type="number" step="0.01" value={d.valor ?? ""} onChange={e => { const n = [...editDeds]; n[i] = { ...d, valor: e.target.value === "" ? null : parseFloat(e.target.value) }; setEditDeds(n); }} />
+                        )}
+                      </div>
+                      <div className="col-span-1 flex flex-col items-center pb-1">
+                        <Label className="text-[10px] text-center">Mensal</Label>
+                        <Switch
+                          checked={d.valor_variavel}
+                          onCheckedChange={(v) => { const n = [...editDeds]; n[i] = { ...d, valor_variavel: v, valor: v ? null : (d.valor ?? 0) }; setEditDeds(n); }}
+                        />
                       </div>
                       <div className="col-span-2">
                         <Label className="text-xs">Empresa origem</Label>
