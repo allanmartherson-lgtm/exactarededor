@@ -5015,6 +5015,7 @@ export type Database = {
           quantity: number | null
           rateio: Json | null
           raw_data: Json | null
+          reclassified_from_parecer: boolean
           reconciliation_run_id: string | null
           sector: string | null
           sector_matched_by: string | null
@@ -5132,6 +5133,7 @@ export type Database = {
           quantity?: number | null
           rateio?: Json | null
           raw_data?: Json | null
+          reclassified_from_parecer?: boolean
           reconciliation_run_id?: string | null
           sector?: string | null
           sector_matched_by?: string | null
@@ -5249,6 +5251,7 @@ export type Database = {
           quantity?: number | null
           rateio?: Json | null
           raw_data?: Json | null
+          reclassified_from_parecer?: boolean
           reconciliation_run_id?: string | null
           sector?: string | null
           sector_matched_by?: string | null
