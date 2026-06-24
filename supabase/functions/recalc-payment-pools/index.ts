@@ -119,14 +119,65 @@ Deno.serve(async (req) => {
       const realParticipants = participants.filter(p => p.participant_type !== "hospital_nao_paga" && p.company_id);
       const participantCompanyIds = realParticipants.map(p => p.company_id!).filter(Boolean);
 
-      // Itens elegíveis: payment_items cujo company_id está entre os participantes reais
-      const { data: items } = await supabase
-        .from("payment_items")
-        .select("id, company_id, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
-        .eq("payment_id", payment_id)
-        .in("company_id", participantCompanyIds);
+      // Itens elegíveis: por escopo do pool
+      let elig: any[] = [];
+      const isFiltered = pool.escopo_producao === "filtrado";
 
-      const elig = items ?? [];
+      if (isFiltered) {
+        const filtros = (pool.filtros_captura ?? {}) as Record<string, any>;
+        let q = supabase
+          .from("payment_items")
+          .select("id, company_id, doctor_id, doctor_name, doctor_role, payment_type_id, sector_slug, convenio_slug, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
+          .eq("payment_id", payment_id);
+        if (Array.isArray(filtros.tipo_ato_ids) && filtros.tipo_ato_ids.length) q = q.in("payment_type_id", filtros.tipo_ato_ids);
+        if (Array.isArray(filtros.setor_slugs) && filtros.setor_slugs.length)   q = q.in("sector_slug", filtros.setor_slugs);
+        if (Array.isArray(filtros.convenio_slugs) && filtros.convenio_slugs.length) q = q.in("convenio_slug", filtros.convenio_slugs);
+        if (Array.isArray(filtros.funcoes) && filtros.funcoes.length)            q = q.in("doctor_role", filtros.funcoes);
+        if (Array.isArray(filtros.doctor_include_ids) && filtros.doctor_include_ids.length) q = q.in("doctor_id", filtros.doctor_include_ids);
+        if (Array.isArray(filtros.doctor_exclude_ids) && filtros.doctor_exclude_ids.length) q = q.not("doctor_id", "in", `(${filtros.doctor_exclude_ids.join(",")})`);
+        const { data: fitems } = await q;
+        elig = fitems ?? [];
+      } else {
+        if (participantCompanyIds.length === 0) { continue; }
+        const { data: items } = await supabase
+          .from("payment_items")
+          .select("id, company_id, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
+          .eq("payment_id", payment_id)
+          .in("company_id", participantCompanyIds);
+        elig = items ?? [];
+      }
+
+      // Bloqueio de duplicidade: o mesmo item não pode estar em 2 pools na mesma competência
+      // (Em escopo filtrado isso é crítico — uma visita só pode ser absorvida por um pool.)
+      if (isFiltered && competenceDate && elig.length) {
+        const itemIds = elig.map(it => it.id);
+        const { data: conflicts } = await supabase
+          .from("pool_item_claims")
+          .select("payment_item_id, pool_id")
+          .in("payment_item_id", itemIds)
+          .eq("competence_month", competenceDate)
+          .neq("pool_id", pool.id);
+        if ((conflicts ?? []).length) {
+          // Marca run com erro e segue para o próximo pool
+          await supabase.from("pool_calculation_runs").insert({
+            payment_id, pool_id: pool.id,
+            base_amount: 0, bolo_liquido: 0,
+            deductions_applied: [],
+            quotas: [],
+            competence_month: competenceDate,
+            captured_item_ids: itemIds,
+            invalidated_at: new Date().toISOString(),
+            invalidated_reason: "item_duplicado_em_outro_pool",
+            error_detail: { conflicts },
+            hospital_id: payment.hospital_id ?? null,
+            snapshot: { pool_nome: pool.nome, executed_at: new Date().toISOString() },
+            created_by: userId,
+          } as any);
+          results.push({ pool_id: pool.id, pool_nome: pool.nome, error: "item_duplicado_em_outro_pool", conflicts });
+          continue;
+        }
+      }
+
       const baseField = pool.base_calculo === "soma_expected" ? "expected_amount" : "gross_amount";
       const base = elig.reduce((acc, it) => acc + Number((it as any)[baseField] ?? 0), 0);
 
