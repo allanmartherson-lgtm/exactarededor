@@ -2530,7 +2530,9 @@ export function ItemsDataGrid({
                   (showGrossColumn ? 1 : 0) +
                   (showProcedureColumn ? 1 : 0) - 1 +
                   (colVis.atendimento ? 1 : 0) +
+                  (colVis.data ? 1 : 0) +
                   (colVis.convenio ? 1 : 0) +
+
                   (colVis.via ? 1 : 0) +
                   (colVis.setor_lido ? 1 : 0) +
                   (colVis.setor_inferido ? 1 : 0) +
