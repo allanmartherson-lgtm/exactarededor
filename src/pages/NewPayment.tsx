@@ -3608,7 +3608,6 @@ const NewPayment = () => {
                               />
                             </PopoverContent>
                           </Popover>
-                          </div>
                           </>
                         )}
 
