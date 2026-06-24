@@ -108,10 +108,11 @@ Deno.serve(async (req) => {
         const { data: page, error } = await supabase
           .from("payment_parecer_report_rows")
           .select(
-            "id, report_id, atendimento, medico_resposta, medico_resposta_crm, dt_resposta_parecer, situacao",
+            "id, report_id, atendimento, medico_resposta, medico_resposta_crm, dt_solic_parecer, dt_resposta_parecer, situacao",
           )
           .in("report_id", ids)
           .range(from, from + pageSize - 1);
+
         if (error) throw error;
         allRows.push(...(page ?? []));
         if (!page || page.length < pageSize) break;
