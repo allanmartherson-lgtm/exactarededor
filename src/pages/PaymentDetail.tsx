@@ -668,9 +668,9 @@ const PaymentDetail = () => {
     await autoClaim();
     try {
       const dispatchRes = await invokeDispatchAnalysis({ payment_id: id, only_companies: [g.company_name] });
-      if (dispatchRes.ok === false) {
+      if (!dispatchRes.ok) {
         if (dispatchRes.blocked) return;
-        else throw dispatchRes.error;
+        throw dispatchRes.error;
       }
       const obsRes = await recordObservation({
         payment_id: id,
