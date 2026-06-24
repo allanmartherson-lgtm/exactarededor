@@ -678,6 +678,7 @@ function CaseSubtypeBadge({
 
 type OptionalColKey =
   | "atendimento"
+  | "data"
   | "convenio"
   | "via"
   | "funcao"
@@ -692,6 +693,7 @@ type OptionalColKey =
 
 const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "atendimento", label: "Atendimento" },
+  { key: "data", label: "Data" },
   { key: "convenio", label: "Convênio" },
   { key: "via", label: "Via de acesso" },
   { key: "funcao", label: "Função" },
@@ -707,6 +709,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
 
 const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   atendimento: true,
+  data: false,
   convenio: true,
   via: false,
   funcao: false,
@@ -718,6 +721,7 @@ const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   regra: false,
   diferenca: false,
   observacao: false,
+
 };
 
 type Density = "compact" | "comfortable";
