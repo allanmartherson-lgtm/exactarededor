@@ -79,6 +79,26 @@ export function UnmatchedItemsPanel({
 
   const load = async () => {
     setLoading(true);
+
+    // 1) Participantes do rateio deste pagamento — sugestões SÓ podem vir daqui.
+    const { data: pcg } = await supabase
+      .from("payment_company_groups")
+      .select("company_id")
+      .eq("payment_id", paymentId);
+    const participantIds = Array.from(
+      new Set((pcg ?? []).map((r: any) => r.company_id).filter(Boolean)),
+    ) as string[];
+
+    let participants: { id: string; name: string; aliases: string[] | null }[] = [];
+    if (participantIds.length > 0) {
+      const { data: comps } = await supabase
+        .from("companies")
+        .select("id,name,aliases")
+        .in("id", participantIds);
+      participants = (comps ?? []) as any[];
+    }
+    const participantSet = new Set(participants.map((c) => c.id));
+
     const all: any[] = [];
     let from = 0;
     const PAGE = 1000;
@@ -121,14 +141,39 @@ export function UnmatchedItemsPanel({
       if (it.source_file && !cur.source_files.includes(it.source_file)) {
         cur.source_files.push(it.source_file);
       }
+      // Só aceita a sugestão salva se a empresa sugerida faz parte do rateio.
       const score = Number(it.match_score ?? 0);
-      if (score > cur.best_score) {
+      if (
+        it.match_suggestion_id &&
+        participantSet.has(it.match_suggestion_id) &&
+        score > cur.best_score
+      ) {
         cur.best_score = score;
-        cur.suggestion_id = it.match_suggestion_id ?? null;
+        cur.suggestion_id = it.match_suggestion_id;
         cur.suggestion_name = it.match_suggestion_name ?? null;
       }
       map.set(key, cur);
     }
+
+    // 2) Para grupos sem sugestão válida, recomputa contra participantes do rateio.
+    if (participants.length > 0) {
+      const registry = participants.map((c) => ({
+        id: c.id,
+        name: c.name,
+        aliases: c.aliases ?? [],
+        document: null as string | null,
+      })) as any[];
+      for (const g of map.values()) {
+        if (g.suggestion_id) continue;
+        const { company, score } = matchCompany(g.raw_company_name, registry);
+        if (company && score >= 0.6) {
+          g.suggestion_id = company.id;
+          g.suggestion_name = company.name;
+          g.best_score = score;
+        }
+      }
+    }
+
     setGroups([...map.values()].sort((a, b) => b.gross_total - a.gross_total));
     setLoading(false);
   };
