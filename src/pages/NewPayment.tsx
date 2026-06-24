@@ -814,6 +814,43 @@ const NewPayment = () => {
   }, []);
   // Tipos de pagamento são gerenciados em /cadastros/tipos-pagamento e carregados via hook.
   const { list: paymentTypeOptions, loading: loadingPaymentTypes } = usePaymentTypes({ onlyActive: true });
+
+  // === Vínculo com rateio (pool) ===
+  const [paymentMode, setPaymentMode] = useState<"producao" | "rateio">("producao");
+  const [poolId, setPoolId] = useState<string>("");
+  const [poolDeductionId, setPoolDeductionId] = useState<string>("");
+  const [rateioSource, setRateioSource] = useState<"planilha" | "sintetico">("planilha");
+  const [rateioValorTotal, setRateioValorTotal] = useState<string>("");
+  const [poolsList, setPoolsList] = useState<Array<{ id: string; nome: string }>>([]);
+  const [poolDeductionsList, setPoolDeductionsList] = useState<Array<{ id: string; descricao: string; tipo: string; valor_variavel: boolean | null }>>([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data } = await supabase.from("pools").select("id, nome").eq("ativo", true).order("nome");
+      if (alive) setPoolsList((data ?? []) as any);
+    })();
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    setPoolDeductionId("");
+    if (!poolId) { setPoolDeductionsList([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("pool_deductions")
+        .select("id, descricao, tipo, valor_variavel")
+        .eq("pool_id", poolId)
+        .order("ordem");
+      if (alive) setPoolDeductionsList((data ?? []) as any);
+    })();
+    return () => { alive = false; };
+  }, [poolId]);
+  // Heurística: tipo de pagamento "plantão" habilita auto-vínculo com dedução variável do pool.
+  const isPlantaoType = useMemo(() => {
+    const t = paymentTypeOptions.find((o) => o.code === paymentType);
+    const blob = `${t?.code ?? ""} ${t?.label ?? ""}`.toLowerCase();
+    return /plant(a|ã)o/.test(blob);
+  }, [paymentType, paymentTypeOptions]);
   const [autoSectors, setAutoSectors] = useState(true);
   const [autoSpecialties, setAutoSpecialties] = useState(true);
   const [autoPaymentKind, setAutoPaymentKind] = useState(true);
