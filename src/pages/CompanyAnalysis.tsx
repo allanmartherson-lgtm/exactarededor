@@ -595,6 +595,19 @@ export default function CompanyAnalysis() {
   );
   const itemComments = (itemId: string) => obs.filter((o) => o.item_id === itemId);
 
+  // Estado colapsado/expandido do histórico de comentários da empresa.
+  // Persistido em localStorage por (paymentId, companyId) para sobreviver a reload.
+  const historyCollapseKey = `companyAnalysis:groupCommentsCollapsed:${id ?? "_"}:${groupId ?? "_"}`;
+  const [groupCommentsCollapsed, setGroupCommentsCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const saved = window.localStorage.getItem(historyCollapseKey);
+    return saved === null ? true : saved === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(historyCollapseKey, groupCommentsCollapsed ? "1" : "0");
+  }, [historyCollapseKey, groupCommentsCollapsed]);
+
   const isValidador = hasRole("validador") || hasRole("admin");
   const isDiretor = hasRole("diretor") || hasRole("admin");
   const isAnalistaRole = hasRole("analista") || hasRole("admin");
@@ -2486,18 +2499,38 @@ export default function CompanyAnalysis() {
                 </div>
               </div>
               {groupComments.length > 0 && (
-                <ul className="mt-2 space-y-2">
-                  {groupComments.slice(0, 5).map((o) => (
-                    <li key={o.id} className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
-                      <div className="text-muted-foreground mb-0.5">
-                        {o.author_type}
-                        {o.author_id && profiles[o.author_id] ? ` · ${profiles[o.author_id]}` : ""}
-                        {" · "}{formatDateTimeBR(o.created_at)}
-                      </div>
-                      <div className="whitespace-pre-wrap">{o.message}</div>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setGroupCommentsCollapsed((v) => !v)}
+                    className="flex w-full items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-xs hover:bg-muted/50 transition"
+                    aria-expanded={!groupCommentsCollapsed}
+                  >
+                    <span className="font-medium">
+                      Histórico de comentários ({groupComments.length})
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform",
+                        !groupCommentsCollapsed && "rotate-180",
+                      )}
+                    />
+                  </button>
+                  {!groupCommentsCollapsed && (
+                    <ul className="mt-2 space-y-2">
+                      {groupComments.slice(0, 5).map((o) => (
+                        <li key={o.id} className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                          <div className="text-muted-foreground mb-0.5">
+                            {o.author_type}
+                            {o.author_id && profiles[o.author_id] ? ` · ${profiles[o.author_id]}` : ""}
+                            {" · "}{formatDateTimeBR(o.created_at)}
+                          </div>
+                          <div className="whitespace-pre-wrap">{o.message}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
