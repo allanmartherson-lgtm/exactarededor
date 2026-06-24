@@ -102,16 +102,17 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
   useEffect(() => { loadAll(); }, []);
 
   const openPool = async (pool: Pool | null) => {
-    setEditing(pool ?? {
+    setEditing(pool ? { ...pool, filtros_captura: pool.filtros_captura ?? {} } : {
       id: "", nome: "", descricao: "", base_calculo: "soma_convenio_100",
       ativo: true, vigencia_inicio: null, vigencia_fim: null,
+      escopo_producao: "participantes", filtros_captura: {},
     });
     if (pool?.id) {
       const [d, pp] = await Promise.all([
         supabase.from("pool_deductions").select("*").eq("pool_id", pool.id).order("ordem"),
         supabase.from("pool_participants").select("*").eq("pool_id", pool.id).order("ordem_exibicao"),
       ]);
-      setEditDeds((d.data || []) as Deduction[]);
+      setEditDeds(((d.data || []) as any[]).map((x) => ({ ...x, valor_variavel: !!x.valor_variavel })) as Deduction[]);
       const cMap = new Map(companies.map(c => [c.id, c.name]));
       setEditParts(((pp.data || []) as Participant[]).map(x => ({
         ...x, _label: x.participant_type === "hospital_nao_paga" ? "Hospital (não paga)" : (x.company_id ? cMap.get(x.company_id) : ""),
