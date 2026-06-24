@@ -100,11 +100,13 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
     setRetrying(true);
     try {
       const failedNames = job.failed_companies.map((f) => f.company_name);
-      const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: paymentId, only_companies: failedNames },
-      });
-      if (error) throw error;
-      toast.success(`Reprocessamento iniciado: ${data?.total_companies ?? 0} empresa(s).`);
+      const { invokeDispatchAnalysis } = await import("@/lib/dispatchAnalysis");
+      const res = await invokeDispatchAnalysis({ payment_id: paymentId, only_companies: failedNames });
+      if (!res.ok) {
+        if (res.blocked) return; // toast amigável já exibido pelo helper
+        throw res.error;
+      }
+      toast.success(`Reprocessamento iniciado: ${res.data?.total_companies ?? 0} empresa(s).`);
     } catch (e: any) {
       toast.error(`Falha ao reprocessar: ${e?.message ?? e}`);
     } finally {

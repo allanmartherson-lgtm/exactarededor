@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
+import { invokeDispatchAnalysis } from "@/lib/dispatchAnalysis";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -666,10 +667,11 @@ const PaymentDetail = () => {
     setReanalyzingGroupId(g.id);
     await autoClaim();
     try {
-      const { error } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: id, only_companies: [g.company_name] },
-      });
-      if (error) throw error;
+      const dispatchRes = await invokeDispatchAnalysis({ payment_id: id, only_companies: [g.company_name] });
+      if (!dispatchRes.ok) {
+        if (dispatchRes.blocked) return;
+        throw dispatchRes.error;
+      }
       const obsRes = await recordObservation({
         payment_id: id,
         author_type: "analista",
@@ -993,10 +995,11 @@ const PaymentDetail = () => {
         message: `Confecção encerrada. Lote encaminhado para análise (modo padrão).`,
         status_from: payment?.status ?? null, status_to: "em_analise_ia",
       });
-      const { error: dispErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: id },
-      });
-      if (dispErr) throw dispErr;
+      const dispRes = await invokeDispatchAnalysis({ payment_id: id });
+      if (!dispRes.ok) {
+        if (dispRes.blocked) { await load(); return; }
+        throw dispRes.error;
+      }
       toast({ title: "Encaminhado para análise", description: "O motor está reanalisando o lote em modo padrão." });
       await load();
     } catch (e: unknown) {
@@ -1452,12 +1455,16 @@ const PaymentDetail = () => {
       // Aguarda confirmação do dispatcher; se falhar, reverte o status para
       // não deixar o lote travado em 'em_analise_ia'.
       try {
-        const { error: dispatchErr } = await supabase.functions.invoke(
-          "dispatch-payment-analysis",
-          { body: { payment_id: id } }
-        );
-        if (dispatchErr) throw dispatchErr;
-        toast({ title: "Base reimportada", description: "Análise iniciada por empresa em background." });
+        const dispRes = await invokeDispatchAnalysis({ payment_id: id });
+        if (!dispRes.ok) {
+          if (dispRes.blocked) {
+            await supabase.from("payments").update({ status: previousStatus as any }).eq("id", id);
+          } else {
+            throw dispRes.error;
+          }
+        } else {
+          toast({ title: "Base reimportada", description: "Análise iniciada por empresa em background." });
+        }
       } catch (dispatchErr) {
         const msg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
         console.error("[dispatch-payment-analysis] falhou no reimport", dispatchErr);
