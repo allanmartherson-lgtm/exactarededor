@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Pencil, Calculator, ArrowUp, ArrowDown } from "lucide-react";
+import { Trash2, Plus, Pencil, Calculator, ArrowUp, ArrowDown, X } from "lucide-react";
 import { toast } from "sonner";
+import { CompanyCombobox } from "@/components/CompanyCombobox";
 
 type Pool = {
   id: string;
@@ -81,7 +82,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
       ),
     ]);
     setPools((p.data || []) as Pool[]);
-    setCompanies(companiesAll);
+    setCompanies(companiesAll.filter(c => !c.name.trim().toUpperCase().startsWith("__E2E")));
     setLoading(false);
   };
 
@@ -293,13 +294,16 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                       </div>
                       <div className="col-span-2">
                         <Label className="text-xs">Empresa origem</Label>
-                        <Select value={d.company_id ?? "none"} onValueChange={v => { const n = [...editDeds]; n[i] = { ...d, company_id: v === "none" ? null : v }; setEditDeds(n); }}>
-                          <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">—</SelectItem>
-                            {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex gap-1 items-center">
+                          <CompanyCombobox
+                            value={d.company_id ? { id: d.company_id, name: companies.find(c => c.id === d.company_id)?.name ?? "", document: null } : null}
+                            onChange={(c) => { const n = [...editDeds]; n[i] = { ...d, company_id: c?.id ?? null }; setEditDeds(n); }}
+                            placeholder="—"
+                          />
+                          {d.company_id && (
+                            <Button size="icon" variant="ghost" onClick={() => { const n = [...editDeds]; n[i] = { ...d, company_id: null }; setEditDeds(n); }}><X className="w-3 h-3" /></Button>
+                          )}
+                        </div>
                       </div>
                       <div className="col-span-1 flex gap-1">
                         {i > 0 && <Button size="icon" variant="ghost" onClick={() => { const n = [...editDeds]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; setEditDeds(n); }}><ArrowUp className="w-3 h-3" /></Button>}
@@ -332,10 +336,11 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                         {p.participant_type === "hospital_nao_paga" ? (
                           <div className="h-9 flex items-center px-3 border rounded-md bg-muted text-sm">Hospital (não paga) — sentinela informativa</div>
                         ) : (
-                          <Select value={p.company_id ?? ""} onValueChange={v => { const n = [...editParts]; const company = companies.find(c => c.id === v); n[i] = { ...p, company_id: v, _label: company?.name }; setEditParts(n); }}>
-                            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                            <SelectContent>{companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                          </Select>
+                          <CompanyCombobox
+                            value={p.company_id ? { id: p.company_id, name: companies.find(c => c.id === p.company_id)?.name ?? p._label ?? "", document: null } : null}
+                            onChange={(c) => { const n = [...editParts]; n[i] = { ...p, company_id: c?.id ?? null, _label: c?.name }; setEditParts(n); }}
+                            placeholder="Selecione…"
+                          />
                         )}
                       </div>
                       <div className="col-span-3">
