@@ -207,14 +207,10 @@ export function ParecerReportCard({
       const parsedState = { fileHash, raw, headers, sampleRow: raw[0] ?? null };
       setParsed(parsedState);
 
-      // Se já há template salvo para essa assinatura, vai direto.
-      const saved = loadSavedMapping(headers);
-      if (saved && Object.keys(saved).length > 0) {
-        await runImport(saved, parsedState);
-      } else {
-        setMappingOpen(true);
-        setUploading(false);
-      }
+      // Sempre abre o diálogo de mapping para o analista revisar/confirmar
+      // (mesmo que haja template salvo) — evita aplicar mapping errado silenciosamente.
+      setMappingOpen(true);
+      setUploading(false);
     } catch (e: any) {
       toast({
         title: "Falha ao ler arquivo",
