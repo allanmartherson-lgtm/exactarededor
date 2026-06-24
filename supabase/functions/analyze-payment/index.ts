@@ -2142,7 +2142,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           patch.gross_amount = u.expected_amount ?? null;
         }
       }
-      const delays = [250, 500, 1000, 2000, 4000];
+      // 2026-06-24: aumentado de 5 para 7 tentativas (cap em ~22s) — CIPE/CIRURGIA
+      // Brasília esgotaram os 5 retries quando outras invocações concorrentes
+      // sobre o mesmo payment seguravam locks em payment_items.
+      const delays = [250, 500, 1000, 2000, 4000, 8000, 16000];
       let attempt = 0;
       let lastErr: string | null = null;
       while (attempt <= delays.length) {
