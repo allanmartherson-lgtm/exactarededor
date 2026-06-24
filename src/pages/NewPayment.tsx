@@ -3199,14 +3199,24 @@ const NewPayment = () => {
                         {(() => {
                           const seen = new Set();
                           b.rows.forEach(r => { if (r.company_id) seen.add(r.company_id); else if (r.company_name) seen.add(r.company_name); });
-                          const label = seen.size > 1 ? `Múltiplas empresas (${seen.size})` : (b.matchedCompany?.name ?? b.rawCompanyName ?? "");
+                          const multi = seen.size > 1;
+                          const label = multi ? `Múltiplas empresas (${seen.size})` : (b.matchedCompany?.name ?? b.rawCompanyName ?? "—");
+                          const noMatch = !multi && !b.matchedCompany;
                           return (
-                            <Badge variant="outline" className="gap-1 max-w-[280px] min-w-0" title={label}>
-                              <Building2 className="h-3 w-3 flex-shrink-0" />
-                              <span className="truncate">{label}</span>
-                            </Badge>
+                            <div
+                              className={`inline-flex items-center gap-2 rounded-md px-2.5 py-1 max-w-[420px] min-w-0 border ${
+                                noMatch
+                                  ? "border-destructive/40 bg-destructive/5 text-destructive"
+                                  : "border-border bg-muted/40 text-foreground"
+                              }`}
+                              title={label}
+                            >
+                              <Building2 className="h-4 w-4 flex-shrink-0 opacity-80" />
+                              <span className="truncate font-semibold text-sm">{label}</span>
+                            </div>
                           );
                         })()}
+
                         {b.manualOverride ? (
                           <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> empresa confirmada
