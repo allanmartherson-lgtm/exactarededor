@@ -3579,8 +3579,7 @@ const NewPayment = () => {
                             <AlertCircle className="h-3 w-3" /> sem PJ — itens ficam isolados ({Math.round(b.matchScore * 100)}%)
                           </Badge>
                         )}
-                        <div className="flex items-center gap-2 flex-wrap flex-1">
-                          <Popover>
+                        <Popover>
                             <PopoverTrigger asChild>
                               <Button
                                 type="button"
@@ -3610,6 +3609,8 @@ const NewPayment = () => {
                           </Popover>
                           </>
                         )}
+                        <div className="flex items-center gap-2 flex-wrap flex-1">
+
 
 
 
