@@ -772,6 +772,31 @@ export default function PaymentEvolution() {
                   })
                 )}
               </TableBody>
+              {!loading && matrix.length > 0 && (() => {
+                const monthTotals = months.map((_, i) => matrix.reduce((s, r) => s + (r.byMonth[i] ?? 0), 0));
+                const grand = monthTotals.reduce((s, v) => s + v, 0);
+                const lastT = monthTotals[months.length - 1] ?? 0;
+                const prevT = monthTotals[months.length - 2] ?? 0;
+                const deltaT = prevT > 0 ? ((lastT - prevT) / prevT) * 100 : lastT > 0 ? 100 : 0;
+                return (
+                  <tfoot className="border-t bg-muted/40 font-semibold">
+                    <TableRow>
+                      <TableCell className="font-semibold">Total por mês</TableCell>
+                      {monthTotals.map((v, i) => (
+                        <TableCell key={i} className={cn("text-right tabular-nums whitespace-nowrap", v === 0 && "text-muted-foreground/50")}>
+                          {v > 0 ? BRL(v) : "—"}
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right tabular-nums">{BRL(grand)}</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="outline" className={cn("tabular-nums", deltaT >= 0 ? "text-success" : "text-destructive")}>
+                          {PCT(deltaT)}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  </tfoot>
+                );
+              })()}
             </Table>
           </div>
         </div>
