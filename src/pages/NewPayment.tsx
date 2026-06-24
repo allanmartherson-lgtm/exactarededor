@@ -2227,6 +2227,16 @@ const NewPayment = () => {
       });
       return;
     }
+    if (requiresParecerReport && pendingSpecialtyRows.length > 0) {
+      toast({
+        title: `Especialidade obrigatória em ${pendingSpecialtyRows.length} item(ns)`,
+        description: "Em confecção de Parecer a especialidade decide Parecer vs Visita. Preencha antes de criar o lote.",
+        variant: "destructive",
+      });
+      setSpecialtyModalOpen(true);
+      return;
+    }
+
     if (competenceMonths.length === 0) {
       toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
     }
