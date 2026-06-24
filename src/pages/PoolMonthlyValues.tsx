@@ -252,6 +252,40 @@ export default function PoolMonthlyValues() {
                             {v?.valor !== null && v?.valor !== undefined && (
                               <span className="text-xs text-muted-foreground">{brl(Number(v.valor))}</span>
                             )}
+                            <div className="flex items-center gap-1">
+                              {v?.attachment_path ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs flex-1 min-w-0"
+                                    onClick={() => downloadAttachment(v.attachment_path!, v.attachment_name || "anexo")}
+                                    title={v.attachment_name || ""}
+                                  >
+                                    <Download className="w-3 h-3 mr-1 shrink-0" />
+                                    <span className="truncate">{v.attachment_name || "anexo"}</span>
+                                  </Button>
+                                  <Button type="button" size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => removeAttachment(v)}>
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <label className="text-xs text-muted-foreground inline-flex items-center gap-1 cursor-pointer hover:text-foreground">
+                                  <Paperclip className="w-3 h-3" /> Anexar escala
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      if (f) uploadAttachment(v, d.id, comp, f);
+                                      e.target.value = "";
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                       );
