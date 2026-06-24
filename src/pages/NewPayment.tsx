@@ -1634,11 +1634,20 @@ const NewPayment = () => {
           ? bucket
           : {
               ...bucket,
-              rows: bucket.rows.map((row, rIdx) => (rIdx === rowIndex ? { ...row, ...changes } : row)),
+              rows: bucket.rows.map((row, rIdx) => {
+                if (rIdx !== rowIndex) return row;
+                const merged = { ...row, ...changes } as ParsedRow;
+                // Recalcula tipo_linha: override manual vence; senão re-classifica
+                // com base nos novos valores (médico/valor/TUSS podem ter mudado).
+                const tipo_linha = merged.tipo_linha_manual ?? classifyLine(merged, paymentKind || null);
+                const withType = { ...merged, tipo_linha } as ParsedRow;
+                return { ...withType, line_issues: validateLine(withType, { modoConfeccao }) } as ParsedRow;
+              }),
             },
       ),
     );
   };
+
 
   // === Linhas suspeitas (totalizadores/rodapé) ===
   // Heurística no parser sinaliza linhas que parecem totalizador. O analista
