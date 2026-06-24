@@ -2738,20 +2738,62 @@ const NewPayment = () => {
           variant: "destructive",
         });
       } else {
-        toast({
-          title: `${unmatchedItems.length} item(ns) em "Empresas não vinculadas"`,
-          description: "Esses itens NÃO entram na análise. Resolva pela tela do lote.",
-        });
+        // Em rateio: o pool já pré-vinculou as PJs participantes. Resolve unmatched
+        // automaticamente via doctor→PJ entre os participantes — não joga em quarentena
+        // o que o pool consegue absorver sozinho.
+        let autoLinked = 0;
+        let stillPending = unmatchedItems.length;
+        if (paymentMode === "rateio" && poolId) {
+          const rawNames = Array.from(
+            new Set(unmatchedItems.map((u) => (u.raw_company_name ?? "").trim()).filter(Boolean)),
+          );
+          for (const raw of rawNames) {
+            try {
+              const { data, error } = await supabase.rpc(
+                "distribute_unmatched_items_by_doctor",
+                { _payment_id: payment.id, _raw_company_name: raw },
+              );
+              if (error) continue;
+              const row = Array.isArray(data) ? data[0] : data;
+              autoLinked += Number(row?.linked ?? 0);
+            } catch (e) {
+              console.warn("[rateio] auto-distribute falhou:", raw, e);
+            }
+          }
+          stillPending = unmatchedItems.length - autoLinked;
+        }
+        if (autoLinked > 0) {
+          toast({
+            title: `${autoLinked} item(ns) distribuídos pelas PJs do pool`,
+            description: stillPending > 0
+              ? `${stillPending} item(ns) sem vínculo médico→PJ permanecem em "Empresas não vinculadas".`
+              : "Todos os itens foram absorvidos automaticamente pelo pool.",
+          });
+        } else {
+          toast({
+            title: `${unmatchedItems.length} item(ns) em "Empresas não vinculadas"`,
+            description: "Esses itens NÃO entram na análise. Resolva pela tela do lote.",
+          });
+        }
       }
     }
 
     // Recalibra payments para refletir apenas itens que entram no motor.
     if (unmatchedItems.length > 0) {
-      const matchedTotal = matchedItems.reduce((s, it) => s + (Number(it.gross_amount) || 0), 0);
+      const { data: itemsAfter } = await supabase
+        .from("payment_items")
+        .select("gross_amount, procedure_amount")
+        .eq("payment_id", payment.id);
+      const total = (itemsAfter ?? []).reduce((s, r: any) => {
+        const paid = Number(r.gross_amount ?? 0);
+        const base = Number(r.procedure_amount ?? 0);
+        return s + (paid !== 0 ? paid : base);
+      }, 0);
       await supabase.from("payments")
-        .update({ items_count: matchedItems.length, total_amount: matchedTotal })
+        .update({ items_count: itemsAfter?.length ?? matchedItems.length, total_amount: total })
         .eq("id", payment.id);
     }
+
 
     // Score preditivo pré-análise — não bloqueia o fluxo se falhar.
     (async () => {
