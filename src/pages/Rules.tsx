@@ -2933,7 +2933,14 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
             <Checkbox checked={onlyIncomplete} onCheckedChange={(c) => setOnlyIncomplete(!!c)} />
             <span>Só desatualizadas</span>
           </label>
-          <p className="text-xs text-muted-foreground ml-auto">{filtered.length} de {rules.length}</p>
+          <label className="flex items-center gap-2 text-xs">
+            <Checkbox checked={showInactive} onCheckedChange={(c) => setShowInactive(!!c)} />
+            <span>Mostrar inativas</span>
+          </label>
+          <p className="text-xs text-muted-foreground ml-auto">
+            {filtered.length} de {rules.length}
+            {!showInactive && rules.some(r => r.active === false) ? ` (${rules.filter(r => r.active === false).length} inativa${rules.filter(r => r.active === false).length > 1 ? "s" : ""} oculta${rules.filter(r => r.active === false).length > 1 ? "s" : ""})` : ""}
+          </p>
         </div>
 
         {groups.length === 0 ? (
