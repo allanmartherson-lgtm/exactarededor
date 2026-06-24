@@ -2777,6 +2777,56 @@ const NewPayment = () => {
       console.warn("[audit] falha não-fatal ao registrar pagamento", e);
     }
 
+    // [Confecção parecer] Antes de disparar o motor, sobe o relatório de pareceres
+    // e cruza items↔linhas. Sem isso, o motor não tem como classificar item por
+    // item entre Parecer e Visita.
+    if (requiresParecerReport && parecerPayload) {
+      try {
+        const initRes = await supabase.functions.invoke("import-parecer-report", {
+          body: {
+            mode: "init",
+            payment_id: payment.id,
+            filename: parecerPayload.fileName,
+            file_hash: parecerPayload.fileHash,
+            period_start: parecerPayload.periodStart,
+            period_end: parecerPayload.periodEnd,
+          },
+        });
+        if (initRes.error) throw initRes.error;
+        const reportId = (initRes.data as any)?.report_id as string;
+        if (!reportId) throw new Error("Falha ao criar cabeçalho do relatório de parecer");
+        const CHUNK = 300;
+        let inserted = 0;
+        for (let i = 0; i < parecerPayload.rows.length; i += CHUNK) {
+          const chunk = parecerPayload.rows.slice(i, i + CHUNK);
+          const { error: appErr } = await supabase.functions.invoke("import-parecer-report", {
+            body: { mode: "append", report_id: reportId, rows: chunk },
+          });
+          if (appErr) throw appErr;
+          inserted += chunk.length;
+        }
+        await supabase.functions.invoke("import-parecer-report", {
+          body: { mode: "finalize", report_id: reportId, row_count: inserted },
+        });
+        // Cruza items↔relatório (sem disparar reanalysis — vamos disparar dispatch logo abaixo)
+        await supabase.functions.invoke("cross-reference-parecer", {
+          body: { payment_id: payment.id, trigger_reanalysis: false },
+        });
+        toast({
+          title: "Relatório de pareceres importado",
+          description: `${inserted} linhas · cruzamento concluído.`,
+        });
+      } catch (e: any) {
+        toast({
+          title: "Falha ao processar relatório de parecer",
+          description: e?.message ?? String(e),
+          variant: "destructive",
+        });
+        // Não bloqueia: o lote já foi criado em rascunho/confecção e o analista
+        // pode reanexar pelo PaymentDetail.
+      }
+    }
+
     toast({ title: "Lote criado", description: "Iniciando análise por IA..." });
     // Aguarda confirmação do dispatcher. Se falhar (timeout, boot error), reverte
     // status para 'rascunho' para não deixar o lote travado em 'em_analise_ia'.
