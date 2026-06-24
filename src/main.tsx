@@ -59,10 +59,53 @@ if (typeof document !== "undefined") {
   window.addEventListener("online", () => void refreshAuthSession());
 }
 
+const RELOAD_FLAG_KEY = "exacta-chunk-error-reloaded";
+
+/**
+ * Importa App.tsx com retry. Quando o Vite reinicia (preview ocioso, novo
+ * deploy), o primeiro import falha com "Failed to fetch dynamically imported
+ * module". Tentamos novamente com backoff curto; se persistir, fazemos UM
+ * reload da página — o ErrorBoundary não cobre esse import pois ele acontece
+ * antes do React montar.
+ */
+async function loadAppWithRetry(attempts = 3, delayMs = 400): Promise<typeof import("./App.tsx")> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await import("./App.tsx");
+    } catch (err) {
+      lastErr = err;
+      try {
+        const { supabase } = await import("./integrations/supabase/client.ts");
+        await supabase.auth.getSession();
+      } catch {
+        // ignore
+      }
+      await new Promise((r) => setTimeout(r, delayMs * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 const rootElement = document.getElementById("root");
 if (rootElement) {
-  import("./App.tsx").then(({ default: App }) => {
-    createRoot(rootElement).render(<App />);
-  });
+  loadAppWithRetry()
+    .then(({ default: App }) => {
+      try { sessionStorage.removeItem(RELOAD_FLAG_KEY); } catch { /* ignore */ }
+      createRoot(rootElement).render(<App />);
+    })
+    .catch((err) => {
+      console.error("[main] Falha ao carregar App.tsx após retries:", err);
+      let alreadyReloaded = false;
+      try {
+        alreadyReloaded = sessionStorage.getItem(RELOAD_FLAG_KEY) === "1";
+        sessionStorage.setItem(RELOAD_FLAG_KEY, "1");
+      } catch {
+        return;
+      }
+      if (!alreadyReloaded) {
+        setTimeout(() => window.location.reload(), 300);
+      }
+    });
 }
 
