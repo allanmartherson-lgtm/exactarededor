@@ -2284,6 +2284,13 @@ const NewPayment = () => {
         analysis_mode: analysisMode,
         payment_type_id: paymentTypeId,
         import_mode: isHistoricoImport ? "historico" : "normal",
+        payment_mode: paymentMode,
+        pool_id: poolId || null,
+        pool_deduction_id: (isPlantaoType && poolDeductionId) ? poolDeductionId : null,
+        rateio_source: paymentMode === "rateio" ? rateioSource : null,
+        rateio_valor_total: paymentMode === "rateio" && rateioSource === "sintetico" && rateioValorTotal
+          ? Number(rateioValorTotal)
+          : null,
       } as any)
       .select()
       .single();
