@@ -188,7 +188,7 @@ export default function ColumnMappingDialog({
     }
     const out = hitsToMapping(hits);
     if (mode === "confeccao") delete out.gross_amount;
-    onApply(out);
+    onApply(out, compatibleCount > 0 && applyToCompatible);
     onOpenChange(false);
   };
 
