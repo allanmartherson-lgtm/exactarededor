@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
   try {
-    const { payment_id, trigger_reanalysis = true } = await req.json();
+    const { payment_id, trigger_reanalysis = true, _background } = await req.json();
     if (!payment_id) {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400,
@@ -67,6 +67,26 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    // Se não foi chamada em modo background, dispara worker em segundo plano
+    // e retorna imediatamente para evitar IDLE_TIMEOUT (150s) no caller.
+    if (!_background) {
+      const bgPromise = fetch(`${SUPABASE_URL}/functions/v1/cross-reference-parecer`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SERVICE_KEY}`,
+        },
+        body: JSON.stringify({ payment_id, trigger_reanalysis, _background: true }),
+      }).catch((e) => console.warn("[cross-reference-parecer] bg dispatch failed", e));
+      // @ts-ignore — EdgeRuntime existe no runtime do Supabase
+      try { EdgeRuntime.waitUntil(bgPromise); } catch { /* noop */ }
+      return new Response(
+        JSON.stringify({ ok: true, accepted: true, background: true }),
+        { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
 
     // Tipo do lote (parecer_adulto, normalmente) e tipo Visita (alvo da reclassificação)
     const { data: paymentRow } = await supabase
