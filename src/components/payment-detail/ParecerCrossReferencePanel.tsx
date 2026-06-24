@@ -29,14 +29,18 @@ type ItemRow = {
   attendance_number: string | null;
   patient_name: string | null;
   doctor_name: string | null;
+  specialty: string | null;
   procedure_date: string | null;
   ai_status: string | null;
   manual_intervention_source: string | null;
+  manual_intervention_notes: string | null;
   parecer_evidence: string | null;
   parecer_evidence_weak: boolean | null;
   parecer_checked_at: string | null;
   parecer_report_row_id: string | null;
+  reclassified_from_parecer: boolean | null;
 };
+
 
 export function ParecerCrossReferencePanel({
   paymentId,
