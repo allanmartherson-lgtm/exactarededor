@@ -495,12 +495,14 @@ Deno.serve(async (req) => {
         has_report: hasReport,
         confirmed,
         not_found: notFound,
+        reclassified,
         auto_applied: autoApplied,
         subtype_parecer: subtypeParecer,
         subtype_visita: subtypeVisita,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+
   } catch (e: any) {
     console.error("[cross-reference-parecer]", e);
     return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
