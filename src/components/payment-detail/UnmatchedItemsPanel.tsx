@@ -86,7 +86,7 @@ export function UnmatchedItemsPanel({
       const { data, error } = await supabase
         .from("payment_unmatched_items")
         .select(
-          "raw_company_name, gross_amount, doctor_name, source_file, match_score, match_suggestion_id, match_suggestion_name",
+          "raw_company_name, gross_amount, procedure_amount, doctor_name, source_file, match_score, match_suggestion_id, match_suggestion_name",
         )
         .eq("payment_id", paymentId)
         .eq("status", "pending")
@@ -113,7 +113,9 @@ export function UnmatchedItemsPanel({
           suggestion_name: null,
         } as UnmatchedGroup);
       cur.items_count++;
-      cur.gross_total += Number(it.gross_amount ?? 0);
+      const paidValue = Number(it.gross_amount ?? 0);
+      const baseValue = Number(it.procedure_amount ?? 0);
+      cur.gross_total += paidValue !== 0 ? paidValue : baseValue;
       if (!cur.sample_doctor) cur.sample_doctor = it.doctor_name ?? null;
       if (it.source_file && !cur.source_files.includes(it.source_file)) {
         cur.source_files.push(it.source_file);
@@ -171,9 +173,13 @@ export function UnmatchedItemsPanel({
       // Recalibra totais do payment
       const { data: items } = await supabase
         .from("payment_items")
-        .select("gross_amount")
+        .select("gross_amount, procedure_amount")
         .eq("payment_id", paymentId);
-      const total = (items ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0);
+      const total = (items ?? []).reduce((s, r: any) => {
+        const paidValue = Number(r.gross_amount ?? 0);
+        const baseValue = Number(r.procedure_amount ?? 0);
+        return s + (paidValue !== 0 ? paidValue : baseValue);
+      }, 0);
       await supabase
         .from("payments")
         .update({ items_count: items?.length ?? 0, total_amount: total })

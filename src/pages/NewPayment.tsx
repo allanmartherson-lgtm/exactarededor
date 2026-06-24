@@ -1984,7 +1984,10 @@ const NewPayment = () => {
       return { ...withType, line_issues: validateLine(withType, { modoConfeccao }) };
     });
   }, [buckets, paymentKind, modoConfeccao, suspiciousDecisions]);
-  const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
+  const total = allRows.reduce(
+    (s, r) => s + (modoConfeccao ? Number(r.procedure_amount ?? r.gross_amount ?? 0) : Number(r.gross_amount ?? 0)),
+    0,
+  );
 
   // ===== Lookup estrito de cadastros (médicos / convênios / setores) =====
   const [doctorReg, setDoctorReg] = useState<DoctorRegistry | null>(null);
