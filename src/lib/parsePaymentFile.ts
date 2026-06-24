@@ -462,15 +462,21 @@ export const matchCompany = (rawName: string, companies: CompanyRow[]): { compan
   for (const c of companies) {
     const candidates = [c.name, ...(c.aliases || [])];
     for (const cand of candidates) {
-      // Compara também a versão limpa do candidato; pega o MAIOR para não regredir matches legítimos.
+      // SEMPRE comparar versões limpas dos dois lados. Comparar versões "raw"
+      // permite que aliases contaminados com sufixos comuns (ex.: "- Parecer Adulto",
+      // "- Centro Cirurgico") batam 92% entre arquivos DIFERENTES só porque
+      // compartilham o mesmo sufixo de setor — gerando falso-positivo cruzado
+      // (ex.: "SILVESTRINI ... - Parecer Adulto" sugerido como "R E I ..." porque
+      // ambos têm alias terminando em "- Parecer Adulto"). extractCompanyFromFilename
+      // é idempotente para nomes já limpos, então não regride matches legítimos.
       const candClean = extractCompanyFromFilename(cand);
-      const sRaw = similarity(rawName, cand);
-      const sClean = similarity(rawClean, candClean);
-      const s = Math.max(sRaw, sClean);
+      const rawCleanForCand = extractCompanyFromFilename(rawName);
+      const s = similarity(rawCleanForCand || rawName, candClean || cand);
       if (s > best.score) best = { company: c, score: s };
       if (best.score >= 0.999) return best; // early exit em match exato
     }
   }
+
   return best;
 };
 
