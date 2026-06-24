@@ -4914,6 +4914,8 @@ export type Database = {
       }
       payment_items: {
         Row: {
+          absorbed_by_pool_id: string | null
+          absorbed_by_run_id: string | null
           acatado_at: string | null
           acatado_by: string | null
           acatado_status_original: string | null
@@ -5029,6 +5031,8 @@ export type Database = {
           validation_findings: Json
         }
         Insert: {
+          absorbed_by_pool_id?: string | null
+          absorbed_by_run_id?: string | null
           acatado_at?: string | null
           acatado_by?: string | null
           acatado_status_original?: string | null
@@ -5144,6 +5148,8 @@ export type Database = {
           validation_findings?: Json
         }
         Update: {
+          absorbed_by_pool_id?: string | null
+          absorbed_by_run_id?: string | null
           acatado_at?: string | null
           acatado_by?: string | null
           acatado_status_original?: string | null
@@ -5259,6 +5265,20 @@ export type Database = {
           validation_findings?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_items_absorbed_by_pool_id_fkey"
+            columns: ["absorbed_by_pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_absorbed_by_run_id_fkey"
+            columns: ["absorbed_by_run_id"]
+            isOneToOne: false
+            referencedRelation: "pool_calculation_runs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_items_applied_calc_id_fkey"
             columns: ["applied_calc_id"]
@@ -6623,13 +6643,18 @@ export type Database = {
         Row: {
           base_amount: number
           bolo_liquido: number
+          captured_item_ids: string[] | null
+          competence_month: string | null
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string
           created_by: string | null
           deductions_applied: Json
+          error_detail: Json | null
           hospital_id: string | null
           id: string
+          invalidated_at: string | null
+          invalidated_reason: string | null
           payment_id: string
           pool_id: string
           quotas: Json
@@ -6642,13 +6667,18 @@ export type Database = {
         Insert: {
           base_amount: number
           bolo_liquido: number
+          captured_item_ids?: string[] | null
+          competence_month?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           deductions_applied?: Json
+          error_detail?: Json | null
           hospital_id?: string | null
           id?: string
+          invalidated_at?: string | null
+          invalidated_reason?: string | null
           payment_id: string
           pool_id: string
           quotas?: Json
@@ -6661,13 +6691,18 @@ export type Database = {
         Update: {
           base_amount?: number
           bolo_liquido?: number
+          captured_item_ids?: string[] | null
+          competence_month?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           deductions_applied?: Json
+          error_detail?: Json | null
           hospital_id?: string | null
           id?: string
+          invalidated_at?: string | null
+          invalidated_reason?: string | null
           payment_id?: string
           pool_id?: string
           quotas?: Json
@@ -6694,6 +6729,70 @@ export type Database = {
           },
         ]
       }
+      pool_deduction_values: {
+        Row: {
+          competence_month: string
+          created_at: string
+          created_by: string | null
+          hospital_id: string | null
+          id: string
+          observacao: string | null
+          pool_deduction_id: string
+          pool_id: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        Insert: {
+          competence_month: string
+          created_at?: string
+          created_by?: string | null
+          hospital_id?: string | null
+          id?: string
+          observacao?: string | null
+          pool_deduction_id: string
+          pool_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          competence_month?: string
+          created_at?: string
+          created_by?: string | null
+          hospital_id?: string | null
+          id?: string
+          observacao?: string | null
+          pool_deduction_id?: string
+          pool_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pool_deduction_values_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_deduction_values_pool_deduction_id_fkey"
+            columns: ["pool_deduction_id"]
+            isOneToOne: false
+            referencedRelation: "pool_deductions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_deduction_values_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pool_deductions: {
         Row: {
           company_id: string | null
@@ -6707,6 +6806,7 @@ export type Database = {
           tipo: string
           updated_at: string
           valor: number | null
+          valor_variavel: boolean
         }
         Insert: {
           company_id?: string | null
@@ -6720,6 +6820,7 @@ export type Database = {
           tipo: string
           updated_at?: string
           valor?: number | null
+          valor_variavel?: boolean
         }
         Update: {
           company_id?: string | null
@@ -6733,6 +6834,7 @@ export type Database = {
           tipo?: string
           updated_at?: string
           valor?: number | null
+          valor_variavel?: boolean
         }
         Relationships: [
           {
@@ -6754,6 +6856,72 @@ export type Database = {
             columns: ["pool_id"]
             isOneToOne: false
             referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pool_item_claims: {
+        Row: {
+          competence_month: string
+          created_at: string
+          hospital_id: string | null
+          id: string
+          payment_item_id: string
+          pool_id: string
+          run_id: string | null
+        }
+        Insert: {
+          competence_month: string
+          created_at?: string
+          hospital_id?: string | null
+          id?: string
+          payment_item_id: string
+          pool_id: string
+          run_id?: string | null
+        }
+        Update: {
+          competence_month?: string
+          created_at?: string
+          hospital_id?: string | null
+          id?: string
+          payment_item_id?: string
+          pool_id?: string
+          run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pool_item_claims_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_item_claims_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_item_claims_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "pool_item_claims_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_item_claims_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "pool_calculation_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -6820,6 +6988,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           descricao: string | null
+          escopo_producao: string
+          filtros_captura: Json
           hospital_id: string
           id: string
           nome: string
@@ -6833,6 +7003,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           descricao?: string | null
+          escopo_producao?: string
+          filtros_captura?: Json
           hospital_id: string
           id?: string
           nome: string
@@ -6846,6 +7018,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           descricao?: string | null
+          escopo_producao?: string
+          filtros_captura?: Json
           hospital_id?: string
           id?: string
           nome?: string
