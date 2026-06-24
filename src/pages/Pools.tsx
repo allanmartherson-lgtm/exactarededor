@@ -16,6 +16,15 @@ import { toast } from "sonner";
 import { CompanyCombobox } from "@/components/CompanyCombobox";
 import { Link } from "react-router-dom";
 
+type FiltrosCaptura = {
+  tipo_ato_ids?: string[];
+  setor_slugs?: string[];
+  convenio_slugs?: string[];
+  funcoes?: string[];
+  doctor_include_ids?: string[];
+  doctor_exclude_ids?: string[];
+};
+
 type Pool = {
   id: string;
   nome: string;
@@ -24,6 +33,8 @@ type Pool = {
   ativo: boolean;
   vigencia_inicio: string | null;
   vigencia_fim: string | null;
+  escopo_producao: "participantes" | "filtrado";
+  filtros_captura: FiltrosCaptura;
 };
 type Deduction = {
   id?: string;
@@ -34,6 +45,7 @@ type Deduction = {
   valor: number | null;
   company_id: string | null;
   obrigatoria: boolean;
+  valor_variavel: boolean;
 };
 type Participant = {
   id?: string;
