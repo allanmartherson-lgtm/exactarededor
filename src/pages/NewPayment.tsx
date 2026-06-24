@@ -3983,15 +3983,47 @@ const NewPayment = () => {
           />
         )}
 
+        {requiresParecerReport && (
+          <ParecerReportWizardCard
+            competenceMonths={competenceMonths}
+            tasyAttendanceKeys={(() => {
+              const byCrm = new Set<string>();
+              const byName = new Set<string>();
+              const onlyD = (s: any) => String(s ?? "").replace(/\D+/g, "");
+              const norm = (s: any) =>
+                String(s ?? "")
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .toLowerCase()
+                  .replace(/[^a-z0-9 ]+/g, " ")
+                  .replace(/\s+/g, " ")
+                  .trim();
+              for (const r of allRows) {
+                const att = onlyD(r.attendance_number);
+                if (!att) continue;
+                const crmD = onlyD(r.doctor_document);
+                if (crmD) byCrm.add(`${att}|${crmD}`);
+                const nm = norm(r.doctor_name);
+                if (nm) byName.add(`${att}|${nm}`);
+              }
+              return { byCrm, byName };
+            })()}
+            value={parecerPayload}
+            onChange={setParecerPayload}
+          />
+        )}
+
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || (requiresParecerReport && !parecerPayload)}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             {pendingSuspiciousCount > 0
               ? `Revise ${pendingSuspiciousCount} linha${pendingSuspiciousCount === 1 ? "" : "s"} suspeita${pendingSuspiciousCount === 1 ? "" : "s"}`
               : hasUnresolved
                 ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar`
-                : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
+                : requiresParecerReport && !parecerPayload
+                  ? "Anexe o relatório de pareceres"
+                  : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
           </Button>
         </div>
 
