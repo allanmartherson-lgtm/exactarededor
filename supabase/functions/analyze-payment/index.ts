@@ -2754,13 +2754,33 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // Tenta extrair ID do pagamento das variáveis hoisted (req.json já foi consumido)
     try {
       if (__payment_id) {
+        // Merge com diagnóstico existente (mesma lógica do success path).
+        const { data: __existingErrPay } = await supabase
+          .from("payments")
+          .select("processing_diagnostics")
+          .eq("id", __payment_id)
+          .maybeSingle();
+        const __existingErrDiag = (__existingErrPay?.processing_diagnostics ?? {}) as Record<string, any>;
+        const __perCompanyErr = (__existingErrDiag.per_company ?? {}) as Record<string, any>;
+        const __companyKeyErr = __company_label ?? __company_name ?? "Sem empresa";
+        __perCompanyErr[__companyKeyErr] = {
+          status: "error",
+          error: msg.slice(0, 500),
+          execution_time_ms: Date.now() - startTime,
+          ai_chunks_total: __telemetry.ai_chunks_total ?? 0,
+          ai_chunks_failed: __telemetry.ai_chunks_failed ?? 0,
+          finished_at: new Date().toISOString(),
+        };
         await supabase.from("payments").update({
           processing_timeout_occurred: true,
           processing_diagnostics: {
+            ...__existingErrDiag,
             ...diagnostics,
             status: "error",
             error: msg,
-            execution_time_ms: Date.now() - startTime
+            execution_time_ms: Date.now() - startTime,
+            per_company: __perCompanyErr,
+            has_company_error: true,
           }
         }).eq("id", __payment_id);
       }
