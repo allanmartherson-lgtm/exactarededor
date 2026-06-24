@@ -404,6 +404,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   
   const [filterTarget, setFilterTarget] = useState("");
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const [pendingByRule, setPendingByRule] = useState<Record<string, number>>({});
