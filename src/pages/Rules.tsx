@@ -1678,7 +1678,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       }
       return true;
     });
-  }, [rules, filterScope, filterTarget, onlyIncomplete, companies]);
+  }, [rules, filterScope, filterTarget, onlyIncomplete, showInactive, companies]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
