@@ -47,12 +47,17 @@ Deno.serve(async (req) => {
 
     // 1. Carrega payment + grupos atuais
     const { data: payment, error: payErr } = await supabase
-      .from("payments").select("id, reference, competence_month").eq("id", payment_id).single();
+      .from("payments").select("id, reference, competence_month, hospital_id").eq("id", payment_id).single();
     if (payErr || !payment) {
       return new Response(JSON.stringify({ error: "payment não encontrado" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Normaliza competence_month para o dia 01 (date) para casar com pool_deduction_values
+    const competenceDate: string | null = payment.competence_month
+      ? String(payment.competence_month).slice(0, 7) + "-01"
+      : null;
 
     const { data: groups } = await supabase
       .from("payment_company_groups")
@@ -64,20 +69,29 @@ Deno.serve(async (req) => {
     for (const g of realGroups) if (g.company_id) groupByCompany.set(g.company_id, g);
     const presentCompanyIds = Array.from(groupByCompany.keys());
 
-    if (presentCompanyIds.length === 0) {
-      return new Response(JSON.stringify({ ok: true, pools_processed: 0, reason: "sem grupos com company_id" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // 2. Pools ativos: (a) cujos participantes incluem alguma empresa presente
+    //                   OU (b) escopo_producao='filtrado' do mesmo hospital
+    const { data: matchedParts } = presentCompanyIds.length
+      ? await supabase
+          .from("pool_participants")
+          .select("pool_id")
+          .in("company_id", presentCompanyIds)
+      : { data: [] as Array<{ pool_id: string }> };
+
+    const candidatePoolIds = new Set<string>((matchedParts ?? []).map(p => p.pool_id));
+
+    // Filtered pools do hospital
+    if (payment.hospital_id) {
+      const { data: filteredPools } = await supabase
+        .from("pools")
+        .select("id")
+        .eq("hospital_id", payment.hospital_id)
+        .eq("escopo_producao", "filtrado")
+        .eq("ativo", true);
+      for (const p of filteredPools ?? []) candidatePoolIds.add(p.id);
     }
 
-    // 2. Pools ativos cujos participantes incluem alguma empresa presente
-    const { data: matchedParts } = await supabase
-      .from("pool_participants")
-      .select("pool_id, company_id, percentual, ordem_exibicao, participant_type")
-      .in("company_id", presentCompanyIds);
-
-    const candidatePoolIds = Array.from(new Set((matchedParts ?? []).map(p => p.pool_id)));
-    if (candidatePoolIds.length === 0) {
+    if (candidatePoolIds.size === 0) {
       return new Response(JSON.stringify({ ok: true, pools_processed: 0 }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -86,7 +100,7 @@ Deno.serve(async (req) => {
     const today = new Date().toISOString().slice(0, 10);
     const { data: pools } = await supabase
       .from("pools").select("*")
-      .in("id", candidatePoolIds).eq("ativo", true);
+      .in("id", Array.from(candidatePoolIds)).eq("ativo", true);
 
     const activePools = (pools ?? []).filter(p => {
       if (p.vigencia_inicio && p.vigencia_inicio > today) return false;
