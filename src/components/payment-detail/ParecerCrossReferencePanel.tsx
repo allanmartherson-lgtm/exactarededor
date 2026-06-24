@@ -106,8 +106,12 @@ export function ParecerCrossReferencePanel({
     const missing = items.filter((i) => i.parecer_evidence === "not_found").length;
     const weak = items.filter((i) => i.parecer_evidence === "confirmed" && i.parecer_evidence_weak).length;
     const autoTreated = items.filter((i) => i.manual_intervention_source === "auto_parecer_report").length;
-    return { total, checked, confirmed, missing, weak, autoTreated };
+    const reclassified = items.filter((i) => i.reclassified_from_parecer === true).length;
+    return { total, checked, confirmed, missing, weak, autoTreated, reclassified };
   }, [items]);
+
+  const reclassifiedItems = items.filter((i) => i.reclassified_from_parecer === true);
+
 
   const issues = items
     .filter((i) => i.parecer_evidence === "not_found" || (i.parecer_evidence === "confirmed" && i.parecer_evidence_weak))
