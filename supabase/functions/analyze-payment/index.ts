@@ -2110,7 +2110,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     };
     console.time(`${__t} writes_payment_items`);
     const __writesStart = Date.now();
-    await runChunked(itemUpdates, 5, async (u) => {
+    await runChunked(itemUpdates, 3, async (u) => {
       const patch: Record<string, unknown> = {
         ai_status: u.ai_status,
         ai_findings: u.ai_findings,
