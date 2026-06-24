@@ -10353,6 +10353,14 @@ export type Database = {
         Returns: undefined
       }
       delete_payment_batch: { Args: { p_payment_id: string }; Returns: Json }
+      distribute_unmatched_items_by_doctor: {
+        Args: { _payment_id: string; _raw_company_name: string }
+        Returns: {
+          companies_used: string[]
+          linked: number
+          unresolved: number
+        }[]
+      }
       enqueue_ai_retry: {
         Args: {
           p_company_name: string
