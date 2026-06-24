@@ -1702,7 +1702,9 @@ export function ItemsDataGrid({
     <div
       className={cn("flex flex-col min-h-[640px]", className)}
       style={{
-        height: `min(calc(100vh - 120px), max(640px, ${estimatedHeight}px))`,
+        // 2026-06-24: reduzido offset de 120→40px para ocupar o máximo da viewport.
+        // Antes sobravam ~80px de espaço morto abaixo do grid.
+        height: `min(calc(100vh - 40px), max(640px, ${estimatedHeight}px))`,
       }}
     >
 
