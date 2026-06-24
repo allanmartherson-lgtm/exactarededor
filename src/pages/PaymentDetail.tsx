@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
+import { invokeDispatchAnalysis } from "@/lib/dispatchAnalysis";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
