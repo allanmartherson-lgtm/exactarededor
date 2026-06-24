@@ -2169,6 +2169,14 @@ const NewPayment = () => {
       );
       if (!ok) return;
     }
+    if (requiresParecerReport && !parecerPayload) {
+      toast({
+        title: "Anexe o relatório de pareceres",
+        description: "Em confecção de Parecer, o relatório do Tasy é obrigatório para cruzar com a base e classificar cada item.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (competenceMonths.length === 0) {
       toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
     }
