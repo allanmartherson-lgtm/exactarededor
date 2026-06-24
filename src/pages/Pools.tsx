@@ -82,7 +82,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
       ),
     ]);
     setPools((p.data || []) as Pool[]);
-    setCompanies(companiesAll);
+    setCompanies(companiesAll.filter(c => !c.name.trim().toUpperCase().startsWith("__E2E")));
     setLoading(false);
   };
 
