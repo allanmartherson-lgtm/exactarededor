@@ -285,10 +285,10 @@ export function ParecerReportWizardCard({
         <ParecerColumnMappingDialog
           open={mappingOpen}
           onOpenChange={setMappingOpen}
+          fileName={file?.name ?? ""}
           headers={parseState.headers}
           sampleRow={parseState.sampleRow}
-          initialMapping={autoSuggestMapping(parseState.headers)}
-          onConfirm={applyMapping}
+          onApply={(mapping) => { void applyMapping(mapping); }}
         />
       )}
     </Card>
