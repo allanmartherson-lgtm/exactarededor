@@ -597,7 +597,7 @@ export default function CompanyAnalysis() {
 
   // Estado colapsado/expandido do histórico de comentários da empresa.
   // Persistido em localStorage por (paymentId, companyId) para sobreviver a reload.
-  const historyCollapseKey = `companyAnalysis:groupCommentsCollapsed:${id ?? "_"}:${companyId ?? "_"}`;
+  const historyCollapseKey = `companyAnalysis:groupCommentsCollapsed:${id ?? "_"}:${groupId ?? "_"}`;
   const [groupCommentsCollapsed, setGroupCommentsCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     const saved = window.localStorage.getItem(historyCollapseKey);
