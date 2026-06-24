@@ -1355,10 +1355,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       //     em analysis_telemetry (ai_chunks_failed) e como prefixo no resumo
       //     entregue ao usuário ("⚠️ N de M chunks da IA falharam — justificativas
       //     incompletas"). Antes a falha era 100% silenciosa.
+      // 2026-06-24: IASO (85 itens, 75s de IA) chegou a 146s — a 4s do limite
+      // de 150s da edge function. Aumentamos a concorrência de 3→5 para reduzir
+      // o número de "ondas" sequenciais; chunk size mantido em 15 (menor =
+      // mais chunks = mais round-trips). 5 × 15 = 75 itens em paralelo na
+      // primeira onda, suficiente para empresas grandes terminarem em 1-2
+      // ondas em vez de 3.
       const AI_CHUNK_SIZE = 15;
       const AI_TIMEOUT_MS = 90_000;
       const AI_MAX_RETRIES = 1;
-      const AI_CHUNK_CONCURRENCY = 3;
+      const AI_CHUNK_CONCURRENCY = 5;
 
       const aiChunks: typeof itemsForAi[] = [];
       for (let i = 0; i < itemsForAi.length; i += AI_CHUNK_SIZE) {
