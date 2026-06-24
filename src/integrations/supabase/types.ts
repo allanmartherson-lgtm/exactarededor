@@ -6311,12 +6311,17 @@ export type Database = {
           origem: string
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
+          payment_mode: string
           payment_track: Database["public"]["Enums"]["payment_track"] | null
           payment_type: string | null
           payment_type_id: string | null
+          pool_deduction_id: string | null
+          pool_id: string | null
           priority_score: number
           processing_diagnostics: Json | null
           processing_timeout_occurred: boolean | null
+          rateio_source: string | null
+          rateio_valor_total: number | null
           reference: string
           sectors: string[]
           source_file_path: string | null
@@ -6356,12 +6361,17 @@ export type Database = {
           origem?: string
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
+          payment_mode?: string
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
           payment_type_id?: string | null
+          pool_deduction_id?: string | null
+          pool_id?: string | null
           priority_score?: number
           processing_diagnostics?: Json | null
           processing_timeout_occurred?: boolean | null
+          rateio_source?: string | null
+          rateio_valor_total?: number | null
           reference: string
           sectors?: string[]
           source_file_path?: string | null
@@ -6401,12 +6411,17 @@ export type Database = {
           origem?: string
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
+          payment_mode?: string
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
           payment_type_id?: string | null
+          pool_deduction_id?: string | null
+          pool_id?: string | null
           priority_score?: number
           processing_diagnostics?: Json | null
           processing_timeout_occurred?: boolean | null
+          rateio_source?: string | null
+          rateio_valor_total?: number | null
           reference?: string
           sectors?: string[]
           source_file_path?: string | null
@@ -6430,6 +6445,20 @@ export type Database = {
             columns: ["payment_type_id"]
             isOneToOne: false
             referencedRelation: "payment_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_pool_deduction_id_fkey"
+            columns: ["pool_deduction_id"]
+            isOneToOne: false
+            referencedRelation: "pool_deductions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
             referencedColumns: ["id"]
           },
         ]

@@ -814,6 +814,43 @@ const NewPayment = () => {
   }, []);
   // Tipos de pagamento são gerenciados em /cadastros/tipos-pagamento e carregados via hook.
   const { list: paymentTypeOptions, loading: loadingPaymentTypes } = usePaymentTypes({ onlyActive: true });
+
+  // === Vínculo com rateio (pool) ===
+  const [paymentMode, setPaymentMode] = useState<"producao" | "rateio">("producao");
+  const [poolId, setPoolId] = useState<string>("");
+  const [poolDeductionId, setPoolDeductionId] = useState<string>("");
+  const [rateioSource, setRateioSource] = useState<"planilha" | "sintetico">("planilha");
+  const [rateioValorTotal, setRateioValorTotal] = useState<string>("");
+  const [poolsList, setPoolsList] = useState<Array<{ id: string; nome: string }>>([]);
+  const [poolDeductionsList, setPoolDeductionsList] = useState<Array<{ id: string; descricao: string; tipo: string; valor_variavel: boolean | null }>>([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data } = await supabase.from("pools").select("id, nome").eq("ativo", true).order("nome");
+      if (alive) setPoolsList((data ?? []) as any);
+    })();
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    setPoolDeductionId("");
+    if (!poolId) { setPoolDeductionsList([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("pool_deductions")
+        .select("id, descricao, tipo, valor_variavel")
+        .eq("pool_id", poolId)
+        .order("ordem");
+      if (alive) setPoolDeductionsList((data ?? []) as any);
+    })();
+    return () => { alive = false; };
+  }, [poolId]);
+  // Heurística: tipo de pagamento "plantão" habilita auto-vínculo com dedução variável do pool.
+  const isPlantaoType = useMemo(() => {
+    const t = paymentTypeOptions.find((o) => o.code === paymentType);
+    const blob = `${t?.code ?? ""} ${t?.label ?? ""}`.toLowerCase();
+    return /plant(a|ã)o/.test(blob);
+  }, [paymentType, paymentTypeOptions]);
   const [autoSectors, setAutoSectors] = useState(true);
   const [autoSpecialties, setAutoSpecialties] = useState(true);
   const [autoPaymentKind, setAutoPaymentKind] = useState(true);
@@ -2247,6 +2284,13 @@ const NewPayment = () => {
         analysis_mode: analysisMode,
         payment_type_id: paymentTypeId,
         import_mode: isHistoricoImport ? "historico" : "normal",
+        payment_mode: paymentMode,
+        pool_id: poolId || null,
+        pool_deduction_id: (isPlantaoType && poolDeductionId) ? poolDeductionId : null,
+        rateio_source: paymentMode === "rateio" ? rateioSource : null,
+        rateio_valor_total: paymentMode === "rateio" && rateioSource === "sintetico" && rateioValorTotal
+          ? Number(rateioValorTotal)
+          : null,
       } as any)
       .select()
       .single();
@@ -2871,6 +2915,83 @@ const NewPayment = () => {
                   Gerenciar tipos em <span className="font-medium">Cadastros → Tipos de pagamento</span>.
                 </p>
               </div>
+
+              {/* Vínculo com rateio (pool) */}
+              <div className="space-y-2 sm:col-span-2 rounded-md border border-info/30 bg-info-soft/20 p-3">
+                <Label className="text-sm">Modo de pagamento</Label>
+                <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as "producao" | "rateio")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="producao">Produção (padrão)</SelectItem>
+                    <SelectItem value="rateio">Pagamento por rateio (pool)</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {(paymentMode === "rateio" || isPlantaoType) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <Label className="text-xs">Pool {paymentMode === "rateio" ? "*" : "(opcional)"}</Label>
+                      <Select value={poolId} onValueChange={setPoolId}>
+                        <SelectTrigger><SelectValue placeholder="Selecione um pool" /></SelectTrigger>
+                        <SelectContent>
+                          {poolsList.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {isPlantaoType && poolId && (
+                      <div>
+                        <Label className="text-xs">Dedução do pool a alimentar</Label>
+                        <Select value={poolDeductionId} onValueChange={setPoolDeductionId}>
+                          <SelectTrigger><SelectValue placeholder="Selecione a dedução" /></SelectTrigger>
+                          <SelectContent>
+                            {poolDeductionsList.map((d) => (
+                              <SelectItem key={d.id} value={d.id}>
+                                {d.descricao || d.tipo}{d.valor_variavel ? " (variável)" : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          O valor total deste plantão será lançado automaticamente em <span className="font-medium">Valores mensais</span> do pool (competência {competenceMonths[0] || "—"}).
+                        </p>
+                      </div>
+                    )}
+
+                    {paymentMode === "rateio" && (
+                      <>
+                        <div>
+                          <Label className="text-xs">Fonte da produção</Label>
+                          <Select value={rateioSource} onValueChange={(v) => setRateioSource(v as "planilha" | "sintetico")}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="planilha">Planilha de itens (com upload)</SelectItem>
+                              <SelectItem value="sintetico">Sintético (sem itens, só valor total)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {rateioSource === "sintetico" && (
+                          <div>
+                            <Label className="text-xs">Valor total a ratear (R$)</Label>
+                            <Input
+                              type="number" step="0.01" min="0"
+                              value={rateioValorTotal}
+                              onChange={(e) => setRateioValorTotal(e.target.value)}
+                              placeholder="0,00"
+                            />
+                          </div>
+                        )}
+                        <p className="text-[11px] text-muted-foreground sm:col-span-2">
+                          Participantes, deduções e regras seguem o cadastro do pool. O motor distribui automaticamente entre as PJs após o salvamento.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label>Categoria{autoPaymentKind ? "" : " *"}</Label>
                 <div className="flex items-center gap-2">
