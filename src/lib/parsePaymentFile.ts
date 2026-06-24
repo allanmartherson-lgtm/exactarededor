@@ -265,10 +265,36 @@ const toStr = (v: unknown): string | null => {
   const s = String(v).trim();
   return s.length ? s : null;
 };
+const excelSerialToParts = (
+  serial: number,
+): { y: number; m: number; d: number; H: number; M: number; S: number; hasTime: boolean } | null => {
+  if (!isFinite(serial) || serial <= 0) return null;
+  // Excel serial date (1900 system, com bug do 29/02/1900 — usar 25569 = 1970-01-01)
+  const ms = Math.round((serial - 25569) * 86400 * 1000);
+  const dt = new Date(ms);
+  if (isNaN(+dt)) return null;
+  const frac = serial - Math.floor(serial);
+  return {
+    y: dt.getUTCFullYear(),
+    m: dt.getUTCMonth() + 1,
+    d: dt.getUTCDate(),
+    H: dt.getUTCHours(),
+    M: dt.getUTCMinutes(),
+    S: dt.getUTCSeconds(),
+    hasTime: frac > 1e-6,
+  };
+};
+
 const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTime: boolean } => {
   if (v == null || v === "") return { iso: null, hasTime: false };
+  if (v instanceof Date) {
+    const hasTime = v.getUTCHours() + v.getUTCMinutes() + v.getUTCSeconds() > 0;
+    return { iso: v.toISOString(), hasTime };
+  }
   if (typeof v === "number") {
-    const d = XLSX.SSF.parse_date_code(v);
+    // Tenta usar XLSX.SSF se disponível; senão, conversor próprio.
+    const ssf = (XLSX as unknown as { SSF?: { parse_date_code?: (n: number) => any } }).SSF;
+    const d = ssf?.parse_date_code?.(v) ?? excelSerialToParts(v);
     if (d) {
       const hasTime = !!(d.H || d.M || d.S);
       if (hasTime) {
@@ -277,10 +303,10 @@ const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTime: bool
           hasTime: true,
         };
       }
-      // Data sem hora: usar 15:00 UTC (= meio-dia em UTC-3) para evitar rollback em Brasília
       return { iso: new Date(Date.UTC(d.y, d.m - 1, d.d, 15, 0, 0)).toISOString(), hasTime: false };
     }
   }
+
   const s = String(v).trim();
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
   if (m) {
