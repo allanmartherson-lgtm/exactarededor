@@ -1,5 +1,5 @@
-// Hub unificado de Cadastros — substitui 6 entradas separadas no menu
-// (Empresas / Médicos / Convênios / Setores e Centros / Tipos de pagamento / Diretores).
+// Hub unificado de Cadastros — substitui entradas separadas no menu
+// (Hospitais / Empresas / Médicos / Convênios / Setores e Centros / Tipos de pagamento / Diretores).
 // As rotas antigas continuam funcionando, redirecionando para a aba correspondente.
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -13,8 +13,10 @@ import Convenios from "./Convenios";
 import CostCenters from "./CostCenters";
 import PaymentTypes from "./PaymentTypes";
 import ManualInterventionReasons from "./ManualInterventionReasons";
+import Hospitals from "./Hospitals";
 
 type TabValue =
+  | "hospitais"
   | "empresas"
   | "medicos"
   | "convenios"
@@ -24,6 +26,7 @@ type TabValue =
   | "mapa-especialidades";
 
 const TABS: { value: TabValue; label: string }[] = [
+  { value: "hospitais", label: "Hospitais" },
   { value: "empresas", label: "Empresas" },
   { value: "medicos", label: "Médicos" },
   { value: "convenios", label: "Convênios" },
@@ -48,6 +51,7 @@ export default function CadastrosHub() {
 
   const content = useMemo(() => {
     switch (active) {
+      case "hospitais": return <Hospitals embedded />;
       case "empresas": return <Companies embedded />;
       case "medicos": return <Doctors embedded />;
       case "convenios": return <Convenios embedded />;
@@ -62,7 +66,7 @@ export default function CadastrosHub() {
     <div>
       <PageHeader
         title="Cadastros"
-        description="Empresas, médicos, convênios, setores, tipos de pagamento e diretores aprovadores — tudo em um só lugar."
+        description="Hospitais, empresas, médicos, convênios, setores, tipos de pagamento e diretores aprovadores — tudo em um só lugar."
         icon={FolderKanban}
       />
       <div className="p-4 md:p-6 space-y-6">

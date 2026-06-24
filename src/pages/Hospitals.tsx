@@ -17,7 +17,7 @@ const UF_LIST = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG
 type Form = { id?: string; slug: string; name: string; state_uf: string; cnpj: string; active: boolean };
 const emptyForm: Form = { slug: "", name: "", state_uf: "DF", cnpj: "", active: true };
 
-export default function Hospitals() {
+export default function Hospitals({ embedded = false }: { embedded?: boolean } = {}) {
   const { refresh } = useHospital();
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,11 +77,13 @@ export default function Hospitals() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Hospitais"
-        description="Cadastro dos hospitais da operação. Cada hospital tem isolamento operacional, e cadastros (médicos/empresas/convênios) são compartilhados por estado."
-        icon={Building2}
-      />
+      {!embedded && (
+        <PageHeader
+          title="Hospitais"
+          description="Cadastro dos hospitais da operação. Cada hospital tem isolamento operacional, e cadastros (médicos/empresas/convênios) são compartilhados por estado."
+          icon={Building2}
+        />
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
