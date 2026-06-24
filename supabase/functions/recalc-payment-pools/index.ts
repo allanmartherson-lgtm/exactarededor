@@ -124,17 +124,39 @@ Deno.serve(async (req) => {
       const isFiltered = pool.escopo_producao === "filtrado";
 
       if (isFiltered) {
-        const filtros = (pool.filtros_captura ?? {}) as Record<string, any>;
+        const filtrosRaw = (pool.filtros_captura ?? {}) as Record<string, any>;
+        // Normalização defensiva: trim + dedupe; slugs em lowercase; funções preservam case (case-insensitive abaixo).
+        const norm = (arr: any, opts: { lower?: boolean } = {}) => {
+          if (!Array.isArray(arr)) return [] as string[];
+          const out = arr
+            .flatMap((v: any) => String(v ?? "").split(","))
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+            .map((s: string) => (opts.lower ? s.toLowerCase() : s));
+          return Array.from(new Set(out));
+        };
+        const filtros = {
+          tipo_ato_ids: norm(filtrosRaw.tipo_ato_ids),
+          setor_slugs: norm(filtrosRaw.setor_slugs, { lower: true }),
+          convenio_slugs: norm(filtrosRaw.convenio_slugs, { lower: true }),
+          funcoes: norm(filtrosRaw.funcoes),
+          doctor_include_ids: norm(filtrosRaw.doctor_include_ids),
+          doctor_exclude_ids: norm(filtrosRaw.doctor_exclude_ids),
+        };
         let q = supabase
           .from("payment_items")
           .select("id, company_id, doctor_id, doctor_name, doctor_role, payment_type_id, sector_slug, convenio_slug, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
           .eq("payment_id", payment_id);
-        if (Array.isArray(filtros.tipo_ato_ids) && filtros.tipo_ato_ids.length) q = q.in("payment_type_id", filtros.tipo_ato_ids);
-        if (Array.isArray(filtros.setor_slugs) && filtros.setor_slugs.length)   q = q.in("sector_slug", filtros.setor_slugs);
-        if (Array.isArray(filtros.convenio_slugs) && filtros.convenio_slugs.length) q = q.in("convenio_slug", filtros.convenio_slugs);
-        if (Array.isArray(filtros.funcoes) && filtros.funcoes.length)            q = q.in("doctor_role", filtros.funcoes);
-        if (Array.isArray(filtros.doctor_include_ids) && filtros.doctor_include_ids.length) q = q.in("doctor_id", filtros.doctor_include_ids);
-        if (Array.isArray(filtros.doctor_exclude_ids) && filtros.doctor_exclude_ids.length) q = q.not("doctor_id", "in", `(${filtros.doctor_exclude_ids.join(",")})`);
+        if (filtros.tipo_ato_ids.length) q = q.in("payment_type_id", filtros.tipo_ato_ids);
+        if (filtros.setor_slugs.length)   q = q.in("sector_slug", filtros.setor_slugs);
+        if (filtros.convenio_slugs.length) q = q.in("convenio_slug", filtros.convenio_slugs);
+        if (filtros.funcoes.length) {
+          // case-insensitive: doctor_role do payment_items pode vir com case variável da planilha
+          const orExpr = filtros.funcoes.map(f => `doctor_role.ilike.${f.replace(/[,()]/g, "")}`).join(",");
+          q = q.or(orExpr);
+        }
+        if (filtros.doctor_include_ids.length) q = q.in("doctor_id", filtros.doctor_include_ids);
+        if (filtros.doctor_exclude_ids.length) q = q.not("doctor_id", "in", `(${filtros.doctor_exclude_ids.join(",")})`);
         const { data: fitems } = await q;
         elig = fitems ?? [];
       } else {
