@@ -667,10 +667,11 @@ const PaymentDetail = () => {
     setReanalyzingGroupId(g.id);
     await autoClaim();
     try {
-      const { error } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: id, only_companies: [g.company_name] },
-      });
-      if (error) throw error;
+      const dispatchRes = await invokeDispatchAnalysis({ payment_id: id, only_companies: [g.company_name] });
+      if (!dispatchRes.ok) {
+        if (dispatchRes.blocked) return; // toast amigável já exibido pelo helper
+        throw (dispatchRes as any).error;
+      }
       const obsRes = await recordObservation({
         payment_id: id,
         author_type: "analista",
