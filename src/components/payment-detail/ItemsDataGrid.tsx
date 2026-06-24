@@ -1618,7 +1618,9 @@ export function ItemsDataGrid({
 
   const tableMinWidth = 24 +
     (colVis.atendimento ? 160 : 0) +
+    (colVis.data ? 90 : 0) +
     160 +
+
     (colVis.convenio ? 120 : 0) +
     (colVis.via ? 110 : 0) +
     88 +
