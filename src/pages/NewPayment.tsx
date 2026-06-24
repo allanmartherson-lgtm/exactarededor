@@ -2479,7 +2479,15 @@ const NewPayment = () => {
       }
       // Auto-aprendizado: quando o motor casou via CRM/CPF/slug mas o texto bruto
       // diverge do canônico, cria alias auto. Próximas importações resolvem direto.
-      try {
+      // ⚠️ Pulamos em import_mode='historico' — bases antigas não devem contaminar
+      // o cadastro com aliases que talvez já estejam errados. Histórico só calcula
+      // valores/diferenças para popular DRE; não ensina nada ao motor.
+      if (isHistoricoImport) {
+        toast({
+          title: "Histórico: aprendizado de apelidos desativado",
+          description: "Aliases de médicos/convênios/setores não serão registrados neste lote.",
+        });
+      } else try {
         const learnRows = matchedItems.map((it: any) => ({
           doctor_id: it.doctor_id,
           doctor_matched_by: it.doctor_matched_by,
@@ -2503,6 +2511,7 @@ const NewPayment = () => {
         console.warn("[learn-alias] falhou (não-bloqueante):", e);
       }
     }
+
 
     if (unmatchedItems.length > 0) {
       const { error: unErr } = await supabase.from("payment_unmatched_items").insert(unmatchedItems);
