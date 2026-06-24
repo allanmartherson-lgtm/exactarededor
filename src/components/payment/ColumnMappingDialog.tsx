@@ -55,7 +55,12 @@ interface Props {
   /** Hospital atual para salvar template. null = global. */
   hospitalId: string | null;
   /** Callback quando o usuário confirma o mapeamento. */
-  onApply: (mapping: ManualMapping) => void;
+  onApply: (mapping: ManualMapping, applyToCompatible: boolean) => void;
+  /**
+   * Quantidade de OUTRAS planilhas no lote atual que compartilham o mesmo
+   * cabeçalho — quando > 0 o diálogo mostra a opção "aplicar a todas".
+   */
+  compatibleCount?: number;
   /**
    * Modo de uso da base:
    * - "analise" (default): planilha de pagamento real → exige `gross_amount` (valor repasse)
@@ -74,6 +79,7 @@ interface Props {
     default_function?: string | null;
   } | null;
 }
+
 
 export default function ColumnMappingDialog({
   open,
