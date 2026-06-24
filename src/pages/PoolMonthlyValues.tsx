@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Save, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle, Paperclip, Download, X } from "lucide-react";
 import { toast } from "sonner";
 
 type Pool = { id: string; nome: string; hospital_id: string };
@@ -18,8 +18,12 @@ type ValueRow = {
   competence_month: string; // YYYY-MM-01
   valor: number | null;
   observacao: string | null;
+  attachment_path?: string | null;
+  attachment_name?: string | null;
 };
 type Run = { id: string; competence_month: string | null; invalidated_at: string | null; invalidated_reason: string | null };
+
+const BUCKET = "pool-deduction-attachments";
 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -120,6 +124,62 @@ export default function PoolMonthlyValues() {
     load();
   };
 
+  const uploadAttachment = async (row: ValueRow | undefined, dedId: string, comp: string, file: File) => {
+    if (!poolId) return;
+    // garante que existe registro (precisa do id para vincular o arquivo de forma estável)
+    let valueId = row?.id;
+    if (!valueId) {
+      const { data, error } = await supabase.from("pool_deduction_values").upsert({
+        pool_id: poolId,
+        pool_deduction_id: dedId,
+        competence_month: comp,
+        valor: row?.valor ?? 0,
+        observacao: row?.observacao ?? null,
+      }, { onConflict: "pool_deduction_id,competence_month" }).select("id").maybeSingle();
+      if (error || !data) { toast.error(error?.message || "Falha ao criar registro"); return; }
+      valueId = data.id;
+    }
+    const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
+    const path = `${poolId}/${dedId}/${comp}/${valueId}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true, contentType: file.type });
+    if (upErr) { toast.error(upErr.message); return; }
+    const { data: userData } = await supabase.auth.getUser();
+    const { error: updErr } = await supabase.from("pool_deduction_values").update({
+      attachment_path: path,
+      attachment_name: file.name,
+      attachment_size: file.size,
+      attachment_mime: file.type,
+      attachment_uploaded_at: new Date().toISOString(),
+      attachment_uploaded_by: userData.user?.id ?? null,
+    }).eq("id", valueId);
+    if (updErr) { toast.error(updErr.message); return; }
+    toast.success("Anexo enviado");
+    load();
+  };
+
+  const downloadAttachment = async (path: string, name: string) => {
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60);
+    if (error || !data) { toast.error(error?.message || "Falha"); return; }
+    const a = document.createElement("a");
+    a.href = data.signedUrl;
+    a.download = name;
+    a.target = "_blank";
+    a.click();
+  };
+
+  const removeAttachment = async (row: ValueRow) => {
+    if (!row.id || !row.attachment_path) return;
+    if (!confirm("Remover anexo?")) return;
+    await supabase.storage.from(BUCKET).remove([row.attachment_path]);
+    const { error } = await supabase.from("pool_deduction_values").update({
+      attachment_path: null, attachment_name: null, attachment_size: null,
+      attachment_mime: null, attachment_uploaded_at: null, attachment_uploaded_by: null,
+    }).eq("id", row.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Anexo removido");
+    load();
+  };
+
   if (loading) return <div className="p-6">Carregando…</div>;
   if (!pool) return <div className="p-6">Pool não encontrado.</div>;
 
@@ -192,6 +252,40 @@ export default function PoolMonthlyValues() {
                             {v?.valor !== null && v?.valor !== undefined && (
                               <span className="text-xs text-muted-foreground">{brl(Number(v.valor))}</span>
                             )}
+                            <div className="flex items-center gap-1">
+                              {v?.attachment_path ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs flex-1 min-w-0"
+                                    onClick={() => downloadAttachment(v.attachment_path!, v.attachment_name || "anexo")}
+                                    title={v.attachment_name || ""}
+                                  >
+                                    <Download className="w-3 h-3 mr-1 shrink-0" />
+                                    <span className="truncate">{v.attachment_name || "anexo"}</span>
+                                  </Button>
+                                  <Button type="button" size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => removeAttachment(v)}>
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <label className="text-xs text-muted-foreground inline-flex items-center gap-1 cursor-pointer hover:text-foreground">
+                                  <Paperclip className="w-3 h-3" /> Anexar escala
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      if (f) uploadAttachment(v, d.id, comp, f);
+                                      e.target.value = "";
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                       );
