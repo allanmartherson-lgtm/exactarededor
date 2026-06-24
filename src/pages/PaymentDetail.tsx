@@ -2710,6 +2710,27 @@ const PaymentDetail = () => {
             });
           }
           if (payment.cost_center_code) cells.push({ label: "Centro de custo", value: <span className="font-mono">{payment.cost_center_code}</span> });
+          {
+            const mode = (payment as any).payment_mode as string | null | undefined;
+            const pid = (payment as any).pool_id as string | null | undefined;
+            if (pid) {
+              const isRateio = mode === "rateio";
+              const label = isRateio ? "Rateio · Pool" : (poolInfo?.deducao ? "Plantão → Pool" : "Pool");
+              cells.push({
+                label,
+                value: (
+                  <Link
+                    to={`/pools/${pid}/valores-mensais`}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 text-violet-800 border border-violet-200 hover:bg-violet-100 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-900/60"
+                    title={poolInfo?.deducao ? `Dedução: ${poolInfo.deducao}` : "Abrir valores mensais do pool"}
+                  >
+                    {poolInfo?.nome ?? "Pool"}
+                    {poolInfo?.deducao && <span className="text-[10px] opacity-70">· {poolInfo.deducao}</span>}
+                  </Link>
+                ),
+              });
+            }
+          }
           return (
             <Card className="shadow-card">
               <CardContent className="p-3">
