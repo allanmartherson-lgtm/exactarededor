@@ -2671,7 +2671,58 @@ const NewPayment = () => {
       } catch (e) {
         console.warn("[learn-alias] falhou (não-bloqueante):", e);
       }
+
+      // === Rateio: cria um payment_company_groups por PJ participante do pool ===
+      // Em rateio, o trigger sync_payment_company_group ignora o company_id da planilha
+      // (ver migration). Aqui materializamos um grupo por participante (percentual > 0)
+      // para o lote aparecer organizado pelas PJs do pool, não pela PJ do médico.
+      if (paymentMode === "rateio" && poolId) {
+        try {
+          const { data: participants, error: pErr } = await supabase
+            .from("pool_participants")
+            .select("company_id, percentual, companies:companies!inner(id, name)")
+            .eq("pool_id", poolId)
+            .gt("percentual", 0);
+          if (pErr) throw pErr;
+          const rows = (participants ?? [])
+            .map((p: any) => ({
+              company_id: p.company_id,
+              company_name: (p.companies?.name ?? "—").trim() || "—",
+            }))
+            .filter((r) => r.company_id);
+          if (rows.length > 0) {
+            const totalItems = matchedItems.length;
+            const hospitalId = (payment as any).hospital_id ?? hospital?.id;
+            const initialStatus = modoConfeccao ? "rascunho" : "revisao_analista";
+            const groupRows = rows.map((r) => ({
+              payment_id: payment.id,
+              hospital_id: hospitalId,
+              company_id: r.company_id,
+              company_name: r.company_name,
+              items_count: totalItems,
+              total_amount: 0,
+              bruto_total: 0,
+              status: initialStatus,
+              confeccao_status: modoConfeccao ? "em_confeccao" : null,
+            }));
+            const { error: gErr } = await supabase
+              .from("payment_company_groups")
+              .upsert(groupRows as any, { onConflict: "payment_id,company_id" });
+            if (gErr) {
+              console.warn("[rateio] falha ao criar grupos por participante:", gErr);
+              toast({
+                title: "Aviso: grupos do pool não criados",
+                description: gErr.message,
+                variant: "destructive",
+              });
+            }
+          }
+        } catch (e: any) {
+          console.warn("[rateio] erro ao montar grupos do pool:", e);
+        }
+      }
     }
+
 
 
     if (unmatchedItems.length > 0) {
