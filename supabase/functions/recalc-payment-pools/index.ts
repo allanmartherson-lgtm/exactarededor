@@ -189,8 +189,44 @@ Deno.serve(async (req) => {
         adjustment_id?: string; parcela?: number;
       }> = [];
       const adjustmentApplications: Array<{ adjustment_id: string; parcela_numero: number; valor: number }> = [];
+      const variableValuesUsed: Array<{ deduction_id: string; descricao: string; valor: number; observacao: string | null; competence_month: string }> = [];
       let bolo = base;
+      let blockedReason: string | null = null;
+      const blockedDetail: any[] = [];
+
       for (const d of (dedRows ?? [])) {
+        // Caso 1: dedução com valor variável por competência
+        if (d.valor_variavel) {
+          if (!competenceDate) {
+            blockedReason = "competencia_nao_definida_para_valor_variavel";
+            blockedDetail.push({ deduction_id: d.id, descricao: d.descricao });
+            continue;
+          }
+          const { data: pdv } = await supabase
+            .from("pool_deduction_values")
+            .select("valor, observacao, competence_month")
+            .eq("pool_deduction_id", d.id)
+            .eq("competence_month", competenceDate)
+            .maybeSingle();
+          if (!pdv) {
+            blockedReason = "valor_variavel_competencia_nao_cadastrado";
+            blockedDetail.push({ deduction_id: d.id, descricao: d.descricao, competence_month: competenceDate });
+            continue;
+          }
+          const v = Number(pdv.valor ?? 0);
+          bolo -= v;
+          deductionsApplied.push({
+            ordem: d.ordem, tipo: d.tipo,
+            descricao: `${d.descricao}${pdv.observacao ? ` — ${pdv.observacao}` : ""}`,
+            valor: round2(v),
+          });
+          variableValuesUsed.push({
+            deduction_id: d.id, descricao: d.descricao, valor: round2(v),
+            observacao: pdv.observacao ?? null, competence_month: competenceDate,
+          });
+          continue;
+        }
+
         const dynTypes = new Set(["ajuste_credito", "ajuste_debito", "glosa_parcelada"]);
         if (dynTypes.has(d.tipo) && d.company_id) {
           // Busca ajuste ativo com parcelas pendentes
@@ -208,7 +244,6 @@ Deno.serve(async (req) => {
             const pagas = Number(adj.parcelas_pagas ?? 0);
             const total = Number(adj.parcelas_total ?? 1);
             if (pagas >= total) continue;
-            // Já aplicado neste payment? (idempotência)
             const { data: existingApp } = await supabase
               .from("company_adjustment_applications")
               .select("id, valor_aplicado, parcela_numero")
@@ -239,6 +274,26 @@ Deno.serve(async (req) => {
         }
       }
       bolo = round2(bolo);
+
+      // Se houve bloqueio (valor variável faltando), grava run inválido e segue
+      if (blockedReason) {
+        await supabase.from("pool_calculation_runs").insert({
+          payment_id, pool_id: pool.id,
+          base_amount: round2(base), bolo_liquido: 0,
+          deductions_applied: deductionsApplied,
+          quotas: [],
+          competence_month: competenceDate,
+          captured_item_ids: isFiltered ? elig.map(it => it.id) : null,
+          invalidated_at: new Date().toISOString(),
+          invalidated_reason: blockedReason,
+          error_detail: { items: blockedDetail },
+          hospital_id: payment.hospital_id ?? null,
+          snapshot: { pool_nome: pool.nome, executed_at: new Date().toISOString() },
+          created_by: userId,
+        } as any);
+        results.push({ pool_id: pool.id, pool_nome: pool.nome, error: blockedReason, detail: blockedDetail });
+        continue;
+      }
 
       // Quotas
       const quotas = participants.map(p => {
