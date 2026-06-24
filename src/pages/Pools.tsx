@@ -84,6 +84,17 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
   const [editDeds, setEditDeds] = useState<Deduction[]>([]);
   const [editParts, setEditParts] = useState<Participant[]>([]);
   const [showPoolDialog, setShowPoolDialog] = useState(false);
+  const [filtrosRaw, setFiltrosRaw] = useState<Record<string, string>>({});
+
+  const parseCsv = (s: string) => s.split(",").map(x => x.trim()).filter(Boolean);
+  const bindFiltro = (key: "tipo_ato_ids" | "setor_slugs" | "convenio_slugs" | "funcoes" | "doctor_include_ids" | "doctor_exclude_ids") => ({
+    value: filtrosRaw[key] ?? ((editing?.filtros_captura as any)?.[key] ?? []).join(", "),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value;
+      setFiltrosRaw(prev => ({ ...prev, [key]: raw }));
+      setEditing(ed => ed ? { ...ed, filtros_captura: { ...ed.filtros_captura, [key]: parseCsv(raw) } } : ed);
+    },
+  });
 
   const loadAll = async () => {
     setLoading(true);
@@ -107,6 +118,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
       ativo: true, vigencia_inicio: null, vigencia_fim: null,
       escopo_producao: "participantes", filtros_captura: {},
     });
+    setFiltrosRaw({});
     if (pool?.id) {
       const [d, pp] = await Promise.all([
         supabase.from("pool_deductions").select("*").eq("pool_id", pool.id).order("ordem"),
@@ -321,46 +333,40 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                     <div>
                       <Label className="text-xs">Slugs de tipo de ato (separados por vírgula)</Label>
                       <Input
-                        value={(editing.filtros_captura?.tipo_ato_ids ?? []).join(", ")}
-                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, tipo_ato_ids: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        {...bindFiltro("tipo_ato_ids")}
                         placeholder="ex: <uuid do payment_type 'visita'>"
                       />
                     </div>
                     <div>
                       <Label className="text-xs">Setores (slugs)</Label>
                       <Input
-                        value={(editing.filtros_captura?.setor_slugs ?? []).join(", ")}
-                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, setor_slugs: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        {...bindFiltro("setor_slugs")}
                         placeholder="ex: cti-adulto, uti-coronariana"
                       />
                     </div>
                     <div>
                       <Label className="text-xs">Convênios (slugs)</Label>
                       <Input
-                        value={(editing.filtros_captura?.convenio_slugs ?? []).join(", ")}
-                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, convenio_slugs: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        {...bindFiltro("convenio_slugs")}
                       />
                     </div>
                     <div>
                       <Label className="text-xs">Funções no ato</Label>
                       <Input
-                        value={(editing.filtros_captura?.funcoes ?? []).join(", ")}
-                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, funcoes: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        {...bindFiltro("funcoes")}
                         placeholder="ex: Visita, Parecer"
                       />
                     </div>
                     <div>
                       <Label className="text-xs">IDs de médicos a INCLUIR (vazio = todos)</Label>
                       <Input
-                        value={(editing.filtros_captura?.doctor_include_ids ?? []).join(", ")}
-                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, doctor_include_ids: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        {...bindFiltro("doctor_include_ids")}
                       />
                     </div>
                     <div>
                       <Label className="text-xs">IDs de médicos a EXCLUIR</Label>
                       <Input
-                        value={(editing.filtros_captura?.doctor_exclude_ids ?? []).join(", ")}
-                        onChange={e => setEditing({ ...editing, filtros_captura: { ...editing.filtros_captura, doctor_exclude_ids: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })}
+                        {...bindFiltro("doctor_exclude_ids")}
                       />
                     </div>
                   </div>
