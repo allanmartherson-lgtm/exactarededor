@@ -124,16 +124,10 @@ export default function ColumnMappingDialog({
    *   próprio tipo de pagamento preenche automaticamente.
    */
   const effectiveFields = useMemo(() => {
-    if (mode === "confeccao") {
-      return FIELD_DEFINITIONS.filter((f) => f.key !== "gross_amount").map((f) =>
-        f.key === "procedure_amount" ? { ...f, requirement: "required" as const } : f,
-      );
-    }
     const tussInjected =
       !!paymentTypeMeta?.tuss_default || paymentTypeMeta?.requires_tuss_in_sheet === false;
     const funcInjected = !!paymentTypeMeta?.default_function;
-    if (!tussInjected && !funcInjected) return FIELD_DEFINITIONS;
-    return FIELD_DEFINITIONS.map((f) => {
+    const applyTypeRelax = (f: FieldDefinition): FieldDefinition => {
       if (f.key === "procedure_code" && tussInjected) {
         return { ...f, requirement: "recommended" as const };
       }
@@ -141,7 +135,14 @@ export default function ColumnMappingDialog({
         return { ...f, requirement: "recommended" as const };
       }
       return f;
-    });
+    };
+    if (mode === "confeccao") {
+      return FIELD_DEFINITIONS.filter((f) => f.key !== "gross_amount")
+        .map((f) => (f.key === "procedure_amount" ? { ...f, requirement: "required" as const } : f))
+        .map(applyTypeRelax);
+    }
+    if (!tussInjected && !funcInjected) return FIELD_DEFINITIONS;
+    return FIELD_DEFINITIONS.map(applyTypeRelax);
   }, [mode, paymentTypeMeta]);
 
   const requirementByField = useMemo(() => {
