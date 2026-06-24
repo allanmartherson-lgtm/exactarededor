@@ -995,10 +995,11 @@ const PaymentDetail = () => {
         message: `Confecção encerrada. Lote encaminhado para análise (modo padrão).`,
         status_from: payment?.status ?? null, status_to: "em_analise_ia",
       });
-      const { error: dispErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: id },
-      });
-      if (dispErr) throw dispErr;
+      const dispRes = await invokeDispatchAnalysis({ payment_id: id });
+      if (!dispRes.ok) {
+        if (dispRes.blocked) { await load(); return; }
+        throw dispRes.error;
+      }
       toast({ title: "Encaminhado para análise", description: "O motor está reanalisando o lote em modo padrão." });
       await load();
     } catch (e: unknown) {
