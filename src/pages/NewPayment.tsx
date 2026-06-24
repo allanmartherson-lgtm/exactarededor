@@ -1318,12 +1318,34 @@ const NewPayment = () => {
   };
 
   /**
+   * Compara dois conjuntos de cabeçalhos detectados de forma case/ordem-insensível.
+   * Usado para propagar o mapeamento manual aos demais arquivos compatíveis do lote.
+   */
+  const sameHeaderSet = (a: string[] | undefined | null, b: string[] | undefined | null): boolean => {
+    if (!a || !b) return false;
+    if (a.length === 0 || b.length === 0) return false;
+    const norm = (s: string) => s.trim().toLowerCase();
+    const sa = Array.from(new Set(a.map(norm))).sort();
+    const sb = Array.from(new Set(b.map(norm))).sort();
+    if (sa.length !== sb.length) return false;
+    for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return false;
+    return true;
+  };
+
+  /**
    * Aplica um override de mapeamento de colunas vindo do diálogo
    * (ou de um template salvo). Reprocessa as linhas com o novo mapping.
+   * Quando `applyToCompatible=true`, propaga o mesmo mapping para todos os
+   * outros buckets do lote que tenham exatamente os mesmos cabeçalhos.
    */
-  const applyColumnMappingOverride = (idx: number, mapping: ManualMapping) => {
+  const applyColumnMappingOverride = (idx: number, mapping: ManualMapping, applyToCompatible = false) => {
+    const refHeaders = buckets[idx]?.detectedHeaders ?? [];
+    let propagatedCount = 0;
     setBuckets((prev) => prev.map((bucket, bIdx) => {
-      if (bIdx !== idx) return bucket;
+      const isTarget = bIdx === idx;
+      const isCompatible = !isTarget && applyToCompatible && sameHeaderSet(refHeaders, bucket.detectedHeaders);
+      if (!isTarget && !isCompatible) return bucket;
+      if (isCompatible) propagatedCount++;
       const matrix = bucket.rawMatrix;
       const headerIdx = bucket.headerRowIndex ?? 0;
       if (!matrix) return { ...bucket, columnMapping: mapping };
@@ -1344,8 +1366,14 @@ const NewPayment = () => {
       });
       return { ...bucket, rows, columnMapping: mapping, mappingHits };
     }));
-    toast({ title: "Mapeamento de colunas atualizado", description: "As linhas foram reprocessadas com o novo mapeamento." });
+    toast({
+      title: "Mapeamento de colunas atualizado",
+      description: propagatedCount > 0
+        ? `Aplicado a este arquivo + ${propagatedCount} arquivo${propagatedCount === 1 ? "" : "s"} com o mesmo cabeçalho.`
+        : "As linhas foram reprocessadas com o novo mapeamento.",
+    });
   };
+
 
 
   const reportParseError = (fileName: string, e: unknown) => {
