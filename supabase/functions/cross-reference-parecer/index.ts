@@ -41,6 +41,17 @@ function sameDayUtc(a: string | null, b: string | null) {
   return da.toISOString().slice(0, 10) === db.toISOString().slice(0, 10);
 }
 
+// O item pode ter sido lançado tanto na data da SOLICITAÇÃO do parecer
+// (consulta beira-leito) quanto na data da RESPOSTA. Aceita match contra
+// qualquer uma das duas.
+function matchesParecerDate(row: any, procedureDate: string | null) {
+  return (
+    sameDayUtc(row.dt_resposta_parecer, procedureDate) ||
+    sameDayUtc(row.dt_solic_parecer, procedureDate)
+  );
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
@@ -97,10 +108,11 @@ Deno.serve(async (req) => {
         const { data: page, error } = await supabase
           .from("payment_parecer_report_rows")
           .select(
-            "id, report_id, atendimento, medico_resposta, medico_resposta_crm, dt_resposta_parecer, situacao",
+            "id, report_id, atendimento, medico_resposta, medico_resposta_crm, dt_solic_parecer, dt_resposta_parecer, situacao",
           )
           .in("report_id", ids)
           .range(from, from + pageSize - 1);
+
         if (error) throw error;
         allRows.push(...(page ?? []));
         if (!page || page.length < pageSize) break;
@@ -210,21 +222,20 @@ Deno.serve(async (req) => {
         const list = byAttendCrm.get(`${att}|${cd}`) ?? [];
         hit =
           list.find((r) =>
-            sameDayUtc(r.dt_resposta_parecer, it.procedure_date) &&
+            matchesParecerDate(r, it.procedure_date) &&
             String(r.situacao ?? "").toLowerCase().includes("com parecer"),
           ) ?? list.find((r) =>
-            sameDayUtc(r.dt_resposta_parecer, it.procedure_date),
+            matchesParecerDate(r, it.procedure_date),
           ) ?? null;
       }
       if (!hit && att && nm) {
         const list = byAttendName.get(`${att}|${nm}`) ?? [];
-        // fallback exige mesma data (parecer respondido no dia do lançamento)
+        // fallback exige mesma data (solicitação OU resposta do parecer)
         hit =
-          list.find((r) =>
-            sameDayUtc(r.dt_resposta_parecer, it.procedure_date),
-          ) ?? null;
+          list.find((r) => matchesParecerDate(r, it.procedure_date)) ?? null;
         if (hit) weak = true;
       }
+
 
       if (hit) {
         // Já tratado manualmente? Não sobrescreve.
