@@ -130,6 +130,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/regras", label: "Regras (Pagamento, Validação, Simuladores)", icon: BadgeDollarSign, iconName: "BadgeDollarSign", roles: ["admin"] },
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["admin"] },
       { to: "/cadastros", label: "Cadastros", icon: FolderKanban, iconName: "FolderKanban", roles: ["admin", "diretor"] },
+      { to: "/hospitais", label: "Hospitais", icon: Building2, iconName: "Building2", roles: ["admin", "diretor"] },
       { to: "/pools", label: "Pools de rateio", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
       { to: "/prazos-sla", label: "Prazos e SLA", icon: Timer, iconName: "Timer", roles: ["admin"] },
     ],
@@ -141,8 +142,6 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ALL_ROLES,
     children: [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
-      { to: "/hospitais", label: "Hospitais", icon: Building2, iconName: "Building2", roles: ["admin", "diretor"] },
-      
       { to: "/portal-usuarios", label: "Acessos dos Portais", icon: Building2, iconName: "Building2", roles: ["admin"] },
       { to: "/saude", label: "Saúde (Motor, Portais, Processo)", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin", "validador"] },
@@ -178,6 +177,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Regras (Pagamento, Validação, Simuladores)", iconName: "BadgeDollarSign" },
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Cadastros", iconName: "FolderKanban" },
+  { label: "Hospitais", iconName: "Building2" },
   { label: "Pools de rateio", iconName: "Split" },
   { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },

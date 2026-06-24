@@ -364,6 +364,7 @@ const App = () => (
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
                   <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
+                  <Route path="/hospitals" element={<Navigate to="/hospitais" replace />} />
                   <Route path="/portal-usuarios" element={<ProtectedRoute roles={["admin"]}><PortalUsers /></ProtectedRoute>} />
                   <Route path="/portal-saude" element={<Navigate to="/saude?tab=portais" replace />} />
                   <Route path="/produtividade-analistas" element={<Navigate to="/saude-processo" replace />} />
