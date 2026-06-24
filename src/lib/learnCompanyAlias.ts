@@ -63,7 +63,14 @@ export function shouldLearnAlias(
   if (!trimmed) return false;
   if (!company) return false;
   const key = trimmed.toLowerCase();
-  if ((company.name ?? "").trim().toLowerCase() === key) return false;
+  const companyName = (company.name ?? "").trim().toLowerCase();
+  if (companyName === key) return false;
   if ((company.aliases ?? []).some((a) => (a ?? "").trim().toLowerCase() === key)) return false;
+  // Não aprender alias contaminado por sufixo do arquivo (setor/período/versão).
+  // Ex.: "R E I Servicos Medicos Ltda - Parecer Adulto" depois de limpo = "R E I Servicos Medicos Ltda"
+  // que é praticamente igual ao name → salvar isso polui o matching de OUTROS arquivos
+  // que tenham o mesmo sufixo "- Parecer Adulto" (gera falsos positivos cruzados).
+  const cleaned = extractCompanyFromFilename(trimmed).trim().toLowerCase();
+  if (cleaned && cleaned === companyName) return false;
   return true;
 }
