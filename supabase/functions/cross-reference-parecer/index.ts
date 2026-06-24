@@ -281,15 +281,104 @@ Deno.serve(async (req) => {
       }
     }
 
+    // === Dedup paciente+especialidade+convenio (modo confecção parecer) ===
+    // Quando o convênio não paga 2 pareceres seguidos da mesma especialidade
+    // para o mesmo paciente, o 1º atendimento vira Parecer e os demais Visita.
+    // A chave usa ESPECIALIDADE (não médico) porque equipes se revezam.
+    const updateById = new Map(updates.map((u) => [u.id, u]));
+    const reclassifiedIds = new Set<string>();
+    const reclassifyReason = new Map<string, string>();
+
+    // 1) Dedup intra-lote
+    const buckets = new Map<string, Array<{ id: string; date: string | null }>>();
+    for (const it of items) {
+      const u = updateById.get(it.id);
+      if (!u || u.evidence !== "confirmed") continue;
+      const pat = norm(it.patient_name);
+      const spec = norm(it.specialty);
+      const conv = norm(it.convenio_slug);
+      if (!pat || !spec) continue; // sem chave forte, mantém como Parecer
+      const key = `${pat}|${spec}|${conv}`;
+      const list = buckets.get(key) ?? [];
+      list.push({ id: it.id, date: it.procedure_date });
+      buckets.set(key, list);
+    }
+    for (const list of buckets.values()) {
+      if (list.length < 2) continue;
+      list.sort((a, b) => {
+        const da = a.date ? Date.parse(a.date) : 0;
+        const db = b.date ? Date.parse(b.date) : 0;
+        return da - db;
+      });
+      // 1º permanece Parecer; demais reclassificados
+      for (let i = 1; i < list.length; i++) {
+        reclassifiedIds.add(list[i].id);
+        const firstDate = list[0].date ? new Date(list[0].date).toISOString().slice(0, 10) : "?";
+        reclassifyReason.set(
+          list[i].id,
+          `Parecer prévio no mesmo lote em ${firstDate} (mesmo paciente+especialidade+convênio)`,
+        );
+      }
+    }
+
+    // 2) Lookback 7d entre lotes — para os que ainda são Parecer confirmado
+    const candidatesLookback = items.filter((it) => {
+      const u = updateById.get(it.id);
+      return (
+        u && u.evidence === "confirmed" &&
+        !reclassifiedIds.has(it.id) &&
+        it.specialty && it.patient_name && it.procedure_date && it.hospital_id
+      );
+    });
+    for (const it of candidatesLookback) {
+      const dt = new Date(it.procedure_date);
+      const from = new Date(dt.getTime() - 7 * 24 * 3600 * 1000).toISOString();
+      const to = dt.toISOString();
+      const { data: prior } = await supabase
+        .from("payment_items")
+        .select("id, payment_id, procedure_date")
+        .eq("hospital_id", it.hospital_id)
+        .eq("specialty", it.specialty)
+        .eq("patient_name", it.patient_name)
+        .eq("parecer_evidence", "confirmed")
+        .eq("reclassified_from_parecer", false)
+        .neq("payment_id", payment_id)
+        .gte("procedure_date", from)
+        .lt("procedure_date", to)
+        .limit(1);
+      if (prior && prior.length > 0) {
+        reclassifiedIds.add(it.id);
+        const d = prior[0].procedure_date ? new Date(prior[0].procedure_date).toISOString().slice(0, 10) : "?";
+        reclassifyReason.set(
+          it.id,
+          `Parecer prévio em outro lote em ${d} (lookback 7 dias, mesmo paciente+especialidade)`,
+        );
+      }
+    }
+
+    // Aplica reclassificação: troca evidence para "reclassified" para o
+    // bloco de patch abaixo mandar para Visita.
+    for (const u of updates) {
+      if (reclassifiedIds.has(u.id) && u.evidence === "confirmed") {
+        (u as any).evidence = "reclassified";
+        (u as any).apply_auto_reason = false;
+      }
+    }
+    console.log(
+      `[cross-reference-parecer] dedup: reclassified=${reclassifiedIds.size} (intra-lote + lookback 7d)`,
+    );
+
     // Aplica em batches agrupados por patch (reduz deadlocks e overhead de triggers)
     const now = new Date().toISOString();
     let confirmed = 0;
     let notFound = 0;
+    let reclassified = 0;
     let autoApplied = 0;
     const PROTECTED_SOURCES = new Set(["manual", "company_override"]);
     const itemById = new Map(items.map((i: any) => [i.id, i]));
     let subtypeParecer = 0;
     let subtypeVisita = 0;
+
 
     console.log(
       `[cross-reference-parecer] reclass_ready loteType=${lotePaymentTypeId} visitaType=${visitaPaymentTypeId} updates=${updates.length}`,
