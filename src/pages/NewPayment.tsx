@@ -850,6 +850,28 @@ const NewPayment = () => {
     })();
     return () => { alive = false; };
   }, [poolId]);
+
+  // Empresas participantes do pool de rateio (com share > 0) — alimenta o painel de risco.
+  const [poolCompanyNames, setPoolCompanyNames] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    if (!poolId || paymentMode !== "rateio") { setPoolCompanyNames([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("pool_participants")
+        .select("company_id, percentual, companies:companies!inner(name)")
+        .eq("pool_id", poolId)
+        .gt("percentual", 0);
+      if (!alive) return;
+      const names = Array.from(new Set(
+        (data ?? [])
+          .map((r: any) => (r.companies?.name ?? "").trim())
+          .filter(Boolean)
+      ));
+      setPoolCompanyNames(names);
+    })();
+    return () => { alive = false; };
+  }, [poolId, paymentMode]);
   // Heurística: tipo de pagamento "plantão" habilita auto-vínculo com dedução variável do pool.
   const isPlantaoType = useMemo(() => {
     const t = paymentTypeOptions.find((o) => o.code === paymentType);
