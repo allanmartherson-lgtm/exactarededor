@@ -443,6 +443,15 @@ export function UnmatchedItemsPanel({
                 )}
                 <Button
                   size="sm"
+                  variant="secondary"
+                  onClick={() => distributeByDoctor(g)}
+                  disabled={busy}
+                  title="Distribui os itens entre as PJs do pool conforme o vínculo médico→PJ cadastrado"
+                >
+                  <Users className="h-3.5 w-3.5 mr-1" /> Distribuir por médico (pool)
+                </Button>
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => {
                     setPicked(null);
