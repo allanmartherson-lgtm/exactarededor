@@ -2680,7 +2680,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // --- Aprendizado: persiste aliases de convênio descobertos durante a análise ---
     // Sempre que normAgreement resolveu um raw via stem-rule ou startsWith,
     // o raw foi registrado. Aqui fazemos merge não-destrutivo em convenios.aliases.
-    try {
+    // ⚠️ Pulamos em import_mode='historico' para não contaminar o cadastro com
+    // variações de bases antigas que estamos só usando para popular DRE.
+    if (isHistorico) {
+      drainLearnedAliases(); // drena e descarta para limpar o buffer do worker
+      console.log(`${__t} [historico] auto-aprendizado de aliases de convênio pulado`);
+    } else try {
+
       const learned = drainLearnedAliases();
       if (learned.length) {
         for (const { slug, aliases } of learned) {
