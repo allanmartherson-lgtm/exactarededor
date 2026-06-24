@@ -2368,9 +2368,14 @@ export default function CompanyAnalysis() {
                   <CardTitle className="text-base">Itens</CardTitle>
                   <p className="text-xs text-muted-foreground">
                     {items.length} itens · use os filtros do grid para focar em status, convênio, médico ou alertas.
-                    {payment?.processing_timeout_occurred && (
-                      <span className="ml-2 text-destructive font-medium">⚠️ Algumas justificativas da IA podem estar ausentes por timeout.</span>
-                    )}
+                    {(() => {
+                      const diag = (payment?.processing_diagnostics ?? {}) as any;
+                      const hasErr = !!payment?.processing_timeout_occurred || diag.has_company_error === true;
+                      const partial = diag.partial_ai_failure === true;
+                      if (hasErr) return <span className="ml-2 text-destructive font-medium">⚠️ Houve falha de processamento em alguma empresa deste lote.</span>;
+                      if (partial) return <span className="ml-2 text-destructive font-medium">⚠️ Algumas justificativas da IA podem estar incompletas.</span>;
+                      return null;
+                    })()}
                   </p>
                 </div>
                 {canEditItems && (
