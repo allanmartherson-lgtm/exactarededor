@@ -389,17 +389,27 @@ Deno.serve(async (req) => {
     type Group = { patch: Record<string, any>; ids: string[]; evidence: string };
     const groups = new Map<string, Group>();
     for (const u of updates) {
+      const evidenceForDb = u.evidence === "reclassified" ? "confirmed" : u.evidence;
+      const isReclassified = u.evidence === "reclassified";
       const patch: Record<string, any> = {
-        parecer_evidence: u.evidence,
+        parecer_evidence: evidenceForDb,
         parecer_report_row_id: u.row_id,
         parecer_evidence_weak: u.weak,
         parecer_checked_at: now,
+        reclassified_from_parecer: isReclassified,
       };
       const current = itemById.get(u.id) as any;
       const currentSource = current?.payment_type_source ?? null;
       const protectedType = PROTECTED_SOURCES.has(currentSource);
       if (!protectedType && lotePaymentTypeId && visitaPaymentTypeId) {
-        if (u.evidence === "confirmed") {
+        if (isReclassified) {
+          // Era candidato a Parecer mas dedup/lookback rebaixou para Visita
+          patch.payment_type_id = visitaPaymentTypeId;
+          patch.payment_type_source = "report_cross_dedup";
+          patch.manual_intervention_notes =
+            reclassifyReason.get(u.id) ?? "Reclassificado por dedup parecer/visita.";
+          subtypeVisita++;
+        } else if (u.evidence === "confirmed") {
           patch.payment_type_id = lotePaymentTypeId;
           patch.payment_type_source = "report_cross";
           subtypeParecer++;
@@ -409,7 +419,7 @@ Deno.serve(async (req) => {
           subtypeVisita++;
         }
       }
-      if (u.apply_auto_reason) {
+      if (u.apply_auto_reason && !isReclassified) {
         patch.manual_intervention_reason_id = autoReasonId;
         patch.manual_intervention_source = "auto_parecer_report";
         patch.manual_intervention_notes =
@@ -420,7 +430,6 @@ Deno.serve(async (req) => {
         patch.ai_status = "aprovado";
         autoApplied++;
       }
-      // Chave: stringify do patch (ignora ordem das keys pequena variação)
       const key = JSON.stringify(patch);
       let g = groups.get(key);
       if (!g) {
@@ -431,7 +440,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[cross-reference-parecer] grouped into ${groups.size} batch(es); subtypeParecer=${subtypeParecer} subtypeVisita=${subtypeVisita}`,
+      `[cross-reference-parecer] grouped into ${groups.size} batch(es); subtypeParecer=${subtypeParecer} subtypeVisita=${subtypeVisita} reclassified=${reclassifiedIds.size}`,
     );
 
     const CHUNK = 200;
@@ -451,8 +460,10 @@ Deno.serve(async (req) => {
         }
         if (g.evidence === "confirmed") confirmed += slice.length;
         else if (g.evidence === "not_found") notFound += slice.length;
+        else if (g.evidence === "reclassified") reclassified += slice.length;
       }
     }
+
 
 
     // Sempre dispara reanálise após cruzamento bem-sucedido — mesmo com 0
