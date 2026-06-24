@@ -238,6 +238,28 @@ Deno.serve(async (req) => {
       .single();
     if (jobErr) throw jobErr;
 
+    // 2026-06-24: zera flags de timeout/parcial-IA do RUN ANTERIOR antes que
+    // as invocações por empresa comecem a fazer merge incremental em
+    // `processing_diagnostics.per_company`. Sem este reset, um run novo
+    // herdava o `processing_timeout_occurred=true` do run anterior mesmo
+    // quando todas as empresas terminavam OK.
+    try {
+      await supabase.from("payments").update({
+        processing_timeout_occurred: false,
+        processing_diagnostics: {
+          status: "running",
+          job_id: job.id,
+          started_at: new Date().toISOString(),
+          per_company: {},
+          partial_ai_failure: false,
+          has_company_error: false,
+        },
+      }).eq("id", payment_id);
+    } catch (resetErr) {
+      console.warn("[dispatch] falha ao resetar diagnósticos do pagamento:", (resetErr as any)?.message);
+    }
+
+
 
     // Delega orquestração para `orchestrate-analysis` (página 0).
     // Fire-and-forget: dispatch retorna imediatamente sem aguardar.
