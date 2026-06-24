@@ -2166,6 +2166,17 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       throw new Error(`Falha ao atualizar item ${u.id} após retries: ${lastErr}`);
     });
     console.timeEnd(`${__t} writes_payment_items`);
+    if (isConfeccao) {
+      const updatesById = new Map(itemUpdates.map((u) => [u.id, u]));
+      for (const it of items as any[]) {
+        const u = updatesById.get(it.id);
+        if (!u) continue;
+        it.expected_amount = u.expected_amount ?? null;
+        if (!it.gross_override_at) {
+          it.gross_amount = u.expected_amount ?? 0;
+        }
+      }
+    }
     if (__deadlock_retries > 0) {
       (diagnostics as any).deadlock_retries = __deadlock_retries;
       (diagnostics as any).deadlock_retries_succeeded = __deadlock_retries_succeeded;
