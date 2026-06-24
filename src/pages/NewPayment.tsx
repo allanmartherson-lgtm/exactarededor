@@ -2245,6 +2245,49 @@ const NewPayment = () => {
       });
       if (!ok) return;
     }
+    // === Validação: competência travada por run aprovado/válido no pool ===
+    if (poolId) {
+      const compIso = [...competenceMonths].sort().map((m) => `${m}-01`);
+      if (compIso.length) {
+        const { data: lockedRuns } = await supabase
+          .from("pool_calculation_runs")
+          .select("id, competence_month, invalidated_at")
+          .eq("pool_id", poolId)
+          .in("competence_month", compIso)
+          .is("invalidated_at", null);
+        if (lockedRuns && lockedRuns.length > 0) {
+          const months = Array.from(new Set(lockedRuns.map((r: any) => String(r.competence_month).slice(0, 7)))).join(", ");
+          toast({
+            title: "Competência bloqueada no pool",
+            description: `Há run válido no pool para ${months}. Invalide o run primeiro em /pools/relatorios antes de criar novo pagamento.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+
+    // === Aviso: plantão variável sem valor cadastrado para a competência ===
+    if (isPlantaoType && poolId && poolDeductionId) {
+      const ded = poolDeductionsList.find((d) => d.id === poolDeductionId);
+      if (ded?.valor_variavel) {
+        const compIso = [...competenceMonths].sort().map((m) => `${m}-01`);
+        const { data: existing } = await supabase
+          .from("pool_deduction_values")
+          .select("competence_month, valor")
+          .eq("pool_deduction_id", poolDeductionId)
+          .in("competence_month", compIso);
+        const cadastradas = new Set((existing ?? []).map((v: any) => String(v.competence_month).slice(0, 10)));
+        const faltando = compIso.filter((c) => !cadastradas.has(c));
+        if (faltando.length) {
+          toast({
+            title: "Atenção: valor variável ainda não cadastrado",
+            description: `O pagamento será gravado, mas a escala/valor para ${faltando.map((c) => c.slice(0, 7)).join(", ")} ainda não foi anexada em /pools/${poolId}/valores-mensais.`,
+          });
+        }
+      }
+    }
+
     setSubmitting(true);
 
     // Upload de todos os arquivos

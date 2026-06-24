@@ -225,6 +225,7 @@ const PaymentDetail = () => {
   const [busy, setBusy] = useState(false);
   const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
   const [reconTargets, setReconTargets] = useState<string[]>([]);
+  const [poolInfo, setPoolInfo] = useState<{ id: string; nome: string; deducao?: string | null } | null>(null);
   const [reconRetry, setReconRetry] = useState<(() => Promise<void>) | null>(null);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -259,6 +260,27 @@ const PaymentDetail = () => {
   useEffect(() => {
     if (payment?.analysis_mode === "confeccao") setSkippedCompanies([]);
   }, [payment?.analysis_mode]);
+
+  // Carrega info do pool/dedução vinculados ao pagamento (para badge no header).
+  useEffect(() => {
+    const pid = (payment as any)?.pool_id as string | null | undefined;
+    const did = (payment as any)?.pool_deduction_id as string | null | undefined;
+    if (!pid) { setPoolInfo(null); return; }
+    let alive = true;
+    (async () => {
+      const [pRes, dRes] = await Promise.all([
+        supabase.from("pools").select("id, nome").eq("id", pid).maybeSingle(),
+        did ? supabase.from("pool_deductions").select("descricao, tipo").eq("id", did).maybeSingle() : Promise.resolve({ data: null } as any),
+      ]);
+      if (!alive || !pRes.data) return;
+      setPoolInfo({
+        id: pRes.data.id,
+        nome: (pRes.data as any).nome,
+        deducao: dRes?.data ? ((dRes.data as any).descricao || (dRes.data as any).tipo) : null,
+      });
+    })();
+    return () => { alive = false; };
+  }, [(payment as any)?.pool_id, (payment as any)?.pool_deduction_id]);
   // Diálogo de "Fazer questionamento" — escopo lote ou empresa específica.
   const [askQuestion, setAskQuestion] = useState<
     null | { groupId?: string | null; companyName?: string | null }
@@ -2688,6 +2710,27 @@ const PaymentDetail = () => {
             });
           }
           if (payment.cost_center_code) cells.push({ label: "Centro de custo", value: <span className="font-mono">{payment.cost_center_code}</span> });
+          {
+            const mode = (payment as any).payment_mode as string | null | undefined;
+            const pid = (payment as any).pool_id as string | null | undefined;
+            if (pid) {
+              const isRateio = mode === "rateio";
+              const label = isRateio ? "Rateio · Pool" : (poolInfo?.deducao ? "Plantão → Pool" : "Pool");
+              cells.push({
+                label,
+                value: (
+                  <Link
+                    to={`/pools/${pid}/valores-mensais`}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 text-violet-800 border border-violet-200 hover:bg-violet-100 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-900/60"
+                    title={poolInfo?.deducao ? `Dedução: ${poolInfo.deducao}` : "Abrir valores mensais do pool"}
+                  >
+                    {poolInfo?.nome ?? "Pool"}
+                    {poolInfo?.deducao && <span className="text-[10px] opacity-70">· {poolInfo.deducao}</span>}
+                  </Link>
+                ),
+              });
+            }
+          }
           return (
             <Card className="shadow-card">
               <CardContent className="p-3">
