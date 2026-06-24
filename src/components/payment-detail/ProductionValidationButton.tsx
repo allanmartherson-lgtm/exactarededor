@@ -83,6 +83,8 @@ export function ProductionValidationButton({ paymentId, groups, currentUserId, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  if (eligible.length === 0) return null;
+
   return (
     <>
       {!isControlled && (
