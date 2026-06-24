@@ -81,13 +81,14 @@ export function ParecerCrossReferencePanel({
       let q = supabase
         .from("payment_items")
         .select(
-          "id,attendance_number,patient_name,doctor_name,procedure_date,ai_status,manual_intervention_source,parecer_evidence,parecer_evidence_weak,parecer_checked_at,parecer_report_row_id",
+          "id,attendance_number,patient_name,doctor_name,specialty,procedure_date,ai_status,manual_intervention_source,manual_intervention_notes,parecer_evidence,parecer_evidence_weak,parecer_checked_at,parecer_report_row_id,reclassified_from_parecer",
         )
         .eq("payment_id", paymentId)
         .order("created_at");
       if (companyName) q = q.eq("company_name", companyName);
       const { data: itemData } = await q;
       setItems((itemData ?? []) as ItemRow[]);
+
     } finally {
       setLoading(false);
     }
