@@ -225,6 +225,7 @@ const PaymentDetail = () => {
   const [busy, setBusy] = useState(false);
   const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
   const [reconTargets, setReconTargets] = useState<string[]>([]);
+  const [poolInfo, setPoolInfo] = useState<{ id: string; nome: string; deducao?: string | null } | null>(null);
   const [reconRetry, setReconRetry] = useState<(() => Promise<void>) | null>(null);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [historyOpen, setHistoryOpen] = useState(false);
