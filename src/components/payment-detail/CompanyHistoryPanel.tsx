@@ -89,6 +89,13 @@ export function CompanyHistoryPanel({
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [expanded, setExpanded] = useState(false);
+  const [openEntries, setOpenEntries] = useState<Set<string>>(new Set());
+  const toggleEntry = (id: string) =>
+    setOpenEntries((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   const DEFAULT_LIMIT = 5;
 
   const entries = useMemo<Entry[]>(() => {
@@ -397,50 +404,71 @@ export function CompanyHistoryPanel({
                             borderClass,
                           )}
                         >
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mb-1">
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 uppercase tracking-wide",
-                                e.kind === "assign"
-                                  ? "bg-warning-soft text-warning-text border-warning/40"
-                                  : visual.badgeClass,
-                              )}
-                            >
-                              <Icon className="h-3 w-3" />
-                              {e.kind === "assign" ? "Atribuição" : authorRoleLabel(e.authorType)}
-                            </span>
-                            {e.kind === "obs" && e.type && e.type !== "informativo" && (
-                              <Badge
-                                variant="outline"
+                          <button
+                            type="button"
+                            onClick={() => toggleEntry(e.id)}
+                            className="w-full text-left"
+                            aria-expanded={openEntries.has(e.id)}
+                          >
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mb-1">
+                              <span
                                 className={cn(
-                                  "h-5 px-1.5 text-[10px] uppercase tracking-wider font-bold",
-                                  e.type === "impacta_aprovacao"
-                                    ? "border-amber-500/50 text-amber-700 bg-amber-100"
-                                    : "border-success/40 text-success bg-success-soft"
+                                  "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 uppercase tracking-wide",
+                                  e.kind === "assign"
+                                    ? "bg-warning-soft text-warning-text border-warning/40"
+                                    : visual.badgeClass,
                                 )}
                               >
-                                {e.type === "impacta_aprovacao" ? (
-                                  <ShieldAlert className="h-2.5 w-2.5 mr-1" />
-                                ) : (
-                                  <Pencil className="h-2.5 w-2.5 mr-1" />
-                                )}
-                                {e.type === "impacta_aprovacao" ? "Impacta Aprovação" : "Justificativa"}
-                              </Badge>
-                            )}
-                            {e.authorName && (
-                              <span className="flex items-center gap-1 text-foreground/80">
-                                <UserIcon className="h-3 w-3" />
-                                {e.authorName}
+                                <Icon className="h-3 w-3" />
+                                {e.kind === "assign" ? "Atribuição" : authorRoleLabel(e.authorType)}
                               </span>
-                            )}
-                            <span className="ml-auto tabular-nums">{fmtDate(e.at)}</span>
-                          </div>
-                          {e.itemLabel && (
-                            <div className="text-[11px] text-muted-foreground mb-1">
-                              Item: <span className="text-foreground">{e.itemLabel}</span>
+                              {e.kind === "obs" && e.type && e.type !== "informativo" && (
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "h-5 px-1.5 text-[10px] uppercase tracking-wider font-bold",
+                                    e.type === "impacta_aprovacao"
+                                      ? "border-amber-500/50 text-amber-700 bg-amber-100"
+                                      : "border-success/40 text-success bg-success-soft"
+                                  )}
+                                >
+                                  {e.type === "impacta_aprovacao" ? (
+                                    <ShieldAlert className="h-2.5 w-2.5 mr-1" />
+                                  ) : (
+                                    <Pencil className="h-2.5 w-2.5 mr-1" />
+                                  )}
+                                  {e.type === "impacta_aprovacao" ? "Impacta Aprovação" : "Justificativa"}
+                                </Badge>
+                              )}
+                              {e.authorName && (
+                                <span className="flex items-center gap-1 text-foreground/80">
+                                  <UserIcon className="h-3 w-3" />
+                                  {e.authorName}
+                                </span>
+                              )}
+                              <span className="ml-auto flex items-center gap-1 tabular-nums">
+                                {fmtDate(e.at)}
+                                {openEntries.has(e.id) ? (
+                                  <ChevronUp className="h-3 w-3" />
+                                ) : (
+                                  <ChevronDown className="h-3 w-3" />
+                                )}
+                              </span>
                             </div>
+                            {e.itemLabel && (
+                              <div className="text-[11px] text-muted-foreground mb-1">
+                                Item: <span className="text-foreground">{e.itemLabel}</span>
+                              </div>
+                            )}
+                            {!openEntries.has(e.id) && (
+                              <div className="text-foreground/70 truncate">
+                                {(e.bodyText || "").split("\n")[0] || "(sem conteúdo)"}
+                              </div>
+                            )}
+                          </button>
+                          {openEntries.has(e.id) && (
+                            <div className="text-foreground mt-1">{e.body}</div>
                           )}
-                          <div className="text-foreground">{e.body}</div>
                         </li>
                       );
                     })}
