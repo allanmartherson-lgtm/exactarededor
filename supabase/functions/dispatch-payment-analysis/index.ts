@@ -144,7 +144,9 @@ Deno.serve(async (req) => {
               "Lote de Parecer exige o relatório de Parecer Solicitado/Respondido do Tasy antes de iniciar a análise.",
           }),
           {
-            status: 409,
+            // Gate de negócio esperado: retorna 200 para a UI tratar como
+            // estado bloqueado, sem virar erro global/runtime no preview.
+            status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           },
         );
