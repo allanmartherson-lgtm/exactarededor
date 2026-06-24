@@ -41,6 +41,17 @@ function sameDayUtc(a: string | null, b: string | null) {
   return da.toISOString().slice(0, 10) === db.toISOString().slice(0, 10);
 }
 
+// O item pode ter sido lançado tanto na data da SOLICITAÇÃO do parecer
+// (consulta beira-leito) quanto na data da RESPOSTA. Aceita match contra
+// qualquer uma das duas.
+function matchesParecerDate(row: any, procedureDate: string | null) {
+  return (
+    sameDayUtc(row.dt_resposta_parecer, procedureDate) ||
+    sameDayUtc(row.dt_solic_parecer, procedureDate)
+  );
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
