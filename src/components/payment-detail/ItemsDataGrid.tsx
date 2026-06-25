@@ -699,7 +699,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "funcao", label: "Função" },
   { key: "procedimento", label: "Procedimento" },
   { key: "setor_lido", label: "Setor (Planilha)" },
-  { key: "setor_inferido", label: "Setor (Sistema)" },
+  { key: "setor_inferido", label: "Setor" },
   { key: "tipo_entrada", label: "Tipo de entrada (caráter)" },
   { key: "subtipo", label: "Subtipo (Parecer/Visita)" },
   { key: "regra", label: "Regra aplicada" },
