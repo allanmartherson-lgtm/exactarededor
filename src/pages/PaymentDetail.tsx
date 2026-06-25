@@ -260,6 +260,19 @@ const PaymentDetail = () => {
   const addCompanyInputRef = useRef<HTMLInputElement | null>(null);
   const [addingCompany, setAddingCompany] = useState(false);
   const [addCompanyConfirm, setAddCompanyConfirm] = useState<File[] | null>(null);
+  // Diálogo de mapeamento de colunas quando a planilha (reimport ou adicionar
+  // empresa) não tem todas as colunas obrigatórias detectadas automaticamente
+  // ou tem cabeçalho fora do padrão. O usuário ajusta e reaplicamos o fluxo.
+  const [columnMappingDialog, setColumnMappingDialog] = useState<{
+    open: boolean;
+    source: "reimport" | "addCompany";
+    file: File;
+    pendingFiles: File[];
+    headers: string[];
+    sampleRow: Record<string, unknown> | null;
+    initialMapping: Record<string, string>;
+    overrides: Record<string, Record<string, string>>;
+  } | null>(null);
   const [bonusDialogOpen, setBonusDialogOpen] = useState(false);
   // Gate de motivo de intervenção: itens com valor zerado pagos sem justificativa
   // bloqueiam o envio para validação/aprovação. Quando bloqueado, abrimos o
