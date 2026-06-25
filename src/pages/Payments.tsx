@@ -1331,6 +1331,38 @@ const Payments = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Pool (rateio)</label>
+                <Select value={poolFilter} onValueChange={setPoolFilter}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Pool" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os pools</SelectItem>
+                    {poolOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Modo de importação</label>
+                <Select value={importModeFilter} onValueChange={(v) => setImportModeFilter(v as typeof importModeFilter)}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Modo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os modos</SelectItem>
+                    <SelectItem value="normal">Normal (corrente)</SelectItem>
+                    <SelectItem value="historico">Histórico (retroativo)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 flex items-end">
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-border accent-primary"
+                    checked={emptyOnly}
+                    onChange={(e) => setEmptyOnly(e.target.checked)}
+                  />
+                  Apenas lotes vazios (sem itens)
+                </label>
+              </div>
             </div>
           );
 
