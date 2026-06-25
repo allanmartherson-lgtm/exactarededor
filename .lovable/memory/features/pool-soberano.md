@@ -1,12 +1,19 @@
 ---
-name: Pool é soberano no rateio
-description: Em pagamentos de pool, as PJs do pool definem o repasse — doctor_companies não bloqueia distribuição
+name: Pool é soberano (itens sem dono + tela unificada)
+description: Pool tem itens coletivos sem PJ; tela única com cards por PJ participante; rateio financeiro vem do pool calc
 type: feature
 ---
-Quando `payments.pool_id` está preenchido, o repasse pertence às PJs cadastradas em `pool_participants` daquele pool, não às PJs próprias dos médicos.
+Em pagamento de pool (`payments.pool_id IS NOT NULL`), o item **não pertence** a uma PJ. Modelo:
 
-Regras:
-- `distribute_unmatched_items_by_doctor` ignora `doctor_companies` em lote de pool e distribui itens entre as PJs do pool (round-robin estável por hash do nome do médico). O cálculo do pool faz o rateio financeiro depois.
-- Lote comum (sem `pool_id`) continua exigindo `doctor_companies` cruzando com participantes do `payment_company_groups`.
-- Não confundir com a regra global "médico sem PJ não recebe repasse" — essa vale para lotes habituais. Em pool, a PJ do médico é irrelevante: quem recebe é a PJ participante do pool.
-- UI: botão se chama "Distribuir entre PJs do pool"; só pede vínculo médico→PJ quando NÃO é pool.
+- `payment_items.is_pool_item = true`, `company_id` pode ser NULL.
+- Trigger `enforce_pool_item_consistency` aplica isso no INSERT/UPDATE: pool → marca `is_pool_item=true`; não-pool → exige `company_id`.
+- `distribute_unmatched_items_by_doctor` em pool insere itens com `company_id=NULL` e `is_pool_item=true` (não tenta hashear médico em PJ). Em lote comum o caminho original continua: cruza `doctor_companies × participants`.
+- Rateio financeiro: vem 100% de `payment_company_financials` (uma linha por PJ participante), calculado pelo motor de pool. Soma de itens NÃO equivale a soma de uma PJ — o líquido por PJ depende do método do pool (igualitário / por participação / por especialidade).
+
+UI:
+- Rota dedicada `/pagamentos/:id/pool` renderiza `PoolAnalysis.tsx`.
+- `CompanyAnalysis` redireciona pra `/pool` quando `pool_id` está preenchido. Acessar `/empresa/:groupId` num lote de pool é sempre erro de roteamento (não duplica lógica).
+- Layout pool-mode: header + N cards (1 por PJ participante: Bruto/Descontos/Líquido/Participação) + `PoolCalculationCard` + `UnmatchedItemsPanel` + `ItemsDataGrid` único (sem filtro/coluna empresa).
+- Botão da quarentena em pool: "Promover ao pool / Distribuir" (em vez de "Distribuir entre PJs").
+
+Memória relacionada: `features/pool-soberano.md` (regra base) foi expandida aqui. Não criar exceção pontual em PaymentDetail/CompanyAnalysis para pool — sempre delegar para `PoolAnalysis`.
