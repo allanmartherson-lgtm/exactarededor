@@ -352,6 +352,11 @@ Deno.serve(async (req) => {
     // Dispara recálculo financeiro para refletir os novos itens sintéticos
     if (results.some(r => r.action === "created" || r.action === "updated" || r.action === "revertido")) {
       try {
+        if ((payment as any).pool_id) {
+          void supabase.functions.invoke("recalc-payment-pools", {
+            body: { payment_id },
+          }).catch((e) => console.warn("[apply-minimum-guarantee] recalc-pools falhou:", (e as any)?.message ?? e));
+        }
         void supabase.functions.invoke("compute-company-financials", {
           body: { payment_id },
         }).catch((e) => console.warn("[apply-minimum-guarantee] recompute falhou:", (e as any)?.message ?? e));
