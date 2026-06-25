@@ -202,10 +202,41 @@ Deno.serve(async (req) => {
           .map((p) => ({ doctor_id: p.doctor_id, company_id: p.company_id }));
       }
 
+      const baseLiquido = (rule.minimo_garantido_base ?? "bruto") === "liquido";
+
       for (const unit of toProcess) {
         // a) Soma produção da competência inteira para a unidade
         let producao = 0;
-        if (!unit.doctor_id && (payment as any).pool_id && poolParticipantPct.has(unit.company_id)) {
+
+        if (baseLiquido && !unit.doctor_id) {
+          // Base LÍQUIDO por PJ: soma payment_company_financials.liquido em todos
+          // os payments da competência para esta PJ, descontando o complemento
+          // mínimo já aplicado (para evitar circularidade entre rodadas).
+          const { data: pays } = await supabase
+            .from("payments")
+            .select("id")
+            .eq("competence_month", competence);
+          const payIds = (pays ?? []).map((p: any) => p.id);
+          let liquidoTotal = 0;
+          if (payIds.length > 0) {
+            const { data: pcfRows } = await supabase
+              .from("payment_company_financials")
+              .select("liquido, payment_id")
+              .eq("company_id", unit.company_id)
+              .in("payment_id", payIds);
+            liquidoTotal = (pcfRows ?? []).reduce((s, r: any) => s + Number(r.liquido ?? 0), 0);
+
+            const { data: compRows } = await supabase
+              .from("payment_items")
+              .select("gross_amount")
+              .eq("company_id", unit.company_id)
+              .eq("item_origin", "complemento_minimo")
+              .in("payment_id", payIds);
+            const complementoJa = (compRows ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0);
+            liquidoTotal -= complementoJa;
+          }
+          producao = round2(liquidoTotal);
+        } else if (!unit.doctor_id && (payment as any).pool_id && poolParticipantPct.has(unit.company_id)) {
           const { data: poolRows } = await supabase
             .from("payment_items")
             .select("gross_amount, payments!inner(competence_month, pool_id)")
