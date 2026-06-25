@@ -131,35 +131,49 @@ Deno.serve(async (req) => {
     const detalhes: any[] = [];
 
     if (poolId) {
-      // POOL SOBERANO: o bruto da PJ JÁ é a quota (totalPool * pct).
-      // Não há "impacto" residual a aplicar — a quota é o líquido bruto antes
-      // de débitos/créditos/glosas. Populamos detalhes só para exibição na UI.
+      // POOL SOBERANO: bruto = fatia gross da PJ; poolShareDeducoes vai para `pool`
+      // (parte das deduções da run que cabe a esta PJ na proporção do percentual).
       poolAplicado = true;
       const { data: poolMeta } = await supabase
         .from("pools").select("id, nome, base_calculo").eq("id", poolId).maybeSingle();
       const { data: allParts } = await supabase
         .from("pool_participants").select("company_id, percentual").eq("pool_id", poolId);
       const minhaPart = (allParts ?? []).find((p: any) => p.company_id === company_id);
-      const { data: poolItems2 } = await supabase
-        .from("payment_items").select("gross_amount, is_cancelled, package_absorbed")
-        .eq("payment_id", payment_id).eq("is_pool_item", true);
-      const baseTotal = round2((poolItems2 ?? [])
-        .filter((it: any) => !it.is_cancelled && !it.package_absorbed)
-        .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0));
-      const { data: deds } = await supabase
-        .from("pool_deductions").select("tipo, descricao, valor").eq("pool_id", poolId);
+      const pct = Number(minhaPart?.percentual ?? 0);
+
+      // Aplica deduções já calculadas pela run (inclui valores variáveis por competência).
+      poolImpactoTotal += poolShareDeducoes;
+
+      // Deduções para exibição: prioriza deductions_applied da run (tem valor real
+      // da competência); fallback para pool_deductions.valor.
+      let dedDisplay: Array<{ tipo: string; descricao: string; valor: number }> = [];
+      if (poolRunForBruto?.deductions_applied) {
+        const arr = Array.isArray(poolRunForBruto.deductions_applied) ? poolRunForBruto.deductions_applied : [];
+        dedDisplay = arr.map((d: any) => ({
+          tipo: d.tipo, descricao: d.descricao,
+          valor: round2(Number(d.valor || 0) * pct / 100),
+        }));
+      } else {
+        const { data: deds } = await supabase
+          .from("pool_deductions").select("tipo, descricao, valor").eq("pool_id", poolId);
+        dedDisplay = (deds ?? []).map((d: any) => ({
+          tipo: d.tipo, descricao: d.descricao,
+          valor: round2(Number(d.valor || 0) * pct / 100),
+        }));
+      }
+
+      const baseRun = poolRunForBruto ? Number(poolRunForBruto.base_amount || 0) : poolGrossShare / (pct / 100 || 1);
+      const boloRun = poolRunForBruto ? Number(poolRunForBruto.bolo_liquido || 0) : baseRun;
       detalhes.push({
         pool_id: poolId,
         pool_nome: (poolMeta as any)?.nome ?? "Pool",
-        base: baseTotal,
-        bolo: baseTotal,
-        contribuicao_empresa: 0,
-        quota_empresa: bruto,
-        impacto: 0,
-        percentual: Number(minhaPart?.percentual ?? 0),
-        deducoes: (deds ?? []).map((d: any) => ({
-          tipo: d.tipo, descricao: d.descricao, valor: Number(d.valor || 0),
-        })),
+        base: round2(baseRun),
+        bolo: round2(boloRun),
+        contribuicao_empresa: poolGrossShare,
+        quota_empresa: round2(poolGrossShare - poolShareDeducoes),
+        impacto: poolShareDeducoes,
+        percentual: pct,
+        deducoes: dedDisplay,
       });
     } else if (runs && runs.length > 0) {
       poolAplicado = true;
