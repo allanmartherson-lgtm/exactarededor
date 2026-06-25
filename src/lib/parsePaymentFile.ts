@@ -695,9 +695,9 @@ export const parsePaymentFile = async (
         ...(accessRouteNorm.raw ? { __via_acesso_original: accessRouteNorm.raw } : {}),
       },
     };
-    const tipo_linha = classifyLine(base, paymentKind || null);
+    const explicitType = extractExplicitItemType(row);
+    const tipo_linha = explicitType ?? classifyLine(base, paymentKind || null);
     const withType = { ...base, tipo_linha };
-    const line_issues = validateLine(withType);
     if (accessRouteNorm.fallback && accessRouteNorm.raw) {
       line_issues.push({
         severity: "alerta",
