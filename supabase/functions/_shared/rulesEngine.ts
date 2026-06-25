@@ -2957,6 +2957,44 @@ export function analyzeItem(
     };
   }
 
+  // === Gate: valor base ausente/zerado SEM motivo de intervenção ===
+  // Item sem `procedure_amount` (valor do convênio) não tem base para
+  // qualquer regra de % calcular — e, se foi pago mesmo assim, exige
+  // que o analista justifique com motivo de intervenção manual
+  // (ex.: visita_pos_alta, paciente_sem_internacao). Sem motivo, o motor
+  // marca como ALERTA bloqueante e NÃO cai em fallback silencioso.
+  {
+    const procAmount = Number(item.procedure_amount ?? 0);
+    const grossAmount = Number(item.gross_amount ?? 0);
+    const tlSpecial = (item.tipo_linha ?? "").toLowerCase();
+    const isSpecialLine =
+      tlSpecial === "complemento_bonus" ||
+      tlSpecial === "glosa_desconto" ||
+      tlSpecial === "reprocessamento";
+    if (!isSpecialLine && procAmount <= 0) {
+      return {
+        item_id: item.id,
+        status: "alerta",
+        expected_amount: 0,
+        diff_pct: 0,
+        matched_rule_id: null,
+        matched_rule_name: null,
+        matched_priority: "default_setor",
+        calculation_type_used: "exige_motivo_intervencao",
+        calculation_explanation:
+          `Item sem valor base do convênio (procedure_amount = 0/nulo). ` +
+          `Pago R$ ${grossAmount.toFixed(2)}. ` +
+          `Exige motivo de intervenção manual (ex.: visita após alta, paciente sem internação, ` +
+          `negociação pontual) para ser aprovado.`,
+        alerts: [
+          "Valor zerado/ausente exige motivo de intervenção manual antes da aprovação.",
+        ],
+        needs_ai_review: true,
+      };
+    }
+  }
+
+
   // === Tratamento especial: complemento/bônus, glosa, reprocessamento ===
   // Estes lançamentos NÃO são itens independentes para o motor de regras:
   // não exigem código TUSS, tabela ou regra de procedimento. A vinculação
