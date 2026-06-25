@@ -334,6 +334,32 @@ async function callLLM(prompt: string, paymentContext: Record<string, unknown>) 
   }
 }
 
+// -------------------- Aggregates --------------------
+
+async function buildPaymentAggregates(sb: SB, paymentId: string) {
+  const { data, error } = await sb
+    .from("payment_items")
+    .select("id, ai_status, gross_amount, expected_amount, manual_intervention_reason_id, ai_findings, company_id, sector, cost_center_code, doctor_id, is_pool_item")
+    .eq("payment_id", paymentId)
+    .limit(20000);
+  if (error || !data) return null;
+
+  let total = 0, zerados = 0, divergentes = 0, semRegra = 0, reprovados = 0, semSetor = 0, semCc = 0, semEmpresa = 0;
+  for (const it of data) {
+    total++;
+    const g = Number(it.gross_amount ?? 0);
+    if (!g || g === 0) zerados++;
+    if ((it.ai_status === "reprovado" || it.ai_status === "alerta") && !it.manual_intervention_reason_id) divergentes++;
+    if (it.ai_status === "reprovado") reprovados++;
+    const findings = it.ai_findings as { needs_human_review?: boolean } | null;
+    if (findings?.needs_human_review) semRegra++;
+    if (!it.sector || it.sector === "") semSetor++;
+    if (!it.cost_center_code || it.cost_center_code === "") semCc++;
+    if (!it.company_id && !it.is_pool_item) semEmpresa++;
+  }
+  return { total, zerados, divergentes, sem_regra: semRegra, reprovados, sem_setor: semSetor, sem_cc: semCc, sem_empresa: semEmpresa };
+}
+
 // -------------------- HTTP handler --------------------
 
 Deno.serve(async (req) => {
@@ -341,19 +367,23 @@ Deno.serve(async (req) => {
 
   try {
     const body = (await req.json()) as RequestBody;
-    if (!body.payment_id) return jsonResp({ error: "payment_id obrigatório" }, 400);
-
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Valida o pagamento e pega contexto
-    const { data: pay } = await sb
-      .from("payments")
-      .select("id, hospital_id, company_name, reference")
-      .eq("id", body.payment_id)
-      .maybeSingle();
-    if (!pay) return jsonResp({ error: "Pagamento não encontrado" }, 404);
+    // payment_id opcional. Quando presente, busca contexto enriquecido.
+    let pay: { id: string; hospital_id: string | null; company_name: string | null; reference: string | null } | null = null;
+    let aggregates: Awaited<ReturnType<typeof buildPaymentAggregates>> = null;
+    if (body.payment_id) {
+      const { data } = await sb
+        .from("payments")
+        .select("id, hospital_id, company_name, reference")
+        .eq("id", body.payment_id)
+        .maybeSingle();
+      if (!data) return jsonResp({ error: "Pagamento não encontrado" }, 404);
+      pay = data;
+      aggregates = await buildPaymentAggregates(sb, body.payment_id);
+    }
 
-    // Auth: lê o usuário pelo header (RLS bypass via service role mas precisamos do actor_id para auditoria)
+    // Auth
     const authHeader = req.headers.get("Authorization") ?? "";
     let actorId: string | null = null;
     if (authHeader.startsWith("Bearer ")) {
@@ -368,46 +398,45 @@ Deno.serve(async (req) => {
       if (!body.prompt) return jsonResp({ error: "prompt obrigatório" }, 400);
 
       const llm = await callLLM(body.prompt, {
-        payment_id: pay.id,
-        reference: pay.reference,
-        company_name: pay.company_name,
+        current_path: body.current_path ?? null,
+        payment: pay ? { id: pay.id, reference: pay.reference, company_name: pay.company_name } : null,
+        aggregates: aggregates ?? null,
+        has_payment_context: !!body.payment_id,
       });
 
-      if (llm.action === "unsupported" || llm.action === "clarify") {
+      // Ações sem mutação — devolve direto pro cliente aplicar.
+      if (llm.action === "answer" || llm.action === "navigate" || llm.action === "unsupported" || llm.action === "clarify") {
         return jsonResp({
           step: "respond",
           action: llm.action,
-          summary: llm.summary ?? "Não consegui interpretar o pedido.",
+          summary: llm.summary ?? "",
+          payload: llm.payload ?? {},
+        });
+      }
+
+      // Daqui pra baixo, ações que mutam dados precisam de payment_id.
+      if (!body.payment_id || !pay) {
+        return jsonResp({
+          step: "respond",
+          action: "unsupported",
+          summary: "Para aplicar essa ação preciso estar dentro de um pagamento específico. Abra o lote e tente de novo.",
         });
       }
 
       const scope: Scope = llm.scope ?? {};
       const payload: Record<string, unknown> = llm.payload ?? {};
 
-      // Validações mínimas por ação
       if (llm.action === "set_sector" && !payload.sector_code) {
-        return jsonResp({
-          step: "respond",
-          action: "clarify",
-          summary: "Qual setor (código) devo aplicar?",
-        });
+        return jsonResp({ step: "respond", action: "clarify", summary: "Qual setor (código) devo aplicar?" });
       }
       if (llm.action === "set_cost_center" && !payload.cost_center_code) {
-        return jsonResp({
-          step: "respond",
-          action: "clarify",
-          summary: "Qual centro de custos (código P12) devo aplicar?",
-        });
+        return jsonResp({ step: "respond", action: "clarify", summary: "Qual centro de custos (código P12) devo aplicar?" });
       }
       if (llm.action === "link_doctor_company" && !payload.company_id) {
-        return jsonResp({
-          step: "respond",
-          action: "clarify",
-          summary: "Em qual empresa (ID) devo vincular os médicos?",
-        });
+        return jsonResp({ step: "respond", action: "clarify", summary: "Em qual empresa (ID) devo vincular os médicos?" });
       }
 
-      const { count, samples } = await buildPreview(sb, body.payment_id, scope, llm.action);
+      const { count, samples } = await buildPreview(sb, body.payment_id, scope, llm.action as Action);
 
       const proposal: Proposal = {
         action: llm.action,
@@ -423,6 +452,7 @@ Deno.serve(async (req) => {
 
     if (body.step === "execute") {
       if (!body.proposal) return jsonResp({ error: "proposal obrigatória" }, 400);
+      if (!body.payment_id || !pay) return jsonResp({ error: "payment_id obrigatório para executar" }, 400);
       const p = body.proposal;
 
       let result: { affected: number; before: unknown; after: unknown; created_link_ids?: string[] };
@@ -436,7 +466,6 @@ Deno.serve(async (req) => {
         return jsonResp({ error: `ação não suportada: ${p.action}` }, 400);
       }
 
-      // Auditoria (audit_log.diff jsonb)
       await sb.from("audit_log").insert({
         entity_type: "payment",
         entity_id: body.payment_id,
