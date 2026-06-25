@@ -182,21 +182,8 @@ export function SpecialtyResolutionModal({
           </div>
 
           {doctorGroups.length > 1 && (
-
             <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-              <div className="text-xs font-medium">Aplicar especialidade em massa por médico</div>
-              <div className="flex items-center gap-2">
-                <Select value={bulkSpecialty} onValueChange={setBulkSpecialty}>
-                  <SelectTrigger className="h-8 text-xs flex-1">
-                    <SelectValue placeholder="Escolha uma especialidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMMON_SPECIALTIES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <div className="text-xs font-medium">Aplicar por médico (usa a especialidade selecionada acima)</div>
               <div className="flex flex-wrap gap-1">
                 {doctorGroups.map(([doctor, list]) => (
                   <Button
@@ -213,6 +200,7 @@ export function SpecialtyResolutionModal({
               </div>
             </div>
           )}
+
 
           <Input
             placeholder="Filtrar por médico, paciente ou atendimento…"
