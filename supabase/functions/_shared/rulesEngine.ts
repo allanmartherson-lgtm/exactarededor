@@ -842,9 +842,14 @@ function targetsGroupByDoctor(r: RuleInput, item: ItemInput): boolean {
 
   if (matchDoctorInList((r.group_doctors ?? []) as any, item)) return true;
 
+  const poolIds = Array.isArray(item.pool_company_ids) ? item.pool_company_ids : null;
+  const itemCompanyId = item.company_id ? String(item.company_id) : null;
   for (const link of r.group_company_links ?? []) {
     if (!link?.company_id) continue;
-    if (String(item.company_id) !== String(link.company_id)) continue;
+    const linkCompanyId = String(link.company_id);
+    const matchesByItem = itemCompanyId !== null && itemCompanyId === linkCompanyId;
+    const matchesByPool = itemCompanyId === null && poolIds !== null && poolIds.includes(linkCompanyId);
+    if (!matchesByItem && !matchesByPool) continue;
     if (matchDoctorInList((link.doctors ?? []) as any, item)) return true;
   }
   return false;
