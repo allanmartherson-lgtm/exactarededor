@@ -85,6 +85,38 @@ export function RegisterExternalApprovalDialog({
   const [note, setNote] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [decisores, setDecisores] = useState<DecisorOption[]>([]);
+  const [decisorId, setDecisorId] = useState<string>("");
+  const [loadingDecisores, setLoadingDecisores] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingDecisores(true);
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, profiles:profiles!user_roles_user_id_fkey(id, full_name, active)")
+        .eq("role", cfg.appRole);
+      if (cancelled) return;
+      if (error) {
+        setDecisores([]);
+      } else {
+        const list = (data ?? [])
+          .map((r: any) => r.profiles)
+          .filter((p: any) => p && p.active !== false && p.full_name)
+          .map((p: any) => ({ id: p.id as string, full_name: p.full_name as string }))
+          .sort((a, b) => a.full_name.localeCompare(b.full_name, "pt-BR"));
+        // de-duplica por id
+        const seen = new Set<string>();
+        setDecisores(list.filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true))));
+      }
+      setLoadingDecisores(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, cfg.appRole]);
 
   // Re-sincroniza seleção quando o dialog reabre
   const handleOpenChange = (v: boolean) => {
