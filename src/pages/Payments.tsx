@@ -335,6 +335,7 @@ const Payments = () => {
       analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
       view, sortBy, colSort,
       divergenceFilter, questionedFilter,
+      poolFilter, importModeFilter, emptyOnly,
       archivedView,
       showConcluded,
     };
@@ -349,6 +350,7 @@ const Payments = () => {
     analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
     view, sortBy, colSort,
     divergenceFilter, questionedFilter,
+    poolFilter, importModeFilter, emptyOnly,
     archivedView,
     showConcluded,
   ]);
