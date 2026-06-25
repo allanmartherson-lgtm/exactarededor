@@ -83,7 +83,7 @@ export function ParecerCrossReferencePanel({
       let q = supabase
         .from("payment_items")
         .select(
-          "id,attendance_number,patient_name,doctor_name,specialty,procedure_date,ai_status,manual_intervention_source,manual_intervention_notes,parecer_evidence,parecer_evidence_weak,parecer_checked_at,parecer_report_row_id,reclassified_from_parecer",
+          "id,attendance_number,patient_name,convenio_slug,doctor_name,specialty,procedure_date,ai_status,manual_intervention_source,manual_intervention_notes,parecer_evidence,parecer_evidence_weak,parecer_checked_at,parecer_report_row_id,reclassified_from_parecer",
         )
         .eq("payment_id", paymentId)
         .order("created_at");
