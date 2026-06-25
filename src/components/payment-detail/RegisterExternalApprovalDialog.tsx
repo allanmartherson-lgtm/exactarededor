@@ -94,22 +94,30 @@ export function RegisterExternalApprovalDialog({
     let cancelled = false;
     (async () => {
       setLoadingDecisores(true);
-      const { data, error } = await supabase
+      const { data: roles, error: rolesErr } = await supabase
         .from("user_roles")
-        .select("user_id, profiles:profiles!user_roles_user_id_fkey(id, full_name, active)")
+        .select("user_id")
         .eq("role", cfg.appRole);
       if (cancelled) return;
-      if (error) {
+      if (rolesErr || !roles || roles.length === 0) {
+        setDecisores([]);
+        setLoadingDecisores(false);
+        return;
+      }
+      const ids = Array.from(new Set(roles.map((r: any) => r.user_id).filter(Boolean)));
+      const { data: profs, error: profErr } = await supabase
+        .from("profiles")
+        .select("id, full_name, active")
+        .in("id", ids);
+      if (cancelled) return;
+      if (profErr || !profs) {
         setDecisores([]);
       } else {
-        const list = (data ?? [])
-          .map((r: any) => r.profiles)
+        const list = profs
           .filter((p: any) => p && p.active !== false && p.full_name)
           .map((p: any) => ({ id: p.id as string, full_name: p.full_name as string }))
           .sort((a, b) => a.full_name.localeCompare(b.full_name, "pt-BR"));
-        // de-duplica por id
-        const seen = new Set<string>();
-        setDecisores(list.filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true))));
+        setDecisores(list);
       }
       setLoadingDecisores(false);
     })();
