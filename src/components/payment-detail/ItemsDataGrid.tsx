@@ -1214,6 +1214,14 @@ export function ItemsDataGrid({
         if (parecerFilter === "weak" && !(evidence === "confirmed" && isWeak)) return false;
       }
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
+      if (onlyZero) {
+        const g = Number(it.gross_amount ?? 0);
+        const e = Number((it as any).expected_amount ?? it.ai_findings?.expected_amount ?? 0);
+        if (Math.abs(g) > 0.005 || Math.abs(e) > 0.005) return false;
+      }
+      if (onlySemRegra) {
+        if (((it as any).applied_calc_method ?? "") !== "sem_regra") return false;
+      }
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
       const paciente = getPatient(it);
