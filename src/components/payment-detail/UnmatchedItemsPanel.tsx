@@ -447,9 +447,10 @@ export function UnmatchedItemsPanel({
                   variant="secondary"
                   onClick={() => distributeByDoctor(g)}
                   disabled={busy}
-                  title="Lote de pool: distribui entre as PJs cadastradas no pool. Lote comum: usa o vínculo médico→PJ."
+                  title="Lote de pool: itens viram coletivos do pool (sem dono). Lote comum: usa vínculo médico→PJ."
                 >
-                  <Users className="h-3.5 w-3.5 mr-1" /> Distribuir entre PJs do pool
+                  <Users className="h-3.5 w-3.5 mr-1" /> Promover ao pool / Distribuir
+
 
                 </Button>
                 <Button
