@@ -329,16 +329,17 @@ export function UnmatchedItemsPanel({
 
       if (linked > 0) {
         toast.success(
-          `${linked} item(ns) distribuídos entre PJs do pool. ${unresolved > 0 ? `${unresolved} sem vínculo médico→PJ permanecem pendentes.` : ""} Disparando análise…`,
+          `${linked} item(ns) promovido(s). ${unresolved > 0 ? `${unresolved} item(ns) sem vínculo permanecem pendentes.` : ""} Disparando análise…`,
         );
         await supabase.functions.invoke("dispatch-payment-analysis", {
           body: { payment_id: paymentId },
         });
       } else {
         toast.warning(
-          `Nenhum item pôde ser distribuído. ${unresolved} item(ns) sem vínculo médico→PJ entre os participantes. Cadastre os vínculos em Médicos ou vincule manualmente.`,
+          `Nenhum item pôde ser promovido. ${unresolved} item(ns) sem vínculo médico→PJ entre os participantes (lote comum). Cadastre os vínculos em Médicos ou vincule manualmente.`,
         );
       }
+
 
       await load();
       onChanged?.();
