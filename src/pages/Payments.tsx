@@ -1432,6 +1432,9 @@ const Payments = () => {
                           setOwnerGroup("all");
                           setDivergenceFilter("all");
                           setQuestionedFilter("all");
+                          setPoolFilter("all");
+                          setImportModeFilter("all");
+                          setEmptyOnly(false);
                           const next = new URLSearchParams(searchParams);
                           next.delete("status");
                           setSearchParams(next, { replace: true });
