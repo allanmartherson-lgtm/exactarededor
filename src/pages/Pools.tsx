@@ -188,6 +188,8 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
     await supabase.from("pools").update({
       escopo_producao: editing.escopo_producao ?? "participantes",
       filtros_captura: filtrosNorm,
+      garante_piso: !!editing.garante_piso,
+      piso_valor: editing.garante_piso ? (Number(editing.piso_valor) || 0) : null,
     } as any).eq("id", poolId);
 
     await supabase.from("pool_deductions").delete().eq("pool_id", poolId);
