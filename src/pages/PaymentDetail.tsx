@@ -564,7 +564,38 @@ const PaymentDetail = () => {
       });
       return;
     }
+    // Gate: itens com valor zerado pagos sem motivo de intervenção bloqueiam
+    // a transição para validação (aguardando_aprovacao) ou aprovação (aprovado).
+    if (newStatus === "aguardando_aprovacao" || newStatus === "aprovado") {
+      try {
+        const pending = await findItemsNeedingManualReason(id);
+        if (pending.length > 0) {
+          toast({
+            title: `${pending.length} ${pending.length === 1 ? "item exige" : "itens exigem"} motivo de intervenção`,
+            description:
+              "Valor zerado/ausente sem justificativa. Zeev pode sugerir um motivo em lote.",
+            variant: "destructive",
+          });
+          setManualReasonGate({
+            open: true,
+            items: pending.map((p) => ({
+              id: p.id,
+              doctor_name: p.doctor_name,
+              procedure_code: p.procedure_code,
+              procedure_description: p.procedure_name,
+              procedure_amount: p.procedure_amount,
+              attendance_number: p.attendance_number,
+            })),
+            companyName: null,
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn("[manualReasonGate] falhou (não bloqueante):", e);
+      }
+    }
     setBusy(true);
+
     const updates: PaymentUpdate = { status: newStatus };
     if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
       updates.validated_by = user!.id; updates.validated_at = new Date().toISOString();
