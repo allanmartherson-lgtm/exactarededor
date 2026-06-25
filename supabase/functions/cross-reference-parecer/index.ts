@@ -281,10 +281,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // === Dedup paciente+especialidade+convenio (modo confecção parecer) ===
+    // === Dedup atendimento+especialidade+convenio (modo confecção parecer) ===
     // Quando o convênio não paga 2 pareceres seguidos da mesma especialidade
-    // para o mesmo paciente, o 1º atendimento vira Parecer e os demais Visita.
-    // A chave usa ESPECIALIDADE (não médico) porque equipes se revezam.
+    // para o mesmo ATENDIMENTO, o 1º vira Parecer e os demais Visita.
+    // A chave usa ESPECIALIDADE (não médico) porque equipes se revezam,
+    // e ATENDIMENTO (não paciente) porque é o identificador canônico no Tasy.
     const updateById = new Map(updates.map((u) => [u.id, u]));
     const reclassifiedIds = new Set<string>();
     const reclassifyReason = new Map<string, string>();
@@ -294,11 +295,11 @@ Deno.serve(async (req) => {
     for (const it of items) {
       const u = updateById.get(it.id);
       if (!u || u.evidence !== "confirmed") continue;
-      const pat = norm(it.patient_name);
+      const att = onlyDigits(it.attendance_number);
       const spec = norm(it.specialty);
       const conv = norm(it.convenio_slug);
-      if (!pat || !spec) continue; // sem chave forte, mantém como Parecer
-      const key = `${pat}|${spec}|${conv}`;
+      if (!att || !spec) continue; // sem chave forte, mantém como Parecer
+      const key = `${att}|${spec}|${conv}`;
       const list = buckets.get(key) ?? [];
       list.push({ id: it.id, date: it.procedure_date });
       buckets.set(key, list);
@@ -316,7 +317,7 @@ Deno.serve(async (req) => {
         const firstDate = list[0].date ? new Date(list[0].date).toISOString().slice(0, 10) : "?";
         reclassifyReason.set(
           list[i].id,
-          `Parecer prévio no mesmo lote em ${firstDate} (mesmo paciente+especialidade+convênio)`,
+          `Parecer prévio no mesmo lote em ${firstDate} (mesmo atendimento+especialidade+convênio)`,
         );
       }
     }
@@ -327,19 +328,20 @@ Deno.serve(async (req) => {
       return (
         u && u.evidence === "confirmed" &&
         !reclassifiedIds.has(it.id) &&
-        it.specialty && it.patient_name && it.procedure_date && it.hospital_id
+        it.specialty && it.attendance_number && it.procedure_date && it.hospital_id
       );
     });
     for (const it of candidatesLookback) {
       const dt = new Date(it.procedure_date);
       const from = new Date(dt.getTime() - 7 * 24 * 3600 * 1000).toISOString();
       const to = dt.toISOString();
+      const attDigits = onlyDigits(it.attendance_number);
       const { data: prior } = await supabase
         .from("payment_items")
         .select("id, payment_id, procedure_date")
         .eq("hospital_id", it.hospital_id)
         .eq("specialty", it.specialty)
-        .eq("patient_name", it.patient_name)
+        .eq("attendance_number", attDigits)
         .eq("parecer_evidence", "confirmed")
         .eq("reclassified_from_parecer", false)
         .neq("payment_id", payment_id)
@@ -351,10 +353,11 @@ Deno.serve(async (req) => {
         const d = prior[0].procedure_date ? new Date(prior[0].procedure_date).toISOString().slice(0, 10) : "?";
         reclassifyReason.set(
           it.id,
-          `Parecer prévio em outro lote em ${d} (lookback 7 dias, mesmo paciente+especialidade)`,
+          `Parecer prévio em outro lote em ${d} (lookback 7 dias, mesmo atendimento+especialidade)`,
         );
       }
     }
+
 
     // Aplica reclassificação: troca evidence para "reclassified" para o
     // bloco de patch abaixo mandar para Visita.
