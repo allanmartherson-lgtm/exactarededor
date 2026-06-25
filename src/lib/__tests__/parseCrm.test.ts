@@ -132,6 +132,8 @@ describe("resolveDoctor — match por CRM unificado vs separado", () => {
     crm: "28923",
     crm_uf: "SP",
     cpf: null,
+    specialties: [],
+
   };
 
   it("input unificado '28923/DF' resolve o médico correto da DF", () => {
