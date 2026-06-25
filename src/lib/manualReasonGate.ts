@@ -64,8 +64,9 @@ export async function findItemsNeedingManualReason(
       id: r.id as string,
       doctor_name: (r.doctor_name as string | null) ?? null,
       procedure_code: (r.procedure_code as string | null) ?? null,
-      procedure_description:
-        (r.procedure_description as string | null) ?? null,
+      procedure_name:
+        (r.procedure_name as string | null) ?? null,
+
       procedure_amount:
         r.procedure_amount == null ? null : Number(r.procedure_amount),
       attendance_number: (r.attendance_number as string | null) ?? null,
