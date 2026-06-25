@@ -183,6 +183,11 @@ export function RegisterExternalApprovalDialog({
 
     // 3) Chama o RPC correspondente
     const rpcName = stage === "approval" ? "register_external_approval" : "register_external_validation";
+    // Quando o usuário escolheu alguém do dropdown (não "outro"), atribuímos a decisão a ele
+    // nos indicadores (approved_by / validated_by). Caso contrário, fica no operador.
+    const decisorIdParam =
+      decisorId && decisorId !== "__other__" ? decisorId : null;
+
     const params =
       stage === "approval"
         ? {
@@ -193,6 +198,7 @@ export function RegisterExternalApprovalDialog({
             p_source: source,
             p_evidence_path: evidencePath,
             p_note: fullNote,
+            p_decisor_id: decisorIdParam,
           }
         : {
             p_payment_id: paymentId,
@@ -202,6 +208,7 @@ export function RegisterExternalApprovalDialog({
             p_source: source,
             p_evidence_path: evidencePath,
             p_note: fullNote,
+            p_decisor_id: decisorIdParam,
           };
 
     const { error } = await supabase.rpc(rpcName as never, params as never);
