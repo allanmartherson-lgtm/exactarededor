@@ -99,6 +99,28 @@ export function SpecialtyResolutionModal({
     });
   };
 
+  const applyToWholeLot = (specialty: string) => {
+    if (!specialty) return;
+    setOverrides((prev) => {
+      const next = { ...prev };
+      for (const r of rows) next[r.rowKey] = specialty;
+      return next;
+    });
+  };
+
+  // Zeev: detecta se todos os médicos têm uma única especialidade cadastrada e ela é a mesma → sugere lote.
+  const zeevLotSuggestion = useMemo(() => {
+    if (!suggestionsByDoctor) return null;
+    const docs = Array.from(new Set(rows.map((r) => (r.doctor_name ?? "").trim().toLowerCase()).filter(Boolean)));
+    if (docs.length === 0) return null;
+    const specs = docs.map((d) => suggestionsByDoctor[d] ?? []);
+    if (specs.some((s) => s.length !== 1)) return null;
+    const unique = Array.from(new Set(specs.map((s) => s[0])));
+    if (unique.length === 1) return unique[0];
+    return null;
+  }, [rows, suggestionsByDoctor]);
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
@@ -117,21 +139,51 @@ export function SpecialtyResolutionModal({
         </DialogHeader>
 
         <div className="space-y-3 overflow-hidden flex-1 flex flex-col">
+          {/* Especialidade do lote inteiro */}
+          <div className="rounded-md border bg-primary/5 p-3 space-y-2">
+            <div className="text-xs font-medium flex items-center gap-2">
+              <span>Especialidade do lote inteiro</span>
+              <Badge variant="outline" className="text-[10px]">opcional</Badge>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Se todo o lote é da mesma especialidade, aplique aqui em uma vez. Você ainda pode ajustar item a item depois.
+            </div>
+            {zeevLotSuggestion && (
+              <div className="text-[11px] rounded border border-primary/30 bg-primary/10 px-2 py-1 flex items-center justify-between gap-2">
+                <span>
+                  <strong>Zeev:</strong> todos os médicos deste lote estão cadastrados como <strong>{zeevLotSuggestion}</strong>. Aplicar ao lote inteiro?
+                </span>
+                <Button size="sm" variant="default" className="h-6 text-[11px]" onClick={() => applyToWholeLot(zeevLotSuggestion)}>
+                  Aplicar
+                </Button>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Select value={bulkSpecialty} onValueChange={setBulkSpecialty}>
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue placeholder="Escolha uma especialidade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMMON_SPECIALTIES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="default"
+                className="h-8 text-xs"
+                disabled={!bulkSpecialty}
+                onClick={() => applyToWholeLot(bulkSpecialty)}
+              >
+                Aplicar ao lote ({rows.length})
+              </Button>
+            </div>
+          </div>
+
           {doctorGroups.length > 1 && (
             <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-              <div className="text-xs font-medium">Aplicar especialidade em massa por médico</div>
-              <div className="flex items-center gap-2">
-                <Select value={bulkSpecialty} onValueChange={setBulkSpecialty}>
-                  <SelectTrigger className="h-8 text-xs flex-1">
-                    <SelectValue placeholder="Escolha uma especialidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMMON_SPECIALTIES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <div className="text-xs font-medium">Aplicar por médico (usa a especialidade selecionada acima)</div>
               <div className="flex flex-wrap gap-1">
                 {doctorGroups.map(([doctor, list]) => (
                   <Button
@@ -148,6 +200,7 @@ export function SpecialtyResolutionModal({
               </div>
             </div>
           )}
+
 
           <Input
             placeholder="Filtrar por médico, paciente ou atendimento…"
