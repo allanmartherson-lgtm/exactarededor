@@ -4144,7 +4144,7 @@ function ItemDetailsRow({
     { label: "Médico", value: it.doctor_name ?? "—" },
     { label: "Função", value: getDoctorRole(it) },
     { label: "Setor (Planilha)", value: formatSectorName(rawPick(it.raw_data, SECTOR_RAW_KEYS as unknown as string[]) ?? it.sector ?? null) },
-    { label: "Setor (Sistema)", value: formatSectorName(
+    { label: "Setor", value: formatSectorName(
         sectorAliases?.resolve(rawPick(it.raw_data, SECTOR_RAW_KEYS as unknown as string[])) ??
         sectorAliases?.resolve(it.sector) ??
         (it.ai_findings?.engine as any)?.inferred_sector ??
