@@ -139,14 +139,16 @@ export function ParecerCrossReferencePanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
           <Metric label="Itens" value={summary.total} />
           <Metric label="Verificados" value={summary.checked} />
           <Metric label="Cruzados" value={summary.confirmed} tone="success" />
           <Metric label="Sem parecer" value={summary.missing} tone={summary.missing ? "warning" : "muted"} />
           <Metric label="Divergentes" value={summary.weak} tone={summary.weak ? "warning" : "muted"} />
           <Metric label="Auto-tratados" value={summary.autoTreated} tone="success" />
+          <Metric label="Reclassificados" value={summary.reclassified} tone={summary.reclassified ? "warning" : "muted"} />
         </div>
+
 
         <div className="rounded-md border bg-muted/20 p-3 text-xs space-y-2">
           <div className="flex flex-wrap items-center gap-2">
