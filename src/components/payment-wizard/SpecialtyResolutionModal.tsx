@@ -139,7 +139,50 @@ export function SpecialtyResolutionModal({
         </DialogHeader>
 
         <div className="space-y-3 overflow-hidden flex-1 flex flex-col">
+          {/* Especialidade do lote inteiro */}
+          <div className="rounded-md border bg-primary/5 p-3 space-y-2">
+            <div className="text-xs font-medium flex items-center gap-2">
+              <span>Especialidade do lote inteiro</span>
+              <Badge variant="outline" className="text-[10px]">opcional</Badge>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Se todo o lote é da mesma especialidade, aplique aqui em uma vez. Você ainda pode ajustar item a item depois.
+            </div>
+            {zeevLotSuggestion && (
+              <div className="text-[11px] rounded border border-primary/30 bg-primary/10 px-2 py-1 flex items-center justify-between gap-2">
+                <span>
+                  <strong>Zeev:</strong> todos os médicos deste lote estão cadastrados como <strong>{zeevLotSuggestion}</strong>. Aplicar ao lote inteiro?
+                </span>
+                <Button size="sm" variant="default" className="h-6 text-[11px]" onClick={() => applyToWholeLot(zeevLotSuggestion)}>
+                  Aplicar
+                </Button>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Select value={bulkSpecialty} onValueChange={setBulkSpecialty}>
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue placeholder="Escolha uma especialidade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMMON_SPECIALTIES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="default"
+                className="h-8 text-xs"
+                disabled={!bulkSpecialty}
+                onClick={() => applyToWholeLot(bulkSpecialty)}
+              >
+                Aplicar ao lote ({rows.length})
+              </Button>
+            </div>
+          </div>
+
           {doctorGroups.length > 1 && (
+
             <div className="rounded-md border bg-muted/30 p-3 space-y-2">
               <div className="text-xs font-medium">Aplicar especialidade em massa por médico</div>
               <div className="flex items-center gap-2">
