@@ -213,7 +213,49 @@ export function ParecerCrossReferencePanel({
             </TableBody>
           </Table>
         </div>
+
+        {reclassifiedItems.length > 0 && (
+          <div className="rounded-md border border-amber-300/40 bg-amber-50/30 dark:bg-amber-950/10 overflow-hidden">
+            <div className="px-3 py-2 border-b border-amber-300/40 text-xs font-medium flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-700" />
+              Reclassificados de Parecer → Visita ({reclassifiedItems.length})
+              <span className="text-muted-foreground font-normal">
+                · convênio não paga 2 pareceres seguidos da mesma especialidade
+              </span>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Atendimento</TableHead>
+                  <TableHead>Paciente</TableHead>
+                  <TableHead>Especialidade</TableHead>
+                  <TableHead>Médico</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Motivo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reclassifiedItems.slice(0, 50).map((it) => (
+                  <TableRow key={it.id}>
+                    <TableCell className="font-mono text-xs">{it.attendance_number ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{it.patient_name ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{it.specialty ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{it.doctor_name ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{formatDateBR(it.procedure_date)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{it.manual_intervention_notes ?? "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {reclassifiedItems.length > 50 && (
+              <div className="px-3 py-2 text-xs text-muted-foreground border-t">
+                +{reclassifiedItems.length - 50} item(ns) adicionais não mostrados.
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
+
     </Card>
   );
 }
