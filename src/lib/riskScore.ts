@@ -46,6 +46,9 @@ export function calculateFinancialRisk(items: PaymentItemRowData[]): RiskBreakdo
     // ele não cai em reprovado nem alerta.
     // Exceção autorizada manualmente não conta.
     if (it.authorized_exception) continue;
+    // Item com valor do hospital aceito pelo analista (gross_override_at) também
+    // sai do risco: a divergência foi resolvida com aceite explícito.
+    if ((it as any).gross_override_at) continue;
 
     if (it.ai_status === "reprovado") {
       valorReprovado += val;
