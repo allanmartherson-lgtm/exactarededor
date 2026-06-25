@@ -169,6 +169,23 @@ export function SpecialtyResolutionModal({
                 </Button>
               </div>
             )}
+            {zeevPerDoctor && (
+              <div className="text-[11px] rounded border border-primary/30 bg-primary/10 px-2 py-1 flex items-center justify-between gap-2">
+                <span>
+                  <strong>Zeev:</strong> especialidade varia entre médicos, mas cada um tem cadastro único. Aplicar por médico ({Object.keys(zeevPerDoctor).length})?
+                </span>
+                <Button size="sm" variant="default" className="h-6 text-[11px]" onClick={applyZeevPerDoctor}>
+                  Aplicar por médico
+                </Button>
+              </div>
+            )}
+            {zeevItemHint && (
+              <div className="text-[11px] rounded border border-warning/30 bg-warning/10 px-2 py-1">
+                <strong>Zeev:</strong> {zeevItemHint === "no_registry"
+                  ? "sem especialidades cadastradas — selecione item a item."
+                  : "médicos têm múltiplas especialidades cadastradas — confirme item a item."}
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Select value={bulkSpecialty} onValueChange={setBulkSpecialty}>
                 <SelectTrigger className="h-8 text-xs flex-1">
