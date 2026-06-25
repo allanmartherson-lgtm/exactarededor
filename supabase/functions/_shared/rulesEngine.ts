@@ -312,6 +312,13 @@ export interface ItemInput {
   company_name: string | null;
   company_id: string | null;
   company_document: string | null;
+  /**
+   * Pool soberano: itens coletivos têm `company_id = null`. Para que regras de
+   * grupo (group_company_links) ou específicas de empresa consigam casar nesses
+   * itens, anexamos aqui os IDs das PJs participantes do pool. O motor aceita
+   * o match se `link.company_id` ∈ `pool_company_ids`. Em itens não-pool fica null.
+   */
+  pool_company_ids?: string[] | null;
   procedure_code: string | null;
   procedure_name: string | null;
   description: string | null;
@@ -702,6 +709,9 @@ function targetsCompany(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "especifica" || r.target_type !== "empresa") return false;
   // 1) Match por ID do cadastro (preferencial)
   if (r.target_company_id && item.company_id && r.target_company_id === item.company_id) return true;
+  // 1.b) Item de pool (company_id=null): aceita se a regra alvo é uma PJ participante.
+  if (r.target_company_id && !item.company_id && Array.isArray(item.pool_company_ids)
+      && item.pool_company_ids.includes(r.target_company_id)) return true;
   // 2) Match por CNPJ (digits-only)
   const ruleDoc = onlyDigits(r.target_identifier);
   const itemDoc = onlyDigits(item.company_document);
@@ -796,9 +806,16 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   // médicos, novos médicos da PJ entram automaticamente (auto-include) — exceto
   // quando explicitamente listados em excluded_doctors, ou quando o link tiver
   // auto_include_new_doctors === false (modo allowlist estrita legado).
+  // Pool soberano: item coletivo tem company_id=null; consideramos como
+  // "pertencente" a qualquer PJ participante listada em pool_company_ids.
+  const poolIds = Array.isArray(item.pool_company_ids) ? item.pool_company_ids : null;
+  const itemCompanyId = item.company_id ? String(item.company_id) : null;
   for (const link of links) {
     if (!link?.company_id) continue;
-    if (String(item.company_id) !== String(link.company_id)) continue;
+    const linkCompanyId = String(link.company_id);
+    const matchesByItem = itemCompanyId !== null && itemCompanyId === linkCompanyId;
+    const matchesByPool = itemCompanyId === null && poolIds !== null && poolIds.includes(linkCompanyId);
+    if (!matchesByItem && !matchesByPool) continue;
     const ds = (link.doctors ?? []) as any;
     if (ds.length === 0) return true;
     if (matchDoctorInList(ds, item)) return true;
@@ -825,9 +842,14 @@ function targetsGroupByDoctor(r: RuleInput, item: ItemInput): boolean {
 
   if (matchDoctorInList((r.group_doctors ?? []) as any, item)) return true;
 
+  const poolIds = Array.isArray(item.pool_company_ids) ? item.pool_company_ids : null;
+  const itemCompanyId = item.company_id ? String(item.company_id) : null;
   for (const link of r.group_company_links ?? []) {
     if (!link?.company_id) continue;
-    if (String(item.company_id) !== String(link.company_id)) continue;
+    const linkCompanyId = String(link.company_id);
+    const matchesByItem = itemCompanyId !== null && itemCompanyId === linkCompanyId;
+    const matchesByPool = itemCompanyId === null && poolIds !== null && poolIds.includes(linkCompanyId);
+    if (!matchesByItem && !matchesByPool) continue;
     if (matchDoctorInList((link.doctors ?? []) as any, item)) return true;
   }
   return false;

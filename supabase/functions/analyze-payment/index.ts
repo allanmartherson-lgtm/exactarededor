@@ -124,7 +124,7 @@ serve(async (req) => {
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase
       .from("payments")
-      .select("sectors,specialties,payment_type,payment_type_id,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode")
+      .select("sectors,specialties,payment_type,payment_type_id,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode,pool_id")
       .eq("id", payment_id)
       .maybeSingle<PaymentRow & { import_mode?: string | null; payment_type_id?: string | null }>();
 
@@ -455,6 +455,7 @@ serve(async (req) => {
         manual_intervention_reason:manual_intervention_reasons!manual_intervention_reason_id(code,category),
         payment_type_id,
         payment_type_source,
+        is_pool_item,
         raw_data
       `)
       .eq("payment_id", payment_id);
@@ -538,6 +539,23 @@ serve(async (req) => {
         .select("id,document")
         .in("id", companyIds);
       for (const c of cs ?? []) companyDocs[c.id as string] = (c.document as string | null) ?? null;
+    }
+    // Pool soberano: itens coletivos têm company_id=null. Carregamos as PJs
+    // participantes do pool deste pagamento para que regras de grupo/empresa
+    // possam casar via pool_company_ids (ver ItemInput.pool_company_ids).
+    let poolCompanyIds: string[] = [];
+    const hasPoolItems = (itemsRaw ?? []).some((it: any) => it.is_pool_item === true);
+    if (hasPoolItems) {
+      const pmtPoolId = (payment as any)?.pool_id ?? null;
+      if (pmtPoolId) {
+        const { data: parts } = await supabase
+          .from("pool_participants")
+          .select("company_id")
+          .eq("pool_id", pmtPoolId);
+        poolCompanyIds = (parts ?? [])
+          .map((p: any) => p?.company_id as string | null)
+          .filter((x: string | null): x is string => !!x);
+      }
     }
 
     // ---------- 3.15 Resolução de ESPECIALIDADE MÉDICA ----------
@@ -643,6 +661,11 @@ serve(async (req) => {
       company_name: it.company_name,
       company_id: it.company_id,
       company_document: it.company_id ? (companyDocs[it.company_id] ?? null) : null,
+      // Pool soberano: item coletivo (is_pool_item=true) recebe a lista de PJs
+      // do pool para que regras de grupo/empresa consigam casar.
+      pool_company_ids: it.is_pool_item === true && poolCompanyIds.length > 0
+        ? poolCompanyIds
+        : null,
       procedure_code: it.procedure_code,
       procedure_name: it.procedure_name,
       description: it.description,
