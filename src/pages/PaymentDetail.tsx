@@ -281,6 +281,14 @@ const PaymentDetail = () => {
     })();
     return () => { alive = false; };
   }, [(payment as any)?.pool_id, (payment as any)?.pool_deduction_id]);
+
+  // Pool soberano: quando o lote tem pool_id, a tela canônica é /pool
+  // (mostra rateio por PJ via payment_company_financials). A tela padrão
+  // agrupa por company_name e mostra "Sem empresa · R$ 0,00" — confunde.
+  useEffect(() => {
+    const pid = (payment as any)?.pool_id as string | null | undefined;
+    if (pid && id) navigate(`/pagamentos/${id}/pool`, { replace: true });
+  }, [(payment as any)?.pool_id, id, navigate]);
   // Diálogo de "Fazer questionamento" — escopo lote ou empresa específica.
   const [askQuestion, setAskQuestion] = useState<
     null | { groupId?: string | null; companyName?: string | null }
