@@ -108,23 +108,30 @@ export function RegisterExternalApprovalDialog({
       });
       return;
     }
+    if (!file) {
+      toast({
+        title: "Anexo de prova obrigatório",
+        description: "Anexe o e-mail, print do WhatsApp ou documento que comprova a decisão externa.",
+        variant: "destructive",
+      });
+      return;
+    }
     setBusy(true);
 
-    // 1) Upload do anexo (opcional)
+    // 1) Upload do anexo (obrigatório)
     let evidencePath: string | null = null;
-    if (file) {
-      const ext = file.name.split(".").pop() ?? "bin";
-      const path = `external-${stage}/${paymentId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("approval-pdfs")
-        .upload(path, file, { upsert: false, contentType: file.type || undefined });
-      if (upErr) {
-        setBusy(false);
-        toast({ title: "Falha ao subir anexo", description: upErr.message, variant: "destructive" });
-        return;
-      }
-      evidencePath = path;
+    const ext = file.name.split(".").pop() ?? "bin";
+    const path = `external-${stage}/${paymentId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("approval-pdfs")
+      .upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (upErr) {
+      setBusy(false);
+      toast({ title: "Falha ao subir anexo", description: upErr.message, variant: "destructive" });
+      return;
     }
+    evidencePath = path;
+
 
     // 2) Monta a nota completa (inclui a data da decisão)
     const fullNote = [
@@ -260,18 +267,25 @@ export function RegisterExternalApprovalDialog({
               </div>
 
               <div>
-                <Label className="text-xs">Anexo de prova (opcional)</Label>
+                <Label className="text-xs">
+                  Anexo de prova <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg,.eml,.msg"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  required
                 />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Obrigatório: anexe o e-mail, print do WhatsApp ou documento que comprova a decisão.
+                </p>
                 {file && (
                   <p className="text-[11px] text-muted-foreground mt-1">
                     {file.name} ({(file.size / 1024).toFixed(0)} KB)
                   </p>
                 )}
               </div>
+
 
               <div>
                 <Label className="text-xs">Observação (opcional)</Label>
