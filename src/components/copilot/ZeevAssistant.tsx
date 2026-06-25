@@ -101,7 +101,7 @@ interface Props {
   /** Insights extras já calculados pela própria página. */
   extraInsights?: ZeevInsight[];
   /** Filtro sugerido pelo Zeev (deep link nos filtros do grid). */
-  onApplyFilter?: (filter: "divergentes" | "sem_regra" | "reprovados") => void;
+  onApplyFilter?: (filter: "divergentes" | "sem_regra" | "reprovados" | "zerados") => void;
   /** Contexto necessário pra ações em lote (paymentId + companyName + companyGroupId opcional pra sugestões). */
   bulkContext?: { paymentId: string; companyName: string | null; companyGroupId?: string | null };
   /** Callback chamado após o Zeev aplicar uma ação em lote. */
@@ -272,7 +272,7 @@ export function ZeevAssistant({
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
   const [tab, setTab] = useState<"insights" | "chat">("insights");
   const [chatInitialPrompt, setChatInitialPrompt] = useState<{ text: string; nonce: number } | null>(null);
-  const executorEnabled = !!bulkContext?.paymentId || !!stagingContext;
+  const executorEnabled = true; // chat sempre disponível; modo livre quando não há contexto
   const stagingMode = !!stagingContext && !bulkContext?.paymentId;
 
   const insights = useMemo<ZeevInsight[]>(() => {
@@ -641,9 +641,14 @@ export function ZeevAssistant({
                   staging={stagingContext}
                   initialPrompt={chatInitialPrompt?.text}
                 />
-              ) : bulkContext ? (
-                <ZeevExecutorChat paymentId={bulkContext.paymentId} onApplied={onBulkApplied} />
-              ) : null}
+              ) : (
+                <ZeevExecutorChat
+                  paymentId={bulkContext?.paymentId ?? null}
+                  onApplied={onBulkApplied}
+                  onApplyFilter={onApplyFilter}
+                  onNavigateUrl={(url) => { window.location.assign(url); }}
+                />
+              )}
               <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground italic bg-muted/40">
                 Zeev sempre pede sua confirmação antes de aplicar.
               </div>

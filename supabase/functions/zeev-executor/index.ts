@@ -18,7 +18,12 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // -------------------- Tipos públicos --------------------
 
-type Action = "set_sector" | "set_cost_center" | "link_doctor_company";
+type Action =
+  | "set_sector"
+  | "set_cost_center"
+  | "link_doctor_company"
+  | "navigate"
+  | "answer";
 
 interface Scope {
   /** Filtros declarativos. Todos opcionais; combinados com AND. */
@@ -29,6 +34,10 @@ interface Scope {
   doctor_name_like?: string | null;
   procedure_code?: string | null;
   description_like?: string | null;
+  /** Filtros de "ver"/responder — não disparam execução. */
+  gross_zero?: boolean;
+  ai_status_in?: string[];
+  needs_human_review?: boolean;
 }
 
 interface Proposal {
@@ -48,7 +57,10 @@ interface Proposal {
 
 interface RequestBody {
   step: "propose" | "execute";
-  payment_id: string;
+  /** Opcional — quando ausente, só ações sem mutação (navigate/answer) são possíveis. */
+  payment_id?: string | null;
+  /** Rota atual no app (para dar contexto de navegação ao Zeev). */
+  current_path?: string | null;
   prompt?: string;
   proposal?: Proposal;
 }
@@ -57,22 +69,23 @@ interface RequestBody {
 
 const SYSTEM_PROMPT = [
   "Você é o Zeev — assistente do Exacta, sistema de repasse médico hospitalar.",
-  "Sua função: interpretar pedidos em linguagem natural do analista e propor uma AÇÃO em lote sobre os itens do pagamento atual.",
+  "Você interpreta pedidos do analista e devolve UMA proposta estruturada. Você nunca executa direto: ações que mutam dados são confirmadas pelo analista; navegação é aplicada com 1 clique; respostas em texto são imediatas.",
   "",
   "REGRAS ABSOLUTAS:",
-  "- Você NUNCA executa nada. Apenas propõe.",
-  "- Você só pode propor UMA das ações cadastradas. Se o pedido não couber, responda action='unsupported' e explique brevemente.",
-  "- NUNCA proponha apagar pagamentos, mexer em regras (rules/rule_calculations), aprovar lote, finalizar NF, ou qualquer ação financeira.",
-  "- Se o pedido for ambíguo, peça esclarecimento em 'summary' e devolva action='clarify'.",
+  "- NUNCA proponha apagar pagamentos, mexer em regras, aprovar lote, finalizar NF, ou qualquer ação financeira.",
+  "- Use os números/contexto que o servidor já te passou (contagens, agregados). Não invente.",
+  "- Responda sempre em PT-BR, breve e direto. Sem rodeio.",
   "",
-  "AÇÕES DISPONÍVEIS:",
-  "1) set_sector — aplica um setor em itens. payload: { sector_code: string }. Use scope.sector_missing=true para 'não identificados'.",
-  "2) set_cost_center — aplica centro de custos. payload: { cost_center_code: string }. scope.cost_center_missing=true para 'sem CC'.",
-  "3) link_doctor_company — vincula médico a PJ. payload: { company_id: string }. scope.doctor_company_missing=true para 'médicos sem PJ'.",
+  "AÇÕES DISPONÍVEIS (escolha exatamente UMA):",
+  "1) answer — quando o analista PERGUNTA algo respondível com o contexto. Use o 'summary' como a resposta completa em texto (pode ter 2-3 frases). Ideal para 'quantos itens estão zerados?', 'qual médico tem mais divergência?'.",
+  "2) navigate — quando o analista quer IR a uma seção/filtro. payload: { url?: string, filter?: 'zerados'|'divergentes'|'sem_regra'|'reprovados' }. Use 'filter' para os 4 filtros padrão do grid. Use 'url' para rotas absolutas tipo '/pagamentos', '/regras', '/pendencias'. summary = 1 frase explicando para onde vai.",
+  "3) set_sector — aplica setor em lote. payload: { sector_code }. scope.sector_missing=true para 'sem setor'.",
+  "4) set_cost_center — aplica centro de custos. payload: { cost_center_code }. scope.cost_center_missing=true.",
+  "5) link_doctor_company — vincula médico→PJ. payload: { company_id }. scope.doctor_company_missing=true.",
+  "6) clarify — quando o pedido é ambíguo e você precisa perguntar de volta. summary = a pergunta.",
+  "7) unsupported — quando não dá pra atender com nenhuma ação acima. summary = explicação curta + sugestão alternativa.",
   "",
-  "FORMATO DE RESPOSTA (JSON estrito via tool call respond):",
-  "{ action, scope, payload, summary }",
-  "- 'summary' = 1 frase em PT-BR descrevendo o que será feito, sem números (a contagem é calculada pelo servidor).",
+  "REGRA DE OURO: se o analista usa verbo de VER/MOSTRAR/IR ('me mostra', 'leva pros zerados', 'abre os divergentes'), prefira 'navigate'. Se PERGUNTA ('quantos', 'qual', 'tem algum'), prefira 'answer'. Só use set_/link_ quando ele pedir explicitamente para APLICAR/DEFINIR/VINCULAR.",
 ].join("\n");
 
 const RESPOND_SCHEMA = {
@@ -80,7 +93,15 @@ const RESPOND_SCHEMA = {
   properties: {
     action: {
       type: "string",
-      enum: ["set_sector", "set_cost_center", "link_doctor_company", "unsupported", "clarify"],
+      enum: [
+        "set_sector",
+        "set_cost_center",
+        "link_doctor_company",
+        "navigate",
+        "answer",
+        "unsupported",
+        "clarify",
+      ],
     },
     scope: {
       type: "object",
@@ -92,6 +113,8 @@ const RESPOND_SCHEMA = {
         doctor_name_like: { type: "string" },
         procedure_code: { type: "string" },
         description_like: { type: "string" },
+        gross_zero: { type: "boolean" },
+        needs_human_review: { type: "boolean" },
       },
       additionalProperties: false,
     },
@@ -101,6 +124,8 @@ const RESPOND_SCHEMA = {
         sector_code: { type: "string" },
         cost_center_code: { type: "string" },
         company_id: { type: "string" },
+        url: { type: "string" },
+        filter: { type: "string", enum: ["zerados", "divergentes", "sem_regra", "reprovados"] },
       },
       additionalProperties: false,
     },
@@ -309,6 +334,32 @@ async function callLLM(prompt: string, paymentContext: Record<string, unknown>) 
   }
 }
 
+// -------------------- Aggregates --------------------
+
+async function buildPaymentAggregates(sb: SB, paymentId: string) {
+  const { data, error } = await sb
+    .from("payment_items")
+    .select("id, ai_status, gross_amount, expected_amount, manual_intervention_reason_id, ai_findings, company_id, sector, cost_center_code, doctor_id, is_pool_item")
+    .eq("payment_id", paymentId)
+    .limit(20000);
+  if (error || !data) return null;
+
+  let total = 0, zerados = 0, divergentes = 0, semRegra = 0, reprovados = 0, semSetor = 0, semCc = 0, semEmpresa = 0;
+  for (const it of data) {
+    total++;
+    const g = Number(it.gross_amount ?? 0);
+    if (!g || g === 0) zerados++;
+    if ((it.ai_status === "reprovado" || it.ai_status === "alerta") && !it.manual_intervention_reason_id) divergentes++;
+    if (it.ai_status === "reprovado") reprovados++;
+    const findings = it.ai_findings as { needs_human_review?: boolean } | null;
+    if (findings?.needs_human_review) semRegra++;
+    if (!it.sector || it.sector === "") semSetor++;
+    if (!it.cost_center_code || it.cost_center_code === "") semCc++;
+    if (!it.company_id && !it.is_pool_item) semEmpresa++;
+  }
+  return { total, zerados, divergentes, sem_regra: semRegra, reprovados, sem_setor: semSetor, sem_cc: semCc, sem_empresa: semEmpresa };
+}
+
 // -------------------- HTTP handler --------------------
 
 Deno.serve(async (req) => {
@@ -316,19 +367,23 @@ Deno.serve(async (req) => {
 
   try {
     const body = (await req.json()) as RequestBody;
-    if (!body.payment_id) return jsonResp({ error: "payment_id obrigatório" }, 400);
-
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Valida o pagamento e pega contexto
-    const { data: pay } = await sb
-      .from("payments")
-      .select("id, hospital_id, company_name, reference")
-      .eq("id", body.payment_id)
-      .maybeSingle();
-    if (!pay) return jsonResp({ error: "Pagamento não encontrado" }, 404);
+    // payment_id opcional. Quando presente, busca contexto enriquecido.
+    let pay: { id: string; hospital_id: string | null; company_name: string | null; reference: string | null } | null = null;
+    let aggregates: Awaited<ReturnType<typeof buildPaymentAggregates>> = null;
+    if (body.payment_id) {
+      const { data } = await sb
+        .from("payments")
+        .select("id, hospital_id, company_name, reference")
+        .eq("id", body.payment_id)
+        .maybeSingle();
+      if (!data) return jsonResp({ error: "Pagamento não encontrado" }, 404);
+      pay = data;
+      aggregates = await buildPaymentAggregates(sb, body.payment_id);
+    }
 
-    // Auth: lê o usuário pelo header (RLS bypass via service role mas precisamos do actor_id para auditoria)
+    // Auth
     const authHeader = req.headers.get("Authorization") ?? "";
     let actorId: string | null = null;
     if (authHeader.startsWith("Bearer ")) {
@@ -343,46 +398,45 @@ Deno.serve(async (req) => {
       if (!body.prompt) return jsonResp({ error: "prompt obrigatório" }, 400);
 
       const llm = await callLLM(body.prompt, {
-        payment_id: pay.id,
-        reference: pay.reference,
-        company_name: pay.company_name,
+        current_path: body.current_path ?? null,
+        payment: pay ? { id: pay.id, reference: pay.reference, company_name: pay.company_name } : null,
+        aggregates: aggregates ?? null,
+        has_payment_context: !!body.payment_id,
       });
 
-      if (llm.action === "unsupported" || llm.action === "clarify") {
+      // Ações sem mutação — devolve direto pro cliente aplicar.
+      if (llm.action === "answer" || llm.action === "navigate" || llm.action === "unsupported" || llm.action === "clarify") {
         return jsonResp({
           step: "respond",
           action: llm.action,
-          summary: llm.summary ?? "Não consegui interpretar o pedido.",
+          summary: llm.summary ?? "",
+          payload: llm.payload ?? {},
+        });
+      }
+
+      // Daqui pra baixo, ações que mutam dados precisam de payment_id.
+      if (!body.payment_id || !pay) {
+        return jsonResp({
+          step: "respond",
+          action: "unsupported",
+          summary: "Para aplicar essa ação preciso estar dentro de um pagamento específico. Abra o lote e tente de novo.",
         });
       }
 
       const scope: Scope = llm.scope ?? {};
       const payload: Record<string, unknown> = llm.payload ?? {};
 
-      // Validações mínimas por ação
       if (llm.action === "set_sector" && !payload.sector_code) {
-        return jsonResp({
-          step: "respond",
-          action: "clarify",
-          summary: "Qual setor (código) devo aplicar?",
-        });
+        return jsonResp({ step: "respond", action: "clarify", summary: "Qual setor (código) devo aplicar?" });
       }
       if (llm.action === "set_cost_center" && !payload.cost_center_code) {
-        return jsonResp({
-          step: "respond",
-          action: "clarify",
-          summary: "Qual centro de custos (código P12) devo aplicar?",
-        });
+        return jsonResp({ step: "respond", action: "clarify", summary: "Qual centro de custos (código P12) devo aplicar?" });
       }
       if (llm.action === "link_doctor_company" && !payload.company_id) {
-        return jsonResp({
-          step: "respond",
-          action: "clarify",
-          summary: "Em qual empresa (ID) devo vincular os médicos?",
-        });
+        return jsonResp({ step: "respond", action: "clarify", summary: "Em qual empresa (ID) devo vincular os médicos?" });
       }
 
-      const { count, samples } = await buildPreview(sb, body.payment_id, scope, llm.action);
+      const { count, samples } = await buildPreview(sb, body.payment_id, scope, llm.action as Action);
 
       const proposal: Proposal = {
         action: llm.action,
@@ -398,6 +452,7 @@ Deno.serve(async (req) => {
 
     if (body.step === "execute") {
       if (!body.proposal) return jsonResp({ error: "proposal obrigatória" }, 400);
+      if (!body.payment_id || !pay) return jsonResp({ error: "payment_id obrigatório para executar" }, 400);
       const p = body.proposal;
 
       let result: { affected: number; before: unknown; after: unknown; created_link_ids?: string[] };
@@ -411,7 +466,6 @@ Deno.serve(async (req) => {
         return jsonResp({ error: `ação não suportada: ${p.action}` }, 400);
       }
 
-      // Auditoria (audit_log.diff jsonb)
       await sb.from("audit_log").insert({
         entity_type: "payment",
         entity_id: body.payment_id,

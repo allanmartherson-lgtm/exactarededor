@@ -62,11 +62,14 @@ export function ZeevGlobalMount() {
   const location = useLocation();
   const pathname = location.pathname;
 
-  const { suppressed, hidden, label } = useMemo(() => {
+  const { suppressed, hidden, label, paymentId } = useMemo(() => {
     const hidden = HIDDEN_PATTERNS.some((r) => r.test(pathname));
     const suppressed = SUPPRESSED_PATTERNS.some((r) => r.test(pathname));
     const match = ROUTE_LABELS.find((m) => m.test.test(pathname));
-    return { suppressed, hidden, label: match?.label ?? "Exacta" };
+    // Detecta /pagamentos/:id e /pagamentos/:id/pool para dar contexto rico ao chat
+    const payMatch = pathname.match(/^\/pagamentos\/([0-9a-f-]{36})(?:\/pool)?$/i);
+    const paymentId = payMatch?.[1] ?? null;
+    return { suppressed, hidden, label: match?.label ?? "Exacta", paymentId };
   }, [pathname]);
 
   if (hidden || suppressed) return null;
@@ -75,6 +78,7 @@ export function ZeevGlobalMount() {
     <ZeevAssistant
       pageLabel={label}
       summary={{ rota: pathname }}
+      bulkContext={paymentId ? { paymentId, companyName: null } : undefined}
     />
   );
 }
