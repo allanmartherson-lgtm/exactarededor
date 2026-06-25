@@ -508,10 +508,13 @@ const Payments = () => {
     if (openQuestionOnly) f.only_open_questions = true;
     if (divergenceFilter === "with") f.only_divergence = true;
     if (questionedFilter !== "all") f.with_questions = questionedFilter;
+    if (poolFilter !== "all") f.pool_ids = [poolFilter];
+    if (importModeFilter !== "all") f.import_modes = [importModeFilter];
+    if (emptyOnly) f.only_empty = true;
     return f;
   }, [serverStatuses, typeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
       competenceFilter, debouncedQ, delayedOnly, openQuestionOnly,
-      divergenceFilter, questionedFilter]);
+      divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly]);
 
   const load = useCallback(async () => {
     setLoading(true);
