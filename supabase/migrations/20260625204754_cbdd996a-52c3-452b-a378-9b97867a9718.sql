@@ -1,0 +1,2 @@
+ALTER TABLE public.rules DROP CONSTRAINT IF EXISTS rules_minimo_garantido_base_check;
+ALTER TABLE public.rules ADD CONSTRAINT rules_minimo_garantido_base_check CHECK (minimo_garantido_base IN ('bruto','liquido'));
