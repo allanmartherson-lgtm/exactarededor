@@ -101,7 +101,7 @@ interface Props {
   /** Insights extras já calculados pela própria página. */
   extraInsights?: ZeevInsight[];
   /** Filtro sugerido pelo Zeev (deep link nos filtros do grid). */
-  onApplyFilter?: (filter: "divergentes" | "sem_regra" | "reprovados") => void;
+  onApplyFilter?: (filter: "divergentes" | "sem_regra" | "reprovados" | "zerados") => void;
   /** Contexto necessário pra ações em lote (paymentId + companyName + companyGroupId opcional pra sugestões). */
   bulkContext?: { paymentId: string; companyName: string | null; companyGroupId?: string | null };
   /** Callback chamado após o Zeev aplicar uma ação em lote. */
