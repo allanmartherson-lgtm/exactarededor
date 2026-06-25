@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AlertTriangle, MailCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -39,18 +46,22 @@ const ELIGIBLE_BY_STAGE: Record<Stage, Set<string>> = {
   approval: new Set(["aguardando_aprovacao"]),
 };
 
-const STAGE_LABEL: Record<Stage, { title: string; role: string; targetStatus: string }> = {
+const STAGE_LABEL: Record<Stage, { title: string; role: string; targetStatus: string; appRole: "diretor" | "validador" }> = {
   validation: {
     title: "Registrar validação externa",
     role: "supervisor",
     targetStatus: "aguardando_aprovacao",
+    appRole: "validador",
   },
   approval: {
     title: "Registrar aprovação externa",
     role: "diretor",
     targetStatus: "revisao_pos_aprovacao",
+    appRole: "diretor",
   },
 };
+
+type DecisorOption = { id: string; full_name: string };
 
 export function RegisterExternalApprovalDialog({
   open,
@@ -74,6 +85,38 @@ export function RegisterExternalApprovalDialog({
   const [note, setNote] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [decisores, setDecisores] = useState<DecisorOption[]>([]);
+  const [decisorId, setDecisorId] = useState<string>("");
+  const [loadingDecisores, setLoadingDecisores] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingDecisores(true);
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, profiles:profiles!user_roles_user_id_fkey(id, full_name, active)")
+        .eq("role", cfg.appRole);
+      if (cancelled) return;
+      if (error) {
+        setDecisores([]);
+      } else {
+        const list = (data ?? [])
+          .map((r: any) => r.profiles)
+          .filter((p: any) => p && p.active !== false && p.full_name)
+          .map((p: any) => ({ id: p.id as string, full_name: p.full_name as string }))
+          .sort((a, b) => a.full_name.localeCompare(b.full_name, "pt-BR"));
+        // de-duplica por id
+        const seen = new Set<string>();
+        setDecisores(list.filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true))));
+      }
+      setLoadingDecisores(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, cfg.appRole]);
 
   // Re-sincroniza seleção quando o dialog reabre
   const handleOpenChange = (v: boolean) => {
@@ -82,6 +125,7 @@ export function RegisterExternalApprovalDialog({
       setNote("");
       setFile(null);
       setPersonName("");
+      setDecisorId("");
       setSource("email");
       setDecisionDate(new Date().toISOString().slice(0, 10));
     }
@@ -254,13 +298,47 @@ export function RegisterExternalApprovalDialog({
               </div>
 
               <div>
-                <Label className="text-xs">Nome do {cfg.role} que decidiu</Label>
-                <Input
-                  value={personName}
-                  onChange={(e) => setPersonName(e.target.value)}
-                  placeholder={`Ex: Dr. Fulano de Tal`}
-                  className="text-base md:text-sm"
-                />
+                <Label className="text-xs">{cfg.role === "diretor" ? "Diretor" : "Supervisor"} que decidiu</Label>
+                <Select
+                  value={decisorId}
+                  onValueChange={(v) => {
+                    setDecisorId(v);
+                    if (v === "__other__") {
+                      setPersonName("");
+                    } else {
+                      const d = decisores.find((x) => x.id === v);
+                      setPersonName(d?.full_name ?? "");
+                    }
+                  }}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue
+                      placeholder={
+                        loadingDecisores
+                          ? "Carregando…"
+                          : decisores.length === 0
+                            ? `Nenhum ${cfg.role} cadastrado`
+                            : `Selecione o ${cfg.role}`
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {decisores.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.full_name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__other__">Outro (digitar nome)…</SelectItem>
+                  </SelectContent>
+                </Select>
+                {decisorId === "__other__" && (
+                  <Input
+                    value={personName}
+                    onChange={(e) => setPersonName(e.target.value)}
+                    placeholder={`Nome do ${cfg.role}`}
+                    className="text-base md:text-sm mt-2"
+                  />
+                )}
                 <p className="text-[11px] text-muted-foreground mt-1">
                   Registrado como decisor externo. Você (operador atual) fica gravado como quem registrou.
                 </p>
