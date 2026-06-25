@@ -94,28 +94,16 @@ export function RegisterExternalApprovalDialog({
     let cancelled = false;
     (async () => {
       setLoadingDecisores(true);
-      const { data: roles, error: rolesErr } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", cfg.appRole);
+      const { data, error } = await supabase.rpc("list_decision_makers", {
+        p_role: cfg.appRole,
+      } as never);
       if (cancelled) return;
-      if (rolesErr || !roles || roles.length === 0) {
-        setDecisores([]);
-        setLoadingDecisores(false);
-        return;
-      }
-      const ids = Array.from(new Set(roles.map((r: any) => r.user_id).filter(Boolean)));
-      const { data: profs, error: profErr } = await supabase
-        .from("profiles")
-        .select("id, full_name, active")
-        .in("id", ids);
-      if (cancelled) return;
-      if (profErr || !profs) {
+      if (error || !data) {
         setDecisores([]);
       } else {
-        const list = profs
-          .filter((p: any) => p && p.active !== false && p.full_name)
-          .map((p: any) => ({ id: p.id as string, full_name: p.full_name as string }))
+        const list = (data as Array<{ id: string; full_name: string }>)
+          .filter((d) => d && d.id && d.full_name)
+          .map((d) => ({ id: d.id, full_name: d.full_name }))
           .sort((a, b) => a.full_name.localeCompare(b.full_name, "pt-BR"));
         setDecisores(list);
       }
