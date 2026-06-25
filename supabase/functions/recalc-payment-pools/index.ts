@@ -146,7 +146,8 @@ Deno.serve(async (req) => {
         let q = supabase
           .from("payment_items")
           .select("id, company_id, doctor_id, doctor_name, doctor_role, payment_type_id, sector_slug, convenio_slug, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
-          .eq("payment_id", payment_id);
+          .eq("payment_id", payment_id)
+          .neq("item_origin", "complemento_minimo");
         if (filtros.tipo_ato_ids.length) q = q.in("payment_type_id", filtros.tipo_ato_ids);
         if (filtros.setor_slugs.length)   q = q.in("sector_slug", filtros.setor_slugs);
         if (filtros.convenio_slugs.length) q = q.in("convenio_slug", filtros.convenio_slugs);
@@ -165,6 +166,7 @@ Deno.serve(async (req) => {
           .from("payment_items")
           .select("id, company_id, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
           .eq("payment_id", payment_id)
+          .neq("item_origin", "complemento_minimo")
           .in("company_id", participantCompanyIds);
         elig = items ?? [];
       }

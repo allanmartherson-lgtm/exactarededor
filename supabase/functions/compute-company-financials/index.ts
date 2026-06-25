@@ -52,17 +52,20 @@ Deno.serve(async (req) => {
     if (poolId) {
       const { data: poolItems } = await supabase
         .from("payment_items")
-        .select("gross_amount, is_cancelled, package_absorbed, is_pool_item")
+        .select("gross_amount, is_cancelled, package_absorbed, is_pool_item, item_origin, company_id")
         .eq("payment_id", payment_id).eq("is_pool_item", true);
       const totalPool = (poolItems ?? [])
-        .filter((it: any) => !it.is_cancelled && !it.package_absorbed)
+        .filter((it: any) => !it.is_cancelled && !it.package_absorbed && it.item_origin !== "complemento_minimo")
+        .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0);
+      const companyMinimumComplement = (poolItems ?? [])
+        .filter((it: any) => !it.is_cancelled && it.item_origin === "complemento_minimo" && it.company_id === company_id)
         .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0);
       const { data: parts } = await supabase
         .from("pool_participants").select("company_id, percentual").eq("pool_id", poolId);
       const minhaPart = (parts ?? []).find((p: any) => p.company_id === company_id);
       const pct = Number(minhaPart?.percentual ?? 0);
       poolGrossShare = round2(totalPool * pct / 100);
-      bruto = poolGrossShare;
+      bruto = round2(poolGrossShare + companyMinimumComplement);
 
       const { data: runRow } = await supabase
         .from("pool_calculation_runs")
@@ -169,8 +172,8 @@ Deno.serve(async (req) => {
         pool_nome: (poolMeta as any)?.nome ?? "Pool",
         base: round2(baseRun),
         bolo: round2(boloRun),
-        contribuicao_empresa: poolGrossShare,
-        quota_empresa: round2(poolGrossShare - poolShareDeducoes),
+        contribuicao_empresa: bruto,
+        quota_empresa: round2(bruto - poolShareDeducoes),
         impacto: poolShareDeducoes,
         percentual: pct,
         deducoes: dedDisplay,

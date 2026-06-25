@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     // 1) Payment + competência
     const { data: payment, error: payErr } = await supabase
       .from("payments")
-      .select("id, competence_month, hospital_id, status")
+      .select("id, competence_month, hospital_id, status, pool_id")
       .eq("id", payment_id).single();
     if (payErr || !payment) {
       return new Response(JSON.stringify({ error: "payment não encontrado" }), {
@@ -120,6 +120,22 @@ Deno.serve(async (req) => {
     const presentCompanies = new Set<string>();
     for (const it of (itemsInPayment ?? [])) {
       if (it.company_id) presentCompanies.add(it.company_id);
+    }
+
+    // Pool soberano: itens de produção podem ser coletivos (company_id=NULL).
+    // Nesse caso, as PJs presentes são as participantes do pool e a produção
+    // bruta por PJ é a fatia percentual do gross total do pool na competência.
+    const poolParticipantPct = new Map<string, number>();
+    if ((payment as any).pool_id) {
+      const { data: parts } = await supabase
+        .from("pool_participants")
+        .select("company_id, percentual, participant_type")
+        .eq("pool_id", (payment as any).pool_id);
+      for (const p of (parts ?? []) as any[]) {
+        if (!p.company_id || p.participant_type === "hospital_nao_paga") continue;
+        presentCompanies.add(p.company_id);
+        poolParticipantPct.set(p.company_id, Number(p.percentual ?? 0));
+      }
     }
 
     const results: any[] = [];
@@ -188,18 +204,31 @@ Deno.serve(async (req) => {
 
       for (const unit of toProcess) {
         // a) Soma produção da competência inteira para a unidade
-        let query = supabase
-          .from("payment_items")
-          .select("gross_amount, payments!inner(competence_month)")
-          .eq("company_id", unit.company_id)
-          .eq("item_origin", "producao")
-          .eq("payments.competence_month", competence);
-        if (unit.doctor_id) query = query.eq("doctor_id", unit.doctor_id);
-        const { data: prodRows } = await query;
+        let producao = 0;
+        if (!unit.doctor_id && (payment as any).pool_id && poolParticipantPct.has(unit.company_id)) {
+          const { data: poolRows } = await supabase
+            .from("payment_items")
+            .select("gross_amount, payments!inner(competence_month, pool_id)")
+            .eq("item_origin", "producao")
+            .eq("is_pool_item", true)
+            .eq("payments.competence_month", competence)
+            .eq("payments.pool_id", (payment as any).pool_id);
+          const totalPool = (poolRows ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0);
+          producao = round2(totalPool * (poolParticipantPct.get(unit.company_id)! / 100));
+        } else {
+          let query = supabase
+            .from("payment_items")
+            .select("gross_amount, payments!inner(competence_month)")
+            .eq("company_id", unit.company_id)
+            .eq("item_origin", "producao")
+            .eq("payments.competence_month", competence);
+          if (unit.doctor_id) query = query.eq("doctor_id", unit.doctor_id);
+          const { data: prodRows } = await query;
 
-        const producao = round2(
-          (prodRows ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0)
-        );
+          producao = round2(
+            (prodRows ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0)
+          );
+        }
 
         const complemento = round2(Math.max(0, piso - producao));
 
@@ -323,6 +352,11 @@ Deno.serve(async (req) => {
     // Dispara recálculo financeiro para refletir os novos itens sintéticos
     if (results.some(r => r.action === "created" || r.action === "updated" || r.action === "revertido")) {
       try {
+        if ((payment as any).pool_id) {
+          void supabase.functions.invoke("recalc-payment-pools", {
+            body: { payment_id },
+          }).catch((e) => console.warn("[apply-minimum-guarantee] recalc-pools falhou:", (e as any)?.message ?? e));
+        }
         void supabase.functions.invoke("compute-company-financials", {
           body: { payment_id },
         }).catch((e) => console.warn("[apply-minimum-guarantee] recompute falhou:", (e as any)?.message ?? e));

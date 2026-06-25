@@ -1065,15 +1065,29 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     }
     const result = data as { rule_id?: string; is_update?: boolean; corrections_applied?: number } | null;
     const savedId = (result?.rule_id as string | undefined) ?? (ruleData.id as string | undefined) ?? null;
-    // Persiste flags que a RPC `apply_rule_save_with_corrections` ainda não
+    // Persiste campos que a RPC `apply_rule_save_with_corrections` ainda não
     // mapeia explicitamente (a RPC só lista um subset de colunas no UPDATE/INSERT).
-    if (savedId && typeof (ruleData as any).prevent_external_fallback === "boolean") {
+    if (savedId) {
+      const rulePatch: Record<string, unknown> = {};
+      if (typeof (ruleData as any).prevent_external_fallback === "boolean") {
+        rulePatch.prevent_external_fallback = (ruleData as any).prevent_external_fallback;
+      }
+      if (typeof (ruleData as any).minimo_garantido_ativo === "boolean") {
+        rulePatch.minimo_garantido_ativo = (ruleData as any).minimo_garantido_ativo;
+        rulePatch.minimo_garantido_valor = (ruleData as any).minimo_garantido_valor ?? null;
+        rulePatch.minimo_garantido_escopo = (ruleData as any).minimo_garantido_escopo ?? null;
+        rulePatch.minimo_garantido_periodicidade = (ruleData as any).minimo_garantido_periodicidade ?? null;
+        rulePatch.minimo_garantido_base = (ruleData as any).minimo_garantido_base ?? null;
+      }
+      if (Object.keys(rulePatch).length > 0) {
       const { error: flagErr } = await supabase
         .from("rules")
-        .update({ prevent_external_fallback: (ruleData as any).prevent_external_fallback })
+        .update(rulePatch as any)
         .eq("id", savedId);
       if (flagErr) {
-        console.warn("[Rules] Falha ao persistir prevent_external_fallback:", flagErr.message);
+        console.warn("[Rules] Falha ao persistir campos complementares da regra:", flagErr.message);
+        throw new Error(`Regra salva, mas falhou ao persistir campos complementares: ${flagErr.message}`);
+      }
       }
     }
     // special_case_filter no nível da regra foi descontinuado — o filtro
