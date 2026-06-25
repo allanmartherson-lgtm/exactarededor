@@ -42,36 +42,40 @@ Deno.serve(async (req) => {
     const poolId = (pmtRow as any)?.pool_id ?? null;
 
     let bruto = 0;
-    // Em pool soberano, busca a run vigente (não invalidada) do pool deste pagamento.
-    // Se existir, a quota dela JÁ é o líquido pós-deduções da competência.
+    // Em pool soberano, calcula:
+    //  - bruto      = pct × soma_gross dos itens do pool (fatia bruta da PJ)
+    //  - poolShare  = bruto − quota (parte das deduções que cabe à PJ; vai para coluna `pool`)
+    // Assim o card mostra: Bruto (fatia) / Descontos (deduções aplicadas) / Líquido (quota da run).
     let poolRunForBruto: any = null;
+    let poolGrossShare = 0;
+    let poolShareDeducoes = 0;
     if (poolId) {
+      const { data: poolItems } = await supabase
+        .from("payment_items")
+        .select("gross_amount, is_cancelled, package_absorbed, is_pool_item")
+        .eq("payment_id", payment_id).eq("is_pool_item", true);
+      const totalPool = (poolItems ?? [])
+        .filter((it: any) => !it.is_cancelled && !it.package_absorbed)
+        .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0);
+      const { data: parts } = await supabase
+        .from("pool_participants").select("company_id, percentual").eq("pool_id", poolId);
+      const minhaPart = (parts ?? []).find((p: any) => p.company_id === company_id);
+      const pct = Number(minhaPart?.percentual ?? 0);
+      poolGrossShare = round2(totalPool * pct / 100);
+      bruto = poolGrossShare;
+
       const { data: runRow } = await supabase
         .from("pool_calculation_runs")
         .select("id, base_amount, bolo_liquido, deductions_applied, quotas, snapshot, invalidated_at")
         .eq("payment_id", payment_id).eq("pool_id", poolId)
         .order("created_at", { ascending: false })
         .limit(1).maybeSingle();
-      if (runRow && !(runRow as any).invalidated_at) poolRunForBruto = runRow;
-
-      if (poolRunForBruto) {
+      if (runRow && !(runRow as any).invalidated_at) {
+        poolRunForBruto = runRow;
         const quotas = (poolRunForBruto.quotas ?? []) as any[];
-        const minha = quotas.find((q: any) => q.company_id === company_id);
-        bruto = round2(Number(minha?.quota ?? 0));
-      } else {
-        // Fallback (sem run): pct sobre soma dos itens do pool, sem deduções.
-        const { data: poolItems } = await supabase
-          .from("payment_items")
-          .select("gross_amount, is_cancelled, package_absorbed, is_pool_item")
-          .eq("payment_id", payment_id).eq("is_pool_item", true);
-        const totalPool = (poolItems ?? [])
-          .filter((it: any) => !it.is_cancelled && !it.package_absorbed)
-          .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0);
-        const { data: parts } = await supabase
-          .from("pool_participants").select("company_id, percentual").eq("pool_id", poolId);
-        const minha = (parts ?? []).find((p: any) => p.company_id === company_id);
-        const pct = Number(minha?.percentual ?? 0);
-        bruto = round2(totalPool * pct / 100);
+        const minhaQuota = quotas.find((q: any) => q.company_id === company_id);
+        const quotaVal = Number(minhaQuota?.quota ?? 0);
+        poolShareDeducoes = round2(poolGrossShare - quotaVal);
       }
     } else {
       // Bruto (soma de gross_amount dos itens da empresa neste pagamento)
