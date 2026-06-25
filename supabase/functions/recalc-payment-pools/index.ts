@@ -477,6 +477,25 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Re-computa o snapshot financeiro de cada PJ do pagamento para refletir
+    // as deduções/quotas recém-calculadas nos cards (bruto/descontos/líquido).
+    const { data: finRows } = await supabase
+      .from("payment_company_financials")
+      .select("company_id").eq("payment_id", payment_id);
+    const companyIdsToRecompute = new Set<string>([
+      ...presentCompanyIds,
+      ...((finRows ?? []).map((f: any) => f.company_id).filter(Boolean) as string[]),
+    ]);
+    for (const cid of companyIdsToRecompute) {
+      try {
+        await supabase.functions.invoke("compute-company-financials", {
+          body: { payment_id, company_id: cid },
+        });
+      } catch (e) {
+        console.warn("[recalc-payment-pools] compute-company-financials falhou", cid, e);
+      }
+    }
+
     return new Response(JSON.stringify({ ok: true, pools_processed: results.length, results }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
