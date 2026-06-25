@@ -35,7 +35,15 @@ export function PoolCalculationCard({ paymentId, onRecalculated }: { paymentId: 
       .select("*")
       .eq("payment_id", paymentId)
       .order("created_at", { ascending: false });
-    const list = (data as Run[]) ?? [];
+    const all = (data as Run[]) ?? [];
+    // Mostrar só a run vigente por pool_id (mais recente). Histórico fica no DB.
+    const seen = new Set<string>();
+    const list: Run[] = [];
+    for (const r of all) {
+      if (seen.has(r.pool_id)) continue;
+      seen.add(r.pool_id);
+      list.push(r);
+    }
     setRuns(list);
     if (list.length > 0) {
       const ids = Array.from(new Set(list.map(r => r.pool_id)));
