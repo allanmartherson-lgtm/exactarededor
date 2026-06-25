@@ -65,6 +65,7 @@ export function PoolCalculationCard({ paymentId, onRecalculated }: { paymentId: 
           : "Nenhuma empresa deste pagamento participa de pool ativo vigente.",
       });
       await load();
+      try { await onRecalculated?.(); } catch {}
     } catch (e: any) {
       toast({ title: "Erro ao recalcular pool", description: e?.message, variant: "destructive" });
     } finally {
