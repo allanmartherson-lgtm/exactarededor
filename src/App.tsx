@@ -124,6 +124,7 @@ const Payments = lazy(loadPayments);
 const NewPayment = lazy(loadNewPayment);
 const PaymentDetail = lazy(loadPaymentDetail);
 const CompanyAnalysis = lazy(loadCompanyAnalysis);
+const PoolAnalysis = lazy(loadPoolAnalysis);
 const Glosas = lazy(loadGlosas);
 const Rules = lazy(loadRules);
 const ValidationRules = lazy(loadValidationRules);
