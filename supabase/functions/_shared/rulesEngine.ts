@@ -312,6 +312,13 @@ export interface ItemInput {
   company_name: string | null;
   company_id: string | null;
   company_document: string | null;
+  /**
+   * Pool soberano: itens coletivos têm `company_id = null`. Para que regras de
+   * grupo (group_company_links) ou específicas de empresa consigam casar nesses
+   * itens, anexamos aqui os IDs das PJs participantes do pool. O motor aceita
+   * o match se `link.company_id` ∈ `pool_company_ids`. Em itens não-pool fica null.
+   */
+  pool_company_ids?: string[] | null;
   procedure_code: string | null;
   procedure_name: string | null;
   description: string | null;
