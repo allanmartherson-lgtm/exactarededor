@@ -641,9 +641,14 @@ export function ZeevAssistant({
                   staging={stagingContext}
                   initialPrompt={chatInitialPrompt?.text}
                 />
-              ) : bulkContext ? (
-                <ZeevExecutorChat paymentId={bulkContext.paymentId} onApplied={onBulkApplied} />
-              ) : null}
+              ) : (
+                <ZeevExecutorChat
+                  paymentId={bulkContext?.paymentId ?? null}
+                  onApplied={onBulkApplied}
+                  onApplyFilter={onApplyFilter}
+                  onNavigateUrl={(url) => { window.location.assign(url); }}
+                />
+              )}
               <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground italic bg-muted/40">
                 Zeev sempre pede sua confirmação antes de aplicar.
               </div>
