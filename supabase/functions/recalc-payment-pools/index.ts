@@ -368,15 +368,63 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Atualiza grupos reais
+      // Atualiza grupos reais — ou cria sintético para participantes sem grupo (pool filtrado)
       for (const q of quotas) {
-        if (!q.paga) continue;
-        const grp = q.company_id ? groupByCompany.get(q.company_id) : null;
-        if (!grp) continue;
-        await supabase
+        if (!q.paga || !q.company_id) continue;
+        const grp = groupByCompany.get(q.company_id);
+        if (grp) {
+          await supabase
+            .from("payment_company_groups")
+            .update({ total_amount: q.quota })
+            .eq("id", grp.id);
+        } else if (isFiltered) {
+          // Participante não tinha grupo no pagamento (itens vieram em outra razão social na planilha).
+          // Cria grupo sintético para que o card apareça no lote com a quota correta.
+          const { data: compRow } = await supabase
+            .from("companies").select("name").eq("id", q.company_id).maybeSingle();
+          const itemsCount = (elig.filter((it: any) => it.company_id === q.company_id)).length;
+          const { data: inserted } = await supabase.from("payment_company_groups").insert({
+            payment_id,
+            company_id: q.company_id,
+            company_name: compRow?.name ?? "Participante do pool",
+            status: "revisao_analista",
+            total_amount: q.quota,
+            items_count: itemsCount,
+          } as any).select("id, company_id, company_name, total_amount").maybeSingle();
+          if (inserted) groupByCompany.set(q.company_id, inserted as any);
+        }
+      }
+
+      // Em pool filtrado: zera/marca grupos cujos itens foram TODOS absorvidos por este pool
+      // (ex.: grupo "fantasma" da razão social que aparecia na planilha mas não é participante).
+      if (isFiltered && elig.length) {
+        const participantIds = new Set(quotas.filter(q => q.paga && q.company_id).map(q => q.company_id as string));
+        const absorbedItemIds = new Set(elig.map((it: any) => it.id));
+        // Lista todos os grupos do pagamento (inclusive sem company_id)
+        const { data: allGroups } = await supabase
           .from("payment_company_groups")
-          .update({ total_amount: q.quota })
-          .eq("id", grp.id);
+          .select("id, company_id, company_name, items_count")
+          .eq("payment_id", payment_id);
+        for (const g of (allGroups ?? [])) {
+          if (g.company_id && participantIds.has(g.company_id)) continue; // participante, mantém
+          // Conta itens deste grupo que NÃO foram absorvidos por este pool
+          let q = supabase.from("payment_items")
+            .select("id", { count: "exact", head: true })
+            .eq("payment_id", payment_id);
+          q = g.company_id ? q.eq("company_id", g.company_id) : q.is("company_id", null);
+          // itens absorvidos ficam com absorbed_by_pool_id setado; consideramos "ativos" os sem absorção por este pool
+          q = q.or(`absorbed_by_pool_id.is.null,absorbed_by_pool_id.neq.${pool.id}`);
+          const { count: liveCount } = await q;
+          if ((liveCount ?? 0) === 0) {
+            // Todos os itens deste grupo foram absorvidos pelo pool → zera card
+            await supabase.from("payment_company_groups")
+              .update({
+                total_amount: 0,
+                items_count: 0,
+                status: "absorvido_por_pool",
+              } as any).eq("id", g.id);
+          }
+        }
       }
 
       // Snapshot de rateio em cada payment_item participante (consumido pelo portal médico)
