@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Send, Loader2, CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
+import { Send, Loader2, CheckCircle2, AlertCircle, RotateCcw, ArrowRight } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import { ZeevIcon } from "./ZeevIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,10 +8,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type Action = "set_sector" | "set_cost_center" | "link_doctor_company";
+type ExecAction = "set_sector" | "set_cost_center" | "link_doctor_company";
+type SoftAction = "navigate" | "answer";
+type Action = ExecAction | SoftAction;
 
 type Proposal = {
-  action: Action;
+  action: ExecAction;
   scope: Record<string, unknown>;
   payload: Record<string, unknown>;
   summary: string;
@@ -24,29 +27,44 @@ type Proposal = {
   }>;
 };
 
+type NavPayload = { url?: string; filter?: "zerados" | "divergentes" | "sem_regra" | "reprovados" };
+
 type Msg =
   | { role: "user"; text: string }
   | { role: "zeev"; text: string }
+  | { role: "navigate"; text: string; payload: NavPayload; done?: boolean }
   | { role: "proposal"; proposal: Proposal; status: "pending" | "confirmed" | "cancelled" | "applying"; result?: string };
 
-const ACTION_LABEL: Record<Action, string> = {
+const ACTION_LABEL: Record<ExecAction, string> = {
   set_sector: "Definir setor em lote",
   set_cost_center: "Definir centro de custos em lote",
   link_doctor_company: "Vincular médico → empresa",
 };
 
+const FILTER_LABEL: Record<NonNullable<NavPayload["filter"]>, string> = {
+  zerados: "valores zerados",
+  divergentes: "itens divergentes",
+  sem_regra: "itens sem regra",
+  reprovados: "itens reprovados",
+};
+
 interface Props {
-  paymentId: string;
+  /** Quando ausente, o chat funciona em modo livre: só navigate + answer. */
+  paymentId?: string | null;
   onApplied?: () => void;
+  /** Aplica filtro do grid quando a página suporta. */
+  onApplyFilter?: (filter: NonNullable<NavPayload["filter"]>) => void;
+  /** Navega para uma URL absoluta. */
+  onNavigateUrl?: (url: string) => void;
 }
 
-export function ZeevExecutorChat({ paymentId, onApplied }: Props) {
-  const [messages, setMessages] = useState<Msg[]>([
-    {
-      role: "zeev",
-      text: "Pode me pedir ações em lote sobre este pagamento. Ex.: \"coloca setor CC em todos sem setor\" ou \"vincula os médicos sem empresa na PJ X\". Sempre confirmo com você antes de aplicar.",
-    },
-  ]);
+export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNavigateUrl }: Props) {
+  const location = useLocation();
+  const greeting = paymentId
+    ? "Pode me perguntar sobre este pagamento, pedir pra ir a uma seção, ou ações em lote. Ex.: \"quantos itens estão zerados?\", \"me leva pros divergentes\", \"vincula os médicos sem PJ na empresa X\"."
+    : "Pode me perguntar coisas ou pedir pra te levar a alguma tela. Ex.: \"abre os pagamentos\", \"vai pras regras\". Ações em lote precisam estar dentro de um lote.";
+
+  const [messages, setMessages] = useState<Msg[]>([{ role: "zeev", text: greeting }]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,14 +83,23 @@ export function ZeevExecutorChat({ paymentId, onApplied }: Props) {
       setBusy(true);
       try {
         const { data, error } = await supabase.functions.invoke("zeev-executor", {
-          body: { step: "propose", payment_id: paymentId, prompt },
+          body: {
+            step: "propose",
+            payment_id: paymentId ?? null,
+            current_path: location.pathname,
+            prompt,
+          },
         });
         if (error) throw error;
         const r = data as
           | { step: "propose"; proposal: Proposal }
-          | { step: "respond"; action: string; summary: string };
+          | { step: "respond"; action: Action | "unsupported" | "clarify"; summary: string; payload?: NavPayload };
         if (r.step === "respond") {
-          setMessages((m) => [...m, { role: "zeev", text: r.summary }]);
+          if (r.action === "navigate" && r.payload && (r.payload.url || r.payload.filter)) {
+            setMessages((m) => [...m, { role: "navigate", text: r.summary, payload: r.payload! }]);
+          } else {
+            setMessages((m) => [...m, { role: "zeev", text: r.summary }]);
+          }
         } else {
           setMessages((m) => [...m, { role: "proposal", proposal: r.proposal, status: "pending" }]);
         }
@@ -83,7 +110,7 @@ export function ZeevExecutorChat({ paymentId, onApplied }: Props) {
         setBusy(false);
       }
     },
-    [paymentId],
+    [paymentId, location.pathname],
   );
 
   const send = useCallback(async () => {
@@ -95,8 +122,30 @@ export function ZeevExecutorChat({ paymentId, onApplied }: Props) {
     setTimeout(() => inputRef.current?.focus(), 50);
   }, [input, busy, propose]);
 
+  const applyNavigate = useCallback(
+    (idx: number, payload: NavPayload) => {
+      if (payload.filter && onApplyFilter) {
+        onApplyFilter(payload.filter);
+        toast.success(`Filtro "${FILTER_LABEL[payload.filter]}" aplicado.`);
+      } else if (payload.url && onNavigateUrl) {
+        onNavigateUrl(payload.url);
+      } else if (payload.url) {
+        window.location.href = payload.url;
+      } else if (payload.filter) {
+        toast.message("Esta tela não tem esse filtro disponível.");
+        return;
+      }
+      setMessages((m) => m.map((msg, i) => (i === idx && msg.role === "navigate" ? { ...msg, done: true } : msg)));
+    },
+    [onApplyFilter, onNavigateUrl],
+  );
+
   const confirm = useCallback(
     async (idx: number, proposal: Proposal) => {
+      if (!paymentId) {
+        toast.error("Sem pagamento ativo para executar.");
+        return;
+      }
       setMessages((m) => m.map((msg, i) => (i === idx && msg.role === "proposal" ? { ...msg, status: "applying" } : msg)));
       try {
         const { data, error } = await supabase.functions.invoke("zeev-executor", {
@@ -128,7 +177,6 @@ export function ZeevExecutorChat({ paymentId, onApplied }: Props) {
 
   return (
     <div className="flex flex-col h-[440px]">
-      {/* Histórico */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2.5">
         {messages.map((m, i) => {
           if (m.role === "user") {
@@ -146,7 +194,37 @@ export function ZeevExecutorChat({ paymentId, onApplied }: Props) {
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary mt-0.5">
                   <ZeevIcon className="h-3 w-3" />
                 </div>
-                <div className="max-w-[85%] text-[13px] text-foreground leading-snug break-words">{m.text}</div>
+                <div className="max-w-[85%] text-[13px] text-foreground leading-snug break-words whitespace-pre-wrap">{m.text}</div>
+              </div>
+            );
+          }
+          if (m.role === "navigate") {
+            return (
+              <div key={i} className="flex items-start gap-2">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary mt-0.5">
+                  <ZeevIcon className="h-3 w-3" />
+                </div>
+                <div className="flex-1 rounded-xl border border-primary/30 bg-primary-soft/30 p-3 space-y-2">
+                  <p className="text-[13px] text-foreground leading-snug">{m.text}</p>
+                  <div className="text-[11px] text-muted-foreground">
+                    {m.payload.filter ? (
+                      <>Filtro: <strong className="text-foreground">{FILTER_LABEL[m.payload.filter]}</strong></>
+                    ) : m.payload.url ? (
+                      <>Destino: <code className="text-foreground">{m.payload.url}</code></>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center justify-end gap-1.5 pt-1">
+                    <Button
+                      size="sm"
+                      className="h-7 text-[11px]"
+                      disabled={m.done}
+                      onClick={() => applyNavigate(i, m.payload)}
+                    >
+                      {m.done ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <ArrowRight className="h-3 w-3 mr-1" />}
+                      {m.done ? "Feito" : "Ir agora"}
+                    </Button>
+                  </div>
+                </div>
               </div>
             );
           }
@@ -226,7 +304,6 @@ export function ZeevExecutorChat({ paymentId, onApplied }: Props) {
         )}
       </div>
 
-      {/* Composer */}
       <div className="border-t bg-muted/20 p-2 space-y-1.5">
         <Textarea
           ref={inputRef}
@@ -238,7 +315,9 @@ export function ZeevExecutorChat({ paymentId, onApplied }: Props) {
               void send();
             }
           }}
-          placeholder='Ex.: "setor CC em todos sem setor identificado"'
+          placeholder={paymentId
+            ? 'Ex.: "me leva pros valores zerados"'
+            : 'Ex.: "abre os pagamentos" ou "quantos lotes em aberto?"'}
           className="resize-none min-h-[56px] text-[13px]"
           disabled={busy}
         />
