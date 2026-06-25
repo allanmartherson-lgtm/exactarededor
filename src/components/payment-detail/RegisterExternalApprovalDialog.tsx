@@ -108,23 +108,30 @@ export function RegisterExternalApprovalDialog({
       });
       return;
     }
+    if (!file) {
+      toast({
+        title: "Anexo de prova obrigatório",
+        description: "Anexe o e-mail, print do WhatsApp ou documento que comprova a decisão externa.",
+        variant: "destructive",
+      });
+      return;
+    }
     setBusy(true);
 
-    // 1) Upload do anexo (opcional)
+    // 1) Upload do anexo (obrigatório)
     let evidencePath: string | null = null;
-    if (file) {
-      const ext = file.name.split(".").pop() ?? "bin";
-      const path = `external-${stage}/${paymentId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("approval-pdfs")
-        .upload(path, file, { upsert: false, contentType: file.type || undefined });
-      if (upErr) {
-        setBusy(false);
-        toast({ title: "Falha ao subir anexo", description: upErr.message, variant: "destructive" });
-        return;
-      }
-      evidencePath = path;
+    const ext = file.name.split(".").pop() ?? "bin";
+    const path = `external-${stage}/${paymentId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("approval-pdfs")
+      .upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (upErr) {
+      setBusy(false);
+      toast({ title: "Falha ao subir anexo", description: upErr.message, variant: "destructive" });
+      return;
     }
+    evidencePath = path;
+
 
     // 2) Monta a nota completa (inclui a data da decisão)
     const fullNote = [
