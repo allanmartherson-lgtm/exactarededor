@@ -4220,8 +4220,18 @@ const NewPayment = () => {
           onOpenChange={setSpecialtyModalOpen}
           rows={pendingSpecialtyRows}
           initialOverrides={specialtyOverrides}
+          suggestionsByDoctor={(() => {
+            const map: Record<string, string[]> = {};
+            if (!doctorReg) return map;
+            for (const e of doctorReg.byAlias.values()) {
+              const k = (e.full_name ?? "").trim().toLowerCase();
+              if (k && !map[k]) map[k] = e.specialties ?? [];
+            }
+            return map;
+          })()}
           onConfirm={(ov) => setSpecialtyOverrides((prev) => ({ ...prev, ...ov }))}
         />
+
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
