@@ -1243,6 +1243,9 @@ const Payments = () => {
             ownerGroup !== "all",
             divergenceFilter !== "all",
             questionedFilter !== "all",
+            poolFilter !== "all",
+            importModeFilter !== "all",
+            emptyOnly,
           ].filter(Boolean).length;
 
           const advancedFilters = (
