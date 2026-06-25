@@ -36,14 +36,18 @@ export function SpecialtyResolutionModal({
   onOpenChange,
   rows,
   initialOverrides,
+  suggestionsByDoctor,
   onConfirm,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   rows: PendingSpecialtyRow[];
   initialOverrides?: SpecialtyOverrides;
+  /** Especialidades cadastradas do médico (normalizado) — mostradas como chips de atalho. */
+  suggestionsByDoctor?: Record<string, string[]>;
   onConfirm: (overrides: SpecialtyOverrides) => void;
 }) {
+
   const [overrides, setOverrides] = useState<SpecialtyOverrides>({});
   const [filter, setFilter] = useState("");
   const [bulkSpecialty, setBulkSpecialty] = useState<string>("");
@@ -165,34 +169,56 @@ export function SpecialtyResolutionModal({
               <tbody>
                 {filteredRows.map((r) => {
                   const v = overrides[r.rowKey] ?? "";
+                  const docKey = (r.doctor_name ?? "").trim().toLowerCase();
+                  const suggestions = (suggestionsByDoctor?.[docKey] ?? []).slice(0, 4);
                   return (
                     <tr key={r.rowKey} className="border-t">
                       <td className="px-2 py-1 align-top">{r.attendance_number ?? "—"}</td>
                       <td className="px-2 py-1 align-top">{r.doctor_name ?? "—"}</td>
                       <td className="px-2 py-1 align-top truncate max-w-[160px]">{r.patient_name ?? "—"}</td>
                       <td className="px-2 py-1">
-                        <div className="flex items-center gap-1">
-                          <Select
-                            value={v}
-                            onValueChange={(val) =>
-                              setOverrides((prev) => ({ ...prev, [r.rowKey]: val }))
-                            }
-                          >
-                            <SelectTrigger className="h-7 text-xs flex-1">
-                              <SelectValue placeholder="Selecione…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {COMMON_SPECIALTIES.map((s) => (
-                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                            <Select
+                              value={v}
+                              onValueChange={(val) =>
+                                setOverrides((prev) => ({ ...prev, [r.rowKey]: val }))
+                              }
+                            >
+                              <SelectTrigger className="h-7 text-xs flex-1">
+                                <SelectValue placeholder="Selecione…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {COMMON_SPECIALTIES.map((s) => (
+                                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {v && <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />}
+                          </div>
+                          {suggestions.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              <span className="text-[10px] text-muted-foreground">do cadastro:</span>
+                              {suggestions.map((s) => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  className="text-[10px] px-1.5 py-0.5 rounded border bg-muted/40 hover:bg-muted"
+                                  onClick={() =>
+                                    setOverrides((prev) => ({ ...prev, [r.rowKey]: s }))
+                                  }
+                                >
+                                  {s}
+                                </button>
                               ))}
-                            </SelectContent>
-                          </Select>
-                          {v && <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
                   );
                 })}
+
                 {filteredRows.length === 0 && (
                   <tr><td colSpan={4} className="px-2 py-4 text-center text-muted-foreground">Nenhum item.</td></tr>
                 )}

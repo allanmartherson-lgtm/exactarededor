@@ -19,7 +19,9 @@ export type DoctorRegistryEntry = {
   crm: string | null;
   crm_uf: string | null;
   cpf: string | null;
+  specialties: string[];
 };
+
 export type ConvenioRegistryEntry = { slug: string; name: string };
 export type SectorRegistryEntry = { slug: string; name: string };
 
@@ -97,7 +99,7 @@ export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
     fetchAllPaginated<any>((from, to) =>
       supabase
         .from("doctors")
-        .select("id, full_name, crm, crm_uf, cpf")
+        .select("id, full_name, crm, crm_uf, cpf, specialties")
         .eq("active", true)
         .range(from, to),
     ),
@@ -113,7 +115,9 @@ export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
       crm: (d as any).crm ?? null,
       crm_uf: (d as any).crm_uf ?? null,
       cpf: (d as any).cpf ?? null,
+      specialties: Array.isArray((d as any).specialties) ? (d as any).specialties.filter(Boolean) : [],
     };
+
     byId.set(e.id, e);
     const crm = onlyDigits(e.crm);
     if (crm) {
