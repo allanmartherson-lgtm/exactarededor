@@ -326,6 +326,32 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                 </div>
               </div>
 
+              {/* Mínimo garantido por participante */}
+              <div className="border rounded-md p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base">Mínimo garantido por participante</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Quando ativo, cada participante real (PJ) tem a quota elevada até o piso. A diferença é bancada pelo hospital e fica registrada no run como complemento.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!editing.garante_piso}
+                    onCheckedChange={v => setEditing({ ...editing, garante_piso: v })}
+                  />
+                </div>
+                {editing.garante_piso && (
+                  <div className="max-w-xs">
+                    <Label>Piso por participante (R$)</Label>
+                    <Input
+                      type="number" step="0.01" min="0"
+                      value={editing.piso_valor ?? ""}
+                      onChange={e => setEditing({ ...editing, piso_valor: e.target.value === "" ? null : Number(e.target.value) })}
+                      placeholder="25000.00"
+                    />
+                  </div>
+                )}
+
               {/* Escopo de produção */}
               <div className="border rounded-md p-3 space-y-3">
                 <div className="flex items-center gap-2">
