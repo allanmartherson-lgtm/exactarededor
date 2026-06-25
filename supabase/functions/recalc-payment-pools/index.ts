@@ -319,19 +319,54 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Quotas
-      const quotas = participants.map(p => {
-        const quota = round2(bolo * (Number(p.percentual) / 100));
+      // Quotas (cálculo natural)
+      const quotas: Array<{
+        participant_id: string;
+        company_id: string | null;
+        participant_type: string;
+        percentual: number;
+        quota: number;
+        quota_natural: number;
+        piso_aplicado?: number;
+        complemento_piso?: number;
+        paga: boolean;
+      }> = participants.map(p => {
+        const quotaNat = round2(bolo * (Number(p.percentual) / 100));
         const isRetido = p.participant_type === "hospital_nao_paga";
         return {
           participant_id: p.id,
           company_id: p.company_id,
           participant_type: p.participant_type,
           percentual: Number(p.percentual),
-          quota,
+          quota: quotaNat,
+          quota_natural: quotaNat,
           paga: !isRetido,
         };
       });
+
+      // Aplica piso por participante (mínimo garantido dentro do pool)
+      let complementoPisoTotal = 0;
+      const piso = Number(pool.piso_valor ?? 0);
+      if (pool.garante_piso && piso > 0) {
+        for (const q of quotas) {
+          if (!q.paga) continue;
+          if (q.quota < piso) {
+            const comp = round2(piso - q.quota);
+            q.piso_aplicado = piso;
+            q.complemento_piso = comp;
+            q.quota = piso;
+            complementoPisoTotal = round2(complementoPisoTotal + comp);
+          }
+        }
+        if (complementoPisoTotal > 0) {
+          deductionsApplied.push({
+            ordem: 9999,
+            tipo: "complemento_piso",
+            descricao: `Complemento mínimo garantido por PJ (piso R$ ${piso.toFixed(2)}) — bancado pelo hospital`,
+            valor: -complementoPisoTotal, // negativo = aumenta o bolo
+          });
+        }
+      }
 
       // Atualiza grupos reais
       for (const q of quotas) {
