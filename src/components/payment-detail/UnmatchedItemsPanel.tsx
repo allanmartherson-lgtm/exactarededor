@@ -329,16 +329,17 @@ export function UnmatchedItemsPanel({
 
       if (linked > 0) {
         toast.success(
-          `${linked} item(ns) distribuídos entre PJs do pool. ${unresolved > 0 ? `${unresolved} sem vínculo médico→PJ permanecem pendentes.` : ""} Disparando análise…`,
+          `${linked} item(ns) promovido(s). ${unresolved > 0 ? `${unresolved} item(ns) sem vínculo permanecem pendentes.` : ""} Disparando análise…`,
         );
         await supabase.functions.invoke("dispatch-payment-analysis", {
           body: { payment_id: paymentId },
         });
       } else {
         toast.warning(
-          `Nenhum item pôde ser distribuído. ${unresolved} item(ns) sem vínculo médico→PJ entre os participantes. Cadastre os vínculos em Médicos ou vincule manualmente.`,
+          `Nenhum item pôde ser promovido. ${unresolved} item(ns) sem vínculo médico→PJ entre os participantes (lote comum). Cadastre os vínculos em Médicos ou vincule manualmente.`,
         );
       }
+
 
       await load();
       onChanged?.();
@@ -446,9 +447,10 @@ export function UnmatchedItemsPanel({
                   variant="secondary"
                   onClick={() => distributeByDoctor(g)}
                   disabled={busy}
-                  title="Lote de pool: distribui entre as PJs cadastradas no pool. Lote comum: usa o vínculo médico→PJ."
+                  title="Lote de pool: itens viram coletivos do pool (sem dono). Lote comum: usa vínculo médico→PJ."
                 >
-                  <Users className="h-3.5 w-3.5 mr-1" /> Distribuir entre PJs do pool
+                  <Users className="h-3.5 w-3.5 mr-1" /> Promover ao pool / Distribuir
+
 
                 </Button>
                 <Button

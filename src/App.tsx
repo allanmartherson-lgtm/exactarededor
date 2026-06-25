@@ -34,6 +34,7 @@ const loadPayments = () => import("./pages/Payments.tsx");
 const loadNewPayment = () => import("./pages/NewPayment.tsx");
 const loadPaymentDetail = () => import("./pages/PaymentDetail.tsx");
 const loadCompanyAnalysis = () => import("./pages/CompanyAnalysis.tsx");
+const loadPoolAnalysis = () => import("./pages/PoolAnalysis.tsx");
 const loadGlosas = () => import("./pages/Glosas.tsx");
 const loadRules = () => import("./pages/Rules.tsx");
 const loadValidationRules = () => import("./pages/ValidationRules.tsx");
@@ -123,6 +124,7 @@ const Payments = lazy(loadPayments);
 const NewPayment = lazy(loadNewPayment);
 const PaymentDetail = lazy(loadPaymentDetail);
 const CompanyAnalysis = lazy(loadCompanyAnalysis);
+const PoolAnalysis = lazy(loadPoolAnalysis);
 const Glosas = lazy(loadGlosas);
 const Rules = lazy(loadRules);
 const ValidationRules = lazy(loadValidationRules);
@@ -305,6 +307,7 @@ const App = () => (
                   <Route path="/pagamentos/novo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewPayment /></ProtectedRoute>} />
                   <Route path="/pagamentos/:id" element={<PaymentDetail />} />
                   <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
+                  <Route path="/pagamentos/:id/pool" element={<PoolAnalysis />} />
                   <Route path="/notas-fiscais" element={<NotasFiscaisHub />} />
                   <Route path="/kpis" element={<Kpis />} />
                   <Route path="/relatorios/intervencoes" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><InterventionReports /></ProtectedRoute>} />
