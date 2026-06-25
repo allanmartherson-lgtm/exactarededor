@@ -194,6 +194,22 @@ export function useFinancialComposition(
 
   useEffect(() => { load(); }, [load]);
 
+  // Recarrega quando outro componente sinaliza que os financials deste
+  // pagamento foram invalidados (ex.: pool recalculado). Garante que cards,
+  // tabela e demais consumidores fiquem em sincronia sem refresh manual.
+  useEffect(() => {
+    if (!paymentId) return;
+    const onInvalidated = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { payment_id?: string } | undefined;
+      if (!detail?.payment_id || detail.payment_id === paymentId) {
+        void load();
+      }
+    };
+    window.addEventListener("financials:invalidated", onInvalidated);
+    return () => window.removeEventListener("financials:invalidated", onInvalidated);
+  }, [paymentId, load]);
+
   return { ...state, loading, refresh: load };
 }
+
 

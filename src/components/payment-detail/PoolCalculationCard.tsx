@@ -73,6 +73,16 @@ export function PoolCalculationCard({ paymentId, onRecalculated }: { paymentId: 
           : "Nenhuma empresa deste pagamento participa de pool ativo vigente.",
       });
       await load();
+      // Notifica todos os consumidores de financials (cards, totais, etc.)
+      // para recarregarem os snapshots recém-recalculados — evita janela de
+      // inconsistência entre tabela e cards.
+      try {
+        window.dispatchEvent(
+          new CustomEvent("financials:invalidated", {
+            detail: { payment_id: paymentId, reason: "pool_recalc" },
+          }),
+        );
+      } catch {}
       try { await onRecalculated?.(); } catch {}
     } catch (e: any) {
       toast({ title: "Erro ao recalcular pool", description: e?.message, variant: "destructive" });
