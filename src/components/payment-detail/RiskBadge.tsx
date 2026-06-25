@@ -105,7 +105,7 @@ export function RiskBadge({
                 <p className="mt-1.5 opacity-90">
                   • <strong>% Valor:</strong> impacto financeiro real vs. faturamento PJ.<br/>
                   • <strong>Bônus Volume:</strong> peso adicional por volume total (máx +15).<br/>
-                  • <strong>Critério:</strong> itens com exceção autorizada são ignorados.
+                  • <strong>Critério:</strong> itens com exceção autorizada ou valor do hospital aceito (override) são ignorados.
                 </p>
               </div>
               <p className="font-medium text-foreground">
