@@ -99,6 +99,28 @@ export function SpecialtyResolutionModal({
     });
   };
 
+  const applyToWholeLot = (specialty: string) => {
+    if (!specialty) return;
+    setOverrides((prev) => {
+      const next = { ...prev };
+      for (const r of rows) next[r.rowKey] = specialty;
+      return next;
+    });
+  };
+
+  // Zeev: detecta se todos os médicos têm uma única especialidade cadastrada e ela é a mesma → sugere lote.
+  const zeevLotSuggestion = useMemo(() => {
+    if (!suggestionsByDoctor) return null;
+    const docs = Array.from(new Set(rows.map((r) => (r.doctor_name ?? "").trim().toLowerCase()).filter(Boolean)));
+    if (docs.length === 0) return null;
+    const specs = docs.map((d) => suggestionsByDoctor[d] ?? []);
+    if (specs.some((s) => s.length !== 1)) return null;
+    const unique = Array.from(new Set(specs.map((s) => s[0])));
+    if (unique.length === 1) return unique[0];
+    return null;
+  }, [rows, suggestionsByDoctor]);
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
