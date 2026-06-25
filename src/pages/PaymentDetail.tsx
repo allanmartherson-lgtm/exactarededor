@@ -1566,8 +1566,8 @@ const PaymentDetail = () => {
           : "analista";
 
       await recordObservation({
-        payment_id: id, author_type: "analista", author_id: user.id,
-        message: `Base reimportada pelo analista (${allRows.length} itens, total ${total.toFixed(2)}). Arquivos: ${fileNames.join(", ")}.`,
+        payment_id: id, author_type: uploadAuthorType, author_id: user.id,
+        message: `Base de pagamento importada (${allRows.length} itens, total ${total.toFixed(2)}). Arquivos: ${fileNames.join(", ")}.`,
         status_from: previousStatus, status_to: "em_analise_ia",
       });
 
