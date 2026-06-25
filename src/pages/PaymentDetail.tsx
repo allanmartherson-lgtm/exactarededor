@@ -306,8 +306,11 @@ const PaymentDetail = () => {
   // agrupa por company_name e mostra "Sem empresa · R$ 0,00" — confunde.
   useEffect(() => {
     const pid = (payment as any)?.pool_id as string | null | undefined;
-    if (pid && id) navigate(`/pagamentos/${id}/pool`, { replace: true });
-  }, [(payment as any)?.pool_id, id, navigate]);
+    const mode = (payment as any)?.analysis_mode as string | null | undefined;
+    // Em confecção, a tela do lote (PaymentDetail) é válida para pool — não redirecionar.
+    if (pid && id && mode !== "confeccao") navigate(`/pagamentos/${id}/pool`, { replace: true });
+  }, [(payment as any)?.pool_id, (payment as any)?.analysis_mode, id, navigate]);
+
   // Diálogo de "Fazer questionamento" — escopo lote ou empresa específica.
   const [askQuestion, setAskQuestion] = useState<
     null | { groupId?: string | null; companyName?: string | null }
