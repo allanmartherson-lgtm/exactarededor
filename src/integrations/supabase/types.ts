@@ -11046,6 +11046,13 @@ export type Database = {
         }
         Returns: number
       }
+      list_decision_makers: {
+        Args: { p_role: Database["public"]["Enums"]["app_role"] }
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
       list_payments: {
         Args: {
           _filters?: Json
