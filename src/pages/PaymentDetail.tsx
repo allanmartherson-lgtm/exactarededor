@@ -97,7 +97,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, ChevronRight, Download, FileDown, GitCompare, History, Mail, MailCheck, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, ChevronRight, Download, FileDown, GitCompare, History, Layers, Mail, MailCheck, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx-js-style";
 import { confirmDialog } from "@/lib/confirm";
@@ -2527,6 +2527,21 @@ const PaymentDetail = () => {
                 {reprocessingAi ? "Recalculando..." : "Recalcular repasse"}
               </Button>
             )}
+            {(payment as any)?.pool_id && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:inline-flex"
+                title="Abrir tela de rateio do pool (cálculo por PJ)"
+                asChild
+              >
+                <Link to={`/pagamentos/${id}/pool`}>
+                  <Layers className="h-4 w-4 mr-1.5 text-violet-600" />
+                  Ver rateio do pool
+                </Link>
+              </Button>
+            )}
+
             {!isConfeccao && (payment.status === "em_analise_ia" || payment.status === "revisao_analista" || payment.status === "devolvido_analista") && (isAnalista || isDiretor) && (
               <AlertDialog open={reprocessConfirmOpen} onOpenChange={setReprocessConfirmOpen}>
                 <AlertDialogTrigger asChild>
