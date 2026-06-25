@@ -1640,12 +1640,12 @@ const PaymentDetail = () => {
   // no lote em tratativa. NÃO toca em itens/grupos já existentes. Empresas
   // que já têm grupo no lote são puladas (analista deve usar "Reimportar
   // base" para refazer essas). Mesmas regras de gating do Reimportar.
-  const doAddCompany = async (files: File[]) => {
+  const doAddCompany = async (files: File[], overrides: Record<string, Record<string, string>> = {}) => {
     if (!id || !payment || !user) return;
     setAddingCompany(true);
     try {
       const { parsePaymentFile, inspectFileHeaders } = await import("@/lib/parsePaymentFile");
-      const { computeHeaderSignature, summarizeMissing, inspectColumnMapping, FIELD_BY_KEY } = await import("@/lib/columnMapping");
+      const { computeHeaderSignature, summarizeMissing, inspectColumnMapping } = await import("@/lib/columnMapping");
       const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
       const companiesData = await fetchAllPaginated<any>((from, to) =>
         supabase.from("companies").select("id,name,aliases").range(from, to),
@@ -1663,7 +1663,7 @@ const PaymentDetail = () => {
       const fileNames: string[] = [];
 
       for (const file of files) {
-        const { headers } = await inspectFileHeaders(file);
+        const { headers, sampleRow } = await inspectFileHeaders(file);
         const sig = await computeHeaderSignature(headers);
         const hospitalId = (payment as any).hospital_id ?? null;
         const tplQuery = supabase
@@ -1675,7 +1675,8 @@ const PaymentDetail = () => {
           ? await tplQuery.or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
           : await tplQuery.is("hospital_id", null);
         const tpl = (tplRows ?? [])[0] as { id: string; mapping: any; name: string } | undefined;
-        const manualMapping = tpl?.mapping;
+        const overrideForFile = overrides[file.name];
+        const manualMapping = overrideForFile ?? tpl?.mapping;
         const hits = inspectColumnMapping(headers).map((h) => {
           const override = manualMapping?.[h.field];
           if (override && headers.includes(override)) return { ...h, header: override, score: 100, confidence: "high" as const };
@@ -1683,11 +1684,19 @@ const PaymentDetail = () => {
         });
         const { missingRequired } = summarizeMissing(hits);
         if (missingRequired.length > 0) {
-          toast({
-            title: `Colunas obrigatórias ausentes em ${file.name}`,
-            description: `Faltam: ${missingRequired.map((m) => FIELD_BY_KEY[m.field].label).join(", ")}.`,
-            variant: "destructive",
+          const initial: Record<string, string> = {};
+          hits.forEach((h) => { if (h.header) initial[h.field] = h.header; });
+          setColumnMappingDialog({
+            open: true,
+            source: "addCompany",
+            file,
+            pendingFiles: files,
+            headers,
+            sampleRow,
+            initialMapping: { ...initial, ...(manualMapping ?? {}) },
+            overrides,
           });
+          setAddingCompany(false);
           return;
         }
         const bucket = await parsePaymentFile(file, companies, payment.payment_kind, { manualMapping });
