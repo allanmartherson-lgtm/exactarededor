@@ -3205,6 +3205,34 @@ const PaymentDetail = () => {
           </AlertDialog>
         )}
 
+        {columnMappingDialog && (
+          <ColumnMappingDialog
+            open={columnMappingDialog.open}
+            onOpenChange={(open) => {
+              if (!open) setColumnMappingDialog(null);
+            }}
+            fileName={columnMappingDialog.file.name}
+            headers={columnMappingDialog.headers}
+            initialMapping={columnMappingDialog.initialMapping as any}
+            sampleRow={columnMappingDialog.sampleRow}
+            hospitalId={(payment as any)?.hospital_id ?? null}
+            mode={(payment as any)?.analysis_mode === "confeccao" ? "confeccao" : "analise"}
+            onApply={(mapping) => {
+              const dlg = columnMappingDialog;
+              if (!dlg) return;
+              const nextOverrides = { ...dlg.overrides, [dlg.file.name]: mapping as Record<string, string> };
+              setColumnMappingDialog(null);
+              if (dlg.source === "reimport") {
+                void doReimport(dlg.pendingFiles, nextOverrides);
+              } else {
+                void doAddCompany(dlg.pendingFiles, nextOverrides);
+              }
+            }}
+          />
+        )}
+
+
+
 
 
         {canCancel && (
