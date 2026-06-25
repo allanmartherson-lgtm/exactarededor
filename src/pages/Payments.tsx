@@ -195,6 +195,9 @@ type PersistedPaymentsState = Partial<{
   colSort: { col: ColSortCol; dir: "asc" | "desc" } | null;
   divergenceFilter: "all" | "with" | "without";
   questionedFilter: "all" | "with" | "without";
+  poolFilter: string;
+  importModeFilter: "all" | "normal" | "historico";
+  emptyOnly: boolean;
   archivedView: boolean;
   showConcluded: boolean;
 }>;
