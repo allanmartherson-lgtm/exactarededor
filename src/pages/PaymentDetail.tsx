@@ -1428,7 +1428,7 @@ const PaymentDetail = () => {
 
       for (const file of files) {
         // Tenta achar template salvo cuja assinatura bata com os headers desta planilha
-        const { headers } = await inspectFileHeaders(file);
+        const { headers, sampleRow } = await inspectFileHeaders(file);
         const sig = await computeHeaderSignature(headers);
         const hospitalId = (payment as any).hospital_id ?? null;
         const tplQuery = supabase
@@ -1440,10 +1440,11 @@ const PaymentDetail = () => {
           ? await tplQuery.or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
           : await tplQuery.is("hospital_id", null);
         const tpl = (tplRows ?? [])[0] as { id: string; mapping: any; name: string } | undefined;
-        const manualMapping = tpl?.mapping;
+        const overrideForFile = overrides[file.name];
+        const manualMapping = overrideForFile ?? tpl?.mapping;
 
-        // Bloqueia reimport quando faltar coluna obrigatória — fluxo principal
-        // tem o diálogo para correção manual.
+        // Verifica colunas obrigatórias — se faltar, abre o diálogo de
+        // mapeamento manual em vez de bloquear o fluxo com um toast.
         const hits = inspectColumnMapping(headers).map((h) => {
           const override = manualMapping?.[h.field];
           if (override && headers.includes(override)) return { ...h, header: override, score: 100, confidence: "high" as const };
@@ -1451,11 +1452,19 @@ const PaymentDetail = () => {
         });
         const { missingRequired } = summarizeMissing(hits);
         if (missingRequired.length > 0) {
-          toast({
-            title: `Colunas obrigatórias ausentes em ${file.name}`,
-            description: `Faltam: ${missingRequired.map((m) => FIELD_BY_KEY[m.field].label).join(", ")}. Use /pagamentos/novo para revisar o mapeamento e salvar template.`,
-            variant: "destructive",
+          const initial: Record<string, string> = {};
+          hits.forEach((h) => { if (h.header) initial[h.field] = h.header; });
+          setColumnMappingDialog({
+            open: true,
+            source: "reimport",
+            file,
+            pendingFiles: files,
+            headers,
+            sampleRow,
+            initialMapping: { ...initial, ...(manualMapping ?? {}) },
+            overrides,
           });
+          setReimporting(false);
           return;
         }
 
