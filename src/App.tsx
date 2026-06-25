@@ -34,6 +34,7 @@ const loadPayments = () => import("./pages/Payments.tsx");
 const loadNewPayment = () => import("./pages/NewPayment.tsx");
 const loadPaymentDetail = () => import("./pages/PaymentDetail.tsx");
 const loadCompanyAnalysis = () => import("./pages/CompanyAnalysis.tsx");
+const loadPoolAnalysis = () => import("./pages/PoolAnalysis.tsx");
 const loadGlosas = () => import("./pages/Glosas.tsx");
 const loadRules = () => import("./pages/Rules.tsx");
 const loadValidationRules = () => import("./pages/ValidationRules.tsx");
