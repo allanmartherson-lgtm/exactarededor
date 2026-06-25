@@ -28,6 +28,8 @@ type ItemRow = {
   id: string;
   attendance_number: string | null;
   patient_name: string | null;
+  convenio_slug: string | null;
+
   doctor_name: string | null;
   specialty: string | null;
   procedure_date: string | null;
@@ -81,7 +83,7 @@ export function ParecerCrossReferencePanel({
       let q = supabase
         .from("payment_items")
         .select(
-          "id,attendance_number,patient_name,doctor_name,specialty,procedure_date,ai_status,manual_intervention_source,manual_intervention_notes,parecer_evidence,parecer_evidence_weak,parecer_checked_at,parecer_report_row_id,reclassified_from_parecer",
+          "id,attendance_number,patient_name,convenio_slug,doctor_name,specialty,procedure_date,ai_status,manual_intervention_source,manual_intervention_notes,parecer_evidence,parecer_evidence_weak,parecer_checked_at,parecer_report_row_id,reclassified_from_parecer",
         )
         .eq("payment_id", paymentId)
         .order("created_at");
@@ -227,8 +229,8 @@ export function ParecerCrossReferencePanel({
               <TableHeader>
                 <TableRow>
                   <TableHead>Atendimento</TableHead>
-                  <TableHead>Paciente</TableHead>
                   <TableHead>Especialidade</TableHead>
+                  <TableHead>Convênio</TableHead>
                   <TableHead>Médico</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Motivo</TableHead>
@@ -238,13 +240,14 @@ export function ParecerCrossReferencePanel({
                 {reclassifiedItems.slice(0, 50).map((it) => (
                   <TableRow key={it.id}>
                     <TableCell className="font-mono text-xs">{it.attendance_number ?? "—"}</TableCell>
-                    <TableCell className="text-xs">{it.patient_name ?? "—"}</TableCell>
                     <TableCell className="text-xs">{it.specialty ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{it.convenio_slug ?? "—"}</TableCell>
                     <TableCell className="text-xs">{it.doctor_name ?? "—"}</TableCell>
                     <TableCell className="text-xs">{formatDateBR(it.procedure_date)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{it.manual_intervention_notes ?? "—"}</TableCell>
                   </TableRow>
                 ))}
+
               </TableBody>
             </Table>
             {reclassifiedItems.length > 50 && (

@@ -368,8 +368,16 @@ Deno.serve(async (req) => {
       }
     }
     console.log(
-      `[cross-reference-parecer] dedup: reclassified=${reclassifiedIds.size} (intra-lote + lookback 7d)`,
+      JSON.stringify({
+        tag: "cross-reference-parecer.dedup",
+        payment_id,
+        dedup_key: "attendance_number + specialty + convenio_slug",
+        fallback_to_patient: false,
+        reclassified_total: reclassifiedIds.size,
+        reasons_sample: [...reclassifyReason.values()].slice(0, 3),
+      }),
     );
+
 
     // Aplica em batches agrupados por patch (reduz deadlocks e overhead de triggers)
     const now = new Date().toISOString();
