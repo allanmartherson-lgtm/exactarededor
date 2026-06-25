@@ -1,82 +1,87 @@
 
-## Objetivo
+# Pool é soberano: itens sem dono + tela unificada
 
-Habilitar o **modo confecção** para lotes de Parecer com classificação automática Parecer vs Visita usando 3 sinais combinados: relatório de pareceres do Tasy (obrigatório), dedup por **paciente + especialidade + convênio**, e lookback de 7 dias entre lotes. Valor sempre vem da regra cadastrada (`valor_fixo` para Parecer / tabela convênio para Visita).
+Objetivo: transformar a regra "pool é soberano" em modelo de dados + UI, sem deixar `company_id` enganoso e sem manter a tela por-PJ no contexto errado.
 
-## Regra de classificação (determinística)
+## 1. Modelo de dados
 
-Para cada item da base Tasy, ordenado por `procedure_date` ASC dentro de `(paciente_id ou paciente_nome_normalizado, especialidade, convenio_id)`:
+- Tornar `payment_items.company_id` **opcional** quando o lote for pool. O item passa a viver no pool, não numa PJ.
+- Adicionar coluna `is_pool_item boolean` em `payment_items` (default `false`). Trigger garante:
+  - Se `payment.pool_id IS NOT NULL` → `is_pool_item = true` e `company_id` pode ser NULL.
+  - Se `payment.pool_id IS NULL` → `is_pool_item = false` e `company_id` é obrigatório (regra atual).
+- Atualizar RLS: leitura/escrita de itens de pool segue o escopo do `payment` (hospital_id), não da PJ.
+- Reverter a função `distribute_unmatched_items_by_doctor` no caminho pool: em vez de hashear médico em PJ, ela só **promove** os itens da quarentena para `payment_items` com `company_id = NULL` e `is_pool_item = true`.
 
-1. **Não consta no relatório de parecer** → `payment_type = Visita` (fim).
-2. **Consta no relatório E é a 1ª ocorrência da tripla no lote E não houve parecer da mesma tripla nos últimos 7 dias (lotes anteriores do mesmo hospital)** → `payment_type = Parecer`.
-3. **Consta no relatório mas já há parecer prévio (no lote ou nos 7d)** → `payment_type = Visita` + flag `reclassified_from_parecer = true` para o painel de auditoria.
+## 2. Cálculo financeiro (sem mudança de regra, só de leitura)
 
-A chave usa **especialidade**, não médico — equipes que se revezam continuam tratando o mesmo caso, então o 2º profissional da mesma especialidade faz Visita, não Parecer.
+- `payment_company_financials` continua tendo uma linha por PJ participante (bruto, descontos, líquido, % de participação, método). Já é o que alimenta o pool calc.
+- Views que hoje fazem `JOIN payment_items USING (company_id)` para somar bruto por PJ passam a, em lote de pool, usar a **agregação do pool** (rateio dos `payment_company_financials`), não a soma direta dos itens.
 
-Manual sempre vence (memory `parecer-visita-subtype`).
+## 3. Roteamento
 
-## Fluxo do usuário
+- Quando o usuário acessar `/pagamentos/:id/empresa/:companyId` e o pagamento tiver `pool_id`, redirecionar para `/pagamentos/:id` (pool-mode).
+- A tela `/pagamentos/:id` detecta `pool_id` e renderiza **PoolModeView** no lugar do split por-empresa.
 
-1. Novo pagamento → Parecer + modo **Confecção** → wizard mostra **dois uploads** (Base Tasy + Relatório de Parecer Tasy).
-2. Após parse, painel resumo: X atendimentos, Y linhas no relatório, Z preview-Parecer, W preview-Visita, R reclassificados pelo dedup, **E itens sem especialidade**.
-3. **Se houver itens sem especialidade** → modal bloqueante "Informar especialidade dos itens faltantes":
-   - Lista os atendimentos sem `specialty`
-   - Combobox de especialidade por linha (ou aplicar em massa para itens do mesmo médico/setor)
-   - Submit do lote só libera quando todos têm especialidade
-4. Criação do lote dispara, em ordem:
-   - INSERT payment + items (com `specialty` resolvido)
-   - INSERT `payment_parecer_reports` + rows
-   - Edge function `classify-parecer-confeccao` (nova) faz dedup+lookback e grava `payment_type_id` por item
-   - `dispatch-payment-analysis` (motor aplica regra `valor_fixo` para Parecer, tabela convênio para Visita)
-5. PaymentDetail abre em modo confecção. Painel novo "Auditoria Parecer/Visita" mostra reclassificações com motivo ("já houve parecer da mesma especialidade em DD/MM no lote X").
+## 4. Tela pool-mode (`PoolModeView`)
 
-## Mudanças técnicas
+Layout único, sem filtro/coluna de empresa.
 
-### Frontend
+```
+┌──────────────────────────────────────────────────────────┐
+│ Header do lote (igual hoje)                              │
+├──────────────────────────────────────────────────────────┤
+│ Cards por PJ (1 por participante do pool)                │
+│ ┌──────────────┐ ┌──────────────┐                        │
+│ │ 2M CARDIO    │ │ MORAIS       │   … N cards            │
+│ │ Bruto R$X    │ │ Bruto R$Y    │                        │
+│ │ Descontos R$ │ │ Descontos R$ │                        │
+│ │ Líquido R$   │ │ Líquido R$   │                        │
+│ │ Participação │ │ Participação │                        │
+│ │ Método: …    │ │ Método: …    │                        │
+│ └──────────────┘ └──────────────┘                        │
+├──────────────────────────────────────────────────────────┤
+│ Auditoria do rateio (telemetria do pool calc)            │
+├──────────────────────────────────────────────────────────┤
+│ Itens em quarentena (igual hoje, mas botão diz           │
+│   "Promover ao pool" em vez de "Distribuir entre PJs")   │
+├──────────────────────────────────────────────────────────┤
+│ Lista única de atendimentos (sem coluna Empresa)         │
+│ Filtros: status, convênio, médico, tipo, parecer         │
+└──────────────────────────────────────────────────────────┘
+```
 
-- **`src/lib/parseParecerReport.ts`** (novo) — extrai `parseParecerWorkbook` de `ParecerReportCard.tsx` (reuso, sem mudança de comportamento).
-- **`src/components/payment-wizard/ParecerReportUploadArea.tsx`** (novo) — mini-card upload + mapping, emite `onParsed({ rows, period_start, period_end, hash, filename })`.
-- **`src/components/payment-wizard/SpecialtyResolutionModal.tsx`** (novo) — modal bloqueante para itens sem `specialty`, com combobox por linha + ação "aplicar a todos do mesmo médico/setor".
-- **`src/pages/NewPayment.tsx`**:
-  - Quando `analysisMode==='confeccao'` E `payment_type.code` começa com `parecer` → renderiza `ParecerReportUploadArea`.
-  - Pré-classificação client-side (mesma chave `paciente+especialidade+convenio`) para mostrar contadores no painel resumo.
-  - Detecta itens sem especialidade → abre `SpecialtyResolutionModal` antes do submit.
-  - Após INSERT payment+items+report → invoke `classify-parecer-confeccao` (aguarda 202) → invoke `dispatch-payment-analysis`.
-- **`src/components/payment-detail/ParecerVisitaAuditPanel.tsx`** (novo) — lista itens com `reclassified_from_parecer=true` mostrando motivo (lote/data do parecer prévio).
+- Cruzamentos (NF, parecer, glosa) ficam no escopo do pool inteiro.
+- Reconciliação Exacta: agrupa itens do pool e bate contra a base hospitalar sem desmembrar por PJ.
+- Aprovação/finalização: uma decisão por pool (não uma por PJ).
 
-### Backend
+## 5. Telas adjacentes
 
-- **Edge function `classify-parecer-confeccao`** (nova) — recebe `{ payment_id }`:
-  1. Carrega `payment_items` do lote + `payment_parecer_report_rows`.
-  2. Para cada item, marca candidato a Parecer se bate no relatório (chave atendimento+médico+data, igual `cross-reference-parecer`).
-  3. Dedup intra-lote: agrupa por `(patient_key, specialty, convenio_id)` ordenado por data ASC, 1º vira Parecer, demais Visita.
-  4. Lookback 7d: para cada candidato a Parecer remanescente, busca em `payment_items` (mesmo hospital, `procedure_date` últimos 7d antes do item, `payment_type=Parecer`, mesma tripla). Se existe → vira Visita.
-  5. UPDATE `payment_items.payment_type_id` + `parecer_evidence` (jsonb com `{source, prior_payment_id?, prior_date?, reason}`) + `reclassified_from_parecer` flag.
-  6. NÃO recalcula (motor roda depois via `dispatch-payment-analysis`).
-- **Migration**:
-  - `ALTER TABLE payment_items ADD COLUMN reclassified_from_parecer boolean DEFAULT false`
-  - Index parcial: `CREATE INDEX ix_payment_items_parecer_lookback ON payment_items(hospital_id, specialty, convenio_id, procedure_date) WHERE payment_type_id IN (SELECT id FROM payment_types WHERE code LIKE 'parecer%')` (acelera lookback 7d).
-  - Sem mudança nas regras de cálculo — motor já trata `valor_fixo`.
+- BI / DRE / Pagamentos hub: linha do pagamento mostra "Pool: <nome>" com chips das PJs em vez de uma única PJ.
+- Notificações ao diretor: usam o pool inteiro (já é a lógica). Sem mudança.
 
-### Motor
+## 6. Migração de dados existentes
 
-Sem mudança. Quando o item está com `payment_type_id=Parecer` e existe regra `valor_fixo` cadastrada (convênio+função+payment_type=Parecer), motor aplica os R$ 400. Quando `payment_type_id=Visita`, aplica tabela convênio normal.
+- Backfill: para todos os `payment_items` cujo `payment.pool_id IS NOT NULL` e `company_id` corresponde a participante do pool → setar `is_pool_item = true`. Mantém `company_id` por enquanto (não força NULL retroativo) para não quebrar histórico, mas a UI lê pelo `is_pool_item` e ignora o `company_id`.
+- Itens que acabei de distribuir round-robin agora (lote 07d999fc) ficam marcados como pool e a UI une tudo de novo.
 
-Itens sem regra Parecer ou Visita cadastrada → `sem_regra` → bloqueia finalize (comportamento atual mantido).
+## 7. Memória
 
-## Bloqueios e validações
+Atualizar `mem://features/pool-soberano.md` com o modelo final (itens sem dono, tela única, cards por PJ).
 
-- Relatório de parecer **obrigatório** no modo confecção parecer — wizard trava submit se ausente.
-- Especialidade **obrigatória** em todo item de lote parecer-confecção — modal força preenchimento antes do INSERT.
-- `finalize_confeccao` continua bloqueando itens sem regra (memory `confeccao-vs-analise-status`).
+## Detalhes técnicos
 
-## Fora de escopo
-
-- Modo análise parecer (já funciona via `cross-reference-parecer`).
-- Mudança no parser do relatório.
-- Auto-aprendizado de especialidade a partir de TUSS+médico (futuro, requer base histórica grande).
-- Lookback configurável por hospital (fixa 7d nesta entrega).
-
-## Memory a atualizar após implementação
-
-- Adicionar em `mem://features/parecer-visita-subtype`: "Confecção: classificação por paciente+especialidade+convênio com lookback 7d; especialidade obrigatória; relatório de parecer obrigatório; reclassificações vão para painel de auditoria."
+- Migration:
+  - `ALTER TABLE payment_items ADD COLUMN is_pool_item boolean NOT NULL DEFAULT false;`
+  - `ALTER TABLE payment_items ALTER COLUMN company_id DROP NOT NULL;` (se hoje é NOT NULL)
+  - Trigger `enforce_pool_item_consistency` BEFORE INSERT/UPDATE.
+  - Backfill conforme item 6.
+  - Reescrever `distribute_unmatched_items_by_doctor` no ramo pool.
+- Front:
+  - Novo componente `src/pages/PaymentDetailPool.tsx` (ou branch dentro do `PaymentDetail` atual).
+  - `PaymentCompanyCards.tsx` lê `payment_company_financials` por `payment_id`.
+  - Lista de itens reusa o grid atual com prop `hideCompanyColumn`.
+  - Guard de rota: `/empresa/:id` faz `<Navigate to={`/pagamentos/${id}`} />` quando `pool_id`.
+- Testes:
+  - Trigger: insert com pool sem company_id passa; insert sem pool sem company_id falha.
+  - Função distribute: pool → todos itens com company_id NULL + is_pool_item true.
+  - Rota: acesso a `/empresa/:id` em pool redireciona.
