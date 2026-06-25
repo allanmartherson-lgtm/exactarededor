@@ -661,6 +661,11 @@ serve(async (req) => {
       company_name: it.company_name,
       company_id: it.company_id,
       company_document: it.company_id ? (companyDocs[it.company_id] ?? null) : null,
+      // Pool soberano: item coletivo (is_pool_item=true) recebe a lista de PJs
+      // do pool para que regras de grupo/empresa consigam casar.
+      pool_company_ids: it.is_pool_item === true && poolCompanyIds.length > 0
+        ? poolCompanyIds
+        : null,
       procedure_code: it.procedure_code,
       procedure_name: it.procedure_name,
       description: it.description,
