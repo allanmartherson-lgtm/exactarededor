@@ -173,8 +173,8 @@ export function RegisterExternalApprovalDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-2 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <MailCheck className="h-5 w-5 text-primary" /> {cfg.title}
           </DialogTitle>
@@ -185,7 +185,8 @@ export function RegisterExternalApprovalDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 text-sm">
+        <div className="space-y-4 text-sm overflow-y-auto px-6 flex-1 min-h-0">
+
           {eligible.length === 0 ? (
             <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning-soft/40 p-3 text-warning-text">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -286,7 +287,7 @@ export function RegisterExternalApprovalDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="p-6 pt-3 border-t shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancelar
           </Button>
