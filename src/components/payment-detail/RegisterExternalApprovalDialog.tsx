@@ -267,18 +267,25 @@ export function RegisterExternalApprovalDialog({
               </div>
 
               <div>
-                <Label className="text-xs">Anexo de prova (opcional)</Label>
+                <Label className="text-xs">
+                  Anexo de prova <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg,.eml,.msg"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  required
                 />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Obrigatório: anexe o e-mail, print do WhatsApp ou documento que comprova a decisão.
+                </p>
                 {file && (
                   <p className="text-[11px] text-muted-foreground mt-1">
                     {file.name} ({(file.size / 1024).toFixed(0)} KB)
                   </p>
                 )}
               </div>
+
 
               <div>
                 <Label className="text-xs">Observação (opcional)</Label>
