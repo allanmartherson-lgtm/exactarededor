@@ -67,6 +67,8 @@ import { confirmDialog } from "@/lib/confirm";
 import { detectSuspiciousRows } from "@/lib/detectSuspiciousRows";
 import { SuspiciousRowsReview, type SuspiciousDecision } from "@/components/payment-wizard/SuspiciousRowsReview";
 import { ParecerReportWizardCard, type ParecerWizardPayload } from "@/components/payment-wizard/ParecerReportWizardCard";
+import { SpecialtyResolutionModal } from "@/components/payment-wizard/SpecialtyResolutionModal";
+
 import { ZeevAssistant, type ZeevInsight } from "@/components/copilot/ZeevAssistant";
 import type { StagingContext, StagingDecision } from "@/components/copilot/ZeevStagingChat";
 
@@ -608,7 +610,12 @@ const NewPayment = () => {
   const [parecerPayload, setParecerPayload] = useState<ParecerWizardPayload | null>(null);
   const isParecerType = !!paymentTypeMeta?.code?.startsWith("parecer");
   const requiresParecerReport = modoConfeccao && isParecerType;
+  // Especialidade é obrigatória em todo item de confecção parecer.
+  // Quando a base Tasy não traz, o modal abaixo coleta antes do submit.
+  const [specialtyOverrides, setSpecialtyOverrides] = useState<Record<string, string>>({});
+  const [specialtyModalOpen, setSpecialtyModalOpen] = useState(false);
   const isHistoricoImport = importMode === "historico";
+
   const HISTORICO_WINDOW = { start: "2026-01", end: "2026-04" };
   const competenceOutOfWindow = isHistoricoImport
     ? competenceMonths.some((m) => m < HISTORICO_WINDOW.start || m > HISTORICO_WINDOW.end)
@@ -1989,6 +1996,24 @@ const NewPayment = () => {
     0,
   );
 
+  // === Confecção parecer: rowKey estável + cálculo de pendentes ===
+  // rowKey == `${source_bucket_index}|${source_row_index}` é único por allRows
+  // e sobrevive a re-renders enquanto buckets não mudarem.
+  const getRowKey = (r: any) => `${r.source_bucket_index ?? 0}|${r.source_row_index ?? 0}`;
+  const pendingSpecialtyRows = useMemo(() => {
+    if (!requiresParecerReport) return [];
+    return allRows
+      .filter((r) => !r.specialty && !specialtyOverrides[getRowKey(r)])
+      .map((r) => ({
+        rowKey: getRowKey(r),
+        attendance_number: r.attendance_number ?? null,
+        doctor_name: r.doctor_name ?? null,
+        patient_name: r.patient_name ?? null,
+        procedure_date: r.procedure_date ?? null,
+      }));
+  }, [allRows, requiresParecerReport, specialtyOverrides]);
+
+
   // ===== Lookup estrito de cadastros (médicos / convênios / setores) =====
   const [doctorReg, setDoctorReg] = useState<DoctorRegistry | null>(null);
   const [convenioReg, setConvenioReg] = useState<ConvenioRegistry | null>(null);
@@ -2204,6 +2229,16 @@ const NewPayment = () => {
       });
       return;
     }
+    if (requiresParecerReport && pendingSpecialtyRows.length > 0) {
+      toast({
+        title: `Especialidade obrigatória em ${pendingSpecialtyRows.length} item(ns)`,
+        description: "Em confecção de Parecer a especialidade decide Parecer vs Visita. Preencha antes de criar o lote.",
+        variant: "destructive",
+      });
+      setSpecialtyModalOpen(true);
+      return;
+    }
+
     if (competenceMonths.length === 0) {
       toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
     }
@@ -2444,11 +2479,14 @@ const NewPayment = () => {
     }
     const resolveSpecialty = (r: ParsedRow): string | null => {
       if (r.specialty) return r.specialty;
+      const ov = specialtyOverrides[getRowKey(r as any)];
+      if (ov) return ov;
       const crm = onlyDigits(r.doctor_document);
       if (crm && doctorSpecByCRM[crm]) return doctorSpecByCRM[crm];
       if (r.doctor_name && doctorSpecByName[r.doctor_name]) return doctorSpecByName[r.doctor_name];
       return null;
     };
+
 
     // Normaliza o setor lido (ou herdado do bucket) para o slug canônico via
     // tabela `sectors` + aliases. Garante que "Hemodinâmica (DFStar)" e variações
@@ -4165,11 +4203,32 @@ const NewPayment = () => {
           />
         )}
 
+        {requiresParecerReport && pendingSpecialtyRows.length > 0 && (
+          <div className="rounded-md border border-warning/40 bg-warning/5 p-3 flex items-center justify-between gap-2">
+            <div className="text-sm">
+              <strong>{pendingSpecialtyRows.length}</strong> item(ns) sem especialidade. Em confecção parecer,
+              a especialidade é obrigatória para o motor decidir Parecer vs Visita.
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setSpecialtyModalOpen(true)}>
+              Informar especialidades
+            </Button>
+          </div>
+        )}
+
+        <SpecialtyResolutionModal
+          open={specialtyModalOpen}
+          onOpenChange={setSpecialtyModalOpen}
+          rows={pendingSpecialtyRows}
+          initialOverrides={specialtyOverrides}
+          onConfirm={(ov) => setSpecialtyOverrides((prev) => ({ ...prev, ...ov }))}
+        />
+
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || (requiresParecerReport && !parecerPayload)}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || (requiresParecerReport && (!parecerPayload || pendingSpecialtyRows.length > 0))}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             {pendingSuspiciousCount > 0
+
               ? `Revise ${pendingSuspiciousCount} linha${pendingSuspiciousCount === 1 ? "" : "s"} suspeita${pendingSuspiciousCount === 1 ? "" : "s"}`
               : hasUnresolved
                 ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar`

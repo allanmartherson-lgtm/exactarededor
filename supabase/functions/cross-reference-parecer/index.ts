@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
       const { data: page, error } = await supabase
         .from("payment_items")
         .select(
-          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, manual_intervention_reason_id, manual_intervention_source, payment_type_id, payment_type_source",
+          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, manual_intervention_reason_id, manual_intervention_source, payment_type_id, payment_type_source, patient_name, specialty, convenio_slug, hospital_id",
         )
         .eq("payment_id", payment_id)
         .range(from, from + pageSize - 1);
@@ -193,6 +193,7 @@ Deno.serve(async (req) => {
       items.push(...(page ?? []));
       if (!page || page.length < pageSize) break;
     }
+
 
     // Carrega CRMs dos médicos referenciados
     const doctorIds = Array.from(
@@ -280,15 +281,104 @@ Deno.serve(async (req) => {
       }
     }
 
+    // === Dedup paciente+especialidade+convenio (modo confecção parecer) ===
+    // Quando o convênio não paga 2 pareceres seguidos da mesma especialidade
+    // para o mesmo paciente, o 1º atendimento vira Parecer e os demais Visita.
+    // A chave usa ESPECIALIDADE (não médico) porque equipes se revezam.
+    const updateById = new Map(updates.map((u) => [u.id, u]));
+    const reclassifiedIds = new Set<string>();
+    const reclassifyReason = new Map<string, string>();
+
+    // 1) Dedup intra-lote
+    const buckets = new Map<string, Array<{ id: string; date: string | null }>>();
+    for (const it of items) {
+      const u = updateById.get(it.id);
+      if (!u || u.evidence !== "confirmed") continue;
+      const pat = norm(it.patient_name);
+      const spec = norm(it.specialty);
+      const conv = norm(it.convenio_slug);
+      if (!pat || !spec) continue; // sem chave forte, mantém como Parecer
+      const key = `${pat}|${spec}|${conv}`;
+      const list = buckets.get(key) ?? [];
+      list.push({ id: it.id, date: it.procedure_date });
+      buckets.set(key, list);
+    }
+    for (const list of buckets.values()) {
+      if (list.length < 2) continue;
+      list.sort((a, b) => {
+        const da = a.date ? Date.parse(a.date) : 0;
+        const db = b.date ? Date.parse(b.date) : 0;
+        return da - db;
+      });
+      // 1º permanece Parecer; demais reclassificados
+      for (let i = 1; i < list.length; i++) {
+        reclassifiedIds.add(list[i].id);
+        const firstDate = list[0].date ? new Date(list[0].date).toISOString().slice(0, 10) : "?";
+        reclassifyReason.set(
+          list[i].id,
+          `Parecer prévio no mesmo lote em ${firstDate} (mesmo paciente+especialidade+convênio)`,
+        );
+      }
+    }
+
+    // 2) Lookback 7d entre lotes — para os que ainda são Parecer confirmado
+    const candidatesLookback = items.filter((it) => {
+      const u = updateById.get(it.id);
+      return (
+        u && u.evidence === "confirmed" &&
+        !reclassifiedIds.has(it.id) &&
+        it.specialty && it.patient_name && it.procedure_date && it.hospital_id
+      );
+    });
+    for (const it of candidatesLookback) {
+      const dt = new Date(it.procedure_date);
+      const from = new Date(dt.getTime() - 7 * 24 * 3600 * 1000).toISOString();
+      const to = dt.toISOString();
+      const { data: prior } = await supabase
+        .from("payment_items")
+        .select("id, payment_id, procedure_date")
+        .eq("hospital_id", it.hospital_id)
+        .eq("specialty", it.specialty)
+        .eq("patient_name", it.patient_name)
+        .eq("parecer_evidence", "confirmed")
+        .eq("reclassified_from_parecer", false)
+        .neq("payment_id", payment_id)
+        .gte("procedure_date", from)
+        .lt("procedure_date", to)
+        .limit(1);
+      if (prior && prior.length > 0) {
+        reclassifiedIds.add(it.id);
+        const d = prior[0].procedure_date ? new Date(prior[0].procedure_date).toISOString().slice(0, 10) : "?";
+        reclassifyReason.set(
+          it.id,
+          `Parecer prévio em outro lote em ${d} (lookback 7 dias, mesmo paciente+especialidade)`,
+        );
+      }
+    }
+
+    // Aplica reclassificação: troca evidence para "reclassified" para o
+    // bloco de patch abaixo mandar para Visita.
+    for (const u of updates) {
+      if (reclassifiedIds.has(u.id) && u.evidence === "confirmed") {
+        (u as any).evidence = "reclassified";
+        (u as any).apply_auto_reason = false;
+      }
+    }
+    console.log(
+      `[cross-reference-parecer] dedup: reclassified=${reclassifiedIds.size} (intra-lote + lookback 7d)`,
+    );
+
     // Aplica em batches agrupados por patch (reduz deadlocks e overhead de triggers)
     const now = new Date().toISOString();
     let confirmed = 0;
     let notFound = 0;
+    let reclassified = 0;
     let autoApplied = 0;
     const PROTECTED_SOURCES = new Set(["manual", "company_override"]);
     const itemById = new Map(items.map((i: any) => [i.id, i]));
     let subtypeParecer = 0;
     let subtypeVisita = 0;
+
 
     console.log(
       `[cross-reference-parecer] reclass_ready loteType=${lotePaymentTypeId} visitaType=${visitaPaymentTypeId} updates=${updates.length}`,
@@ -299,17 +389,27 @@ Deno.serve(async (req) => {
     type Group = { patch: Record<string, any>; ids: string[]; evidence: string };
     const groups = new Map<string, Group>();
     for (const u of updates) {
+      const evidenceForDb = u.evidence === "reclassified" ? "confirmed" : u.evidence;
+      const isReclassified = u.evidence === "reclassified";
       const patch: Record<string, any> = {
-        parecer_evidence: u.evidence,
+        parecer_evidence: evidenceForDb,
         parecer_report_row_id: u.row_id,
         parecer_evidence_weak: u.weak,
         parecer_checked_at: now,
+        reclassified_from_parecer: isReclassified,
       };
       const current = itemById.get(u.id) as any;
       const currentSource = current?.payment_type_source ?? null;
       const protectedType = PROTECTED_SOURCES.has(currentSource);
       if (!protectedType && lotePaymentTypeId && visitaPaymentTypeId) {
-        if (u.evidence === "confirmed") {
+        if (isReclassified) {
+          // Era candidato a Parecer mas dedup/lookback rebaixou para Visita
+          patch.payment_type_id = visitaPaymentTypeId;
+          patch.payment_type_source = "report_cross_dedup";
+          patch.manual_intervention_notes =
+            reclassifyReason.get(u.id) ?? "Reclassificado por dedup parecer/visita.";
+          subtypeVisita++;
+        } else if (u.evidence === "confirmed") {
           patch.payment_type_id = lotePaymentTypeId;
           patch.payment_type_source = "report_cross";
           subtypeParecer++;
@@ -319,7 +419,7 @@ Deno.serve(async (req) => {
           subtypeVisita++;
         }
       }
-      if (u.apply_auto_reason) {
+      if (u.apply_auto_reason && !isReclassified) {
         patch.manual_intervention_reason_id = autoReasonId;
         patch.manual_intervention_source = "auto_parecer_report";
         patch.manual_intervention_notes =
@@ -330,7 +430,6 @@ Deno.serve(async (req) => {
         patch.ai_status = "aprovado";
         autoApplied++;
       }
-      // Chave: stringify do patch (ignora ordem das keys pequena variação)
       const key = JSON.stringify(patch);
       let g = groups.get(key);
       if (!g) {
@@ -341,7 +440,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[cross-reference-parecer] grouped into ${groups.size} batch(es); subtypeParecer=${subtypeParecer} subtypeVisita=${subtypeVisita}`,
+      `[cross-reference-parecer] grouped into ${groups.size} batch(es); subtypeParecer=${subtypeParecer} subtypeVisita=${subtypeVisita} reclassified=${reclassifiedIds.size}`,
     );
 
     const CHUNK = 200;
@@ -361,8 +460,10 @@ Deno.serve(async (req) => {
         }
         if (g.evidence === "confirmed") confirmed += slice.length;
         else if (g.evidence === "not_found") notFound += slice.length;
+        else if (g.evidence === "reclassified") reclassified += slice.length;
       }
     }
+
 
 
     // Sempre dispara reanálise após cruzamento bem-sucedido — mesmo com 0
@@ -394,12 +495,14 @@ Deno.serve(async (req) => {
         has_report: hasReport,
         confirmed,
         not_found: notFound,
+        reclassified,
         auto_applied: autoApplied,
         subtype_parecer: subtypeParecer,
         subtype_visita: subtypeVisita,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+
   } catch (e: any) {
     console.error("[cross-reference-parecer]", e);
     return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {

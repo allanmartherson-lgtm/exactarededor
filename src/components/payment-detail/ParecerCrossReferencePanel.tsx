@@ -29,14 +29,18 @@ type ItemRow = {
   attendance_number: string | null;
   patient_name: string | null;
   doctor_name: string | null;
+  specialty: string | null;
   procedure_date: string | null;
   ai_status: string | null;
   manual_intervention_source: string | null;
+  manual_intervention_notes: string | null;
   parecer_evidence: string | null;
   parecer_evidence_weak: boolean | null;
   parecer_checked_at: string | null;
   parecer_report_row_id: string | null;
+  reclassified_from_parecer: boolean | null;
 };
+
 
 export function ParecerCrossReferencePanel({
   paymentId,
@@ -77,13 +81,14 @@ export function ParecerCrossReferencePanel({
       let q = supabase
         .from("payment_items")
         .select(
-          "id,attendance_number,patient_name,doctor_name,procedure_date,ai_status,manual_intervention_source,parecer_evidence,parecer_evidence_weak,parecer_checked_at,parecer_report_row_id",
+          "id,attendance_number,patient_name,doctor_name,specialty,procedure_date,ai_status,manual_intervention_source,manual_intervention_notes,parecer_evidence,parecer_evidence_weak,parecer_checked_at,parecer_report_row_id,reclassified_from_parecer",
         )
         .eq("payment_id", paymentId)
         .order("created_at");
       if (companyName) q = q.eq("company_name", companyName);
       const { data: itemData } = await q;
       setItems((itemData ?? []) as ItemRow[]);
+
     } finally {
       setLoading(false);
     }
@@ -101,8 +106,12 @@ export function ParecerCrossReferencePanel({
     const missing = items.filter((i) => i.parecer_evidence === "not_found").length;
     const weak = items.filter((i) => i.parecer_evidence === "confirmed" && i.parecer_evidence_weak).length;
     const autoTreated = items.filter((i) => i.manual_intervention_source === "auto_parecer_report").length;
-    return { total, checked, confirmed, missing, weak, autoTreated };
+    const reclassified = items.filter((i) => i.reclassified_from_parecer === true).length;
+    return { total, checked, confirmed, missing, weak, autoTreated, reclassified };
   }, [items]);
+
+  const reclassifiedItems = items.filter((i) => i.reclassified_from_parecer === true);
+
 
   const issues = items
     .filter((i) => i.parecer_evidence === "not_found" || (i.parecer_evidence === "confirmed" && i.parecer_evidence_weak))
@@ -130,14 +139,16 @@ export function ParecerCrossReferencePanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
           <Metric label="Itens" value={summary.total} />
           <Metric label="Verificados" value={summary.checked} />
           <Metric label="Cruzados" value={summary.confirmed} tone="success" />
           <Metric label="Sem parecer" value={summary.missing} tone={summary.missing ? "warning" : "muted"} />
           <Metric label="Divergentes" value={summary.weak} tone={summary.weak ? "warning" : "muted"} />
           <Metric label="Auto-tratados" value={summary.autoTreated} tone="success" />
+          <Metric label="Reclassificados" value={summary.reclassified} tone={summary.reclassified ? "warning" : "muted"} />
         </div>
+
 
         <div className="rounded-md border bg-muted/20 p-3 text-xs space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -202,7 +213,49 @@ export function ParecerCrossReferencePanel({
             </TableBody>
           </Table>
         </div>
+
+        {reclassifiedItems.length > 0 && (
+          <div className="rounded-md border border-amber-300/40 bg-amber-50/30 dark:bg-amber-950/10 overflow-hidden">
+            <div className="px-3 py-2 border-b border-amber-300/40 text-xs font-medium flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-700" />
+              Reclassificados de Parecer → Visita ({reclassifiedItems.length})
+              <span className="text-muted-foreground font-normal">
+                · convênio não paga 2 pareceres seguidos da mesma especialidade
+              </span>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Atendimento</TableHead>
+                  <TableHead>Paciente</TableHead>
+                  <TableHead>Especialidade</TableHead>
+                  <TableHead>Médico</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Motivo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reclassifiedItems.slice(0, 50).map((it) => (
+                  <TableRow key={it.id}>
+                    <TableCell className="font-mono text-xs">{it.attendance_number ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{it.patient_name ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{it.specialty ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{it.doctor_name ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{formatDateBR(it.procedure_date)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{it.manual_intervention_notes ?? "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {reclassifiedItems.length > 50 && (
+              <div className="px-3 py-2 text-xs text-muted-foreground border-t">
+                +{reclassifiedItems.length - 50} item(ns) adicionais não mostrados.
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
+
     </Card>
   );
 }
