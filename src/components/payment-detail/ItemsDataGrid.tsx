@@ -808,6 +808,9 @@ export function ItemsDataGrid({
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
   const [onlyAdjusted, setOnlyAdjusted] = useState(false);
   const [parecerFilter, setParecerFilter] = useState<"__all__" | "missing" | "weak">("__all__");
+  // Filtros disparados pelo Zeev (event bus global). Limpos via "Limpar filtros".
+  const [onlyZero, setOnlyZero] = useState(false);
+  const [onlySemRegra, setOnlySemRegra] = useState(false);
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
