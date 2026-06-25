@@ -281,9 +281,10 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
-  // Mínimo garantido (piso de produção). Atualmente: escopo medico+PJ, por competência, base bruta.
+  // Mínimo garantido (piso de produção). Escopo: medico_empresa (por par) ou empresa (por PJ).
   const [fMinGarantidoAtivo, setFMinGarantidoAtivo] = useState(false);
   const [fMinGarantidoValor, setFMinGarantidoValor] = useState<string>("");
+  const [fMinGarantidoEscopo, setFMinGarantidoEscopo] = useState<"medico_empresa" | "empresa">("medico_empresa");
   // Escopo "grupo" (inline na regra)
   const [fGroupCompanyIds, setFGroupCompanyIds] = useState<string[]>([]);
   const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
