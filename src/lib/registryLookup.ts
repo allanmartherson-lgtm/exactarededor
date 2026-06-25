@@ -19,7 +19,9 @@ export type DoctorRegistryEntry = {
   crm: string | null;
   crm_uf: string | null;
   cpf: string | null;
+  specialties: string[];
 };
+
 export type ConvenioRegistryEntry = { slug: string; name: string };
 export type SectorRegistryEntry = { slug: string; name: string };
 
