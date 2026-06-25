@@ -1483,12 +1483,13 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || trackFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all") && (
+              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || trackFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly) && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
                   setAnalystFilter("all"); setTypeFilter("all"); setTrackFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
                   setOwnerGroup("all"); setOnlyMine(false);
                   setDivergenceFilter("all"); setQuestionedFilter("all");
+                  setPoolFilter("all"); setImportModeFilter("all"); setEmptyOnly(false);
                   setSearchParams(new URLSearchParams(), { replace: true });
                 }}>
                   <X className="h-4 w-4 mr-1" /> Limpar
