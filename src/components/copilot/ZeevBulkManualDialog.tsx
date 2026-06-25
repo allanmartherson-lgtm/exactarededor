@@ -77,6 +77,14 @@ export function ZeevBulkManualDialog({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestion, setSuggestion] = useState<{
+    reason_code: string;
+    confidence: number;
+    reasoning: string;
+    suggested_note?: string;
+  } | null>(null);
+
 
   useEffect(() => {
     if (open) {
