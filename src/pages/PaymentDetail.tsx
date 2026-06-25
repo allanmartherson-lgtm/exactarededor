@@ -2862,6 +2862,20 @@ const PaymentDetail = () => {
                     )}
                   </div>
                 </div>
+                {(payment as any)?.pool_id && (
+                  <div className="mt-3 pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs text-violet-700 dark:text-violet-300">
+                      <Layers className="h-4 w-4" />
+                      <span>Este lote alimenta um <strong>pool de rateio</strong>. Veja como o líquido será distribuído entre as PJs participantes.</span>
+                    </div>
+                    <Button asChild size="sm" className="bg-violet-600 hover:bg-violet-700 text-white">
+                      <Link to={`/pagamentos/${id}/pool`}>
+                        <Layers className="h-4 w-4 mr-1.5" />
+                        Abrir rateio do pool
+                      </Link>
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
