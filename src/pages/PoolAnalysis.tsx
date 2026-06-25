@@ -188,7 +188,7 @@ export default function PoolAnalysis() {
         })}
       </div>
 
-      <PoolCalculationCard paymentId={id!} />
+      <PoolCalculationCard paymentId={id!} onRecalculated={reloadFinancials} />
 
       <UnmatchedItemsPanel paymentId={id!} onChanged={() => load()} />
 
