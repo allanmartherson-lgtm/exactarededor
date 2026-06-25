@@ -164,6 +164,11 @@ export default function PoolAnalysis() {
         {financials.map((f) => {
           const c = companies[f.company_id];
           const share = totals.liquido > 0 ? (Number(f.liquido) / totals.liquido) * 100 : 0;
+          const det = Array.isArray(f.pool_detalhes) ? f.pool_detalhes[0] : null;
+          const base = det ? Number(det.base ?? 0) : 0;
+          const bolo = det ? Number(det.bolo ?? 0) : 0;
+          const impacto = det ? Number(det.impacto ?? 0) : Number(f.pool || 0);
+          const outrosDescontos = Number(f.debitos) + Number(f.glosas) + Number(f.conciliacao) - Number(f.creditos);
           return (
             <Card key={f.company_id} className="shadow-card">
               <CardHeader className="pb-2">
@@ -173,9 +178,18 @@ export default function PoolAnalysis() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1 text-xs">
-                <Row label="Bruto" value={brl(f.bruto)} />
-                <Row label="Descontos" value={brl(Number(f.debitos) + Number(f.glosas) + Number(f.pool) + Number(f.conciliacao) - Number(f.creditos))} />
-                <Row label="Líquido" value={brl(f.liquido)} strong />
+                <Row label="Bruto (pago)" value={brl(f.bruto)} />
+                {det && (
+                  <>
+                    <Row label="Base rateio (pool)" value={brl(base)} muted />
+                    <Row label="Bolo líquido (pool)" value={brl(bolo)} muted />
+                    <Row label="(−) Impacto do pool" value={`−${brl(impacto)}`} />
+                  </>
+                )}
+                {outrosDescontos !== 0 && (
+                  <Row label="(−) Outros descontos" value={`−${brl(outrosDescontos)}`} />
+                )}
+                <Row label="Quota / Líquido" value={brl(f.liquido)} strong />
                 <Row label="Participação" value={`${share.toFixed(1)}%`} muted />
                 {f.pool_aplicado && (
                   <Badge variant="outline" className="mt-2 text-[10px]">
