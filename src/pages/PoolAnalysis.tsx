@@ -130,8 +130,8 @@ export default function PoolAnalysis() {
         description="Itens são coletivos do pool. O rateio financeiro é distribuído entre as PJs participantes."
         actions={
           <Button variant="outline" size="sm" asChild>
-            <Link to="/pagamentos">
-              <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Voltar para Pagamentos
+            <Link to={`/pagamentos/${id}`}>
+              <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Voltar ao lote
             </Link>
           </Button>
         }
