@@ -272,7 +272,7 @@ export function ZeevAssistant({
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
   const [tab, setTab] = useState<"insights" | "chat">("insights");
   const [chatInitialPrompt, setChatInitialPrompt] = useState<{ text: string; nonce: number } | null>(null);
-  const executorEnabled = !!bulkContext?.paymentId || !!stagingContext;
+  const executorEnabled = true; // chat sempre disponível; modo livre quando não há contexto
   const stagingMode = !!stagingContext && !bulkContext?.paymentId;
 
   const insights = useMemo<ZeevInsight[]>(() => {
