@@ -2527,6 +2527,21 @@ const PaymentDetail = () => {
                 {reprocessingAi ? "Recalculando..." : "Recalcular repasse"}
               </Button>
             )}
+            {(payment as any)?.pool_id && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:inline-flex"
+                title="Abrir tela de rateio do pool (cálculo por PJ)"
+                asChild
+              >
+                <Link to={`/pagamentos/${id}/pool`}>
+                  <Layers className="h-4 w-4 mr-1.5 text-violet-600" />
+                  Ver rateio do pool
+                </Link>
+              </Button>
+            )}
+
             {!isConfeccao && (payment.status === "em_analise_ia" || payment.status === "revisao_analista" || payment.status === "devolvido_analista") && (isAnalista || isDiretor) && (
               <AlertDialog open={reprocessConfirmOpen} onOpenChange={setReprocessConfirmOpen}>
                 <AlertDialogTrigger asChild>
