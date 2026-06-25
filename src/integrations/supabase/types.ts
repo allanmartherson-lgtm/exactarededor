@@ -4981,6 +4981,7 @@ export type Database = {
           hospital_id: string
           id: string
           is_cancelled: boolean
+          is_pool_item: boolean
           item_hash: string | null
           item_origem: string | null
           item_origin: string
@@ -5099,6 +5100,7 @@ export type Database = {
           hospital_id: string
           id?: string
           is_cancelled?: boolean
+          is_pool_item?: boolean
           item_hash?: string | null
           item_origem?: string | null
           item_origin?: string
@@ -5217,6 +5219,7 @@ export type Database = {
           hospital_id?: string
           id?: string
           is_cancelled?: boolean
+          is_pool_item?: boolean
           item_hash?: string | null
           item_origem?: string | null
           item_origin?: string
