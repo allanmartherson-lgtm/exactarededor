@@ -13,7 +13,7 @@
  *  - Quarentena (itens promovidos ao pool sem dono)
  *  - Lista única de atendimentos (sem coluna empresa, sem filtro por PJ)
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,38 +60,42 @@ export default function PoolAnalysis() {
     return <Navigate to={`/pagamentos/${id}`} replace />;
   }
 
-  useEffect(() => {
+  const reloadFinancials = useCallback(async () => {
     if (!id || !payment?.pool_id) return;
+    const [poolRes, finRes] = await Promise.all([
+      supabase.from("pools").select("id,nome,base_calculo").eq("id", payment.pool_id!).maybeSingle(),
+      supabase
+        .from("payment_company_financials")
+        .select("company_id,bruto,debitos,creditos,glosas,pool,conciliacao,liquido,pool_aplicado,pool_detalhes")
+        .eq("payment_id", id),
+    ]);
+    if (poolRes.data) setPool(poolRes.data as PoolInfo);
+    const fin = (finRes.data ?? []) as Financial[];
+    setFinancials(fin);
+    const ids = Array.from(new Set(fin.map((f) => f.company_id))).filter(Boolean);
+    if (ids.length) {
+      const { data: cs } = await supabase
+        .from("companies")
+        .select("id,name")
+        .in("id", ids);
+      const map: Record<string, CompanyRow> = {};
+      (cs ?? []).forEach((c: any) => {
+        map[c.id] = c;
+      });
+      setCompanies(map);
+    }
+  }, [id, payment?.pool_id]);
+
+  useEffect(() => {
     let active = true;
     (async () => {
-      const [poolRes, finRes] = await Promise.all([
-        supabase.from("pools").select("id,nome,base_calculo").eq("id", payment.pool_id!).maybeSingle(),
-        supabase
-          .from("payment_company_financials")
-          .select("company_id,bruto,debitos,creditos,glosas,pool,conciliacao,liquido,pool_aplicado,pool_detalhes")
-          .eq("payment_id", id),
-      ]);
       if (!active) return;
-      if (poolRes.data) setPool(poolRes.data as PoolInfo);
-      const fin = (finRes.data ?? []) as Financial[];
-      setFinancials(fin);
-      const ids = Array.from(new Set(fin.map((f) => f.company_id))).filter(Boolean);
-      if (ids.length) {
-        const { data: cs } = await supabase
-          .from("companies")
-          .select("id,name")
-          .in("id", ids);
-        const map: Record<string, CompanyRow> = {};
-        (cs ?? []).forEach((c: any) => {
-          map[c.id] = c;
-        });
-        setCompanies(map);
-      }
+      await reloadFinancials();
     })();
     return () => {
       active = false;
     };
-  }, [id, payment?.pool_id]);
+  }, [reloadFinancials]);
 
   // Lista única de itens — só os do pool (sem dono).
   const poolItems = useMemo(
@@ -184,7 +188,7 @@ export default function PoolAnalysis() {
         })}
       </div>
 
-      <PoolCalculationCard paymentId={id!} />
+      <PoolCalculationCard paymentId={id!} onRecalculated={reloadFinancials} />
 
       <UnmatchedItemsPanel paymentId={id!} onChanged={() => load()} />
 

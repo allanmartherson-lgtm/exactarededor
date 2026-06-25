@@ -22,7 +22,7 @@ type PoolInfo = { id: string; nome: string; base_calculo: string };
 const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export function PoolCalculationCard({ paymentId }: { paymentId: string }) {
+export function PoolCalculationCard({ paymentId, onRecalculated }: { paymentId: string; onRecalculated?: () => void | Promise<void> }) {
   const [runs, setRuns] = useState<Run[]>([]);
   const [poolMap, setPoolMap] = useState<Record<string, PoolInfo>>({});
   const [busy, setBusy] = useState(false);
@@ -65,6 +65,7 @@ export function PoolCalculationCard({ paymentId }: { paymentId: string }) {
           : "Nenhuma empresa deste pagamento participa de pool ativo vigente.",
       });
       await load();
+      try { await onRecalculated?.(); } catch {}
     } catch (e: any) {
       toast({ title: "Erro ao recalcular pool", description: e?.message, variant: "destructive" });
     } finally {
