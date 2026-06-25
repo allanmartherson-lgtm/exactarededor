@@ -167,6 +167,14 @@ const HANDOFF_FORWARD_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStat
   "aprovado_em_revisao",
 ]);
 
+const EMPTY_POOL_INITIAL_IMPORT_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+  "rascunho",
+  "revisao_analista",
+  "devolvido_analista",
+  "aguardando_validacao",
+  "aguardando_aprovacao",
+]);
+
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -1391,6 +1399,7 @@ const PaymentDetail = () => {
   // formato e o analista refez a base.
   const doReimport = async (files: File[]) => {
     if (!id || !payment || !user) return;
+    const importingInitialPaymentBase = canImportInitialPaymentBase;
     setReimporting(true);
     try {
       const { parsePaymentFile, inspectFileHeaders } = await import("@/lib/parsePaymentFile");
@@ -1582,7 +1591,7 @@ const PaymentDetail = () => {
             throw dispRes.error;
           }
         } else {
-          toast({ title: "Base reimportada", description: "Análise iniciada por empresa em background." });
+          toast({ title: importingInitialPaymentBase ? "Base importada" : "Base reimportada", description: "Análise iniciada por empresa em background." });
         }
       } catch (dispatchErr) {
         const msg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
@@ -1970,9 +1979,9 @@ const PaymentDetail = () => {
     isAdminOrDiretor: hasRole("admin") || hasRole("diretor"),
     isValidador,
   });
-  const isPoolEmptyDraft = Boolean((payment as any)?.pool_id) && payment.status === "rascunho" && !itemsLoading && items.length === 0 && Number((payment as any)?.items_count ?? 0) === 0;
+  const isPoolWithoutPaymentBase = Boolean((payment as any)?.pool_id) && !itemsLoading && items.length === 0 && Number((payment as any)?.items_count ?? 0) === 0;
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
-  const canImportInitialPaymentBase = isPoolEmptyDraft && (isAnalista || isValidador || isDiretor);
+  const canImportInitialPaymentBase = isPoolWithoutPaymentBase && EMPTY_POOL_INITIAL_IMPORT_STATUSES.has(payment.status as PaymentStatus) && (isAnalista || isValidador || isDiretor);
   const canManagePaymentBase = canReimport || canImportInitialPaymentBase;
   const canAssumeNow = canAssumeBatch(payment.status as PaymentStatus, {
     isAnalista, isValidador, isDiretor, isOwner,
