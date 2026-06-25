@@ -351,6 +351,9 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                     />
                   </div>
                 )}
+              </div>
+
+
 
               {/* Escopo de produção */}
               <div className="border rounded-md p-3 space-y-3">
