@@ -124,7 +124,7 @@ serve(async (req) => {
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase
       .from("payments")
-      .select("sectors,specialties,payment_type,payment_type_id,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode")
+      .select("sectors,specialties,payment_type,payment_type_id,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode,pool_id")
       .eq("id", payment_id)
       .maybeSingle<PaymentRow & { import_mode?: string | null; payment_type_id?: string | null }>();
 
