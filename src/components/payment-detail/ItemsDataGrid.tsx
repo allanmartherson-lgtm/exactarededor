@@ -1738,6 +1738,7 @@ export function ItemsDataGrid({
     // Baseline maior (640px) + expansão dinâmica quando o usuário abre um painel
     // ou quando há banners de grupo (regra/pacote) ocupando espaço extra.
     <div
+      data-grid-root="items"
       className={cn("flex flex-col min-h-[640px]", className)}
       style={{
         // 2026-06-24: reduzido offset de 120→40px para ocupar o máximo da viewport.
