@@ -628,7 +628,14 @@ Deno.serve(async (req) => {
       results.push({
         pool_id: pool.id, pool_nome: pool.nome,
         base: round2(base), bolo, quotas_count: quotas.length,
+        validation_warnings: validationWarnings,
       });
+      if (validationWarnings.length) {
+        console.warn(
+          `[recalc-payment-pools] pool "${pool.nome}" (${pool.id}) gerou ${validationWarnings.length} warning(s) de validação`,
+          validationWarnings,
+        );
+      }
     }
 
     // Re-computa o snapshot financeiro de cada PJ do pagamento para refletir
