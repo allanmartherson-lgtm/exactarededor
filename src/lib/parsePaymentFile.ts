@@ -85,6 +85,39 @@ const VISITA_TERMS = ["visita"];
 const PARECER_TERMS = ["parecer"];
 const CIRURGIA_TERMS = ["cirurgia","cirurg","procedimento"];
 
+/**
+ * Headers que carregam o TIPO explícito do item, vindos da base já tratada
+ * pelo analista. NÃO inclui "tipo atendimento" / "tipo entrada" / "tipo
+ * internacao" — esses representam ELETIVO/URGENCIA, não parecer/visita.
+ */
+const EXPLICIT_TYPE_HEADERS = ["tipo", "tipo item", "tipo do item", "categoria", "tipo linha", "tipo de linha"];
+const normHeader = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+const EXPLICIT_TYPE_VALUES: Record<string, LineType> = {
+  parecer: "parecer",
+  visita: "visita",
+  pacote: "pacote",
+  procedimento: "procedimento",
+  cirurgia: "procedimento",
+  glosa: "glosa_desconto",
+  desconto: "glosa_desconto",
+  bonus: "complemento_bonus",
+  complemento: "complemento_bonus",
+};
+/**
+ * Quando a base já vem com uma coluna TIPO marcando parecer/visita/etc., usa
+ * esse valor como autoridade — o analista já fez a classificação manualmente
+ * (ex.: cardiologia mistura visita + parecer no mesmo arquivo).
+ */
+function extractExplicitItemType(row: Record<string, unknown>): LineType | null {
+  for (const [k, v] of Object.entries(row)) {
+    if (!EXPLICIT_TYPE_HEADERS.includes(normHeader(String(k)))) continue;
+    const nv = normHeader(String(v ?? ""));
+    if (EXPLICIT_TYPE_VALUES[nv]) return EXPLICIT_TYPE_VALUES[nv];
+  }
+  return null;
+}
+
 const stripDiacriticsLower = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
