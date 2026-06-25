@@ -933,6 +933,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFValidUntil(r.valid_until ?? "");
     setFMinGarantidoAtivo(!!(r as any).minimo_garantido_ativo);
     setFMinGarantidoValor((r as any).minimo_garantido_valor != null ? String((r as any).minimo_garantido_valor) : "");
+    setFMinGarantidoEscopo(((r as any).minimo_garantido_escopo === "empresa" ? "empresa" : "medico_empresa"));
     setFDoctors([]);
     const glinks = Array.isArray((r as any).group_company_links) ? (r as any).group_company_links : [];
     setFGroupCompanyIds([]);
