@@ -540,6 +540,23 @@ serve(async (req) => {
         .in("id", companyIds);
       for (const c of cs ?? []) companyDocs[c.id as string] = (c.document as string | null) ?? null;
     }
+    // Pool soberano: itens coletivos têm company_id=null. Carregamos as PJs
+    // participantes do pool deste pagamento para que regras de grupo/empresa
+    // possam casar via pool_company_ids (ver ItemInput.pool_company_ids).
+    let poolCompanyIds: string[] = [];
+    const hasPoolItems = (itemsRaw ?? []).some((it: any) => it.is_pool_item === true);
+    if (hasPoolItems) {
+      const pmtPoolId = (payment as any)?.pool_id ?? null;
+      if (pmtPoolId) {
+        const { data: parts } = await supabase
+          .from("pool_participants")
+          .select("company_id")
+          .eq("pool_id", pmtPoolId);
+        poolCompanyIds = (parts ?? [])
+          .map((p: any) => p?.company_id as string | null)
+          .filter((x: string | null): x is string => !!x);
+      }
+    }
 
     // ---------- 3.15 Resolução de ESPECIALIDADE MÉDICA ----------
     // O campo `specialty` em payment_items representa especialidade médica
