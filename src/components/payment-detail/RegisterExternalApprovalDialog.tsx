@@ -298,13 +298,47 @@ export function RegisterExternalApprovalDialog({
               </div>
 
               <div>
-                <Label className="text-xs">Nome do {cfg.role} que decidiu</Label>
-                <Input
-                  value={personName}
-                  onChange={(e) => setPersonName(e.target.value)}
-                  placeholder={`Ex: Dr. Fulano de Tal`}
-                  className="text-base md:text-sm"
-                />
+                <Label className="text-xs">{cfg.role === "diretor" ? "Diretor" : "Supervisor"} que decidiu</Label>
+                <Select
+                  value={decisorId}
+                  onValueChange={(v) => {
+                    setDecisorId(v);
+                    if (v === "__other__") {
+                      setPersonName("");
+                    } else {
+                      const d = decisores.find((x) => x.id === v);
+                      setPersonName(d?.full_name ?? "");
+                    }
+                  }}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue
+                      placeholder={
+                        loadingDecisores
+                          ? "Carregando…"
+                          : decisores.length === 0
+                            ? `Nenhum ${cfg.role} cadastrado`
+                            : `Selecione o ${cfg.role}`
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {decisores.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.full_name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__other__">Outro (digitar nome)…</SelectItem>
+                  </SelectContent>
+                </Select>
+                {decisorId === "__other__" && (
+                  <Input
+                    value={personName}
+                    onChange={(e) => setPersonName(e.target.value)}
+                    placeholder={`Nome do ${cfg.role}`}
+                    className="text-base md:text-sm mt-2"
+                  />
+                )}
                 <p className="text-[11px] text-muted-foreground mt-1">
                   Registrado como decisor externo. Você (operador atual) fica gravado como quem registrou.
                 </p>
