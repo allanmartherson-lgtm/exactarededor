@@ -655,6 +655,22 @@ const Payments = () => {
     }
   }, []);
 
+  // Pools (rateios) ativos do hospital — alimenta o filtro de Pool.
+  const loadPoolOptions = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("pools")
+        .select("id,nome,ativo")
+        .order("nome", { ascending: true });
+      if (error) throw error;
+      setPoolOptions(((data ?? []) as any[]).filter((p) => p.ativo !== false).map((p) => ({ id: p.id, nome: p.nome })));
+    } catch (e) {
+      console.warn("load pools falhou", e);
+    }
+  }, []);
+
+  useEffect(() => { loadPoolOptions(); }, [loadPoolOptions]);
+
   useEffect(() => {
     document.title = "Pagamentos | Exacta Approval";
     load();
