@@ -14,7 +14,7 @@ export type ManualReasonGateItem = {
   id: string;
   doctor_name: string | null;
   procedure_code: string | null;
-  procedure_description: string | null;
+  procedure_name: string | null;
   procedure_amount: number | null;
   attendance_number: string | null;
   gross_amount: number | null;
