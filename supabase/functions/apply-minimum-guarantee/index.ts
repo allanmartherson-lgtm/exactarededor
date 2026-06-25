@@ -117,31 +117,42 @@ Deno.serve(async (req) => {
       }
     }
 
+    const presentCompanies = new Set<string>();
+    for (const it of (itemsInPayment ?? [])) {
+      if (it.company_id) presentCompanies.add(it.company_id);
+    }
+
     const results: any[] = [];
 
     for (const rule of activeRules) {
       const piso = Number(rule.minimo_garantido_valor ?? 0);
       if (!(piso > 0)) continue;
 
-      // Determina (doctor, company) elegíveis pela regra
+      // Escopo: 'empresa' (soma todos os médicos da PJ) ou 'medico_empresa' (por par)
+      const escopo: "empresa" | "medico_empresa" =
+        rule.minimo_garantido_escopo === "empresa" ? "empresa" : "medico_empresa";
+
+      // Empresas elegíveis pela regra
+      const eligibleCompanies = new Set<string>();
+      // Pares (doctor, company) elegíveis — só usado em escopo medico_empresa
       const eligiblePairs: Array<{ doctor_id: string; company_id: string }> = [];
 
-      // scope=grupo → usa group_company_links[].doctors[].id + company_id
       if (rule.scope === "grupo" && Array.isArray(rule.group_company_links)) {
         for (const link of rule.group_company_links) {
           if (!link?.company_id) continue;
+          eligibleCompanies.add(link.company_id);
           const doctors = Array.isArray(link.doctors) ? link.doctors : [];
           for (const d of doctors) {
-            if (d?.id) {
-              eligiblePairs.push({ doctor_id: d.id, company_id: link.company_id });
-            }
+            if (d?.id) eligiblePairs.push({ doctor_id: d.id, company_id: link.company_id });
           }
         }
       }
 
-      // scope=especifica + target_type=medico → pega todas as PJs vinculadas via doctor_companies
+      if (rule.scope === "especifica" && rule.target_type === "empresa" && rule.target_identifier) {
+        eligibleCompanies.add(rule.target_identifier);
+      }
+
       if (rule.scope === "especifica" && rule.target_type === "medico" && rule.target_identifier) {
-        // target_identifier = doctor_id ou CRM; tenta resolver por id direto
         const { data: docs } = await supabase
           .from("doctors")
           .select("id")
@@ -154,26 +165,37 @@ Deno.serve(async (req) => {
             .select("company_id")
             .eq("doctor_id", docId);
           for (const l of (links ?? [])) {
-            if (l.company_id) eligiblePairs.push({ doctor_id: docId, company_id: l.company_id });
+            if (l.company_id) {
+              eligibleCompanies.add(l.company_id);
+              eligiblePairs.push({ doctor_id: docId, company_id: l.company_id });
+            }
           }
         }
       }
 
-      // Cruza com pares presentes no payment (só processa quem aparece nesta folha)
-      const toProcess = eligiblePairs.filter(p =>
-        presentPairs.has(`${p.doctor_id}|${p.company_id}`)
-      );
+      // Unidade de processamento conforme escopo
+      type Unit = { doctor_id: string | null; company_id: string };
+      let toProcess: Unit[] = [];
+      if (escopo === "empresa") {
+        toProcess = Array.from(eligibleCompanies)
+          .filter((cid) => presentCompanies.has(cid))
+          .map((cid) => ({ doctor_id: null, company_id: cid }));
+      } else {
+        toProcess = eligiblePairs
+          .filter((p) => presentPairs.has(`${p.doctor_id}|${p.company_id}`))
+          .map((p) => ({ doctor_id: p.doctor_id, company_id: p.company_id }));
+      }
 
-      for (const pair of toProcess) {
-        // a) Soma produção da competência inteira (todos payments do mesmo mês,
-        //    mesmo médico + PJ, só itens de produção real)
-        const { data: prodRows } = await supabase
+      for (const unit of toProcess) {
+        // a) Soma produção da competência inteira para a unidade
+        let query = supabase
           .from("payment_items")
-          .select("gross_amount, payments!inner(competence_month, hospital_id)")
-          .eq("doctor_id", pair.doctor_id)
-          .eq("company_id", pair.company_id)
+          .select("gross_amount, payments!inner(competence_month)")
+          .eq("company_id", unit.company_id)
           .eq("item_origin", "producao")
           .eq("payments.competence_month", competence);
+        if (unit.doctor_id) query = query.eq("doctor_id", unit.doctor_id);
+        const { data: prodRows } = await query;
 
         const producao = round2(
           (prodRows ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0)
@@ -182,18 +204,18 @@ Deno.serve(async (req) => {
         const complemento = round2(Math.max(0, piso - producao));
 
         // b) Aplicação existente?
-        const { data: existing } = await supabase
+        let existingQuery = supabase
           .from("minimum_guarantee_applications")
           .select("id, payment_id, synthetic_item_id, complemento_valor, status")
           .eq("rule_id", rule.id)
-          .eq("doctor_id", pair.doctor_id)
-          .eq("company_id", pair.company_id)
+          .eq("company_id", unit.company_id)
           .eq("competence_month", competence)
-          .eq("status", "aplicado")
-          .maybeSingle();
+          .eq("status", "aplicado");
+        if (unit.doctor_id) existingQuery = existingQuery.eq("doctor_id", unit.doctor_id);
+        else existingQuery = existingQuery.is("doctor_id", null);
+        const { data: existing } = await existingQuery.maybeSingle();
 
         if (complemento <= 0) {
-          // Produção atingiu piso → reverte se havia aplicação
           if (existing) {
             if (existing.synthetic_item_id) {
               await supabase.from("payment_items").delete().eq("id", existing.synthetic_item_id);
@@ -209,26 +231,23 @@ Deno.serve(async (req) => {
               .eq("id", existing.id);
           }
           results.push({
-            rule_id: rule.id, rule_name: rule.name,
-            doctor_id: pair.doctor_id, company_id: pair.company_id,
+            rule_id: rule.id, rule_name: rule.name, escopo,
+            doctor_id: unit.doctor_id, company_id: unit.company_id,
             piso, producao, complemento: 0, action: existing ? "revertido" : "skip",
           });
           continue;
         }
 
-        // c) Aplica/atualiza
         if (existing && Math.abs(Number(existing.complemento_valor ?? 0) - complemento) < 0.01) {
-          // Mesmo valor — nada a fazer
           results.push({
-            rule_id: rule.id, rule_name: rule.name,
-            doctor_id: pair.doctor_id, company_id: pair.company_id,
+            rule_id: rule.id, rule_name: rule.name, escopo,
+            doctor_id: unit.doctor_id, company_id: unit.company_id,
             piso, producao, complemento, action: "idempotent",
           });
           continue;
         }
 
         if (existing) {
-          // Atualiza item sintético existente
           if (existing.synthetic_item_id) {
             await supabase.from("payment_items").update({
               gross_amount: complemento,
@@ -243,25 +262,26 @@ Deno.serve(async (req) => {
             applied_by: userId,
           }).eq("id", existing.id);
           results.push({
-            rule_id: rule.id, rule_name: rule.name,
-            doctor_id: pair.doctor_id, company_id: pair.company_id,
+            rule_id: rule.id, rule_name: rule.name, escopo,
+            doctor_id: unit.doctor_id, company_id: unit.company_id,
             piso, producao, complemento, action: "updated",
           });
           continue;
         }
 
-        // Cria item sintético novo
         const { data: newItem, error: itemErr } = await supabase
           .from("payment_items")
           .insert({
             payment_id,
-            doctor_id: pair.doctor_id,
-            company_id: pair.company_id,
+            doctor_id: unit.doctor_id,
+            company_id: unit.company_id,
             gross_amount: complemento,
             expected_amount: complemento,
             procedure_amount: 0,
             procedure_name: `Complemento Mínimo Garantido — ${rule.name}`,
-            description: `Piso de R$ ${piso.toFixed(2)}; produção da competência ${competence}: R$ ${producao.toFixed(2)}`,
+            description: escopo === "empresa"
+              ? `Piso por PJ R$ ${piso.toFixed(2)}; produção da competência ${competence}: R$ ${producao.toFixed(2)}`
+              : `Piso de R$ ${piso.toFixed(2)}; produção da competência ${competence}: R$ ${producao.toFixed(2)}`,
             item_origin: "complemento_minimo",
             applied_rule_id: rule.id,
           } as any)
@@ -270,7 +290,8 @@ Deno.serve(async (req) => {
         if (itemErr) {
           console.error("[apply-minimum-guarantee] falha ao criar item sintético", itemErr);
           results.push({
-            rule_id: rule.id, doctor_id: pair.doctor_id, company_id: pair.company_id,
+            rule_id: rule.id, escopo,
+            doctor_id: unit.doctor_id, company_id: unit.company_id,
             piso, producao, complemento, action: "error", error: itemErr.message,
           });
           continue;
@@ -278,8 +299,8 @@ Deno.serve(async (req) => {
 
         await supabase.from("minimum_guarantee_applications").insert({
           rule_id: rule.id,
-          doctor_id: pair.doctor_id,
-          company_id: pair.company_id,
+          doctor_id: unit.doctor_id,
+          company_id: unit.company_id,
           competence_month: competence,
           hospital_id: payment.hospital_id,
           producao_calculada: producao,
@@ -292,8 +313,8 @@ Deno.serve(async (req) => {
         } as any);
 
         results.push({
-          rule_id: rule.id, rule_name: rule.name,
-          doctor_id: pair.doctor_id, company_id: pair.company_id,
+          rule_id: rule.id, rule_name: rule.name, escopo,
+          doctor_id: unit.doctor_id, company_id: unit.company_id,
           piso, producao, complemento, action: "created",
         });
       }

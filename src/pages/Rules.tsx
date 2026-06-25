@@ -281,9 +281,10 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
-  // Mínimo garantido (piso de produção). Atualmente: escopo medico+PJ, por competência, base bruta.
+  // Mínimo garantido (piso de produção). Escopo: medico_empresa (por par) ou empresa (por PJ).
   const [fMinGarantidoAtivo, setFMinGarantidoAtivo] = useState(false);
   const [fMinGarantidoValor, setFMinGarantidoValor] = useState<string>("");
+  const [fMinGarantidoEscopo, setFMinGarantidoEscopo] = useState<"medico_empresa" | "empresa">("medico_empresa");
   // Escopo "grupo" (inline na regra)
   const [fGroupCompanyIds, setFGroupCompanyIds] = useState<string[]>([]);
   const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
@@ -854,7 +855,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
-    setFMinGarantidoAtivo(false); setFMinGarantidoValor("");
+    setFMinGarantidoAtivo(false); setFMinGarantidoValor(""); setFMinGarantidoEscopo("medico_empresa");
     
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setCollapsedCompanies(new Set()); setCompanyLinksFilter("");
@@ -932,6 +933,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFValidUntil(r.valid_until ?? "");
     setFMinGarantidoAtivo(!!(r as any).minimo_garantido_ativo);
     setFMinGarantidoValor((r as any).minimo_garantido_valor != null ? String((r as any).minimo_garantido_valor) : "");
+    setFMinGarantidoEscopo(((r as any).minimo_garantido_escopo === "empresa" ? "empresa" : "medico_empresa"));
     setFDoctors([]);
     const glinks = Array.isArray((r as any).group_company_links) ? (r as any).group_company_links : [];
     setFGroupCompanyIds([]);
@@ -1302,7 +1304,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       valid_until: fValidUntil || null,
       minimo_garantido_ativo: fMinGarantidoAtivo,
       minimo_garantido_valor: fMinGarantidoAtivo ? (num(fMinGarantidoValor) ?? null) : null,
-      minimo_garantido_escopo: fMinGarantidoAtivo ? "medico_empresa" : null,
+      minimo_garantido_escopo: fMinGarantidoAtivo ? fMinGarantidoEscopo : null,
       minimo_garantido_periodicidade: fMinGarantidoAtivo ? "competencia" : null,
       minimo_garantido_base: fMinGarantidoAtivo ? "bruto" : null,
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
@@ -2074,7 +2076,38 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                 </div>
                               </div>
                               {fMinGarantidoAtivo && (
-                                <div className="space-y-2">
+                                <div className="space-y-3">
+                                  <div className="space-y-1.5">
+                                    <Label className="text-xs">Como aplicar o piso *</Label>
+                                    <div className="flex flex-col gap-2 text-sm">
+                                      <label className="flex items-start gap-2 cursor-pointer">
+                                        <input
+                                          type="radio"
+                                          name="min-garantido-escopo"
+                                          checked={fMinGarantidoEscopo === "medico_empresa"}
+                                          onChange={() => setFMinGarantidoEscopo("medico_empresa")}
+                                          className="mt-1"
+                                        />
+                                        <span>
+                                          <strong>Por médico + PJ</strong> — cada médico em cada PJ tem o próprio piso.
+                                          Ex.: piso de R$ 25.000 por médico.
+                                        </span>
+                                      </label>
+                                      <label className="flex items-start gap-2 cursor-pointer">
+                                        <input
+                                          type="radio"
+                                          name="min-garantido-escopo"
+                                          checked={fMinGarantidoEscopo === "empresa"}
+                                          onChange={() => setFMinGarantidoEscopo("empresa")}
+                                          className="mt-1"
+                                        />
+                                        <span>
+                                          <strong>Por PJ</strong> — soma a produção de todos os médicos da PJ e compara
+                                          com o piso. Ex.: cada empresa deve receber R$ 25.000 no total.
+                                        </span>
+                                      </label>
+                                    </div>
+                                  </div>
                                   <div style={{ display: "grid", gridTemplateColumns: "minmax(0,220px) 1fr", gap: 12, alignItems: "end" }}>
                                     <div className="space-y-1.5">
                                       <Label>Valor mínimo mensal (R$) *</Label>
@@ -2084,13 +2117,13 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                         min="0"
                                         value={fMinGarantidoValor}
                                         onChange={(e) => setFMinGarantidoValor(e.target.value)}
-                                        placeholder="Ex: 20000,00"
+                                        placeholder="Ex: 25000,00"
                                       />
                                     </div>
                                     <div className="text-xs text-muted-foreground rounded-md border border-dashed p-2.5">
-                                      Avaliado <strong>por competência (mês)</strong>, sobre <strong>produção bruta</strong>,
-                                      por <strong>médico + PJ</strong>. Se a produção do médico naquele mês ficar abaixo do
-                                      piso, o sistema lança um <strong>item de complemento</strong> automaticamente.
+                                      Avaliado <strong>por competência (mês)</strong>, sobre <strong>produção bruta</strong>.
+                                      Se a produção ficar abaixo do piso, o sistema lança um <strong>item de complemento</strong> automaticamente —
+                                      vale tanto para pagamento normal quanto para pool.
                                     </div>
                                   </div>
                                 </div>
