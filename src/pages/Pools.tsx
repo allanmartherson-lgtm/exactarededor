@@ -119,6 +119,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
       id: "", nome: "", descricao: "", base_calculo: "soma_convenio_100",
       ativo: true, vigencia_inicio: null, vigencia_fim: null,
       escopo_producao: "participantes", filtros_captura: {},
+      garante_piso: false, piso_valor: null,
     });
     setFiltrosRaw({});
     if (pool?.id) {
