@@ -133,16 +133,6 @@ const RESPOND_SCHEMA = {
   },
   required: ["action", "summary"],
 };
-        sector_code: { type: "string" },
-        cost_center_code: { type: "string" },
-        company_id: { type: "string" },
-      },
-      additionalProperties: false,
-    },
-    summary: { type: "string" },
-  },
-  required: ["action", "summary"],
-};
 
 // -------------------- Helpers --------------------
 
