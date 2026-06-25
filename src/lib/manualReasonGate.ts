@@ -37,7 +37,7 @@ export async function findItemsNeedingManualReason(
   let q = supabase
     .from("payment_items")
     .select(
-      "id, doctor_name, procedure_code, procedure_description, procedure_amount, attendance_number, gross_amount, tipo_linha, manual_intervention_reason_id, company_id",
+      "id, doctor_name, procedure_code, procedure_name, procedure_amount, attendance_number, gross_amount, tipo_linha, manual_intervention_reason_id, company_id",
     )
     .eq("payment_id", paymentId)
     .is("manual_intervention_reason_id", null)
