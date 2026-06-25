@@ -206,6 +206,8 @@ export default function PoolAnalysis() {
             profiles={profiles}
             storageKey={`poolAnalysis.${id}`}
             mode={payment.analysis_mode === "confeccao" ? "confeccao" : "analise"}
+            canEdit
+            onRefresh={() => load()}
           />
         </CardContent>
       </Card>
