@@ -79,6 +79,16 @@ export function ZeevGlobalMount() {
       pageLabel={label}
       summary={{ rota: pathname }}
       bulkContext={paymentId ? { paymentId, companyName: null } : undefined}
+      onApplyFilter={(filter) => {
+        // Bridge global: páginas que renderizam <ItemsDataGrid /> escutam este
+        // evento e aplicam o filtro correspondente. Se nenhuma página suportar,
+        // o Zeev já avisa que não há filtro disponível.
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("zeev:apply-filter", { detail: { filter } }),
+          );
+        }
+      }}
     />
   );
 }

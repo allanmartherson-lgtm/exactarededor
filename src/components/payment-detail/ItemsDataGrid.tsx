@@ -808,6 +808,9 @@ export function ItemsDataGrid({
   const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
   const [onlyAdjusted, setOnlyAdjusted] = useState(false);
   const [parecerFilter, setParecerFilter] = useState<"__all__" | "missing" | "weak">("__all__");
+  // Filtros disparados pelo Zeev (event bus global). Limpos via "Limpar filtros".
+  const [onlyZero, setOnlyZero] = useState(false);
+  const [onlySemRegra, setOnlySemRegra] = useState(false);
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
@@ -1211,6 +1214,14 @@ export function ItemsDataGrid({
         if (parecerFilter === "weak" && !(evidence === "confirmed" && isWeak)) return false;
       }
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
+      if (onlyZero) {
+        const g = Number(it.gross_amount ?? 0);
+        const e = Number((it as any).expected_amount ?? it.ai_findings?.expected_amount ?? 0);
+        if (Math.abs(g) > 0.005 || Math.abs(e) > 0.005) return false;
+      }
+      if (onlySemRegra) {
+        if (((it as any).applied_calc_method ?? "") !== "sem_regra") return false;
+      }
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
       const paciente = getPatient(it);
@@ -1333,7 +1344,34 @@ export function ItemsDataGrid({
     }
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
+
+  // Bridge global do Zeev → aplica filtro pedido via chat ("me leva pros zerados", etc.).
+  // Limpa os filtros anteriores e marca apenas o requerido para evitar combinações esquisitas.
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ filter?: string }>).detail;
+      const f = detail?.filter;
+      if (!f) return;
+      // reset base
+      setFilter(""); setPatientFilter("");
+      setDoctorFilter("__all__"); setConvenioFilter("__all__");
+      setOnlyManualBonus(false); setOnlyNeedsReview(false);
+      setOnlyValidationAlerts(false); setOnlyAdjusted(false); setParecerFilter("__all__");
+      setOnlyAlerts(false); setOnlyZero(false); setOnlySemRegra(false);
+      setStatusFilter("__all__");
+      if (f === "zerados") setOnlyZero(true);
+      else if (f === "sem_regra") setOnlySemRegra(true);
+      else if (f === "reprovados" || f === "divergentes") setStatusFilter("reprovado");
+      // dá um nudge visual rolando até o grid
+      try {
+        const el = document.querySelector('[data-grid-root="items"]');
+        (el as HTMLElement | null)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch { /* noop */ }
+    };
+    window.addEventListener("zeev:apply-filter", handler as EventListener);
+    return () => window.removeEventListener("zeev:apply-filter", handler as EventListener);
+  }, []);
 
   // Reagrupa por atendimento: TODOS os itens do mesmo atendimento ficam
   // contíguos (não só os do pacote). Itens sem atendimento mantêm a ordem
@@ -1700,6 +1738,7 @@ export function ItemsDataGrid({
     // Baseline maior (640px) + expansão dinâmica quando o usuário abre um painel
     // ou quando há banners de grupo (regra/pacote) ocupando espaço extra.
     <div
+      data-grid-root="items"
       className={cn("flex flex-col min-h-[640px]", className)}
       style={{
         // 2026-06-24: reduzido offset de 120→40px para ocupar o máximo da viewport.
@@ -1923,7 +1962,7 @@ export function ItemsDataGrid({
               )}
             </div>
           )}
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || (isParecerPayment && parecerFilter !== "__all__")) && (
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || onlyZero || onlySemRegra || (isParecerPayment && parecerFilter !== "__all__")) && (
             <Button
               size="sm"
               variant="ghost"
@@ -1933,6 +1972,7 @@ export function ItemsDataGrid({
                 setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
                 setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyNeedsReview(false);
                 setOnlyValidationAlerts(false); setOnlyAdjusted(false); setParecerFilter("__all__");
+                setOnlyZero(false); setOnlySemRegra(false);
               }}
             >
               Limpar
