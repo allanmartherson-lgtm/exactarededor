@@ -662,7 +662,36 @@ const PaymentDetail = () => {
       toast({ title: "Adicione um motivo para esta empresa", variant: "destructive" });
       return;
     }
+    // Gate: por empresa, mesma checagem que no transition global.
+    if (newStatus === "aguardando_aprovacao" || newStatus === "aprovado") {
+      try {
+        const pending = await findItemsNeedingManualReason(id, g.company_id ?? null);
+        if (pending.length > 0) {
+          toast({
+            title: `${pending.length} ${pending.length === 1 ? "item exige" : "itens exigem"} motivo de intervenção`,
+            description: `Empresa ${g.company_name}: valor zerado/ausente sem justificativa.`,
+            variant: "destructive",
+          });
+          setManualReasonGate({
+            open: true,
+            items: pending.map((p) => ({
+              id: p.id,
+              doctor_name: p.doctor_name,
+              procedure_code: p.procedure_code,
+              procedure_description: p.procedure_name,
+              procedure_amount: p.procedure_amount,
+              attendance_number: p.attendance_number,
+            })),
+            companyName: g.company_name,
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn("[manualReasonGate group] falhou (não bloqueante):", e);
+      }
+    }
     setBusy(true);
+
     if (authorType === "analista") await autoClaim();
     const updates: GroupUpdate = { status: newStatus };
     if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
