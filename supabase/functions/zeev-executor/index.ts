@@ -18,7 +18,12 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // -------------------- Tipos públicos --------------------
 
-type Action = "set_sector" | "set_cost_center" | "link_doctor_company";
+type Action =
+  | "set_sector"
+  | "set_cost_center"
+  | "link_doctor_company"
+  | "navigate"
+  | "answer";
 
 interface Scope {
   /** Filtros declarativos. Todos opcionais; combinados com AND. */
@@ -29,6 +34,10 @@ interface Scope {
   doctor_name_like?: string | null;
   procedure_code?: string | null;
   description_like?: string | null;
+  /** Filtros de "ver"/responder — não disparam execução. */
+  gross_zero?: boolean;
+  ai_status_in?: string[];
+  needs_human_review?: boolean;
 }
 
 interface Proposal {
@@ -48,7 +57,10 @@ interface Proposal {
 
 interface RequestBody {
   step: "propose" | "execute";
-  payment_id: string;
+  /** Opcional — quando ausente, só ações sem mutação (navigate/answer) são possíveis. */
+  payment_id?: string | null;
+  /** Rota atual no app (para dar contexto de navegação ao Zeev). */
+  current_path?: string | null;
   prompt?: string;
   proposal?: Proposal;
 }
