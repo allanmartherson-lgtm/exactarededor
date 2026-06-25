@@ -229,8 +229,8 @@ export function ParecerCrossReferencePanel({
               <TableHeader>
                 <TableRow>
                   <TableHead>Atendimento</TableHead>
-                  <TableHead>Paciente</TableHead>
                   <TableHead>Especialidade</TableHead>
+                  <TableHead>Convênio</TableHead>
                   <TableHead>Médico</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Motivo</TableHead>
@@ -240,13 +240,14 @@ export function ParecerCrossReferencePanel({
                 {reclassifiedItems.slice(0, 50).map((it) => (
                   <TableRow key={it.id}>
                     <TableCell className="font-mono text-xs">{it.attendance_number ?? "—"}</TableCell>
-                    <TableCell className="text-xs">{it.patient_name ?? "—"}</TableCell>
                     <TableCell className="text-xs">{it.specialty ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{it.convenio_slug ?? "—"}</TableCell>
                     <TableCell className="text-xs">{it.doctor_name ?? "—"}</TableCell>
                     <TableCell className="text-xs">{formatDateBR(it.procedure_date)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{it.manual_intervention_notes ?? "—"}</TableCell>
                   </TableRow>
                 ))}
+
               </TableBody>
             </Table>
             {reclassifiedItems.length > 50 && (
