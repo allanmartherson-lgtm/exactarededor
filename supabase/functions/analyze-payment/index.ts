@@ -455,6 +455,7 @@ serve(async (req) => {
         manual_intervention_reason:manual_intervention_reasons!manual_intervention_reason_id(code,category),
         payment_type_id,
         payment_type_source,
+        is_pool_item,
         raw_data
       `)
       .eq("payment_id", payment_id);
