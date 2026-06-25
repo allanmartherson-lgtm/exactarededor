@@ -250,6 +250,22 @@ const PaymentDetail = () => {
   const [addingCompany, setAddingCompany] = useState(false);
   const [addCompanyConfirm, setAddCompanyConfirm] = useState<File[] | null>(null);
   const [bonusDialogOpen, setBonusDialogOpen] = useState(false);
+  // Gate de motivo de intervenção: itens com valor zerado pagos sem justificativa
+  // bloqueiam o envio para validação/aprovação. Quando bloqueado, abrimos o
+  // ZeevBulkManualDialog com a lista pré-carregada.
+  const [manualReasonGate, setManualReasonGate] = useState<{
+    open: boolean;
+    items: Array<{
+      id: string;
+      doctor_name: string | null;
+      procedure_code: string | null;
+      procedure_description: string | null;
+      procedure_amount: number | null;
+      attendance_number: string | null;
+    }>;
+    companyName: string | null;
+  }>({ open: false, items: [], companyName: null });
+
 
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
