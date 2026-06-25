@@ -335,13 +335,13 @@ Deno.serve(async (req) => {
       const dt = new Date(it.procedure_date);
       const from = new Date(dt.getTime() - 7 * 24 * 3600 * 1000).toISOString();
       const to = dt.toISOString();
-      const attDigits = onlyDigits(it.attendance_number);
       const { data: prior } = await supabase
         .from("payment_items")
         .select("id, payment_id, procedure_date")
         .eq("hospital_id", it.hospital_id)
         .eq("specialty", it.specialty)
-        .eq("attendance_number", attDigits)
+        .eq("attendance_number", it.attendance_number)
+
         .eq("parecer_evidence", "confirmed")
         .eq("reclassified_from_parecer", false)
         .neq("payment_id", payment_id)
