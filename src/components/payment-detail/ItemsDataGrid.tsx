@@ -1344,7 +1344,34 @@ export function ItemsDataGrid({
     }
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
+
+  // Bridge global do Zeev → aplica filtro pedido via chat ("me leva pros zerados", etc.).
+  // Limpa os filtros anteriores e marca apenas o requerido para evitar combinações esquisitas.
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ filter?: string }>).detail;
+      const f = detail?.filter;
+      if (!f) return;
+      // reset base
+      setFilter(""); setPatientFilter("");
+      setDoctorFilter("__all__"); setConvenioFilter("__all__");
+      setOnlyManualBonus(false); setOnlyNeedsReview(false);
+      setOnlyValidationAlerts(false); setOnlyAdjusted(false); setParecerFilter("__all__");
+      setOnlyAlerts(false); setOnlyZero(false); setOnlySemRegra(false);
+      setStatusFilter("__all__");
+      if (f === "zerados") setOnlyZero(true);
+      else if (f === "sem_regra") setOnlySemRegra(true);
+      else if (f === "reprovados" || f === "divergentes") setStatusFilter("reprovado");
+      // dá um nudge visual rolando até o grid
+      try {
+        const el = document.querySelector('[data-grid-root="items"]');
+        (el as HTMLElement | null)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch { /* noop */ }
+    };
+    window.addEventListener("zeev:apply-filter", handler as EventListener);
+    return () => window.removeEventListener("zeev:apply-filter", handler as EventListener);
+  }, []);
 
   // Reagrupa por atendimento: TODOS os itens do mesmo atendimento ficam
   // contíguos (não só os do pacote). Itens sem atendimento mantêm a ordem
