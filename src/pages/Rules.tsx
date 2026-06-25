@@ -2076,7 +2076,38 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                 </div>
                               </div>
                               {fMinGarantidoAtivo && (
-                                <div className="space-y-2">
+                                <div className="space-y-3">
+                                  <div className="space-y-1.5">
+                                    <Label className="text-xs">Como aplicar o piso *</Label>
+                                    <div className="flex flex-col gap-2 text-sm">
+                                      <label className="flex items-start gap-2 cursor-pointer">
+                                        <input
+                                          type="radio"
+                                          name="min-garantido-escopo"
+                                          checked={fMinGarantidoEscopo === "medico_empresa"}
+                                          onChange={() => setFMinGarantidoEscopo("medico_empresa")}
+                                          className="mt-1"
+                                        />
+                                        <span>
+                                          <strong>Por médico + PJ</strong> — cada médico em cada PJ tem o próprio piso.
+                                          Ex.: piso de R$ 25.000 por médico.
+                                        </span>
+                                      </label>
+                                      <label className="flex items-start gap-2 cursor-pointer">
+                                        <input
+                                          type="radio"
+                                          name="min-garantido-escopo"
+                                          checked={fMinGarantidoEscopo === "empresa"}
+                                          onChange={() => setFMinGarantidoEscopo("empresa")}
+                                          className="mt-1"
+                                        />
+                                        <span>
+                                          <strong>Por PJ</strong> — soma a produção de todos os médicos da PJ e compara
+                                          com o piso. Ex.: cada empresa deve receber R$ 25.000 no total.
+                                        </span>
+                                      </label>
+                                    </div>
+                                  </div>
                                   <div style={{ display: "grid", gridTemplateColumns: "minmax(0,220px) 1fr", gap: 12, alignItems: "end" }}>
                                     <div className="space-y-1.5">
                                       <Label>Valor mínimo mensal (R$) *</Label>
@@ -2086,13 +2117,13 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                         min="0"
                                         value={fMinGarantidoValor}
                                         onChange={(e) => setFMinGarantidoValor(e.target.value)}
-                                        placeholder="Ex: 20000,00"
+                                        placeholder="Ex: 25000,00"
                                       />
                                     </div>
                                     <div className="text-xs text-muted-foreground rounded-md border border-dashed p-2.5">
-                                      Avaliado <strong>por competência (mês)</strong>, sobre <strong>produção bruta</strong>,
-                                      por <strong>médico + PJ</strong>. Se a produção do médico naquele mês ficar abaixo do
-                                      piso, o sistema lança um <strong>item de complemento</strong> automaticamente.
+                                      Avaliado <strong>por competência (mês)</strong>, sobre <strong>produção bruta</strong>.
+                                      Se a produção ficar abaixo do piso, o sistema lança um <strong>item de complemento</strong> automaticamente —
+                                      vale tanto para pagamento normal quanto para pool.
                                     </div>
                                   </div>
                                 </div>
