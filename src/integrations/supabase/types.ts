@@ -11213,30 +11213,58 @@ export type Database = {
         }
         Returns: string
       }
-      register_external_approval: {
-        Args: {
-          p_director_name: string
-          p_evidence_path?: string
-          p_group_ids: string[]
-          p_note?: string
-          p_payment_id: string
-          p_registered_by: string
-          p_source: string
-        }
-        Returns: undefined
-      }
-      register_external_validation: {
-        Args: {
-          p_evidence_path?: string
-          p_group_ids: string[]
-          p_note?: string
-          p_payment_id: string
-          p_registered_by: string
-          p_source: string
-          p_supervisor_name: string
-        }
-        Returns: undefined
-      }
+      register_external_approval:
+        | {
+            Args: {
+              p_director_name: string
+              p_evidence_path?: string
+              p_group_ids: string[]
+              p_note?: string
+              p_payment_id: string
+              p_registered_by: string
+              p_source: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_decisor_id?: string
+              p_director_name: string
+              p_evidence_path?: string
+              p_group_ids: string[]
+              p_note?: string
+              p_payment_id: string
+              p_registered_by: string
+              p_source: string
+            }
+            Returns: undefined
+          }
+      register_external_validation:
+        | {
+            Args: {
+              p_evidence_path?: string
+              p_group_ids: string[]
+              p_note?: string
+              p_payment_id: string
+              p_registered_by: string
+              p_source: string
+              p_supervisor_name: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_decisor_id?: string
+              p_evidence_path?: string
+              p_group_ids: string[]
+              p_note?: string
+              p_payment_id: string
+              p_registered_by: string
+              p_source: string
+              p_supervisor_name: string
+            }
+            Returns: undefined
+          }
       reject_campaign: {
         Args: { _campaign_id: string; _reason: string }
         Returns: undefined
