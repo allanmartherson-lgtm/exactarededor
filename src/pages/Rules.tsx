@@ -1304,7 +1304,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       valid_until: fValidUntil || null,
       minimo_garantido_ativo: fMinGarantidoAtivo,
       minimo_garantido_valor: fMinGarantidoAtivo ? (num(fMinGarantidoValor) ?? null) : null,
-      minimo_garantido_escopo: fMinGarantidoAtivo ? "medico_empresa" : null,
+      minimo_garantido_escopo: fMinGarantidoAtivo ? fMinGarantidoEscopo : null,
       minimo_garantido_periodicidade: fMinGarantidoAtivo ? "competencia" : null,
       minimo_garantido_base: fMinGarantidoAtivo ? "bruto" : null,
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
