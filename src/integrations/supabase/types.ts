@@ -7043,9 +7043,11 @@ export type Database = {
           descricao: string | null
           escopo_producao: string
           filtros_captura: Json
+          garante_piso: boolean
           hospital_id: string
           id: string
           nome: string
+          piso_valor: number | null
           updated_at: string
           vigencia_fim: string | null
           vigencia_inicio: string | null
@@ -7058,9 +7060,11 @@ export type Database = {
           descricao?: string | null
           escopo_producao?: string
           filtros_captura?: Json
+          garante_piso?: boolean
           hospital_id: string
           id?: string
           nome: string
+          piso_valor?: number | null
           updated_at?: string
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
@@ -7073,9 +7077,11 @@ export type Database = {
           descricao?: string | null
           escopo_producao?: string
           filtros_captura?: Json
+          garante_piso?: boolean
           hospital_id?: string
           id?: string
           nome?: string
+          piso_valor?: number | null
           updated_at?: string
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
