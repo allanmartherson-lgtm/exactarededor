@@ -28,6 +28,8 @@ type ItemRow = {
   id: string;
   attendance_number: string | null;
   patient_name: string | null;
+  convenio_slug: string | null;
+
   doctor_name: string | null;
   specialty: string | null;
   procedure_date: string | null;
