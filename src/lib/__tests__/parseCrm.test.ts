@@ -123,6 +123,8 @@ describe("resolveDoctor — match por CRM unificado vs separado", () => {
     crm: "28923",
     crm_uf: "DF",
     cpf: null,
+    specialties: [],
+
   };
   const docSP: DoctorRegistryEntry = {
     id: "d2",
