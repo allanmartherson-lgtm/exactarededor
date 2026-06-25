@@ -1559,6 +1559,12 @@ const PaymentDetail = () => {
         status: "em_analise_ia",
       }).eq("id", id);
 
+      const uploadAuthorType: "analista" | "validador" | "diretor" = hasRole("diretor")
+        ? "diretor"
+        : hasRole("validador")
+          ? "validador"
+          : "analista";
+
       await recordObservation({
         payment_id: id, author_type: "analista", author_id: user.id,
         message: `Base reimportada pelo analista (${allRows.length} itens, total ${total.toFixed(2)}). Arquivos: ${fileNames.join(", ")}.`,
