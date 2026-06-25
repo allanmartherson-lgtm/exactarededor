@@ -35,6 +35,8 @@ type Pool = {
   vigencia_fim: string | null;
   escopo_producao: "participantes" | "filtrado";
   filtros_captura: FiltrosCaptura;
+  garante_piso?: boolean;
+  piso_valor?: number | null;
 };
 type Deduction = {
   id?: string;
