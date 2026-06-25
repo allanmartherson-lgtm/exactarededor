@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { ZeevIcon } from "./ZeevIcon";
 import {
   useManualInterventionReasons,
@@ -77,6 +77,14 @@ export function ZeevBulkManualDialog({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestion, setSuggestion] = useState<{
+    reason_code: string;
+    confidence: number;
+    reasoning: string;
+    suggested_note?: string;
+  } | null>(null);
+
 
   useEffect(() => {
     if (open) {
@@ -84,10 +92,73 @@ export function ZeevBulkManualDialog({
       setReasonId("");
       setNotes("");
       setProgress(null);
+      setSuggestion(null);
     }
     // Reset somente ao abrir; mudanças de referência em `items` não devem limpar o motivo escolhido
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const askZeevSuggestion = async () => {
+    if (items.length === 0) return;
+    setSuggesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-copilot", {
+        body: {
+          task: "suggest_manual_reason",
+          context: {
+            available_reasons: reasons.map((r) => ({
+              code: r.code,
+              label: r.label,
+              category: r.category,
+              description: r.description,
+            })),
+            items: items.slice(0, 30).map((i) => ({
+              doctor_name: i.doctor_name,
+              procedure_code: i.procedure_code,
+              procedure_description: i.procedure_description,
+              procedure_amount: i.procedure_amount,
+              attendance_number: i.attendance_number,
+            })),
+          },
+        },
+      });
+      if (error) throw error;
+      const result = (data as { result?: { reason_code?: string; confidence?: number; reasoning?: string; suggested_note?: string } })?.result;
+      if (!result?.reason_code) {
+        toast({ title: "Zeev não conseguiu sugerir", variant: "destructive" });
+        return;
+      }
+      const match = reasons.find((r) => r.code === result.reason_code);
+      if (!match) {
+        toast({
+          title: "Motivo sugerido não cadastrado",
+          description: `Zeev sugeriu "${result.reason_code}" mas não está na lista. Escolha manualmente.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      setSuggestion({
+        reason_code: result.reason_code,
+        confidence: Number(result.confidence ?? 0),
+        reasoning: result.reasoning ?? "",
+        suggested_note: result.suggested_note,
+      });
+      setReasonId(match.id);
+      if (result.suggested_note && !notes.trim()) {
+        setNotes(result.suggested_note);
+      }
+      toast({
+        title: "Zeev sugeriu um motivo",
+        description: `${match.label} (confiança ${(Number(result.confidence ?? 0) * 100).toFixed(0)}%)`,
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast({ title: "Falha ao consultar Zeev", description: msg, variant: "destructive" });
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
 
   const selectedReason = useMemo(
     () => reasons.find((r) => r.id === reasonId) ?? null,
@@ -274,7 +345,34 @@ export function ZeevBulkManualDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Motivo (aplicado a todos)</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label>Motivo (aplicado a todos)</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1.5 text-xs"
+                onClick={askZeevSuggestion}
+                disabled={suggesting || submitting || loadingReasons || items.length === 0}
+              >
+                {suggesting ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3" />
+                )}
+                Zeev sugerir motivo
+              </Button>
+            </div>
+            {suggestion && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-900/40">
+                <span className="font-medium">Zeev sugere:</span>{" "}
+                {suggestion.reasoning}
+                <span className="ml-1 opacity-70">
+                  (confiança {(suggestion.confidence * 100).toFixed(0)}%)
+                </span>
+              </div>
+            )}
+
             <Select
               value={reasonId}
               onValueChange={setReasonId}

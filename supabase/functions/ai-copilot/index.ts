@@ -16,7 +16,9 @@ type Task =
   | "summarize_inconsistencies" // resumo após upload
   | "suggest_duplicate"      // possível duplicata no cadastro
   | "disambiguate_entity"    // IA decide se 2 nomes são mesma entidade (etapa 3)
+  | "suggest_manual_reason"  // sugere motivo de intervenção manual para itens sem base
   | "zeev_tip";              // dica conversacional do mascote Zeev por contexto de tela
+
 
 interface CopilotRequest {
   task: Task;
@@ -83,7 +85,42 @@ const PROMPT_BUILDERS: Record<Task, (ctx: Record<string, unknown>) => { system: 
       required: ["same_entity", "confidence", "reasoning"],
     },
   }),
+  suggest_manual_reason: (ctx) => ({
+    system: [
+      "Você é o Zeev, copiloto do Exacta. Sua tarefa é sugerir o MELHOR motivo de intervenção manual",
+      "para itens de pagamento médico que estão sem base de cálculo (procedure_amount nulo/zerado)",
+      "mas foram pagos. Cada item exige uma justificativa antes de ir para validação/aprovação.",
+      "",
+      "Você recebe (a) a lista de motivos cadastrados disponíveis (code + label + descrição) e",
+      "(b) os itens (médico, procedimento TUSS, valor pago, atendimento). Avalie o padrão dominante",
+      "e responda em JSON estruturado com o motivo mais provável.",
+      "",
+      "Heurísticas comuns:",
+      "- TUSS 10102019 (visita hospitalar) com valor zerado e gross_amount > 0 → geralmente 'visita_pos_alta' (visita lançada depois da alta).",
+      "- TUSS de parecer cobrado várias vezes para mesmo atendimento → 'visita_sequencial_parecer'.",
+      "- Valor diferente da tabela combinado → 'valor_negociado'.",
+      "- TUSS que cobre múltiplos atos → 'tuss_ambiguo'.",
+      "- Se nenhum motivo se encaixa bem com alta confiança → use 'outro_clinico' ou 'outro_financeiro' conforme a natureza.",
+      "",
+      "Responda SEMPRE em JSON. PT-BR. Confidence 0-1.",
+    ].join("\n"),
+    user:
+      `Motivos disponíveis:\n${JSON.stringify(ctx.available_reasons ?? [], null, 2)}\n\n` +
+      `Itens que precisam de motivo (${(ctx.items as unknown[] | undefined)?.length ?? 0}):\n${JSON.stringify(ctx.items ?? [], null, 2)}\n\n` +
+      `Sugira o motivo mais provável para o conjunto. Se os itens forem heterogêneos, escolha o que cobre a maioria e explique no campo 'reasoning'.`,
+    jsonSchema: {
+      type: "object",
+      properties: {
+        reason_code: { type: "string", description: "code do motivo sugerido (ex: visita_pos_alta)" },
+        confidence: { type: "number" },
+        suggested_note: { type: "string", description: "Justificativa curta sugerida para preencher no campo de notas" },
+        reasoning: { type: "string", description: "Por que esse motivo se aplica" },
+      },
+      required: ["reason_code", "confidence", "reasoning"],
+    },
+  }),
   zeev_tip: (ctx) => ({
+
     system: [
       "Você é o Zeev, mascote assistente do Exacta (sistema de repasse médico hospitalar da Rede D'Or).",
       "Personalidade: amigável, próximo, direto, levemente bem-humorado — sem ser infantil. Tom de colega experiente que dá uma cutucada útil.",

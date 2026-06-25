@@ -66,6 +66,9 @@ import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
 
 import { ConversationsSheet } from "@/components/payment-detail/conversations/ConversationsSheet";
+import { ZeevBulkManualDialog } from "@/components/copilot/ZeevBulkManualDialog";
+import { findItemsNeedingManualReason } from "@/lib/manualReasonGate";
+
 import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPatternSuggest";
 import { ProductionValidationButton } from "@/components/payment-detail/ProductionValidationButton";
@@ -250,6 +253,22 @@ const PaymentDetail = () => {
   const [addingCompany, setAddingCompany] = useState(false);
   const [addCompanyConfirm, setAddCompanyConfirm] = useState<File[] | null>(null);
   const [bonusDialogOpen, setBonusDialogOpen] = useState(false);
+  // Gate de motivo de intervenção: itens com valor zerado pagos sem justificativa
+  // bloqueiam o envio para validação/aprovação. Quando bloqueado, abrimos o
+  // ZeevBulkManualDialog com a lista pré-carregada.
+  const [manualReasonGate, setManualReasonGate] = useState<{
+    open: boolean;
+    items: Array<{
+      id: string;
+      doctor_name: string | null;
+      procedure_code: string | null;
+      procedure_description: string | null;
+      procedure_amount: number | null;
+      attendance_number: string | null;
+    }>;
+    companyName: string | null;
+  }>({ open: false, items: [], companyName: null });
+
 
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
@@ -545,7 +564,38 @@ const PaymentDetail = () => {
       });
       return;
     }
+    // Gate: itens com valor zerado pagos sem motivo de intervenção bloqueiam
+    // a transição para validação (aguardando_aprovacao) ou aprovação (aprovado).
+    if (newStatus === "aguardando_aprovacao" || newStatus === "aprovado") {
+      try {
+        const pending = await findItemsNeedingManualReason(id);
+        if (pending.length > 0) {
+          toast({
+            title: `${pending.length} ${pending.length === 1 ? "item exige" : "itens exigem"} motivo de intervenção`,
+            description:
+              "Valor zerado/ausente sem justificativa. Zeev pode sugerir um motivo em lote.",
+            variant: "destructive",
+          });
+          setManualReasonGate({
+            open: true,
+            items: pending.map((p) => ({
+              id: p.id,
+              doctor_name: p.doctor_name,
+              procedure_code: p.procedure_code,
+              procedure_description: p.procedure_name,
+              procedure_amount: p.procedure_amount,
+              attendance_number: p.attendance_number,
+            })),
+            companyName: null,
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn("[manualReasonGate] falhou (não bloqueante):", e);
+      }
+    }
     setBusy(true);
+
     const updates: PaymentUpdate = { status: newStatus };
     if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
       updates.validated_by = user!.id; updates.validated_at = new Date().toISOString();
@@ -612,7 +662,36 @@ const PaymentDetail = () => {
       toast({ title: "Adicione um motivo para esta empresa", variant: "destructive" });
       return;
     }
+    // Gate: por empresa, mesma checagem que no transition global.
+    if (newStatus === "aguardando_aprovacao" || newStatus === "aprovado") {
+      try {
+        const pending = await findItemsNeedingManualReason(id, g.company_id ?? null);
+        if (pending.length > 0) {
+          toast({
+            title: `${pending.length} ${pending.length === 1 ? "item exige" : "itens exigem"} motivo de intervenção`,
+            description: `Empresa ${g.company_name}: valor zerado/ausente sem justificativa.`,
+            variant: "destructive",
+          });
+          setManualReasonGate({
+            open: true,
+            items: pending.map((p) => ({
+              id: p.id,
+              doctor_name: p.doctor_name,
+              procedure_code: p.procedure_code,
+              procedure_description: p.procedure_name,
+              procedure_amount: p.procedure_amount,
+              attendance_number: p.attendance_number,
+            })),
+            companyName: g.company_name,
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn("[manualReasonGate group] falhou (não bloqueante):", e);
+      }
+    }
     setBusy(true);
+
     if (authorType === "analista") await autoClaim();
     const updates: GroupUpdate = { status: newStatus };
     if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
@@ -4525,6 +4604,24 @@ const PaymentDetail = () => {
         lockedPayment={payment ? { id: payment.id, reference: payment.reference } : null}
         onSaved={() => load()}
       />
+
+      {/* Gate de motivo de intervenção — bloqueia envio para validação/aprovação
+          quando há itens com valor zerado/ausente pagos sem justificativa.
+          Reaproveita o fluxo Zeev de tratativa em lote. */}
+      <ZeevBulkManualDialog
+        open={manualReasonGate.open}
+        onOpenChange={(v) => setManualReasonGate((prev) => ({ ...prev, open: v }))}
+        paymentId={id ?? ""}
+        companyName={manualReasonGate.companyName}
+        title="Itens exigem motivo antes da aprovação"
+        subtitle="Esses itens foram pagos mas não têm valor base do convênio. Atribua um motivo (Zeev pode sugerir) para liberar o envio."
+        items={manualReasonGate.items}
+        onApplied={async () => {
+          setManualReasonGate({ open: false, items: [], companyName: null });
+          await load();
+        }}
+      />
+
 
       {/* Dialog disparado quando o trigger de divergência pedido × regra
           barra o envio analista→validador. Lista TODAS as empresas
