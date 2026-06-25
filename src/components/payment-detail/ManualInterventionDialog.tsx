@@ -141,12 +141,17 @@ export function ManualInterventionDialog({
           .eq("id", itemId)
           .maybeSingle();
         if (readErr) throw readErr;
-        const procAmt = row?.procedure_amount == null
-          ? null
-          : Number(row.procedure_amount);
-        if (procAmt != null && Number.isFinite(procAmt)) {
-          (patch as any).expected_amount = procAmt;
-        }
+        // Tratamento manual aceita o procedure_amount como esperado.
+        // procedure_amount NULL ou 0 (item "zerado") => expected = 0, para
+        // que o repasse calculado também zere e o motor não mantenha valor
+        // antigo da regra.
+        const rawProc = row?.procedure_amount;
+        const procAmt =
+          rawProc == null || !Number.isFinite(Number(rawProc))
+            ? 0
+            : Number(rawProc);
+        (patch as any).expected_amount = procAmt;
+        (patch as any).gross_amount = procAmt;
         (patch as any).ai_status = "aprovado";
       }
 
