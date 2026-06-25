@@ -699,7 +699,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "funcao", label: "Função" },
   { key: "procedimento", label: "Procedimento" },
   { key: "setor_lido", label: "Setor (Planilha)" },
-  { key: "setor_inferido", label: "Setor (Sistema)" },
+  { key: "setor_inferido", label: "Setor" },
   { key: "tipo_entrada", label: "Tipo de entrada (caráter)" },
   { key: "subtipo", label: "Subtipo (Parecer/Visita)" },
   { key: "regra", label: "Regra aplicada" },
@@ -2384,7 +2384,7 @@ export function ItemsDataGrid({
                 </th>
                 {colVis.procedimento && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>}
                 {colVis.setor_lido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)</th>}
-                {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Sistema)</th>}
+                {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor</th>}
                 {colVis.tipo_entrada && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Caráter</th>}
                 {colVis.subtipo && isParecerPayment && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")} title="Tipo de pagamento do item (Parecer × Visita)">Subtipo</th>}
                 <th
@@ -4144,7 +4144,7 @@ function ItemDetailsRow({
     { label: "Médico", value: it.doctor_name ?? "—" },
     { label: "Função", value: getDoctorRole(it) },
     { label: "Setor (Planilha)", value: formatSectorName(rawPick(it.raw_data, SECTOR_RAW_KEYS as unknown as string[]) ?? it.sector ?? null) },
-    { label: "Setor (Sistema)", value: formatSectorName(
+    { label: "Setor", value: formatSectorName(
         sectorAliases?.resolve(rawPick(it.raw_data, SECTOR_RAW_KEYS as unknown as string[])) ??
         sectorAliases?.resolve(it.sector) ??
         (it.ai_findings?.engine as any)?.inferred_sector ??
