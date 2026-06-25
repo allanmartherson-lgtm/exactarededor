@@ -334,13 +334,14 @@ Deno.serve(async (req) => {
           .insert({
             payment_id,
             doctor_id: unit.doctor_id,
+            doctor_name: unit.doctor_id ? undefined : "[Complemento por PJ]",
             company_id: unit.company_id,
             gross_amount: complemento,
             expected_amount: complemento,
             procedure_amount: 0,
             procedure_name: `Complemento Mínimo Garantido — ${rule.name}`,
             description: escopo === "empresa"
-              ? `Piso por PJ R$ ${piso.toFixed(2)}; produção da competência ${competence}: R$ ${producao.toFixed(2)}`
+              ? `Piso por PJ R$ ${piso.toFixed(2)}; produção líquida da competência ${competence}: R$ ${producao.toFixed(2)}`
               : `Piso de R$ ${piso.toFixed(2)}; produção da competência ${competence}: R$ ${producao.toFixed(2)}`,
             item_origin: "complemento_minimo",
             applied_rule_id: rule.id,
