@@ -1970,7 +1970,7 @@ const PaymentDetail = () => {
     isAdminOrDiretor: hasRole("admin") || hasRole("diretor"),
     isValidador,
   });
-  const isPoolEmptyDraft = Boolean((payment as any)?.pool_id) && payment.status === "rascunho" && items.length === 0;
+  const isPoolEmptyDraft = Boolean((payment as any)?.pool_id) && payment.status === "rascunho" && !itemsLoading && items.length === 0 && Number((payment as any)?.items_count ?? 0) === 0;
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
   const canImportInitialPaymentBase = isPoolEmptyDraft && (isAnalista || isValidador || isDiretor);
   const canManagePaymentBase = canReimport || canImportInitialPaymentBase;
