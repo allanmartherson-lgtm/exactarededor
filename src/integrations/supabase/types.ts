@@ -3929,7 +3929,7 @@ export type Database = {
           competence_month: string
           complemento_valor: number
           created_at: string
-          doctor_id: string
+          doctor_id: string | null
           hospital_id: string | null
           id: string
           notes: string | null
@@ -3950,7 +3950,7 @@ export type Database = {
           competence_month: string
           complemento_valor?: number
           created_at?: string
-          doctor_id: string
+          doctor_id?: string | null
           hospital_id?: string | null
           id?: string
           notes?: string | null
@@ -3971,7 +3971,7 @@ export type Database = {
           competence_month?: string
           complemento_valor?: number
           created_at?: string
-          doctor_id?: string
+          doctor_id?: string | null
           hospital_id?: string | null
           id?: string
           notes?: string | null
