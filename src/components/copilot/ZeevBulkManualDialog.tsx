@@ -345,7 +345,34 @@ export function ZeevBulkManualDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Motivo (aplicado a todos)</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label>Motivo (aplicado a todos)</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1.5 text-xs"
+                onClick={askZeevSuggestion}
+                disabled={suggesting || submitting || loadingReasons || items.length === 0}
+              >
+                {suggesting ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3" />
+                )}
+                Zeev sugerir motivo
+              </Button>
+            </div>
+            {suggestion && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-900/40">
+                <span className="font-medium">Zeev sugere:</span>{" "}
+                {suggestion.reasoning}
+                <span className="ml-1 opacity-70">
+                  (confiança {(suggestion.confidence * 100).toFixed(0)}%)
+                </span>
+              </div>
+            )}
+
             <Select
               value={reasonId}
               onValueChange={setReasonId}
