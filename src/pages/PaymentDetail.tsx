@@ -1970,7 +1970,10 @@ const PaymentDetail = () => {
     isAdminOrDiretor: hasRole("admin") || hasRole("diretor"),
     isValidador,
   });
+  const isPoolEmptyDraft = Boolean((payment as any)?.pool_id) && payment.status === "rascunho" && items.length === 0;
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
+  const canImportInitialPaymentBase = isPoolEmptyDraft && (isAnalista || isValidador || isDiretor);
+  const canManagePaymentBase = canReimport || canImportInitialPaymentBase;
   const canAssumeNow = canAssumeBatch(payment.status as PaymentStatus, {
     isAnalista, isValidador, isDiretor, isOwner,
   });
@@ -2548,6 +2551,18 @@ const PaymentDetail = () => {
                 </Link>
               </Button>
             )}
+            {canImportInitialPaymentBase && (
+              <Button
+                variant="default"
+                size="sm"
+                disabled={busy || reimporting}
+                className="hidden md:inline-flex"
+                onClick={() => reimportInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 mr-1.5" />
+                Importar base de pagamento
+              </Button>
+            )}
 
             {!isConfeccao && (payment.status === "em_analise_ia" || payment.status === "revisao_analista" || payment.status === "devolvido_analista") && (isAnalista || isDiretor) && (
               <AlertDialog open={reprocessConfirmOpen} onOpenChange={setReprocessConfirmOpen}>
@@ -2719,9 +2734,9 @@ const PaymentDetail = () => {
                     <Pencil className="h-4 w-4 mr-2" /> Editar lote
                   </DropdownMenuItem>
                 )}
-                {canReimport && (
+                {canManagePaymentBase && (
                   <DropdownMenuItem disabled={busy || reimporting} onSelect={() => reimportInputRef.current?.click()}>
-                    <Upload className="h-4 w-4 mr-2" /> Reimportar base
+                    <Upload className="h-4 w-4 mr-2" /> {canImportInitialPaymentBase ? "Importar base de pagamento" : "Reimportar base"}
                   </DropdownMenuItem>
                 )}
                 {canReimport && (
@@ -3057,13 +3072,13 @@ const PaymentDetail = () => {
           </Dialog>
         )}
 
-        {canReimport && (
+        {canManagePaymentBase && (
           <AlertDialog open={!!reimportConfirm} onOpenChange={(v) => !v && !reimporting && setReimportConfirm(null)}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
+                <AlertDialogTitle>{canImportInitialPaymentBase ? "Importar base de pagamento?" : "Reimportar base?"}</AlertDialogTitle>
                 <AlertDialogDescription className="space-y-3">
-                  <p>Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.</p>
+                  <p>{canImportInitialPaymentBase ? "Esta ação cria os itens deste lote a partir dos arquivos selecionados e inicia a análise." : "Esta ação substitui todos os itens e grupos deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita."}</p>
                   <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
                     <div className="flex items-center justify-between mb-1.5">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
