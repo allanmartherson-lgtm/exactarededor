@@ -46,18 +46,22 @@ const ELIGIBLE_BY_STAGE: Record<Stage, Set<string>> = {
   approval: new Set(["aguardando_aprovacao"]),
 };
 
-const STAGE_LABEL: Record<Stage, { title: string; role: string; targetStatus: string }> = {
+const STAGE_LABEL: Record<Stage, { title: string; role: string; targetStatus: string; appRole: "diretor" | "validador" }> = {
   validation: {
     title: "Registrar validação externa",
     role: "supervisor",
     targetStatus: "aguardando_aprovacao",
+    appRole: "validador",
   },
   approval: {
     title: "Registrar aprovação externa",
     role: "diretor",
     targetStatus: "revisao_pos_aprovacao",
+    appRole: "diretor",
   },
 };
+
+type DecisorOption = { id: string; full_name: string };
 
 export function RegisterExternalApprovalDialog({
   open,
