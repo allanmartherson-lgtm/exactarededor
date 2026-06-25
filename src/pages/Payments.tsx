@@ -306,6 +306,10 @@ const Payments = () => {
   // Filtros avançados (não dependem de "criado por")
   const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">(persisted.divergenceFilter ?? "all");
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">(persisted.questionedFilter ?? "all");
+  const [poolFilter, setPoolFilter] = useState<string>(persisted.poolFilter ?? "all");
+  const [importModeFilter, setImportModeFilter] = useState<"all" | "normal" | "historico">(persisted.importModeFilter ?? "all");
+  const [emptyOnly, setEmptyOnly] = useState<boolean>(persisted.emptyOnly ?? false);
+  const [poolOptions, setPoolOptions] = useState<Array<{ id: string; nome: string }>>([]);
   // Contagem de perguntas internas abertas por lote (badge nas listagens).
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [openQuestionOnly, setOpenQuestionOnly] = useState(() => searchParams.get("open_questions") === "1");
