@@ -709,6 +709,9 @@ function targetsCompany(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "especifica" || r.target_type !== "empresa") return false;
   // 1) Match por ID do cadastro (preferencial)
   if (r.target_company_id && item.company_id && r.target_company_id === item.company_id) return true;
+  // 1.b) Item de pool (company_id=null): aceita se a regra alvo é uma PJ participante.
+  if (r.target_company_id && !item.company_id && Array.isArray(item.pool_company_ids)
+      && item.pool_company_ids.includes(r.target_company_id)) return true;
   // 2) Match por CNPJ (digits-only)
   const ruleDoc = onlyDigits(r.target_identifier);
   const itemDoc = onlyDigits(item.company_document);
