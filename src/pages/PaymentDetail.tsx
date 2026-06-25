@@ -1410,7 +1410,7 @@ const PaymentDetail = () => {
   // apenas enquanto o lote está editável pelo analista (mesma regra do
   // botão "Editar lote"). Útil quando a planilha original tinha erro de
   // formato e o analista refez a base.
-  const doReimport = async (files: File[]) => {
+  const doReimport = async (files: File[], overrides: Record<string, Record<string, string>> = {}) => {
     if (!id || !payment || !user) return;
     const importingInitialPaymentBase = canImportInitialPaymentBase;
     setReimporting(true);
