@@ -221,11 +221,35 @@ Deno.serve(async (req) => {
       if (escopo === "empresa") {
         toProcess = Array.from(eligibleCompanies)
           .filter((cid) => presentCompanies.has(cid))
+          .filter((cid) => !skipCompaniesPoolPiso.has(cid))
           .map((cid) => ({ doctor_id: null, company_id: cid }));
       } else {
         toProcess = eligiblePairs
           .filter((p) => presentPairs.has(`${p.doctor_id}|${p.company_id}`))
+          .filter((p) => !skipCompaniesPoolPiso.has(p.company_id))
           .map((p) => ({ doctor_id: p.doctor_id, company_id: p.company_id }));
+      }
+
+      // Reverte aplicações existentes para PJs agora cobertas pelo piso interno do pool
+      if (skipCompaniesPoolPiso.size > 0) {
+        const { data: stale } = await supabase
+          .from("minimum_guarantee_applications")
+          .select("id, synthetic_item_id")
+          .eq("rule_id", rule.id)
+          .eq("competence_month", competence)
+          .eq("status", "aplicado")
+          .in("company_id", Array.from(skipCompaniesPoolPiso));
+        for (const s of (stale ?? []) as any[]) {
+          if (s.synthetic_item_id) {
+            await supabase.from("payment_items").delete().eq("id", s.synthetic_item_id);
+          }
+          await supabase.from("minimum_guarantee_applications").update({
+            status: "revertido",
+            reverted_at: new Date().toISOString(),
+            reverted_by: userId,
+            notes: "Substituído pelo piso interno do pool (garante_piso=true)",
+          }).eq("id", s.id);
+        }
       }
 
       const baseLiquido = (rule.minimo_garantido_base ?? "bruto") === "liquido";
