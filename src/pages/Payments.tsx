@@ -195,6 +195,9 @@ type PersistedPaymentsState = Partial<{
   colSort: { col: ColSortCol; dir: "asc" | "desc" } | null;
   divergenceFilter: "all" | "with" | "without";
   questionedFilter: "all" | "with" | "without";
+  poolFilter: string;
+  importModeFilter: "all" | "normal" | "historico";
+  emptyOnly: boolean;
   archivedView: boolean;
   showConcluded: boolean;
 }>;
@@ -303,6 +306,10 @@ const Payments = () => {
   // Filtros avançados (não dependem de "criado por")
   const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">(persisted.divergenceFilter ?? "all");
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">(persisted.questionedFilter ?? "all");
+  const [poolFilter, setPoolFilter] = useState<string>(persisted.poolFilter ?? "all");
+  const [importModeFilter, setImportModeFilter] = useState<"all" | "normal" | "historico">(persisted.importModeFilter ?? "all");
+  const [emptyOnly, setEmptyOnly] = useState<boolean>(persisted.emptyOnly ?? false);
+  const [poolOptions, setPoolOptions] = useState<Array<{ id: string; nome: string }>>([]);
   // Contagem de perguntas internas abertas por lote (badge nas listagens).
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [openQuestionOnly, setOpenQuestionOnly] = useState(() => searchParams.get("open_questions") === "1");
@@ -328,6 +335,7 @@ const Payments = () => {
       analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
       view, sortBy, colSort,
       divergenceFilter, questionedFilter,
+      poolFilter, importModeFilter, emptyOnly,
       archivedView,
       showConcluded,
     };
@@ -342,6 +350,7 @@ const Payments = () => {
     analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
     view, sortBy, colSort,
     divergenceFilter, questionedFilter,
+    poolFilter, importModeFilter, emptyOnly,
     archivedView,
     showConcluded,
   ]);
@@ -434,6 +443,7 @@ const Payments = () => {
     debouncedQ, companyFilter?.id, doctorFilter?.id, analystFilter, typeFilter, trackFilter,
     statusFilter, competenceFilter, delayedOnly, ownerGroup, onlyMine,
     divergenceFilter, questionedFilter, openQuestionOnly, archivedView, pageSize, sortBy,
+    poolFilter, importModeFilter, emptyOnly,
   ]);
 
   // Mapeia ordenação da UI para o parâmetro _sort da RPC list_payments.
@@ -498,10 +508,13 @@ const Payments = () => {
     if (openQuestionOnly) f.only_open_questions = true;
     if (divergenceFilter === "with") f.only_divergence = true;
     if (questionedFilter !== "all") f.with_questions = questionedFilter;
+    if (poolFilter !== "all") f.pool_ids = [poolFilter];
+    if (importModeFilter !== "all") f.import_modes = [importModeFilter];
+    if (emptyOnly) f.only_empty = true;
     return f;
   }, [serverStatuses, typeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
       competenceFilter, debouncedQ, delayedOnly, openQuestionOnly,
-      divergenceFilter, questionedFilter]);
+      divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -641,6 +654,22 @@ const Payments = () => {
       console.warn("payments_global_stats falhou", e);
     }
   }, []);
+
+  // Pools (rateios) ativos do hospital — alimenta o filtro de Pool.
+  const loadPoolOptions = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("pools")
+        .select("id,nome,ativo")
+        .order("nome", { ascending: true });
+      if (error) throw error;
+      setPoolOptions(((data ?? []) as any[]).filter((p) => p.ativo !== false).map((p) => ({ id: p.id, nome: p.nome })));
+    } catch (e) {
+      console.warn("load pools falhou", e);
+    }
+  }, []);
+
+  useEffect(() => { loadPoolOptions(); }, [loadPoolOptions]);
 
   useEffect(() => {
     document.title = "Pagamentos | Exacta Approval";
@@ -1214,6 +1243,9 @@ const Payments = () => {
             ownerGroup !== "all",
             divergenceFilter !== "all",
             questionedFilter !== "all",
+            poolFilter !== "all",
+            importModeFilter !== "all",
+            emptyOnly,
           ].filter(Boolean).length;
 
           const advancedFilters = (
@@ -1299,6 +1331,38 @@ const Payments = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Pool (rateio)</label>
+                <Select value={poolFilter} onValueChange={setPoolFilter}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Pool" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os pools</SelectItem>
+                    {poolOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Modo de importação</label>
+                <Select value={importModeFilter} onValueChange={(v) => setImportModeFilter(v as typeof importModeFilter)}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Modo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os modos</SelectItem>
+                    <SelectItem value="normal">Normal (corrente)</SelectItem>
+                    <SelectItem value="historico">Histórico (retroativo)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 flex items-end">
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-border accent-primary"
+                    checked={emptyOnly}
+                    onChange={(e) => setEmptyOnly(e.target.checked)}
+                  />
+                  Apenas lotes vazios (sem itens)
+                </label>
+              </div>
             </div>
           );
 
@@ -1368,6 +1432,9 @@ const Payments = () => {
                           setOwnerGroup("all");
                           setDivergenceFilter("all");
                           setQuestionedFilter("all");
+                          setPoolFilter("all");
+                          setImportModeFilter("all");
+                          setEmptyOnly(false);
                           const next = new URLSearchParams(searchParams);
                           next.delete("status");
                           setSearchParams(next, { replace: true });
@@ -1416,12 +1483,13 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || trackFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all") && (
+              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || trackFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly) && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
                   setAnalystFilter("all"); setTypeFilter("all"); setTrackFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
                   setOwnerGroup("all"); setOnlyMine(false);
                   setDivergenceFilter("all"); setQuestionedFilter("all");
+                  setPoolFilter("all"); setImportModeFilter("all"); setEmptyOnly(false);
                   setSearchParams(new URLSearchParams(), { replace: true });
                 }}>
                   <X className="h-4 w-4 mr-1" /> Limpar
