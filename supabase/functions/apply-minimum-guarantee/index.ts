@@ -126,15 +126,41 @@ Deno.serve(async (req) => {
     // Nesse caso, as PJs presentes são as participantes do pool e a produção
     // bruta por PJ é a fatia percentual do gross total do pool na competência.
     const poolParticipantPct = new Map<string, number>();
+    let poolGarantePiso = false;
     if ((payment as any).pool_id) {
+      const { data: poolRow } = await supabase
+        .from("pools")
+        .select("garante_piso")
+        .eq("id", (payment as any).pool_id)
+        .maybeSingle();
+      poolGarantePiso = !!(poolRow as any)?.garante_piso;
+
       const { data: parts } = await supabase
         .from("pool_participants")
         .select("company_id, percentual, participant_type")
         .eq("pool_id", (payment as any).pool_id);
       for (const p of (parts ?? []) as any[]) {
         if (!p.company_id || p.participant_type === "hospital_nao_paga") continue;
-        presentCompanies.add(p.company_id);
-        poolParticipantPct.set(p.company_id, Number(p.percentual ?? 0));
+        // Só adiciona à lista de candidatos via pool se o pool NÃO garante piso.
+        // Quando garante, o complemento é aplicado dentro do rateio pelo recalc-payment-pools.
+        if (!poolGarantePiso) {
+          presentCompanies.add(p.company_id);
+          poolParticipantPct.set(p.company_id, Number(p.percentual ?? 0));
+        }
+      }
+    }
+
+    // Empresas cobertas pelo piso interno do pool (não devem receber regra externa)
+    const skipCompaniesPoolPiso = new Set<string>();
+    if (poolGarantePiso && (payment as any).pool_id) {
+      const { data: pp } = await supabase
+        .from("pool_participants")
+        .select("company_id, participant_type")
+        .eq("pool_id", (payment as any).pool_id);
+      for (const p of (pp ?? []) as any[]) {
+        if (p.company_id && p.participant_type !== "hospital_nao_paga") {
+          skipCompaniesPoolPiso.add(p.company_id);
+        }
       }
     }
 
