@@ -348,6 +348,19 @@ Deno.serve(async (req) => {
             }
             if (!page || page.length < pageSize) break;
           }
+          // Pool soberano: itens têm company_id=NULL. As PJs que recebem snapshot
+          // são as participantes do pool, não os donos dos itens.
+          const { data: pmt } = await supabase
+            .from("payments").select("pool_id").eq("id", payment_id).maybeSingle();
+          if ((pmt as any)?.pool_id) {
+            const { data: parts } = await supabase
+              .from("pool_participants")
+              .select("company_id")
+              .eq("pool_id", (pmt as any).pool_id);
+            for (const p of parts ?? []) {
+              if ((p as any).company_id) companySet.add((p as any).company_id as string);
+            }
+          }
           const ids = [...companySet];
           console.log(`[orchestrate] disparando recompute snapshots para ${ids.length} empresa(s)`);
           // Invalida em massa (computed_at=null) — assim qualquer UI que abra
