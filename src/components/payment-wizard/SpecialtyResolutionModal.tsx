@@ -36,14 +36,18 @@ export function SpecialtyResolutionModal({
   onOpenChange,
   rows,
   initialOverrides,
+  suggestionsByDoctor,
   onConfirm,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   rows: PendingSpecialtyRow[];
   initialOverrides?: SpecialtyOverrides;
+  /** Especialidades cadastradas do médico (normalizado) — mostradas como chips de atalho. */
+  suggestionsByDoctor?: Record<string, string[]>;
   onConfirm: (overrides: SpecialtyOverrides) => void;
 }) {
+
   const [overrides, setOverrides] = useState<SpecialtyOverrides>({});
   const [filter, setFilter] = useState("");
   const [bulkSpecialty, setBulkSpecialty] = useState<string>("");
