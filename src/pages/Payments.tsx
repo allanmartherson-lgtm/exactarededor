@@ -443,6 +443,7 @@ const Payments = () => {
     debouncedQ, companyFilter?.id, doctorFilter?.id, analystFilter, typeFilter, trackFilter,
     statusFilter, competenceFilter, delayedOnly, ownerGroup, onlyMine,
     divergenceFilter, questionedFilter, openQuestionOnly, archivedView, pageSize, sortBy,
+    poolFilter, importModeFilter, emptyOnly,
   ]);
 
   // Mapeia ordenação da UI para o parâmetro _sort da RPC list_payments.
