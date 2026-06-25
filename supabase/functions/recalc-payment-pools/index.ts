@@ -416,13 +416,8 @@ Deno.serve(async (req) => {
           q = q.or(`absorbed_by_pool_id.is.null,absorbed_by_pool_id.neq.${pool.id}`);
           const { count: liveCount } = await q;
           if ((liveCount ?? 0) === 0) {
-            // Todos os itens deste grupo foram absorvidos pelo pool → zera card
-            await supabase.from("payment_company_groups")
-              .update({
-                total_amount: 0,
-                items_count: 0,
-                status: "absorvido_por_pool",
-              } as any).eq("id", g.id);
+            // Todos os itens deste grupo foram absorvidos pelo pool → remove card duplicado
+            await supabase.from("payment_company_groups").delete().eq("id", g.id);
           }
         }
       }
