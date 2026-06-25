@@ -385,7 +385,7 @@ Deno.serve(async (req) => {
     let notFound = 0;
     let reclassified = 0;
     let autoApplied = 0;
-    const PROTECTED_SOURCES = new Set(["manual", "company_override"]);
+    const PROTECTED_SOURCES = new Set(["manual", "company_override", "base_tipo"]);
     const itemById = new Map(items.map((i: any) => [i.id, i]));
     let subtypeParecer = 0;
     let subtypeVisita = 0;
