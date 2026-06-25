@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { computeZeevSuggestion } from "./specialtyZeev";
 
 export type PendingSpecialtyRow = {
   /** Identificador estável (ex.: `${bucketId}|${idxNaBucket}` ou attendance_number). */
@@ -108,17 +109,27 @@ export function SpecialtyResolutionModal({
     });
   };
 
-  // Zeev: detecta se todos os médicos têm uma única especialidade cadastrada e ela é a mesma → sugere lote.
-  const zeevLotSuggestion = useMemo(() => {
-    if (!suggestionsByDoctor) return null;
-    const docs = Array.from(new Set(rows.map((r) => (r.doctor_name ?? "").trim().toLowerCase()).filter(Boolean)));
-    if (docs.length === 0) return null;
-    const specs = docs.map((d) => suggestionsByDoctor[d] ?? []);
-    if (specs.some((s) => s.length !== 1)) return null;
-    const unique = Array.from(new Set(specs.map((s) => s[0])));
-    if (unique.length === 1) return unique[0];
-    return null;
-  }, [rows, suggestionsByDoctor]);
+  // Zeev: sugere no nível mais alto possível (lote → médico → item).
+  const zeev = useMemo(
+    () => computeZeevSuggestion(rows, suggestionsByDoctor),
+    [rows, suggestionsByDoctor],
+  );
+  const zeevLotSuggestion = zeev.level === "lot" ? zeev.specialty : null;
+  const zeevPerDoctor = zeev.level === "doctor" ? zeev.perDoctor : null;
+  const zeevItemHint = zeev.level === "item" ? zeev.reason : null;
+
+  const applyZeevPerDoctor = () => {
+    if (!zeevPerDoctor) return;
+    setOverrides((prev) => {
+      const next = { ...prev };
+      for (const r of rows) {
+        const k = (r.doctor_name ?? "").trim().toLowerCase();
+        const spec = zeevPerDoctor[k];
+        if (spec) next[r.rowKey] = spec;
+      }
+      return next;
+    });
+  };
 
 
   return (
@@ -156,6 +167,23 @@ export function SpecialtyResolutionModal({
                 <Button size="sm" variant="default" className="h-6 text-[11px]" onClick={() => applyToWholeLot(zeevLotSuggestion)}>
                   Aplicar
                 </Button>
+              </div>
+            )}
+            {zeevPerDoctor && (
+              <div className="text-[11px] rounded border border-primary/30 bg-primary/10 px-2 py-1 flex items-center justify-between gap-2">
+                <span>
+                  <strong>Zeev:</strong> especialidade varia entre médicos, mas cada um tem cadastro único. Aplicar por médico ({Object.keys(zeevPerDoctor).length})?
+                </span>
+                <Button size="sm" variant="default" className="h-6 text-[11px]" onClick={applyZeevPerDoctor}>
+                  Aplicar por médico
+                </Button>
+              </div>
+            )}
+            {zeevItemHint && (
+              <div className="text-[11px] rounded border border-warning/30 bg-warning/10 px-2 py-1">
+                <strong>Zeev:</strong> {zeevItemHint === "no_registry"
+                  ? "sem especialidades cadastradas — selecione item a item."
+                  : "médicos têm múltiplas especialidades cadastradas — confirme item a item."}
               </div>
             )}
             <div className="flex items-center gap-2">
