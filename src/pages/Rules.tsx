@@ -855,7 +855,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
-    setFMinGarantidoAtivo(false); setFMinGarantidoValor("");
+    setFMinGarantidoAtivo(false); setFMinGarantidoValor(""); setFMinGarantidoEscopo("medico_empresa");
     
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setCollapsedCompanies(new Set()); setCompanyLinksFilter("");
