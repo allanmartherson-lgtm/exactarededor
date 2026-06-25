@@ -806,9 +806,16 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   // médicos, novos médicos da PJ entram automaticamente (auto-include) — exceto
   // quando explicitamente listados em excluded_doctors, ou quando o link tiver
   // auto_include_new_doctors === false (modo allowlist estrita legado).
+  // Pool soberano: item coletivo tem company_id=null; consideramos como
+  // "pertencente" a qualquer PJ participante listada em pool_company_ids.
+  const poolIds = Array.isArray(item.pool_company_ids) ? item.pool_company_ids : null;
+  const itemCompanyId = item.company_id ? String(item.company_id) : null;
   for (const link of links) {
     if (!link?.company_id) continue;
-    if (String(item.company_id) !== String(link.company_id)) continue;
+    const linkCompanyId = String(link.company_id);
+    const matchesByItem = itemCompanyId !== null && itemCompanyId === linkCompanyId;
+    const matchesByPool = itemCompanyId === null && poolIds !== null && poolIds.includes(linkCompanyId);
+    if (!matchesByItem && !matchesByPool) continue;
     const ds = (link.doctors ?? []) as any;
     if (ds.length === 0) return true;
     if (matchDoctorInList(ds, item)) return true;
