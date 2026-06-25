@@ -66,6 +66,9 @@ import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
 
 import { ConversationsSheet } from "@/components/payment-detail/conversations/ConversationsSheet";
+import { ZeevBulkManualDialog } from "@/components/copilot/ZeevBulkManualDialog";
+import { findItemsNeedingManualReason } from "@/lib/manualReasonGate";
+
 import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPatternSuggest";
 import { ProductionValidationButton } from "@/components/payment-detail/ProductionValidationButton";
