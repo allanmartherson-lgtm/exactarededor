@@ -13,7 +13,7 @@
  *  - Quarentena (itens promovidos ao pool sem dono)
  *  - Lista única de atendimentos (sem coluna empresa, sem filtro por PJ)
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
