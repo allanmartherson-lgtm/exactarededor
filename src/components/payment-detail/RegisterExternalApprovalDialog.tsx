@@ -125,6 +125,7 @@ export function RegisterExternalApprovalDialog({
       setNote("");
       setFile(null);
       setPersonName("");
+      setDecisorId("");
       setSource("email");
       setDecisionDate(new Date().toISOString().slice(0, 10));
     }
