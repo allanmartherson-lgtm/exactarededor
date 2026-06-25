@@ -11250,6 +11250,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      resolve_convenio_slug: { Args: { _raw: string }; Returns: string }
       resolve_glosa_to_company: {
         Args: { _debt_id: string }
         Returns: undefined
