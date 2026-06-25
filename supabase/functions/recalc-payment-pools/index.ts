@@ -489,6 +489,76 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ===== Validação: garantir que só participantes do pool recebem rateio =====
+      // Para pools com itens absorvidos, conferimos:
+      //  (a) Todo grupo com items absorvidos por este pool pertence a um participante pagador.
+      //  (b) Todo participante pagador tem um grupo criado com total > 0.
+      const validationWarnings: Array<{
+        kind: string;
+        company_id: string | null;
+        company_name?: string | null;
+        detail?: string;
+      }> = [];
+      const payingParticipantIds = new Set(
+        quotas.filter(q => q.paga && q.company_id).map(q => q.company_id as string),
+      );
+      // (a) grupos "estranhos" com itens absorvidos
+      const { data: postGroups } = await supabase
+        .from("payment_company_groups")
+        .select("id, company_id, company_name, total_amount")
+        .eq("payment_id", payment_id);
+      for (const g of (postGroups ?? [])) {
+        if (g.company_id && payingParticipantIds.has(g.company_id)) continue;
+        // hospital_nao_paga sintético (company_id null + label contendo nome do pool) é OK
+        if (!g.company_id && (g.company_name ?? "").startsWith(`${pool.nome} — hospital`)) continue;
+        // Há itens deste grupo absorvidos por este pool?
+        let aq = supabase.from("payment_items")
+          .select("id", { count: "exact", head: true })
+          .eq("payment_id", payment_id)
+          .eq("absorbed_by_pool_id", pool.id);
+        aq = g.company_id ? aq.eq("company_id", g.company_id) : aq.is("company_id", null);
+        const { count: absorbedHere } = await aq;
+        if ((absorbedHere ?? 0) > 0) {
+          validationWarnings.push({
+            kind: "grupo_nao_participante_com_itens_no_pool",
+            company_id: g.company_id,
+            company_name: g.company_name,
+            detail: `Grupo recebeu/manteve ${absorbedHere} itens absorvidos pelo pool "${pool.nome}" sem ser participante.`,
+          });
+        } else if (Number(g.total_amount ?? 0) > 0 && isFiltered) {
+          // grupo extra com valor mas sem absorção — só warning informativo
+          validationWarnings.push({
+            kind: "grupo_extra_sem_absorcao",
+            company_id: g.company_id,
+            company_name: g.company_name,
+            detail: `Grupo existe no pagamento e não é participante do pool "${pool.nome}".`,
+          });
+        }
+      }
+      // (b) participantes pagadores sem grupo / com total errado
+      const groupsByCompany = new Map((postGroups ?? [])
+        .filter(g => g.company_id).map(g => [g.company_id as string, g]));
+      for (const q of quotas) {
+        if (!q.paga || !q.company_id) continue;
+        const grp = groupsByCompany.get(q.company_id);
+        if (!grp) {
+          validationWarnings.push({
+            kind: "participante_sem_grupo",
+            company_id: q.company_id,
+            detail: `Participante do pool "${pool.nome}" não recebeu grupo no pagamento.`,
+          });
+          continue;
+        }
+        if (Math.abs(Number(grp.total_amount ?? 0) - q.quota) > 0.01) {
+          validationWarnings.push({
+            kind: "quota_divergente",
+            company_id: q.company_id,
+            company_name: grp.company_name,
+            detail: `Grupo com total R$ ${Number(grp.total_amount).toFixed(2)} difere da quota calculada R$ ${q.quota.toFixed(2)}.`,
+          });
+        }
+      }
+
       // Persiste run (1 por payment+pool — substitui anterior)
       await supabase.from("pool_calculation_runs")
         .delete().eq("payment_id", payment_id).eq("pool_id", pool.id);
@@ -511,6 +581,7 @@ Deno.serve(async (req) => {
           garante_piso: !!pool.garante_piso,
           piso_valor: piso || null,
           complemento_piso_total: complementoPisoTotal || 0,
+          validation_warnings: validationWarnings,
           executed_at: new Date().toISOString(),
         },
         created_by: userId,
@@ -557,7 +628,14 @@ Deno.serve(async (req) => {
       results.push({
         pool_id: pool.id, pool_nome: pool.nome,
         base: round2(base), bolo, quotas_count: quotas.length,
+        validation_warnings: validationWarnings,
       });
+      if (validationWarnings.length) {
+        console.warn(
+          `[recalc-payment-pools] pool "${pool.nome}" (${pool.id}) gerou ${validationWarnings.length} warning(s) de validação`,
+          validationWarnings,
+        );
+      }
     }
 
     // Re-computa o snapshot financeiro de cada PJ do pagamento para refletir
