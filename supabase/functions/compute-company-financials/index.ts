@@ -34,17 +34,40 @@ Deno.serve(async (req) => {
       userId = user?.id ?? null;
     }
 
-    // Bruto (soma de gross_amount dos itens da empresa neste pagamento)
-    // Exclui itens cancelados individualmente (is_cancelled) — eles saem do pagamento.
-    // Exclui também itens absorvidos manualmente em pacote (package_absorbed=true) — o valor
-    // deles passa a fazer parte do pacote principal, não pode ser somado em duplicidade no bruto.
-    const { data: items } = await supabase
-      .from("payment_items")
-      .select("gross_amount, is_cancelled, package_absorbed")
-      .eq("payment_id", payment_id).eq("company_id", company_id);
-    const bruto = round2((items ?? [])
-      .filter((it: any) => !it.is_cancelled && !it.package_absorbed)
-      .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0));
+    // Detecta pool mode: itens são coletivos (is_pool_item=true, company_id=NULL).
+    // O bruto da PJ deixa de ser "soma de itens da PJ" e passa a ser a fatia
+    // proporcional do total do pool segundo o pool_participants.percentual.
+    const { data: pmtRow } = await supabase
+      .from("payments").select("pool_id").eq("id", payment_id).maybeSingle();
+    const poolId = (pmtRow as any)?.pool_id ?? null;
+
+    let bruto = 0;
+    if (poolId) {
+      const { data: poolItems } = await supabase
+        .from("payment_items")
+        .select("gross_amount, is_cancelled, package_absorbed, is_pool_item")
+        .eq("payment_id", payment_id).eq("is_pool_item", true);
+      const totalPool = (poolItems ?? [])
+        .filter((it: any) => !it.is_cancelled && !it.package_absorbed)
+        .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0);
+      const { data: parts } = await supabase
+        .from("pool_participants").select("company_id, percentual").eq("pool_id", poolId);
+      const minha = (parts ?? []).find((p: any) => p.company_id === company_id);
+      const pct = Number(minha?.percentual ?? 0);
+      bruto = round2(totalPool * pct / 100);
+    } else {
+      // Bruto (soma de gross_amount dos itens da empresa neste pagamento)
+      // Exclui itens cancelados individualmente (is_cancelled) — eles saem do pagamento.
+      // Exclui também itens absorvidos manualmente em pacote (package_absorbed=true) — o valor
+      // deles passa a fazer parte do pacote principal, não pode ser somado em duplicidade no bruto.
+      const { data: items } = await supabase
+        .from("payment_items")
+        .select("gross_amount, is_cancelled, package_absorbed")
+        .eq("payment_id", payment_id).eq("company_id", company_id);
+      bruto = round2((items ?? [])
+        .filter((it: any) => !it.is_cancelled && !it.package_absorbed)
+        .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0));
+    }
 
 
     // Débitos/Créditos
