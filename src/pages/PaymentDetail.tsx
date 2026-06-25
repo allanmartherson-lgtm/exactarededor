@@ -4605,6 +4605,24 @@ const PaymentDetail = () => {
         onSaved={() => load()}
       />
 
+      {/* Gate de motivo de intervenção — bloqueia envio para validação/aprovação
+          quando há itens com valor zerado/ausente pagos sem justificativa.
+          Reaproveita o fluxo Zeev de tratativa em lote. */}
+      <ZeevBulkManualDialog
+        open={manualReasonGate.open}
+        onOpenChange={(v) => setManualReasonGate((prev) => ({ ...prev, open: v }))}
+        paymentId={id ?? ""}
+        companyName={manualReasonGate.companyName}
+        title="Itens exigem motivo antes da aprovação"
+        subtitle="Esses itens foram pagos mas não têm valor base do convênio. Atribua um motivo (Zeev pode sugerir) para liberar o envio."
+        items={manualReasonGate.items}
+        onApplied={async () => {
+          setManualReasonGate({ open: false, items: [], companyName: null });
+          await load();
+        }}
+      />
+
+
       {/* Dialog disparado quando o trigger de divergência pedido × regra
           barra o envio analista→validador. Lista TODAS as empresas
           divergentes do lote em uma só tela para liberação/devolução em
