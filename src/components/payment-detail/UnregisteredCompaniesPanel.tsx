@@ -47,6 +47,10 @@ export function UnregisteredCompaniesPanel({
         .select("company_name, gross_amount, doctor_name")
         .eq("payment_id", paymentId)
         .is("company_id", null)
+        // Pool: itens sem company_id são coletivos (is_pool_item=true) e
+        // distribuídos via payment_company_financials — não são "empresa
+        // não cadastrada". Só consideramos órfãos quando NÃO são pool.
+        .or("is_pool_item.is.null,is_pool_item.eq.false")
         .range(from, from + PAGE - 1);
       if (error) break;
       all.push(...(data ?? []));
