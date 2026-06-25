@@ -261,6 +261,15 @@ export default function CompanyAnalysis() {
     setItems,
   } = usePaymentDetailData(id, { groupId });
 
+  // Pool é soberano: lote de pool NÃO usa a tela por-PJ. Redireciona para a
+  // tela pool-mode (lista única + cards por PJ). Regra arquitetural — não
+  // duplicar lógica aqui.
+  useEffect(() => {
+    if (id && (payment as any)?.pool_id) {
+      navigate(`/pagamentos/${id}/pool`, { replace: true });
+    }
+  }, [id, (payment as any)?.pool_id, navigate]);
+
   // Notas pessoais + marcadores + anexos (mesmos do PaymentDetail) — agora também no painel da empresa.
   const {
     byGroup: privateNotes,
