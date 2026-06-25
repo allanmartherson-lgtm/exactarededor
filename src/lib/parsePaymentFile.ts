@@ -707,7 +707,26 @@ export const parsePaymentFile = async (
       });
     }
     return { ...withType, line_issues } as ParsedRow;
-  }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
+  }).filter((r) => {
+    // Filtra rodapés/totalizadores que vêm na coluna "Médico":
+    // "TOTAL", "TOTAL GERAL", "TOTAL VISITA", "TOTAL PARECER", "TOTAL VISITAS E PARECERES",
+    // "SUBTOTAL", "DIVIDIDO POR ...", "DESCONTO DE FINAL DE SEMANA" (é dedução, não item).
+    const FOOTER_DOCTOR = /^\s*(total(\s+geral|\s+visita(s)?|\s+parecer(es)?|\s+visitas?\s+e\s+parecer(es)?)?|subtotal|soma|dividido\s+por|desconto\s+de\s+final\s+de\s+semana|valor\s+(da\s+)?nf|nota\s+fiscal)\s*$/i;
+    if (r.doctor_name && FOOTER_DOCTOR.test(r.doctor_name)) return false;
+    // Filtra linhas onde a coluna "Paciente" carrega cabeçalho de empresa
+    // (ex.: "MORAIS E CARVALHO SERVICOS MEDICOS LTDA / ...") sem médico nem valor.
+    if (
+      !r.doctor_name &&
+      !r.procedure_code &&
+      Math.abs(Number(r.gross_amount ?? 0)) === 0 &&
+      Math.abs(Number(r.procedure_amount ?? 0)) === 0 &&
+      r.patient_name &&
+      /\b(ltda|servic[oõ]s?\s+m[eé]dicos|eireli|s\.?a\.?|me\b|epp\b)\b/i.test(r.patient_name)
+    ) {
+      return false;
+    }
+    return r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description;
+  });
 
   return {
     file: f,
