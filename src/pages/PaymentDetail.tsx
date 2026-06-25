@@ -2531,7 +2531,7 @@ const PaymentDetail = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className="hidden md:inline-flex"
+                className="inline-flex"
                 title="Abrir tela de rateio do pool (cálculo por PJ)"
                 asChild
               >
