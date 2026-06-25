@@ -287,7 +287,7 @@ export function RegisterExternalApprovalDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="p-6 pt-3 border-t shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancelar
           </Button>
