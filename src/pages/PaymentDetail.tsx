@@ -2825,9 +2825,9 @@ const PaymentDetail = () => {
                 label,
                 value: (
                   <Link
-                    to={`/pools/${pid}/valores-mensais`}
+                    to={`/pagamentos/${id}/pool`}
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 text-violet-800 border border-violet-200 hover:bg-violet-100 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-900/60"
-                    title={poolInfo?.deducao ? `Dedução: ${poolInfo.deducao}` : "Abrir valores mensais do pool"}
+                    title="Abrir rateio do pool deste lote"
                   >
                     {poolInfo?.nome ?? "Pool"}
                     {poolInfo?.deducao && <span className="text-[10px] opacity-70">· {poolInfo.deducao}</span>}
