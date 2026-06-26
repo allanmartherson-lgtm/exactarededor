@@ -202,14 +202,21 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Alertas Assistenciais — detalhamento</DialogTitle>
-          <p className="text-xs text-muted-foreground">
-            {paymentReference ? `${paymentReference} · ` : ""}
+      <DialogContent className="max-w-[95vw] w-[95vw] max-h-[92vh] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 py-4 bg-gradient-to-r from-warning/20 via-warning-soft/40 to-warning/10 border-b-2 border-warning/40">
+          <DialogTitle className="text-warning-foreground flex items-center gap-2">
+            <span className="inline-flex h-2 w-2 rounded-full bg-warning animate-pulse" />
+            Alertas Assistenciais — detalhamento
+          </DialogTitle>
+          <p className="text-xs text-foreground/70">
+            {paymentReference ? <span className="font-medium">{paymentReference}</span> : null}
+            {paymentReference ? " · " : ""}
             Cruzamentos detectados pelo motor assistencial dentro deste lote.
           </p>
         </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-muted/30">
+
 
         {/* Resumo por regra */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
