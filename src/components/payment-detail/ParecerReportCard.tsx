@@ -535,7 +535,7 @@ export function ParecerReportCard({
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-muted-foreground">
-                      {new Date(r.imported_at).toLocaleString()}
+                      {new Date(r.imported_at).toLocaleString("pt-BR")}
                     </span>
                     <Button
                       size="sm"
