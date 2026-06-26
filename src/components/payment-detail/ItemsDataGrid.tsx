@@ -523,8 +523,27 @@ export const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-f
 function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
   const evidence = ((item as any).parecer_evidence ?? null) as string | null;
   const isWeak = (item as any).parecer_evidence_weak === true;
+  const wasReclassified = (item as any).reclassified_from_parecer === true;
   if (!evidence) return null;
   if (evidence === "confirmed") {
+    // Caso especial: parecer FOI cruzado no relatório, mas o sistema rebaixou
+    // o item para Visita (ex.: já existe parecer pago anterior no mesmo
+    // atendimento). Mostra selo distinto para não confundir o analista com
+    // "P✓" + "V" lado a lado sem explicação.
+    if (wasReclassified) {
+      return (
+        <span
+          className={cn(
+            "inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border",
+            "bg-slate-50 text-slate-700 border-slate-300 dark:bg-slate-900/40 dark:text-slate-200 dark:border-slate-700",
+          )}
+          title="Parecer cruzado no relatório, MAS rebaixado para Visita (já existe parecer anterior pago neste atendimento). Pagamento segue a regra de Visita."
+        >
+          <FileText className="h-2.5 w-2.5" />
+          P→V
+        </span>
+      );
+    }
     return (
       <span
         className={cn(
