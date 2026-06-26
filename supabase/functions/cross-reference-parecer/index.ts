@@ -291,29 +291,32 @@ Deno.serve(async (req) => {
         const db = b.date ? Date.parse(b.date) : 0;
         return da - db;
       });
-      // 1º permanece Parecer; demais reclassificados
+      // Regra: só vira Visita se houver Parecer no DIA IMEDIATAMENTE ANTERIOR
+      // (consecutivo). Pareceres com gap > 1 dia são interconsultas novas e
+      // permanecem como Parecer.
       for (let i = 1; i < list.length; i++) {
-        reclassifiedIds.add(list[i].id);
-        const firstDate = list[0].date ? new Date(list[0].date).toISOString().slice(0, 10) : "?";
-        reclassifyReason.set(
-          list[i].id,
-          `Parecer prévio no mesmo lote em ${firstDate} (mesmo atendimento+especialidade+convênio)`,
+        const cur = list[i];
+        const prev = list[i - 1];
+        if (!cur.date || !prev.date) continue;
+        const dCur = new Date(cur.date).toISOString().slice(0, 10);
+        const dPrev = new Date(prev.date).toISOString().slice(0, 10);
+        const diffDays = Math.round(
+          (Date.parse(dCur) - Date.parse(dPrev)) / (24 * 3600 * 1000),
         );
+        if (diffDays === 1) {
+          reclassifiedIds.add(cur.id);
+          reclassifyReason.set(
+            cur.id,
+            `Parecer no dia anterior (${dPrev}) — mesma especialidade/atendimento; consecutivo vira Visita`,
+          );
+        }
       }
     }
 
-    // 2) Lookback cross-month (90 dias) entre lotes — para os que ainda são
-    // Parecer confirmado. Cobre o padrão "1º Parecer, depois Visita" mesmo
-    // quando o paciente já vinha em acompanhamento de meses anteriores.
-    //
-    // Critério ampliado: aceita match quando o item prévio tinha
-    //   (a) parecer_evidence='confirmed' (validado pelo relatório do Tasy), OU
-    //   (b) payment_type pertencente a qualquer tipo Parecer (parecer_adulto,
-    //       parecer_pediatrico, etc.) — cobre Parecer classificado pela coluna
-    //       TIPO da base, manualmente ou por dedup.
-    // Em ambos os casos, ignora itens que foram REBAIXADOS para Visita
-    // (reclassified_from_parecer=true).
-    const LOOKBACK_DAYS = 90;
+    // 2) Lookback cross-lote — apenas DIA IMEDIATAMENTE ANTERIOR.
+    // Regra de negócio: Parecer só vira Visita quando há parecer da mesma
+    // especialidade/atendimento no dia consecutivo anterior. Gaps maiores
+    // (>1 dia) são novas interconsultas e permanecem como Parecer.
     const { data: parecerTypes } = await supabase
       .from("payment_types")
       .select("id, code")
@@ -329,10 +332,10 @@ Deno.serve(async (req) => {
       );
     });
     for (const it of candidatesLookback) {
-      const dt = new Date(it.procedure_date);
-      const from = new Date(dt.getTime() - LOOKBACK_DAYS * 24 * 3600 * 1000).toISOString();
-      const to = dt.toISOString();
-      // Busca ampla: parecer_evidence='confirmed' OU payment_type_id IN (parecer_*)
+      const curDay = new Date(it.procedure_date).toISOString().slice(0, 10);
+      const prevDay = new Date(Date.parse(curDay) - 24 * 3600 * 1000)
+        .toISOString().slice(0, 10);
+      // Janela [prevDay, curDay) — só pega itens do dia imediatamente anterior.
       let query = supabase
         .from("payment_items")
         .select("id, payment_id, procedure_date, parecer_evidence, payment_type_id")
@@ -341,8 +344,8 @@ Deno.serve(async (req) => {
         .eq("attendance_number", it.attendance_number)
         .eq("reclassified_from_parecer", false)
         .neq("payment_id", payment_id)
-        .gte("procedure_date", from)
-        .lt("procedure_date", to);
+        .gte("procedure_date", prevDay)
+        .lt("procedure_date", curDay);
       if (parecerTypeIds.length > 0) {
         query = query.or(
           `parecer_evidence.eq.confirmed,payment_type_id.in.(${parecerTypeIds.join(",")})`,
@@ -351,19 +354,16 @@ Deno.serve(async (req) => {
         query = query.eq("parecer_evidence", "confirmed");
       }
       const { data: prior } = await query
-        .order("procedure_date", { ascending: true })
+        .order("procedure_date", { ascending: false })
         .limit(1);
       if (prior && prior.length > 0) {
         reclassifiedIds.add(it.id);
-        const d = prior[0].procedure_date
-          ? new Date(prior[0].procedure_date).toISOString().slice(0, 10)
-          : "?";
         const viaType = prior[0].payment_type_id && parecerTypeIds.includes(prior[0].payment_type_id)
           ? " (tipo Parecer em lote anterior)"
           : " (relatório do Tasy)";
         reclassifyReason.set(
           it.id,
-          `Parecer prévio em outro lote em ${d}${viaType} (lookback ${LOOKBACK_DAYS}d, mesmo atendimento+especialidade)`,
+          `Parecer no dia anterior (${prevDay})${viaType} — mesma especialidade/atendimento; consecutivo vira Visita`,
         );
       }
     }
