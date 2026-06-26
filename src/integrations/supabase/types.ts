@@ -11724,6 +11724,7 @@ export type Database = {
         | "outlier_valor"
         | "parecer_virou_cirurgia"
         | "restricao_contratual"
+        | "duplicidade_lancamento"
       validation_severity:
         | "informativo"
         | "alerta"
@@ -12033,6 +12034,7 @@ export const Constants = {
         "outlier_valor",
         "parecer_virou_cirurgia",
         "restricao_contratual",
+        "duplicidade_lancamento",
       ],
       validation_severity: [
         "informativo",
