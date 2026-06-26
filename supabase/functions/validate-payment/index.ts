@@ -194,6 +194,9 @@ function applyDuplicidadeLancamento(
   items: Item[],
   findingsByItem: Map<string, Finding[]>,
   paymentReference: string | null,
+  externalItems: Item[] = [],
+  externalRefById: Map<string, string | null> = new Map(),
+  currentPaymentId: string | null = null,
 ): number {
   const params = normalizeDupParams(rule);
   const anyFieldSelected =
@@ -216,13 +219,15 @@ function applyDuplicidadeLancamento(
   };
 
   const buckets = new Map<string, Item[]>();
-  for (const it of items) {
+  const pushBucket = (it: Item) => {
     const key = keyOf(it);
-    if (!key.replaceAll("|", "")) continue;
+    if (!key.replaceAll("|", "")) return;
     const arr = buckets.get(key) ?? [];
     arr.push(it);
     buckets.set(key, arr);
-  }
+  };
+  for (const it of items) pushBucket(it);
+  for (const it of externalItems) pushBucket(it);
 
   const reasonParts: string[] = [];
   if (params.compare_attendance) reasonParts.push("atendimento");
@@ -238,6 +243,7 @@ function applyDuplicidadeLancamento(
 
   let hits = 0;
   const dayMs = 86400000;
+  const isInternal = (it: Item) => currentPaymentId == null || it.payment_id === currentPaymentId;
 
   for (const bucket of buckets.values()) {
     if (bucket.length < 2) continue;
@@ -271,28 +277,51 @@ function applyDuplicidadeLancamento(
 
     for (const cluster of subClusters) {
       if (cluster.length < 2) continue;
-      const [first, ...dupes] = cluster;
-      for (const dupe of dupes) {
-        const list = findingsByItem.get(dupe.id) ?? [];
+
+      const internals = cluster.filter(isInternal);
+      if (internals.length === 0) continue;
+      const externals = cluster.filter((it) => !isInternal(it));
+
+      // Pares a marcar: (dupe, partner). Em cross-batch, cada interno aponta
+      // para o primeiro externo. Em duplicidade intra-lote, mantém o
+      // comportamento clássico: primeiro item é âncora, demais ficam flagged.
+      const pairs: Array<{ dupe: Item; partner: Item; crossBatch: boolean }> = [];
+      if (externals.length > 0) {
+        const partner = externals[0];
+        for (const dupe of internals) {
+          if (dupe.id === partner.id) continue;
+          pairs.push({ dupe, partner, crossBatch: true });
+        }
+      } else {
+        const [first, ...rest] = internals;
+        for (const dupe of rest) pairs.push({ dupe, partner: first, crossBatch: false });
+      }
+
+      for (const { dupe, partner, crossBatch } of pairs) {
         const snapshot: ConflictingItemSnapshot = {
-          attendance_number: first.attendance_number,
-          patient_name: getPatient(first),
-          procedure_code: first.procedure_code,
-          procedure_name: first.procedure_name,
-          doctor_name: first.doctor_name,
-          procedure_date: first.procedure_date,
-          company_name: first.company_name,
-          payment_id: first.payment_id,
-          payment_reference: paymentReference,
+          attendance_number: partner.attendance_number,
+          patient_name: getPatient(partner),
+          procedure_code: partner.procedure_code,
+          procedure_name: partner.procedure_name,
+          doctor_name: partner.doctor_name,
+          procedure_date: partner.procedure_date,
+          company_name: partner.company_name,
+          payment_id: partner.payment_id,
+          payment_reference: crossBatch
+            ? (externalRefById.get(partner.payment_id) ?? null)
+            : paymentReference,
         };
+        const list = findingsByItem.get(dupe.id) ?? [];
         list.push({
           rule_id: rule.id,
           rule_name: rule.name,
           kind: rule.kind,
           severity: rule.severity,
           action: rule.action,
-          message: `Duplicidade de lançamento: mesmo ${reason}.`,
-          conflicting_item_id: first.id,
+          message: crossBatch
+            ? `Duplicidade entre lotes: mesmo ${reason} (lote ${snapshot.payment_reference ?? "anterior"}).`
+            : `Duplicidade de lançamento: mesmo ${reason}.`,
+          conflicting_item_id: partner.id,
           conflicting_item: snapshot,
           detected_at: now,
         });
@@ -303,6 +332,8 @@ function applyDuplicidadeLancamento(
   }
   return hits;
 }
+
+
 
 
 function applySobreposicaoAssistencial(
@@ -743,6 +774,62 @@ Deno.serve(async (req) => {
       .update({ validation_findings: [] })
       .eq("payment_id", payment_id);
 
+    // 2b. Cross-batch: carrega itens de OUTROS lotes do mesmo hospital dentro
+    // de uma janela ao redor das datas dos procedimentos deste lote. Serve
+    // para detectar duplicidades entre lotes (mesmo paciente + atendimento +
+    // data em competências diferentes). Janela = maior window_days entre
+    // regras de duplicidade ativas, default 30 dias.
+    const dupRules = rules.filter((r) =>
+      r.kind === "duplicidade_lancamento" || r.kind === "duplicidade_exata" || r.kind === "duplicidade_atendimento",
+    );
+    const crossWindowDays = Math.max(
+      30,
+      ...dupRules.map((r) => normalizeDupParams(r).window_days || 0),
+    );
+    let externalItems: Item[] = [];
+    const externalRefById = new Map<string, string | null>();
+    if (dupRules.length > 0 && items.length > 0) {
+      const dates = items.map((i) => i.procedure_date).filter((d): d is string => !!d);
+      if (dates.length > 0) {
+        const dayMs = 86400000;
+        const minT = Math.min(...dates.map((d) => new Date(d).getTime())) - crossWindowDays * dayMs;
+        const maxT = Math.max(...dates.map((d) => new Date(d).getTime())) + crossWindowDays * dayMs;
+        const fromIso = new Date(minT).toISOString().slice(0, 10);
+        const toIso = new Date(maxT).toISOString().slice(0, 10);
+
+        // Pagamentos elegíveis: mesmo hospital, lote diferente, não em confecção.
+        const { data: otherPayments } = await supabase
+          .from("payments")
+          .select("id, reference")
+          .eq("hospital_id", paymentHospitalId)
+          .neq("id", payment_id)
+          .neq("analysis_mode", "confeccao")
+          .limit(2000);
+        const otherIds = (otherPayments ?? []).map((p: any) => p.id as string);
+        for (const p of (otherPayments ?? []) as any[]) externalRefById.set(p.id, p.reference ?? null);
+
+        if (otherIds.length > 0) {
+          // Paginação defensiva — outros lotes podem somar muitos itens.
+          const PAGE = 5000;
+          for (let from = 0; ; from += PAGE) {
+            const { data: chunk, error: extErr } = await supabase
+              .from("payment_items")
+              .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, doctor_document, patient_name, gross_amount, sector, company_id, company_name, doctor_role, access_route, raw_data")
+              .in("payment_id", otherIds)
+              .gte("procedure_date", fromIso)
+              .lte("procedure_date", toIso)
+              .range(from, from + PAGE - 1);
+            if (extErr) { console.error("[validate-payment] external items fetch failed", extErr); break; }
+            if (!chunk || chunk.length === 0) break;
+            externalItems.push(...(chunk as Item[]));
+            if (chunk.length < PAGE) break;
+            if (externalItems.length > 100000) break; // hard cap defensivo
+          }
+        }
+      }
+    }
+    console.log(`[validate-payment] cross-batch loaded externalItems=${externalItems.length} window=${crossWindowDays}d`);
+
     // 3. Aplica regras
     const findingsByItem = new Map<string, Finding[]>();
     let totalHits = 0;
@@ -760,9 +847,13 @@ Deno.serve(async (req) => {
         rule.kind === "duplicidade_exata" ||
         rule.kind === "duplicidade_atendimento"
       ) {
-        const hits = applyDuplicidadeLancamento(rule, items, findingsByItem, paymentReference);
+        const hits = applyDuplicidadeLancamento(
+          rule, items, findingsByItem, paymentReference,
+          externalItems, externalRefById, payment_id,
+        );
         totalHits += hits;
         appliedRules.push(rule.name);
+
       } else if (rule.kind === "sobreposicao_assistencial") {
         const groupId = rule.assistance_group_id;
         let group: AssistanceGroup | null = null;
