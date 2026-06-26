@@ -422,8 +422,6 @@ function applySobreposicaoAssistencial(
 
 
 // Legados: aliases para a função unificada.
-const applyDuplicidadeExata = applyDuplicidadeLancamento;
-const applyDuplicidadeAtendimento = applyDuplicidadeLancamento;
 
 
 
