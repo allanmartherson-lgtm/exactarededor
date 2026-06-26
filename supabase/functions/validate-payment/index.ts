@@ -737,8 +737,12 @@ Deno.serve(async (req) => {
         skippedRules.push({ id: rule.id, name: rule.name, reason: "out_of_scope" });
         continue;
       }
-      if (rule.kind === "duplicidade_exata") {
-        const hits = applyDuplicidadeExata(rule, items, findingsByItem, paymentReference);
+      if (
+        rule.kind === "duplicidade_lancamento" ||
+        rule.kind === "duplicidade_exata" ||
+        rule.kind === "duplicidade_atendimento"
+      ) {
+        const hits = applyDuplicidadeLancamento(rule, items, findingsByItem, paymentReference);
         totalHits += hits;
         appliedRules.push(rule.name);
       } else if (rule.kind === "sobreposicao_assistencial") {
@@ -759,10 +763,6 @@ Deno.serve(async (req) => {
         }
         appliedRules.push(rule.name);
 
-      } else if (rule.kind === "duplicidade_atendimento") {
-        const hits = applyDuplicidadeAtendimento(rule, items, findingsByItem, paymentReference);
-        totalHits += hits;
-        appliedRules.push(rule.name);
       } else if (rule.kind === "parecer_virou_cirurgia") {
         const hits = applyParecerVirouCirurgia(rule, items, findingsByItem, paymentReference);
         totalHits += hits;
