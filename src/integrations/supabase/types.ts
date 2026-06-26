@@ -9442,6 +9442,109 @@ export type Database = {
         }
         Relationships: []
       }
+      system_parameter_defs: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          json_schema: Json
+          key: string
+          label: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          json_schema?: Json
+          key: string
+          label: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          json_schema?: Json
+          key?: string
+          label?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      system_parameter_overrides: {
+        Row: {
+          active: boolean
+          convenio_slug: string | null
+          created_at: string
+          def_key: string
+          hospital_id: string | null
+          id: string
+          note: string | null
+          priority: number | null
+          specialty: string | null
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          active?: boolean
+          convenio_slug?: string | null
+          created_at?: string
+          def_key: string
+          hospital_id?: string | null
+          id?: string
+          note?: string | null
+          priority?: number | null
+          specialty?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          active?: boolean
+          convenio_slug?: string | null
+          created_at?: string
+          def_key?: string
+          hospital_id?: string | null
+          id?: string
+          note?: string | null
+          priority?: number | null
+          specialty?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_parameter_overrides_convenio_slug_fkey"
+            columns: ["convenio_slug"]
+            isOneToOne: false
+            referencedRelation: "convenios"
+            referencedColumns: ["slug"]
+          },
+          {
+            foreignKeyName: "system_parameter_overrides_def_key_fkey"
+            columns: ["def_key"]
+            isOneToOne: false
+            referencedRelation: "system_parameter_defs"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "system_parameter_overrides_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_releases: {
         Row: {
           changelog: string
@@ -11310,6 +11413,15 @@ export type Database = {
       resolve_glosa_to_company: {
         Args: { _debt_id: string }
         Returns: undefined
+      }
+      resolve_system_parameter: {
+        Args: {
+          p_convenio_slug?: string
+          p_hospital_id?: string
+          p_key: string
+          p_specialty?: string
+        }
+        Returns: Json
       }
       restore_rule_from_snapshot: {
         Args: { _snapshot_id: string }
