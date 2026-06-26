@@ -211,6 +211,7 @@ const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
 const ComunicacaoHub = lazy(() => import("./pages/ComunicacaoHub.tsx"));
 const RegrasHub = lazy(() => import("./pages/RegrasHub.tsx"));
 const SistemaHub = lazy(() => import("./pages/SistemaHub.tsx"));
+const SystemParameters = lazy(() => import("./pages/SystemParameters.tsx"));
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
