@@ -176,7 +176,13 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
         .eq("payment_id", id)
         .order("company_name")
         .abortSignal(ac.signal),
-      supabase.from("invoices").select("*").eq("payment_id", id).abortSignal(ac.signal),
+      supabase
+        .from("invoices")
+        .select(
+          "id,payment_id,expected_amount,received_amount,invoice_number,file_path,status,recipient_email,sent_at,received_at,reconciliation_notes,created_at,updated_at,company_id,company_name,ai_validation,ai_validated_at,ai_extracted_amount,ai_extracted_number,ai_extracted_cnpj,recipient_cc,request_message,items_count,send_error,company_group_id,hospital_id",
+        )
+        .eq("payment_id", id)
+        .abortSignal(ac.signal),
       supabase
         .from("invoice_questions")
         .select("id, invoice_id, author_type, author_name, message, created_at, read_at")
