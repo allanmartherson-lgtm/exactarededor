@@ -364,6 +364,39 @@ const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTime: bool
 
 const excelDateToISO = (v: unknown): string | null => excelDateToISOWithFlag(v).iso;
 
+/**
+ * A planilha de Parecer/Visita às vezes não tem coluna "Descrição" real e a
+ * heurística acaba pegando uma coluna de data — o valor cru é o serial do
+ * Excel (ex.: 46091.49585648148). Convertemos para dd/mm/yyyy [hh:mm] para
+ * não exibir lixo numérico ao analista. Strings comuns passam intactas.
+ */
+const looksLikeExcelDateSerial = (v: unknown): boolean => {
+  const n = typeof v === "number"
+    ? v
+    : (typeof v === "string" && /^\d+(\.\d+)?$/.test(v.trim()) ? Number(v.trim()) : NaN);
+  return Number.isFinite(n) && n > 30000 && n < 80000;
+};
+
+const sanitizeDescription = (raw: unknown): string | null => {
+  if (raw == null || raw === "") return null;
+  if (raw instanceof Date || looksLikeExcelDateSerial(raw)) {
+    const { iso, hasTime } = excelDateToISOWithFlag(raw);
+    if (iso) {
+      const d = new Date(iso);
+      const dd = String(d.getUTCDate()).padStart(2, "0");
+      const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const yyyy = d.getUTCFullYear();
+      if (hasTime) {
+        const HH = String(d.getUTCHours()).padStart(2, "0");
+        const MI = String(d.getUTCMinutes()).padStart(2, "0");
+        return `${dd}/${mm}/${yyyy} ${HH}:${MI}`;
+      }
+      return `${dd}/${mm}/${yyyy}`;
+    }
+  }
+  return toStr(raw);
+};
+
 // ===== Levenshtein normalizado =====
 const lev = (a: string, b: string): number => {
   const m = a.length, n = b.length;
