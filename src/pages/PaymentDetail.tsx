@@ -803,7 +803,7 @@ const PaymentDetail = () => {
     setReanalyzingGroupId(g.id);
     await autoClaim();
     try {
-      const dispatchRes = await invokeDispatchAnalysis({ payment_id: id, only_companies: [g.company_name] });
+      const dispatchRes = await invokeDispatchAnalysis({ payment_id: id, only_companies: [g.company_name], force_fresh_rules: true });
       if (!dispatchRes.ok) {
         if (dispatchRes.blocked) return;
         throw dispatchRes.error;
