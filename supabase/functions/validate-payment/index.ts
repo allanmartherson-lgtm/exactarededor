@@ -704,14 +704,14 @@ Deno.serve(async (req) => {
         appliedRules.push(rule.name);
       } else if (rule.kind === "sobreposicao_assistencial") {
         const groupId = rule.assistance_group_id;
-        if (!groupId) {
-          skippedRules.push({ id: rule.id, name: rule.name, reason: "no_assistance_group" });
-          continue;
-        }
-        const group = groupsById.get(groupId);
-        if (!group || !group.active) {
-          skippedRules.push({ id: rule.id, name: rule.name, reason: "assistance_group_inactive_or_missing" });
-          continue;
+        let group: AssistanceGroup | null = null;
+        if (groupId) {
+          const g = groupsById.get(groupId);
+          if (!g || !g.active) {
+            skippedRules.push({ id: rule.id, name: rule.name, reason: "assistance_group_inactive_or_missing" });
+            continue;
+          }
+          group = g;
         }
         const result = applySobreposicaoAssistencial(rule, items, allDoctors, group, findingsByItem, paymentReference);
         totalHits += result.hits;
@@ -719,6 +719,7 @@ Deno.serve(async (req) => {
           unresolvedByRule[rule.name] = Array.from(result.unresolvedDoctors);
         }
         appliedRules.push(rule.name);
+
       } else if (rule.kind === "duplicidade_atendimento") {
         const hits = applyDuplicidadeAtendimento(rule, items, findingsByItem, paymentReference);
         totalHits += hits;
