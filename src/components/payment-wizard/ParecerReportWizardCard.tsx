@@ -8,9 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, Upload, CheckCircle2, AlertTriangle, Loader2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ParecerColumnMappingDialog, {
-import { DateInput } from "@/components/ui/date-input";
   type ParecerMapping,
 } from "@/components/payment-detail/ParecerColumnMappingDialog";
+import { DateInput } from "@/components/ui/date-input";
 
 const normalizeCrm = (input: any): string | null => {
   if (input == null) return null;
