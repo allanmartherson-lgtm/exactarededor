@@ -1192,8 +1192,11 @@ export function selectWinningRule(
     enabled?: boolean;
   }> = [
     { bucket: doctorRules,       withCodePriority: "medico_codigo",        withoutCodePriority: "medico" },
-    { bucket: companyRules,      withCodePriority: "empresa_codigo",       withoutCodePriority: "empresa" },
+    // Regra de grupo que cita o médico é um acordo pessoal: segue o médico em
+    // qualquer PJ e deve vencer regra específica da empresa/PJ. Regressão real:
+    // Dr. Pablo tinha group_doctors, mas a regra específica da PJ venceu antes.
     { bucket: groupDoctorRules,  withCodePriority: "grupo_doctor_codigo",  withoutCodePriority: "grupo_doctor" },
+    { bucket: companyRules,      withCodePriority: "empresa_codigo",       withoutCodePriority: "empresa" },
     { bucket: groupCompanyRules, withCodePriority: "grupo_codigo",         withoutCodePriority: "grupo" },
     { bucket: sectorRules,       withCodePriority: "setor_codigo",         withoutCodePriority: "setor" },
     { bucket: hemoMaster,        withCodePriority: "setor_codigo",         withoutCodePriority: "setor_hemodinamica_master", enabled: isHemo },
