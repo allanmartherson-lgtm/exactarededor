@@ -82,11 +82,12 @@ serve(async (req) => {
 
   try {
     const parsedBody = await req.json();
-    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label, _force_fresh } = parsedBody;
+    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label, _force_fresh, skip_ai, _skip_ai } = parsedBody;
     __payment_id = payment_id;
     __job_id = _job_id;
     __company_label = _company_label;
     const __force_fresh = _force_fresh === true;
+    const __skip_ai = skip_ai === true || _skip_ai === true;
     __company_name = company_name;
     // [TIMING] prefixo curto p/ diferenciar workers concorrentes nos logs
     const __t = `[T:${(_company_label ?? company_name ?? "all").toString().slice(0, 24)}]`;
@@ -1276,7 +1277,7 @@ serve(async (req) => {
         r.alerts = [];
       }
     }
-    const itemsToReview = is_dry_run || isConfeccao ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
+    const itemsToReview = __skip_ai || is_dry_run || isConfeccao ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
     __telemetry.ai_items_count = itemsToReview.length;
     const __aiStart = Date.now();
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};

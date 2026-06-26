@@ -19,8 +19,11 @@ export async function invokeDispatchAnalysis(
   opts: { showToast?: boolean } = {},
 ): Promise<DispatchResult> {
   const showToast = opts.showToast !== false;
+  const dispatchBody = body.force_fresh_rules === true && body.skip_ai === undefined
+    ? { ...body, skip_ai: true }
+    : body;
   try {
-    const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", { body });
+    const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", { body: dispatchBody });
     if (error) {
       // FunctionsHttpError: extrai payload da Response para detectar gate 409.
       let blockedPayload: any = null;

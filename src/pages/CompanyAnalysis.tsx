@@ -779,7 +779,9 @@ export default function CompanyAnalysis() {
         // analista editar/cadastrar uma regra. Pulamos o ctx_cache para garantir
         // que o motor leia o estado atual do banco — caso contrário, workers
         // de uma reanalise nova podem reusar snapshot de regras antigo.
-        body: { payment_id: id, only_companies: [group.company_name], force_fresh_rules: true },
+        // skip_ai: "Reaplicar regras" precisa recalcular regra/valor; a IA só
+        // justifica alertas e pode estourar timeout em empresas grandes.
+        body: { payment_id: id, only_companies: [group.company_name], force_fresh_rules: true, skip_ai: true },
       });
       if (error) throw error;
 
@@ -817,7 +819,7 @@ export default function CompanyAnalysis() {
       // "success" de um job anterior (qualquer worker sobrescreve esse campo).
       const jobId = (data as any)?.job_id as string | undefined;
       const done = jobId
-        ? await waitForJobCompletion(jobId, 120_000)
+        ? await waitForJobCompletion(jobId, 120_000, startedAt)
         : await waitForProcessingCompletion(id, startedAt, 120_000);
 
       // Etapa 3 — Persistir/ler de volta os itens.
@@ -884,6 +886,7 @@ export default function CompanyAnalysis() {
   const waitForJobCompletion = async (
     jobId: string,
     timeoutMs = 120_000,
+    since = Date.now(),
   ): Promise<boolean> => {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
@@ -900,6 +903,10 @@ export default function CompanyAnalysis() {
         if (status === "concluido") return true;
         if (status === "parcial" || status === "erro") {
           const firstError = failed[0]?.error ? ` ${failed[0].error}` : "";
+          if (/IDLE_TIMEOUT|Request idle timeout|worker timeout/i.test(firstError) && id) {
+            setReapplyError("O motor ainda está finalizando no backend. Aguardando a gravação dos itens…");
+            return await waitForProcessingCompletion(id, since, Math.max(10_000, deadline - Date.now()));
+          }
           setReapplyError(`Reanálise não concluiu para todas as empresas.${firstError}`.trim());
           return false;
         }
