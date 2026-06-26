@@ -175,6 +175,11 @@ export function ParecerReportWizardCard({
       const v = rec[h];
       return v === "" || v == null ? null : v;
     };
+    const dateOrder = inferDateOrder([
+      ...parseState.raw.map((rec) => valFrom(rec, "dt_solic_parecer")),
+      ...parseState.raw.map((rec) => valFrom(rec, "dt_resposta_parecer")),
+    ]);
+    console.log(`[ParecerReportWizard] date order detected: ${dateOrder}`);
     const rows = parseState.raw.map((rec) => {
       const medicoRespRaw = valFrom(rec, "medico_resposta");
       const { name: medicoResp, crm: crmFromName } = splitMedicoCrm(medicoRespRaw);
@@ -188,8 +193,8 @@ export function ParecerReportWizardCard({
         medico_resposta_crm: crm,
         espec_origem: valFrom(rec, "espec_origem"),
         espec_destino: valFrom(rec, "espec_destino"),
-        dt_solic_parecer: parseExcelDate(valFrom(rec, "dt_solic_parecer")),
-        dt_resposta_parecer: parseExcelDate(valFrom(rec, "dt_resposta_parecer")),
+        dt_solic_parecer: parseExcelDate(valFrom(rec, "dt_solic_parecer"), dateOrder),
+        dt_resposta_parecer: parseExcelDate(valFrom(rec, "dt_resposta_parecer"), dateOrder),
         situacao: valFrom(rec, "situacao"),
         raw: rec,
       };
