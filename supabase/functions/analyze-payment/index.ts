@@ -40,8 +40,32 @@ interface PaymentRow {
   analysis_mode: "padrao" | "empresa_prioritaria" | "isolado" | "confeccao" | null;
 }
 
+// Entry point: detecta `_async:true` no body e roda o processamento via
+// `EdgeRuntime.waitUntil`, respondendo 202 imediatamente. Isso evita o
+// IDLE_TIMEOUT (150s) da Edge Runtime — o trabalho continua em background e
+// reporta progresso via `increment_processing_progress` / safety-net finally.
+// Quando chamado sem `_async` (testes, dry-run, simulação), mantém o
+// comportamento síncrono original.
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const bodyText = await req.text();
+  let asyncFlag = false;
+  try { asyncFlag = JSON.parse(bodyText)?._async === true; } catch { /* body inválido — segue síncrono e deixa o handler tratar */ }
+  const buildReq = () => new Request(req.url, { method: req.method, headers: req.headers, body: bodyText });
+  if (asyncFlag) {
+    // @ts-ignore EdgeRuntime existe no runtime Supabase Edge Functions
+    EdgeRuntime.waitUntil(
+      handleAnalyzePayment(buildReq()).catch((e) => console.error("[analyze-payment][bg] erro não-capturado:", e)),
+    );
+    return new Response(JSON.stringify({ status: "accepted", mode: "async" }), {
+      status: 202,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  return await handleAnalyzePayment(buildReq());
+});
+
+async function handleAnalyzePayment(req: Request): Promise<Response> {
 
   const startTime = Date.now();
   let diagnostics = {
