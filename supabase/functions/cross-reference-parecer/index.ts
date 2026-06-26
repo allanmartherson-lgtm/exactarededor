@@ -560,6 +560,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             payment_id,
             force_fresh_rules: true,
+            skip_parecer_cross_ref: true,
           }),
         });
       } catch (e) {
