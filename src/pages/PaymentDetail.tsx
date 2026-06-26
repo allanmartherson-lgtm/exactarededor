@@ -2633,6 +2633,37 @@ const PaymentDetail = () => {
               </Button>
             )}
 
+            {canConcludeHistorico && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    disabled={busy}
+                    className="inline-flex"
+                    title="Marca todos os grupos como pago e fecha o lote histórico. Use só depois de revisar/ajustar."
+                  >
+                    <ShieldCheck className="h-4 w-4 mr-1.5" />
+                    Concluir importação histórica
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Concluir importação histórica?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Todos os grupos ativos deste lote serão marcados como <strong>pago</strong> e o lote fechará.
+                      Faça os ajustes necessários antes — depois de concluído, o lote sai do fluxo de revisão.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={concludeHistorico}>Concluir e marcar como pago</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
+
             {!isConfeccao && (payment.status === "em_analise_ia" || payment.status === "revisao_analista" || payment.status === "devolvido_analista") && (isAnalista || isDiretor) && (
               <AlertDialog open={reprocessConfirmOpen} onOpenChange={setReprocessConfirmOpen}>
                 <AlertDialogTrigger asChild>
