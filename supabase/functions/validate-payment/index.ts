@@ -432,62 +432,11 @@ function applySobreposicaoAssistencial(
 }
 
 
-function applyDuplicidadeAtendimento(
-  rule: ValidationRule,
-  items: Item[],
-  findingsByItem: Map<string, Finding[]>,
-  paymentReference: string | null,
-): number {
-  const params = (rule.params ?? {}) as Json;
-  const groups = new Map<string, Item[]>();
-  for (const it of items) {
-    const parts: string[] = [];
-    if (params.compare_attendance) parts.push(it.attendance_number ?? "");
-    if (params.compare_code) parts.push(it.procedure_code ?? "");
-    if (params.compare_date) parts.push((it.procedure_date ?? "").slice(0, 10));
-    if (params.compare_patient) parts.push(normName(it.patient_name ?? ""));
-    if (!params.allow_different_doctors) parts.push(normName(it.doctor_name ?? ""));
-    const key = parts.join("|");
-    if (!key.replaceAll("|", "")) continue;
-    const arr = groups.get(key) ?? [];
-    arr.push(it);
-    groups.set(key, arr);
-  }
-  const now = new Date().toISOString();
-  let hits = 0;
-  for (const group of groups.values()) {
-    if (group.length < 2) continue;
-    const [first, ...dupes] = group;
-    for (const dupe of dupes) {
-      const list = findingsByItem.get(dupe.id) ?? [];
-      const snapshot: ConflictingItemSnapshot = {
-        attendance_number: first.attendance_number,
-        patient_name: getPatient(first),
-        procedure_code: first.procedure_code,
-        procedure_name: first.procedure_name,
-        doctor_name: first.doctor_name,
-        procedure_date: first.procedure_date,
-        company_name: first.company_name,
-        payment_id: first.payment_id,
-        payment_reference: paymentReference,
-      };
-      list.push({
-        rule_id: rule.id,
-        rule_name: rule.name,
-        kind: rule.kind,
-        severity: rule.severity,
-        action: rule.action,
-        message: `Duplicidade por atendimento: procedimento ${dupe.procedure_code ?? dupe.procedure_name ?? "—"} cobrado ${group.length}× no atendimento ${dupe.attendance_number ?? "—"}.`,
-        conflicting_item_id: first.id,
-        conflicting_item: snapshot,
-        detected_at: now,
-      });
-      findingsByItem.set(dupe.id, list);
-      hits++;
-    }
-  }
-  return hits;
-}
+// Legados: aliases para a função unificada.
+const applyDuplicidadeExata = applyDuplicidadeLancamento;
+const applyDuplicidadeAtendimento = applyDuplicidadeLancamento;
+
+
 
 function applyParecerVirouCirurgia(
   rule: ValidationRule,
