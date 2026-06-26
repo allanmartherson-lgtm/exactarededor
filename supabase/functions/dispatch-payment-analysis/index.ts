@@ -151,6 +151,36 @@ Deno.serve(async (req) => {
           },
         );
       }
+
+      // Lote de Parecer + relatório presente: rodar cross-reference ANTES da
+      // análise garante que cada item esteja com o tipo (Parecer vs Visita)
+      // correto sob as regras parametrizadas atuais. cross-reference-parecer
+      // dispatch-a esta função de volta com skip_parecer_cross_ref=true ao
+      // final, então saímos aqui sem orquestrar — sem isso, qualquer "rerun"
+      // recalcularia regras em cima de uma classificação possivelmente stale.
+      if (!skip_parecer_cross_ref) {
+        runInBackground(
+          fetch(`${SUPABASE_URL}/functions/v1/cross-reference-parecer`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SERVICE_KEY}`,
+            },
+            body: JSON.stringify({ payment_id, trigger_reanalysis: true }),
+          }),
+          "cross-reference-parecer dispatch",
+        );
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            accepted: true,
+            deferred_to: "cross-reference-parecer",
+            message:
+              "Lote de parecer: reclassificação Parecer/Visita disparada antes da análise.",
+          }),
+          { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     const EDITABLE_STATUSES = ["revisao_analista", "devolvido_analista"];
