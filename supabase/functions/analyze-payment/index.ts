@@ -144,9 +144,13 @@ serve(async (req) => {
     };
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
     const isConfeccao = payment?.analysis_mode === "confeccao";
-    // Importação histórica: motor roda normalmente (aprende aliases, calcula
-    // diferenca_regra, alimenta DRE), porém grava status final = 'pago' nos
-    // grupos para que o fluxo de validação/aprovação/NF NÃO seja acionado.
+    // Importação histórica: motor roda normalmente (calcula diferenca_regra,
+    // alimenta DRE) e os grupos caem em `revisao_analista` como num lote
+    // comum, para que o analista possa revisar/ajustar antes de concluir.
+    // A marcação final como `pago` é feita por ação explícita do analista
+    // via RPC `conclude_historico_payment` (não auto-promove).
+    // ⚠️ Auto-aprendizado de aliases continua suprimido para historico
+    //    (ver bloco mais abaixo) — bases antigas não devem contaminar cadastros.
     const isHistorico = (payment as any)?.import_mode === "historico";
 
 
