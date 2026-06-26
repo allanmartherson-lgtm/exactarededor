@@ -290,7 +290,21 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     setObs(o ?? []);
     setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
     setGroups(gs ?? []);
-    setInvoices(inv ?? []);
+    const invList = (inv ?? []) as Array<Omit<InvoiceRow, "upload_token">>;
+    let invWithTokens: InvoiceRow[] = invList.map((r) => ({ ...r, upload_token: "" } as InvoiceRow));
+    if (invList.length > 0) {
+      const { data: tokRows } = await supabase.rpc("get_invoice_upload_tokens", {
+        p_invoice_ids: invList.map((r) => r.id),
+      });
+      const tokMap = new Map<string, string>(
+        ((tokRows ?? []) as Array<{ invoice_id: string; upload_token: string }>).map((t) => [
+          t.invoice_id,
+          t.upload_token,
+        ]),
+      );
+      invWithTokens = invList.map((r) => ({ ...r, upload_token: tokMap.get(r.id) ?? "" } as InvoiceRow));
+    }
+    setInvoices(invWithTokens);
     setQuestions((qs ?? []) as unknown as (InvoiceQuestion & { invoice_id: string })[]);
     setAssignments((as ?? []) as unknown as AssignmentRow[]);
     setExpandedGroups(new Set());
