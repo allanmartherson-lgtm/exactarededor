@@ -2942,7 +2942,26 @@ export function analyzeItem(
   // (reclassificação clínica ou aceite financeiro), o motor NÃO aplica regra:
   // aceita `procedure_amount` (valor do convênio) como esperado, diff = 0,
   // status = aprovado. Auditoria preserva o motivo via calculation_explanation.
-  if (item.manual_intervention_reason_id) {
+  // Regra específica do médico (medico/grupo_doctor) calculável SEMPRE vence
+  // sobre tratamento automático do relatório de parecer — acordo pessoal é
+  // soberano. Tratamento MANUAL do analista permanece soberano.
+  let doctorRuleOverridesAutoParecer = false;
+  if (item.manual_intervention_reason_id && (item.manual_intervention_source ?? "manual") === "auto_parecer_report") {
+    try {
+      const sel = selectWinningRule(item, preFilteredRules, ctx);
+      if (
+        sel?.rule &&
+        (sel.priority === "medico" || sel.priority === "medico_codigo" ||
+         sel.priority === "grupo_doctor" || sel.priority === "grupo_doctor_codigo") &&
+        sel.rule.calculation_type !== "informativo" &&
+        sel.rule.calculation_type !== "exclusao"
+      ) {
+        doctorRuleOverridesAutoParecer = true;
+      }
+    } catch (_e) { /* ignore */ }
+  }
+
+  if (item.manual_intervention_reason_id && !doctorRuleOverridesAutoParecer) {
     const code = item.manual_intervention_reason_code ?? "manual";
     const category = item.manual_intervention_reason_category ?? "";
     const source = item.manual_intervention_source ?? "manual";
