@@ -141,84 +141,144 @@ function ruleAppliesToPayment(
   return true;
 }
 
-function buildDupKey(it: Item, params: Json): string {
-  const parts: string[] = [];
-  if (params.compare_attendance) parts.push(it.attendance_number ?? "");
-  if (params.compare_code) parts.push(it.procedure_code ?? "");
-  if (params.compare_date) parts.push((it.procedure_date ?? "").slice(0, 10));
-  if (params.compare_doctor) parts.push(normName(it.doctor_name ?? ""));
-  if (params.compare_patient) parts.push(normName(it.patient_name ?? ""));
-  if (params.compare_role) parts.push(normName(it.doctor_role ?? ""));
-  if (params.compare_access_route) parts.push(normName(it.access_route ?? ""));
-  return parts.join("|");
+
+// Normaliza params de regras antigas (duplicidade_exata / duplicidade_atendimento)
+// para o formato unificado duplicidade_lancamento.
+function normalizeDupParams(rule: ValidationRule): {
+  compare_attendance: boolean; compare_patient: boolean; compare_date: boolean;
+  compare_code: boolean; compare_role: boolean; compare_access_route: boolean;
+  doctor_mode: "same" | "any" | "different"; window_days: number;
+} {
+  const p = (rule.params ?? {}) as Json;
+  const dm = (p.doctor_mode as string) ??
+    (p.compare_doctor === false || p.allow_different_doctors === true ? "any" : "same");
+  return {
+    compare_attendance: p.compare_attendance !== false,
+    compare_patient: p.compare_patient !== false,
+    compare_date: p.compare_date !== false,
+    compare_code: p.compare_code !== false,
+    compare_role: !!p.compare_role,
+    compare_access_route: !!p.compare_access_route,
+    doctor_mode: (dm === "any" || dm === "different" ? dm : "same") as "same" | "any" | "different",
+    window_days: typeof p.window_days === "number" && p.window_days > 0 ? p.window_days : 0,
+  };
 }
 
-function applyDuplicidadeExata(
+function applyDuplicidadeLancamento(
   rule: ValidationRule,
   items: Item[],
   findingsByItem: Map<string, Finding[]>,
   paymentReference: string | null,
 ): number {
-  const params = (rule.params ?? {}) as Json;
-  const anySelected =
-    params.compare_attendance || params.compare_code || params.compare_date ||
-    params.compare_doctor || params.compare_patient || params.compare_role || params.compare_access_route;
-  if (!anySelected) return 0;
+  const params = normalizeDupParams(rule);
+  const anyFieldSelected =
+    params.compare_attendance || params.compare_code || params.compare_patient ||
+    params.compare_role || params.compare_access_route || params.compare_date;
+  if (!anyFieldSelected) return 0;
 
-  const groups = new Map<string, Item[]>();
+  // Chave estável (sem data quando há janela em dias)
+  const useDateInKey = params.compare_date && params.window_days === 0;
+  const keyOf = (it: Item) => {
+    const parts: string[] = [];
+    if (params.compare_attendance) parts.push(it.attendance_number ?? "");
+    if (params.compare_code) parts.push(it.procedure_code ?? "");
+    if (useDateInKey) parts.push((it.procedure_date ?? "").slice(0, 10));
+    if (params.compare_patient) parts.push(normName(it.patient_name ?? ""));
+    if (params.compare_role) parts.push(normName(it.doctor_role ?? ""));
+    if (params.compare_access_route) parts.push(normName(it.access_route ?? ""));
+    if (params.doctor_mode === "same") parts.push(normName(it.doctor_name ?? ""));
+    return parts.join("|");
+  };
+
+  const buckets = new Map<string, Item[]>();
   for (const it of items) {
-    const key = buildDupKey(it, params);
-    if (!key.replaceAll("|", "")) continue; // chave totalmente vazia → ignora
-    const arr = groups.get(key) ?? [];
+    const key = keyOf(it);
+    if (!key.replaceAll("|", "")) continue;
+    const arr = buckets.get(key) ?? [];
     arr.push(it);
-    groups.set(key, arr);
+    buckets.set(key, arr);
   }
 
   const reasonParts: string[] = [];
   if (params.compare_attendance) reasonParts.push("atendimento");
   if (params.compare_code) reasonParts.push("código");
-  if (params.compare_date) reasonParts.push("data");
-  if (params.compare_doctor) reasonParts.push("médico");
+  if (params.compare_date) reasonParts.push(params.window_days > 0 ? `janela de ${params.window_days}d` : "data");
   if (params.compare_patient) reasonParts.push("paciente");
   if (params.compare_role) reasonParts.push("função");
   if (params.compare_access_route) reasonParts.push("via de acesso");
+  if (params.doctor_mode === "same") reasonParts.push("mesmo médico");
+  if (params.doctor_mode === "different") reasonParts.push("médicos distintos");
   const reason = reasonParts.join(" + ");
   const now = new Date().toISOString();
 
   let hits = 0;
-  for (const group of groups.values()) {
-    if (group.length < 2) continue;
-    const sorted = [...group].sort((a, b) => (a.gross_amount ?? 0) - (b.gross_amount ?? 0));
-    const target = sorted[0].gross_amount === sorted[1].gross_amount ? group[1] : sorted[0];
-    const other = group.find((x) => x.id !== target.id)!;
-    const list = findingsByItem.get(target.id) ?? [];
-    const snapshot: ConflictingItemSnapshot = {
-      attendance_number: other.attendance_number,
-      patient_name: getPatient(other),
-      procedure_code: other.procedure_code,
-      procedure_name: other.procedure_name,
-      doctor_name: other.doctor_name,
-      procedure_date: other.procedure_date,
-      company_name: other.company_name,
-      payment_id: other.payment_id,
-      payment_reference: paymentReference,
-    };
-    list.push({
-      rule_id: rule.id,
-      rule_name: rule.name,
-      kind: rule.kind,
-      severity: rule.severity,
-      action: rule.action,
-      message: `Item duplicado: mesmo ${reason} do item de ${snapshot.patient_name ?? "paciente não informado"} — ${snapshot.procedure_name ?? "procedimento não informado"}${snapshot.procedure_code ? ` (${snapshot.procedure_code})` : ""}.`,
-      conflicting_item_id: other.id,
-      conflicting_item: snapshot,
-      detected_at: now,
-    });
-    findingsByItem.set(target.id, list);
-    hits++;
+  const dayMs = 86400000;
+
+  for (const bucket of buckets.values()) {
+    if (bucket.length < 2) continue;
+
+    // Aplica modo de médico (different)
+    if (params.doctor_mode === "different") {
+      const distinct = new Set(bucket.map((i) => normName(i.doctor_name ?? "")).filter(Boolean));
+      if (distinct.size < 2) continue;
+    }
+
+    // Janela em dias: agrupa em sub-clusters pela proximidade de procedure_date
+    const subClusters: Item[][] = [];
+    if (params.window_days > 0 && params.compare_date) {
+      const sorted = [...bucket]
+        .map((i) => ({ i, t: i.procedure_date ? new Date(i.procedure_date).getTime() : NaN }))
+        .filter((x) => Number.isFinite(x.t))
+        .sort((a, b) => a.t - b.t);
+      let current: { i: Item; t: number }[] = [];
+      for (const node of sorted) {
+        if (current.length === 0 || node.t - current[current.length - 1].t <= params.window_days * dayMs) {
+          current.push(node);
+        } else {
+          if (current.length >= 2) subClusters.push(current.map((x) => x.i));
+          current = [node];
+        }
+      }
+      if (current.length >= 2) subClusters.push(current.map((x) => x.i));
+    } else {
+      subClusters.push(bucket);
+    }
+
+    for (const cluster of subClusters) {
+      if (cluster.length < 2) continue;
+      const [first, ...dupes] = cluster;
+      for (const dupe of dupes) {
+        const list = findingsByItem.get(dupe.id) ?? [];
+        const snapshot: ConflictingItemSnapshot = {
+          attendance_number: first.attendance_number,
+          patient_name: getPatient(first),
+          procedure_code: first.procedure_code,
+          procedure_name: first.procedure_name,
+          doctor_name: first.doctor_name,
+          procedure_date: first.procedure_date,
+          company_name: first.company_name,
+          payment_id: first.payment_id,
+          payment_reference: paymentReference,
+        };
+        list.push({
+          rule_id: rule.id,
+          rule_name: rule.name,
+          kind: rule.kind,
+          severity: rule.severity,
+          action: rule.action,
+          message: `Duplicidade de lançamento: mesmo ${reason}.`,
+          conflicting_item_id: first.id,
+          conflicting_item: snapshot,
+          detected_at: now,
+        });
+        findingsByItem.set(dupe.id, list);
+        hits++;
+      }
+    }
   }
   return hits;
 }
+
 
 function applySobreposicaoAssistencial(
   rule: ValidationRule,
@@ -361,62 +421,9 @@ function applySobreposicaoAssistencial(
 }
 
 
-function applyDuplicidadeAtendimento(
-  rule: ValidationRule,
-  items: Item[],
-  findingsByItem: Map<string, Finding[]>,
-  paymentReference: string | null,
-): number {
-  const params = (rule.params ?? {}) as Json;
-  const groups = new Map<string, Item[]>();
-  for (const it of items) {
-    const parts: string[] = [];
-    if (params.compare_attendance) parts.push(it.attendance_number ?? "");
-    if (params.compare_code) parts.push(it.procedure_code ?? "");
-    if (params.compare_date) parts.push((it.procedure_date ?? "").slice(0, 10));
-    if (params.compare_patient) parts.push(normName(it.patient_name ?? ""));
-    if (!params.allow_different_doctors) parts.push(normName(it.doctor_name ?? ""));
-    const key = parts.join("|");
-    if (!key.replaceAll("|", "")) continue;
-    const arr = groups.get(key) ?? [];
-    arr.push(it);
-    groups.set(key, arr);
-  }
-  const now = new Date().toISOString();
-  let hits = 0;
-  for (const group of groups.values()) {
-    if (group.length < 2) continue;
-    const [first, ...dupes] = group;
-    for (const dupe of dupes) {
-      const list = findingsByItem.get(dupe.id) ?? [];
-      const snapshot: ConflictingItemSnapshot = {
-        attendance_number: first.attendance_number,
-        patient_name: getPatient(first),
-        procedure_code: first.procedure_code,
-        procedure_name: first.procedure_name,
-        doctor_name: first.doctor_name,
-        procedure_date: first.procedure_date,
-        company_name: first.company_name,
-        payment_id: first.payment_id,
-        payment_reference: paymentReference,
-      };
-      list.push({
-        rule_id: rule.id,
-        rule_name: rule.name,
-        kind: rule.kind,
-        severity: rule.severity,
-        action: rule.action,
-        message: `Duplicidade por atendimento: procedimento ${dupe.procedure_code ?? dupe.procedure_name ?? "—"} cobrado ${group.length}× no atendimento ${dupe.attendance_number ?? "—"}.`,
-        conflicting_item_id: first.id,
-        conflicting_item: snapshot,
-        detected_at: now,
-      });
-      findingsByItem.set(dupe.id, list);
-      hits++;
-    }
-  }
-  return hits;
-}
+// Legados: aliases para a função unificada.
+
+
 
 function applyParecerVirouCirurgia(
   rule: ValidationRule,
@@ -717,8 +724,12 @@ Deno.serve(async (req) => {
         skippedRules.push({ id: rule.id, name: rule.name, reason: "out_of_scope" });
         continue;
       }
-      if (rule.kind === "duplicidade_exata") {
-        const hits = applyDuplicidadeExata(rule, items, findingsByItem, paymentReference);
+      if (
+        rule.kind === "duplicidade_lancamento" ||
+        rule.kind === "duplicidade_exata" ||
+        rule.kind === "duplicidade_atendimento"
+      ) {
+        const hits = applyDuplicidadeLancamento(rule, items, findingsByItem, paymentReference);
         totalHits += hits;
         appliedRules.push(rule.name);
       } else if (rule.kind === "sobreposicao_assistencial") {
@@ -739,10 +750,6 @@ Deno.serve(async (req) => {
         }
         appliedRules.push(rule.name);
 
-      } else if (rule.kind === "duplicidade_atendimento") {
-        const hits = applyDuplicidadeAtendimento(rule, items, findingsByItem, paymentReference);
-        totalHits += hits;
-        appliedRules.push(rule.name);
       } else if (rule.kind === "parecer_virou_cirurgia") {
         const hits = applyParecerVirouCirurgia(rule, items, findingsByItem, paymentReference);
         totalHits += hits;

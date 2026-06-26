@@ -102,7 +102,7 @@ const buildScenario = () => ({
   payment: [
     { id: "p1", gross_amount: 1000, expected_amount: 1000, is_cancelled: false,
       ai_findings: { alerts: ["Alerta de validação"], needs_human_review: true },
-      validation_findings: [{ kind: "duplicidade_exata", action: "alerta" }] },
+      validation_findings: [{ kind: "duplicidade_lancamento", action: "alerta" }] },
     { id: "p2", gross_amount: 2000, expected_amount: 2000, is_cancelled: false,
       ai_findings: { alerts: [] }, validation_findings: [] },
     { id: "p3", gross_amount: 500, expected_amount: 500, is_cancelled: false,

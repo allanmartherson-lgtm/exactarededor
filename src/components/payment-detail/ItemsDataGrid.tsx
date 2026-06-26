@@ -4898,12 +4898,15 @@ function ValidationFindingsBadge({
   const badgeColor = severityColors[dominant] ?? severityColors.informativo;
 
   const KIND_LABELS: Record<string, string> = {
+    duplicidade_lancamento: "Duplicidade",
     duplicidade_exata: "Duplicidade",
+    duplicidade_atendimento: "Duplicidade",
     sobreposicao_assistencial: "Sobreposição",
     parecer_virou_cirurgia: "Parecer absorvido",
     restricao_contratual: "Restrição contratual",
     outlier_valor: "Outlier de valor",
   };
+
   const firstFinding = findings[0];
   const kindLabel = KIND_LABELS[firstFinding?.kind ?? ""] ?? "Validação";
 

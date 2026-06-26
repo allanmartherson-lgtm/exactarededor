@@ -34,9 +34,11 @@ type Severity = Database["public"]["Enums"]["validation_severity"];
 type Action = Database["public"]["Enums"]["validation_action"];
 
 const KIND_LABELS: Record<Kind, string> = {
-  duplicidade_exata: "Cobrança duplicada",
-  duplicidade_atendimento: "Duplicidade por atendimento/procedimento",
-  sobreposicao_assistencial: "Sobreposição de grupo assistencial",
+  duplicidade_lancamento: "Duplicidade de lançamento",
+  // Legados — mantidos só para renderizar findings/regras antigas que ainda não foram migradas.
+  duplicidade_exata: "Duplicidade de lançamento",
+  duplicidade_atendimento: "Duplicidade de lançamento",
+  sobreposicao_assistencial: "Sobreposição assistencial",
   codigo_sem_dobra: "Código sem dobra/acordo",
   codigo_nao_remuneravel: "Código não remunerável",
   item_em_pacote: "Item já incluído em pacote",
@@ -49,8 +51,7 @@ const KIND_LABELS: Record<Kind, string> = {
 // Tipos visíveis no dropdown ao criar/editar (com descrição curta).
 // Tipos antigos não listados continuam sendo exibidos em regras já cadastradas.
 const VISIBLE_KINDS: Kind[] = [
-  "duplicidade_exata",
-  "duplicidade_atendimento",
+  "duplicidade_lancamento",
   "sobreposicao_assistencial",
   "parecer_virou_cirurgia",
   "restricao_contratual",
@@ -69,10 +70,10 @@ const KINDS_NOT_IMPLEMENTED = new Set<Kind>([
 ]);
 
 const KIND_DESCRIPTIONS: Partial<Record<Kind, string>> = {
-  duplicidade_exata:
-    "Mesmo código cobrado mais de uma vez no mesmo atendimento e data. Configurável: verificar apenas o mesmo médico ou também médicos diferentes.",
+  duplicidade_lancamento:
+    "Mesmo lançamento cobrado mais de uma vez. Escolha quais campos definem o 'mesmo item' (atendimento, paciente, data, código, função, via) e como tratar o médico (mesmo, qualquer ou exigir médicos diferentes).",
   sobreposicao_assistencial:
-    "Especialidades afins (ex: Geriatria e Cuidados Paliativos) fizeram visita ou parecer para o mesmo paciente no mesmo dia. Apenas um é remunerado.",
+    "Especialidades afins (ex.: Geriatria e Cuidados Paliativos) fizeram visita ou parecer para o mesmo paciente no mesmo dia. Configurável por grupo ou por múltiplas especialidades.",
   parecer_virou_cirurgia:
     "Parecer seguido de cirurgia dentro do prazo configurado — o parecer não é pago separadamente pois está incluído na cirurgia.",
   restricao_contratual:
@@ -88,6 +89,7 @@ const KIND_DESCRIPTIONS: Partial<Record<Kind, string>> = {
   particular_sem_excecao:
     "Item de convênio particular cobrado sem exceção autorizada pelo diretor.",
 };
+
 
 const SEVERITY_LABELS: Record<Severity, string> = {
   informativo: "Informativo — registra sem destaque",
@@ -140,8 +142,20 @@ const ACTION_GROUPS = [
 
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
+type DupLancamentoParams = {
+  compare_attendance: boolean;
+  compare_patient: boolean;
+  compare_date: boolean;
+  compare_code: boolean;
+  compare_role: boolean;
+  compare_access_route: boolean;
+  doctor_mode: "same" | "any" | "different";
+  window_days: number;
+};
+// Tipos legados — preservados só para retrocompatibilidade ao carregar regras antigas.
 type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean; compare_role: boolean; compare_access_route: boolean };
 type DupAtendParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; allow_different_doctors: boolean };
+
 type SobreposParams = {
   compare_attendance: boolean;
   compare_patient: boolean;
@@ -180,10 +194,22 @@ type RestricaoContratualParams = {
 
 const defaultParamsFor = (k: Kind): Record<string, unknown> => {
   switch (k) {
+    case "duplicidade_lancamento":
+      return {
+        compare_attendance: true,
+        compare_patient: true,
+        compare_date: true,
+        compare_code: true,
+        compare_role: false,
+        compare_access_route: false,
+        doctor_mode: "same",
+        window_days: 0,
+      } satisfies DupLancamentoParams;
     case "duplicidade_exata":
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, compare_doctor: true, compare_role: false, compare_access_route: false };
     case "duplicidade_atendimento":
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
+
     case "sobreposicao_assistencial":
       return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "qualquer", specialty_match: "primary", min_distinct_specialties: 2, excluded_specialties: [] } satisfies SobreposParams;
     case "parecer_virou_cirurgia":
@@ -242,14 +268,15 @@ const emptyForm = (): FormState => ({
   description: "",
   active: true,
   severity: "alerta",
-  kind: "duplicidade_exata",
+  kind: "duplicidade_lancamento",
   action: "alerta",
   scope_global: true,
   sectors: [],
   payment_types: [],
   company_ids: [],
   doctors: [],
-  params: defaultParamsFor("duplicidade_exata"),
+  params: defaultParamsFor("duplicidade_lancamento"),
+
   require_justification: false,
   allows_authorized_exception: false,
   assistance_group_id: null,
@@ -543,67 +570,82 @@ export default function ValidationRules({ embedded = false }: { embedded?: boole
 
   const showParams = useMemo(() => {
     const k = form.kind;
-    if (k === "duplicidade_exata") {
-      const p = form.params as DupExataParams;
-      const set = (patch: Partial<DupExataParams>) => setForm({ ...form, params: { ...p, ...patch } });
-      const opts: Array<[keyof DupExataParams, string]> = [
-        ["compare_attendance", "Atendimento"], ["compare_patient", "Paciente"], ["compare_date", "Data"],
+    if (k === "duplicidade_lancamento" || k === "duplicidade_exata" || k === "duplicidade_atendimento") {
+      // Normaliza: se a regra ainda estiver em kind legado, mostra com o novo formato e migra ao salvar.
+      const raw = form.params as Record<string, unknown>;
+      const p: DupLancamentoParams = {
+        compare_attendance: raw.compare_attendance !== false,
+        compare_patient: raw.compare_patient !== false,
+        compare_date: raw.compare_date !== false,
+        compare_code: raw.compare_code !== false,
+        compare_role: !!raw.compare_role,
+        compare_access_route: !!raw.compare_access_route,
+        doctor_mode:
+          (raw.doctor_mode as DupLancamentoParams["doctor_mode"]) ??
+          (raw.compare_doctor === false || raw.allow_different_doctors === true ? "any" : "same"),
+        window_days: typeof raw.window_days === "number" ? raw.window_days : 0,
+      };
+      const set = (patch: Partial<DupLancamentoParams>) =>
+        setForm({ ...form, kind: "duplicidade_lancamento", params: { ...p, ...patch } });
+      const opts: Array<[keyof DupLancamentoParams, string]> = [
+        ["compare_attendance", "Atendimento"],
+        ["compare_patient", "Paciente"],
+        ["compare_date", "Data"],
         ["compare_code", "Código / procedimento"],
         ["compare_role", "Função (cirurgião, auxiliar, etc.)"],
         ["compare_access_route", "Via de acesso"],
       ];
-      // Toggle invertido: ON => ignora médico (compare_doctor=false). OFF => compara médico (compare_doctor=true).
-      const ignoreDoctor = p.compare_doctor === false;
       return (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            {opts.map(([k2, label]) => (
-              <label key={k2} className="flex items-center gap-2 text-sm">
-                <Checkbox checked={!!p[k2]} onCheckedChange={(v) => set({ [k2]: !!v } as Partial<DupExataParams>)} />
-                {label}
-              </label>
-            ))}
+          <div>
+            <Label className="text-xs">Campos que definem "o mesmo lançamento"</Label>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              {opts.map(([k2, label]) => (
+                <label key={k2} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={!!p[k2]}
+                    onCheckedChange={(v) => set({ [k2]: !!v } as Partial<DupLancamentoParams>)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
           </div>
-          <div className="rounded-md border border-border p-3 space-y-1">
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <Checkbox
-                checked={ignoreDoctor}
-                onCheckedChange={(v) => set({ compare_doctor: !v })}
+          <div>
+            <Label className="text-xs">Médico</Label>
+            <Select value={p.doctor_mode} onValueChange={(v) => set({ doctor_mode: v as DupLancamentoParams["doctor_mode"] })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="same">Mesmo médico — duplicidade só conta se o médico for igual</SelectItem>
+                <SelectItem value="any">Qualquer médico — ignora o médico na comparação</SelectItem>
+                <SelectItem value="different">Médicos diferentes obrigatoriamente — alerta quando médicos distintos lançam o mesmo item</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Janela de tempo</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                type="number"
+                min={0}
+                max={90}
+                className="w-24"
+                value={p.window_days}
+                onChange={(e) => set({ window_days: Math.max(0, Number(e.target.value) || 0) })}
               />
-              Considerar duplicidade mesmo com médicos diferentes
-            </label>
-            <p className="text-xs text-muted-foreground pl-6">
-              Quando ativado: mesmo código + atendimento + data com qualquer médico é considerado duplicata.
-              Quando desativado: apenas o mesmo médico.
+              <span className="text-sm text-muted-foreground">dias</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              0 = mesmo dia (usa o campo "Data"). N &gt; 0 = considera duplicidade dentro de N dias entre os lançamentos.
             </p>
           </div>
+          <p className="text-xs text-muted-foreground border-t pt-2">
+            Dica: cadastre duas instâncias se precisar de comportamentos diferentes — por exemplo uma estrita (atendimento + TUSS + mesmo médico = <strong>bloqueio</strong>) e uma ampla (atendimento + TUSS + qualquer médico = <strong>alerta</strong>).
+          </p>
         </div>
       );
     }
-    if (k === "duplicidade_atendimento") {
-      const p = form.params as DupAtendParams;
-      const set = (patch: Partial<DupAtendParams>) => setForm({ ...form, params: { ...p, ...patch } });
-      const opts: Array<[keyof DupAtendParams, string]> = [
-        ["compare_attendance", "Atendimento"], ["compare_patient", "Paciente"],
-        ["compare_date", "Data"], ["compare_code", "Código / procedimento"],
-      ];
-      return (
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            {opts.map(([k2, label]) => (
-              <label key={k2} className="flex items-center gap-2 text-sm">
-                <Checkbox checked={!!p[k2]} onCheckedChange={(v) => set({ [k2]: !!v } as Partial<DupAtendParams>)} />
-                {label}
-              </label>
-            ))}
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={!!p.allow_different_doctors} onCheckedChange={(v) => set({ allow_different_doctors: !!v })} />
-            Permitir médicos diferentes
-          </label>
-        </div>
-      );
-    }
+
     if (k === "sobreposicao_assistencial") {
       const p = form.params as SobreposParams;
       const set = (patch: Partial<SobreposParams>) => setForm({ ...form, params: { ...p, ...patch } });

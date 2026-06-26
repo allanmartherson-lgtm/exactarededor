@@ -1,113 +1,52 @@
-
 ## Objetivo
+Substituir as duas regras `duplicidade_exata` e `duplicidade_atendimento` por uma única regra **`duplicidade_lancamento`** com matriz de campos comparáveis e modo de médico configurável.
 
-Tirar do hardcode a regra "Parecer→Visita" do `cross-reference-parecer` e criar a **fundação** para outras configurações migrarem ao longo do tempo. Sem duplicar valor padrão por unidade — defaults vivem em um lugar único e cada unidade só grava o que **realmente sobrescreve**.
+## Modelo unificado da regra
 
-## Arquitetura: 2 camadas, sem cópia
+Params:
+- **Campos do "mesmo item"** (booleanos): `compare_attendance`, `compare_patient`, `compare_date`, `compare_code`, `compare_role`, `compare_access_route`
+- **Médico** (enum `doctor_mode`):
+  - `same` — só conta como duplicidade se o médico for o mesmo (equivale ao antigo "Cobrança duplicada" com médico marcado)
+  - `any` — ignora médico (equivale ao antigo "Duplicidade por atendimento" com "permitir médicos diferentes")
+  - `different` — só dispara quando os médicos forem diferentes (alerta "mesmo procedimento por médicos distintos")
+- **Janela** (`window_days`, número): `0` = mesmo dia (default quando `compare_date=on`); `N` = dentro de N dias.
 
-```text
-┌──────────────────────────────┐
-│ system_parameter_defs        │  ← catálogo + valor PADRÃO global
-│ key, category, schema, value │     (1 linha por parâmetro)
-└──────────────┬───────────────┘
-               │ inherits when no override
-               ▼
-┌──────────────────────────────┐
-│ system_parameter_overrides   │  ← só existe quando alguém customiza
-│ def_key, hospital_id,        │     (0..N linhas por parâmetro)
-│ convenio_id, specialty,      │
-│ value, priority              │
-└──────────────────────────────┘
-```
+Mantém severidade/ação livres → o admin cadastra quantas instâncias quiser (ex.: uma estrita como bloqueio, uma ampla como alerta) sem precisar trocar de tipo.
 
-**Por que dois níveis:** quando um hospital novo é criado, **nada é copiado**. Ele herda o `defaults.value` automaticamente. Se amanhã o time mudar o padrão global (ex.: passar de 1 para 2 dias consecutivos), todas as unidades sem override pegam a mudança — zero migração, zero conflito. Unidades que tinham override (psiquiatria, p.ex.) continuam intactas.
+## Mudanças
 
-**Resolução (mais específico vence):**
-1. hospital + convênio + especialidade
-2. hospital + especialidade
-3. hospital + convênio
-4. hospital
-5. especialidade (global)
-6. convênio (global)
-7. `defaults.value`
+### 1. Backend (SQL)
+Migração que converte linhas existentes em `validation_rules`:
+- `duplicidade_exata` → `duplicidade_lancamento` com `doctor_mode = compare_doctor ? 'same' : 'any'`, demais flags preservadas, `window_days=0`.
+- `duplicidade_atendimento` → `duplicidade_lancamento` com `doctor_mode = allow_different_doctors ? 'any' : 'same'`, `compare_role=false`, `compare_access_route=false`, `window_days=0`.
 
-## 1º parâmetro migrado: `parecer.classification`
+### 2. Edge function `validate-payment`
+- Nova `applyDuplicidadeLancamento(rule, items, …)` que:
+  - constrói chave com os campos marcados,
+  - quando `doctor_mode='same'` adiciona médico na chave,
+  - quando `window_days>0`, agrupa por janela rolante por (chave-sem-data) e considera duplicado se houver outro item dentro de N dias,
+  - quando `doctor_mode='different'`, exige ≥2 médicos distintos no mesmo bucket.
+- Dispatch passa a aceitar `duplicidade_lancamento`. Os dois kinds antigos continuam aceitos como aliases (chamam a nova função convertendo os params em runtime), garantindo segurança caso alguma migração falhe.
 
-JSONB no `value`:
-```json
-{
-  "consecutive_days_to_visita": 1,
-  "dedup_key": "specialty",
-  "enabled": true
-}
-```
+### 3. UI `src/pages/ValidationRules.tsx`
+- Remove `duplicidade_exata` e `duplicidade_atendimento` do dropdown e adiciona `duplicidade_lancamento` ("Duplicidade de lançamento").
+- Form único: checkboxes da matriz de campos, `Select` para "Médico" (Mesmo / Qualquer / Diferentes obrigatoriamente), `Input` numérico para janela em dias.
+- Hint contextual: "Atend+TUSS+médico estrito = bloqueio. Atend+TUSS qualquer médico = alerta."
+- Mantém labels de fallback para os kinds antigos (caso uma migração não rode, a lista ainda renderiza).
+- Atualiza `defaultParamsFor` e `paramSummary`/description.
 
-Default global = comportamento atual. Override de exemplo para psiquiatria:
-```
-def_key='parecer.classification', specialty='psiquiatria',
-value={"enabled": false}   // psiquiatria nunca rebaixa pra visita
-```
-
-## Mudanças por área
-
-### 1. Migração
-- `system_parameter_defs` (key PK, category, label, description, json_schema, value jsonb, updated_*)
-- `system_parameter_overrides` (id, def_key FK, hospital_id null, convenio_id null, specialty null, value jsonb, priority gerado, active, updated_*)
-- Constraint: pelo menos um scope preenchido por linha de override
-- Seed inicial: 1 linha em `defs` com `parecer.classification` + valor default atual
-- RLS: leitura para `authenticated`; escrita só `admin` via `has_role`
-- GRANTs explícitos nas duas tabelas
-
-### 2. Edge function `cross-reference-parecer`
-- Adiciona helper `resolveParam(supabase, key, {hospital_id, convenio_slug, specialty})` que faz a cascata
-- Para cada item antes do dedup: resolve `parecer.classification` com o escopo do item
-- Se `enabled=false` → pula reclassificação (psiquiatria fica como Parecer)
-- Usa `consecutive_days_to_visita` no lugar do `=== 1`
-- Usa `dedup_key` para escolher a chave de dedup (specialty | doctor | doctor_or_specialty)
-
-### 3. Tela `/sistema-hub/parametros` (nova rota)
-Layout simples, agrupa por `category`:
-
-```text
-Parâmetros do Sistema
-─────────────────────────────────
-[ Classificação Parecer/Visita ]
-   Padrão global: 1 dia consecutivo, chave=especialidade
-   [Editar padrão]
-
-   Exceções ativas (3)
-   ┌─────────────────────────────────────────┐
-   │ Psiquiatria (qq hospital) → desativado  │
-   │ Hospital DF Star → 2 dias               │
-   │ Bradesco + Oncologia → chave=médico     │
-   └─────────────────────────────────────────┘
-   [+ Nova exceção]
-```
-
-- Dialog de edição reflete o `json_schema` do parâmetro (renderer genérico → futuros parâmetros entram sem reescrever UI)
-- "Editar padrão" altera `defs.value`; "Nova exceção" cria linha em `overrides`
-- Mostra preview: "Esta exceção afeta X regras vigentes em Y lotes recentes"
-
-### 4. Memória
-- Atualiza `parecer-visita-confeccao.md`: regra agora é parametrizada, default = 1 dia + specialty
-- Cria `mem://features/system-parameters.md` explicando padrão defs/overrides para reuso futuro
+### 4. Pequenas referências
+- `src/components/payment-detail/ItemsDataGrid.tsx`: adiciona `duplicidade_lancamento: "Duplicidade"` ao mapa de labels (mantém `duplicidade_exata` para histórico).
+- `src/pages/__tests__/cancelByReconciliation.e2e.test.ts`: atualiza fixture para `duplicidade_lancamento`.
 
 ## Detalhes técnicos
 
-- `priority` em `overrides` = coluna gerada baseada em quantos campos de scope são não-nulos (3=mais específico, 1=menos). Query ordena `DESC` e pega o primeiro.
-- Resolver é puro SQL via RPC `resolve_system_parameter(key, hospital, convenio, specialty)` retornando `jsonb` — uma chamada por item; cacheável no edge function por escopo.
-- UI usa `zod` para validar contra `json_schema` antes de gravar.
-- Sem breaking change: se `defs` estiver vazia, edge function cai no comportamento atual (fallback hardcoded mantido como rede de segurança nos primeiros lotes pós-deploy, removido depois).
+- **Sem CHECK constraint** em `validation_rules.kind` (verificado), então não precisa alterar schema — só `UPDATE`.
+- Migração roda em uma transação só; idempotente (re-rodar não faz nada se já estiver no novo kind).
+- `validation_findings` antigos já gravados em `payment_items` mantêm `kind: 'duplicidade_exata'` — o ItemsDataGrid renderiza ambos.
+- Backward compat no engine garante que qualquer regra ainda no kind antigo continua funcionando até a migração rodar.
 
-## Fora de escopo (próximas iterações)
-
-- Migrar outros hardcodes (RECONCILIATION_LOGIC_VERSION_DATE, tolerâncias, SLAs default) — entram aos poucos só adicionando linha em `defs`
-- Versionamento/histórico de mudanças de parâmetro (audit_log já cobre por enquanto)
-- Override por médico individual (não pedido)
-
-## Entrega
-
-1. Migração (defs + overrides + seed + RPC resolver + RLS + GRANTs)
-2. Refactor `cross-reference-parecer` para usar resolver
-3. Rota `/sistema-hub/parametros` + componentes
-4. Memórias atualizadas
+## Impacto pro usuário
+- Lista de Validações fica com 1 item de duplicidade no lugar de 2.
+- Regras já cadastradas são convertidas automaticamente; o admin não precisa recriar nada.
+- Quem quiser comportamento "estrito" cadastra com `doctor_mode=same` + todos os campos; quem quiser "amplo" usa `doctor_mode=any`.
