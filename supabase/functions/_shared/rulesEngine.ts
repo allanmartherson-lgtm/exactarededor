@@ -2950,7 +2950,25 @@ export function analyzeItem(
     const procAmount = Number(item.procedure_amount ?? 0);
     const grossAmount = Number(item.gross_amount ?? 0);
     const expected = procAmount;
-    const explanation = `Tratamento ${isAuto ? "automático (relatório de parecer)" : "manual"} — motivo "${code}"${category ? ` (${category})` : ""}. Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).`;
+
+    // Mesmo em tratamento manual, queremos saber se EXISTE regra específica
+    // para o médico/PJ (mesmo informativa) — para que o usuário enxergue o
+    // vínculo no card e não veja "Nenhuma regra específica casou". A regra
+    // não muda o valor (auto-parecer já definiu), só rotula a aderência.
+    let matchedRuleId: string | null = null;
+    let matchedRuleName: string | null = null;
+    let matchedPriority: RuleMatchPriority = "default_setor";
+    try {
+      const sel = selectWinningRule(item, preFilteredRules, ctx);
+      if (sel?.rule && (sel.priority === "medico" || sel.priority === "medico_codigo" || sel.priority === "grupo_doctor" || sel.priority === "grupo_doctor_codigo")) {
+        matchedRuleId = sel.rule.id;
+        matchedRuleName = sel.rule.name ?? null;
+        matchedPriority = sel.priority;
+      }
+    } catch (_e) { /* ignore: tratamento manual prossegue */ }
+
+    const ruleLabel = matchedRuleName ? ` Regra aderente: "${matchedRuleName}".` : "";
+    const explanation = `Tratamento ${isAuto ? "automático (relatório de parecer)" : "manual"} — motivo "${code}"${category ? ` (${category})` : ""}. Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).${ruleLabel}`;
     const alerts: string[] = [];
     if (Math.abs(expected - grossAmount) > 0.01) {
       alerts.push(`Pago (R$ ${grossAmount.toFixed(2)}) difere do convênio (R$ ${procAmount.toFixed(2)}) — diferença assumida pelo tratamento manual.`);
@@ -2960,9 +2978,9 @@ export function analyzeItem(
       status: "aprovado",
       expected_amount: expected,
       diff_pct: 0,
-      matched_rule_id: null,
-      matched_rule_name: null,
-      matched_priority: "default_setor",
+      matched_rule_id: matchedRuleId,
+      matched_rule_name: matchedRuleName,
+      matched_priority: matchedPriority,
       calculation_type_used: "tratamento_manual",
       calculation_explanation: explanation,
       alerts,
