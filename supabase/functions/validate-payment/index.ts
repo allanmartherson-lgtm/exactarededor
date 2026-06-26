@@ -113,10 +113,35 @@ const normSpecialty = (s: string | null | undefined): string => {
     .replace(/\s+/g, " ");
 };
 
-const isVisitaOuParecer = (name: string | null): boolean => {
-  if (!name) return false;
-  const n = normName(name);
-  return n.includes("visita") || n.includes("parecer");
+// TUSS típicos de parecer/visita hospitalar:
+//   10102019 = Visita hospitalar (paciente internado, por dia)
+//   10102027 = Consulta médica em pronto-socorro
+//   10103015 = Avaliação para procedimentos cirúrgicos
+//   10103082 = Parecer / consultoria médica em internação
+const PARECER_VISITA_TUSS = new Set([
+  "10102019", "10102027", "10103015", "10103082",
+]);
+
+const isVisitaOuParecer = (
+  name: string | null,
+  code?: string | null,
+  paymentType?: string | null,
+): boolean => {
+  if (name) {
+    const n = normName(name);
+    if (n.includes("visita") || n.includes("parecer") || n.includes("interconsulta") || n.includes("consultoria")) {
+      return true;
+    }
+  }
+  if (code) {
+    const c = code.replace(/\D/g, "");
+    if (PARECER_VISITA_TUSS.has(c)) return true;
+  }
+  if (paymentType) {
+    const pt = paymentType.toLowerCase();
+    if (pt.includes("parecer") || pt.includes("visita")) return true;
+  }
+  return false;
 };
 
 const PATIENT_ALIASES = ["paciente", "nome paciente", "nm paciente", "nome do paciente"];
@@ -287,6 +312,7 @@ function applySobreposicaoAssistencial(
   group: AssistanceGroup | null,
   findingsByItem: Map<string, Finding[]>,
   paymentReference: string | null,
+  paymentTypeForElig: string | null,
 ): { hits: number; unresolvedDoctors: Set<string> } {
   const params = (rule.params ?? {}) as Json;
   const unresolvedDoctors = new Set<string>();
@@ -328,7 +354,7 @@ function applySobreposicaoAssistencial(
   type Elig = { item: Item; doctor: Doctor; specialty: string; specialties: string[] };
   const eligible: Elig[] = [];
   for (const it of items) {
-    if (!isVisitaOuParecer(it.procedure_name)) continue;
+    if (!isVisitaOuParecer(it.procedure_name, it.procedure_code, paymentTypeForElig)) continue;
     let doc: Doctor | undefined;
     if (it.doctor_document && it.doctor_document.trim()) {
       doc = doctorByCrm.get(it.doctor_document.trim());
@@ -743,7 +769,7 @@ Deno.serve(async (req) => {
           }
           group = g;
         }
-        const result = applySobreposicaoAssistencial(rule, items, allDoctors, group, findingsByItem, paymentReference);
+        const result = applySobreposicaoAssistencial(rule, items, allDoctors, group, findingsByItem, paymentReference, (payment as any).payment_type ?? null);
         totalHits += result.hits;
         if (result.unresolvedDoctors.size > 0) {
           unresolvedByRule[rule.name] = Array.from(result.unresolvedDoctors);
