@@ -312,6 +312,7 @@ function applySobreposicaoAssistencial(
   group: AssistanceGroup | null,
   findingsByItem: Map<string, Finding[]>,
   paymentReference: string | null,
+  paymentTypeForElig: string | null,
 ): { hits: number; unresolvedDoctors: Set<string> } {
   const params = (rule.params ?? {}) as Json;
   const unresolvedDoctors = new Set<string>();
