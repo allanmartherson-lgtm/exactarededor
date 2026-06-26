@@ -141,17 +141,6 @@ function ruleAppliesToPayment(
   return true;
 }
 
-function buildDupKey(it: Item, params: Json): string {
-  const parts: string[] = [];
-  if (params.compare_attendance) parts.push(it.attendance_number ?? "");
-  if (params.compare_code) parts.push(it.procedure_code ?? "");
-  if (params.compare_date) parts.push((it.procedure_date ?? "").slice(0, 10));
-  if (params.compare_doctor) parts.push(normName(it.doctor_name ?? ""));
-  if (params.compare_patient) parts.push(normName(it.patient_name ?? ""));
-  if (params.compare_role) parts.push(normName(it.doctor_role ?? ""));
-  if (params.compare_access_route) parts.push(normName(it.access_route ?? ""));
-  return parts.join("|");
-}
 
 // Normaliza params de regras antigas (duplicidade_exata / duplicidade_atendimento)
 // para o formato unificado duplicidade_lancamento.
