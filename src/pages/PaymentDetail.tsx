@@ -4776,6 +4776,16 @@ const PaymentDetail = () => {
       )}
 
       {payment && (
+        <AssistanceAlertsDetailModal
+          open={isAssistanceAlertsOpen}
+          onOpenChange={setIsAssistanceAlertsOpen}
+          items={items as never}
+          paymentReference={payment.reference}
+        />
+      )}
+
+
+      {payment && (
         <PaymentBatchExportDialog
           open={isBatchExportOpen}
           onOpenChange={setIsBatchExportOpen}
