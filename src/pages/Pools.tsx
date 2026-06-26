@@ -467,7 +467,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                         {d.valor_variavel ? (
                           <div className="h-9 flex items-center px-3 border rounded-md bg-muted text-xs text-muted-foreground">por competência</div>
                         ) : (
-                          <Input type="number" step="0.01" value={d.valor ?? ""} onChange={e => { const n = [...editDeds]; n[i] = { ...d, valor: e.target.value === "" ? null : parseFloat(e.target.value) }; setEditDeds(n); }} />
+                          <CurrencyInput value={d.valor} onChange={(v) => { const n = [...editDeds]; n[i] = { ...d, valor: v }; setEditDeds(n); }} />
                         )}
                       </div>
                       <div className="col-span-1 flex flex-col items-center pb-1">
