@@ -2170,10 +2170,11 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           patch.gross_amount = u.expected_amount ?? null;
         }
       }
-      // 2026-06-24: aumentado de 5 para 7 tentativas (cap em ~22s) — CIPE/CIRURGIA
-      // Brasília esgotaram os 5 retries quando outras invocações concorrentes
-      // sobre o mesmo payment seguravam locks em payment_items.
-      const delays = [250, 500, 1000, 2000, 4000, 8000, 16000];
+      // 2026-06-26: reduzido para 4 tentativas (cap ~3.75s) — backoff longo
+      // estava consumindo o orçamento de 150s do edge runtime e estourando em
+      // IDLE_TIMEOUT (504). Deadlocks transitórios serão re-enfileirados pela
+      // retry queue (`enqueue_ai_retry`) em vez de retentados aqui dentro.
+      const delays = [250, 500, 1000, 2000];
       let attempt = 0;
       let lastErr: string | null = null;
       while (attempt <= delays.length) {
