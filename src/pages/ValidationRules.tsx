@@ -34,9 +34,11 @@ type Severity = Database["public"]["Enums"]["validation_severity"];
 type Action = Database["public"]["Enums"]["validation_action"];
 
 const KIND_LABELS: Record<Kind, string> = {
-  duplicidade_exata: "Cobrança duplicada",
-  duplicidade_atendimento: "Duplicidade por atendimento/procedimento",
-  sobreposicao_assistencial: "Sobreposição de grupo assistencial",
+  duplicidade_lancamento: "Duplicidade de lançamento",
+  // Legados — mantidos só para renderizar findings/regras antigas que ainda não foram migradas.
+  duplicidade_exata: "Duplicidade de lançamento",
+  duplicidade_atendimento: "Duplicidade de lançamento",
+  sobreposicao_assistencial: "Sobreposição assistencial",
   codigo_sem_dobra: "Código sem dobra/acordo",
   codigo_nao_remuneravel: "Código não remunerável",
   item_em_pacote: "Item já incluído em pacote",
@@ -49,8 +51,7 @@ const KIND_LABELS: Record<Kind, string> = {
 // Tipos visíveis no dropdown ao criar/editar (com descrição curta).
 // Tipos antigos não listados continuam sendo exibidos em regras já cadastradas.
 const VISIBLE_KINDS: Kind[] = [
-  "duplicidade_exata",
-  "duplicidade_atendimento",
+  "duplicidade_lancamento",
   "sobreposicao_assistencial",
   "parecer_virou_cirurgia",
   "restricao_contratual",
@@ -69,10 +70,10 @@ const KINDS_NOT_IMPLEMENTED = new Set<Kind>([
 ]);
 
 const KIND_DESCRIPTIONS: Partial<Record<Kind, string>> = {
-  duplicidade_exata:
-    "Mesmo código cobrado mais de uma vez no mesmo atendimento e data. Configurável: verificar apenas o mesmo médico ou também médicos diferentes.",
+  duplicidade_lancamento:
+    "Mesmo lançamento cobrado mais de uma vez. Escolha quais campos definem o 'mesmo item' (atendimento, paciente, data, código, função, via) e como tratar o médico (mesmo, qualquer ou exigir médicos diferentes).",
   sobreposicao_assistencial:
-    "Especialidades afins (ex: Geriatria e Cuidados Paliativos) fizeram visita ou parecer para o mesmo paciente no mesmo dia. Apenas um é remunerado.",
+    "Especialidades afins (ex.: Geriatria e Cuidados Paliativos) fizeram visita ou parecer para o mesmo paciente no mesmo dia. Configurável por grupo ou por múltiplas especialidades.",
   parecer_virou_cirurgia:
     "Parecer seguido de cirurgia dentro do prazo configurado — o parecer não é pago separadamente pois está incluído na cirurgia.",
   restricao_contratual:
@@ -88,6 +89,7 @@ const KIND_DESCRIPTIONS: Partial<Record<Kind, string>> = {
   particular_sem_excecao:
     "Item de convênio particular cobrado sem exceção autorizada pelo diretor.",
 };
+
 
 const SEVERITY_LABELS: Record<Severity, string> = {
   informativo: "Informativo — registra sem destaque",
