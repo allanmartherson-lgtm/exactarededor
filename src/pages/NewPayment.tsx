@@ -1100,9 +1100,28 @@ const NewPayment = () => {
       // sobrescrever pela própria planilha.
       const ptMeta = paymentTypeMetaRef.current;
       if (ptMeta) {
-        if (!base.procedure_code && ptMeta.tuss_default) {
-          base.procedure_code = ptMeta.tuss_default;
-          (base.raw_data as any).__tuss_default_applied = ptMeta.tuss_default;
+        const procFixed = !!ptMeta.tuss_default || ptMeta.requires_tuss_in_sheet === false;
+        if (procFixed) {
+          // Tipo de evento com procedimento fixo (parecer/visita/consulta):
+          // SEMPRE sobrescrevemos procedure_code e procedure_name. Qualquer
+          // valor que tenha vindo da planilha (mapeamento errado, coluna de
+          // data, número solto) é descartado — o tipo é a fonte da verdade.
+          if (ptMeta.tuss_default) {
+            base.procedure_code = ptMeta.tuss_default;
+            (base.raw_data as any).__tuss_default_applied = ptMeta.tuss_default;
+          }
+          const especDest = toStr(pick(rawRow, [
+            "espec dest", "espec. dest", "especialidade destino",
+            "especialidade do parecerista", "especialidade",
+          ]));
+          const baseName = ptMeta.label || "Procedimento";
+          base.procedure_name = especDest ? `${baseName} - ${especDest}` : baseName;
+          (base.raw_data as any).__procedure_name_defaulted = base.procedure_name;
+        } else {
+          if (!base.procedure_code && ptMeta.tuss_default) {
+            base.procedure_code = ptMeta.tuss_default;
+            (base.raw_data as any).__tuss_default_applied = ptMeta.tuss_default;
+          }
         }
         if (!base.doctor_role && ptMeta.default_function) {
           base.doctor_role = ptMeta.default_function;
