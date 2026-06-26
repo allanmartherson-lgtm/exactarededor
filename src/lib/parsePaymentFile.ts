@@ -186,7 +186,9 @@ export const validateLine = (r: Omit<ParsedRow, "line_issues">): LineIssue[] => 
     case "visita":
     case "parecer":
       if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
-      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      // Valor zerado é permitido (parecer/visita não pago precisa ficar zerado
+      // para justificar). Mantemos como alerta visível, não bloqueante.
+      if (!hasValue) issues.push({ severity: "alerta", field: "gross_amount", message: "Valor zerado — confirme se é parecer/visita não pago (justifique no campo de observação)" });
       break;
     case "pacote":
       if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor total obrigatório" });
