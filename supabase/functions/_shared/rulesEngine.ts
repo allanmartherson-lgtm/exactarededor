@@ -2971,7 +2971,12 @@ export function analyzeItem(
       tlSpecial === "complemento_bonus" ||
       tlSpecial === "glosa_desconto" ||
       tlSpecial === "reprocessamento";
-    if (!isSpecialLine && procAmount <= 0) {
+    // Parecer/visita podem legitimamente vir com valor 0 (Excel trata zero
+    // como vazio na origem; atendimento não pago entra zerado e a justificativa
+    // fica na observação do lote). Não bloqueamos por gate aqui.
+    const isParecerVisitaItem =
+      isVisita(item as any) || isParecer(item as any);
+    if (!isSpecialLine && !isParecerVisitaItem && procAmount <= 0) {
       return {
         item_id: item.id,
         status: "alerta",
