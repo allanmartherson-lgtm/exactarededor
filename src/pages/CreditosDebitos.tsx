@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Trash2, Plus, Pencil, Scale, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { DateInput } from "@/components/ui/date-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 type Company = { id: string; name: string };
 type Adjustment = {
