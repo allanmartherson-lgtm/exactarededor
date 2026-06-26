@@ -10239,6 +10239,10 @@ export type Database = {
         Args: { _hid: string; _uid: string }
         Returns: boolean
       }
+      can_access_pool_deduction_path: {
+        Args: { _path: string }
+        Returns: boolean
+      }
       cancel_by_reconciliation: {
         Args: {
           p_note?: string
