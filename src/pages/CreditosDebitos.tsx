@@ -485,7 +485,7 @@ export default function CreditosDebitos() {
               </div>
               <div>
                 <Label>Valor total (R$)</Label>
-                <Input type="number" step="0.01" value={editingAdj.valor_total ?? ""} onChange={e => setEditingAdj({ ...editingAdj, valor_total: parseFloat(e.target.value) || 0 })} />
+                <CurrencyInput value={editingAdj.valor_total} onChange={(v) => setEditingAdj({ ...editingAdj, valor_total: v ?? 0 })} />
               </div>
               <div>
                 <Label>Parcelas total</Label>
