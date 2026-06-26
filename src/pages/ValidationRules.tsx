@@ -646,6 +646,59 @@ export default function ValidationRules({ embedded = false }: { embedded?: boole
             </p>
           </div>
 
+          {!form.assistance_group_id && (
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-3">
+              <div className="text-sm font-medium">Configuração para múltiplas especialidades</div>
+              <div>
+                <Label className="text-xs">O que conta como "especialidade diferente"</Label>
+                <Select
+                  value={p.specialty_match ?? "primary"}
+                  onValueChange={(v) => set({ specialty_match: v as SobreposParams["specialty_match"] })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="primary">Apenas a especialidade principal do médico</SelectItem>
+                    <SelectItem value="any">Qualquer especialidade cadastrada no médico</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  "Principal" usa só a 1ª especialidade do cadastro — mais conservador. "Qualquer" considera todas as especialidades do médico, gerando mais alertas.
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs">Mínimo de especialidades distintas para alertar</Label>
+                <Input
+                  type="number"
+                  min={2}
+                  max={10}
+                  className="w-24 mt-1"
+                  value={p.min_distinct_specialties ?? 2}
+                  onChange={(e) => set({ min_distinct_specialties: Math.max(2, Number(e.target.value) || 2) })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Padrão: 2. Aumente para só alertar quando houver 3+ especialidades simultâneas no mesmo paciente/dia.
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs">Especialidades a ignorar</Label>
+                <MultiSelectChips
+                  values={p.excluded_specialties ?? []}
+                  onChange={(next) => set({ excluded_specialties: next })}
+                  options={COMMON_SPECIALTIES}
+                  placeholder="Ex.: Clínica Médica, UTI…"
+                  emptyHint="Vazio = considera todas as especialidades."
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Especialidades aqui não contam como "diferente" — útil para excluir áreas que normalmente acompanham todo paciente (ex.: Clínica Médica).
+                </p>
+              </div>
+              <div className="text-xs text-muted-foreground border-t pt-2">
+                Campos comparados para identificar o "mesmo caso": defina acima em <strong>Atendimento / Paciente / Data</strong>. O alerta dispara quando o número de especialidades distintas (após exclusões) for ≥ ao mínimo configurado.
+              </div>
+            </div>
+          )}
+
+
         </div>
       );
     }
