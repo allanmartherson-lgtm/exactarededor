@@ -144,9 +144,13 @@ serve(async (req) => {
     };
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
     const isConfeccao = payment?.analysis_mode === "confeccao";
-    // Importação histórica: motor roda normalmente (aprende aliases, calcula
-    // diferenca_regra, alimenta DRE), porém grava status final = 'pago' nos
-    // grupos para que o fluxo de validação/aprovação/NF NÃO seja acionado.
+    // Importação histórica: motor roda normalmente (calcula diferenca_regra,
+    // alimenta DRE) e os grupos caem em `revisao_analista` como num lote
+    // comum, para que o analista possa revisar/ajustar antes de concluir.
+    // A marcação final como `pago` é feita por ação explícita do analista
+    // via RPC `conclude_historico_payment` (não auto-promove).
+    // ⚠️ Auto-aprendizado de aliases continua suprimido para historico
+    //    (ver bloco mais abaixo) — bases antigas não devem contaminar cadastros.
     const isHistorico = (payment as any)?.import_mode === "historico";
 
 
@@ -2370,7 +2374,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const obsTransition = ANALYST_OWNED_FOR_REWRITE.has(curStatus);
     // Em CONFECÇÃO o status (análise) não muda — fica em 'rascunho' como
     // placeholder enquanto confeccao_status='em_confeccao' carrega a fase real.
-    const obsStatusTo = isHistorico ? "pago" : (isConfeccao ? "rascunho" : "revisao_analista");
+    const obsStatusTo = isConfeccao ? "rascunho" : "revisao_analista";
     await supabase.from("payment_observations").insert({
       payment_id,
       author_type: "ia",
@@ -2440,8 +2444,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         if (ANALYST_OWNED_FOR_REWRITE.has((existing as any).status as string)) {
           // Confecção: status placeholder + confeccao_status vivo (trigger DB
           // exige status ∈ rascunho/arquivado/cancelado quando mode=confeccao).
-          // Histórico: pula direto para 'pago' — não passa pelo fluxo.
-          groupUpd.status = isHistorico ? "pago" : (isConfeccao ? "rascunho" : "revisao_analista");
+          // Histórico: cai em `revisao_analista` como num lote normal — o
+          // analista revisa e depois conclui explicitamente para virar `pago`.
+          groupUpd.status = isConfeccao ? "rascunho" : "revisao_analista";
           if (isConfeccao) groupUpd.confeccao_status = "em_confeccao";
         }
         await supabase.from("payment_company_groups").update(groupUpd).eq("id", existing.id);
@@ -2450,7 +2455,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           payment_id,
           company_id: g.company_id,
           company_name: g.company_name,
-          status: isHistorico ? "pago" : (isConfeccao ? "rascunho" : "revisao_analista"),
+          status: isConfeccao ? "rascunho" : "revisao_analista",
           confeccao_status: isConfeccao ? "em_confeccao" : null,
           items_count: g.items.length,
           total_amount: total,

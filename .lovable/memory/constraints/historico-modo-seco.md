@@ -9,4 +9,4 @@ Lote com `import_mode = 'historico'` roda o motor completo (regras, expected_amo
 
 **Por quê:** bases antigas (abril/maio aprovados retroativamente) servem só para popular DRE e visualizar diferenças. Aprender aliases de dados ainda não auditados envenena lookups futuros. Avaliação de qualidade é feita no uso real (lotes correntes).
 
-Grupos do lote histórico já nascem com status `pago` (skip de validação/aprovação/NF) — comportamento prévio mantido.
+Grupos do lote histórico nascem em `revisao_analista` (igual lote normal) para o analista revisar/ajustar antes do fechamento. Marcação final como `pago` é por ação explícita via RPC `conclude_historico_payment` (botão "Concluir importação histórica" em PaymentDetail). Lote histórico continua pulando validação/aprovação/NF — só análise → conclusão direta.
