@@ -207,7 +207,11 @@ const validateLine = (
     case "visita":
     case "parecer":
       if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
-      requireValue("Valor obrigatório");
+      // Valor zerado é permitido em parecer/visita (atendimento não pago precisa
+      // ficar zerado para justificar). Vira alerta visível, não bloqueante.
+      if (!modoConfeccao && !hasValue) {
+        issues.push({ severity: "alerta", field: "gross_amount", message: "Valor zerado — confirme se é parecer/visita não pago (justifique no campo de observação)" });
+      }
       break;
     case "pacote":
       requireValue("Valor total obrigatório");
