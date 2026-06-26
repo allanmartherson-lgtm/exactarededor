@@ -346,11 +346,10 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                 {editing.garante_piso && (
                   <div className="max-w-xs">
                     <Label>Piso por participante (R$)</Label>
-                    <Input
-                      type="number" step="0.01" min="0"
-                      value={editing.piso_valor ?? ""}
-                      onChange={e => setEditing({ ...editing, piso_valor: e.target.value === "" ? null : Number(e.target.value) })}
-                      placeholder="25000.00"
+                    <CurrencyInput
+                      value={editing.piso_valor}
+                      onChange={(v) => setEditing({ ...editing, piso_valor: v })}
+                      placeholder="R$ 25.000,00"
                     />
                   </div>
                 )}
