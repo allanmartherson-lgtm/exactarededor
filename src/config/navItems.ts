@@ -188,6 +188,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Acessos dos Portais", iconName: "Building2" },
   { label: "Saúde (Motor, Portais, Processo)", iconName: "Activity" },
   { label: "Auditoria", iconName: "History" },
+  { label: "Parâmetros do Sistema", iconName: "Settings" },
   { label: "Sistema (Versões, Flags, Avisos)", iconName: "Rocket" },
   { label: "Sobre o Exacta", iconName: "Info" },
 ];
