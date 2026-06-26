@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
+import { COMMON_SPECIALTIES } from "@/lib/specialties";
+
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { RULE_SECTOR_LABELS, type RuleSector, PAYMENT_TYPE_LABELS, type PaymentType, formatCurrency } from "@/lib/status";
 import { formatDateTimeBR, formatDateBR } from "@/lib/dateUtils";
@@ -140,7 +142,17 @@ const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "
 
 type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean; compare_role: boolean; compare_access_route: boolean };
 type DupAtendParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; allow_different_doctors: boolean };
-type SobreposParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; entry_type: "visita" | "parecer" | "qualquer" };
+type SobreposParams = {
+  compare_attendance: boolean;
+  compare_patient: boolean;
+  compare_date: boolean;
+  entry_type: "visita" | "parecer" | "qualquer";
+  // Aplicáveis quando NÃO há grupo assistencial vinculado:
+  specialty_match?: "primary" | "any"; // primary = só a 1ª especialidade do médico, any = qualquer
+  min_distinct_specialties?: number;   // default 2
+  excluded_specialties?: string[];     // especialidades a ignorar (não contam como "diferente")
+};
+
 
 type OutlierLevel = "atendimento" | "procedimento" | "medico" | "tipo_atendimento";
 type OutlierCriterion = "media_pct" | "percentil" | "multiplo_media";
@@ -173,7 +185,7 @@ const defaultParamsFor = (k: Kind): Record<string, unknown> => {
     case "duplicidade_atendimento":
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
     case "sobreposicao_assistencial":
-      return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "qualquer" };
+      return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "qualquer", specialty_match: "primary", min_distinct_specialties: 2, excluded_specialties: [] } satisfies SobreposParams;
     case "parecer_virou_cirurgia":
       return { prazo_horas: 48, mesmo_medico: false } satisfies ParecerCirurgiaParams;
     case "restricao_contratual":
@@ -635,6 +647,59 @@ export default function ValidationRules({ embedded = false }: { embedded?: boole
               Deixe sem grupo para alertar sempre que ≥2 especialidades diferentes lançarem parecer/visita no mesmo paciente/dia — útil para identificar exagero de solicitação sem precisar mapear grupos.
             </p>
           </div>
+
+          {!form.assistance_group_id && (
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-3">
+              <div className="text-sm font-medium">Configuração para múltiplas especialidades</div>
+              <div>
+                <Label className="text-xs">O que conta como "especialidade diferente"</Label>
+                <Select
+                  value={p.specialty_match ?? "primary"}
+                  onValueChange={(v) => set({ specialty_match: v as SobreposParams["specialty_match"] })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="primary">Apenas a especialidade principal do médico</SelectItem>
+                    <SelectItem value="any">Qualquer especialidade cadastrada no médico</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  "Principal" usa só a 1ª especialidade do cadastro — mais conservador. "Qualquer" considera todas as especialidades do médico, gerando mais alertas.
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs">Mínimo de especialidades distintas para alertar</Label>
+                <Input
+                  type="number"
+                  min={2}
+                  max={10}
+                  className="w-24 mt-1"
+                  value={p.min_distinct_specialties ?? 2}
+                  onChange={(e) => set({ min_distinct_specialties: Math.max(2, Number(e.target.value) || 2) })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Padrão: 2. Aumente para só alertar quando houver 3+ especialidades simultâneas no mesmo paciente/dia.
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs">Especialidades a ignorar</Label>
+                <MultiSelectChips
+                  values={p.excluded_specialties ?? []}
+                  onChange={(next) => set({ excluded_specialties: next })}
+                  options={COMMON_SPECIALTIES}
+                  placeholder="Ex.: Clínica Médica, UTI…"
+                  emptyHint="Vazio = considera todas as especialidades."
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Especialidades aqui não contam como "diferente" — útil para excluir áreas que normalmente acompanham todo paciente (ex.: Clínica Médica).
+                </p>
+              </div>
+              <div className="text-xs text-muted-foreground border-t pt-2">
+                Campos comparados para identificar o "mesmo caso": defina acima em <strong>Atendimento / Paciente / Data</strong>. O alerta dispara quando o número de especialidades distintas (após exclusões) for ≥ ao mínimo configurado.
+              </div>
+            </div>
+          )}
+
 
         </div>
       );
