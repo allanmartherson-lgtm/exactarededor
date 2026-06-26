@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, Upload, CheckCircle2, AlertTriangle, Loader2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ParecerColumnMappingDialog, {
+import { DateInput } from "@/components/ui/date-input";
   type ParecerMapping,
 } from "@/components/payment-detail/ParecerColumnMappingDialog";
 
@@ -278,11 +279,11 @@ export function ParecerReportWizardCard({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs">Período início</Label>
-                <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
+                <DateInput value={periodStart} onChange={setPeriodStart} />
               </div>
               <div>
                 <Label className="text-xs">Período fim</Label>
-                <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
+                <DateInput value={periodEnd} onChange={setPeriodEnd} />
               </div>
             </div>
             <div className="flex items-center gap-2">

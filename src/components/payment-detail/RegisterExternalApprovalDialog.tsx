@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
 import type { GroupRow } from "@/hooks/usePaymentDetailData";
+import { DateInput } from "@/components/ui/date-input";
 
 type Stage = "validation" | "approval";
 type Source = "email" | "whatsapp" | "outro";
@@ -291,12 +292,7 @@ export function RegisterExternalApprovalDialog({
                 </div>
                 <div>
                   <Label className="text-xs">Data da decisão</Label>
-                  <Input
-                    type="date"
-                    value={decisionDate}
-                    onChange={(e) => setDecisionDate(e.target.value)}
-                    max={new Date().toISOString().slice(0, 10)}
-                  />
+                  <DateInput value={decisionDate} onChange={setDecisionDate} max={new Date().toISOString().slice(0, 10)} />
                 </div>
               </div>
 

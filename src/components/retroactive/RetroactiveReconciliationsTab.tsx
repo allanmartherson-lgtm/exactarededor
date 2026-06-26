@@ -85,6 +85,7 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import RetroactiveMappingWizard, {
+import { DateInput } from "@/components/ui/date-input";
   readRawSheet,
   TASY_TARGETS,
   type TargetField,
@@ -724,11 +725,11 @@ function NewView({
         </div>
         <div>
           <Label>De</Label>
-          <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+          <DateInput value={start} onChange={setStart} />
         </div>
         <div>
           <Label>Até</Label>
-          <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+          <DateInput value={end} onChange={setEnd} />
         </div>
         <div className="md:col-span-2">
           <Label>Título (opcional)</Label>

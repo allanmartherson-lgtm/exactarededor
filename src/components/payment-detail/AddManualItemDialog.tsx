@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { AlertTriangle, Loader2, Plus } from "lucide-react";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * Modal para inclusão manual de itens em um pagamento.
@@ -284,7 +285,7 @@ export function AddManualItemDialog({
 
           <div className="space-y-1">
             <Label htmlFor="date">Data do procedimento *</Label>
-            <Input id="date" type="date" value={procedureDate} onChange={(e) => setProcedureDate(e.target.value)} />
+            <DateInput value={procedureDate} onChange={setProcedureDate} id="date" />
           </div>
           <div className="space-y-1">
             <Label htmlFor="role">Função {isProcedure ? "*" : "(opcional)"}</Label>

@@ -71,6 +71,7 @@ import { SpecialtyResolutionModal } from "@/components/payment-wizard/SpecialtyR
 
 import { ZeevAssistant, type ZeevInsight } from "@/components/copilot/ZeevAssistant";
 import type { StagingContext, StagingDecision } from "@/components/copilot/ZeevStagingChat";
+import { DateInput } from "@/components/ui/date-input";
 
 interface ParsedRow {
   doctor_name: string;
@@ -3180,7 +3181,7 @@ const NewPayment = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="due">Previsão de pagamento</Label>
-                <Input id="due" type="date" value={paymentDueDate} onChange={(e) => setPaymentDueDate(e.target.value)} />
+                <DateInput value={paymentDueDate} onChange={setPaymentDueDate} id="due" />
               </div>
               <div className="space-y-2">
                 <Label>Tipo de pagamento *</Label>

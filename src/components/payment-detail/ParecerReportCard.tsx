@@ -25,6 +25,7 @@ import ParecerColumnMappingDialog, {
 } from "./ParecerColumnMappingDialog";
 import { confirmDialog } from "@/lib/confirm";
 import { notify } from "@/lib/uiSignals";
+import { DateInput } from "@/components/ui/date-input";
 
 // Helpers de parsing (rodam no browser para não estourar memória do worker)
 const normHeader = (s: string) =>
@@ -565,21 +566,11 @@ export function ParecerReportCard({
           </div>
           <div>
             <Label className="text-xs">Período início</Label>
-            <Input
-              type="date"
-              value={periodStart}
-              onChange={(e) => setPeriodStart(e.target.value)}
-              disabled={uploading}
-            />
+            <DateInput value={periodStart} onChange={setPeriodStart} disabled={uploading} />
           </div>
           <div>
             <Label className="text-xs">Período fim</Label>
-            <Input
-              type="date"
-              value={periodEnd}
-              onChange={(e) => setPeriodEnd(e.target.value)}
-              disabled={uploading}
-            />
+            <DateInput value={periodEnd} onChange={setPeriodEnd} disabled={uploading} />
           </div>
           <div className="flex gap-2">
             <Button onClick={startUpload} disabled={uploading || !file}>
