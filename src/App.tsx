@@ -381,6 +381,8 @@ const App = () => (
                   <Route path="/insights-observacoes" element={<Navigate to="/auditoria?tab=insights" replace />} />
                   <Route path="/sobre" element={<About />} />
                   <Route path="/sistema" element={<ProtectedRoute roles={["admin", "diretor"]}><SistemaHub /></ProtectedRoute>} />
+                  <Route path="/parametros" element={<ProtectedRoute roles={["admin", "diretor"]}><SystemParameters /></ProtectedRoute>} />
+                  <Route path="/sistema/parametros" element={<Navigate to="/parametros" replace />} />
                   <Route path="/sistema/versoes" element={<Navigate to="/sistema?tab=versoes" replace />} />
                   <Route path="/sistema/feature-flags" element={<Navigate to="/sistema?tab=feature-flags" replace />} />
                   <Route path="/sistema/copiloto-telemetria" element={<Navigate to="/sistema?tab=copiloto" replace />} />
