@@ -169,11 +169,14 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Conversas", iconName: "ChatsIcon" },
   { label: "Comunicação", iconName: "Megaphone" },
   { label: "Central de Relatórios", iconName: "FileBarChart" },
+  { label: "BI · Diretoria", iconName: "BarChart3" },
+  { label: "BI · Pagamentos", iconName: "Wallet" },
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Ajustes por intervenção", iconName: "Scale" },
   { label: "Saúde do Processo", iconName: "Activity" },
   { label: "Contas a Pagar", iconName: "TrendingDown" },
   { label: "Inteligência Financeira", iconName: "TrendingUp" },
+  { label: "Aprendizado de padrões", iconName: "BrainCircuit" },
   { label: "Regras (Pagamento, Validação, Simuladores)", iconName: "BadgeDollarSign" },
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Cadastros", iconName: "FolderKanban" },
@@ -187,6 +190,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Sistema (Versões, Flags, Avisos)", iconName: "Rocket" },
   { label: "Sobre o Exacta", iconName: "Info" },
 ];
+
 
 
 export const isGroup = (n: NavItem): n is NavGroup => "children" in n;
