@@ -183,7 +183,7 @@ const defaultParamsFor = (k: Kind): Record<string, unknown> => {
     case "duplicidade_atendimento":
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
     case "sobreposicao_assistencial":
-      return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "qualquer" };
+      return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "qualquer", specialty_match: "primary", min_distinct_specialties: 2, excluded_specialties: [] } satisfies SobreposParams;
     case "parecer_virou_cirurgia":
       return { prazo_horas: 48, mesmo_medico: false } satisfies ParecerCirurgiaParams;
     case "restricao_contratual":
