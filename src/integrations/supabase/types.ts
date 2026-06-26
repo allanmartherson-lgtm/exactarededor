@@ -2391,6 +2391,7 @@ export type Database = {
           email: string | null
           full_name: string
           id: number
+          imported_by: string | null
           notes_cnpj: string | null
           notes_pj: string | null
           phone: string | null
@@ -2406,6 +2407,7 @@ export type Database = {
           email?: string | null
           full_name: string
           id?: number
+          imported_by?: string | null
           notes_cnpj?: string | null
           notes_pj?: string | null
           phone?: string | null
@@ -2421,6 +2423,7 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: number
+          imported_by?: string | null
           notes_cnpj?: string | null
           notes_pj?: string | null
           phone?: string | null
