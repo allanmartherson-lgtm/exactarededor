@@ -278,23 +278,26 @@ function applyDuplicidadeLancamento(
     for (const cluster of subClusters) {
       if (cluster.length < 2) continue;
 
-      // Só faz sentido emitir finding se ao menos UM item é do lote atual.
       const internals = cluster.filter(isInternal);
       if (internals.length === 0) continue;
-
       const externals = cluster.filter((it) => !isInternal(it));
-      const flaggedIds = new Set<string>();
 
-      for (const dupe of internals) {
-        // Escolhe parceiro: externo (outro lote) tem prioridade — é o "exagero" alvo.
-        let partner: Item | undefined =
-          externals[0] ??
-          internals.find((x) => x.id !== dupe.id && !flaggedIds.has(x.id)) ??
-          internals.find((x) => x.id !== dupe.id);
-        if (!partner) continue;
-        // Evita auto-flag quando só há um interno + externos: partner sempre será externo.
-        if (partner.id === dupe.id) continue;
+      // Pares a marcar: (dupe, partner). Em cross-batch, cada interno aponta
+      // para o primeiro externo. Em duplicidade intra-lote, mantém o
+      // comportamento clássico: primeiro item é âncora, demais ficam flagged.
+      const pairs: Array<{ dupe: Item; partner: Item; crossBatch: boolean }> = [];
+      if (externals.length > 0) {
+        const partner = externals[0];
+        for (const dupe of internals) {
+          if (dupe.id === partner.id) continue;
+          pairs.push({ dupe, partner, crossBatch: true });
+        }
+      } else {
+        const [first, ...rest] = internals;
+        for (const dupe of rest) pairs.push({ dupe, partner: first, crossBatch: false });
+      }
 
+      for (const { dupe, partner, crossBatch } of pairs) {
         const snapshot: ConflictingItemSnapshot = {
           attendance_number: partner.attendance_number,
           patient_name: getPatient(partner),
@@ -304,11 +307,10 @@ function applyDuplicidadeLancamento(
           procedure_date: partner.procedure_date,
           company_name: partner.company_name,
           payment_id: partner.payment_id,
-          payment_reference: isInternal(partner)
-            ? paymentReference
-            : (externalRefById.get(partner.payment_id) ?? null),
+          payment_reference: crossBatch
+            ? (externalRefById.get(partner.payment_id) ?? null)
+            : paymentReference,
         };
-        const isCrossBatch = !isInternal(partner);
         const list = findingsByItem.get(dupe.id) ?? [];
         list.push({
           rule_id: rule.id,
@@ -316,7 +318,7 @@ function applyDuplicidadeLancamento(
           kind: rule.kind,
           severity: rule.severity,
           action: rule.action,
-          message: isCrossBatch
+          message: crossBatch
             ? `Duplicidade entre lotes: mesmo ${reason} (lote ${snapshot.payment_reference ?? "anterior"}).`
             : `Duplicidade de lançamento: mesmo ${reason}.`,
           conflicting_item_id: partner.id,
@@ -324,16 +326,13 @@ function applyDuplicidadeLancamento(
           detected_at: now,
         });
         findingsByItem.set(dupe.id, list);
-        flaggedIds.add(dupe.id);
         hits++;
-        // Quando há internal-only (sem externos), só geramos um par por cluster
-        // para evitar A↔B duplicado. Quando há externos, cada interno aponta para o externo.
-        if (externals.length === 0) break;
       }
     }
   }
   return hits;
 }
+
 
 
 
