@@ -10756,6 +10756,13 @@ export type Database = {
         Args: { p_end?: string; p_hospital_id?: string; p_start?: string }
         Returns: Json
       }
+      get_invoice_upload_tokens: {
+        Args: { p_invoice_ids: string[] }
+        Returns: {
+          invoice_id: string
+          upload_token: string
+        }[]
+      }
       get_journal_balance: {
         Args: {
           p_company_id?: string
