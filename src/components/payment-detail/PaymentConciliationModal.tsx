@@ -3873,12 +3873,11 @@ export function PaymentConciliationModal({
                   </label>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <input
+                  <DateInput
                     id="periodStart"
-                    type="date"
                     value={periodStartOverride}
-                    onChange={(e) => setPeriodStartOverride(e.target.value)}
-                    className="h-8 text-xs border border-border rounded-md bg-background px-2"
+                    onChange={(v) => setPeriodStartOverride(v)}
+                    className="h-8 text-xs w-[130px]"
                   />
                   {periodStartOverride && (
                     <Button
