@@ -530,7 +530,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                       </div>
                       <div className="col-span-3">
                         <Label className="text-xs">Percentual (%)</Label>
-                        <Input type="number" step="0.01" value={p.percentual} onChange={e => { const n = [...editParts]; n[i] = { ...p, percentual: parseFloat(e.target.value) || 0 }; setEditParts(n); }} />
+                        <PercentInput value={p.percentual} onChange={(v) => { const n = [...editParts]; n[i] = { ...p, percentual: v ?? 0 }; setEditParts(n); }} />
                       </div>
                       <div className="col-span-2 flex justify-end">
                         <Button size="icon" variant="ghost" onClick={() => setEditParts(editParts.filter((_, j) => j !== i))}><Trash2 className="w-4 h-4 text-destructive" /></Button>
