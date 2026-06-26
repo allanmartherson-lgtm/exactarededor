@@ -291,14 +291,25 @@ Deno.serve(async (req) => {
         const db = b.date ? Date.parse(b.date) : 0;
         return da - db;
       });
-      // 1º permanece Parecer; demais reclassificados
+      // Regra: só vira Visita se houver Parecer no DIA IMEDIATAMENTE ANTERIOR
+      // (consecutivo). Pareceres com gap > 1 dia são interconsultas novas e
+      // permanecem como Parecer.
       for (let i = 1; i < list.length; i++) {
-        reclassifiedIds.add(list[i].id);
-        const firstDate = list[0].date ? new Date(list[0].date).toISOString().slice(0, 10) : "?";
-        reclassifyReason.set(
-          list[i].id,
-          `Parecer prévio no mesmo lote em ${firstDate} (mesmo atendimento+especialidade+convênio)`,
+        const cur = list[i];
+        const prev = list[i - 1];
+        if (!cur.date || !prev.date) continue;
+        const dCur = new Date(cur.date).toISOString().slice(0, 10);
+        const dPrev = new Date(prev.date).toISOString().slice(0, 10);
+        const diffDays = Math.round(
+          (Date.parse(dCur) - Date.parse(dPrev)) / (24 * 3600 * 1000),
         );
+        if (diffDays === 1) {
+          reclassifiedIds.add(cur.id);
+          reclassifyReason.set(
+            cur.id,
+            `Parecer no dia anterior (${dPrev}) — mesma especialidade/atendimento; consecutivo vira Visita`,
+          );
+        }
       }
     }
 
