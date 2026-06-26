@@ -1509,7 +1509,21 @@ const NewPayment = () => {
     });
     const restoredCount = newBuckets.length - Object.keys(pending).length - (newBuckets.length - merged.filter((b, i) => b !== newBuckets[i]).length);
     const appliedCount = merged.filter((b, i) => b !== newBuckets[i]).length;
-    setBuckets((prev) => [...prev, ...merged]);
+    setBuckets((prev) => {
+      const next = [...prev, ...merged];
+      // Para parecer/visita, abre automaticamente o mapeamento do primeiro
+      // arquivo recém-adicionado para o analista confirmar qual coluna é a
+      // descrição livre (o tipo já injeta TUSS e função, então o resto do
+      // mapeamento gira em torno de descrição, datas e valores).
+      const tussInjected =
+        !!paymentTypeMetaRef.current?.tuss_default ||
+        paymentTypeMetaRef.current?.requires_tuss_in_sheet === false;
+      if (tussInjected && prev.length === 0 && merged.length > 0) {
+        const firstIdx = 0;
+        setTimeout(() => setMappingDialog({ open: true, bucketIdx: firstIdx }), 200);
+      }
+      return next;
+    });
     if (appliedCount > 0) {
       toast({ title: "Decisões do rascunho aplicadas", description: `${appliedCount} arquivo(s) com setor/PJ/mapeamento restaurados.` });
     }
