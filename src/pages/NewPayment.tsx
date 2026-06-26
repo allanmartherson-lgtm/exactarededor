@@ -985,12 +985,26 @@ const NewPayment = () => {
     sectorColumnOverride?: string | null,
     manualMapping?: ManualMapping,
   ): ParsedRow[] => {
+    // Quando o tipo de pagamento (parecer/visita/consulta etc.) tem
+    // procedimento FIXO — o próprio tipo injeta `tuss_default` e o nome do
+    // procedimento é derivado do contexto — ignoramos qualquer mapeamento
+    // de procedure_code/procedure_name que tenha vindo do analista ou de
+    // template. Evita o bug histórico de uma coluna de DATA ser mapeada
+    // como "nome do procedimento" e contaminar o motor de validação.
+    const ptMetaForMap = paymentTypeMetaRef.current;
+    const procFixedByType =
+      !!ptMetaForMap?.tuss_default || ptMetaForMap?.requires_tuss_in_sheet === false;
+    const sanitizedMapping = (() => {
+      if (!procFixedByType || !manualMapping) return manualMapping;
+      const { procedure_code: _pc, procedure_name: _pn, ...rest } = manualMapping;
+      return rest as ManualMapping;
+    })();
     return json.map((rawRow, rowIndex) => {
       // Quando o analista (ou um template) forneceu mapeamento explícito,
       // injetamos o valor da coluna escolhida em todas as chaves canônicas
       // que o pick() conhece. Assim os pick() abaixo encontram o valor certo
       // sem precisarmos refatorar todas as listas de sinônimos.
-      const row = applyManualMappingShim(rawRow, manualMapping);
+      const row = applyManualMappingShim(rawRow, sanitizedMapping);
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
       const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "valor a repassar", "valor repassar", "vlrepasse", "vl. repasse"]));
       const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
