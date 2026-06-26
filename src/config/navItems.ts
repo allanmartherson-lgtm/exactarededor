@@ -145,8 +145,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/portal-usuarios", label: "Acessos dos Portais", icon: Building2, iconName: "Building2", roles: ["admin"] },
       { to: "/saude", label: "Saúde (Motor, Portais, Processo)", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin", "validador"] },
-      { to: "/parametros", label: "Parâmetros do Sistema", icon: Settings, iconName: "Settings", roles: ["admin", "diretor"] },
-      { to: "/sistema", label: "Sistema (Versões, Flags, Avisos)", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
+      { to: "/sistema", label: "Sistema (Versões, Flags, Parâmetros)", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
       
       { to: "/sobre", label: "Sobre o Exacta", icon: Info, iconName: "Info", roles: ALL_ROLES },
     ],
@@ -188,8 +187,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Acessos dos Portais", iconName: "Building2" },
   { label: "Saúde (Motor, Portais, Processo)", iconName: "Activity" },
   { label: "Auditoria", iconName: "History" },
-  { label: "Parâmetros do Sistema", iconName: "Settings" },
-  { label: "Sistema (Versões, Flags, Avisos)", iconName: "Rocket" },
+  { label: "Sistema (Versões, Flags, Parâmetros)", iconName: "Rocket" },
   { label: "Sobre o Exacta", iconName: "Info" },
 ];
 
