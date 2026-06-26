@@ -379,6 +379,7 @@ const PaymentDetail = () => {
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isAssistanceAlertsOpen, setIsAssistanceAlertsOpen] = useState(false);
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   // O modal de conciliação só abre por ação explícita do usuário (botão/menu).
