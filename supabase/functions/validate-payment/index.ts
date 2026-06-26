@@ -782,7 +782,7 @@ Deno.serve(async (req) => {
         appliedRules.push(rule.name);
 
       } else if (rule.kind === "parecer_virou_cirurgia") {
-        const hits = applyParecerVirouCirurgia(rule, items, findingsByItem, paymentReference);
+        const hits = applyParecerVirouCirurgia(rule, items, findingsByItem, paymentReference, (payment as any).payment_type ?? null);
         totalHits += hits;
         appliedRules.push(rule.name);
       } else if (rule.kind === "restricao_contratual") {
