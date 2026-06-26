@@ -25,6 +25,7 @@ import { ParecerReportCard } from "@/components/payment-detail/ParecerReportCard
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
+import { AssistanceAlertsDetailModal } from "@/components/payment-detail/AssistanceAlertsDetailModal";
 import { PaymentBatchExportDialog } from "@/components/payment-detail/PaymentBatchExportDialog";
 import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
 
