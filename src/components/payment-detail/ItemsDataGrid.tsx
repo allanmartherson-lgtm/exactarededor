@@ -40,6 +40,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeDispatchAnalysis } from "@/lib/dispatchAnalysis";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import {
@@ -931,9 +932,19 @@ export function ItemsDataGrid({
         }
       }
 
+      const reclassPatch: Record<string, unknown> = {
+        payment_type_id: newTypeId,
+        payment_type_source: "manual",
+        reclassified_from_parecer: newTypeLabel === "Visita",
+        manual_intervention_notes:
+          newTypeLabel === "Visita"
+            ? "Reclassificado manualmente como Visita."
+            : null,
+      };
+
       const { error } = await supabase
         .from("payment_items")
-        .update({ payment_type_id: newTypeId, payment_type_source: "manual" } as any)
+        .update(reclassPatch as any)
         .in("id", itemIds);
       if (error) {
         console.error("Erro ao reclassificar:", error);
@@ -982,9 +993,13 @@ export function ItemsDataGrid({
       try {
         const paymentId = (items[0] as any)?.payment_id;
         if (paymentId) {
-          await supabase.functions.invoke("dispatch-payment-analysis", {
-            body: { payment_id: paymentId, force_fresh_rules: true },
-          });
+          await invokeDispatchAnalysis(
+            { payment_id: paymentId, force_fresh_rules: true, skip_ai: true },
+            { showToast: false },
+          );
+          // O dispatch pode terminar logo após o primeiro refetch; agenda uma
+          // segunda leitura para não deixar subtipo novo com cálculo antigo.
+          window.setTimeout(() => onRefresh?.(), 2500);
         }
       } catch (e) {
         console.warn("[changeCaseSubtype] dispatch falhou", e);
@@ -4092,6 +4107,8 @@ function RowMain({
           profiles={profiles}
           colSpan={totalCols}
           showTipoEntrada={!!colVis.tipo_entrada}
+          visitaPaymentTypeId={visitaPaymentTypeId}
+          parecerPaymentTypeId={parecerPaymentTypeId}
         />
       )}
     </>
@@ -4107,6 +4124,8 @@ function ItemDetailsRow({
   profiles,
   colSpan,
   showTipoEntrada,
+  visitaPaymentTypeId,
+  parecerPaymentTypeId,
 }: {
   it: PaymentItemRowData;
   allItems: PaymentItemRowData[];
@@ -4116,6 +4135,8 @@ function ItemDetailsRow({
   profiles: Record<string, string>;
   colSpan: number;
   showTipoEntrada?: boolean;
+  visitaPaymentTypeId?: string | null;
+  parecerPaymentTypeId?: string | null;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
   const sectorAliases = useSectorAliases();
@@ -4168,6 +4189,67 @@ function ItemDetailsRow({
   const specialCaseApproved = itemAny.special_case_status === "approved" && !!itemAny.special_case_code;
   const specialCasePending = itemAny.special_case_status === "pending" && !!itemAny.special_case_code;
   const itemObs = observations.filter((o) => o.item_id === it.id);
+  const [appliedCalcTypeMeta, setAppliedCalcTypeMeta] = useState<{
+    payment_type_id: string | null;
+    label: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    const calcId = (it as any).applied_calc_id ?? null;
+    if (!calcId) {
+      setAppliedCalcTypeMeta(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("rule_calculations")
+      .select("payment_type_id,label")
+      .eq("id", calcId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const d = data as any;
+        setAppliedCalcTypeMeta(
+          d ? { payment_type_id: d.payment_type_id ?? null, label: d.label ?? null } : null,
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [(it as any).applied_calc_id]);
+
+  const itemPaymentTypeId = ((it as any).payment_type_id ?? null) as string | null;
+  const isItemParecer = !!parecerPaymentTypeId && itemPaymentTypeId === parecerPaymentTypeId;
+  const isItemVisita = !!visitaPaymentTypeId && itemPaymentTypeId === visitaPaymentTypeId;
+  const calcPaymentTypeId = appliedCalcTypeMeta?.payment_type_id ?? null;
+  const calcIsParecer = !!parecerPaymentTypeId && calcPaymentTypeId === parecerPaymentTypeId;
+  const calcIsVisita = !!visitaPaymentTypeId && calcPaymentTypeId === visitaPaymentTypeId;
+  const subtypeMismatch =
+    !!itemPaymentTypeId && !!calcPaymentTypeId && itemPaymentTypeId !== calcPaymentTypeId;
+  const parecerEvidence = ((it as any).parecer_evidence ?? null) as string | null;
+  const reclassifiedFromParecer = (it as any).reclassified_from_parecer === true;
+  const reclassReason = ((it as any).manual_intervention_notes ?? "").toString().trim();
+  const amountReason = expected != null
+    ? `A regra esperava ${formatCurrency(Number(expected))} e o pagamento veio ${formatCurrency(Number(it.gross_amount ?? 0))}${diffPct != null ? ` (${(Math.abs(diffPct) * 100).toFixed(1)}% de diferença)` : ""}.`
+    : null;
+  const parecerVisitaReason = (() => {
+    if (!isItemParecer && !isItemVisita && !reclassifiedFromParecer && !subtypeMismatch) return null;
+    if (subtypeMismatch) {
+      const itemLabel = isItemParecer ? "Parecer" : isItemVisita ? "Visita" : "outro tipo";
+      const calcLabel = calcIsParecer ? "Parecer" : calcIsVisita ? "Visita" : (appliedCalcTypeMeta?.label ?? "outro tipo");
+      return `A classificação atual do item está como ${itemLabel}, mas o cálculo salvo ainda está ligado a ${calcLabel}. Isso indica resultado antigo ou reanálise pendente; reanalise as regras para o cálculo acompanhar a classificação.`;
+    }
+    if (reclassifiedFromParecer && isItemVisita) {
+      return `O relatório encontrou o parecer, mas o item foi tratado como Visita porque ${reclassReason || "houve parecer prévio para o mesmo atendimento/especialidade"}. ${amountReason ?? ""}`.trim();
+    }
+    if (isItemParecer && parecerEvidence === "confirmed") {
+      return `O item foi confirmado como Parecer pelo relatório de parecer. ${amountReason ?? "A recusa vem da comparação entre o valor esperado pela regra e o valor pago."}`.trim();
+    }
+    if (isItemVisita && parecerEvidence === "not_found") {
+      return `Não houve correspondência no relatório para atendimento, data e médico; por isso o item foi tratado como Visita. ${amountReason ?? ""}`.trim();
+    }
+    return null;
+  })();
 
   const rawCharacter = ((it as unknown as { attendance_character?: string | null }).attendance_character ?? "").toString().trim();
   const characterLabel = rawCharacter
@@ -4307,6 +4389,14 @@ function ItemDetailsRow({
               {alerts.length === 0 && !isCritical && (
                 <AlertBanner severity="informativo" title="Sem alertas">
                   <p>Item sem divergências detectadas pela análise.</p>
+                </AlertBanner>
+              )}
+              {parecerVisitaReason && (
+                <AlertBanner
+                  severity={subtypeMismatch || it.ai_status === "reprovado" ? "critico" : it.ai_status === "alerta" ? "alerta" : "informativo"}
+                  title={subtypeMismatch ? "Classificação e cálculo divergentes" : it.ai_status === "reprovado" ? "Motivo da recusa" : "Classificação Parecer/Visita"}
+                >
+                  <p>{parecerVisitaReason}</p>
                 </AlertBanner>
               )}
               {exceptionMarked && (
@@ -4464,9 +4554,11 @@ function ItemDetailsRow({
               )}
 
               {aiNote && (
-                <SafeCard>
+                <SafeCard className="border-info/30 bg-info-soft/40 shadow-none mt-4">
                   <Label icon={Sparkles}>Explicação sugerida (IA)</Label>
-                  <p className="text-muted-foreground italic mt-1 break-words whitespace-normal">{aiNote}</p>
+                  <p className="text-muted-foreground italic mt-2 leading-relaxed break-words whitespace-normal [overflow-wrap:anywhere]">
+                    {aiNote}
+                  </p>
                 </SafeCard>
               )}
 
