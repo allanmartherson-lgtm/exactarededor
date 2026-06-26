@@ -8,10 +8,12 @@ import SystemReleases from "./SystemReleases";
 import FeatureFlagsAdmin from "./FeatureFlagsAdmin";
 import CopilotTelemetry from "./CopilotTelemetry";
 import SystemAnnouncementsAdmin from "./SystemAnnouncementsAdmin";
+import SystemParameters from "./SystemParameters";
 
-type TabValue = "versoes" | "feature-flags" | "copiloto" | "avisos";
+type TabValue = "parametros" | "versoes" | "feature-flags" | "copiloto" | "avisos";
 
 const TABS: { value: TabValue; label: string }[] = [
+  { value: "parametros", label: "Parâmetros" },
   { value: "versoes", label: "Versões" },
   { value: "feature-flags", label: "Feature Flags" },
   { value: "copiloto", label: "Telemetria do Copiloto" },
@@ -23,7 +25,7 @@ const VALID = new Set(TABS.map((t) => t.value));
 export default function SistemaHub() {
   const [params, setParams] = useSearchParams();
   const raw = params.get("tab") as TabValue | null;
-  const active: TabValue = raw && VALID.has(raw) ? raw : "versoes";
+  const active: TabValue = raw && VALID.has(raw) ? raw : "parametros";
 
   const setActive = (v: TabValue) => {
     const next = new URLSearchParams(params);
@@ -33,6 +35,7 @@ export default function SistemaHub() {
 
   const content = useMemo(() => {
     switch (active) {
+      case "parametros": return <SystemParameters embedded />;
       case "versoes": return <SystemReleases embedded />;
       case "feature-flags": return <FeatureFlagsAdmin embedded />;
       case "copiloto": return <CopilotTelemetry embedded />;
