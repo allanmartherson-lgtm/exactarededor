@@ -224,14 +224,13 @@ function applySobreposicaoAssistencial(
   rule: ValidationRule,
   items: Item[],
   allDoctors: Doctor[],
-  group: AssistanceGroup,
+  group: AssistanceGroup | null,
   findingsByItem: Map<string, Finding[]>,
   paymentReference: string | null,
 ): { hits: number; unresolvedDoctors: Set<string> } {
   const params = (rule.params ?? {}) as Json;
   const unresolvedDoctors = new Set<string>();
 
-  // Índices doutores
   const doctorByName = new Map<string, Doctor>();
   const doctorByCrm = new Map<string, Doctor>();
   for (const d of allDoctors) {
@@ -239,14 +238,19 @@ function applySobreposicaoAssistencial(
     if (d.crm) doctorByCrm.set(d.crm.trim(), d);
   }
 
-  const groupSpecSet = new Set(group.specialties.map(normSpecialty).filter(Boolean));
-  if (groupSpecSet.size === 0) return { hits: 0, unresolvedDoctors };
+  // Com grupo: filtra por especialidades afins. Sem grupo: aceita qualquer
+  // combinação de especialidades distintas (modo "múltiplas especialidades").
+  const groupSpecSet = group
+    ? new Set(group.specialties.map(normSpecialty).filter(Boolean))
+    : null;
+  if (groupSpecSet && groupSpecSet.size === 0) return { hits: 0, unresolvedDoctors };
 
-  const isAfim = (doc: Doctor): boolean =>
-    (doc.specialties ?? []).some((s) => groupSpecSet.has(normSpecialty(s)));
+  const isAfim = (doc: Doctor): boolean => {
+    if (!groupSpecSet) return true;
+    return (doc.specialties ?? []).some((s) => groupSpecSet.has(normSpecialty(s)));
+  };
 
-  // Itens elegíveis: visita ou parecer + doctor resolvido + afim
-  type Elig = { item: Item; doctor: Doctor };
+  type Elig = { item: Item; doctor: Doctor; specialty: string };
   const eligible: Elig[] = [];
   for (const it of items) {
     if (!isVisitaOuParecer(it.procedure_name)) continue;
@@ -262,10 +266,11 @@ function applySobreposicaoAssistencial(
       continue;
     }
     if (!isAfim(doc)) continue;
-    eligible.push({ item: it, doctor: doc });
+    const spec = normSpecialty((doc.specialties ?? [])[0] ?? "");
+    if (!groupSpecSet && !spec) continue;
+    eligible.push({ item: it, doctor: doc, specialty: spec });
   }
 
-  // Agrupar
   const groups = new Map<string, Elig[]>();
   for (const e of eligible) {
     const parts: string[] = [];
@@ -283,15 +288,28 @@ function applySobreposicaoAssistencial(
   let hits = 0;
 
   for (const grp of groups.values()) {
-    const distinctDocs = new Set(grp.map((e) => normName(e.doctor.full_name)));
-    if (distinctDocs.size < 2) continue;
+    if (groupSpecSet) {
+      const distinctDocs = new Set(grp.map((e) => normName(e.doctor.full_name)));
+      if (distinctDocs.size < 2) continue;
+    } else {
+      const distinctSpecs = new Set(grp.map((e) => e.specialty).filter(Boolean));
+      if (distinctSpecs.size < 2) continue;
+    }
 
     const doctorNames = Array.from(new Set(grp.map((e) => e.doctor.full_name)));
+    const specialtiesList = Array.from(new Set(grp.map((e) => e.specialty).filter(Boolean)));
     const patientName = grp[0].item.patient_name ?? "paciente não informado";
     const dateStr = (grp[0].item.procedure_date ?? "").slice(0, 10);
+    const contextLabel = group ? `do grupo '${group.name}'` : `de especialidades distintas`;
+    const detailLabel = group
+      ? `${doctorNames.join(", ")}`
+      : `${specialtiesList.join(" + ")} — ${doctorNames.join(", ")}`;
 
     for (const e of grp) {
-      const other = grp.find((x) => normName(x.doctor.full_name) !== normName(e.doctor.full_name))!;
+      const other =
+        grp.find((x) => normName(x.doctor.full_name) !== normName(e.doctor.full_name)) ??
+        grp.find((x) => x.specialty !== e.specialty);
+      if (!other) continue;
       const snapshot: ConflictingItemSnapshot = {
         attendance_number: other.item.attendance_number,
         patient_name: getPatient(other.item),
@@ -310,7 +328,7 @@ function applySobreposicaoAssistencial(
         kind: rule.kind,
         severity: rule.severity,
         action: rule.action,
-        message: `Sobreposição assistencial: ${patientName} foi atendido em ${dateStr} por ${distinctDocs.size} médicos afins do grupo '${group.name}' (${doctorNames.join(", ")}).`,
+        message: `Sobreposição assistencial: ${patientName} foi atendido em ${dateStr} por médicos ${contextLabel} (${detailLabel}).`,
         conflicting_item_id: other.item.id,
         conflicting_item: snapshot,
         detected_at: now,
@@ -322,6 +340,7 @@ function applySobreposicaoAssistencial(
 
   return { hits, unresolvedDoctors };
 }
+
 
 function applyDuplicidadeAtendimento(
   rule: ValidationRule,
@@ -685,14 +704,14 @@ Deno.serve(async (req) => {
         appliedRules.push(rule.name);
       } else if (rule.kind === "sobreposicao_assistencial") {
         const groupId = rule.assistance_group_id;
-        if (!groupId) {
-          skippedRules.push({ id: rule.id, name: rule.name, reason: "no_assistance_group" });
-          continue;
-        }
-        const group = groupsById.get(groupId);
-        if (!group || !group.active) {
-          skippedRules.push({ id: rule.id, name: rule.name, reason: "assistance_group_inactive_or_missing" });
-          continue;
+        let group: AssistanceGroup | null = null;
+        if (groupId) {
+          const g = groupsById.get(groupId);
+          if (!g || !g.active) {
+            skippedRules.push({ id: rule.id, name: rule.name, reason: "assistance_group_inactive_or_missing" });
+            continue;
+          }
+          group = g;
         }
         const result = applySobreposicaoAssistencial(rule, items, allDoctors, group, findingsByItem, paymentReference);
         totalHits += result.hits;
@@ -700,6 +719,7 @@ Deno.serve(async (req) => {
           unresolvedByRule[rule.name] = Array.from(result.unresolvedDoctors);
         }
         appliedRules.push(rule.name);
+
       } else if (rule.kind === "duplicidade_atendimento") {
         const hits = applyDuplicidadeAtendimento(rule, items, findingsByItem, paymentReference);
         totalHits += hits;
