@@ -132,7 +132,7 @@ export default function SystemParameters({ embedded = false }: { embedded?: bool
     catch (e: any) { toast({ title: "JSON inválido", description: e.message, variant: "destructive" }); return; }
     const { error } = await supabase
       .from("system_parameter_defs" as never)
-      .update({ value: parsed, updated_by: user?.id })
+      .update({ value: parsed, updated_by: user?.id } as never)
       .eq("key", defOpen.key);
     if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Padrão atualizado", description: `${defOpen.label} agora vigente.` });
@@ -172,8 +172,8 @@ export default function SystemParameters({ embedded = false }: { embedded?: bool
       updated_by: user?.id,
     };
     const q = ovOpen.edit
-      ? supabase.from("system_parameter_overrides" as never).update(payload).eq("id", ovOpen.edit.id)
-      : supabase.from("system_parameter_overrides" as never).insert(payload);
+      ? supabase.from("system_parameter_overrides" as never).update(payload as never).eq("id", ovOpen.edit.id)
+      : supabase.from("system_parameter_overrides" as never).insert(payload as never);
     const { error } = await q;
     if (error) { toast({ title: "Erro ao salvar exceção", description: error.message, variant: "destructive" }); return; }
     toast({ title: ovOpen.edit ? "Exceção atualizada" : "Exceção criada" });
