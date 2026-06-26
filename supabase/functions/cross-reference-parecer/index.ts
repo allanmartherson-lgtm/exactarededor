@@ -443,6 +443,16 @@ Deno.serve(async (req) => {
         // Sem tipos resolvidos, ainda assim mantém o flag automático coerente
         // com a classificação do relatório.
         patch.reclassified_from_parecer = isReclassified;
+      } else if (lotePaymentTypeId && visitaPaymentTypeId) {
+        // Se o analista/base protegeu o subtipo, o relatório não troca o tipo,
+        // mas o flag auxiliar não pode ficar contraditório (ex.: badge Parecer
+        // com `reclassified_from_parecer=true`).
+        const currentType = current?.payment_type_id ?? null;
+        if (currentType === visitaPaymentTypeId) {
+          patch.reclassified_from_parecer = true;
+        } else if (currentType === lotePaymentTypeId) {
+          patch.reclassified_from_parecer = false;
+        }
       }
       // Não aplica motivo manual automático, não grava expected_amount e não
       // aprova o item aqui. O relatório só classifica Parecer/Visita; a
