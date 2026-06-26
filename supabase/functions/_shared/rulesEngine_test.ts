@@ -564,6 +564,47 @@ Deno.test("Tabela Diferenciada — toggle valor convênio totalizado não cancel
   assert(result.calculation_explanation?.includes("× qtd 4"));
 });
 
+Deno.test("auto_parecer_report apenas classifica Parecer/Visita; valor vem da regra", () => {
+  const parecerTypeId = "payment-type-parecer";
+  const rule = makeRule({
+    id: "rule-parecer-fixo",
+    name: "Parecer calculável do médico",
+    scope: "grupo",
+    target_type: null,
+    target_company_id: null,
+    group_doctors: [{ name: "Dra. Fulana", crm: "111111" }],
+    group_company_links: [],
+    calculation_type: "valor_fixo",
+    fixed_amount: null,
+    calculations: [
+      {
+        id: "calc-parecer",
+        label: "Parecer",
+        calculation_type: "valor_fixo",
+        fixed_amount: 250,
+        payment_type_id: parecerTypeId,
+      },
+    ],
+  } as Partial<RuleInput>);
+
+  const item = makeItem({
+    payment_type_id: parecerTypeId,
+    procedure_name: "Parecer médico",
+    procedure_amount: 400,
+    gross_amount: 250,
+    manual_intervention_reason_id: "legacy-auto-reason",
+    manual_intervention_source: "auto_parecer_report",
+    manual_intervention_reason_code: "visita_sequencial_parecer",
+  });
+
+  const [result] = analyzePaymentItems([item], [rule], baseCtx);
+
+  assertEquals(result.matched_rule_id, "rule-parecer-fixo");
+  assertEquals(result.expected_amount, 250);
+  assertEquals(result.calculation_type_used, "valor_fixo");
+  assertEquals(result.status, "aprovado");
+});
+
 // --- FIX Pacotes — escopo de códigos em calcItemMatches ---
 import { calcItemMatches } from "./rulesEngine.ts";
 
