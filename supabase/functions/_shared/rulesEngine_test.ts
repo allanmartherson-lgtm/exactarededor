@@ -98,6 +98,41 @@ Deno.test("selectWinningRule escolhe regra mesmo quando item.specialty difere de
   assertEquals(outcome!.rule?.id, rule.id);
 });
 
+Deno.test("selectWinningRule prioriza regra de grupo por médico antes da regra específica da PJ", () => {
+  const companyRule = makeRule({
+    id: "rule-company",
+    name: "Regra específica da PJ",
+    scope: "especifica",
+    target_type: "empresa",
+    target_company_id: "company-1",
+    target_identifier: "12345678000199",
+    target_name: "ACME LTDA",
+  });
+  const doctorGroupRule = makeRule({
+    id: "rule-doctor-group",
+    name: "Acordo pessoal do médico",
+    scope: "grupo",
+    target_type: null,
+    target_company_id: null,
+    target_identifier: null,
+    target_name: null,
+    group_doctors: [{ name: "Dra. Fulana", crm: "111111" }],
+    group_company_links: [],
+  } as Partial<RuleInput>);
+  const item = makeItem({
+    doctor_name: "Dra. Fulana",
+    doctor_document: "111111",
+    company_id: "company-1",
+    company_document: "12345678000199",
+  });
+
+  const outcome = selectWinningRule(item, [companyRule, doctorGroupRule]);
+
+  assert(outcome);
+  assertEquals(outcome!.rule?.id, "rule-doctor-group");
+  assertEquals(outcome!.priority, "grupo_doctor");
+});
+
 // --- Testes de Normalização de Roles (Médicos) ---
 
 Deno.test("classifyDoctorRole normaliza variações de Primeiro Auxiliar", () => {
