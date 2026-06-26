@@ -8,14 +8,16 @@ import SystemReleases from "./SystemReleases";
 import FeatureFlagsAdmin from "./FeatureFlagsAdmin";
 import CopilotTelemetry from "./CopilotTelemetry";
 import SystemAnnouncementsAdmin from "./SystemAnnouncementsAdmin";
+import SystemParameters from "./SystemParameters";
 
-type TabValue = "versoes" | "feature-flags" | "copiloto" | "avisos";
+type TabValue = "versoes" | "feature-flags" | "copiloto" | "avisos" | "parametros";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "versoes", label: "Versões" },
   { value: "feature-flags", label: "Feature Flags" },
   { value: "copiloto", label: "Telemetria do Copiloto" },
   { value: "avisos", label: "Avisos do Sistema" },
+  { value: "parametros", label: "Parâmetros" },
 ];
 
 const VALID = new Set(TABS.map((t) => t.value));
@@ -37,6 +39,7 @@ export default function SistemaHub() {
       case "feature-flags": return <FeatureFlagsAdmin embedded />;
       case "copiloto": return <CopilotTelemetry embedded />;
       case "avisos": return <SystemAnnouncementsAdmin embedded />;
+      case "parametros": return <SystemParameters embedded />;
     }
   }, [active]);
 
@@ -44,7 +47,7 @@ export default function SistemaHub() {
     <div>
       <PageHeader
         title="Sistema"
-        description="Releases e changelog, feature flags, telemetria do copiloto e avisos globais."
+        description="Parâmetros, releases, feature flags, telemetria do copiloto e avisos globais."
         icon={Settings}
       />
       <div className="p-4 md:p-6 space-y-6">
