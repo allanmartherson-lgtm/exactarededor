@@ -107,6 +107,12 @@ export interface RuleInput {
     doctors?: { id?: string | null; name?: string; crm?: string }[];
     excluded_doctors?: { id?: string | null; name?: string; crm?: string }[];
     auto_include_new_doctors?: boolean;
+    /**
+     * Médicos automaticamente expurgados deste vínculo porque possuem uma regra
+     * mais específica (target_type='medico' ou group_doctors). Mantido em sync
+     * pelo trigger `sync_doctor_specific_exclusions` no banco. Aceita IDs de médico.
+     */
+    auto_excluded_doctor_ids?: string[] | null;
   }[] | null;
 
   /**
@@ -817,6 +823,10 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
     const matchesByPool = itemCompanyId === null && poolIds !== null && poolIds.includes(linkCompanyId);
     if (!matchesByItem && !matchesByPool) continue;
     const ds = (link.doctors ?? []) as any;
+    // Auto-exclusão: médico tem regra específica própria → não casa nesta regra de PJ.
+    const autoExcludedIds = (link.auto_excluded_doctor_ids ?? []) as string[];
+    const itemDoctorId = item.doctor_id ? String(item.doctor_id) : null;
+    if (itemDoctorId && autoExcludedIds.some((x) => String(x) === itemDoctorId)) continue;
     if (ds.length === 0) return true;
     if (matchDoctorInList(ds, item)) return true;
     // Lista de médicos preenchida = allowlist por padrão.
