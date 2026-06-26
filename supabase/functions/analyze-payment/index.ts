@@ -2444,8 +2444,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         if (ANALYST_OWNED_FOR_REWRITE.has((existing as any).status as string)) {
           // Confecção: status placeholder + confeccao_status vivo (trigger DB
           // exige status ∈ rascunho/arquivado/cancelado quando mode=confeccao).
-          // Histórico: pula direto para 'pago' — não passa pelo fluxo.
-          groupUpd.status = isHistorico ? "pago" : (isConfeccao ? "rascunho" : "revisao_analista");
+          // Histórico: cai em `revisao_analista` como num lote normal — o
+          // analista revisa e depois conclui explicitamente para virar `pago`.
+          groupUpd.status = isConfeccao ? "rascunho" : "revisao_analista";
           if (isConfeccao) groupUpd.confeccao_status = "em_confeccao";
         }
         await supabase.from("payment_company_groups").update(groupUpd).eq("id", existing.id);
@@ -2454,7 +2455,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           payment_id,
           company_id: g.company_id,
           company_name: g.company_name,
-          status: isHistorico ? "pago" : (isConfeccao ? "rascunho" : "revisao_analista"),
+          status: isConfeccao ? "rascunho" : "revisao_analista",
           confeccao_status: isConfeccao ? "em_confeccao" : null,
           items_count: g.items.length,
           total_amount: total,
