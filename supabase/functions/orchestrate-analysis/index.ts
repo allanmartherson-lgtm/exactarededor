@@ -223,6 +223,10 @@ Deno.serve(async (req) => {
             _company_label: companyName,
             _force_fresh: force_fresh_rules === true,
             skip_ai: skip_ai === true,
+            // 2026-06-26: worker roda em background (EdgeRuntime.waitUntil) e
+            // responde 202 imediatamente. Elimina IDLE_TIMEOUT 504 em empresas
+            // grandes — progresso continua sendo reportado via RPC.
+            _async: true,
           }),
           signal: controller.signal,
         });

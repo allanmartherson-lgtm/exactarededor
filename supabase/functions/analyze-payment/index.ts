@@ -40,8 +40,32 @@ interface PaymentRow {
   analysis_mode: "padrao" | "empresa_prioritaria" | "isolado" | "confeccao" | null;
 }
 
+// Entry point: detecta `_async:true` no body e roda o processamento via
+// `EdgeRuntime.waitUntil`, respondendo 202 imediatamente. Isso evita o
+// IDLE_TIMEOUT (150s) da Edge Runtime — o trabalho continua em background e
+// reporta progresso via `increment_processing_progress` / safety-net finally.
+// Quando chamado sem `_async` (testes, dry-run, simulação), mantém o
+// comportamento síncrono original.
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const bodyText = await req.text();
+  let asyncFlag = false;
+  try { asyncFlag = JSON.parse(bodyText)?._async === true; } catch { /* body inválido — segue síncrono e deixa o handler tratar */ }
+  const buildReq = () => new Request(req.url, { method: req.method, headers: req.headers, body: bodyText });
+  if (asyncFlag) {
+    // @ts-ignore EdgeRuntime existe no runtime Supabase Edge Functions
+    EdgeRuntime.waitUntil(
+      handleAnalyzePayment(buildReq()).catch((e) => console.error("[analyze-payment][bg] erro não-capturado:", e)),
+    );
+    return new Response(JSON.stringify({ status: "accepted", mode: "async" }), {
+      status: 202,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  return await handleAnalyzePayment(buildReq());
+});
+
+async function handleAnalyzePayment(req: Request): Promise<Response> {
 
   const startTime = Date.now();
   let diagnostics = {
@@ -2170,10 +2194,11 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           patch.gross_amount = u.expected_amount ?? null;
         }
       }
-      // 2026-06-24: aumentado de 5 para 7 tentativas (cap em ~22s) — CIPE/CIRURGIA
-      // Brasília esgotaram os 5 retries quando outras invocações concorrentes
-      // sobre o mesmo payment seguravam locks em payment_items.
-      const delays = [250, 500, 1000, 2000, 4000, 8000, 16000];
+      // 2026-06-26: reduzido para 4 tentativas (cap ~3.75s) — backoff longo
+      // estava consumindo o orçamento de 150s do edge runtime e estourando em
+      // IDLE_TIMEOUT (504). Deadlocks transitórios serão re-enfileirados pela
+      // retry queue (`enqueue_ai_retry`) em vez de retentados aqui dentro.
+      const delays = [250, 500, 1000, 2000];
       let attempt = 0;
       let lastErr: string | null = null;
       while (attempt <= delays.length) {
@@ -2883,5 +2908,5 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
   }
-});
+}
 
