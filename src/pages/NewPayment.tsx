@@ -72,6 +72,7 @@ import { SpecialtyResolutionModal } from "@/components/payment-wizard/SpecialtyR
 import { ZeevAssistant, type ZeevInsight } from "@/components/copilot/ZeevAssistant";
 import type { StagingContext, StagingDecision } from "@/components/copilot/ZeevStagingChat";
 import { DateInput } from "@/components/ui/date-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface ParsedRow {
   doctor_name: string;
