@@ -456,16 +456,21 @@ function applyParecerVirouCirurgia(
   items: Item[],
   findingsByItem: Map<string, Finding[]>,
   paymentReference: string | null,
+  paymentType: string | null,
 ): number {
   const params = (rule.params ?? {}) as Json;
   const prazoHoras = Number(params.prazo_horas ?? 48);
   const mesmoMedico = !!params.mesmo_medico;
 
-  const isParecer = (it: Item) => {
-    const n = normName(it.procedure_name ?? "");
-    return n.includes("parecer") || n.includes("consultoria") || n.includes("interconsulta");
-  };
+  // Item é parecer/visita? (mesma heurística do filtro de elegibilidade)
+  const isParecer = (it: Item) =>
+    isVisitaOuParecer(it.procedure_name, it.procedure_code, paymentType);
+
+  // Cirurgia REAL: nome/sector contém "cirurg"/"hemodin" E NÃO é parecer/visita.
+  // Sem essa exclusão, "Parecer - Neurocirurgia" casa como cirurgia (contém "cirurg")
+  // e gera falso positivo — o parecer "vira cirurgia" contra si mesmo.
   const isCirurgia = (it: Item) => {
+    if (isParecer(it)) return false;
     const n = normName(it.procedure_name ?? "");
     const s = normName(it.sector ?? "");
     return n.includes("cirurg") || s.includes("cirurg") || s.includes("hemodin");
