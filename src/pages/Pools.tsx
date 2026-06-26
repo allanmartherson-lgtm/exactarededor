@@ -77,6 +77,8 @@ const DED_LABELS: Record<string, string> = {
 
 import { useHospital } from "@/contexts/HospitalContext";
 import { DateInput } from "@/components/ui/date-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { PercentInput } from "@/components/ui/percent-input";
 
 export default function Pools({ embedded = false }: { embedded?: boolean } = {}) {
   const { hospital } = useHospital();
