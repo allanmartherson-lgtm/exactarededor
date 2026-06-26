@@ -107,6 +107,12 @@ export interface RuleInput {
     doctors?: { id?: string | null; name?: string; crm?: string }[];
     excluded_doctors?: { id?: string | null; name?: string; crm?: string }[];
     auto_include_new_doctors?: boolean;
+    /**
+     * Médicos automaticamente expurgados deste vínculo porque possuem uma regra
+     * mais específica (target_type='medico' ou group_doctors). Mantido em sync
+     * pelo trigger `sync_doctor_specific_exclusions` no banco. Aceita IDs de médico.
+     */
+    auto_excluded_doctor_ids?: string[] | null;
   }[] | null;
 
   /**
