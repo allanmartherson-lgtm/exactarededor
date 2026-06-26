@@ -417,12 +417,12 @@ Deno.serve(async (req) => {
         parecer_report_row_id: u.row_id,
         parecer_evidence_weak: u.weak,
         parecer_checked_at: now,
-        reclassified_from_parecer: isReclassified,
       };
       const current = itemById.get(u.id) as any;
       const currentSource = current?.payment_type_source ?? null;
       const protectedType = PROTECTED_SOURCES.has(currentSource);
       if (!protectedType && lotePaymentTypeId && visitaPaymentTypeId) {
+        patch.reclassified_from_parecer = isReclassified;
         if (isReclassified) {
           // Era candidato a Parecer mas dedup/lookback rebaixou para Visita
           patch.payment_type_id = visitaPaymentTypeId;
@@ -438,6 +438,20 @@ Deno.serve(async (req) => {
           patch.payment_type_id = visitaPaymentTypeId;
           patch.payment_type_source = "report_cross";
           subtypeVisita++;
+        }
+      } else if (!protectedType) {
+        // Sem tipos resolvidos, ainda assim mantém o flag automático coerente
+        // com a classificação do relatório.
+        patch.reclassified_from_parecer = isReclassified;
+      } else if (lotePaymentTypeId && visitaPaymentTypeId) {
+        // Se o analista/base protegeu o subtipo, o relatório não troca o tipo,
+        // mas o flag auxiliar não pode ficar contraditório (ex.: badge Parecer
+        // com `reclassified_from_parecer=true`).
+        const currentType = current?.payment_type_id ?? null;
+        if (currentType === visitaPaymentTypeId) {
+          patch.reclassified_from_parecer = true;
+        } else if (currentType === lotePaymentTypeId) {
+          patch.reclassified_from_parecer = false;
         }
       }
       // Não aplica motivo manual automático, não grava expected_amount e não
