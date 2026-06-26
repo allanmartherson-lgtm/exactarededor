@@ -347,12 +347,23 @@ export function ParecerReportCard({
       );
       if (error) throw error;
       const d = data as any;
-      toast({
-        title: "Cruzamento concluído",
-        description: `Confirmados: ${d?.confirmed ?? 0} · Não encontrados: ${
-          d?.not_found ?? 0
-        } · Auto-tratados: ${d?.auto_applied ?? 0}`,
-      });
+      // A função roda em background (evita IDLE_TIMEOUT) e responde 202 com
+      // { accepted: true, background: true } SEM os contadores. Só quando vier
+      // a resposta síncrona (modo legado) é que mostramos os números.
+      if (d?.background || d?.accepted) {
+        toast({
+          title: "Cruzamento em andamento",
+          description:
+            "O cruzamento com o relatório do Tasy está rodando em segundo plano. Atualize a página em alguns segundos para ver os itens classificados como Parecer/Visita.",
+        });
+      } else {
+        toast({
+          title: "Cruzamento concluído",
+          description: `Confirmados: ${d?.confirmed ?? 0} · Não encontrados: ${
+            d?.not_found ?? 0
+          } · Auto-tratados: ${d?.auto_applied ?? 0}`,
+        });
+      }
     } catch (e: any) {
       toast({
         title: "Falha no cruzamento",
