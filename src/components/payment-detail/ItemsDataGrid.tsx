@@ -990,26 +990,73 @@ export function ItemsDataGrid({
           : `Item reclassificado como ${newTypeLabel}. Reanalisando…`,
       );
       // Dispara reanálise para o motor reaplicar regras com o novo tipo.
+      // Filtra por empresa(s) afetada(s) para não rodar o lote inteiro à toa.
+      const affectedCompanies = Array.from(new Set(
+        items.filter((i) => itemIds.includes(i.id))
+             .map((i) => (i as any).company_name)
+             .filter(Boolean) as string[],
+      ));
       try {
         const paymentId = (items[0] as any)?.payment_id;
         if (paymentId) {
-          await invokeDispatchAnalysis(
-            { payment_id: paymentId, force_fresh_rules: true, skip_ai: true },
+          const res = await invokeDispatchAnalysis(
+            {
+              payment_id: paymentId,
+              ...(affectedCompanies.length > 0 ? { only_companies: affectedCompanies } : {}),
+              force_fresh_rules: true,
+              skip_ai: true,
+            },
             { showToast: false },
           );
-          // O dispatch pode terminar logo após o primeiro refetch; agenda uma
-          // segunda leitura para não deixar subtipo novo com cálculo antigo.
-          window.setTimeout(() => onRefresh?.(), 2500);
+          // Polling no job criado pelo dispatch: aguarda o motor confirmar a
+          // conclusão antes de refazer o fetch da UI. Sem isso, o onRefresh
+          // disparava antes do worker gravar o novo cálculo e o usuário via
+          // o item ainda como Visita/reprovado ("sem mudanças").
+          const jobId = res.ok ? (res.data as any)?.job_id as string | undefined : undefined;
+          const alreadyRunning = res.ok ? (res.data as any)?.already_running === true : false;
+          if (jobId || alreadyRunning) {
+            const targetJobId = jobId ?? null;
+            const deadline = Date.now() + 60_000;
+            // Pequeno delay inicial para o orquestrador iniciar.
+            await new Promise((r) => setTimeout(r, 800));
+            while (Date.now() < deadline) {
+              const q = supabase
+                .from("payment_processing_jobs")
+                .select("id,status,processed_companies,total_companies")
+                .eq("payment_id", paymentId)
+                .order("started_at", { ascending: false })
+                .limit(1);
+              const { data: jobs } = await q;
+              const job = (jobs ?? [])[0] as any;
+              if (!job) break;
+              if (targetJobId && job.id !== targetJobId) {
+                // Surgiu um job mais novo: passa a observar ele.
+              }
+              const status = String(job.status ?? "");
+              if (status === "concluido" || status === "erro" || status === "parcial") break;
+              if (Number(job.total_companies ?? 0) > 0 &&
+                  Number(job.processed_companies ?? 0) >= Number(job.total_companies ?? 0)) break;
+              await new Promise((r) => setTimeout(r, 1200));
+            }
+          } else {
+            // Sem job (ex.: dispatch retornou 0 empresas) — espera curta para
+            // garantir consistência antes do refresh.
+            await new Promise((r) => setTimeout(r, 1500));
+          }
         }
       } catch (e) {
-        console.warn("[changeCaseSubtype] dispatch falhou", e);
+        console.warn("[changeCaseSubtype] dispatch/polling falhou", e);
       }
       onRefresh?.();
+      // Segundo refresh defensivo cobre o caso em que o worker confirmou o
+      // status do job antes de gravar a última fila de UPDATEs nos itens.
+      window.setTimeout(() => onRefresh?.(), 1500);
     } catch (e: any) {
       console.error("Erro ao reclassificar:", e);
       toast.error(`Erro inesperado: ${e?.message ?? e}`);
     }
   };
+
 
   /**
    * Persiste o tipo padrão da empresa em companies.default_payment_type_id.
