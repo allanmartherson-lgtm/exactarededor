@@ -217,11 +217,36 @@ Deno.serve(async (req) => {
       .limit(1);
     if (existingJobs && existingJobs.length > 0) {
       const ex = existingJobs[0];
+      // [Fix delay regra→reanálise] Se o cliente pediu `force_fresh_rules` (vindo
+      // de "Reaplicar regras" logo após editar uma regra), invalidamos o snapshot
+      // de contexto do job em andamento. Sem isso, os workers restantes continuam
+      // lendo o cache antigo e a regra recém-salva só vale na PRÓXIMA execução.
+      // Os próximos workers vão cair em ctx_cache MISS e recarregar do banco.
+      let rulesCacheCleared = false;
+      if (force_fresh_rules === true) {
+        try {
+          const { error: delErr } = await supabase
+            .from("payment_job_context")
+            .delete()
+            .eq("job_id", ex.id);
+          if (delErr) {
+            console.warn("[dispatch] falha ao limpar payment_job_context do job em andamento:", delErr.message);
+          } else {
+            rulesCacheCleared = true;
+            console.log(`[dispatch] payment_job_context limpo para job ${ex.id} (force_fresh_rules=true em job em andamento)`);
+          }
+        } catch (e) {
+          console.warn("[dispatch] erro ao invalidar snapshot de regras:", (e as any)?.message ?? e);
+        }
+      }
       return new Response(JSON.stringify({
         ok: true,
         already_running: true,
         job_id: ex.id,
-        message: `Já existe uma análise em andamento (${ex.processed_companies}/${ex.total_companies}). Aguarde concluir ou aguarde o watchdog finalizá-la.`,
+        rules_cache_cleared: rulesCacheCleared,
+        message: rulesCacheCleared
+          ? `Análise em andamento (${ex.processed_companies}/${ex.total_companies}). Snapshot de regras invalidado — as próximas empresas vão usar as regras atualizadas.`
+          : `Já existe uma análise em andamento (${ex.processed_companies}/${ex.total_companies}). Aguarde concluir ou aguarde o watchdog finalizá-la.`,
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
