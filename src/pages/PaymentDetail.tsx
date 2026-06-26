@@ -25,6 +25,7 @@ import { ParecerReportCard } from "@/components/payment-detail/ParecerReportCard
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
+import { AssistanceAlertsDetailModal } from "@/components/payment-detail/AssistanceAlertsDetailModal";
 import { PaymentBatchExportDialog } from "@/components/payment-detail/PaymentBatchExportDialog";
 import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
 
@@ -378,6 +379,7 @@ const PaymentDetail = () => {
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isAssistanceAlertsOpen, setIsAssistanceAlertsOpen] = useState(false);
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   // O modal de conciliação só abre por ação explícita do usuário (botão/menu).
@@ -3435,7 +3437,12 @@ const PaymentDetail = () => {
 
 
               {/* Alertas assistenciais — 1/3 no desktop */}
-              <Card className="shadow-card md:col-span-1">
+              <Card
+                className={`shadow-card md:col-span-1 ${totalRuleAlerts > 0 ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
+                onClick={totalRuleAlerts > 0 ? () => setIsAssistanceAlertsOpen(true) : undefined}
+                role={totalRuleAlerts > 0 ? "button" : undefined}
+                title={totalRuleAlerts > 0 ? "Ver detalhamento e exportar" : undefined}
+              >
                 <CardContent className="p-3 text-xs space-y-1.5 min-w-0">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Alertas assistenciais</p>
@@ -4767,6 +4774,16 @@ const PaymentDetail = () => {
           profiles={profiles}
         />
       )}
+
+      {payment && (
+        <AssistanceAlertsDetailModal
+          open={isAssistanceAlertsOpen}
+          onOpenChange={setIsAssistanceAlertsOpen}
+          items={items as never}
+          paymentReference={payment.reference}
+        />
+      )}
+
 
       {payment && (
         <PaymentBatchExportDialog
