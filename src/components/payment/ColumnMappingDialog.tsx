@@ -128,21 +128,28 @@ export default function ColumnMappingDialog({
       !!paymentTypeMeta?.tuss_default || paymentTypeMeta?.requires_tuss_in_sheet === false;
     const funcInjected = !!paymentTypeMeta?.default_function;
     const applyTypeRelax = (f: FieldDefinition): FieldDefinition => {
-      if (f.key === "procedure_code" && tussInjected) {
-        return { ...f, requirement: "recommended" as const };
-      }
       if (f.key === "doctor_role" && funcInjected) {
         return { ...f, requirement: "recommended" as const };
       }
       return f;
     };
+    // Quando o tipo já injeta TUSS (parecer/visita), o "código" e o "nome
+    // do procedimento" vêm do próprio tipo — não faz sentido pedir essas
+    // colunas na planilha. Sobra apenas a descrição livre, que o analista
+    // mapeia manualmente.
+    const stripProcedureWhenTussInjected = (fields: FieldDefinition[]) =>
+      tussInjected
+        ? fields.filter((f) => f.key !== "procedure_code" && f.key !== "procedure_name")
+            .map((f) => (f.key === "description" ? { ...f, requirement: "recommended" as const } : f))
+        : fields;
     if (mode === "confeccao") {
-      return FIELD_DEFINITIONS.filter((f) => f.key !== "gross_amount")
-        .map((f) => (f.key === "procedure_amount" ? { ...f, requirement: "required" as const } : f))
-        .map(applyTypeRelax);
+      return stripProcedureWhenTussInjected(
+        FIELD_DEFINITIONS.filter((f) => f.key !== "gross_amount")
+          .map((f) => (f.key === "procedure_amount" ? { ...f, requirement: "required" as const } : f))
+          .map(applyTypeRelax),
+      );
     }
-    if (!tussInjected && !funcInjected) return FIELD_DEFINITIONS;
-    return FIELD_DEFINITIONS.map(applyTypeRelax);
+    return stripProcedureWhenTussInjected(FIELD_DEFINITIONS.map(applyTypeRelax));
   }, [mode, paymentTypeMeta]);
 
   const requirementByField = useMemo(() => {
