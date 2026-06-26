@@ -142,8 +142,20 @@ const ACTION_GROUPS = [
 
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
+type DupLancamentoParams = {
+  compare_attendance: boolean;
+  compare_patient: boolean;
+  compare_date: boolean;
+  compare_code: boolean;
+  compare_role: boolean;
+  compare_access_route: boolean;
+  doctor_mode: "same" | "any" | "different";
+  window_days: number;
+};
+// Tipos legados — preservados só para retrocompatibilidade ao carregar regras antigas.
 type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean; compare_role: boolean; compare_access_route: boolean };
 type DupAtendParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; allow_different_doctors: boolean };
+
 type SobreposParams = {
   compare_attendance: boolean;
   compare_patient: boolean;
