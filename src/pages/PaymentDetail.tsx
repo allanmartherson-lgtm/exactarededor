@@ -2046,6 +2046,34 @@ const PaymentDetail = () => {
   const hidesAnalysisBlocks = phase === "pedido_nf" || phase === "conciliacao" || phase === "pagamento";
   const isNfPhase = hidesAnalysisBlocks; // mantém compat com gates existentes
 
+  // Importação histórica: lote sobe em modo seco (sem fluxo de validação/
+  // aprovação/NF). Os grupos ficam em `revisao_analista` até o analista
+  // revisar e clicar em "Concluir importação histórica" — só então viram
+  // `pago` e o lote fecha. Permite ajustar antes do sistema gravar como pago.
+  const isHistoricoImport = (payment as any)?.import_mode === "historico";
+  const canConcludeHistorico =
+    isHistoricoImport &&
+    (isAnalista || isDiretor) &&
+    payment.status !== "pago" &&
+    payment.status !== "cancelado" &&
+    payment.status !== "arquivado" &&
+    groups.some((g) => g.status !== "pago" && g.status !== "cancelado" && g.status !== "arquivado");
+
+  const concludeHistorico = async () => {
+    if (!id) return;
+    setBusy(true);
+    const { data, error } = await supabase.rpc("conclude_historico_payment" as any, { _payment_id: id });
+    setBusy(false);
+    if (error) {
+      toast({ title: "Falha ao concluir importação histórica", description: error.message, variant: "destructive" });
+      return;
+    }
+    const updated = Array.isArray(data) && data[0]?.updated_count != null ? data[0].updated_count : 0;
+    toast({ title: "Importação histórica concluída", description: `${updated} grupo(s) marcado(s) como pago.` });
+    load();
+  };
+
+
   const cancelPayment = async () => {
     if (!id) return;
     setBusy(true);
