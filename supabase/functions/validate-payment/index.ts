@@ -250,7 +250,22 @@ function applySobreposicaoAssistencial(
     return (doc.specialties ?? []).some((s) => groupSpecSet.has(normSpecialty(s)));
   };
 
-  type Elig = { item: Item; doctor: Doctor; specialty: string };
+  // Params do modo "sem grupo"
+  const specialtyMatch = (params.specialty_match === "any" ? "any" : "primary") as "primary" | "any";
+  const minDistinct = Math.max(2, Number(params.min_distinct_specialties) || 2);
+  const excludedSet = new Set<string>(
+    Array.isArray(params.excluded_specialties)
+      ? (params.excluded_specialties as string[]).map(normSpecialty).filter(Boolean)
+      : [],
+  );
+
+  const docSpecialties = (doc: Doctor): string[] => {
+    const all = (doc.specialties ?? []).map(normSpecialty).filter(Boolean);
+    const picked = specialtyMatch === "primary" ? all.slice(0, 1) : all;
+    return picked.filter((s) => !excludedSet.has(s));
+  };
+
+  type Elig = { item: Item; doctor: Doctor; specialty: string; specialties: string[] };
   const eligible: Elig[] = [];
   for (const it of items) {
     if (!isVisitaOuParecer(it.procedure_name)) continue;
@@ -266,10 +281,12 @@ function applySobreposicaoAssistencial(
       continue;
     }
     if (!isAfim(doc)) continue;
-    const spec = normSpecialty((doc.specialties ?? [])[0] ?? "");
-    if (!groupSpecSet && !spec) continue;
-    eligible.push({ item: it, doctor: doc, specialty: spec });
+    const specs = groupSpecSet ? (doc.specialties ?? []).map(normSpecialty).filter(Boolean) : docSpecialties(doc);
+    if (!groupSpecSet && specs.length === 0) continue;
+    eligible.push({ item: it, doctor: doc, specialty: specs[0] ?? "", specialties: specs });
   }
+
+
 
   const groups = new Map<string, Elig[]>();
   for (const e of eligible) {
