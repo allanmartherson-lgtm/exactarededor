@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { DateInput } from "@/components/ui/date-input";
 
 type Adjustment = {
   id: string;
@@ -139,7 +140,7 @@ export function CompanyFinancialAdjustmentsDialog({
                 </div>
                 <div>
                   <Label className="text-xs">Data de início</Label>
-                  <Input type="date" value={form.data_inicio} onChange={e => setForm(f => ({ ...f, data_inicio: e.target.value }))} />
+                  <DateInput value={form.data_inicio} onChange={(v) => setForm(f => ({ ...f, data_inicio: v }))} />
                 </div>
               </div>
               <div>

@@ -1184,11 +1184,7 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                           />
                         </td>
                         <td className="p-1">
-                          <Input
-                            type="date"
-                            value={d.procedure_date}
-                            onChange={(e) => updateDraft(idx, { procedure_date: e.target.value })}
-                          />
+                          <DateInput value={d.procedure_date} onChange={(v) => updateDraft(idx, { procedure_date: v })} />
                         </td>
                         <td className="p-1">
                           <Input

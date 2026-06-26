@@ -102,6 +102,7 @@ import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, C
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx-js-style";
 import { confirmDialog } from "@/lib/confirm";
+import { DateInput } from "@/components/ui/date-input";
 
 const ObservationTypeSelector = ({
   value,
@@ -3161,7 +3162,7 @@ const PaymentDetail = () => {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
-                  <Input type="date" value={metaDraft.payment_due_date} onChange={(e) => setMetaDraft((m) => ({ ...m, payment_due_date: e.target.value }))} />
+                  <DateInput value={metaDraft.payment_due_date} onChange={(v) => setMetaDraft((m) => ({ ...m, payment_due_date: v }))} />
                 </div>
               </div>
               <div className="flex justify-end gap-2">

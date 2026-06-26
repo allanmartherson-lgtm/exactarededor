@@ -15,6 +15,7 @@ import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
 import LoginAnimation from "@/components/auth/LoginAnimation";
+import { DateInput } from "@/components/ui/date-input";
 
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
@@ -264,7 +265,7 @@ const Auth = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="req-birth">Data de nascimento</Label>
-                      <Input id="req-birth" type="date" value={reqForm.birth_date} onChange={(e) => setReqForm({ ...reqForm, birth_date: e.target.value })} required />
+                      <DateInput value={reqForm.birth_date} onChange={(v) => setReqForm({ ...reqForm, birth_date: v })} id="req-birth" required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="req-msg">Mensagem (opcional)</Label>

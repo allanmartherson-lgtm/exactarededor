@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
 import { formatCPF } from "@/lib/cpf";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
+import { DateInput } from "@/components/ui/date-input";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
 const PROJECT_PREVIEW_ORIGIN = "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
@@ -546,7 +547,7 @@ const Users = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Data de nascimento <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-                    <Input type="date" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
+                    <DateInput value={form.birth_date} onChange={(v) => setForm({ ...form, birth_date: v })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Hospital principal</Label>
@@ -921,7 +922,7 @@ const Users = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Data de nascimento <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-                    <Input type="date" value={editingUser.birth_date} onChange={(e) => setEditingUser({ ...editingUser, birth_date: e.target.value })} />
+                    <DateInput value={editingUser.birth_date} onChange={(v) => setEditingUser({ ...editingUser, birth_date: v })} />
                   </div>
                 </section>
 
@@ -1161,11 +1162,7 @@ const Users = () => {
               </div>
               <div className="space-y-2">
                 <Label>Data de nascimento *</Label>
-                <Input
-                  type="date"
-                  value={editingReq.birth_date ? String(editingReq.birth_date).slice(0, 10) : ""}
-                  onChange={(e) => setEditingReq({ ...editingReq, birth_date: e.target.value })}
-                />
+                <DateInput value={editingReq.birth_date ? String(editingReq.birth_date).slice(0, 10) : ""} onChange={(v) => setEditingReq({ ...editingReq, birth_date: v })} />
               </div>
             </div>
           )}

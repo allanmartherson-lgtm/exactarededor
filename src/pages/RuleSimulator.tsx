@@ -19,6 +19,7 @@ import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobo
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
 import { RULE_SECTOR_LABELS } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { DateInput } from "@/components/ui/date-input";
 
 interface SimForm {
   procedure_code: string;
@@ -228,7 +229,7 @@ export default function RuleSimulator({ embedded = false }: { embedded?: boolean
               <Field label="Qtd"><Input value={form.quantity} onChange={(e) => set("quantity", e.target.value)} /></Field>
               <Field label="Atendimento"><Input value={form.attendance_number} onChange={(e) => set("attendance_number", e.target.value)} placeholder="opcional" /></Field>
 
-              <Field label="Data do proc."><Input type="date" value={form.procedure_date} onChange={(e) => set("procedure_date", e.target.value)} /></Field>
+              <Field label="Data do proc."><DateInput value={form.procedure_date} onChange={(v) => set("procedure_date", v)} /></Field>
 
               <Field label="Tipo linha">
                 <Select value={form.tipo_linha || "__none"} onValueChange={(v) => set("tipo_linha", v === "__none" ? "" : v)}>
@@ -248,7 +249,7 @@ export default function RuleSimulator({ embedded = false }: { embedded?: boolean
                 </Select>
               </Field>
 
-              <Field label="Data de referência"><Input type="date" value={form.reference_date} onChange={(e) => set("reference_date", e.target.value)} /></Field>
+              <Field label="Data de referência"><DateInput value={form.reference_date} onChange={(v) => set("reference_date", v)} /></Field>
             </div>
 
             <div className="flex gap-2 pt-2">

@@ -76,6 +76,7 @@ const DED_LABELS: Record<string, string> = {
 };
 
 import { useHospital } from "@/contexts/HospitalContext";
+import { DateInput } from "@/components/ui/date-input";
 
 export default function Pools({ embedded = false }: { embedded?: boolean } = {}) {
   const { hospital } = useHospital();
@@ -314,11 +315,11 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                 </div>
                 <div>
                   <Label>Vigência início</Label>
-                  <Input type="date" value={editing.vigencia_inicio || ""} onChange={e => setEditing({ ...editing, vigencia_inicio: e.target.value || null })} />
+                  <DateInput value={editing.vigencia_inicio || ""} onChange={(v) => setEditing({ ...editing, vigencia_inicio: v || null })} />
                 </div>
                 <div>
                   <Label>Vigência fim</Label>
-                  <Input type="date" value={editing.vigencia_fim || ""} onChange={e => setEditing({ ...editing, vigencia_fim: e.target.value || null })} />
+                  <DateInput value={editing.vigencia_fim || ""} onChange={(v) => setEditing({ ...editing, vigencia_fim: v || null })} />
                 </div>
                 <div className="flex items-center gap-2 col-span-2">
                   <Switch checked={editing.ativo} onCheckedChange={v => setEditing({ ...editing, ativo: v })} />

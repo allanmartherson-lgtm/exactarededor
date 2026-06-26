@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Trash2, Plus, Pencil, Scale, Receipt } from "lucide-react";
 import { toast } from "sonner";
+import { DateInput } from "@/components/ui/date-input";
 
 type Company = { id: string; name: string };
 type Adjustment = {
@@ -476,7 +477,7 @@ export default function CreditosDebitos() {
               </div>
               <div>
                 <Label>Data início</Label>
-                <Input type="date" value={editingAdj.data_inicio || ""} onChange={e => setEditingAdj({ ...editingAdj, data_inicio: e.target.value })} />
+                <DateInput value={editingAdj.data_inicio || ""} onChange={(v) => setEditingAdj({ ...editingAdj, data_inicio: v })} />
               </div>
               <div className="col-span-2">
                 <Label>Descrição</Label>

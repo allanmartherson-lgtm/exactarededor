@@ -38,6 +38,7 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Search, X, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { DateInput } from "@/components/ui/date-input";
 
 type Campaign = {
   id: string;
@@ -337,11 +338,11 @@ export default function CampaignApprovalQueue({ embedded = false }: { embedded?:
 
         <div className="flex flex-col gap-1">
           <Label className="text-[11px] text-muted-foreground">Criada de</Label>
-          <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} className="h-9 w-[150px]" />
+          <DateInput value={dateFrom} onChange={(v) => { setDateFrom(v); setPage(0); }} className="h-9 w-[150px]" />
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-[11px] text-muted-foreground">até</Label>
-          <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} className="h-9 w-[150px]" />
+          <DateInput value={dateTo} onChange={(v) => { setDateTo(v); setPage(0); }} className="h-9 w-[150px]" />
         </div>
 
         <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
