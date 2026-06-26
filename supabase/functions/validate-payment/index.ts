@@ -305,16 +305,18 @@ function applySobreposicaoAssistencial(
   let hits = 0;
 
   for (const grp of groups.values()) {
+    const unionSpecs = new Set<string>();
+    for (const e of grp) for (const s of e.specialties) unionSpecs.add(s);
     if (groupSpecSet) {
       const distinctDocs = new Set(grp.map((e) => normName(e.doctor.full_name)));
       if (distinctDocs.size < 2) continue;
     } else {
-      const distinctSpecs = new Set(grp.map((e) => e.specialty).filter(Boolean));
-      if (distinctSpecs.size < 2) continue;
+      if (unionSpecs.size < minDistinct) continue;
     }
 
     const doctorNames = Array.from(new Set(grp.map((e) => e.doctor.full_name)));
-    const specialtiesList = Array.from(new Set(grp.map((e) => e.specialty).filter(Boolean)));
+    const specialtiesList = Array.from(unionSpecs);
+
     const patientName = grp[0].item.patient_name ?? "paciente não informado";
     const dateStr = (grp[0].item.procedure_date ?? "").slice(0, 10);
     const contextLabel = group ? `do grupo '${group.name}'` : `de especialidades distintas`;
