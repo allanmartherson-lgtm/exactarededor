@@ -140,7 +140,17 @@ const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "
 
 type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean; compare_role: boolean; compare_access_route: boolean };
 type DupAtendParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; allow_different_doctors: boolean };
-type SobreposParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; entry_type: "visita" | "parecer" | "qualquer" };
+type SobreposParams = {
+  compare_attendance: boolean;
+  compare_patient: boolean;
+  compare_date: boolean;
+  entry_type: "visita" | "parecer" | "qualquer";
+  // Aplicáveis quando NÃO há grupo assistencial vinculado:
+  specialty_match?: "primary" | "any"; // primary = só a 1ª especialidade do médico, any = qualquer
+  min_distinct_specialties?: number;   // default 2
+  excluded_specialties?: string[];     // especialidades a ignorar (não contam como "diferente")
+};
+
 
 type OutlierLevel = "atendimento" | "procedimento" | "medico" | "tipo_atendimento";
 type OutlierCriterion = "media_pct" | "percentil" | "multiplo_media";
