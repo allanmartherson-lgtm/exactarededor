@@ -2942,30 +2942,18 @@ export function analyzeItem(
   // (reclassificação clínica ou aceite financeiro), o motor NÃO aplica regra:
   // aceita `procedure_amount` (valor do convênio) como esperado, diff = 0,
   // status = aprovado. Auditoria preserva o motivo via calculation_explanation.
-  // Regra específica do médico (medico/grupo_doctor) calculável SEMPRE vence
-  // sobre tratamento automático do relatório de parecer — acordo pessoal é
-  // soberano. Tratamento MANUAL do analista permanece soberano.
-  let doctorRuleOverridesAutoParecer = false;
-  if (item.manual_intervention_reason_id && (item.manual_intervention_source ?? "manual") === "auto_parecer_report") {
-    try {
-      const sel = selectWinningRule(item, preFilteredRules, ctx);
-      if (
-        sel?.rule &&
-        (sel.priority === "medico" || sel.priority === "medico_codigo" ||
-         sel.priority === "grupo_doctor" || sel.priority === "grupo_doctor_codigo") &&
-        sel.rule.calculation_type !== "informativo" &&
-        sel.rule.calculation_type !== "exclusao"
-      ) {
-        doctorRuleOverridesAutoParecer = true;
-      }
-    } catch (_e) { /* ignore */ }
-  }
+  // IMPORTANTE: `auto_parecer_report` NÃO é valoração nem aceite financeiro.
+  // O cruzamento com o relatório de parecer serve apenas para classificar o item
+  // como Parecer ou Visita (`payment_type_id`). O valor esperado deve SEMPRE vir
+  // da regra vencedora. Portanto motivos automáticos legados dessa origem não
+  // entram neste short-circuit de tratamento manual.
+  const isAutoParecerClassification =
+    item.manual_intervention_reason_id &&
+    (item.manual_intervention_source ?? "manual") === "auto_parecer_report";
 
-  if (item.manual_intervention_reason_id && !doctorRuleOverridesAutoParecer) {
+  if (item.manual_intervention_reason_id && !isAutoParecerClassification) {
     const code = item.manual_intervention_reason_code ?? "manual";
     const category = item.manual_intervention_reason_category ?? "";
-    const source = item.manual_intervention_source ?? "manual";
-    const isAuto = source === "auto_parecer_report";
     const procAmount = Number(item.procedure_amount ?? 0);
     const grossAmount = Number(item.gross_amount ?? 0);
     const expected = procAmount;
@@ -2973,7 +2961,7 @@ export function analyzeItem(
     // Mesmo em tratamento manual, queremos saber se EXISTE regra específica
     // para o médico/PJ (mesmo informativa) — para que o usuário enxergue o
     // vínculo no card e não veja "Nenhuma regra específica casou". A regra
-    // não muda o valor (auto-parecer já definiu), só rotula a aderência.
+    // não muda o valor porque o analista fez aceite/intervenção manual.
     let matchedRuleId: string | null = null;
     let matchedRuleName: string | null = null;
     let matchedPriority: RuleMatchPriority = "default_setor";
@@ -2987,7 +2975,7 @@ export function analyzeItem(
     } catch (_e) { /* ignore: tratamento manual prossegue */ }
 
     const ruleLabel = matchedRuleName ? ` Regra aderente: "${matchedRuleName}".` : "";
-    const explanation = `Tratamento ${isAuto ? "automático (relatório de parecer)" : "manual"} — motivo "${code}"${category ? ` (${category})` : ""}. Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).${ruleLabel}`;
+    const explanation = `Tratamento manual — motivo "${code}"${category ? ` (${category})` : ""}. Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).${ruleLabel}`;
     const alerts: string[] = [];
     if (Math.abs(expected - grossAmount) > 0.01) {
       alerts.push(`Pago (R$ ${grossAmount.toFixed(2)}) difere do convênio (R$ ${procAmount.toFixed(2)}) — diferença assumida pelo tratamento manual.`);

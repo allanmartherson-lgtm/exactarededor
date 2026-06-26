@@ -1,11 +1,11 @@
 // cross-reference-parecer
 // Cruza payment_items de um lote 'parecer' contra payment_parecer_report_rows
-// importados. Marca parecer_evidence em cada item e, quando confirmado e o
-// item ainda não tem tratamento manual, aplica automaticamente o motivo
-// 'visita_sequencial_parecer' com source='auto_parecer_report'.
+// importados. Marca parecer_evidence e ajusta payment_type_id para classificar
+// cada item como Parecer ou Visita.
 //
 // Após o cruzamento, dispara reanalise via dispatch-payment-analysis para
-// que o motor recompute com os novos motivos manuais.
+// que o motor recompute o valor pelas regras do tipo classificado. O relatório
+// de parecer nunca define expected_amount/ai_status nem aceite financeiro.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -170,14 +170,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Motivo auto
-    const { data: autoReason } = await supabase
-      .from("manual_intervention_reasons")
-      .select("id, code")
-      .eq("code", "visita_sequencial_parecer")
-      .maybeSingle();
-    const autoReasonId = (autoReason as any)?.id ?? null;
-
     // Carrega itens do lote
     const items: any[] = [];
     const pageSize = 1000;
@@ -215,21 +207,15 @@ Deno.serve(async (req) => {
       evidence: "confirmed" | "not_found" | "no_report";
       row_id: string | null;
       weak: boolean;
-      apply_auto_reason: boolean;
-      procedure_amount: number | null;
     }> = [];
 
     for (const it of items) {
-      const procAmt =
-        it.procedure_amount == null ? null : Number(it.procedure_amount);
       if (!hasReport) {
         updates.push({
           id: it.id,
           evidence: "no_report",
           row_id: null,
           weak: false,
-          apply_auto_reason: false,
-          procedure_amount: procAmt,
         });
         continue;
       }
@@ -259,15 +245,11 @@ Deno.serve(async (req) => {
 
 
       if (hit) {
-        // Já tratado manualmente? Não sobrescreve.
-        const alreadyManual = !!it.manual_intervention_reason_id;
         updates.push({
           id: it.id,
           evidence: "confirmed",
           row_id: hit.id,
           weak,
-          apply_auto_reason: !alreadyManual && !!autoReasonId,
-          procedure_amount: procAmt,
         });
       } else {
         updates.push({
@@ -275,8 +257,6 @@ Deno.serve(async (req) => {
           evidence: "not_found",
           row_id: null,
           weak: false,
-          apply_auto_reason: false,
-          procedure_amount: procAmt,
         });
       }
     }
@@ -395,7 +375,6 @@ Deno.serve(async (req) => {
     for (const u of updates) {
       if (reclassifiedIds.has(u.id) && u.evidence === "confirmed") {
         (u as any).evidence = "reclassified";
-        (u as any).apply_auto_reason = false;
       }
     }
     console.log(
@@ -461,17 +440,9 @@ Deno.serve(async (req) => {
           subtypeVisita++;
         }
       }
-      if (u.apply_auto_reason && !isReclassified) {
-        patch.manual_intervention_reason_id = autoReasonId;
-        patch.manual_intervention_source = "auto_parecer_report";
-        patch.manual_intervention_notes =
-          "Aplicado automaticamente: item confirmado no relatório de parecer.";
-        if (u.procedure_amount != null && Number.isFinite(u.procedure_amount)) {
-          patch.expected_amount = u.procedure_amount;
-        }
-        patch.ai_status = "aprovado";
-        autoApplied++;
-      }
+      // Não aplica motivo manual automático, não grava expected_amount e não
+      // aprova o item aqui. O relatório só classifica Parecer/Visita; a
+      // reanálise abaixo calcula e decide status pela regra vencedora.
       const key = JSON.stringify(patch);
       let g = groups.get(key);
       if (!g) {

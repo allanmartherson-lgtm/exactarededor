@@ -1,6 +1,6 @@
 ---
 name: Confecção Parecer — classificação Parecer vs Visita
-description: Como o motor decide Parecer/Visita em lotes confecção parecer, com relatório obrigatório, dedup paciente+especialidade+convênio e lookback 7d
+description: Como o motor decide Parecer/Visita em lotes confecção parecer; relatório classifica tipo, regra calcula valor
 type: feature
 ---
 
@@ -14,6 +14,6 @@ Em lotes `analysis_mode=confeccao` + `payment_type.code` começando com `parecer
    - **Lookback 7d** entre lotes: para cada candidato remanescente a Parecer, busca em `payment_items` (mesmo hospital, mesma especialidade, mesmo paciente, parecer_evidence='confirmed', reclassified_from_parecer=false, payment_id≠atual, procedure_date nos 7d anteriores). Se acha, rebaixa para Visita.
 4. **`payment_type_source`** registra a fonte: `report_cross` (cruzamento normal) ou `report_cross_dedup` (rebaixado por dedup/lookback). `manual` sempre vence — `PROTECTED_SOURCES` blinda overrides do analista.
 5. **Painel `ParecerCrossReferencePanel`** mostra os reclassificados em tabela dedicada com motivo legível (`manual_intervention_notes`).
-6. **Cálculo de valor** segue inalterado: motor aplica regra `valor_fixo` por convênio/função quando o item está marcado como Parecer; tabela do convênio para Visita.
+6. **Cálculo de valor**: o relatório de parecer é SOMENTE classificador Parecer/Visita. Nunca grava `expected_amount`, nunca aprova `ai_status` e nunca cria aceite/intervenção manual automática para valorar. Depois do cruzamento, a reanálise aplica a regra vencedora filtrada por `payment_type_id`; o valor sempre vem da regra.
 
 Coluna `payment_items.reclassified_from_parecer` (boolean, default false) + index parcial `ix_payment_items_parecer_lookback (hospital_id, specialty, procedure_date) WHERE parecer_evidence='confirmed'` aceleram o lookback.
