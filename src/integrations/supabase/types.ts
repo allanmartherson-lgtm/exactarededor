@@ -10345,6 +10345,13 @@ export type Database = {
         }
         Returns: string
       }
+      conclude_historico_payment: {
+        Args: { _payment_id: string }
+        Returns: {
+          message: string
+          updated_count: number
+        }[]
+      }
       consume_validation_feedback: {
         Args: { _feedback_id: string }
         Returns: string
