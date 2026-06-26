@@ -823,6 +823,10 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
     const matchesByPool = itemCompanyId === null && poolIds !== null && poolIds.includes(linkCompanyId);
     if (!matchesByItem && !matchesByPool) continue;
     const ds = (link.doctors ?? []) as any;
+    // Auto-exclusão: médico tem regra específica própria → não casa nesta regra de PJ.
+    const autoExcludedIds = (link.auto_excluded_doctor_ids ?? []) as string[];
+    const itemDoctorId = item.doctor_id ? String(item.doctor_id) : null;
+    if (itemDoctorId && autoExcludedIds.some((x) => String(x) === itemDoctorId)) continue;
     if (ds.length === 0) return true;
     if (matchDoctorInList(ds, item)) return true;
     // Lista de médicos preenchida = allowlist por padrão.
