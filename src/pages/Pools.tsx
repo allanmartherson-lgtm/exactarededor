@@ -547,7 +547,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                   <div className="flex gap-2 items-end">
                     <div className="flex-1">
                       <Label>Base ({BASE_LABELS[editing.base_calculo]})</Label>
-                      <Input type="number" step="0.01" value={simBase} onChange={e => setSimBase(e.target.value)} placeholder="115332.19" />
+                      <CurrencyInput value={simBase ? Number(simBase) : null} onChange={(v) => setSimBase(v == null ? "" : String(v))} placeholder="R$ 115.332,19" />
                     </div>
                   </div>
                   {simBase && (
