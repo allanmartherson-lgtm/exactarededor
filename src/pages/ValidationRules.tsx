@@ -194,10 +194,22 @@ type RestricaoContratualParams = {
 
 const defaultParamsFor = (k: Kind): Record<string, unknown> => {
   switch (k) {
+    case "duplicidade_lancamento":
+      return {
+        compare_attendance: true,
+        compare_patient: true,
+        compare_date: true,
+        compare_code: true,
+        compare_role: false,
+        compare_access_route: false,
+        doctor_mode: "same",
+        window_days: 0,
+      } satisfies DupLancamentoParams;
     case "duplicidade_exata":
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, compare_doctor: true, compare_role: false, compare_access_route: false };
     case "duplicidade_atendimento":
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
+
     case "sobreposicao_assistencial":
       return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "qualquer", specialty_match: "primary", min_distinct_specialties: 2, excluded_specialties: [] } satisfies SobreposParams;
     case "parecer_virou_cirurgia":
