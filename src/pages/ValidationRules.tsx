@@ -620,14 +620,22 @@ export default function ValidationRules({ embedded = false }: { embedded?: boole
             </p>
           </div>
           <div>
-            <Label className="text-xs">Grupo assistencial correlato</Label>
-            <Select value={form.assistance_group_id ?? ""} onValueChange={(v) => setForm({ ...form, assistance_group_id: v || null })}>
-              <SelectTrigger><SelectValue placeholder="Selecionar grupo…" /></SelectTrigger>
+            <Label className="text-xs">Grupo assistencial correlato (opcional)</Label>
+            <Select
+              value={form.assistance_group_id ?? "__none__"}
+              onValueChange={(v) => setForm({ ...form, assistance_group_id: v === "__none__" ? null : v })}
+            >
+              <SelectTrigger><SelectValue placeholder="Qualquer combinação de especialidades diferentes" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">Qualquer combinação de especialidades diferentes</SelectItem>
                 {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Deixe sem grupo para alertar sempre que ≥2 especialidades diferentes lançarem parecer/visita no mesmo paciente/dia — útil para identificar exagero de solicitação sem precisar mapear grupos.
+            </p>
           </div>
+
         </div>
       );
     }
