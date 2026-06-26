@@ -353,7 +353,7 @@ function applySobreposicaoAssistencial(
   type Elig = { item: Item; doctor: Doctor; specialty: string; specialties: string[] };
   const eligible: Elig[] = [];
   for (const it of items) {
-    if (!isVisitaOuParecer(it.procedure_name)) continue;
+    if (!isVisitaOuParecer(it.procedure_name, it.procedure_code, paymentTypeForElig)) continue;
     let doc: Doctor | undefined;
     if (it.doctor_document && it.doctor_document.trim()) {
       doc = doctorByCrm.get(it.doctor_document.trim());
