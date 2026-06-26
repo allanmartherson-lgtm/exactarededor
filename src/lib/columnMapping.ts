@@ -139,7 +139,12 @@ export const FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: "description",
     label: "Descrição / Serviço",
-    keys: ["procedmat", "proced/mat", "proced.", "procedimento", "descricao", "descrição", "servico", "serviço"],
+    // Não compartilha sinônimos com `procedure_name` para evitar que uma coluna
+    // de procedimento (ou pior, uma coluna de data próxima) seja auto-mapeada
+    // como descrição. Para parecer/visita o usuário escolhe manualmente no
+    // diálogo de mapeamento.
+    keys: ["descricao", "descrição", "servico", "serviço", "observacao", "observação", "obs"],
+    excludes: ["data", "dt ", "hora", "vencimento", "competencia", "competência"],
     requirement: "optional",
     kind: "text",
   },
