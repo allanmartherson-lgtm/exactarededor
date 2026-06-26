@@ -264,17 +264,17 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
         </div>
 
         {/* Tabela */}
-        <div className="overflow-auto border rounded-md flex-1">
+        <div className="overflow-auto border-2 border-border rounded-lg flex-1 bg-card shadow-sm">
           <table className="w-full text-xs">
-            <thead className="bg-muted/50 sticky top-0 z-10">
+            <thead className="bg-gradient-to-r from-warning/15 to-warning/5 sticky top-0 z-10 border-b-2 border-warning/30">
               <tr>
-                <th className="text-left p-2 font-medium">Regra</th>
-                <th className="text-left p-2 font-medium">Atendimento</th>
-                <th className="text-left p-2 font-medium">Médico / Paciente</th>
-                <th className="text-left p-2 font-medium">Procedimento</th>
-                <th className="text-left p-2 font-medium">Data</th>
-                <th className="text-right p-2 font-medium">Valor</th>
-                <th className="text-left p-2 font-medium">Em conflito com</th>
+                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Regra</th>
+                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Atendimento</th>
+                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Médico / Paciente</th>
+                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Procedimento</th>
+                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Data</th>
+                <th className="text-right p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Valor</th>
+                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Em conflito com</th>
               </tr>
             </thead>
             <tbody>
@@ -285,7 +285,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
                   </td>
                 </tr>
               ) : filtered.map((r, idx) => (
-                <tr key={`${r.itemId}-${idx}`} className="border-t hover:bg-muted/30">
+                <tr key={`${r.itemId}-${idx}`} className={`border-t border-border/60 hover:bg-warning/10 transition-colors ${idx % 2 === 0 ? "bg-card" : "bg-muted/40"}`}>
                   <td className="p-2 align-top">
                     <div className="font-medium">{r.rule_name}</div>
                     <div className="text-[10px] text-muted-foreground line-clamp-2" title={r.message}>{r.message}</div>
@@ -319,7 +319,9 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
             </tbody>
           </table>
         </div>
+        </div>
       </DialogContent>
     </Dialog>
+
   );
 }
