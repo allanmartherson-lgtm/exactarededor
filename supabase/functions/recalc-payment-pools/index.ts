@@ -143,6 +143,23 @@ Deno.serve(async (req) => {
           doctor_include_ids: norm(filtrosRaw.doctor_include_ids),
           doctor_exclude_ids: norm(filtrosRaw.doctor_exclude_ids),
         };
+        // GUARDA: pool filtrado SEM nenhum filtro concreto não pode capturar
+        // nada — antes, a query sem WHERE extras absorvia todos os itens do
+        // lote (ex.: "Rateio Cardiologia" sem filtros pegava lote de Geriatria).
+        // Captura inclusive doctor_include_ids; doctor_exclude_ids sozinho NÃO
+        // habilita captura (seria "todos menos esses", mesmo problema).
+        const hasAnyPositiveFilter =
+          filtros.tipo_ato_ids.length > 0 ||
+          filtros.setor_slugs.length > 0 ||
+          filtros.convenio_slugs.length > 0 ||
+          filtros.funcoes.length > 0 ||
+          filtros.doctor_include_ids.length > 0;
+        if (!hasAnyPositiveFilter) {
+          console.log(
+            `[recalc-pools] Pool ${pool.id} (${pool.nome}) filtrado sem filtros — ignorando para evitar captura indevida.`,
+          );
+          continue;
+        }
         let q = supabase
           .from("payment_items")
           .select("id, company_id, doctor_id, doctor_name, doctor_role, payment_type_id, sector_slug, convenio_slug, gross_amount, expected_amount, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
