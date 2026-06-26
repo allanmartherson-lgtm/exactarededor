@@ -768,6 +768,12 @@ Deno.serve(async (req) => {
     
     const paymentReference = (payment as any).reference ?? null;
 
+    // 2. Idempotência: zera validation_findings de todos os itens do lote
+    await supabase
+      .from("payment_items")
+      .update({ validation_findings: [] })
+      .eq("payment_id", payment_id);
+
     // 2b. Cross-batch: carrega itens de OUTROS lotes do mesmo hospital dentro
     // de uma janela ao redor das datas dos procedimentos deste lote. Serve
     // para detectar duplicidades entre lotes (mesmo paciente + atendimento +
