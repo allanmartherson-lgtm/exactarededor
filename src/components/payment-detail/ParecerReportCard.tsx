@@ -252,6 +252,11 @@ export function ParecerReportCard({
     setUploading(true);
     try {
       const { raw, fileHash } = state;
+      const dateOrder = inferDateOrder([
+        ...raw.map((rec) => valueFromMapping(rec, mapping, "dt_solic_parecer")),
+        ...raw.map((rec) => valueFromMapping(rec, mapping, "dt_resposta_parecer")),
+      ]);
+      console.log(`[ParecerReport] date order detected: ${dateOrder}`);
       const rows = raw.map((rec) => {
         const medicoRespRaw = valueFromMapping(rec, mapping, "medico_resposta");
         const { name: medicoResp, crm: crmFromName } = splitMedicoCrm(medicoRespRaw);
@@ -272,9 +277,11 @@ export function ParecerReportCard({
           espec_destino: valueFromMapping(rec, mapping, "espec_destino"),
           dt_solic_parecer: parseExcelDate(
             valueFromMapping(rec, mapping, "dt_solic_parecer"),
+            dateOrder,
           ),
           dt_resposta_parecer: parseExcelDate(
             valueFromMapping(rec, mapping, "dt_resposta_parecer"),
+            dateOrder,
           ),
           situacao: valueFromMapping(rec, mapping, "situacao"),
           raw: rec,
