@@ -89,6 +89,7 @@ import RetroactiveMappingWizard, {
   TASY_TARGETS,
   type TargetField,
 } from "./RetroactiveMappingWizard";
+import { DateInput } from "@/components/ui/date-input";
 
 type ReconMode = "alegacao_medico" | "tasy_vs_repasse";
 const MODE_STORAGE_PREFIX = "retro_mode__";
@@ -724,11 +725,11 @@ function NewView({
         </div>
         <div>
           <Label>De</Label>
-          <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+          <DateInput value={start} onChange={setStart} />
         </div>
         <div>
           <Label>Até</Label>
-          <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+          <DateInput value={end} onChange={setEnd} />
         </div>
         <div className="md:col-span-2">
           <Label>Título (opcional)</Label>
@@ -1183,11 +1184,7 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                           />
                         </td>
                         <td className="p-1">
-                          <Input
-                            type="date"
-                            value={d.procedure_date}
-                            onChange={(e) => updateDraft(idx, { procedure_date: e.target.value })}
-                          />
+                          <DateInput value={d.procedure_date} onChange={(v) => updateDraft(idx, { procedure_date: v })} />
                         </td>
                         <td className="p-1">
                           <Input

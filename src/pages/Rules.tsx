@@ -59,6 +59,7 @@ import {
 import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
 import { RuleConflictModal, type Problem as ConflictProblem, type Correction as ConflictCorrection } from "@/components/rules/RuleConflictModal";
 import { CloneRuleToHospitalDialog } from "@/components/rules/CloneRuleToHospitalDialog";
+import { DateInput } from "@/components/ui/date-input";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
@@ -2065,11 +2066,11 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                               <div style={{ display: "grid", gridTemplateColumns: "minmax(0,220px) minmax(0,220px)", gap: 12 }}>
                                 <div className="space-y-1.5">
                                   <Label>Início</Label>
-                                  <Input type="date" value={fValidFrom} onChange={(e) => setFValidFrom(e.target.value)} />
+                                  <DateInput value={fValidFrom} onChange={setFValidFrom} />
                                 </div>
                                 <div className="space-y-1.5">
                                   <Label>Fim</Label>
-                                  <Input type="date" value={fValidUntil} onChange={(e) => setFValidUntil(e.target.value)} />
+                                  <DateInput value={fValidUntil} onChange={setFValidUntil} />
                                 </div>
                               </div>
                             </div>

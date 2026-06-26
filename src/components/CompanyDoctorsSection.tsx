@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { confirmDialog } from "@/lib/confirm";
 import { DoctorCompanySyncFaq } from "@/components/DoctorCompanySyncFaq";
+import { DateInput } from "@/components/ui/date-input";
 
 interface Doctor {
   id: string;
@@ -376,13 +377,7 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
             <Label htmlFor="link-start-date" className="text-xs text-muted-foreground shrink-0">
               Início do vínculo
             </Label>
-            <Input
-              id="link-start-date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="h-8 w-40"
-            />
+            <DateInput value={startDate} onChange={setStartDate} id="link-start-date" className="h-8 w-40" />
             <span className="text-[11px] text-muted-foreground">
               Se houver vínculo em outra PJ, será encerrado no dia anterior a esta data.
             </span>

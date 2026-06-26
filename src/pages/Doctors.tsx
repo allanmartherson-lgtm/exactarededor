@@ -25,6 +25,7 @@ import { RegistryAliasesPanel } from "@/components/RegistryAliasesPanel";
 import { DoctorMissingSpecialtyPanel } from "@/components/doctors/DoctorMissingSpecialtyPanel";
 import { DoctorLinkSuggestionsPanel } from "@/components/DoctorLinkSuggestionsPanel";
 import { CompanyLinkSuggestionsPanel } from "@/components/CompanyLinkSuggestionsPanel";
+import { DateInput } from "@/components/ui/date-input";
 
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
@@ -590,11 +591,7 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
                       </div>
                       <div className="md:col-span-3 space-y-1.5">
                         <Label>Data de nascimento</Label>
-                        <Input
-                          type="date"
-                          value={editing.birth_date ?? ""}
-                          onChange={(e) => setEditing({ ...editing, birth_date: e.target.value })}
-                        />
+                        <DateInput value={editing.birth_date ?? ""} onChange={(v) => setEditing({ ...editing, birth_date: v })} />
                       </div>
                     </div>
                   </section>

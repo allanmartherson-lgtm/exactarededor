@@ -76,6 +76,9 @@ const DED_LABELS: Record<string, string> = {
 };
 
 import { useHospital } from "@/contexts/HospitalContext";
+import { DateInput } from "@/components/ui/date-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { PercentInput } from "@/components/ui/percent-input";
 
 export default function Pools({ embedded = false }: { embedded?: boolean } = {}) {
   const { hospital } = useHospital();
@@ -314,11 +317,11 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                 </div>
                 <div>
                   <Label>Vigência início</Label>
-                  <Input type="date" value={editing.vigencia_inicio || ""} onChange={e => setEditing({ ...editing, vigencia_inicio: e.target.value || null })} />
+                  <DateInput value={editing.vigencia_inicio || ""} onChange={(v) => setEditing({ ...editing, vigencia_inicio: v || null })} />
                 </div>
                 <div>
                   <Label>Vigência fim</Label>
-                  <Input type="date" value={editing.vigencia_fim || ""} onChange={e => setEditing({ ...editing, vigencia_fim: e.target.value || null })} />
+                  <DateInput value={editing.vigencia_fim || ""} onChange={(v) => setEditing({ ...editing, vigencia_fim: v || null })} />
                 </div>
                 <div className="flex items-center gap-2 col-span-2">
                   <Switch checked={editing.ativo} onCheckedChange={v => setEditing({ ...editing, ativo: v })} />
@@ -343,11 +346,10 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                 {editing.garante_piso && (
                   <div className="max-w-xs">
                     <Label>Piso por participante (R$)</Label>
-                    <Input
-                      type="number" step="0.01" min="0"
-                      value={editing.piso_valor ?? ""}
-                      onChange={e => setEditing({ ...editing, piso_valor: e.target.value === "" ? null : Number(e.target.value) })}
-                      placeholder="25000.00"
+                    <CurrencyInput
+                      value={editing.piso_valor}
+                      onChange={(v) => setEditing({ ...editing, piso_valor: v })}
+                      placeholder="R$ 25.000,00"
                     />
                   </div>
                 )}
@@ -465,7 +467,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                         {d.valor_variavel ? (
                           <div className="h-9 flex items-center px-3 border rounded-md bg-muted text-xs text-muted-foreground">por competência</div>
                         ) : (
-                          <Input type="number" step="0.01" value={d.valor ?? ""} onChange={e => { const n = [...editDeds]; n[i] = { ...d, valor: e.target.value === "" ? null : parseFloat(e.target.value) }; setEditDeds(n); }} />
+                          <CurrencyInput value={d.valor} onChange={(v) => { const n = [...editDeds]; n[i] = { ...d, valor: v }; setEditDeds(n); }} />
                         )}
                       </div>
                       <div className="col-span-1 flex flex-col items-center pb-1">
@@ -528,7 +530,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                       </div>
                       <div className="col-span-3">
                         <Label className="text-xs">Percentual (%)</Label>
-                        <Input type="number" step="0.01" value={p.percentual} onChange={e => { const n = [...editParts]; n[i] = { ...p, percentual: parseFloat(e.target.value) || 0 }; setEditParts(n); }} />
+                        <PercentInput value={p.percentual} onChange={(v) => { const n = [...editParts]; n[i] = { ...p, percentual: v ?? 0 }; setEditParts(n); }} />
                       </div>
                       <div className="col-span-2 flex justify-end">
                         <Button size="icon" variant="ghost" onClick={() => setEditParts(editParts.filter((_, j) => j !== i))}><Trash2 className="w-4 h-4 text-destructive" /></Button>
@@ -545,7 +547,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                   <div className="flex gap-2 items-end">
                     <div className="flex-1">
                       <Label>Base ({BASE_LABELS[editing.base_calculo]})</Label>
-                      <Input type="number" step="0.01" value={simBase} onChange={e => setSimBase(e.target.value)} placeholder="115332.19" />
+                      <CurrencyInput value={simBase ? Number(simBase) : null} onChange={(v) => setSimBase(v == null ? "" : String(v))} placeholder="R$ 115.332,19" />
                     </div>
                   </div>
                   {simBase && (

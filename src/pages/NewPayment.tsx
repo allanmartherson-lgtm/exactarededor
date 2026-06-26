@@ -71,6 +71,8 @@ import { SpecialtyResolutionModal } from "@/components/payment-wizard/SpecialtyR
 
 import { ZeevAssistant, type ZeevInsight } from "@/components/copilot/ZeevAssistant";
 import type { StagingContext, StagingDecision } from "@/components/copilot/ZeevStagingChat";
+import { DateInput } from "@/components/ui/date-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface ParsedRow {
   doctor_name: string;
@@ -3180,7 +3182,7 @@ const NewPayment = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="due">Previsão de pagamento</Label>
-                <Input id="due" type="date" value={paymentDueDate} onChange={(e) => setPaymentDueDate(e.target.value)} />
+                <DateInput value={paymentDueDate} onChange={setPaymentDueDate} id="due" />
               </div>
               <div className="space-y-2">
                 <Label>Tipo de pagamento *</Label>
@@ -3261,11 +3263,10 @@ const NewPayment = () => {
                         {rateioSource === "sintetico" && (
                           <div>
                             <Label className="text-xs">Valor total a ratear (R$)</Label>
-                            <Input
-                              type="number" step="0.01" min="0"
-                              value={rateioValorTotal}
-                              onChange={(e) => setRateioValorTotal(e.target.value)}
-                              placeholder="0,00"
+                            <CurrencyInput
+                              value={rateioValorTotal ? Number(rateioValorTotal) : null}
+                              onChange={(v) => setRateioValorTotal(v == null ? "" : String(v))}
+                              placeholder="R$ 0,00"
                             />
                           </div>
                         )}

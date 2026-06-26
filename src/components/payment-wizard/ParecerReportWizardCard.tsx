@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import ParecerColumnMappingDialog, {
   type ParecerMapping,
 } from "@/components/payment-detail/ParecerColumnMappingDialog";
+import { DateInput } from "@/components/ui/date-input";
 
 const normalizeCrm = (input: any): string | null => {
   if (input == null) return null;
@@ -278,11 +279,11 @@ export function ParecerReportWizardCard({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs">Período início</Label>
-                <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
+                <DateInput value={periodStart} onChange={setPeriodStart} />
               </div>
               <div>
                 <Label className="text-xs">Período fim</Label>
-                <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
+                <DateInput value={periodEnd} onChange={setPeriodEnd} />
               </div>
             </div>
             <div className="flex items-center gap-2">

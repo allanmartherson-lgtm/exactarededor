@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { DateInput } from "@/components/ui/date-input";
 
 type Item = {
   id: string;
@@ -405,11 +406,7 @@ export default function PotentialDebtsPanel({
                   <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
                     Início desconto
                   </label>
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
+                  <DateInput value={startDate} onChange={setStartDate} />
                 </div>
               </div>
 
