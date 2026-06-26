@@ -261,25 +261,72 @@ Deno.serve(async (req) => {
       }
     }
 
-    // === Dedup atendimento+especialidade+convenio (modo confecção parecer) ===
-    // Quando o convênio não paga 2 pareceres seguidos da mesma especialidade
-    // para o mesmo ATENDIMENTO, o 1º vira Parecer e os demais Visita.
-    // A chave usa ESPECIALIDADE (não médico) porque equipes se revezam,
-    // e ATENDIMENTO (não paciente) porque é o identificador canônico no Tasy.
+    // === Dedup com regra parametrizada (system_parameter_defs/overrides) ===
+    // Parâmetro `parecer.classification` define por escopo:
+    //   - enabled: se a reclassificação automática roda
+    //   - consecutive_days_to_visita: gap máx (em dias) para virar Visita
+    //   - dedup_key: 'specialty' | 'doctor' | 'doctor_or_specialty'
+    // Resolução: hospital+convênio+especialidade -> ... -> padrão global.
+    type ParecerParams = {
+      enabled: boolean;
+      consecutive_days_to_visita: number;
+      dedup_key: "specialty" | "doctor" | "doctor_or_specialty";
+    };
+    const PARECER_DEFAULT: ParecerParams = {
+      enabled: true,
+      consecutive_days_to_visita: 1,
+      dedup_key: "specialty",
+    };
+    const paramCache = new Map<string, ParecerParams>();
+    async function resolveParecerParams(it: any): Promise<ParecerParams> {
+      const ck = `${it.hospital_id ?? ""}|${it.convenio_slug ?? ""}|${(it.specialty ?? "").toLowerCase().trim()}`;
+      const cached = paramCache.get(ck);
+      if (cached) return cached;
+      const { data, error } = await supabase.rpc("resolve_system_parameter", {
+        p_key: "parecer.classification",
+        p_hospital_id: it.hospital_id ?? null,
+        p_convenio_slug: it.convenio_slug ?? null,
+        p_specialty: it.specialty ?? null,
+      });
+      if (error) {
+        console.warn("[cross-reference-parecer] resolve_system_parameter fail", error.message);
+        paramCache.set(ck, PARECER_DEFAULT);
+        return PARECER_DEFAULT;
+      }
+      const merged: ParecerParams = { ...PARECER_DEFAULT, ...((data as any) ?? {}) };
+      paramCache.set(ck, merged);
+      return merged;
+    }
+
     const updateById = new Map(updates.map((u) => [u.id, u]));
     const reclassifiedIds = new Set<string>();
     const reclassifyReason = new Map<string, string>();
+    const itemParams = new Map<string, ParecerParams>();
+
+    for (const it of items) {
+      const u = updateById.get(it.id);
+      if (!u || u.evidence !== "confirmed") continue;
+      itemParams.set(it.id, await resolveParecerParams(it));
+    }
+
+    function bucketField(it: any, dedupKey: ParecerParams["dedup_key"]) {
+      if (dedupKey === "doctor") return norm(it.doctor_name) || it.doctor_id || "";
+      if (dedupKey === "doctor_or_specialty") {
+        return (norm(it.specialty) || "") + "::" + (norm(it.doctor_name) || it.doctor_id || "");
+      }
+      return norm(it.specialty);
+    }
 
     // 1) Dedup intra-lote
     const buckets = new Map<string, Array<{ id: string; date: string | null }>>();
     for (const it of items) {
-      const u = updateById.get(it.id);
-      if (!u || u.evidence !== "confirmed") continue;
+      const params = itemParams.get(it.id);
+      if (!params || !params.enabled) continue;
       const att = onlyDigits(it.attendance_number);
-      const spec = norm(it.specialty);
       const conv = norm(it.convenio_slug);
-      if (!att || !spec) continue; // sem chave forte, mantém como Parecer
-      const key = `${att}|${spec}|${conv}`;
+      const field = bucketField(it, params.dedup_key);
+      if (!att || !field) continue;
+      const key = `${params.dedup_key}|${att}|${field}|${conv}`;
       const list = buckets.get(key) ?? [];
       list.push({ id: it.id, date: it.procedure_date });
       buckets.set(key, list);
@@ -291,32 +338,32 @@ Deno.serve(async (req) => {
         const db = b.date ? Date.parse(b.date) : 0;
         return da - db;
       });
-      // Regra: só vira Visita se houver Parecer no DIA IMEDIATAMENTE ANTERIOR
-      // (consecutivo). Pareceres com gap > 1 dia são interconsultas novas e
-      // permanecem como Parecer.
       for (let i = 1; i < list.length; i++) {
         const cur = list[i];
-        const prev = list[i - 1];
-        if (!cur.date || !prev.date) continue;
+        if (!cur.date) continue;
+        const params = itemParams.get(cur.id)!;
+        const maxDays = params.consecutive_days_to_visita;
         const dCur = new Date(cur.date).toISOString().slice(0, 10);
-        const dPrev = new Date(prev.date).toISOString().slice(0, 10);
-        const diffDays = Math.round(
-          (Date.parse(dCur) - Date.parse(dPrev)) / (24 * 3600 * 1000),
-        );
-        if (diffDays === 1) {
+        for (let j = i - 1; j >= 0; j--) {
+          const prev = list[j];
+          if (!prev.date) continue;
+          const dPrev = new Date(prev.date).toISOString().slice(0, 10);
+          const diffDays = Math.round(
+            (Date.parse(dCur) - Date.parse(dPrev)) / (24 * 3600 * 1000),
+          );
+          if (diffDays <= 0) continue;
+          if (diffDays > maxDays) break;
           reclassifiedIds.add(cur.id);
           reclassifyReason.set(
             cur.id,
-            `Parecer no dia anterior (${dPrev}) — mesma especialidade/atendimento; consecutivo vira Visita`,
+            `Parecer ${diffDays}d antes (${dPrev}) — janela=${maxDays}d, chave=${params.dedup_key}; vira Visita`,
           );
+          break;
         }
       }
     }
 
-    // 2) Lookback cross-lote — apenas DIA IMEDIATAMENTE ANTERIOR.
-    // Regra de negócio: Parecer só vira Visita quando há parecer da mesma
-    // especialidade/atendimento no dia consecutivo anterior. Gaps maiores
-    // (>1 dia) são novas interconsultas e permanecem como Parecer.
+    // 2) Lookback cross-lote — janela = consecutive_days_to_visita.
     const { data: parecerTypes } = await supabase
       .from("payment_types")
       .select("id, code")
@@ -325,27 +372,33 @@ Deno.serve(async (req) => {
 
     const candidatesLookback = items.filter((it) => {
       const u = updateById.get(it.id);
+      const p = itemParams.get(it.id);
       return (
-        u && u.evidence === "confirmed" &&
+        u && u.evidence === "confirmed" && p && p.enabled &&
         !reclassifiedIds.has(it.id) &&
-        it.specialty && it.attendance_number && it.procedure_date && it.hospital_id
+        it.attendance_number && it.procedure_date && it.hospital_id
       );
     });
     for (const it of candidatesLookback) {
+      const params = itemParams.get(it.id)!;
       const curDay = new Date(it.procedure_date).toISOString().slice(0, 10);
-      const prevDay = new Date(Date.parse(curDay) - 24 * 3600 * 1000)
+      const fromDay = new Date(Date.parse(curDay) - params.consecutive_days_to_visita * 24 * 3600 * 1000)
         .toISOString().slice(0, 10);
-      // Janela [prevDay, curDay) — só pega itens do dia imediatamente anterior.
       let query = supabase
         .from("payment_items")
-        .select("id, payment_id, procedure_date, parecer_evidence, payment_type_id")
+        .select("id, payment_id, procedure_date, parecer_evidence, payment_type_id, specialty, doctor_id, doctor_name")
         .eq("hospital_id", it.hospital_id)
-        .eq("specialty", it.specialty)
         .eq("attendance_number", it.attendance_number)
         .eq("reclassified_from_parecer", false)
         .neq("payment_id", payment_id)
-        .gte("procedure_date", prevDay)
+        .gte("procedure_date", fromDay)
         .lt("procedure_date", curDay);
+      if (params.dedup_key === "specialty" || params.dedup_key === "doctor_or_specialty") {
+        if (it.specialty) query = query.eq("specialty", it.specialty);
+      }
+      if (params.dedup_key === "doctor") {
+        if (it.doctor_id) query = query.eq("doctor_id", it.doctor_id);
+      }
       if (parecerTypeIds.length > 0) {
         query = query.or(
           `parecer_evidence.eq.confirmed,payment_type_id.in.(${parecerTypeIds.join(",")})`,
@@ -363,10 +416,11 @@ Deno.serve(async (req) => {
           : " (relatório do Tasy)";
         reclassifyReason.set(
           it.id,
-          `Parecer no dia anterior (${prevDay})${viaType} — mesma especialidade/atendimento; consecutivo vira Visita`,
+          `Parecer em lote anterior dentro de ${params.consecutive_days_to_visita}d (chave=${params.dedup_key})${viaType}; vira Visita`,
         );
       }
     }
+
 
 
 
