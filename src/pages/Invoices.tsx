@@ -92,7 +92,9 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const load = async () => {
     const { data: invoices } = await supabase
       .from("invoices")
-      .select("*, payments(reference,status)")
+      .select(
+        "id,payment_id,expected_amount,received_amount,invoice_number,file_path,status,recipient_email,sent_at,received_at,reconciliation_notes,created_at,updated_at,company_id,company_name,ai_validation,ai_validated_at,ai_extracted_amount,ai_extracted_number,ai_extracted_cnpj,recipient_cc,request_message,items_count,send_error,company_group_id,hospital_id, payments(reference,status)",
+      )
       .order("created_at", { ascending: false });
     const ids = (invoices ?? []).map((i: { id: string }) => i.id);
     const countByInvoice = new Map<string, number>();
@@ -107,6 +109,13 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
         countByInvoice.set(q.invoice_id, (countByInvoice.get(q.invoice_id) ?? 0) + 1);
       });
     }
+    const tokenMap = new Map<string, string>();
+    if (ids.length > 0) {
+      const { data: tokRows } = await supabase.rpc("get_invoice_upload_tokens", { p_invoice_ids: ids });
+      ((tokRows ?? []) as Array<{ invoice_id: string; upload_token: string }>).forEach((t) =>
+        tokenMap.set(t.invoice_id, t.upload_token),
+      );
+    }
     const companyIds = Array.from(
       new Set(((invoices ?? []) as { company_id: string | null }[]).map((i) => i.company_id).filter(Boolean)),
     ) as string[];
@@ -118,6 +127,7 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setCompanyDocs(docMap);
     setRows(((invoices ?? []) as unknown as InvoiceRow[]).map((i) => ({
       ...i,
+      upload_token: tokenMap.get(i.id) ?? "",
       question_count: countByInvoice.get(i.id) ?? 0,
     })));
   };
