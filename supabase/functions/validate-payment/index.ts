@@ -194,6 +194,9 @@ function applyDuplicidadeLancamento(
   items: Item[],
   findingsByItem: Map<string, Finding[]>,
   paymentReference: string | null,
+  externalItems: Item[] = [],
+  externalRefById: Map<string, string | null> = new Map(),
+  currentPaymentId: string | null = null,
 ): number {
   const params = normalizeDupParams(rule);
   const anyFieldSelected =
@@ -216,13 +219,15 @@ function applyDuplicidadeLancamento(
   };
 
   const buckets = new Map<string, Item[]>();
-  for (const it of items) {
+  const pushBucket = (it: Item) => {
     const key = keyOf(it);
-    if (!key.replaceAll("|", "")) continue;
+    if (!key.replaceAll("|", "")) return;
     const arr = buckets.get(key) ?? [];
     arr.push(it);
     buckets.set(key, arr);
-  }
+  };
+  for (const it of items) pushBucket(it);
+  for (const it of externalItems) pushBucket(it);
 
   const reasonParts: string[] = [];
   if (params.compare_attendance) reasonParts.push("atendimento");
@@ -238,6 +243,7 @@ function applyDuplicidadeLancamento(
 
   let hits = 0;
   const dayMs = 86400000;
+  const isInternal = (it: Item) => currentPaymentId == null || it.payment_id === currentPaymentId;
 
   for (const bucket of buckets.values()) {
     if (bucket.length < 2) continue;
@@ -271,38 +277,64 @@ function applyDuplicidadeLancamento(
 
     for (const cluster of subClusters) {
       if (cluster.length < 2) continue;
-      const [first, ...dupes] = cluster;
-      for (const dupe of dupes) {
-        const list = findingsByItem.get(dupe.id) ?? [];
+
+      // Só faz sentido emitir finding se ao menos UM item é do lote atual.
+      const internals = cluster.filter(isInternal);
+      if (internals.length === 0) continue;
+
+      const externals = cluster.filter((it) => !isInternal(it));
+      const flaggedIds = new Set<string>();
+
+      for (const dupe of internals) {
+        // Escolhe parceiro: externo (outro lote) tem prioridade — é o "exagero" alvo.
+        let partner: Item | undefined =
+          externals[0] ??
+          internals.find((x) => x.id !== dupe.id && !flaggedIds.has(x.id)) ??
+          internals.find((x) => x.id !== dupe.id);
+        if (!partner) continue;
+        // Evita auto-flag quando só há um interno + externos: partner sempre será externo.
+        if (partner.id === dupe.id) continue;
+
         const snapshot: ConflictingItemSnapshot = {
-          attendance_number: first.attendance_number,
-          patient_name: getPatient(first),
-          procedure_code: first.procedure_code,
-          procedure_name: first.procedure_name,
-          doctor_name: first.doctor_name,
-          procedure_date: first.procedure_date,
-          company_name: first.company_name,
-          payment_id: first.payment_id,
-          payment_reference: paymentReference,
+          attendance_number: partner.attendance_number,
+          patient_name: getPatient(partner),
+          procedure_code: partner.procedure_code,
+          procedure_name: partner.procedure_name,
+          doctor_name: partner.doctor_name,
+          procedure_date: partner.procedure_date,
+          company_name: partner.company_name,
+          payment_id: partner.payment_id,
+          payment_reference: isInternal(partner)
+            ? paymentReference
+            : (externalRefById.get(partner.payment_id) ?? null),
         };
+        const isCrossBatch = !isInternal(partner);
+        const list = findingsByItem.get(dupe.id) ?? [];
         list.push({
           rule_id: rule.id,
           rule_name: rule.name,
           kind: rule.kind,
           severity: rule.severity,
           action: rule.action,
-          message: `Duplicidade de lançamento: mesmo ${reason}.`,
-          conflicting_item_id: first.id,
+          message: isCrossBatch
+            ? `Duplicidade entre lotes: mesmo ${reason} (lote ${snapshot.payment_reference ?? "anterior"}).`
+            : `Duplicidade de lançamento: mesmo ${reason}.`,
+          conflicting_item_id: partner.id,
           conflicting_item: snapshot,
           detected_at: now,
         });
         findingsByItem.set(dupe.id, list);
+        flaggedIds.add(dupe.id);
         hits++;
+        // Quando há internal-only (sem externos), só geramos um par por cluster
+        // para evitar A↔B duplicado. Quando há externos, cada interno aponta para o externo.
+        if (externals.length === 0) break;
       }
     }
   }
   return hits;
 }
+
 
 
 function applySobreposicaoAssistencial(
