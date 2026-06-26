@@ -11163,6 +11163,7 @@ export type Database = {
         Args: { _payment_id: string }
         Returns: undefined
       }
+      recompute_doctor_specific_exclusions: { Args: never; Returns: undefined }
       recompute_payment_liquido: {
         Args: { _payment_id: string }
         Returns: undefined
