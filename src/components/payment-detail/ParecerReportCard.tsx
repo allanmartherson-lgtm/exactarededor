@@ -56,7 +56,28 @@ function normalizeCrm(input: any): string | null {
   return null;
 }
 
-function parseExcelDate(v: any): string | null {
+// Detecta MDY vs DMY varrendo todos os valores da(s) coluna(s) de data.
+// Tasy às vezes exporta MM/DD/YYYY (americano) e outras vezes DD/MM/YYYY.
+// Se algum valor tem o 1º bloco > 12, é DMY definitivo; se algum tem o 2º
+// bloco > 12, é MDY definitivo. Sem evidência, default DMY (Brasil).
+function inferDateOrder(values: any[]): "dmy" | "mdy" {
+  let dmyOk = true;
+  let mdyOk = true;
+  for (const v of values) {
+    if (v == null || v === "") continue;
+    if (v instanceof Date || typeof v === "number") continue;
+    const m = String(v).trim().match(/^(\d{1,2})\/(\d{1,2})\/\d{2,4}/);
+    if (!m) continue;
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (a > 12) mdyOk = false;
+    if (b > 12) dmyOk = false;
+  }
+  if (!dmyOk && mdyOk) return "mdy";
+  return "dmy";
+}
+
+function parseExcelDate(v: any, order: "dmy" | "mdy" = "dmy"): string | null {
   if (v == null || v === "") return null;
   if (v instanceof Date) return v.toISOString();
   if (typeof v === "number") {
@@ -68,7 +89,9 @@ function parseExcelDate(v: any): string | null {
     /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/,
   );
   if (m) {
-    const [, d, mo, y, h = "0", mi = "0", se = "0"] = m;
+    const [, p1, p2, y, h = "0", mi = "0", se = "0"] = m;
+    const d = order === "mdy" ? p2 : p1;
+    const mo = order === "mdy" ? p1 : p2;
     const year = y.length === 2 ? 2000 + Number(y) : Number(y);
     const dt = new Date(
       Date.UTC(year, Number(mo) - 1, Number(d), Number(h), Number(mi), Number(se)),
