@@ -3263,11 +3263,10 @@ const NewPayment = () => {
                         {rateioSource === "sintetico" && (
                           <div>
                             <Label className="text-xs">Valor total a ratear (R$)</Label>
-                            <Input
-                              type="number" step="0.01" min="0"
-                              value={rateioValorTotal}
-                              onChange={(e) => setRateioValorTotal(e.target.value)}
-                              placeholder="0,00"
+                            <CurrencyInput
+                              value={rateioValorTotal ? Number(rateioValorTotal) : null}
+                              onChange={(v) => setRateioValorTotal(v == null ? "" : String(v))}
+                              placeholder="R$ 0,00"
                             />
                           </div>
                         )}
