@@ -57,10 +57,18 @@ const toCsv = (columns: string[], rows: Array<Record<string, any>>) => {
   return `${head}\n${body}`;
 };
 
+const escHtml = (s: unknown) =>
+  String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 const toHtmlTable = (columns: string[], rows: Array<Record<string, any>>) => {
-  const head = `<tr>${columns.map((c) => `<th>${c}</th>`).join("")}</tr>`;
+  const head = `<tr>${columns.map((c) => `<th>${escHtml(c)}</th>`).join("")}</tr>`;
   const body = rows
-    .map((r) => `<tr>${columns.map((c) => `<td>${fmtCell(r[c]).replace(/</g, "&lt;")}</td>`).join("")}</tr>`)
+    .map((r) => `<tr>${columns.map((c) => `<td>${escHtml(fmtCell(r[c]))}</td>`).join("")}</tr>`)
     .join("");
   return `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
 };
