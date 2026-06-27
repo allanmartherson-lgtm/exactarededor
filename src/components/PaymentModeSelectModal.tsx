@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Search, Calculator, ArrowLeft } from "lucide-react";
+import { Search, Calculator, ArrowLeft, FileEdit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
@@ -12,6 +12,7 @@ interface Props {
 }
 
 type Step = "mode" | "type";
+type Mode = "analise" | "confeccao" | "manual";
 
 export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
