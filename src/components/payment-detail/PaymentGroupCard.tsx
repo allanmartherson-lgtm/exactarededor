@@ -32,7 +32,7 @@ import {
 } from "@/lib/paymentFlow";
 import { CompanyRiskBadge } from "@/components/payment-detail/CompanyRiskBadge";
 import { PreviousBatchComparison } from "@/components/payment-detail/PreviousBatchComparison";
-import { ValidationChecklist } from "@/components/payment-detail/ValidationChecklist";
+// ValidationChecklist (por empresa) substituído por LotValidationChecklist no nível do lote.
 import type {
   GroupRow,
   InvoiceRow,
