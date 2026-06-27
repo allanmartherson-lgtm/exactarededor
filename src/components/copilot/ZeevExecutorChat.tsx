@@ -115,6 +115,15 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
     [paymentId, location.pathname],
   );
 
+  // Auto-dispara propose quando recebe initialPrompt (via key/nonce do pai).
+  useEffect(() => {
+    const t = (initialPrompt ?? "").trim();
+    if (!t) return;
+    setMessages((m) => [...m, { role: "user", text: t }]);
+    void propose(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const send = useCallback(async () => {
     const text = input.trim();
     if (!text || busy) return;
