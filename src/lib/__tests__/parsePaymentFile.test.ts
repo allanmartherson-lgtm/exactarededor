@@ -80,11 +80,22 @@ describe("parsePaymentFile — planilha de Parecer Adulto", () => {
     expect(r.doctor_name).toBe("Dra. Parecerista");
     expect(r.doctor_name).not.toMatch(/Solicit/i);
     expect(r.gross_amount).toBeCloseTo(350);
-    // Comportamento atual: "Dt. Solic." casa exatamente (score 100) e ganha
-    // de "Dt. Resp. Par." (startsWith, score 60). Travamos esse contrato aqui
-    // para detectar regressões — se um dia decidirmos priorizar a data da
-    // resposta no parecer, este teste deve ser atualizado deliberadamente.
-    expect(r.procedure_date).toMatch(/^2026-05-10/);
+    expect(r.procedure_date).toMatch(/^2026-05-15/);
+  });
+
+  it("não usa Dt. Solic. como fallback quando tipo Parecer não tem data de resposta", async () => {
+    const f = makeFile([
+      {
+        "Médico Parecerista": "Dra. Parecerista",
+        "Valor a repassar": "350,00",
+        "Dt. Resp. Par.": "",
+        "Dt. Solic.": "10/05/2026",
+      },
+    ]);
+    const b = await parsePaymentFile(f, COMPANIES, null, {
+      paymentTypeMeta: { label: "Parecer Adulto", tuss_default: "10102019", requires_tuss_in_sheet: false, default_function: "Parecerista" },
+    });
+    expect(b.rows[0].procedure_date).toBeNull();
   });
 
   it("coluna 'Repasse' com nome (sem coluna Médico) é aceita como prestador via fallback", async () => {
@@ -116,12 +127,12 @@ describe("parsePaymentFile — planilha de Parecer Adulto", () => {
 });
 
 describe("parsePaymentFile — datas alternativas", () => {
-  it("aceita 'Dt. Solic.' quando não há 'Dt. Resp.'", async () => {
+  it("não auto-mapeia 'Dt. Solic.' como data do procedimento", async () => {
     const f = makeFile([
       { "Médico": "Dr. Y", "Vl Repasse": "10", "Dt. Solic.": "02/03/2026" },
     ]);
     const b = await parsePaymentFile(f, COMPANIES);
-    expect(b.rows[0].procedure_date).toMatch(/^2026-03-02/);
+    expect(b.rows[0].procedure_date).toBeNull();
   });
 
   it("prioriza 'Data Procedimento' sobre datas auxiliares", async () => {

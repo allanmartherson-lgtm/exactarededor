@@ -210,8 +210,9 @@ export const FIELD_DEFINITIONS: FieldDefinition[] = [
     label: "Data do procedimento",
     keys: [
       "data procedimento", "data atendimento", "data",
+      "dt resposta parecer", "dt. resposta parecer", "data resposta parecer",
+      "dt resp parecer", "dt. resp. parecer", "dt resp par", "dt. resp. par.", "dt. resp. par", "dtresppar",
       "dt resposta", "dt. resp", "dt resp", "data resposta",
-      "dt solic", "dt. solic", "data solicitacao", "data solicitação",
     ],
     requirement: "recommended",
     kind: "date",

@@ -626,12 +626,30 @@ export interface ParseOptions {
    * inicial), garantindo paridade entre import e reimport.
    */
   paymentTypeMeta?: {
+    code?: string | null;
     label?: string | null;
     tuss_default?: string | null;
     requires_tuss_in_sheet?: boolean;
     default_function?: string | null;
   } | null;
 }
+
+const PARECER_RESPONSE_DATE_KEYS = [
+  "dt resposta parecer", "dt. resposta parecer", "data resposta parecer",
+  "dt resp parecer", "dt. resp. parecer", "dt resp par", "dt. resp. par.", "dt. resp. par", "dtresppar",
+  "dt resposta", "dt. resp", "dt resp", "data resposta",
+];
+
+const looksLikeSolicitationDateHeader = (header: string | null | undefined): boolean => {
+  if (!header) return false;
+  const n = norm(header);
+  return n.includes("dtsolic") || n.includes("datasolic") || n.includes("solicitacao") || n.includes("solicit");
+};
+
+const isParecerPaymentType = (meta: ParseOptions["paymentTypeMeta"]): boolean => {
+  const text = `${meta?.code ?? ""} ${meta?.label ?? ""}`;
+  return /parecer/i.test(text.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+};
 
 export const parsePaymentFile = async (
   f: File,
@@ -679,6 +697,19 @@ export const parsePaymentFile = async (
   const filenameTrusted = fileMatchScore >= MATCH_AUTO_THRESHOLD && !!fileMatchedCompany;
 
   const rows: ParsedRow[] = json.map((row) => {
+    const procedureDateValue = (() => {
+      const mappedDateHeader = manualMapping?.procedure_date;
+      if (mappedDateHeader && mappedDateHeader in row) {
+        if (isParecerPaymentType(paymentTypeMeta) && looksLikeSolicitationDateHeader(mappedDateHeader)) {
+          return undefined;
+        }
+        return row[mappedDateHeader];
+      }
+      if (isParecerPaymentType(paymentTypeMeta)) {
+        return pick(row, PARECER_RESPONSE_DATE_KEYS);
+      }
+      return pickField(row, "procedure_date", manualMapping);
+    })();
     const role = toStr(pickField(row, "doctor_role", manualMapping));
     const repasse = toNumber(pickField(row, "gross_amount", manualMapping));
     const procVal = toNumber(pickField(row, "procedure_amount", manualMapping));
@@ -732,7 +763,7 @@ export const parsePaymentFile = async (
       procedure_amount: procedureAmountFinal,
       quantity: toNumber(pickField(row, "quantity", manualMapping)) || null,
       ...(() => {
-        const p = excelDateToISOWithFlag(pickField(row, "procedure_date", manualMapping));
+        const p = excelDateToISOWithFlag(procedureDateValue);
         return { procedure_date: p.iso, procedure_date_has_time: p.hasTime };
       })(),
       patient_name: toStr(pickField(row, "patient_name", manualMapping)),

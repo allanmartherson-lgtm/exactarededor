@@ -523,9 +523,11 @@ export default function CompanyAnalysis() {
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
   const [mappingPrompt, setMappingPrompt] = useState<{
     file: File;
+    pendingFiles: File[];
     headers: string[];
     sampleRow: Record<string, unknown> | null;
     initialMapping: Record<string, string>;
+    overrides: Record<string, Record<string, string>>;
   } | null>(null);
   const [mappingOverrides, setMappingOverrides] = useState<Record<string, Record<string, string>>>({});
   const [reopenOpen, setReopenOpen] = useState(false);
@@ -1267,7 +1269,8 @@ export default function CompanyAnalysis() {
           ? await tplQuery.or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
           : await tplQuery.is("hospital_id", null);
         const tpl = (tplRows ?? [])[0] as { id: string; mapping: any; name: string } | undefined;
-        const override = extraOverrides?.[file.name] ?? mappingOverrides[file.name];
+        const mergedOverrides = { ...mappingOverrides, ...(extraOverrides ?? {}) };
+        const override = mergedOverrides[file.name];
         const manualMapping = override ?? tpl?.mapping;
         const hits = inspectColumnMapping(headers).map((h) => {
           const ov = manualMapping?.[h.field];
@@ -1286,12 +1289,19 @@ export default function CompanyAnalysis() {
             : FIELD_BY_KEY[h.field].requirement === "required";
           return required && (!h.header || h.score < 30);
         });
-        if (missingRequired.length > 0) {
-          // Abre tela de mapeamento manual em vez de bloquear com erro
+        if (!override || missingRequired.length > 0) {
+          // Reimportação sempre passa pelo preview de mapeamento antes de gravar.
           const initialMapping: Record<string, string> = Object.fromEntries(
             hits.filter((h) => h.header).map((h) => [h.field, h.header!]),
           );
-          setMappingPrompt({ file, headers, sampleRow, initialMapping });
+          setMappingPrompt({
+            file,
+            pendingFiles: files,
+            headers,
+            sampleRow,
+            initialMapping: { ...initialMapping, ...(manualMapping ?? {}) },
+            overrides: mergedOverrides,
+          });
           setReimporting(false);
           return;
         }
@@ -1300,6 +1310,7 @@ export default function CompanyAnalysis() {
           manualMapping,
           paymentTypeMeta: paymentTypeMeta
             ? {
+                code: paymentTypeMeta.code,
                 label: paymentTypeMeta.label,
                 tuss_default: paymentTypeMeta.tuss_default,
                 requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
@@ -3022,12 +3033,12 @@ export default function CompanyAnalysis() {
           } : null}
           onApply={(mapping) => {
             const file = mappingPrompt.file;
-            setMappingOverrides((prev) => ({ ...prev, [file.name]: mapping }));
+            const nextOverrides = { ...mappingPrompt.overrides, [file.name]: mapping };
+            setMappingOverrides(nextOverrides);
             setMappingPrompt(null);
             // Reexecuta a reimportação passando o override explicitamente —
             // setState é assíncrono e o closure de doReimport ainda veria vazio.
-            const files = reimportConfirm ?? [file];
-            void doReimport(files, { [file.name]: mapping });
+            void doReimport(mappingPrompt.pendingFiles, nextOverrides);
           }}
         />
       )}
