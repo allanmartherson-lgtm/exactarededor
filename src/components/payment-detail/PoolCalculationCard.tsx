@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, RefreshCw, Info } from "lucide-react";
+import { Calculator, RefreshCw, Info, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -15,12 +16,31 @@ type Run = {
   quotas: any;
   snapshot: any;
   created_at: string;
+  competence_month: string | null;
+  invalidated_at: string | null;
+  invalidated_reason: string | null;
+  error_detail: any;
 };
 
 type PoolInfo = { id: string; nome: string; base_calculo: string };
 
 const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const INVALID_REASONS: Record<string, string> = {
+  valor_variavel_competencia_nao_cadastrado:
+    "Falta cadastrar o valor de uma dedução variável para a competência deste lote.",
+  item_duplicado_em_outro_pool:
+    "Há itens deste lote já capturados por outro pool na mesma competência.",
+  competencia_nao_definida_para_valor_variavel:
+    "Lote sem competência definida — não é possível resolver deduções variáveis.",
+};
+
+const fmtComp = (iso: string | null) => {
+  if (!iso) return "";
+  const [y, m] = String(iso).slice(0, 10).split("-");
+  return `${m}/${y}`;
+};
 
 export function PoolCalculationCard({ paymentId, onRecalculated }: { paymentId: string; onRecalculated?: () => void | Promise<void> }) {
   const [runs, setRuns] = useState<Run[]>([]);
