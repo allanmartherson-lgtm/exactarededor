@@ -6335,6 +6335,8 @@ export type Database = {
           is_test: boolean
           items_count: number
           liquido_total: number
+          manual_general_attachment_name: string | null
+          manual_general_attachment_path: string | null
           origem: string
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
@@ -6385,6 +6387,8 @@ export type Database = {
           is_test?: boolean
           items_count?: number
           liquido_total?: number
+          manual_general_attachment_name?: string | null
+          manual_general_attachment_path?: string | null
           origem?: string
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
@@ -6435,6 +6439,8 @@ export type Database = {
           is_test?: boolean
           items_count?: number
           liquido_total?: number
+          manual_general_attachment_name?: string | null
+          manual_general_attachment_path?: string | null
           origem?: string
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
