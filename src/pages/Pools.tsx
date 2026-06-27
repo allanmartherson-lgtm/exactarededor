@@ -453,7 +453,15 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                     <Card key={i}><CardContent className="py-3 grid grid-cols-12 gap-2 items-end">
                       <div className="col-span-3">
                         <Label className="text-xs">Tipo</Label>
-                        <Select value={d.tipo} onValueChange={(v: any) => { const n = [...editDeds]; n[i] = { ...d, tipo: v }; setEditDeds(n); }}>
+                        <Select value={d.tipo} onValueChange={(v: any) => {
+                          const n = [...editDeds];
+                          // Auto-vincula natureza do valor ao tipo:
+                          // plantão sempre varia por competência; fixo mensal por padrão é recorrente.
+                          // Ajustes/glosa vêm de tabelas externas — força recorrente=false.
+                          const autoVariavel = v === "plantao" ? true : v === "fixo_mensal" ? false : false;
+                          n[i] = { ...d, tipo: v, valor_variavel: autoVariavel, valor: autoVariavel ? null : (d.valor ?? 0) };
+                          setEditDeds(n);
+                        }}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>{Object.entries(DED_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                         </Select>
@@ -471,9 +479,12 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                         )}
                       </div>
                       <div className="col-span-1 flex flex-col items-center pb-1">
-                        <Label className="text-[10px] text-center">Mensal</Label>
+                        <Label className="text-[10px] text-center leading-tight" title="Ligado: valor muda mês a mês (plantão, escala). Desligado: mesmo valor todo mês (fixo de coordenação).">
+                          Varia/mês
+                        </Label>
                         <Switch
                           checked={d.valor_variavel}
+                          disabled={d.tipo === "plantao"}
                           onCheckedChange={(v) => { const n = [...editDeds]; n[i] = { ...d, valor_variavel: v, valor: v ? null : (d.valor ?? 0) }; setEditDeds(n); }}
                         />
                       </div>
