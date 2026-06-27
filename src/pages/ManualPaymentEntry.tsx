@@ -333,7 +333,7 @@ export default function ManualPaymentEntry() {
     // Encaminha para validação (mesma esteira dos demais lotes).
     const { error } = await supabase
       .from("payments")
-      .update({ status: "em_validacao" as any } as any)
+      .update({ status: "aguardando_validacao" as any } as any)
       .eq("id", id);
     setFinalizing(false);
     if (error) {
