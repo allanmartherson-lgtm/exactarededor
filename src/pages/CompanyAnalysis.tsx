@@ -1849,6 +1849,13 @@ export default function CompanyAnalysis() {
   // em 'rascunho' como placeholder). Em ANÁLISE, o estado vivo é gStatus.
   const gConfeccaoStatus = (group as any)?.confeccao_status as string | null | undefined;
   const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+  /** Modo MANUAL: pagamento lançado linha a linha pelo analista a partir de
+   *  planilha externa (nefrologia, plantão fechado, coordenação). NÃO tem
+   *  regra, TUSS, paciente, divergência ou alerta assistencial — então o
+   *  layout aqui é reduzido: sem cards de Alertas/Críticos, sem abas de
+   *  Divergências/Detalhe IA, sem filtros do grid de regras, e os itens
+   *  são exibidos pelo <ManualItemsGrid /> dedicado. */
+  const isManual = (payment as any)?.analysis_mode === "manual";
   const isParecerPayment = String((payment as any)?.payment_type ?? "").toLowerCase().includes("parecer");
   const isConfeccaoEditable = isConfeccao && gConfeccaoStatus === "em_confeccao";
   // Governança: analista só atua se for o dono do lote (ou admin).
