@@ -49,6 +49,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { formatBRL } from "@/lib/financialStats";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { TONE_CLASSES } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 type DraftRow = {
