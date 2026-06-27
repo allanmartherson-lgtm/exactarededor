@@ -609,25 +609,25 @@ export default function ManualPaymentEntry() {
                     <Fragment key={r.key}>
                       {/* Linha 1 — campos estruturais */}
                       <TableRow className="align-top border-b-0 hover:bg-muted/30">
-                        <TableCell className="py-1.5">
+                        <TableCell className="py-2.5">
                           <CompanyCombobox
                             value={r.company}
                             onChange={(c) => updateRow(r.key, { company: c, doctor: null })}
                           />
                         </TableCell>
-                        <TableCell className="py-1.5">
+                        <TableCell className="py-2.5">
                           <DoctorCombobox
                             value={r.doctor}
                             onChange={(d) => { void handleDoctorChange(r.key, d); }}
                             filterCompanyId={r.company?.id ?? null}
                           />
                         </TableCell>
-                        <TableCell className="py-1.5">
+                        <TableCell className="py-2.5">
                           <Select
                             value={r.paymentTypeId ?? defaultTypeId ?? ""}
                             onValueChange={(v) => updateRow(r.key, { paymentTypeId: v })}
                           >
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger>
                               <SelectValue placeholder="—" />
                             </SelectTrigger>
                             <SelectContent>
@@ -639,14 +639,14 @@ export default function ManualPaymentEntry() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="py-1.5">
+                        <TableCell className="py-2.5">
                           <Select
                             value={r.specialty || "__none__"}
                             onValueChange={(v) =>
                               updateRow(r.key, { specialty: v === "__none__" ? "" : v })
                             }
                           >
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger>
                               <SelectValue placeholder="—" />
                             </SelectTrigger>
                             <SelectContent className="max-h-64">
@@ -659,29 +659,27 @@ export default function ManualPaymentEntry() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="py-1.5">
+                        <TableCell className="py-2.5">
                           <Input
                             value={r.attendance}
                             onChange={(e) => updateRow(r.key, { attendance: e.target.value })}
-                            className="h-8 text-xs"
                           />
                         </TableCell>
-                        <TableCell className="py-1.5">
+                        <TableCell className="py-2.5">
                           <Input
                             value={r.patient}
                             onChange={(e) => updateRow(r.key, { patient: e.target.value })}
-                            className="h-8 text-xs"
                           />
                         </TableCell>
-                        <TableCell className="py-1.5">
+                        <TableCell className="py-2.5">
                           <CurrencyInput
                             value={r.amount || null}
                             onChange={(v) => updateRow(r.key, { amount: Number(v) || 0 })}
-                            className="h-8 text-right text-xs font-medium tabular-nums"
+                            className="text-right font-medium tabular-nums"
                           />
                         </TableCell>
-                        <TableCell className="py-1.5">
-                          <div className="flex flex-col items-end gap-1">
+                        <TableCell className="py-2.5">
+                          <div className="flex flex-col items-end gap-1.5">
                             {r.dirty ? (
                               <Badge variant="outline" className={cn("text-[10px]", TONE_CLASSES.warning)}>
                                 não salvo
@@ -700,50 +698,50 @@ export default function ManualPaymentEntry() {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6"
+                                className="h-7 w-7"
                                 onClick={() => duplicateRow(r.key)}
                                 title="Duplicar linha"
                               >
-                                <Plus className="h-3 w-3" />
+                                <Plus className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6"
+                                className="h-7 w-7"
                                 onClick={() => removeRow(r)}
                                 title="Excluir linha"
                               >
-                                <Trash2 className="h-3 w-3" />
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>
                         </TableCell>
                       </TableRow>
                       {/* Linha 2 — observação + fonte/composição (largura cheia) */}
-                      <TableRow className="hover:bg-muted/30">
-                        <TableCell colSpan={5} className="py-1.5 pt-0">
-                          <div className="flex items-start gap-2">
-                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground pt-1.5 w-20 shrink-0">
+                      <TableRow className="hover:bg-muted/30 border-b-4 border-border/40">
+                        <TableCell colSpan={5} className="pt-0 pb-3">
+                          <div className="flex items-start gap-3">
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground pt-2 w-20 shrink-0">
                               Observação
                             </span>
-                            <textarea
+                            <Textarea
                               value={r.observation}
                               onChange={(e) => updateRow(r.key, { observation: e.target.value })}
                               placeholder="Ex.: plantão fechado de domingo · rateio coordenação · referência da planilha"
                               rows={2}
-                              className="w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-xs leading-snug focus:outline-none focus:ring-2 focus:ring-ring"
+                              className="resize-none min-h-[60px]"
                             />
                           </div>
                         </TableCell>
-                        <TableCell colSpan={3} className="py-1.5 pt-0">
-                          <div className="flex items-start gap-2">
-                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground pt-1.5 w-24 shrink-0">
+                        <TableCell colSpan={3} className="pt-0 pb-3">
+                          <div className="flex items-start gap-3">
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground pt-2 w-16 shrink-0">
                               Fonte
                             </span>
-                            <div className="flex flex-1 flex-wrap items-center gap-1.5">
-                              <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer rounded-md border border-dashed border-border px-2 h-7 hover:bg-muted/50">
-                                <Upload className="h-3 w-3 shrink-0" />
+                            <div className="flex flex-1 flex-wrap items-center gap-2">
+                              <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer rounded-md border border-dashed border-input bg-background px-3 h-9 hover:bg-muted/50">
+                                <Upload className="h-3.5 w-3.5 shrink-0" />
                                 {r.attachmentName ? (
                                   <span className="truncate max-w-[160px]" title={r.attachmentName}>
                                     {r.attachmentName}
@@ -766,10 +764,10 @@ export default function ManualPaymentEntry() {
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                className="h-9 px-2.5 text-sm text-muted-foreground hover:text-foreground"
                                 onClick={() => setCompositionFor(r.key)}
                               >
-                                <Sparkles className="h-3 w-3 mr-1" />
+                                <Sparkles className="h-3.5 w-3.5 mr-1" />
                                 {r.composition && r.composition.length > 0
                                   ? `Composição (${r.composition.length})`
                                   : "Composição"}
@@ -782,6 +780,7 @@ export default function ManualPaymentEntry() {
                   );
                 })}
               </TableBody>
+
             </Table>
           </div>
         </CardContent>
