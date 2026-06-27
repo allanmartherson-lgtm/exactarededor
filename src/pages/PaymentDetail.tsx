@@ -224,6 +224,7 @@ const PaymentDetail = () => {
     setItems,
     load,
   } = usePaymentDetailData(id);
+  const paymentTypeMeta = usePaymentTypeMeta((payment as any)?.payment_type_id ?? null);
   const {
     byGroup: privateNotes,
     attachmentsByGroup: privateAttachments,
