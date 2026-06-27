@@ -591,180 +591,193 @@ export default function ManualPaymentEntry() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-muted/60 backdrop-blur supports-[backdrop-filter]:bg-muted/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[16%] text-xs uppercase tracking-wide">Empresa *</TableHead>
-                  <TableHead className="w-[14%] text-xs uppercase tracking-wide">Médico</TableHead>
-                  <TableHead className="w-[11%] text-xs uppercase tracking-wide">Tipo</TableHead>
-                  <TableHead className="w-[11%] text-xs uppercase tracking-wide">Especialidade</TableHead>
-                  <TableHead className="w-[7%] text-xs uppercase tracking-wide">Atend.</TableHead>
+                  <TableHead className="w-[19%] text-xs uppercase tracking-wide">Empresa *</TableHead>
+                  <TableHead className="w-[18%] text-xs uppercase tracking-wide">Médico</TableHead>
+                  <TableHead className="w-[12%] text-xs uppercase tracking-wide">Tipo</TableHead>
+                  <TableHead className="w-[13%] text-xs uppercase tracking-wide">Especialidade</TableHead>
+                  <TableHead className="w-[8%] text-xs uppercase tracking-wide">Atend.</TableHead>
                   <TableHead className="text-xs uppercase tracking-wide">Paciente</TableHead>
                   <TableHead className="w-[10%] text-right text-xs uppercase tracking-wide">Valor (R$) *</TableHead>
-                  <TableHead className="w-[14%] text-xs uppercase tracking-wide">Observação</TableHead>
-                  <TableHead className="w-[11%] text-xs uppercase tracking-wide">Fonte / Composição</TableHead>
-                  <TableHead className="w-[80px] text-right text-xs uppercase tracking-wide">Status</TableHead>
+                  <TableHead className="w-[90px] text-right text-xs uppercase tracking-wide">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((r) => {
                   const valid = !!r.company && r.amount > 0;
                   return (
-                    <TableRow key={r.key} className="align-top">
-                      <TableCell className="py-1.5">
-                        <CompanyCombobox
-                          value={r.company}
-                          onChange={(c) => updateRow(r.key, { company: c, doctor: null })}
-                        />
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <DoctorCombobox
-                          value={r.doctor}
-                          onChange={(d) => { void handleDoctorChange(r.key, d); }}
-                          filterCompanyId={r.company?.id ?? null}
-                        />
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <Select
-                          value={r.paymentTypeId ?? defaultTypeId ?? ""}
-                          onValueChange={(v) => updateRow(r.key, { paymentTypeId: v })}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {paymentTypes.map((pt) => (
-                              <SelectItem key={pt.id} value={pt.id}>
-                                {pt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <Select
-                          value={r.specialty || "__none__"}
-                          onValueChange={(v) =>
-                            updateRow(r.key, { specialty: v === "__none__" ? "" : v })
-                          }
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-64">
-                            <SelectItem value="__none__">—</SelectItem>
-                            {COMMON_SPECIALTIES.map((s) => (
-                              <SelectItem key={s} value={s}>
-                                {s}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <Input
-                          value={r.attendance}
-                          onChange={(e) => updateRow(r.key, { attendance: e.target.value })}
-                          className="h-8 text-xs"
-                        />
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <Input
-                          value={r.patient}
-                          onChange={(e) => updateRow(r.key, { patient: e.target.value })}
-                          className="h-8 text-xs"
-                        />
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <CurrencyInput
-                          value={r.amount || null}
-                          onChange={(v) => updateRow(r.key, { amount: Number(v) || 0 })}
-                          className="h-8 text-right text-xs font-medium tabular-nums"
-                        />
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <textarea
-                          value={r.observation}
-                          onChange={(e) => updateRow(r.key, { observation: e.target.value })}
-                          placeholder="Ex.: plantão fechado de domingo"
-                          rows={2}
-                          className="w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-xs leading-snug focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <div className="flex flex-col gap-1">
-                          <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer rounded-md border border-dashed border-border px-2 h-7 hover:bg-muted/50">
-                            <Upload className="h-3 w-3 shrink-0" />
-                            {r.attachmentName ? (
-                              <span className="truncate max-w-[120px]" title={r.attachmentName}>
-                                {r.attachmentName}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">Anexar</span>
-                            )}
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg"
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) handleUpload(r, f);
-                                e.target.value = "";
-                              }}
-                            />
-                          </label>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 justify-start text-xs text-muted-foreground hover:text-foreground"
-                            onClick={() => setCompositionFor(r.key)}
+                    <Fragment key={r.key}>
+                      {/* Linha 1 — campos estruturais */}
+                      <TableRow className="align-top border-b-0 hover:bg-muted/30">
+                        <TableCell className="py-1.5">
+                          <CompanyCombobox
+                            value={r.company}
+                            onChange={(c) => updateRow(r.key, { company: c, doctor: null })}
+                          />
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <DoctorCombobox
+                            value={r.doctor}
+                            onChange={(d) => { void handleDoctorChange(r.key, d); }}
+                            filterCompanyId={r.company?.id ?? null}
+                          />
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <Select
+                            value={r.paymentTypeId ?? defaultTypeId ?? ""}
+                            onValueChange={(v) => updateRow(r.key, { paymentTypeId: v })}
                           >
-                            <Sparkles className="h-3 w-3 mr-1" />
-                            {r.composition && r.composition.length > 0
-                              ? `Composição (${r.composition.length})`
-                              : "Composição"}
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <div className="flex flex-col items-end gap-1">
-                          {r.dirty ? (
-                            <Badge variant="outline" className={cn("text-[10px]", TONE_CLASSES.warning)}>
-                              não salvo
-                            </Badge>
-                          ) : valid ? (
-                            <Badge variant="outline" className={cn("text-[10px] gap-1", TONE_CLASSES.success)}>
-                              <CheckCircle2 className="h-3 w-3" /> ok
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className={cn("text-[10px]", TONE_CLASSES.muted)}>
-                              rascunho
-                            </Badge>
-                          )}
-
-                          <div className="flex items-center gap-0.5">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => duplicateRow(r.key)}
-                              title="Duplicar linha"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => removeRow(r)}
-                              title="Excluir linha"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="—" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {paymentTypes.map((pt) => (
+                                <SelectItem key={pt.id} value={pt.id}>
+                                  {pt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <Select
+                            value={r.specialty || "__none__"}
+                            onValueChange={(v) =>
+                              updateRow(r.key, { specialty: v === "__none__" ? "" : v })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="—" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-64">
+                              <SelectItem value="__none__">—</SelectItem>
+                              {COMMON_SPECIALTIES.map((s) => (
+                                <SelectItem key={s} value={s}>
+                                  {s}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <Input
+                            value={r.attendance}
+                            onChange={(e) => updateRow(r.key, { attendance: e.target.value })}
+                            className="h-8 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <Input
+                            value={r.patient}
+                            onChange={(e) => updateRow(r.key, { patient: e.target.value })}
+                            className="h-8 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <CurrencyInput
+                            value={r.amount || null}
+                            onChange={(v) => updateRow(r.key, { amount: Number(v) || 0 })}
+                            className="h-8 text-right text-xs font-medium tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <div className="flex flex-col items-end gap-1">
+                            {r.dirty ? (
+                              <Badge variant="outline" className={cn("text-[10px]", TONE_CLASSES.warning)}>
+                                não salvo
+                              </Badge>
+                            ) : valid ? (
+                              <Badge variant="outline" className={cn("text-[10px] gap-1", TONE_CLASSES.success)}>
+                                <CheckCircle2 className="h-3 w-3" /> ok
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className={cn("text-[10px]", TONE_CLASSES.muted)}>
+                                rascunho
+                              </Badge>
+                            )}
+                            <div className="flex items-center gap-0.5">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => duplicateRow(r.key)}
+                                title="Duplicar linha"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => removeRow(r)}
+                                title="Excluir linha"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                      </TableRow>
+                      {/* Linha 2 — observação + fonte/composição (largura cheia) */}
+                      <TableRow className="hover:bg-muted/30">
+                        <TableCell colSpan={5} className="py-1.5 pt-0">
+                          <div className="flex items-start gap-2">
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground pt-1.5 w-20 shrink-0">
+                              Observação
+                            </span>
+                            <textarea
+                              value={r.observation}
+                              onChange={(e) => updateRow(r.key, { observation: e.target.value })}
+                              placeholder="Ex.: plantão fechado de domingo · rateio coordenação · referência da planilha"
+                              rows={2}
+                              className="w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-xs leading-snug focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell colSpan={3} className="py-1.5 pt-0">
+                          <div className="flex items-start gap-2">
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground pt-1.5 w-24 shrink-0">
+                              Fonte
+                            </span>
+                            <div className="flex flex-1 flex-wrap items-center gap-1.5">
+                              <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer rounded-md border border-dashed border-border px-2 h-7 hover:bg-muted/50">
+                                <Upload className="h-3 w-3 shrink-0" />
+                                {r.attachmentName ? (
+                                  <span className="truncate max-w-[160px]" title={r.attachmentName}>
+                                    {r.attachmentName}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">Anexar</span>
+                                )}
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg"
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleUpload(r, f);
+                                    e.target.value = "";
+                                  }}
+                                />
+                              </label>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={() => setCompositionFor(r.key)}
+                              >
+                                <Sparkles className="h-3 w-3 mr-1" />
+                                {r.composition && r.composition.length > 0
+                                  ? `Composição (${r.composition.length})`
+                                  : "Composição"}
+                              </Button>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </Fragment>
                   );
                 })}
               </TableBody>
