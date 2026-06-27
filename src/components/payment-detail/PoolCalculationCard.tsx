@@ -144,22 +144,34 @@ export function PoolCalculationCard({ paymentId, onRecalculated }: { paymentId: 
                 </div>
                 <div className="text-xs space-y-1 pt-2 border-t">
                   <div className="text-muted-foreground mb-1">Rateio:</div>
-                  {quotas.map((q: any, i: number) => (
-                    <div key={i} className="flex justify-between">
-                      <span className="flex items-center gap-1.5">
-                        {q.participant_type === "hospital_nao_paga" ? (
-                          <Badge variant="outline" className="h-4 px-1 text-[10px]">
-                            retido
-                          </Badge>
-                        ) : null}
-                        Participante {q.percentual}%
-                        {q.participant_type === "hospital_nao_paga" && " — hospital"}
-                      </span>
-                      <span className={q.paga ? "font-medium" : "text-muted-foreground line-through"}>
-                        {brl(q.quota)}
-                      </span>
-                    </div>
-                  ))}
+                  {quotas.map((q: any, i: number) => {
+                    const isRetido = q.participant_type === "hospital_nao_paga";
+                    return (
+                      <div key={i} className="flex justify-between">
+                        <span className="flex items-center gap-1.5">
+                          {isRetido && (
+                            <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                              retido
+                            </Badge>
+                          )}
+                          {isRetido
+                            ? `Retenção do hospital (${q.percentual}%)`
+                            : `Participante ${q.percentual}%`}
+                        </span>
+                        <span
+                          className={
+                            isRetido
+                              ? "text-muted-foreground italic"
+                              : "font-medium"
+                          }
+                          title={isRetido ? "Receita do hospital — não gera pagamento, fora da DRE de pagamento" : undefined}
+                        >
+                          {brl(q.quota)}
+                          {isRetido && " · receita hosp."}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="text-[10px] text-muted-foreground pt-1">
                   Executado em {new Date(run.created_at).toLocaleString("pt-BR")}
