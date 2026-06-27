@@ -1,3 +1,4 @@
+import { ExactaIcon } from "@/components/brand/ExactaIcon";
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
