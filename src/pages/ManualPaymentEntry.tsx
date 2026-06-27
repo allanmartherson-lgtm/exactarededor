@@ -648,6 +648,15 @@ export default function ManualPaymentEntry() {
                         />
                       </TableCell>
                       <TableCell className="py-1.5">
+                        <textarea
+                          value={r.observation}
+                          onChange={(e) => updateRow(r.key, { observation: e.target.value })}
+                          placeholder="Ex.: plantão fechado de domingo"
+                          rows={2}
+                          className="w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-xs leading-snug focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </TableCell>
+                      <TableCell className="py-1.5">
                         <div className="flex flex-col gap-1">
                           <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer rounded-md border border-dashed border-border px-2 h-7 hover:bg-muted/50">
                             <Upload className="h-3 w-3 shrink-0" />
