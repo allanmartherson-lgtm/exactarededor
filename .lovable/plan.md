@@ -1,52 +1,78 @@
-## Objetivo
-Substituir as duas regras `duplicidade_exata` e `duplicidade_atendimento` por uma única regra **`duplicidade_lancamento`** com matriz de campos comparáveis e modo de médico configurável.
+# Plano — Pagamento Manual com Ficha de Composição
 
-## Modelo unificado da regra
+Objetivo: permitir lançar pagamentos cuja origem é uma planilha externa (nefrologia, UTI, plantão fechado, coordenação rateada, etc.) sem modelar as fórmulas no motor. O analista informa o valor final por médico/empresa, anexa a fonte e opcionalmente descreve a composição em rubricas. O resto do fluxo (glosa, NF, conciliação, aprovação, auditoria) continua igual.
 
-Params:
-- **Campos do "mesmo item"** (booleanos): `compare_attendance`, `compare_patient`, `compare_date`, `compare_code`, `compare_role`, `compare_access_route`
-- **Médico** (enum `doctor_mode`):
-  - `same` — só conta como duplicidade se o médico for o mesmo (equivale ao antigo "Cobrança duplicada" com médico marcado)
-  - `any` — ignora médico (equivale ao antigo "Duplicidade por atendimento" com "permitir médicos diferentes")
-  - `different` — só dispara quando os médicos forem diferentes (alerta "mesmo procedimento por médicos distintos")
-- **Janela** (`window_days`, número): `0` = mesmo dia (default quando `compare_date=on`); `N` = dentro de N dias.
+## 1. Conceito
 
-Mantém severidade/ação livres → o admin cadastra quantas instâncias quiser (ex.: uma estrita como bloqueio, uma ampla como alerta) sem precisar trocar de tipo.
+- Novo modo de análise no lote: `analysis_mode = 'manual'`.
+- Itens criados nesse modo já chegam com `gross_amount` definido pelo analista — o motor **pula regras de cálculo** e marca `applied_calc_method = 'manual_entry'`.
+- Cada item carrega: tipo de serviço, médico (opcional), empresa, especialidade (opcional), atendimento (opcional), paciente (opcional), competência, valor, anexo-fonte e composição estruturada (JSON livre de rubricas).
+- Glosa, vínculo médico→PJ, NF, conciliação e aprovação rodam exatamente como nos lotes normais.
 
-## Mudanças
+## 2. Mudanças no banco
 
-### 1. Backend (SQL)
-Migração que converte linhas existentes em `validation_rules`:
-- `duplicidade_exata` → `duplicidade_lancamento` com `doctor_mode = compare_doctor ? 'same' : 'any'`, demais flags preservadas, `window_days=0`.
-- `duplicidade_atendimento` → `duplicidade_lancamento` com `doctor_mode = allow_different_doctors ? 'any' : 'same'`, `compare_role=false`, `compare_access_route=false`, `window_days=0`.
+Migração única adicionando:
 
-### 2. Edge function `validate-payment`
-- Nova `applyDuplicidadeLancamento(rule, items, …)` que:
-  - constrói chave com os campos marcados,
-  - quando `doctor_mode='same'` adiciona médico na chave,
-  - quando `window_days>0`, agrupa por janela rolante por (chave-sem-data) e considera duplicado se houver outro item dentro de N dias,
-  - quando `doctor_mode='different'`, exige ≥2 médicos distintos no mesmo bucket.
-- Dispatch passa a aceitar `duplicidade_lancamento`. Os dois kinds antigos continuam aceitos como aliases (chamam a nova função convertendo os params em runtime), garantindo segurança caso alguma migração falhe.
+- `payments.analysis_mode` aceita novo valor `'manual'` (sem CHECK rígido — já é text).
+- `payment_items`:
+  - `is_manual_entry boolean default false`
+  - `manual_composition jsonb` — array `[{rubrica, qtd, unit, total, obs}]`
+  - `manual_source_attachment_path text` — caminho no bucket
+  - `manual_entered_by uuid` / `manual_entered_at timestamptz`
+- `payment_types.calc_strategy` ganha valor `'manual'` para marcar tipos que sempre entram como manual (ex: "Nefrologia — Composição", "Plantão Fechado", "Coordenação").
+- Novo bucket privado `payment-manual-sources` para os PDFs/XLSX de origem, com RLS por hospital_id do pagamento.
 
-### 3. UI `src/pages/ValidationRules.tsx`
-- Remove `duplicidade_exata` e `duplicidade_atendimento` do dropdown e adiciona `duplicidade_lancamento` ("Duplicidade de lançamento").
-- Form único: checkboxes da matriz de campos, `Select` para "Médico" (Mesmo / Qualquer / Diferentes obrigatoriamente), `Input` numérico para janela em dias.
-- Hint contextual: "Atend+TUSS+médico estrito = bloqueio. Atend+TUSS qualquer médico = alerta."
-- Mantém labels de fallback para os kinds antigos (caso uma migração não rode, a lista ainda renderiza).
-- Atualiza `defaultParamsFor` e `paramSummary`/description.
+Auditoria: trigger já existente em payment_items registra mudança; adicionar log explícito em `audit_log` quando `is_manual_entry = true` no insert.
 
-### 4. Pequenas referências
-- `src/components/payment-detail/ItemsDataGrid.tsx`: adiciona `duplicidade_lancamento: "Duplicidade"` ao mapa de labels (mantém `duplicidade_exata` para histórico).
-- `src/pages/__tests__/cancelByReconciliation.e2e.test.ts`: atualiza fixture para `duplicidade_lancamento`.
+## 3. Motor de cálculo
 
-## Detalhes técnicos
+- `dispatchAnalysis` / pipeline de regras: se `payment.analysis_mode = 'manual'` **ou** item com `is_manual_entry = true`, pular busca de regra, manter `gross_amount` informado, setar `applied_calc_method = 'manual_entry'`, `expected_amount = gross_amount`, `ai_status = 'sem_intervencao'`.
+- Glosa, recompute de status do pagamento, vínculo médico→PJ e cruzamento NF continuam ativos.
+- Conciliação contra base hospitalar: itens manuais não tentam matching por TUSS — vão para uma seção própria "Lançamentos manuais" no modal, conferidos só por presença/valor.
 
-- **Sem CHECK constraint** em `validation_rules.kind` (verificado), então não precisa alterar schema — só `UPDATE`.
-- Migração roda em uma transação só; idempotente (re-rodar não faz nada se já estiver no novo kind).
-- `validation_findings` antigos já gravados em `payment_items` mantêm `kind: 'duplicidade_exata'` — o ItemsDataGrid renderiza ambos.
-- Backward compat no engine garante que qualquer regra ainda no kind antigo continua funcionando até a migração rodar.
+## 4. UI
 
-## Impacto pro usuário
-- Lista de Validações fica com 1 item de duplicidade no lugar de 2.
-- Regras já cadastradas são convertidas automaticamente; o admin não precisa recriar nada.
-- Quem quiser comportamento "estrito" cadastra com `doctor_mode=same` + todos os campos; quem quiser "amplo" usa `doctor_mode=any`.
+### 4.1. Criação do lote
+No wizard de novo pagamento, terceira opção ao lado de "Importar planilha" e "Em confecção": **"Lançamento manual"**. Define `analysis_mode = 'manual'` e abre direto a tela de edição de itens manuais (sem upload).
+
+### 4.2. Tela de lançamento manual (`/pagamentos/:id` quando manual)
+- Tabela editável de itens, uma linha por médico/empresa.
+- Colunas: empresa (combobox), médico (combobox, opcional), tipo de serviço (combobox de payment_types), especialidade (opcional), competência, valor total (R$).
+- Botão "Anexar fonte" por linha → upload no bucket, fica vinculado ao item.
+- Botão "Composição" abre dialog com tabela de rubricas (rubrica/qtd/unit/total/obs). Soma das rubricas precisa bater com o valor total — aviso visual se divergir, não bloqueia.
+- Botão "Adicionar linha", "Duplicar linha", "Excluir".
+- Validação mínima: empresa + tipo + valor > 0.
+
+### 4.3. Detalhe do item
+- No `PaymentDetail`, itens manuais ganham badge "Manual" e seção "Composição" mostrando a tabela de rubricas + link para baixar o anexo-fonte.
+- PDF de validação do lote inclui a composição quando presente.
+
+## 5. Aprovação e fluxo posterior
+
+- Mesma esteira: análise → validação → aprovação por diretor.
+- Diretor vê no card: "Lote manual — N itens, R$ X total" + acesso aos anexos-fonte.
+- Após aprovar: gera NF, concilia, paga — sem mudança.
+
+## 6. O que NÃO entra agora
+
+- Fórmulas paramétricas (horas × valor hora, sessões CRRT × valor sessão). A composição é só descritiva.
+- Promoção automática de composições recorrentes em tipos calculados. Fica como passo futuro quando algum padrão se provar estável entre hospitais.
+- Importação de XLSX externo para popular composição. Por ora é digitação manual + anexo da planilha original como prova.
+
+## 7. Ordem de execução
+
+1. Migration (schema + bucket + RLS).
+2. Tipos de pagamento seed: marcar/criar alguns com `calc_strategy = 'manual'` (Nefrologia Composição, Plantão Fechado, Coordenação Rateada).
+3. Backend: ajuste no pipeline de regras para pular itens manuais.
+4. UI wizard: nova opção "Lançamento manual".
+5. UI tela de lançamento (tabela editável + dialog de composição + upload).
+6. UI detalhe: badge + seção composição + anexo no PDF.
+7. Conciliação: seção "Lançamentos manuais" no modal.
+8. Testes: contrato garantindo que item manual não roda motor e preserva valor.
+
+## Detalhes técnicos (referência)
+
+- `payment_items.manual_composition` formato: `[{"rubrica":"Horas CRRT","qtd":130.35,"unit":120,"total":15643,"obs":""}, {"rubrica":"Coordenação","total":3000}, {"rubrica":"Pareceres","qtd":31,"unit":400,"total":12400}]`.
+- Bucket `payment-manual-sources`, paths `{hospital_id}/{payment_id}/{item_id}/{filename}`. RLS via `has_hospital_access(auth.uid(), hospital_id)`.
+- Hook novo `useManualPaymentItems(paymentId)` para CRUD da tabela.
+- Skip do motor: em `dispatchAnalysis.ts`, primeira checagem `if (item.is_manual_entry) return { method: 'manual_entry', expected: item.gross_amount, status: 'sem_intervencao' }`.
