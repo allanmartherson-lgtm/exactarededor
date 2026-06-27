@@ -1456,7 +1456,7 @@ const PaymentDetail = () => {
           if (override && headers.includes(override)) return { ...h, header: override, score: 100, confidence: "high" as const };
           return h;
         });
-        const { missingRequired } = summarizeMissing(hits);
+        const { missingRequired } = summarizeMissing(hits, paymentTypeMeta);
         if (missingRequired.length > 0) {
           const initial: Record<string, string> = {};
           hits.forEach((h) => { if (h.header) initial[h.field] = h.header; });
@@ -1474,7 +1474,16 @@ const PaymentDetail = () => {
           return;
         }
 
-        const bucket = await parsePaymentFile(file, companies, payment.payment_kind, { manualMapping });
+        const bucket = await parsePaymentFile(file, companies, payment.payment_kind, {
+          manualMapping,
+          paymentTypeMeta: paymentTypeMeta ? {
+            label: paymentTypeMeta.label,
+            tuss_default: paymentTypeMeta.tuss_default,
+            requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
+            default_function: paymentTypeMeta.default_function,
+          } : null,
+        });
+
         if (bucket.rows.length > 0) {
           allRows = [...allRows, ...bucket.rows];
           fileNames.push(file.name);
