@@ -366,61 +366,57 @@ export default function ManualPaymentEntry() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Metric label="Itens" value={String(rows.length)} />
         <Metric label="Válidos" value={String(validCount)} tone={validCount ? "success" : "muted"} />
-        <Metric
-          label="Não salvos"
-          value={String(dirtyCount)}
-          tone={dirtyCount ? "warning" : "muted"}
-        />
+        <Metric label="Não salvos" value={String(dirtyCount)} tone={dirtyCount ? "warning" : "muted"} />
         <Metric label="Total" value={formatBRL(total)} tone="success" />
       </div>
 
       <Card>
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-border/50">
           <CardTitle className="text-base">Itens</CardTitle>
           <Button size="sm" variant="outline" onClick={addRow}>
             <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar linha
           </Button>
         </CardHeader>
-        <CardContent className="px-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-xs uppercase tracking-wide text-muted-foreground border-b">
-                <tr>
-                  <th className="py-2 px-3 text-left w-[20%]">Empresa *</th>
-                  <th className="py-2 px-3 text-left w-[18%]">Médico</th>
-                  <th className="py-2 px-3 text-left w-[14%]">Tipo</th>
-                  <th className="py-2 px-3 text-left w-[12%]">Especialidade</th>
-                  <th className="py-2 px-3 text-left">Atend.</th>
-                  <th className="py-2 px-3 text-left">Paciente</th>
-                  <th className="py-2 px-3 text-right w-[10%]">Valor (R$) *</th>
-                  <th className="py-2 px-3 text-left w-[14%]">Fonte / Composição</th>
-                  <th className="w-10" />
-                </tr>
-              </thead>
-              <tbody>
+        <CardContent className="p-0">
+          <div className="max-h-[calc(100vh-340px)] overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-muted/60 backdrop-blur supports-[backdrop-filter]:bg-muted/50">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[18%] text-xs uppercase tracking-wide">Empresa *</TableHead>
+                  <TableHead className="w-[16%] text-xs uppercase tracking-wide">Médico</TableHead>
+                  <TableHead className="w-[12%] text-xs uppercase tracking-wide">Tipo</TableHead>
+                  <TableHead className="w-[12%] text-xs uppercase tracking-wide">Especialidade</TableHead>
+                  <TableHead className="w-[8%] text-xs uppercase tracking-wide">Atend.</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wide">Paciente</TableHead>
+                  <TableHead className="w-[10%] text-right text-xs uppercase tracking-wide">Valor (R$) *</TableHead>
+                  <TableHead className="w-[12%] text-xs uppercase tracking-wide">Fonte / Composição</TableHead>
+                  <TableHead className="w-[80px] text-right text-xs uppercase tracking-wide">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {rows.map((r) => {
                   const valid = !!r.company && r.amount > 0;
                   return (
-                    <tr key={r.key} className={cn("border-b last:border-0 align-top", r.dirty && "bg-amber-50/40 dark:bg-amber-950/10")}>
-                      <td className="py-2 px-3">
+                    <TableRow key={r.key} className="align-top">
+                      <TableCell className="py-1.5">
                         <CompanyCombobox
                           value={r.company}
                           onChange={(c) => updateRow(r.key, { company: c, doctor: null })}
                         />
-                      </td>
-                      <td className="py-2 px-3">
+                      </TableCell>
+                      <TableCell className="py-1.5">
                         <DoctorCombobox
                           value={r.doctor}
                           onChange={(d) => updateRow(r.key, { doctor: d })}
                           filterCompanyId={r.company?.id ?? null}
                         />
-                      </td>
-                      <td className="py-2 px-3">
+                      </TableCell>
+                      <TableCell className="py-1.5">
                         <Select
                           value={r.paymentTypeId ?? defaultTypeId ?? ""}
                           onValueChange={(v) => updateRow(r.key, { paymentTypeId: v })}
                         >
-                          <SelectTrigger className="h-9">
+                          <SelectTrigger className="h-8 text-xs">
                             <SelectValue placeholder="—" />
                           </SelectTrigger>
                           <SelectContent>
@@ -431,15 +427,15 @@ export default function ManualPaymentEntry() {
                             ))}
                           </SelectContent>
                         </Select>
-                      </td>
-                      <td className="py-2 px-3">
+                      </TableCell>
+                      <TableCell className="py-1.5">
                         <Select
                           value={r.specialty || "__none__"}
                           onValueChange={(v) =>
                             updateRow(r.key, { specialty: v === "__none__" ? "" : v })
                           }
                         >
-                          <SelectTrigger className="h-9">
+                          <SelectTrigger className="h-8 text-xs">
                             <SelectValue placeholder="—" />
                           </SelectTrigger>
                           <SelectContent className="max-h-64">
@@ -451,22 +447,22 @@ export default function ManualPaymentEntry() {
                             ))}
                           </SelectContent>
                         </Select>
-                      </td>
-                      <td className="py-2 px-3">
+                      </TableCell>
+                      <TableCell className="py-1.5">
                         <Input
                           value={r.attendance}
                           onChange={(e) => updateRow(r.key, { attendance: e.target.value })}
-                          className="h-9"
+                          className="h-8 text-xs"
                         />
-                      </td>
-                      <td className="py-2 px-3">
+                      </TableCell>
+                      <TableCell className="py-1.5">
                         <Input
                           value={r.patient}
                           onChange={(e) => updateRow(r.key, { patient: e.target.value })}
-                          className="h-9"
+                          className="h-8 text-xs"
                         />
-                      </td>
-                      <td className="py-2 px-3">
+                      </TableCell>
+                      <TableCell className="py-1.5">
                         <Input
                           type="number"
                           inputMode="decimal"
@@ -475,19 +471,19 @@ export default function ManualPaymentEntry() {
                           onChange={(e) =>
                             updateRow(r.key, { amount: Number(e.target.value) || 0 })
                           }
-                          className="h-9 text-right font-medium"
+                          className="h-8 text-right text-xs font-medium tabular-nums"
                         />
-                      </td>
-                      <td className="py-2 px-3">
-                        <div className="flex flex-col gap-1.5">
-                          <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer rounded-md border border-dashed border-border px-2 py-1 hover:bg-muted/50">
-                            <Upload className="h-3.5 w-3.5" />
+                      </TableCell>
+                      <TableCell className="py-1.5">
+                        <div className="flex flex-col gap-1">
+                          <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer rounded-md border border-dashed border-border px-2 h-7 hover:bg-muted/50">
+                            <Upload className="h-3 w-3 shrink-0" />
                             {r.attachmentName ? (
-                              <span className="truncate max-w-[140px]" title={r.attachmentName}>
+                              <span className="truncate max-w-[120px]" title={r.attachmentName}>
                                 {r.attachmentName}
                               </span>
                             ) : (
-                              <span>Anexar fonte</span>
+                              <span className="text-muted-foreground">Anexar</span>
                             )}
                             <input
                               type="file"
@@ -504,21 +500,29 @@ export default function ManualPaymentEntry() {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="h-7 px-2 justify-start text-xs"
+                            className="h-6 px-2 justify-start text-xs text-muted-foreground hover:text-foreground"
                             onClick={() => setCompositionFor(r.key)}
                           >
-                            <Sparkles className="h-3.5 w-3.5 mr-1" />
+                            <Sparkles className="h-3 w-3 mr-1" />
                             {r.composition && r.composition.length > 0
                               ? `Composição (${r.composition.length})`
                               : "Composição"}
                           </Button>
                         </div>
-                      </td>
-                      <td className="py-2 px-2">
+                      </TableCell>
+                      <TableCell className="py-1.5">
                         <div className="flex flex-col items-end gap-1">
-                          {valid && !r.dirty && (
-                            <Badge variant="outline" className="text-[10px] gap-1">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-600" /> ok
+                          {r.dirty ? (
+                            <Badge variant="outline" className="text-[10px] border-warning/40 text-warning bg-warning-soft/60">
+                              não salvo
+                            </Badge>
+                          ) : valid ? (
+                            <Badge variant="outline" className="text-[10px] border-success/30 text-success bg-success-soft/60 gap-1">
+                              <CheckCircle2 className="h-3 w-3" /> ok
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                              rascunho
                             </Badge>
                           )}
                           <div className="flex items-center gap-0.5">
@@ -526,33 +530,34 @@ export default function ManualPaymentEntry() {
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7"
+                              className="h-6 w-6"
                               onClick={() => duplicateRow(r.key)}
                               title="Duplicar linha"
                             >
-                              <Plus className="h-3.5 w-3.5" />
+                              <Plus className="h-3 w-3" />
                             </Button>
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7"
+                              className="h-6 w-6"
                               onClick={() => removeRow(r)}
                               title="Excluir linha"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
+
 
       {editingComposition && (
         <ManualCompositionDialog
