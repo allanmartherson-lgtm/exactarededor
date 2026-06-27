@@ -33,6 +33,7 @@ import { DoctorCombobox, type DoctorOption } from "@/components/DoctorCombobox";
 import ManualCompositionDialog, {
   type CompositionRow,
 } from "@/components/payment-detail/ManualCompositionDialog";
+import { runSaveAll, runFinalize } from "@/lib/manualPaymentSave";
 import {
   ArrowLeft,
   CheckCircle2,
