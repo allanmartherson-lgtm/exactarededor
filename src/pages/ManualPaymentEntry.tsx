@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatBRL } from "@/lib/financialStats";
+import { COMMON_SPECIALTIES } from "@/lib/specialties";
 import { cn } from "@/lib/utils";
 
 type DraftRow = {
@@ -106,7 +107,7 @@ export default function ManualPaymentEntry() {
     const { data: items } = await supabase
       .from("payment_items")
       .select(
-        "id,company_id,company_name,doctor_id,doctor_name,doctor_crm,doctor_crm_uf,payment_type_id,specialty,attendance_number,patient_name,gross_amount,manual_composition,manual_source_attachment_path",
+        "id,company_id,company_name,doctor_id,doctor_name,payment_type_id,specialty,attendance_number,patient_name,gross_amount,manual_composition,manual_source_attachment_path",
       )
       .eq("payment_id", id)
       .eq("is_manual_entry", true)
@@ -119,7 +120,7 @@ export default function ManualPaymentEntry() {
         ? { id: it.company_id, name: it.company_name ?? "", document: null }
         : null,
       doctor: it.doctor_id
-        ? { id: it.doctor_id, name: it.doctor_name ?? "", crm: it.doctor_crm, crm_uf: it.doctor_crm_uf }
+        ? { id: it.doctor_id, name: it.doctor_name ?? "", crm: null, crm_uf: null }
         : null,
       paymentTypeId: it.payment_type_id ?? null,
       specialty: it.specialty ?? "",
@@ -208,8 +209,6 @@ export default function ManualPaymentEntry() {
     company_name: row.company?.name ?? null,
     doctor_id: row.doctor?.id ?? null,
     doctor_name: row.doctor?.name ?? null,
-    doctor_crm: row.doctor?.crm ?? null,
-    doctor_crm_uf: row.doctor?.crm_uf ?? null,
     payment_type_id: row.paymentTypeId ?? defaultTypeId,
     specialty: row.specialty || null,
     attendance_number: row.attendance || null,
@@ -433,11 +432,24 @@ export default function ManualPaymentEntry() {
                         </Select>
                       </td>
                       <td className="py-2 px-3">
-                        <Input
-                          value={r.specialty}
-                          onChange={(e) => updateRow(r.key, { specialty: e.target.value })}
-                          className="h-9"
-                        />
+                        <Select
+                          value={r.specialty || "__none__"}
+                          onValueChange={(v) =>
+                            updateRow(r.key, { specialty: v === "__none__" ? "" : v })
+                          }
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-64">
+                            <SelectItem value="__none__">—</SelectItem>
+                            {COMMON_SPECIALTIES.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="py-2 px-3">
                         <Input
