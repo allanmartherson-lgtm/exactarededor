@@ -18,7 +18,7 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
   const { list: paymentTypes, loading } = usePaymentTypes({ onlyActive: true });
   const [step, setStep] = useState<Step>("mode");
-  const [modo, setModo] = useState<"analise" | "confeccao">("analise");
+  const [modo, setModo] = useState<Mode>("analise");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -28,7 +28,12 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
     }
   }, [open]);
 
-  const selectMode = (m: "analise" | "confeccao") => {
+  const selectMode = (m: Mode) => {
+    if (m === "manual") {
+      onOpenChange(false);
+      navigate("/pagamentos/novo-manual");
+      return;
+    }
     setModo(m);
     try {
       sessionStorage.setItem("newPaymentMode", m === "confeccao" ? "confeccao" : "padrao");
