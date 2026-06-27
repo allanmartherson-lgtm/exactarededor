@@ -18,7 +18,9 @@ import { resolve } from "node:path";
  *     bruto (garante que o líquido reflete o novo gross após acatar pacote).
  *  5) analyze-payment respeita gross_override_at em modo confecção
  *     (não sobrescreve gross do analista em reanálise).
- *  6) CompanyAnalysis chama composition.refresh() após acatar e desfazer
+ *  6) Tratamento manual preserva gross original e o hook de leitura não faz
+ *     auto-correção gravando status aprovado em segundo plano.
+ *  7) CompanyAnalysis chama composition.refresh() após acatar e desfazer
  *     (líquido atualiza na UI sem reload).
  */
 
@@ -54,6 +56,14 @@ const compute = readFileSync(
 );
 const companyAnalysis = readFileSync(
   resolve(__dirname, "../CompanyAnalysis.tsx"),
+  "utf8",
+);
+const manualInterventionDialog = readFileSync(
+  resolve(__dirname, "../../components/payment-detail/ManualInterventionDialog.tsx"),
+  "utf8",
+);
+const usePaymentDetailData = readFileSync(
+  resolve(__dirname, "../../hooks/usePaymentDetailData.ts"),
   "utf8",
 );
 
@@ -127,5 +137,20 @@ describe("analyze-payment · respeita override do analista", () => {
   it("em confecção, NÃO sobrescreve gross_amount quando há override", () => {
     // Bloco com a guarda explícita
     expect(analyze).toMatch(/if\s*\(\s*isConfeccao\s*\)[\s\S]*gross_override_at[\s\S]*patch\.gross_amount\s*=\s*u\.expected_amount/);
+  });
+});
+
+describe("tratamento manual · undo fiel sem auto-aprovação oculta", () => {
+  it("ManualInterventionDialog marca override próprio e restaura gross original ao remover", () => {
+    expect(manualInterventionDialog).toMatch(/gross_override_reason\s*=\s*"tratamento_manual"/);
+    expect(manualInterventionDialog).toMatch(/gross_amount_original/);
+    expect(manualInterventionDialog).toMatch(/overrideReason === "tratamento_manual"/);
+    expect(manualInterventionDialog).toMatch(/expected_amount:\s*null/);
+    expect(manualInterventionDialog).toMatch(/ai_status:\s*"pendente"/);
+  });
+
+  it("usePaymentDetailData não auto-corrige payment_items no load()", () => {
+    expect(usePaymentDetailData).not.toMatch(/auto-corrigindo/);
+    expect(usePaymentDetailData).not.toMatch(/manual_intervention_reason_id[\s\S]{0,180}\.update\(patch\)/);
   });
 });
