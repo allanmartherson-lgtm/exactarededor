@@ -248,6 +248,24 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
               className="pl-7 h-8 text-xs"
             />
           </div>
+          <div className="inline-flex rounded-md border bg-card overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setViewMode("grouped")}
+              className={`px-2.5 h-8 text-xs flex items-center gap-1 ${viewMode === "grouped" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              title="Agrupado por paciente + data"
+            >
+              <Users className="h-3.5 w-3.5" /> Por paciente
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`px-2.5 h-8 text-xs flex items-center gap-1 border-l ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              title="Lista de alertas"
+            >
+              <List className="h-3.5 w-3.5" /> Lista
+            </button>
+          </div>
           {ruleFilter !== "__all__" && (
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setRuleFilter("__all__")}>
               Limpar filtro de regra
@@ -264,62 +282,123 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
           <span className="text-red-600 font-medium">{fmtCurrency(totalValor)}</span> em risco
         </div>
 
-        {/* Tabela */}
-        <div className="overflow-auto border-2 border-border rounded-lg flex-1 bg-card shadow-sm">
-          <table className="w-full text-xs">
-            <thead className="bg-gradient-to-r from-warning/15 to-warning/5 sticky top-0 z-10 border-b-2 border-warning/30">
-              <tr>
-                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Regra</th>
-                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Atendimento</th>
-                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Médico / Paciente</th>
-                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Procedimento</th>
-                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Data</th>
-                <th className="text-right p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Valor</th>
-                <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Em conflito com</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
+        {viewMode === "list" ? (
+          /* Tabela */
+          <div className="overflow-auto border-2 border-border rounded-lg flex-1 bg-card shadow-sm">
+            <table className="w-full text-xs">
+              <thead className="bg-gradient-to-r from-warning/15 to-warning/5 sticky top-0 z-10 border-b-2 border-warning/30">
                 <tr>
-                  <td colSpan={7} className="text-center p-6 text-muted-foreground italic">
-                    Nenhum alerta no filtro atual.
-                  </td>
+                  <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Regra</th>
+                  <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Atendimento</th>
+                  <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Médico / Paciente</th>
+                  <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Procedimento</th>
+                  <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Data</th>
+                  <th className="text-right p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Valor</th>
+                  <th className="text-left p-2.5 font-semibold text-foreground uppercase text-[10px] tracking-wide">Em conflito com</th>
                 </tr>
-              ) : filtered.map((r, idx) => (
-                <tr key={`${r.itemId}-${idx}`} className={`border-t border-border/60 hover:bg-warning/10 transition-colors ${idx % 2 === 0 ? "bg-card" : "bg-muted/40"}`}>
-                  <td className="p-2 align-top">
-                    <div className="font-medium">{r.rule_name}</div>
-                    <div className="text-[10px] text-muted-foreground line-clamp-2" title={r.message}>{r.message}</div>
-                  </td>
-                  <td className="p-2 align-top font-mono">{r.attendance || "—"}</td>
-                  <td className="p-2 align-top">
-                    <div>{r.doctor || "—"}</div>
-                    <div className="text-[10px] text-muted-foreground">{r.patient || ""}</div>
-                    <div className="text-[10px] text-muted-foreground">{r.company || ""}</div>
-                  </td>
-                  <td className="p-2 align-top">
-                    <div>{r.procedure_name || "—"}</div>
-                    <div className="text-[10px] text-muted-foreground font-mono">{r.procedure_code}</div>
-                  </td>
-                  <td className="p-2 align-top">{fmtDate(r.procedure_date)}</td>
-                  <td className="p-2 align-top text-right text-red-600 font-medium">{fmtCurrency(r.gross_amount)}</td>
-                  <td className="p-2 align-top">
-                    {r.conflicting_doctor || r.conflicting_procedure ? (
-                      <>
-                        <div>{r.conflicting_doctor || "—"}</div>
-                        <div className="text-[10px] text-muted-foreground">{r.conflicting_procedure}</div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {fmtDate(r.conflicting_date)}
-                          {r.conflicting_attendance ? ` · Atend. ${r.conflicting_attendance}` : ""}
-                        </div>
-                      </>
-                    ) : <span className="text-muted-foreground">—</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center p-6 text-muted-foreground italic">
+                      Nenhum alerta no filtro atual.
+                    </td>
+                  </tr>
+                ) : filtered.map((r, idx) => (
+                  <tr key={`${r.itemId}-${idx}`} className={`border-t border-border/60 hover:bg-warning/10 transition-colors ${idx % 2 === 0 ? "bg-card" : "bg-muted/40"}`}>
+                    <td className="p-2 align-top">
+                      <div className="font-medium">{r.rule_name}</div>
+                      <div className="text-[10px] text-muted-foreground line-clamp-2" title={r.message}>{r.message}</div>
+                    </td>
+                    <td className="p-2 align-top font-mono">{r.attendance || "—"}</td>
+                    <td className="p-2 align-top">
+                      <div>{r.doctor || "—"}</div>
+                      <div className="text-[10px] text-muted-foreground">{r.patient || ""}</div>
+                      <div className="text-[10px] text-muted-foreground">{r.company || ""}</div>
+                    </td>
+                    <td className="p-2 align-top">
+                      <div>{r.procedure_name || "—"}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">{r.procedure_code}</div>
+                    </td>
+                    <td className="p-2 align-top">{fmtDate(r.procedure_date)}</td>
+                    <td className="p-2 align-top text-right text-red-600 font-medium">{fmtCurrency(r.gross_amount)}</td>
+                    <td className="p-2 align-top">
+                      {r.conflicting_doctor || r.conflicting_procedure ? (
+                        <>
+                          <div>{r.conflicting_doctor || "—"}</div>
+                          <div className="text-[10px] text-muted-foreground">{r.conflicting_procedure}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {fmtDate(r.conflicting_date)}
+                            {r.conflicting_attendance ? ` · Atend. ${r.conflicting_attendance}` : ""}
+                            {r.conflicting_payment_ref ? ` · Lote ${r.conflicting_payment_ref}` : ""}
+                          </div>
+                        </>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* Agrupado por paciente + data */
+          <div className="overflow-auto border-2 border-border rounded-lg flex-1 bg-card shadow-sm p-3 space-y-3">
+            {grouped.length === 0 ? (
+              <div className="text-center p-6 text-muted-foreground italic text-xs">
+                Nenhum alerta no filtro atual.
+              </div>
+            ) : grouped.map((g) => {
+              const lotes = Array.from(new Set([paymentReference ?? "Lote atual", ...g.rows.map((r) => r.conflicting_payment_ref).filter(Boolean)]));
+              const crossBatch = g.rows.some((r) => r.conflicting_payment_ref && r.conflicting_payment_ref !== paymentReference);
+              return (
+                <div key={g.key} className="border rounded-lg overflow-hidden">
+                  <div className="bg-gradient-to-r from-warning/20 to-warning/5 px-3 py-2 border-b flex items-center gap-3 flex-wrap">
+                    <div className="font-semibold text-sm">{g.patient || "Paciente não informado"}</div>
+                    <Badge variant="outline" className="text-[10px]">{fmtDate(g.date)}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{g.rows.length} lançamento(s)</Badge>
+                    {crossBatch && <Badge className="bg-red-600 text-white text-[10px]">Entre lotes</Badge>}
+                    <div className="text-[10px] text-muted-foreground ml-auto">
+                      Lotes: <span className="font-medium">{lotes.join(" · ")}</span>
+                    </div>
+                    <div className="text-xs text-red-600 font-semibold">{fmtCurrency(g.total)}</div>
+                  </div>
+                  {/* Timeline simples */}
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/40 text-[10px] uppercase">
+                      <tr>
+                        <th className="text-left p-2">Procedimento</th>
+                        <th className="text-left p-2">Médico</th>
+                        <th className="text-left p-2">Atend.</th>
+                        <th className="text-left p-2">Lote</th>
+                        <th className="text-left p-2">Regra</th>
+                        <th className="text-right p-2">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {g.timeline.map((e, i) => (
+                        <tr key={i} className={`border-t ${e.isConflict ? "bg-red-50/40" : ""}`}>
+                          <td className="p-2">
+                            <div>{e.procedure_name || "—"}</div>
+                            <div className="text-[10px] text-muted-foreground font-mono">{e.procedure_code}</div>
+                          </td>
+                          <td className="p-2">{e.doctor || "—"}</td>
+                          <td className="p-2 font-mono text-[10px]">{e.attendance || "—"}</td>
+                          <td className="p-2">
+                            <span className={e.isConflict ? "text-red-600 font-medium" : ""}>
+                              {e.payment_ref || (e.isConflict ? "outro lote" : paymentReference || "—")}
+                            </span>
+                          </td>
+                          <td className="p-2 text-[10px]">{e.rule_name || "—"}</td>
+                          <td className="p-2 text-right font-medium">{e.gross_amount ? fmtCurrency(e.gross_amount) : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        )}
         </div>
       </DialogContent>
     </Dialog>
