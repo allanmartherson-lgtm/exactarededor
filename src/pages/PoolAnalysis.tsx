@@ -20,11 +20,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Building2, Layers } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
 import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
+import { confirm } from "@/lib/confirm";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 
 const brl = (n: number | null | undefined) =>
