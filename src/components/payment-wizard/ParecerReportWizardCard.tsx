@@ -132,16 +132,16 @@ export function ParecerReportWizardCard({
     fileHash: string;
   } | null>(null);
 
+  // Período é AUTO-DETECTADO das datas do arquivo — sem input manual.
+  // Fallback à competência só quando o arquivo não tem datas válidas.
   const sortedMonths = [...competenceMonths].sort();
-  const defaultStart = sortedMonths[0] ? `${sortedMonths[0]}-01` : "";
-  const defaultEnd = (() => {
+  const fallbackStart = sortedMonths[0] ? `${sortedMonths[0]}-01` : "";
+  const fallbackEnd = (() => {
     const m = sortedMonths[sortedMonths.length - 1];
     if (!m) return "";
     const [y, mo] = m.split("-").map(Number);
     return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
   })();
-  const [periodStart, setPeriodStart] = useState(defaultStart);
-  const [periodEnd, setPeriodEnd] = useState(defaultEnd);
 
   const startParse = async () => {
     if (!file) return;
