@@ -5,7 +5,11 @@ import { detectDoctorSectorAnomalies, type DoctorSectorAnomaly } from "@/lib/doc
 
 interface Props {
   paymentId: string;
+  /** Quando 'manual', a detecção é pulada (setor não tem significado operacional no modo manual). */
+  analysisMode?: string | null;
 }
+
+
 
 export function DoctorAnomalyAlerts({ paymentId }: Props) {
   const [anomalies, setAnomalies] = useState<DoctorSectorAnomaly[] | null>(null);
