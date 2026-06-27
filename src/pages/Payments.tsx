@@ -470,11 +470,11 @@ const Payments = () => {
     // Concluídos (pago/lançado) só aparecem se: (a) a visão de arquivados estiver
     // ativa, (b) o usuário ligou explicitamente "ver concluídos", ou (c) o filtro
     // de status pediu um desses status diretamente.
-    if (!archivedView && !showConcluded && statusFilter === "all") {
+    if (!archivedView && !showConcluded && statusFilter.length === 0) {
       base = base.filter((s) => !CONCLUDED_STATUSES.has(s));
     }
-    if (statusFilter !== "all") {
-      base = base.includes(statusFilter) ? [statusFilter] : [statusFilter];
+    if (statusFilter.length > 0) {
+      base = statusFilter;
     }
     if (ownerGroup !== "all") {
       const allowed = STATUSES_BY_OWNER[ownerGroup] as readonly string[];
