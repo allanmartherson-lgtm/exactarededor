@@ -384,3 +384,111 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
 
   return doc;
 }
+
+/**
+ * Relatório de validação no modo MANUAL.
+ *
+ * Pagamentos manuais não têm regra, divergência ou alerta assistencial —
+ * o valor de cada linha veio fechado de uma planilha externa. O PDF então é
+ * uma planilha auditável: Médico · Especialidade · Observação · Valor +
+ * referência do anexo individual (e do anexo geral do lote, se houver).
+ */
+async function renderManualPdf({
+  t,
+  payment,
+  company,
+  items,
+}: {
+  t: Totals;
+  payment: {
+    reference?: string | null;
+    competence_month?: string | null;
+    manual_general_attachment_name?: string | null;
+  } | null;
+  company: { name?: string | null; document?: string | null } | null;
+  items: Array<{
+    id: string;
+    doctor_name: string | null;
+    specialty: string | null;
+    manual_note: string | null;
+    gross_amount: number | null;
+    manual_source_attachment_path: string | null;
+    is_manual_entry: boolean | null;
+  }>;
+}): Promise<jsPDF> {
+  const doc = new jsPDF();
+  const marginX = 14;
+
+  const headerBottomY = await drawReportHeader(doc, {
+    title: "Validação de Pagamento Manual",
+    subtitle: `Pagamento ${payment?.reference ?? "—"}  ·  Empresa ${company?.name ?? "—"}`,
+    marginX,
+    logoHeightMm: 11,
+  });
+
+  doc.setFontSize(10);
+  doc.setTextColor(17, 24, 39);
+  let y = headerBottomY;
+  doc.text(`Competência: ${payment?.competence_month ?? "—"}`, marginX, y); y += 5;
+  doc.text(
+    `Empresa: ${company?.name ?? "—"}${company?.document ? ` · CNPJ ${company.document}` : ""}`,
+    marginX,
+    y,
+  ); y += 5;
+  doc.text("Tipo: Lançamento manual (sem regra · sem TUSS · sem divergência)", marginX, y); y += 5;
+  if (payment?.manual_general_attachment_name) {
+    doc.text(`Anexo do lote: ${payment.manual_general_attachment_name}`, marginX, y); y += 5;
+  }
+  y += 3;
+
+  const manualItems = items.filter((i) => i.is_manual_entry !== false);
+  const total = manualItems.reduce((acc, i) => acc + (Number(i.gross_amount) || 0), 0);
+
+  // Bloco de situação simples — manual nunca bloqueia por regra.
+  doc.setFillColor(22, 163, 74);
+  doc.setTextColor(255, 255, 255);
+  doc.rect(marginX, y, 182, 8, "F");
+  doc.setFontSize(11);
+  doc.text("SITUAÇÃO: VALORES LANÇADOS PELO ANALISTA", marginX + 3, y + 5.5);
+  doc.setTextColor(17, 24, 39);
+  doc.setFontSize(10);
+  y += 13;
+
+  // Tabela principal: médico · especialidade · observação · valor · anexo
+  autoTable(doc, {
+    startY: y,
+    head: [["Médico", "Especialidade", "Observação", "Valor", "Anexo"]],
+    body: manualItems.map((i) => [
+      i.doctor_name ?? "—",
+      i.specialty ?? "—",
+      i.manual_note ?? "—",
+      fmt(Number(i.gross_amount) || 0),
+      i.manual_source_attachment_path
+        ? (i.manual_source_attachment_path.split("/").pop() ?? "anexo")
+        : "—",
+    ]),
+    foot: [["", "", "TOTAL", fmt(total), ""]],
+    styles: { fontSize: 9, cellPadding: 2 },
+    columnStyles: {
+      2: { cellWidth: 60 },
+      3: { halign: "right" },
+    },
+    headStyles: { fillColor: [30, 64, 175] },
+    footStyles: { fillColor: [241, 245, 249], textColor: [17, 24, 39], fontStyle: "bold" },
+    margin: { left: marginX, right: marginX },
+  });
+
+  // Rodapé
+  const pageCount = doc.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text(
+      `Gerado em ${new Date().toLocaleString("pt-BR")}  ·  ID grupo: ${t.group_id}  ·  Página ${p}/${pageCount}`,
+      marginX,
+      290,
+    );
+  }
+  return doc;
+}
