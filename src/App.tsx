@@ -32,6 +32,8 @@ const loadAgingRecebiveis = () => import("./pages/AgingRecebiveis.tsx");
 const loadHealthMonitoring = () => import("./pages/HealthMonitoring.tsx");
 const loadPayments = () => import("./pages/Payments.tsx");
 const loadNewPayment = () => import("./pages/NewPayment.tsx");
+const loadNewManualPayment = () => import("./pages/NewManualPayment.tsx");
+const loadManualPaymentEntry = () => import("./pages/ManualPaymentEntry.tsx");
 const loadPaymentDetail = () => import("./pages/PaymentDetail.tsx");
 const loadCompanyAnalysis = () => import("./pages/CompanyAnalysis.tsx");
 const loadPoolAnalysis = () => import("./pages/PoolAnalysis.tsx");
