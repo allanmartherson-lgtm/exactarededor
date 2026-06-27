@@ -280,6 +280,153 @@ async function execLinkDoctorCompany(sb: SB, paymentId: string, scope: Scope, pa
   };
 }
 
+// -------------------- Cadastros (Fase 2) --------------------
+
+function digitsOnly(s: string): string {
+  return (s ?? "").replace(/\D+/g, "");
+}
+
+function isValidCnpj(cnpj: string): boolean {
+  const c = digitsOnly(cnpj);
+  if (c.length !== 14) return false;
+  if (/^(\d)\1+$/.test(c)) return false;
+  const calc = (base: string, weights: number[]) => {
+    const sum = base.split("").reduce((acc, d, i) => acc + Number(d) * weights[i], 0);
+    const r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  const d1 = calc(c.slice(0, 12), [5,4,3,2,9,8,7,6,5,4,3,2]);
+  const d2 = calc(c.slice(0, 13), [6,5,4,3,2,9,8,7,6,5,4,3,2]);
+  return d1 === Number(c[12]) && d2 === Number(c[13]);
+}
+
+async function userHasInternalRole(sb: SB, userId: string): Promise<boolean> {
+  const { data } = await sb
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", ["admin", "diretor", "validador", "analista", "gestao_medica"]);
+  return (data?.length ?? 0) > 0;
+}
+
+async function execRegisterDoctorPending(sb: SB, payload: Record<string, unknown>, actorId: string, hospitalId: string | null) {
+  const full_name = String(payload.full_name ?? "").trim();
+  const crm = String(payload.crm ?? "").trim();
+  const crm_uf = String(payload.crm_uf ?? "").trim().toUpperCase();
+  const cpf = payload.cpf ? digitsOnly(String(payload.cpf)) : null;
+  const vinculo = payload.vinculo ? String(payload.vinculo).trim() : null;
+  if (!full_name || !crm || crm_uf.length !== 2) throw new Error("full_name, crm e crm_uf (2 letras) obrigatórios.");
+
+  // Dedup: mesmo CRM+UF já existente?
+  const { data: existing } = await sb
+    .from("doctors")
+    .select("id, full_name")
+    .eq("crm", crm)
+    .eq("crm_uf", crm_uf)
+    .maybeSingle();
+  if (existing) {
+    throw new Error(`CRM ${crm}/${crm_uf} já existe para "${existing.full_name}". Use vincular alias em vez de cadastrar de novo.`);
+  }
+
+  const insertRow: Record<string, unknown> = {
+    full_name,
+    crm,
+    crm_uf,
+    cpf,
+    vinculo,
+    pending_admin_review: true,
+    pending_review_note: "Criado via Zeev — pendente aprovação do admin.",
+    created_by: actorId,
+    created_by_user_id: actorId,
+    active: true,
+  };
+  if (hospitalId) insertRow.state_uf = crm_uf; // referência inicial
+
+  const { data: inserted, error } = await sb
+    .from("doctors")
+    .insert(insertRow)
+    .select("id, code, full_name, crm, crm_uf")
+    .single();
+  if (error) throw new Error(`register_doctor: ${error.message}`);
+
+  return {
+    affected: 1,
+    before: null,
+    after: inserted,
+  };
+}
+
+async function execRegisterCompany(sb: SB, payload: Record<string, unknown>, actorId: string) {
+  const name = String(payload.name ?? "").trim();
+  const document = digitsOnly(String(payload.document ?? ""));
+  const state_uf = payload.state_uf ? String(payload.state_uf).trim().toUpperCase() : null;
+  if (!name) throw new Error("name obrigatório.");
+  if (!isValidCnpj(document)) throw new Error("CNPJ inválido.");
+
+  const { data: existing } = await sb
+    .from("companies")
+    .select("id, name")
+    .eq("document", document)
+    .maybeSingle();
+  if (existing) throw new Error(`CNPJ já cadastrado para "${existing.name}".`);
+
+  const { data: inserted, error } = await sb
+    .from("companies")
+    .insert({ name, document, state_uf, created_by: actorId })
+    .select("id, code, name, document, state_uf")
+    .single();
+  if (error) throw new Error(`register_company: ${error.message}`);
+
+  return { affected: 1, before: null, after: inserted };
+}
+
+async function execResolveRegistryMatch(sb: SB, payload: Record<string, unknown>, actorId: string) {
+  const alias_type = String(payload.alias_type ?? "") as "convenio" | "sector" | "doctor";
+  const alias_text = String(payload.alias_text ?? "").trim();
+  if (!alias_text) throw new Error("alias_text obrigatório.");
+
+  let row: Record<string, unknown>;
+  let table: "doctor_aliases" | "convenio_aliases" | "sector_aliases";
+  let resolved: { id: string; label: string };
+
+  if (alias_type === "doctor") {
+    const canonical_id = String(payload.canonical_id ?? "").trim();
+    if (!canonical_id) throw new Error("canonical_id obrigatório para alias de médico.");
+    const { data: d } = await sb.from("doctors").select("id, full_name").eq("id", canonical_id).maybeSingle();
+    if (!d) throw new Error("Médico canônico não encontrado.");
+    table = "doctor_aliases";
+    row = { doctor_id: canonical_id, alias_text, source: "zeev", created_by: actorId };
+    resolved = { id: d.id as string, label: d.full_name as string };
+  } else if (alias_type === "convenio") {
+    const slug = String(payload.canonical_slug ?? "").trim();
+    if (!slug) throw new Error("canonical_slug obrigatório para alias de convênio.");
+    const { data: c } = await sb.from("convenios").select("slug, name").eq("slug", slug).maybeSingle();
+    if (!c) throw new Error("Convênio canônico não encontrado.");
+    table = "convenio_aliases";
+    row = { convenio_slug: slug, alias_text, source: "zeev", created_by: actorId };
+    resolved = { id: slug, label: c.name as string };
+  } else if (alias_type === "sector") {
+    const slug = String(payload.canonical_slug ?? "").trim();
+    if (!slug) throw new Error("canonical_slug obrigatório para alias de setor.");
+    const { data: s } = await sb.from("sectors").select("slug, name").eq("slug", slug).maybeSingle();
+    if (!s) throw new Error("Setor canônico não encontrado.");
+    table = "sector_aliases";
+    row = { sector_slug: slug, alias_text, source: "zeev", created_by: actorId };
+    resolved = { id: slug, label: s.name as string };
+  } else {
+    throw new Error("alias_type inválido.");
+  }
+
+  const { data: inserted, error } = await sb.from(table).insert(row).select("id").single();
+  if (error) throw new Error(`resolve_alias: ${error.message}`);
+
+  return {
+    affected: 1,
+    before: null,
+    after: { alias_id: inserted.id, alias_type, alias_text, resolved_to: resolved },
+  };
+}
+
 // -------------------- Preview --------------------
 
 async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Action): Promise<{ count: number; samples: Proposal["sample_items"] }> {
