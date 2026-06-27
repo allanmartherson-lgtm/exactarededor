@@ -187,7 +187,13 @@ export default function NewManualPayment() {
             <p className="text-xs text-muted-foreground">
               Use <span className="font-medium">Remetida</span> para especialidades como infectologia/nefrologia históricas, em que o pagamento depende da remessa ao convênio e os atendimentos podem ser de meses anteriores.
             </p>
+            {competenceRegime === "remessa" && (
+              <div className="rounded-md border border-info/40 bg-info-soft/30 p-2.5 text-[11px] text-foreground/80">
+                <span className="font-medium">Competência por item:</span> em remessa, o mês acima é apenas a <span className="font-medium">janela de envio</span>. A competência real de cada item é derivada automaticamente da <span className="font-medium">data do procedimento</span> na base importada. Itens sem data válida ficam num bucket de revisão (não bloqueia o lote).
+              </div>
+            )}
           </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="desc">Descrição (opcional)</Label>
             <Textarea
