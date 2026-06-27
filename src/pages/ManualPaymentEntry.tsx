@@ -304,11 +304,24 @@ export default function ManualPaymentEntry() {
     const outcome = await runFinalize<DraftWithValid>(
       rows.map((r) => ({ ...r, valid: !!r.company && r.amount > 0 })),
       (r) => saveRow(r),
-      async (status) => {
-        const { error } = await supabase
-          .from("payments")
-          .update({ status: status as any } as any)
-          .eq("id", id);
+      async (_status) => {
+        // payments.status é derivado de payment_company_groups pelo trigger
+        // recompute_payment_status_from_groups — UPDATE direto é bloqueado.
+        // Usamos a RPC autoritativa que move os grupos do lote em uma
+        // única transação (mesma usada pelo PaymentDetail).
+        const { data: gs, error: gErr } = await supabase
+          .from("payment_company_groups")
+          .select("id")
+          .eq("payment_id", id);
+        if (gErr) return { error: gErr.message };
+        const groupIds = (gs ?? []).map((g: any) => g.id);
+        if (groupIds.length === 0) {
+          return { error: "Lote sem empresas para encaminhar." };
+        }
+        const { error } = await supabase.rpc("bulk_send_groups_to_validation", {
+          _payment_id: id,
+          _group_ids: groupIds,
+        });
         return { error: error?.message ?? null };
       },
     );
