@@ -2457,6 +2457,7 @@ const NewPayment = () => {
         payment_type_id: paymentTypeId,
         import_mode: isHistoricoImport ? "historico" : "normal",
         payment_mode: paymentMode,
+        competence_regime: competenceRegime,
         pool_id: poolId || null,
         pool_deduction_id: (isPlantaoType && poolDeductionId) ? poolDeductionId : null,
         rateio_source: paymentMode === "rateio" ? rateioSource : null,
