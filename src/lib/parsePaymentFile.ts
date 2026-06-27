@@ -619,6 +619,18 @@ const detectHeaderRow = (rows: unknown[][]): number => {
 export interface ParseOptions {
   /** Override manual de campos → header da planilha. Vence o pick() heurístico. */
   manualMapping?: ManualMapping;
+  /**
+   * Metadados do tipo de pagamento — quando o tipo (parecer/visita/plantão fixo)
+   * traz TUSS e/ou função padrão, aplicamos esses defaults nas linhas
+   * sem código/função na planilha. MESMA semântica do NewPayment (importação
+   * inicial), garantindo paridade entre import e reimport.
+   */
+  paymentTypeMeta?: {
+    label?: string | null;
+    tuss_default?: string | null;
+    requires_tuss_in_sheet?: boolean;
+    default_function?: string | null;
+  } | null;
 }
 
 export const parsePaymentFile = async (
@@ -627,7 +639,8 @@ export const parsePaymentFile = async (
   paymentKind?: string | null,
   options: ParseOptions = {},
 ): Promise<FileBucket> => {
-  const { manualMapping } = options;
+  const { manualMapping, paymentTypeMeta } = options;
+
   const buf = await f.arrayBuffer();
   const wb = XLSX.read(buf, { cellDates: false });
   const sheet = wb.Sheets[wb.SheetNames[0]];
