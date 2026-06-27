@@ -264,32 +264,14 @@ export default function ManualPaymentEntry() {
 
   const saveAll = async (): Promise<{ saved: number; failed: number; skipped: number }> => {
     setSavingAll(true);
-    const updated: DraftRow[] = [];
-    let saved = 0;
-    let failed = 0;
-    let skipped = 0;
-    for (const r of rows) {
-      if (!r.dirty) {
-        updated.push(r);
-        continue;
-      }
-      if (!r.company || r.amount <= 0) {
-        updated.push(r);
-        skipped++;
-        continue;
-      }
-      const id2 = await saveRow(r);
-      if (id2) {
-        updated.push({ ...r, dbId: id2, key: id2, dirty: false });
-        saved++;
-      } else {
-        updated.push(r);
-        failed++;
-      }
-    }
-    setRows(updated);
+    const result = await runSaveAll(
+      rows.map((r) => ({ ...r, valid: !!r.company && r.amount > 0 })),
+      (r) => saveRow(r),
+    );
+    setRows(result.rows.map(({ valid: _v, ...rest }) => rest as DraftRow));
     await recomputeTotal();
     setSavingAll(false);
+    const { saved, failed, skipped } = result;
     if (failed === 0 && saved > 0) {
       toast({ title: `${saved} ${saved === 1 ? "item salvo" : "itens salvos"}` });
     } else if (failed > 0 && saved > 0) {
@@ -316,7 +298,25 @@ export default function ManualPaymentEntry() {
 
   const finalize = async () => {
     if (!id) return;
-    if (validCount === 0) {
+    setFinalizing(true);
+    const outcome = await runFinalize(
+      rows.map((r) => ({ ...r, valid: !!r.company && r.amount > 0 })),
+      (r) => saveRow(r),
+      async (status) => {
+        const { error } = await supabase
+          .from("payments")
+          .update({ status: status as any } as any)
+          .eq("id", id);
+        return { error: error?.message ?? null };
+      },
+    );
+    if (outcome.kind !== "no_valid_rows") {
+      setRows(outcome.rows.map(({ valid: _v, ...rest }) => rest as DraftRow));
+      await recomputeTotal();
+    }
+    setFinalizing(false);
+
+    if (outcome.kind === "no_valid_rows") {
       toast({
         title: "Nenhum item válido",
         description: "Preencha pelo menos uma linha com empresa e valor.",
@@ -324,21 +324,16 @@ export default function ManualPaymentEntry() {
       });
       return;
     }
-    setFinalizing(true);
-    const result = await saveAll();
-    if (result.failed > 0) {
-      setFinalizing(false);
+    if (outcome.kind === "blocked_by_save_failure") {
+      toast({
+        title: "Encaminhamento bloqueado",
+        description: `${outcome.save.failed} linha(s) com erro. Corrija antes de encaminhar.`,
+        variant: "destructive",
+      });
       return;
     }
-
-    // Encaminha para validação (mesma esteira dos demais lotes).
-    const { error } = await supabase
-      .from("payments")
-      .update({ status: "aguardando_validacao" as any } as any)
-      .eq("id", id);
-    setFinalizing(false);
-    if (error) {
-      toast({ title: "Erro ao encaminhar", description: error.message, variant: "destructive" });
+    if (outcome.kind === "status_update_failed") {
+      toast({ title: "Erro ao encaminhar", description: outcome.error, variant: "destructive" });
       return;
     }
     toast({ title: "Lote encaminhado para validação" });
