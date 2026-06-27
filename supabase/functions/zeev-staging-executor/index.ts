@@ -15,6 +15,7 @@
 //   - unsupported / clarify
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
@@ -101,6 +102,18 @@ Deno.serve(async (req) => {
 
   try {
     if (!LOVABLE_API_KEY) return jsonResp({ error: "LOVABLE_API_KEY missing" }, 500);
+
+    // Auth required — prevents anonymous LLM cost abuse and prompt injection
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) return jsonResp({ error: "Unauthorized" }, 401);
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const authClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: authData, error: authErr } = await authClient.auth.getUser();
+    if (authErr || !authData?.user) return jsonResp({ error: "Unauthorized" }, 401);
+
     const body = (await req.json()) as RequestBody;
     if (!body.prompt) return jsonResp({ error: "prompt obrigatório" }, 400);
 

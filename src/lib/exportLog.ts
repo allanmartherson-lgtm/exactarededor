@@ -37,11 +37,22 @@ export async function logExport(input: LogExportInput): Promise<void> {
   }
 }
 
+/** Escape HTML to prevent XSS when interpolating untrusted data into print HTML. */
+export function escapeHtml(s: unknown): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /** Util: dispara janela de impressão com um HTML formatado. */
 export function printHtml(title: string, bodyHtml: string) {
   const w = window.open("", "_blank", "noopener,noreferrer,width=1024,height=768");
   if (!w) return;
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
+  const safeTitle = escapeHtml(title);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${safeTitle}</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;margin:24px}

@@ -57,10 +57,18 @@ const toCsv = (columns: string[], rows: Array<Record<string, any>>) => {
   return `${head}\n${body}`;
 };
 
+const escHtml = (s: unknown) =>
+  String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 const toHtmlTable = (columns: string[], rows: Array<Record<string, any>>) => {
-  const head = `<tr>${columns.map((c) => `<th>${c}</th>`).join("")}</tr>`;
+  const head = `<tr>${columns.map((c) => `<th>${escHtml(c)}</th>`).join("")}</tr>`;
   const body = rows
-    .map((r) => `<tr>${columns.map((c) => `<td>${fmtCell(r[c]).replace(/</g, "&lt;")}</td>`).join("")}</tr>`)
+    .map((r) => `<tr>${columns.map((c) => `<td>${escHtml(fmtCell(r[c]))}</td>`).join("")}</tr>`)
     .join("");
   return `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
 };
@@ -243,10 +251,10 @@ const ReportsCentral = () => {
         download(`${r.key}_${stamp}.csv`, toCsv(columns, rows), "text/csv;charset=utf-8");
       } else {
         // PDF e PRINT compartilham o mesmo HTML formatado; o navegador imprime/salva.
-        const html = `<h1>${r.label}</h1>
-<div class="meta">${new Date().toLocaleString("pt-BR")} · ${rows.length} linha(s) · Hospital: ${
-          currentHospital?.name ?? "—"
-        }</div>${toHtmlTable(columns, rows)}`;
+        const html = `<h1>${escHtml(r.label)}</h1>
+<div class="meta">${escHtml(new Date().toLocaleString("pt-BR"))} · ${rows.length} linha(s) · Hospital: ${escHtml(
+          currentHospital?.name ?? "—",
+        )}</div>${toHtmlTable(columns, rows)}`;
         printHtml(r.label, html);
       }
 

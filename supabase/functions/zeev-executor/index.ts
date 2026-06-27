@@ -366,6 +366,20 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    // Auth (required) — must validate BEFORE any DB access or LLM call
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return jsonResp({ error: "Unauthorized" }, 401);
+    }
+    const userClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: u, error: authErr } = await userClient.auth.getUser();
+    const actorId: string | null = u?.user?.id ?? null;
+    if (authErr || !actorId) {
+      return jsonResp({ error: "Unauthorized" }, 401);
+    }
+
     const body = (await req.json()) as RequestBody;
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -383,16 +397,6 @@ Deno.serve(async (req) => {
       aggregates = await buildPaymentAggregates(sb, body.payment_id);
     }
 
-    // Auth
-    const authHeader = req.headers.get("Authorization") ?? "";
-    let actorId: string | null = null;
-    if (authHeader.startsWith("Bearer ")) {
-      const userClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const { data: u } = await userClient.auth.getUser();
-      actorId = u.user?.id ?? null;
-    }
 
     if (body.step === "propose") {
       if (!body.prompt) return jsonResp({ error: "prompt obrigatório" }, 400);
