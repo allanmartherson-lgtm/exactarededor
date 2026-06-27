@@ -3086,6 +3086,15 @@ const PaymentDetail = () => {
           </button>
           {aiCardsOpen && (
             <div className="space-y-3 mt-2">
+              {id && !isConfeccao && (() => {
+                const hasVal = groups.some((g) => String(g.status) === "aguardando_validacao");
+                const hasApr = groups.some((g) => String(g.status) === "aguardando_aprovacao");
+                if (!hasVal && !hasApr) return null;
+                const aud: "validator" | "director" = (isDiretor && hasApr) ? "director" : "validator";
+                const map: Record<string, string> = {};
+                groups.forEach((g) => { map[g.company_name] = g.id; });
+                return <LotValidationChecklist paymentId={id} audience={aud} companyToGroupId={map} />;
+              })()}
               {id && !isConfeccao && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
               {id && <PoolCalculationCard paymentId={id} />}
               {id && (
