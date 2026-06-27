@@ -56,9 +56,11 @@ interface Props {
   onApplyFilter?: (filter: NonNullable<NavPayload["filter"]>) => void;
   /** Navega para uma URL absoluta. */
   onNavigateUrl?: (url: string) => void;
+  /** Prompt inicial — quando muda (via nonce no key do componente), dispara propose automaticamente. */
+  initialPrompt?: string;
 }
 
-export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNavigateUrl }: Props) {
+export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNavigateUrl, initialPrompt }: Props) {
   const location = useLocation();
   const greeting = paymentId
     ? "Pode me perguntar sobre este pagamento, pedir pra ir a uma seção, ou ações em lote. Ex.: \"quantos itens estão zerados?\", \"me leva pros divergentes\", \"vincula os médicos sem PJ na empresa X\"."
