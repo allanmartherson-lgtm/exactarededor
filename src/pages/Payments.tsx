@@ -1381,13 +1381,57 @@ const Payments = () => {
                 prominent
                 className="min-w-0 md:min-w-[260px] w-full md:w-auto"
               />
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos status</SelectItem>
-                  {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full md:w-[200px] justify-between font-normal">
+                    <span className="truncate">
+                      {statusFilter.length === 0
+                        ? "Todos status"
+                        : statusFilter.length === 1
+                          ? (PAYMENT_STATUS_LABELS as any)[statusFilter[0]] ?? statusFilter[0]
+                          : `${statusFilter.length} status selecionados`}
+                    </span>
+                    <ChevronsUpDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[260px] p-2">
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase">Status</span>
+                    {statusFilter.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                        onClick={() => setStatusFilter([])}
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto space-y-0.5">
+                    {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => {
+                      const checked = statusFilter.includes(k);
+                      return (
+                        <label
+                          key={k}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-border accent-primary"
+                            checked={checked}
+                            onChange={(e) => {
+                              setStatusFilter((prev) =>
+                                e.target.checked ? [...prev, k] : prev.filter((s) => s !== k),
+                              );
+                            }}
+                          />
+                          <span className="truncate">{v}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Button
                 variant={delayedOnly ? "default" : "outline"}
                 size="sm"
