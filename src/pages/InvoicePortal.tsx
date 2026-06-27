@@ -1,3 +1,4 @@
+import { ExactaLogo } from "@/components/brand/ExactaLogo";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -260,11 +261,14 @@ const InvoicePortal = () => {
   return (
     <div className="min-h-dvh bg-gradient-soft p-4 flex items-center justify-center">
       <div className="w-full max-w-lg">
-        <header className="text-center mb-6">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-brand mb-3"><ShieldCheck className="h-6 w-6 text-primary-foreground" /></div>
-          <h1 className="text-xl font-semibold">Envio de Nota Fiscal</h1>
-          <p className="text-sm text-muted-foreground mt-1">{pay.reference}</p>
+        <header className="flex flex-col items-center text-center mb-6 space-y-3">
+          <ExactaLogo variant="compact" iconSize={48} wordmarkSize={22} asLink={false} className="flex-col gap-2" />
+          <div>
+            <h1 className="text-xl font-semibold">Envio de Nota Fiscal</h1>
+            <p className="text-sm text-muted-foreground mt-1">{pay.reference}</p>
+          </div>
         </header>
+
 
         {/* Prazo fiscal: 30 dias após aprovação */}
         {!expired && (

@@ -1,4 +1,4 @@
-import { ExactaIcon } from "@/components/brand/ExactaIcon";
+import { ExactaLogo } from "@/components/brand/ExactaLogo";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -55,16 +55,14 @@ const ForceChangePassword = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-6">
       <div className="w-full max-w-md space-y-6">
-        <div className="text-center space-y-3">
-          <div className="inline-flex">
-            <ExactaIcon size={64} />
-          </div>
-
+        <div className="flex flex-col items-center text-center space-y-3">
+          <ExactaLogo variant="full" iconSize={56} wordmarkSize={26} asLink={false} className="flex-col gap-3" />
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Trocar senha</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Trocar senha</h1>
             <p className="text-sm text-muted-foreground">Você está usando uma senha temporária. Defina uma nova para continuar.</p>
           </div>
         </div>
+
         <Card className="shadow-elegant">
           <CardHeader className="space-y-1">
             <CardTitle>Defina sua nova senha</CardTitle>

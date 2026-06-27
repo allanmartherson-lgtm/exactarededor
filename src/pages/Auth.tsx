@@ -1,4 +1,4 @@
-import { ExactaIcon } from "@/components/brand/ExactaIcon";
+import { ExactaLogo } from "@/components/brand/ExactaLogo";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -183,14 +183,11 @@ const Auth = () => {
       {/* Painel direito: formulário */}
       <div className="flex flex-1 items-center justify-center p-6 bg-gradient-soft">
         <div className="w-full max-w-md">
-          <header className="text-center mb-8">
-            <div className="inline-flex mb-4">
-              <ExactaIcon size={56} />
-            </div>
-
-            <h1 className="font-wordmark" style={{ fontSize: 32, fontWeight: 400, letterSpacing: "0.04em" }}>E<span style={{ color: "hsl(var(--accent))" }}>x</span>acta</h1>
-            <p className="text-sm text-muted-foreground mt-1">Fluxo seguro de aprovação de pagamentos médicos</p>
+          <header className="flex flex-col items-center text-center mb-8">
+            <ExactaLogo variant="full" iconSize={56} wordmarkSize={28} asLink={false} className="flex-col gap-3" />
+            <p className="text-sm text-muted-foreground mt-3">Fluxo seguro de aprovação de pagamentos médicos</p>
           </header>
+
 
           <Card className="shadow-card border-border/60">
             <CardHeader className="space-y-1">
