@@ -1447,6 +1447,51 @@ const Payments = () => {
                   {advancedFilters}
                 </PopoverContent>
               </Popover>
+              {(() => {
+                const anyActive =
+                  !!q ||
+                  !!companyFilter ||
+                  statusFilter !== "all" ||
+                  delayedOnly ||
+                  openQuestionOnly ||
+                  onlyMine ||
+                  ownerGroup !== "all" ||
+                  advancedCount > 0;
+                if (!anyActive) return null;
+                return (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setQ("");
+                      setCompanyFilter(null);
+                      setStatusFilter("all");
+                      setDelayedOnly(false);
+                      setOpenQuestionOnly(false);
+                      setOnlyMine(false);
+                      setOwnerGroup("all");
+                      setAnalystFilter("all");
+                      setTypeFilter("all");
+                      setTrackFilter("all");
+                      setCompetenceFilter("all");
+                      setDivergenceFilter("all");
+                      setQuestionedFilter("all");
+                      setPoolFilter("all");
+                      setImportModeFilter("all");
+                      setEmptyOnly(false);
+                      const next = new URLSearchParams(searchParams);
+                      next.delete("status");
+                      next.delete("delayed");
+                      next.delete("open_questions");
+                      next.delete("owner");
+                      setSearchParams(next, { replace: true });
+                    }}
+                    title="Limpar todos os filtros"
+                  >
+                    <X className="h-4 w-4 mr-1" /> Limpar filtros
+                  </Button>
+                );
+              })()}
               {ownerGroup !== "all" && (
                 <Badge variant="outline" className="gap-1 h-8 px-2 bg-primary/10 border-primary/30 text-primary">
                   <UserCheck className="h-3.5 w-3.5" /> {OWNER_LABELS[ownerGroup]}
