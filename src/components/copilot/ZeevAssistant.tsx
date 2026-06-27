@@ -13,6 +13,8 @@ import { ZeevBulkManualDialog, type ZeevBulkItem } from "./ZeevBulkManualDialog"
 import { ZeevSuggestRuleDialog } from "./ZeevSuggestRuleDialog";
 import { ZeevExecutorChat } from "./ZeevExecutorChat";
 import { ZeevStagingChat, type StagingContext } from "./ZeevStagingChat";
+import { ZeevDiagnosticCard } from "./ZeevDiagnosticCard";
+import { ZeevRetroactiveGapsCard } from "./ZeevRetroactiveGapsCard";
 
 /**
  * Zeev — mascote assistente do Exacta.
@@ -460,6 +462,26 @@ export function ZeevAssistant({
           {/* === ABA: APOIO ANALÍTICO === */}
           {tab === "insights" && (
             <>
+              {/* Pre-flight do lote (Fase 1 — Zeev v2) */}
+              {bulkContext?.paymentId && (
+                <div className="px-3 pt-3">
+                  <ZeevDiagnosticCard
+                    paymentId={bulkContext.paymentId}
+                    onActed={() => setOpen(false)}
+                    onSendChatPrompt={(text) => {
+                      setTab("chat");
+                      setChatInitialPrompt({ text, nonce: Date.now() });
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Gaps retroativos (Fase 3.2 — só fora do contexto de lote) */}
+              {!bulkContext?.paymentId && !stagingMode && (
+                <div className="px-3 pt-3">
+                  <ZeevRetroactiveGapsCard onActed={() => setOpen(false)} />
+                </div>
+              )}
               {/* IA conversacional */}
               <div className="px-3 pt-3">
                 <div className="rounded-xl border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary-soft))]/60 dark:bg-[hsl(var(--primary-soft))]/30 p-3">
@@ -643,7 +665,9 @@ export function ZeevAssistant({
                 />
               ) : (
                 <ZeevExecutorChat
+                  key={chatInitialPrompt?.nonce ?? "default"}
                   paymentId={bulkContext?.paymentId ?? null}
+                  initialPrompt={chatInitialPrompt?.text}
                   onApplied={onBulkApplied}
                   onApplyFilter={onApplyFilter}
                   onNavigateUrl={(url) => { window.location.assign(url); }}

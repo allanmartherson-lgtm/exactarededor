@@ -56,9 +56,11 @@ interface Props {
   onApplyFilter?: (filter: NonNullable<NavPayload["filter"]>) => void;
   /** Navega para uma URL absoluta. */
   onNavigateUrl?: (url: string) => void;
+  /** Prompt inicial — quando muda (via nonce no key do componente), dispara propose automaticamente. */
+  initialPrompt?: string;
 }
 
-export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNavigateUrl }: Props) {
+export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNavigateUrl, initialPrompt }: Props) {
   const location = useLocation();
   const greeting = paymentId
     ? "Pode me perguntar sobre este pagamento, pedir pra ir a uma seção, ou ações em lote. Ex.: \"quantos itens estão zerados?\", \"me leva pros divergentes\", \"vincula os médicos sem PJ na empresa X\"."
@@ -112,6 +114,15 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
     },
     [paymentId, location.pathname],
   );
+
+  // Auto-dispara propose quando recebe initialPrompt (via key/nonce do pai).
+  useEffect(() => {
+    const t = (initialPrompt ?? "").trim();
+    if (!t) return;
+    setMessages((m) => [...m, { role: "user", text: t }]);
+    void propose(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const send = useCallback(async () => {
     const text = input.trim();

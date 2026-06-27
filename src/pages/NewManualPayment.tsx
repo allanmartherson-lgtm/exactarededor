@@ -9,8 +9,8 @@
  * O motor de regras NÃO roda nesse modo. Os valores vêm prontos do analista,
  * que pode anexar a planilha-fonte e descrever a composição em rubricas.
  */
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
@@ -28,21 +28,43 @@ import { CostCenterCombobox } from "@/components/CostCenterCombobox";
 
 export default function NewManualPayment() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { hospital } = useHospital();
   const { list: paymentTypes, loading: typesLoading } = usePaymentTypes({ onlyActive: true });
 
+  const prefillCompetence = (() => {
+    const raw = searchParams.get("competence_month");
+    if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw.slice(0, 7);
+    return null;
+  })();
+  const prefillTypeId = searchParams.get("payment_type_id");
+  const prefillImportMode = searchParams.get("import_mode") === "historico" ? "historico" : "normal";
+
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
   const [competence, setCompetence] = useState(() => {
+    if (prefillCompetence) return prefillCompetence;
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
-  const [paymentTypeId, setPaymentTypeId] = useState<string>("");
+  const [paymentTypeId, setPaymentTypeId] = useState<string>(prefillTypeId ?? "");
   const [paymentDueDate, setPaymentDueDate] = useState("");
   const [costCenterCode, setCostCenterCode] = useState<string | null>(null);
   const [competenceRegime, setCompetenceRegime] = useState<"producao" | "remessa">("producao");
   const [submitting, setSubmitting] = useState(false);
+
+  // Quando vem prefill do Zeev (retroativo), sugere referência inicial assim que o tipo carrega.
+  useEffect(() => {
+    if (!reference && prefillTypeId && paymentTypes.length > 0 && prefillCompetence) {
+      const pt = paymentTypes.find((p) => p.id === prefillTypeId);
+      if (pt) {
+        const [y, m] = prefillCompetence.split("-");
+        setReference(`${pt.label} — ${m}/${y} (retroativo)`);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentTypes.length]);
 
   const canSubmit = !!reference.trim() && !!paymentTypeId && !!competence && !!hospital?.id && !!costCenterCode;
 
@@ -66,7 +88,7 @@ export default function NewManualPayment() {
         payment_type_id: paymentTypeId,
         cost_center_code: costCenterCode,
         competence_regime: competenceRegime,
-        import_mode: "normal",
+        import_mode: prefillImportMode,
       } as any)
       .select()
       .single();
