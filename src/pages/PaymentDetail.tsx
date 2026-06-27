@@ -2923,6 +2923,16 @@ const PaymentDetail = () => {
           />
         )}
 
+        {/* Zeev: descompasso de competência (sugere remessa) */}
+        {!isConfeccao && (
+          <ProducaoDescompassoBanner
+            paymentId={payment.id}
+            competenceRegime={(payment as any).competence_regime ?? null}
+            competenceMonth={payment.competence_month ?? null}
+            onRegimeChanged={() => window.location.reload()}
+          />
+        )}
+
         {/* Linha compacta: metadados + responsável — sempre primeiro */}
         {(() => {
           const currentResponsibleId = assignments[0]?.analyst_id ?? null;
