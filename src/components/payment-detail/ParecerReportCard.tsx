@@ -557,7 +557,7 @@ export function ParecerReportCard({
         )}
 
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_140px_auto] gap-2 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-end">
           <div>
             <Label className="text-xs">Arquivo (.xls/.xlsx)</Label>
             <Input
@@ -566,14 +566,9 @@ export function ParecerReportCard({
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               disabled={uploading}
             />
-          </div>
-          <div>
-            <Label className="text-xs">Período início</Label>
-            <DateInput value={periodStart} onChange={setPeriodStart} disabled={uploading} />
-          </div>
-          <div>
-            <Label className="text-xs">Período fim</Label>
-            <DateInput value={periodEnd} onChange={setPeriodEnd} disabled={uploading} />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              O período do relatório é detectado automaticamente das datas do arquivo — pode subir base de qualquer janela (mensal, anual etc.).
+            </p>
           </div>
           <div className="flex gap-2">
             <Button onClick={startUpload} disabled={uploading || !file}>
