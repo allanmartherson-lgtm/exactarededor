@@ -3252,7 +3252,14 @@ const NewPayment = () => {
                 <p className="text-[11px] text-muted-foreground">
                   Em lotes <span className="font-medium">remetida</span> (ex.: infectologia, nefrologia históricas), a conciliação preserva atendimentos de meses anteriores à competência.
                 </p>
+                {competenceRegime === "remessa" && (
+                  <div className="rounded-md border border-info/40 bg-info-soft/30 p-2.5 text-[11px] text-foreground/85">
+                    <div className="font-medium mb-0.5">Competência por item ativada</div>
+                    O mês da competência acima vira a <span className="font-medium">janela de remessa</span>. A competência contábil de cada item é derivada automaticamente da <span className="font-medium">data do procedimento</span> na base. Verifique se a coluna de data está mapeada corretamente no passo de importação — itens sem data caem num bucket de revisão (não bloqueia o lote).
+                  </div>
+                )}
               </div>
+
 
               {/* Vínculo com rateio (pool) */}
               <div className="space-y-2 sm:col-span-2 rounded-md border border-info/30 bg-info-soft/20 p-3">

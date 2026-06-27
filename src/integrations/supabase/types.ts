@@ -4952,6 +4952,7 @@ export type Database = {
           cancelled_by: string | null
           company_id: string | null
           company_name: string | null
+          competence_source: string | null
           complement_reason: string | null
           convenio_basis_detected: string | null
           convenio_matched_by: string | null
@@ -4986,6 +4987,7 @@ export type Database = {
           is_cancelled: boolean
           is_manual_entry: boolean
           is_pool_item: boolean
+          item_competence: string | null
           item_hash: string | null
           item_origem: string | null
           item_origin: string
@@ -5076,6 +5078,7 @@ export type Database = {
           cancelled_by?: string | null
           company_id?: string | null
           company_name?: string | null
+          competence_source?: string | null
           complement_reason?: string | null
           convenio_basis_detected?: string | null
           convenio_matched_by?: string | null
@@ -5110,6 +5113,7 @@ export type Database = {
           is_cancelled?: boolean
           is_manual_entry?: boolean
           is_pool_item?: boolean
+          item_competence?: string | null
           item_hash?: string | null
           item_origem?: string | null
           item_origin?: string
@@ -5200,6 +5204,7 @@ export type Database = {
           cancelled_by?: string | null
           company_id?: string | null
           company_name?: string | null
+          competence_source?: string | null
           complement_reason?: string | null
           convenio_basis_detected?: string | null
           convenio_matched_by?: string | null
@@ -5234,6 +5239,7 @@ export type Database = {
           is_cancelled?: boolean
           is_manual_entry?: boolean
           is_pool_item?: boolean
+          item_competence?: string | null
           item_hash?: string | null
           item_origem?: string | null
           item_origin?: string

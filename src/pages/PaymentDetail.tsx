@@ -22,6 +22,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { ParecerReportCard } from "@/components/payment-detail/ParecerReportCard";
+import RemessaCompetenceBuckets from "@/components/payment-detail/RemessaCompetenceBuckets";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
@@ -2912,6 +2913,14 @@ const PaymentDetail = () => {
         {/* Funil de etapas — visão Apple do progresso do lote */}
         {!isConfeccao && payment?.status && (
           <PaymentStatusFunnel status={payment.status} />
+        )}
+
+        {/* Lotes de remessa: competência por item + bucket sem competência */}
+        {!isConfeccao && (
+          <RemessaCompetenceBuckets
+            paymentId={payment.id}
+            competenceRegime={(payment as any).competence_regime ?? null}
+          />
         )}
 
         {/* Linha compacta: metadados + responsável — sempre primeiro */}
