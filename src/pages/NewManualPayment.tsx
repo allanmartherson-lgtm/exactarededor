@@ -40,9 +40,10 @@ export default function NewManualPayment() {
   });
   const [paymentTypeId, setPaymentTypeId] = useState<string>("");
   const [paymentDueDate, setPaymentDueDate] = useState("");
+  const [costCenterCode, setCostCenterCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = !!reference.trim() && !!paymentTypeId && !!competence && !!hospital?.id;
+  const canSubmit = !!reference.trim() && !!paymentTypeId && !!competence && !!hospital?.id && !!costCenterCode;
 
   const handleCreate = async () => {
     if (!canSubmit || !user) return;
@@ -62,6 +63,7 @@ export default function NewManualPayment() {
         payment_due_date: paymentDueDate || null,
         analysis_mode: "manual" as any,
         payment_type_id: paymentTypeId,
+        cost_center_code: costCenterCode,
         import_mode: "normal",
       } as any)
       .select()
