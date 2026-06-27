@@ -216,7 +216,7 @@ export default function ManualPaymentEntry() {
     gross_amount: Number(row.amount) || 0,
     expected_amount: Number(row.amount) || 0,
     applied_calc_method: "manual_entry",
-    ai_status: "sem_intervencao",
+    ai_status: "acatado",
     procedure_date: payment?.competence_month ?? null,
   });
 
