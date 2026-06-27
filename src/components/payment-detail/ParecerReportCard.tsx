@@ -149,26 +149,22 @@ export function ParecerReportCard({
     sampleRow: Record<string, any> | null;
   } | null>(null);
 
-  // Defaults de período baseados na competência do lote
-  const defaultStart = (() => {
+  // Período é AUTO-DETECTADO das datas do arquivo durante o parse.
+  // Vale para produção e remessa — analista nunca preenche manualmente.
+  // Mantemos fallback baseado na competência só pra exibir algo razoável caso
+  // o arquivo não tenha datas válidas (raríssimo).
+  const fallbackStart = (() => {
     const m = competenceMonths?.[0] ?? competenceMonth;
-    if (!m) return "";
-    return m.slice(0, 10);
+    return m ? m.slice(0, 10) : "";
   })();
-  const defaultEnd = (() => {
-    const m =
-      competenceMonths?.[competenceMonths.length - 1] ?? competenceMonth;
+  const fallbackEnd = (() => {
+    const m = competenceMonths?.[competenceMonths.length - 1] ?? competenceMonth;
     if (!m) return "";
-    // Parse YYYY-MM-DD em UTC para evitar shift de fuso (BRT -3h vira mês anterior)
     const iso = m.slice(0, 10);
     const [y, mo] = iso.split("-").map(Number);
     if (!y || !mo) return "";
-    // último dia do mês em UTC
-    const last = new Date(Date.UTC(y, mo, 0));
-    return last.toISOString().slice(0, 10);
+    return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
   })();
-  const [periodStart, setPeriodStart] = useState(defaultStart);
-  const [periodEnd, setPeriodEnd] = useState(defaultEnd);
 
   const load = async () => {
     setLoading(true);
@@ -208,10 +204,7 @@ export function ParecerReportCard({
       toast({ title: "Selecione um arquivo .xls/.xlsx", variant: "destructive" });
       return;
     }
-    if (!periodStart || !periodEnd) {
-      toast({ title: "Informe o período do relatório", variant: "destructive" });
-      return;
-    }
+    // Período é auto-detectado das datas do arquivo após o parse — sem validação manual aqui.
     setUploading(true);
     try {
       const buf = await file.arrayBuffer();
@@ -288,6 +281,16 @@ export function ParecerReportCard({
           raw: rec,
         };
       });
+
+      // Auto-detecta período do arquivo: min/max de dt_solic e dt_resposta.
+      // Fallback à competência do lote só quando o arquivo não tem datas válidas.
+      const allDates = rows
+        .flatMap((r) => [r.dt_solic_parecer, r.dt_resposta_parecer])
+        .filter((d): d is string => !!d);
+      const isoDays = allDates.map((d) => d.slice(0, 10)).sort();
+      const periodStart = isoDays[0] ?? fallbackStart;
+      const periodEnd = isoDays[isoDays.length - 1] ?? fallbackEnd;
+      console.log(`[ParecerReport] period auto-detected: ${periodStart} → ${periodEnd}`);
 
       // 2) Init: cria/encontra cabeçalho (idempotente por hash)
       const initRes = await supabase.functions.invoke("import-parecer-report", {
@@ -554,7 +557,7 @@ export function ParecerReportCard({
         )}
 
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_140px_auto] gap-2 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-end">
           <div>
             <Label className="text-xs">Arquivo (.xls/.xlsx)</Label>
             <Input
@@ -563,14 +566,9 @@ export function ParecerReportCard({
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               disabled={uploading}
             />
-          </div>
-          <div>
-            <Label className="text-xs">Período início</Label>
-            <DateInput value={periodStart} onChange={setPeriodStart} disabled={uploading} />
-          </div>
-          <div>
-            <Label className="text-xs">Período fim</Label>
-            <DateInput value={periodEnd} onChange={setPeriodEnd} disabled={uploading} />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              O período do relatório é detectado automaticamente das datas do arquivo — pode subir base de qualquer janela (mensal, anual etc.).
+            </p>
           </div>
           <div className="flex gap-2">
             <Button onClick={startUpload} disabled={uploading || !file}>

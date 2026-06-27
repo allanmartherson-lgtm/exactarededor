@@ -35,6 +35,9 @@ Deno.serve(async (req) => {
         period_end,
         notes,
       } = body ?? {};
+      // period_start/period_end são derivados automaticamente no cliente
+      // (min/max das datas do arquivo). Mantidos como obrigatórios aqui
+      // como guard-rail — colunas no banco são NOT NULL.
       if (!payment_id || !file_hash || !period_start || !period_end) {
         return json(
           { error: "payment_id, file_hash, period_start, period_end são obrigatórios" },

@@ -132,23 +132,20 @@ export function ParecerReportWizardCard({
     fileHash: string;
   } | null>(null);
 
+  // Período é AUTO-DETECTADO das datas do arquivo — sem input manual.
+  // Fallback à competência só quando o arquivo não tem datas válidas.
   const sortedMonths = [...competenceMonths].sort();
-  const defaultStart = sortedMonths[0] ? `${sortedMonths[0]}-01` : "";
-  const defaultEnd = (() => {
+  const fallbackStart = sortedMonths[0] ? `${sortedMonths[0]}-01` : "";
+  const fallbackEnd = (() => {
     const m = sortedMonths[sortedMonths.length - 1];
     if (!m) return "";
     const [y, mo] = m.split("-").map(Number);
     return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
   })();
-  const [periodStart, setPeriodStart] = useState(defaultStart);
-  const [periodEnd, setPeriodEnd] = useState(defaultEnd);
 
   const startParse = async () => {
     if (!file) return;
-    if (!periodStart || !periodEnd) {
-      toast({ title: "Informe o período do relatório", variant: "destructive" });
-      return;
-    }
+    // Período é auto-detectado das datas do arquivo durante o mapping.
     setLoading(true);
     try {
       const buf = await file.arrayBuffer();
@@ -200,6 +197,13 @@ export function ParecerReportWizardCard({
         raw: rec,
       };
     });
+    // Auto-detecta período do arquivo (min/max das datas presentes).
+    const allDates = rows
+      .flatMap((r) => [r.dt_solic_parecer, r.dt_resposta_parecer])
+      .filter((d): d is string => !!d);
+    const isoDays = allDates.map((d) => d.slice(0, 10)).sort();
+    const periodStart = isoDays[0] ?? fallbackStart;
+    const periodEnd = isoDays[isoDays.length - 1] ?? fallbackEnd;
     onChange({
       fileName: file.name,
       fileHash: parseState.fileHash,
@@ -276,16 +280,9 @@ export function ParecerReportWizardCard({
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Período início</Label>
-                <DateInput value={periodStart} onChange={setPeriodStart} />
-              </div>
-              <div>
-                <Label className="text-xs">Período fim</Label>
-                <DateInput value={periodEnd} onChange={setPeriodEnd} />
-              </div>
-            </div>
+            <p className="text-[11px] text-muted-foreground">
+              O período do relatório é detectado automaticamente das datas do arquivo — pode subir base de qualquer janela.
+            </p>
             <div className="flex items-center gap-2">
               <Input
                 type="file"

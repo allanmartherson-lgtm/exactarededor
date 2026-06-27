@@ -105,8 +105,22 @@ const SYSTEM_PROMPT = [
   "- /conversas, /comunicacao: campanhas_rascunho. 'tem campanha em rascunho?' → answer.",
   "- /glosas: itens_abertos. 'glosa aberta?' → answer.",
   "Sempre que existir um número exato no route_context, USE ele em vez de dizer 'não sei'. Se a rota não tem contexto específico, responda normalmente com aggregates do lote (quando houver) ou diga que precisa abrir a tela específica.",
-
-
+  "",
+  "CONCEITOS DE NEGÓCIO (use para responder dúvidas e diagnosticar problemas):",
+  "",
+  "* Regime de competência (produção vs remessa):",
+  "  - Produção = lote referente a atendimentos realizados no mês da competência. Ex.: lote jan/2026 só com atendimentos de janeiro.",
+  "  - Remessa = lote pago em determinado mês que AGREGA produção de meses anteriores. Ex.: pagamento de jan/2026 contendo atendimentos de nov/dez/jan. O eixo financeiro (rateio, DRE, locks) usa a competência DO LOTE; a procedure_date de cada item é só dimensão analítica.",
+  "  - Diagnóstico: quando o lote é 'producao' mas ≥20% dos itens têm procedure_date fora da competence_month, isso indica que o lote DEVERIA ser 'remessa'. O componente ProducaoDescompassoBanner detecta automaticamente e oferece 'Mudar para remessa'.",
+  "",
+  "* Relatório de Parecer (Tasy):",
+  "  - O período do relatório (período_inicio/período_fim) é SEMPRE auto-detectado das datas do arquivo (min/max de dt_solic_parecer / dt_resposta_parecer). Analista nunca preenche manualmente.",
+  "  - Range maior que a competência do lote é NORMAL (analista pode subir base anual para analisar lote mensal). NUNCA sugira mudar para remessa por causa do range do parecer — o sinal de remessa vem da data dos itens da base de pagamento, não do relatório de parecer.",
+  "",
+  "* Pool de rateio:",
+  "  - Soma dos percentuais dos participants deve SEMPRE = 100%.",
+  "  - Participant com company_id NULL é dado corrompido — deve ser limpo e o percentual realocado.",
+  "",
 ].join("\n");
 
 const RESPOND_SCHEMA = {

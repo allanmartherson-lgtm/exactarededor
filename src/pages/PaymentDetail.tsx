@@ -23,6 +23,7 @@ import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/Invoi
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { ParecerReportCard } from "@/components/payment-detail/ParecerReportCard";
 import RemessaCompetenceBuckets from "@/components/payment-detail/RemessaCompetenceBuckets";
+import { ProducaoDescompassoBanner } from "@/components/payment-detail/ProducaoDescompassoBanner";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
@@ -2920,6 +2921,16 @@ const PaymentDetail = () => {
           <RemessaCompetenceBuckets
             paymentId={payment.id}
             competenceRegime={(payment as any).competence_regime ?? null}
+          />
+        )}
+
+        {/* Zeev: descompasso de competência (sugere remessa) */}
+        {!isConfeccao && (
+          <ProducaoDescompassoBanner
+            paymentId={payment.id}
+            competenceRegime={(payment as any).competence_regime ?? null}
+            competenceMonth={payment.competence_month ?? null}
+            onRegimeChanged={() => window.location.reload()}
           />
         )}
 
