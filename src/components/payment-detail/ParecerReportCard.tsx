@@ -149,26 +149,22 @@ export function ParecerReportCard({
     sampleRow: Record<string, any> | null;
   } | null>(null);
 
-  // Defaults de período baseados na competência do lote
-  const defaultStart = (() => {
+  // Período é AUTO-DETECTADO das datas do arquivo durante o parse.
+  // Vale para produção e remessa — analista nunca preenche manualmente.
+  // Mantemos fallback baseado na competência só pra exibir algo razoável caso
+  // o arquivo não tenha datas válidas (raríssimo).
+  const fallbackStart = (() => {
     const m = competenceMonths?.[0] ?? competenceMonth;
-    if (!m) return "";
-    return m.slice(0, 10);
+    return m ? m.slice(0, 10) : "";
   })();
-  const defaultEnd = (() => {
-    const m =
-      competenceMonths?.[competenceMonths.length - 1] ?? competenceMonth;
+  const fallbackEnd = (() => {
+    const m = competenceMonths?.[competenceMonths.length - 1] ?? competenceMonth;
     if (!m) return "";
-    // Parse YYYY-MM-DD em UTC para evitar shift de fuso (BRT -3h vira mês anterior)
     const iso = m.slice(0, 10);
     const [y, mo] = iso.split("-").map(Number);
     if (!y || !mo) return "";
-    // último dia do mês em UTC
-    const last = new Date(Date.UTC(y, mo, 0));
-    return last.toISOString().slice(0, 10);
+    return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
   })();
-  const [periodStart, setPeriodStart] = useState(defaultStart);
-  const [periodEnd, setPeriodEnd] = useState(defaultEnd);
 
   const load = async () => {
     setLoading(true);
