@@ -165,6 +165,27 @@ export default function ManualPaymentEntry() {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch, dirty: true } : r)));
   };
 
+  // Quando o analista escolhe um médico, se a linha ainda não tem
+  // especialidade preenchida e o cadastro do médico tem UMA única
+  // especialidade vinculada, sugerimos ela automaticamente (Zeev nível médico).
+  // Se houver várias, deixa em branco para o analista decidir.
+  const handleDoctorChange = async (rowKey: string, doctor: DraftRow["doctor"]) => {
+    const current = rows.find((r) => r.key === rowKey);
+    const keepSpecialty = current?.specialty && current.specialty.length > 0;
+    updateRow(rowKey, { doctor });
+    if (!doctor?.id || keepSpecialty) return;
+    const { data } = await supabase
+      .from("doctors")
+      .select("specialties")
+      .eq("id", doctor.id)
+      .maybeSingle();
+    const list = Array.isArray(data?.specialties) ? (data!.specialties as string[]) : [];
+    const unique = Array.from(new Set(list.map((s) => String(s ?? "").trim()).filter(Boolean)));
+    if (unique.length === 1) {
+      setRows((prev) => prev.map((r) => (r.key === rowKey && !r.specialty ? { ...r, specialty: unique[0], dirty: true } : r)));
+    }
+  };
+
   const addRow = () => setRows((prev) => [...prev, { ...newDraft(), paymentTypeId: defaultTypeId }]);
   const duplicateRow = (key: string) =>
     setRows((prev) => {
@@ -596,7 +617,7 @@ export default function ManualPaymentEntry() {
                       <TableCell className="py-1.5">
                         <DoctorCombobox
                           value={r.doctor}
-                          onChange={(d) => updateRow(r.key, { doctor: d })}
+                          onChange={(d) => { void handleDoctorChange(r.key, d); }}
                           filterCompanyId={r.company?.id ?? null}
                         />
                       </TableCell>
