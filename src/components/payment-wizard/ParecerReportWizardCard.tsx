@@ -280,16 +280,9 @@ export function ParecerReportWizardCard({
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Período início</Label>
-                <DateInput value={periodStart} onChange={setPeriodStart} />
-              </div>
-              <div>
-                <Label className="text-xs">Período fim</Label>
-                <DateInput value={periodEnd} onChange={setPeriodEnd} />
-              </div>
-            </div>
+            <p className="text-[11px] text-muted-foreground">
+              O período do relatório é detectado automaticamente das datas do arquivo — pode subir base de qualquer janela.
+            </p>
             <div className="flex items-center gap-2">
               <Input
                 type="file"
