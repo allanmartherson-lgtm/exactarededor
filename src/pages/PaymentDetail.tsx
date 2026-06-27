@@ -54,6 +54,7 @@ import { ExecutiveSummaryCard } from "@/components/payment-detail/ExecutiveSumma
 import { PaymentStatusFunnel } from "@/components/payment-detail/PaymentStatusFunnel";
 import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
 import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
+import { LotValidationChecklist } from "@/components/payment-detail/LotValidationChecklist";
 import { PhaseSummary, resolvePhase } from "@/components/payment-detail/PhaseSummary";
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
 import { RegisterExternalApprovalDialog } from "@/components/payment-detail/RegisterExternalApprovalDialog";
