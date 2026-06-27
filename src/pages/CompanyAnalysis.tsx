@@ -260,6 +260,8 @@ export default function CompanyAnalysis() {
     load,
     setItems,
   } = usePaymentDetailData(id, { groupId });
+  const paymentTypeMeta = usePaymentTypeMeta((payment as any)?.payment_type_id ?? null);
+
 
   // Pool é soberano: lote de pool NÃO usa a tela por-PJ. Redireciona para a
   // tela pool-mode (lista única + cards por PJ). Regra arquitetural — não
