@@ -674,9 +674,8 @@ export const PaymentGroupCard = ({
               currentItemsCount={g.items_count ?? 0}
             />
           )}
-          {paymentId && ["aguardando_validacao", "aguardando_aprovacao"].includes(g.status) && (
-            <ValidationChecklist companyName={g.company_name} paymentId={paymentId} />
-          )}
+          {/* Checklist por empresa removido — agora vive no nível do lote (LotValidationChecklist).
+              Mantém a página dedicada de empresa enxuta; alertas críticos drillam até cá pela âncora #group-<id>. */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="hidden md:block text-xs text-muted-foreground">
               Toda análise, comentários e ações de fluxo desta empresa acontecem na página dedicada — abrir mantém o mesmo conjunto de dados, apenas com o ambiente de trabalho completo.
