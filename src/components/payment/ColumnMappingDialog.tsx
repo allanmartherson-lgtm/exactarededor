@@ -269,6 +269,61 @@ export default function ColumnMappingDialog({
           </Alert>
         )}
 
+        {paymentTypeMeta && (
+          paymentTypeMeta.tuss_default ||
+          paymentTypeMeta.default_function ||
+          paymentTypeMeta.requires_tuss_in_sheet === false
+        ) && (
+          <Alert className="border-primary/30 bg-primary/5">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <AlertTitle>Defaults do tipo de pagamento</AlertTitle>
+            <AlertDescription>
+              <div className="text-xs text-muted-foreground mb-1.5">
+                Estes valores serão injetados em todas as linhas — não precisam estar na planilha.
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {paymentTypeMeta.tuss_default && (
+                  <Badge variant="secondary" className="font-mono">
+                    TUSS: {paymentTypeMeta.tuss_default}
+                  </Badge>
+                )}
+                {paymentTypeMeta.requires_tuss_in_sheet === false && !paymentTypeMeta.tuss_default && (
+                  <Badge variant="secondary">TUSS dispensado</Badge>
+                )}
+                {paymentTypeMeta.default_function && (
+                  <Badge variant="secondary">Função: {paymentTypeMeta.default_function}</Badge>
+                )}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Preview consolidado do mapeamento final */}
+        <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
+          <div className="font-medium text-foreground mb-1 flex items-center gap-1.5">
+            <Info className="h-3.5 w-3.5" /> Preview do mapeamento a aplicar
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
+            {effectiveFields
+              .filter((def) => {
+                const h = hits.find((x) => x.field === def.key);
+                return !!h?.header;
+              })
+              .map((def) => {
+                const h = hits.find((x) => x.field === def.key)!;
+                return (
+                  <span key={def.key}>
+                    <span className="text-foreground">{def.label}:</span>{" "}
+                    <span className="font-mono">{h.header}</span>
+                  </span>
+                );
+              })}
+            {effectiveFields.every((def) => !hits.find((x) => x.field === def.key)?.header) && (
+              <span className="italic">Nenhuma coluna mapeada ainda.</span>
+            )}
+          </div>
+        </div>
+
         <div className="overflow-y-auto flex-1 -mx-6 px-6">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-background border-b">
