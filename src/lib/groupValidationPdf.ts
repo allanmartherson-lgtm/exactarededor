@@ -55,7 +55,7 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
     supabase
       .from("payment_items")
       .select(
-        "id,doctor_name,attendance_number,procedure_code,quantity,procedure_amount,gross_amount,expected_amount,applied_calc_id,applied_calc_method",
+        "id,doctor_name,patient_name,attendance_number,procedure_code,procedure_name,procedure_date,quantity,procedure_amount,gross_amount,expected_amount,applied_calc_id,applied_calc_method,validation_findings",
       )
       .eq("payment_id", t.payment_id ?? "")
       .eq("company_id", t.company_id ?? "")
@@ -65,14 +65,18 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
   const allItems = (items ?? []) as Array<{
     id: string;
     doctor_name: string | null;
+    patient_name: string | null;
     attendance_number: string | null;
     procedure_code: string | null;
+    procedure_name: string | null;
+    procedure_date: string | null;
     quantity: number | null;
     procedure_amount: number | null;
     gross_amount: number | null;
     expected_amount: number | null;
     applied_calc_id: string | null;
     applied_calc_method: string | null;
+    validation_findings: unknown;
   }>;
 
   const semRegra = allItems.filter((i) => !i.applied_calc_id);
@@ -202,6 +206,120 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
     });
     // @ts-expect-error
     y = (doc.lastAutoTable?.finalY ?? y) + 8;
+  }
+
+  // Alertas assistenciais — duplicidade por paciente + data
+  type Finding = {
+    rule_name?: string;
+    kind?: string;
+    conflicting_item?: {
+      attendance_number?: string | null;
+      procedure_name?: string | null;
+      procedure_code?: string | null;
+      doctor_name?: string | null;
+      procedure_date?: string | null;
+      payment_reference?: string | null;
+    };
+  };
+  type DupRow = {
+    procedure: string;
+    doctor: string;
+    attendance: string;
+    lote: string;
+    rule: string;
+    valor: number;
+    isConflict: boolean;
+  };
+  const dupGroups = new Map<string, { patient: string; date: string; rows: DupRow[]; total: number; crossBatch: boolean }>();
+  const dupSeen = new Set<string>();
+  const ownLote = (payment as any)?.reference ?? "Lote atual";
+  for (const it of allItems) {
+    const findings = Array.isArray(it.validation_findings) ? (it.validation_findings as Finding[]) : [];
+    for (const f of findings) {
+      const kind = (f.kind ?? "").toLowerCase();
+      if (!kind.includes("duplic") && !kind.includes("sobrep") && !kind.includes("visita")) continue;
+      const dateKey = (it.procedure_date || "").slice(0, 10);
+      const patientKey = (it.patient_name || "").toLowerCase().trim();
+      const gkey = `${patientKey}|${dateKey}`;
+      let g = dupGroups.get(gkey);
+      if (!g) {
+        g = { patient: it.patient_name || "Paciente não informado", date: dateKey, rows: [], total: 0, crossBatch: false };
+        dupGroups.set(gkey, g);
+      }
+      const curKey = `cur|${it.id}`;
+      if (!dupSeen.has(curKey)) {
+        dupSeen.add(curKey);
+        const v = Number(it.gross_amount ?? 0);
+        g.rows.push({
+          procedure: `${it.procedure_name ?? "—"} (${it.procedure_code ?? "—"})`,
+          doctor: it.doctor_name ?? "—",
+          attendance: it.attendance_number ?? "—",
+          lote: ownLote,
+          rule: f.rule_name ?? "—",
+          valor: v,
+          isConflict: false,
+        });
+        g.total += v;
+      }
+      const c = f.conflicting_item;
+      if (c && (c.attendance_number || c.procedure_name)) {
+        const cKey = `conf|${it.id}|${c.attendance_number ?? ""}|${c.procedure_code ?? c.procedure_name ?? ""}|${c.payment_reference ?? ""}`;
+        if (!dupSeen.has(cKey)) {
+          dupSeen.add(cKey);
+          const otherLote = c.payment_reference ?? "outro lote";
+          if (otherLote !== ownLote) g.crossBatch = true;
+          g.rows.push({
+            procedure: `${c.procedure_name ?? "—"} (${c.procedure_code ?? "—"})`,
+            doctor: c.doctor_name ?? "—",
+            attendance: c.attendance_number ?? "—",
+            lote: otherLote,
+            rule: f.rule_name ?? "—",
+            valor: 0,
+            isConflict: true,
+          });
+        }
+      }
+    }
+  }
+  const dupGroupsArr = Array.from(dupGroups.entries())
+    .map(([k, v]) => ({ k, ...v }))
+    .sort((a, b) => b.total - a.total);
+
+  if (dupGroupsArr.length > 0) {
+    if (y > 240) { doc.addPage(); y = 20; }
+    doc.setFontSize(11);
+    doc.text(`Alertas assistenciais — duplicidade por paciente (${dupGroupsArr.length})`, marginX, y);
+    y += 3;
+    const body: (string | { content: string; colSpan?: number; styles?: any })[][] = [];
+    for (const g of dupGroupsArr.slice(0, 80)) {
+      const header = `${g.patient}  ·  ${g.date || "—"}  ·  ${g.rows.length} lançamento(s)  ·  ${fmt(g.total)}${g.crossBatch ? "  ·  ENTRE LOTES" : ""}`;
+      body.push([{ content: header, colSpan: 6, styles: { fillColor: [254, 243, 199], fontStyle: "bold", textColor: [120, 53, 15] } }]);
+      for (const r of g.rows) {
+        body.push([
+          r.procedure,
+          r.doctor,
+          r.attendance,
+          r.lote,
+          r.rule,
+          r.valor ? fmt(r.valor) : "—",
+        ]);
+      }
+    }
+    autoTable(doc, {
+      startY: y + 2,
+      head: [["Procedimento", "Médico", "Atend.", "Lote", "Regra", "Valor"]],
+      body: body as any,
+      styles: { fontSize: 7.5, cellPadding: 1.5 },
+      headStyles: { fillColor: [217, 119, 6] },
+      margin: { left: marginX, right: marginX },
+    });
+    // @ts-expect-error
+    y = (doc.lastAutoTable?.finalY ?? y) + 8;
+    if (dupGroupsArr.length > 80) {
+      doc.setFontSize(8);
+      doc.text(`... e mais ${dupGroupsArr.length - 80} grupos de duplicidade.`, marginX, y);
+      y += 6;
+    }
   }
 
   // Liberações registradas
