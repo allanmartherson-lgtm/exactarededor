@@ -20,11 +20,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Building2, Layers } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
 import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
+import { confirmDialog } from "@/lib/confirm";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 
 const brl = (n: number | null | undefined) =>
@@ -221,6 +223,60 @@ export default function PoolAnalysis() {
             storageKey={`poolAnalysis.${id}`}
             mode={payment.analysis_mode === "confeccao" ? "confeccao" : "analise"}
             canEdit
+            onAcceptItem={async (it: any) => {
+              const justification = window.prompt(
+                "Justificativa para acatar a divergência (mín. 20 caracteres):",
+                "",
+              );
+              if (!justification || justification.trim().length < 20) {
+                toast.error("Justificativa muito curta", {
+                  description: "Mínimo de 20 caracteres.",
+                });
+                return;
+              }
+              const { data, error } = await supabase.rpc("accept_payment_item", {
+                _item_id: it.id,
+                _justification: justification.trim(),
+              });
+              if (error) {
+                toast.error("Erro ao acatar", { description: error.message });
+                return;
+              }
+              const res = data as { ok: boolean; error?: string } | null;
+              if (!res?.ok) {
+                toast.error("Erro ao acatar", { description: res?.error ?? "Falha desconhecida" });
+                return;
+              }
+              toast.success("Item acatado");
+              await load();
+              await reloadFinancials();
+            }}
+            onUndoAcceptItem={async (it: any) => {
+              const ok = await confirmDialog({
+                title: "Desfazer acate?",
+                description: `O item voltará para "${it.acatado_status_original ?? "reprovado"}" e o valor pago original será restaurado.`,
+                confirmText: "Desfazer",
+                tone: "warning",
+              });
+              if (!ok) return;
+              const { data, error } = await supabase.rpc("undo_accept_payment_item", {
+                _item_id: it.id,
+              });
+              if (error) {
+                toast.error("Erro ao desfazer", { description: error.message });
+                return;
+              }
+              const res = data as { ok: boolean; error?: string } | null;
+              if (!res?.ok) {
+                toast.error("Erro ao desfazer", {
+                  description: res?.error ?? "Falha desconhecida",
+                });
+                return;
+              }
+              toast.success("Acate desfeito");
+              await load();
+              await reloadFinancials();
+            }}
             onRefresh={() => load()}
           />
         </CardContent>
