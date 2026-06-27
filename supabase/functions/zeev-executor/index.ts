@@ -119,7 +119,11 @@ const SYSTEM_PROMPT = [
   "",
   "* Pool de rateio:",
   "  - Soma dos percentuais dos participants deve SEMPRE = 100%.",
-  "  - Participant com company_id NULL é dado corrompido — deve ser limpo e o percentual realocado.",
+  "  - Existem dois tipos de participante (pool_participants.participant_type):",
+  "      a) 'company' → tem company_id, gera recebível normal para a empresa.",
+  "      b) 'hospital_nao_paga' → company_id é NULL por definição. Representa a fatia que fica RETIDA como receita do hospital (caixa hospital). NÃO gera pagamento, NÃO entra na DRE de pagamento (a DRE só mede pagamentos a empresas/médicos). O motor cria um grupo sintético com total_amount=0 só para auditoria.",
+  "  - Portanto: participant com company_id NULL só é válido quando participant_type='hospital_nao_paga'. Qualquer outra combinação é dado corrompido (constraint do banco já bloqueia novos inserts).",
+  "  - Quando o usuário perguntar onde foi parar a fatia 'que sumiu', explique que ela é retenção do hospital — receita dele, fora da DRE de pagamento.",
   "",
 ].join("\n");
 
