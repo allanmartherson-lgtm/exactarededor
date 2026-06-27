@@ -41,14 +41,15 @@ function sameDayUtc(a: string | null, b: string | null) {
   return da.toISOString().slice(0, 10) === db.toISOString().slice(0, 10);
 }
 
-// O item pode ter sido lançado tanto na data da SOLICITAÇÃO do parecer
-// (consulta beira-leito) quanto na data da RESPOSTA. Aceita match contra
-// qualquer uma das duas.
+// A data de referência do parecer é SEMPRE a data da RESPOSTA — é quando o
+// médico efetivamente executou o atendimento e gerou o repasse. A data de
+// solicitação só é usada como fallback quando o relatório não traz resposta
+// (parecer ainda não respondido / coluna ausente no export do Tasy).
 function matchesParecerDate(row: any, procedureDate: string | null) {
-  return (
-    sameDayUtc(row.dt_resposta_parecer, procedureDate) ||
-    sameDayUtc(row.dt_solic_parecer, procedureDate)
-  );
+  if (row.dt_resposta_parecer) {
+    return sameDayUtc(row.dt_resposta_parecer, procedureDate);
+  }
+  return sameDayUtc(row.dt_solic_parecer, procedureDate);
 }
 
 
