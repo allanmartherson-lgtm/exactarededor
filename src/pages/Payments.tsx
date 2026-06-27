@@ -1500,7 +1500,7 @@ const Payments = () => {
                 const anyActive =
                   !!q ||
                   !!companyFilter ||
-                  statusFilter !== "all" ||
+                  statusFilter.length > 0 ||
                   delayedOnly ||
                   openQuestionOnly ||
                   onlyMine ||
