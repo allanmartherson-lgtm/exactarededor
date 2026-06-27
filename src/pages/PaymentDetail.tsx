@@ -31,6 +31,7 @@ import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
 
 import { ExportColumnPickerDialog } from "@/components/payment-detail/ExportColumnPickerDialog";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
+import { usePaymentTypeMeta } from "@/hooks/usePaymentTypeMeta";
 import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
