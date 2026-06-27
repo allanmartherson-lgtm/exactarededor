@@ -35,6 +35,8 @@ import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/confi
 import { useQueueNotifications } from "@/hooks/useQueueNotifications";
 import { NotificationBell } from "@/components/NotificationBell";
 import { InboxBadge } from "@/components/InboxBadge";
+import { ExactaIcon } from "@/components/brand/ExactaIcon";
+
 import { PortalUnreadBadge } from "@/components/portal/PortalUnreadBadge";
 import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
 import { SystemAnnouncementBanner } from "@/components/SystemAnnouncementBanner";

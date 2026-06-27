@@ -183,9 +183,10 @@ const Auth = () => {
       <div className="flex flex-1 items-center justify-center p-6 bg-gradient-soft">
         <div className="w-full max-w-md">
           <header className="text-center mb-8">
-            <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-brand shadow-elevated mb-4">
-              <ShieldCheck className="h-7 w-7 text-primary-foreground" />
+            <div className="inline-flex mb-4">
+              <ExactaIcon size={56} />
             </div>
+
             <h1 className="font-wordmark" style={{ fontSize: 32, fontWeight: 400, letterSpacing: "0.04em" }}>E<span style={{ color: "hsl(var(--accent))" }}>x</span>acta</h1>
             <p className="text-sm text-muted-foreground mt-1">Fluxo seguro de aprovação de pagamentos médicos</p>
           </header>
