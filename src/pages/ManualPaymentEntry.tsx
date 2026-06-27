@@ -217,7 +217,7 @@ export default function ManualPaymentEntry() {
     patient_name: row.patient || null,
     gross_amount: Number(row.amount) || 0,
     expected_amount: Number(row.amount) || 0,
-    applied_calc_method: "manual_entry",
+    applied_calc_method: null,
     ai_status: "acatado",
     procedure_date: payment?.competence_month ?? null,
   });
