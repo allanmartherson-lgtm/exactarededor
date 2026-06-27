@@ -87,10 +87,14 @@ const SYSTEM_PROMPT = [
   "3) set_sector — aplica setor em lote. payload: { sector_code }. scope.sector_missing=true para 'sem setor'.",
   "4) set_cost_center — aplica centro de custos. payload: { cost_center_code }. scope.cost_center_missing=true.",
   "5) link_doctor_company — vincula médico→PJ. payload: { company_id }. scope.doctor_company_missing=true.",
-  "6) clarify — quando o pedido é ambíguo e você precisa perguntar de volta. summary = a pergunta.",
-  "7) unsupported — quando não dá pra atender com nenhuma ação acima. summary = explicação curta + sugestão alternativa.",
+  "6) register_doctor_pending — cria médico em modo 'pending_admin_review=true'. payload: { full_name, crm, crm_uf (2 letras), cpf?, vinculo? } — full_name+crm+crm_uf são obrigatórios; se faltar, use 'clarify'. Use quando o analista pede 'cadastrar médico novo X com CRM Y/UF'.",
+  "7) register_company — cria PJ. payload: { name, document (CNPJ — 14 dígitos), state_uf? } — name+document obrigatórios. Use quando pedir 'cadastrar empresa X CNPJ Y'.",
+  "8) resolve_registry_match — registra alias para texto novo que devia bater com cadastro existente. payload: { alias_type: 'convenio'|'sector'|'doctor', alias_text, canonical_id (uuid do doctor) OU canonical_slug (slug do convenio/setor) }. Use quando o analista diz 'sempre que vier \"X\" considera como Y'.",
+  "9) clarify — quando o pedido é ambíguo e você precisa perguntar de volta. summary = a pergunta.",
+  "10) unsupported — quando não dá pra atender com nenhuma ação acima. summary = explicação curta + sugestão alternativa.",
   "",
-  "REGRA DE OURO: se o analista usa verbo de VER/MOSTRAR/IR ('me mostra', 'leva pros zerados', 'abre os divergentes'), prefira 'navigate'. Se PERGUNTA ('quantos', 'qual', 'tem algum'), prefira 'answer'. Só use set_/link_ quando ele pedir explicitamente para APLICAR/DEFINIR/VINCULAR.",
+  "REGRA DE OURO: se o analista usa verbo de VER/MOSTRAR/IR ('me mostra', 'leva pros zerados', 'abre os divergentes'), prefira 'navigate'. Se PERGUNTA ('quantos', 'qual', 'tem algum'), prefira 'answer'. Só use set_/link_/register_/resolve_ quando ele pedir explicitamente para APLICAR/CADASTRAR/VINCULAR. Para cadastro: extraia CRM no formato '12345/SP' como crm='12345', crm_uf='SP'. CNPJ pode vir com pontuação — preserve só dígitos.",
+
 ].join("\n");
 
 const RESPOND_SCHEMA = {
