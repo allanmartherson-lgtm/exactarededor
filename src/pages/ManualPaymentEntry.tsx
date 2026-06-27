@@ -65,6 +65,9 @@ type DraftRow = {
   attendance: string;
   patient: string;
   amount: number;
+  /** Texto livre por linha — descrição do tipo de pagamento, contexto,
+   *  origem do valor. Persistido em `payment_items.manual_note`. */
+  observation: string;
   composition: CompositionRow[] | null;
   attachmentPath: string | null;
   attachmentName: string | null;
@@ -80,6 +83,7 @@ const newDraft = (): DraftRow => ({
   attendance: "",
   patient: "",
   amount: 0,
+  observation: "",
   composition: null,
   attachmentPath: null,
   attachmentName: null,
