@@ -432,11 +432,24 @@ export default function ManualPaymentEntry() {
                         </Select>
                       </td>
                       <td className="py-2 px-3">
-                        <Input
-                          value={r.specialty}
-                          onChange={(e) => updateRow(r.key, { specialty: e.target.value })}
-                          className="h-9"
-                        />
+                        <Select
+                          value={r.specialty || "__none__"}
+                          onValueChange={(v) =>
+                            updateRow(r.key, { specialty: v === "__none__" ? "" : v })
+                          }
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-64">
+                            <SelectItem value="__none__">—</SelectItem>
+                            {COMMON_SPECIALTIES.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="py-2 px-3">
                         <Input
