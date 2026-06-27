@@ -22,6 +22,9 @@ type Action =
   | "set_sector"
   | "set_cost_center"
   | "link_doctor_company"
+  | "register_doctor_pending"
+  | "register_company"
+  | "resolve_registry_match"
   | "navigate"
   | "answer";
 
@@ -53,6 +56,8 @@ interface Proposal {
     description: string | null;
     attendance_number: string | null;
   }>;
+  /** Para ações de cadastro: pares chave→valor exibidos no card de confirmação. */
+  details?: Array<{ label: string; value: string }>;
 }
 
 interface RequestBody {
