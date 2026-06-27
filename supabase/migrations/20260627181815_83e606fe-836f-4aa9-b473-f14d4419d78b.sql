@@ -1,0 +1,2 @@
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS competence_regime text NOT NULL DEFAULT 'producao' CHECK (competence_regime IN ('producao','remessa'));
+COMMENT ON COLUMN public.payments.competence_regime IS 'Regime de competência do lote: "producao" = pagamento pela produção realizada (procedimento na competência); "remessa" = pagamento pela produção remetida ao convênio (procedimentos podem ser de meses anteriores). Em lotes remessa, o filtro de competência da conciliação não remove itens com procedure_date anterior à competência.';

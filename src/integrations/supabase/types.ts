@@ -6318,6 +6318,7 @@ export type Database = {
           bruto_total: number
           competence_month: string | null
           competence_months: string[]
+          competence_regime: string
           confeccao_finalized_at: string | null
           confeccao_finalized_by: string | null
           confeccao_status:
@@ -6370,6 +6371,7 @@ export type Database = {
           bruto_total?: number
           competence_month?: string | null
           competence_months?: string[]
+          competence_regime?: string
           confeccao_finalized_at?: string | null
           confeccao_finalized_by?: string | null
           confeccao_status?:
@@ -6422,6 +6424,7 @@ export type Database = {
           bruto_total?: number
           competence_month?: string | null
           competence_months?: string[]
+          competence_regime?: string
           confeccao_finalized_at?: string | null
           confeccao_finalized_by?: string | null
           confeccao_status?:
