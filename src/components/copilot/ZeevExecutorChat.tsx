@@ -8,7 +8,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type ExecAction = "set_sector" | "set_cost_center" | "link_doctor_company";
+type ExecAction =
+  | "set_sector"
+  | "set_cost_center"
+  | "link_doctor_company"
+  | "register_doctor_pending"
+  | "register_company"
+  | "resolve_registry_match";
 type SoftAction = "navigate" | "answer";
 type Action = ExecAction | SoftAction;
 
@@ -25,6 +31,7 @@ type Proposal = {
     description: string | null;
     attendance_number: string | null;
   }>;
+  details?: Array<{ label: string; value: string }>;
 };
 
 type NavPayload = { url?: string; filter?: "zerados" | "divergentes" | "sem_regra" | "reprovados" };
@@ -39,7 +46,12 @@ const ACTION_LABEL: Record<ExecAction, string> = {
   set_sector: "Definir setor em lote",
   set_cost_center: "Definir centro de custos em lote",
   link_doctor_company: "Vincular médico → empresa",
+  register_doctor_pending: "Cadastrar médico (pendente aprovação)",
+  register_company: "Cadastrar empresa (PJ)",
+  resolve_registry_match: "Registrar alias de cadastro",
 };
+
+const REGISTRY_ACTIONS = new Set<ExecAction>(["register_doctor_pending", "register_company", "resolve_registry_match"]);
 
 const FILTER_LABEL: Record<NonNullable<NavPayload["filter"]>, string> = {
   zerados: "valores zerados",
@@ -153,14 +165,15 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
 
   const confirm = useCallback(
     async (idx: number, proposal: Proposal) => {
-      if (!paymentId) {
+      const isRegistry = REGISTRY_ACTIONS.has(proposal.action);
+      if (!isRegistry && !paymentId) {
         toast.error("Sem pagamento ativo para executar.");
         return;
       }
       setMessages((m) => m.map((msg, i) => (i === idx && msg.role === "proposal" ? { ...msg, status: "applying" } : msg)));
       try {
         const { data, error } = await supabase.functions.invoke("zeev-executor", {
-          body: { step: "execute", payment_id: paymentId, proposal },
+          body: { step: "execute", payment_id: paymentId ?? null, proposal },
         });
         if (error) throw error;
         const r = data as { affected: number; message: string };
@@ -262,21 +275,32 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
                   {m.status === "cancelled" && <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />}
                 </div>
                 <p className="text-[13px] text-foreground leading-snug">{p.summary}</p>
-                <div className="text-xs text-muted-foreground">
-                  <strong className="text-foreground">{p.preview_count}</strong> {p.preview_count === 1 ? "item afetado" : "itens afetados"}
-                  {p.preview_count > 0 && p.sample_items.length > 0 && (
-                    <ul className="mt-1.5 space-y-0.5 text-[11px]">
-                      {p.sample_items.map((s) => (
-                        <li key={s.id} className="truncate">
-                          • {s.doctor_name ?? "—"} · {s.procedure_code ?? "—"} · {s.description ?? "—"}
-                        </li>
-                      ))}
-                      {p.preview_count > p.sample_items.length && (
-                        <li className="text-muted-foreground/70">… e mais {p.preview_count - p.sample_items.length}</li>
-                      )}
-                    </ul>
-                  )}
-                </div>
+                {REGISTRY_ACTIONS.has(p.action) && p.details && p.details.length > 0 ? (
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
+                    {p.details.map((d, di) => (
+                      <div key={di} className="contents">
+                        <dt className="text-muted-foreground">{d.label}:</dt>
+                        <dd className="text-foreground font-medium truncate">{d.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <div className="text-xs text-muted-foreground">
+                    <strong className="text-foreground">{p.preview_count}</strong> {p.preview_count === 1 ? "item afetado" : "itens afetados"}
+                    {p.preview_count > 0 && p.sample_items.length > 0 && (
+                      <ul className="mt-1.5 space-y-0.5 text-[11px]">
+                        {p.sample_items.map((s) => (
+                          <li key={s.id} className="truncate">
+                            • {s.doctor_name ?? "—"} · {s.procedure_code ?? "—"} · {s.description ?? "—"}
+                          </li>
+                        ))}
+                        {p.preview_count > p.sample_items.length && (
+                          <li className="text-muted-foreground/70">… e mais {p.preview_count - p.sample_items.length}</li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                )}
 
                 {m.result && (
                   <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{m.result}</div>

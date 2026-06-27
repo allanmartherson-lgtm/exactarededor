@@ -22,6 +22,9 @@ type Action =
   | "set_sector"
   | "set_cost_center"
   | "link_doctor_company"
+  | "register_doctor_pending"
+  | "register_company"
+  | "resolve_registry_match"
   | "navigate"
   | "answer";
 
@@ -53,6 +56,8 @@ interface Proposal {
     description: string | null;
     attendance_number: string | null;
   }>;
+  /** Para ações de cadastro: pares chave→valor exibidos no card de confirmação. */
+  details?: Array<{ label: string; value: string }>;
 }
 
 interface RequestBody {
@@ -82,10 +87,14 @@ const SYSTEM_PROMPT = [
   "3) set_sector — aplica setor em lote. payload: { sector_code }. scope.sector_missing=true para 'sem setor'.",
   "4) set_cost_center — aplica centro de custos. payload: { cost_center_code }. scope.cost_center_missing=true.",
   "5) link_doctor_company — vincula médico→PJ. payload: { company_id }. scope.doctor_company_missing=true.",
-  "6) clarify — quando o pedido é ambíguo e você precisa perguntar de volta. summary = a pergunta.",
-  "7) unsupported — quando não dá pra atender com nenhuma ação acima. summary = explicação curta + sugestão alternativa.",
+  "6) register_doctor_pending — cria médico em modo 'pending_admin_review=true'. payload: { full_name, crm, crm_uf (2 letras), cpf?, vinculo? } — full_name+crm+crm_uf são obrigatórios; se faltar, use 'clarify'. Use quando o analista pede 'cadastrar médico novo X com CRM Y/UF'.",
+  "7) register_company — cria PJ. payload: { name, document (CNPJ — 14 dígitos), state_uf? } — name+document obrigatórios. Use quando pedir 'cadastrar empresa X CNPJ Y'.",
+  "8) resolve_registry_match — registra alias para texto novo que devia bater com cadastro existente. payload: { alias_type: 'convenio'|'sector'|'doctor', alias_text, canonical_id (uuid do doctor) OU canonical_slug (slug do convenio/setor) }. Use quando o analista diz 'sempre que vier \"X\" considera como Y'.",
+  "9) clarify — quando o pedido é ambíguo e você precisa perguntar de volta. summary = a pergunta.",
+  "10) unsupported — quando não dá pra atender com nenhuma ação acima. summary = explicação curta + sugestão alternativa.",
   "",
-  "REGRA DE OURO: se o analista usa verbo de VER/MOSTRAR/IR ('me mostra', 'leva pros zerados', 'abre os divergentes'), prefira 'navigate'. Se PERGUNTA ('quantos', 'qual', 'tem algum'), prefira 'answer'. Só use set_/link_ quando ele pedir explicitamente para APLICAR/DEFINIR/VINCULAR.",
+  "REGRA DE OURO: se o analista usa verbo de VER/MOSTRAR/IR ('me mostra', 'leva pros zerados', 'abre os divergentes'), prefira 'navigate'. Se PERGUNTA ('quantos', 'qual', 'tem algum'), prefira 'answer'. Só use set_/link_/register_/resolve_ quando ele pedir explicitamente para APLICAR/CADASTRAR/VINCULAR. Para cadastro: extraia CRM no formato '12345/SP' como crm='12345', crm_uf='SP'. CNPJ pode vir com pontuação — preserve só dígitos.",
+
 ].join("\n");
 
 const RESPOND_SCHEMA = {
@@ -97,6 +106,9 @@ const RESPOND_SCHEMA = {
         "set_sector",
         "set_cost_center",
         "link_doctor_company",
+        "register_doctor_pending",
+        "register_company",
+        "resolve_registry_match",
         "navigate",
         "answer",
         "unsupported",
@@ -126,6 +138,18 @@ const RESPOND_SCHEMA = {
         company_id: { type: "string" },
         url: { type: "string" },
         filter: { type: "string", enum: ["zerados", "divergentes", "sem_regra", "reprovados"] },
+        full_name: { type: "string" },
+        crm: { type: "string" },
+        crm_uf: { type: "string" },
+        cpf: { type: "string" },
+        vinculo: { type: "string" },
+        name: { type: "string" },
+        document: { type: "string" },
+        state_uf: { type: "string" },
+        alias_type: { type: "string", enum: ["convenio", "sector", "doctor"] },
+        alias_text: { type: "string" },
+        canonical_id: { type: "string" },
+        canonical_slug: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -253,6 +277,153 @@ async function execLinkDoctorCompany(sb: SB, paymentId: string, scope: Scope, pa
     before: doctorIds.map((d) => ({ doctor_id: d, had_link: false })),
     after: { company_id: companyId, company_name: comp.name },
     created_link_ids: (inserted ?? []).map((r) => r.id),
+  };
+}
+
+// -------------------- Cadastros (Fase 2) --------------------
+
+function digitsOnly(s: string): string {
+  return (s ?? "").replace(/\D+/g, "");
+}
+
+function isValidCnpj(cnpj: string): boolean {
+  const c = digitsOnly(cnpj);
+  if (c.length !== 14) return false;
+  if (/^(\d)\1+$/.test(c)) return false;
+  const calc = (base: string, weights: number[]) => {
+    const sum = base.split("").reduce((acc, d, i) => acc + Number(d) * weights[i], 0);
+    const r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  const d1 = calc(c.slice(0, 12), [5,4,3,2,9,8,7,6,5,4,3,2]);
+  const d2 = calc(c.slice(0, 13), [6,5,4,3,2,9,8,7,6,5,4,3,2]);
+  return d1 === Number(c[12]) && d2 === Number(c[13]);
+}
+
+async function userHasInternalRole(sb: SB, userId: string): Promise<boolean> {
+  const { data } = await sb
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", ["admin", "diretor", "validador", "analista", "gestao_medica"]);
+  return (data?.length ?? 0) > 0;
+}
+
+async function execRegisterDoctorPending(sb: SB, payload: Record<string, unknown>, actorId: string, hospitalId: string | null) {
+  const full_name = String(payload.full_name ?? "").trim();
+  const crm = String(payload.crm ?? "").trim();
+  const crm_uf = String(payload.crm_uf ?? "").trim().toUpperCase();
+  const cpf = payload.cpf ? digitsOnly(String(payload.cpf)) : null;
+  const vinculo = payload.vinculo ? String(payload.vinculo).trim() : null;
+  if (!full_name || !crm || crm_uf.length !== 2) throw new Error("full_name, crm e crm_uf (2 letras) obrigatórios.");
+
+  // Dedup: mesmo CRM+UF já existente?
+  const { data: existing } = await sb
+    .from("doctors")
+    .select("id, full_name")
+    .eq("crm", crm)
+    .eq("crm_uf", crm_uf)
+    .maybeSingle();
+  if (existing) {
+    throw new Error(`CRM ${crm}/${crm_uf} já existe para "${existing.full_name}". Use vincular alias em vez de cadastrar de novo.`);
+  }
+
+  const insertRow: Record<string, unknown> = {
+    full_name,
+    crm,
+    crm_uf,
+    cpf,
+    vinculo,
+    pending_admin_review: true,
+    pending_review_note: "Criado via Zeev — pendente aprovação do admin.",
+    created_by: actorId,
+    created_by_user_id: actorId,
+    active: true,
+  };
+  if (hospitalId) insertRow.state_uf = crm_uf; // referência inicial
+
+  const { data: inserted, error } = await sb
+    .from("doctors")
+    .insert(insertRow)
+    .select("id, code, full_name, crm, crm_uf")
+    .single();
+  if (error) throw new Error(`register_doctor: ${error.message}`);
+
+  return {
+    affected: 1,
+    before: null,
+    after: inserted,
+  };
+}
+
+async function execRegisterCompany(sb: SB, payload: Record<string, unknown>, actorId: string) {
+  const name = String(payload.name ?? "").trim();
+  const document = digitsOnly(String(payload.document ?? ""));
+  const state_uf = payload.state_uf ? String(payload.state_uf).trim().toUpperCase() : null;
+  if (!name) throw new Error("name obrigatório.");
+  if (!isValidCnpj(document)) throw new Error("CNPJ inválido.");
+
+  const { data: existing } = await sb
+    .from("companies")
+    .select("id, name")
+    .eq("document", document)
+    .maybeSingle();
+  if (existing) throw new Error(`CNPJ já cadastrado para "${existing.name}".`);
+
+  const { data: inserted, error } = await sb
+    .from("companies")
+    .insert({ name, document, state_uf, created_by: actorId })
+    .select("id, code, name, document, state_uf")
+    .single();
+  if (error) throw new Error(`register_company: ${error.message}`);
+
+  return { affected: 1, before: null, after: inserted };
+}
+
+async function execResolveRegistryMatch(sb: SB, payload: Record<string, unknown>, actorId: string) {
+  const alias_type = String(payload.alias_type ?? "") as "convenio" | "sector" | "doctor";
+  const alias_text = String(payload.alias_text ?? "").trim();
+  if (!alias_text) throw new Error("alias_text obrigatório.");
+
+  let row: Record<string, unknown>;
+  let table: "doctor_aliases" | "convenio_aliases" | "sector_aliases";
+  let resolved: { id: string; label: string };
+
+  if (alias_type === "doctor") {
+    const canonical_id = String(payload.canonical_id ?? "").trim();
+    if (!canonical_id) throw new Error("canonical_id obrigatório para alias de médico.");
+    const { data: d } = await sb.from("doctors").select("id, full_name").eq("id", canonical_id).maybeSingle();
+    if (!d) throw new Error("Médico canônico não encontrado.");
+    table = "doctor_aliases";
+    row = { doctor_id: canonical_id, alias_text, source: "zeev", created_by: actorId };
+    resolved = { id: d.id as string, label: d.full_name as string };
+  } else if (alias_type === "convenio") {
+    const slug = String(payload.canonical_slug ?? "").trim();
+    if (!slug) throw new Error("canonical_slug obrigatório para alias de convênio.");
+    const { data: c } = await sb.from("convenios").select("slug, name").eq("slug", slug).maybeSingle();
+    if (!c) throw new Error("Convênio canônico não encontrado.");
+    table = "convenio_aliases";
+    row = { convenio_slug: slug, alias_text, source: "zeev", created_by: actorId };
+    resolved = { id: slug, label: c.name as string };
+  } else if (alias_type === "sector") {
+    const slug = String(payload.canonical_slug ?? "").trim();
+    if (!slug) throw new Error("canonical_slug obrigatório para alias de setor.");
+    const { data: s } = await sb.from("sectors").select("slug, name").eq("slug", slug).maybeSingle();
+    if (!s) throw new Error("Setor canônico não encontrado.");
+    table = "sector_aliases";
+    row = { sector_slug: slug, alias_text, source: "zeev", created_by: actorId };
+    resolved = { id: slug, label: s.name as string };
+  } else {
+    throw new Error("alias_type inválido.");
+  }
+
+  const { data: inserted, error } = await sb.from(table).insert(row).select("id").single();
+  if (error) throw new Error(`resolve_alias: ${error.message}`);
+
+  return {
+    affected: 1,
+    before: null,
+    after: { alias_id: inserted.id, alias_type, alias_text, resolved_to: resolved },
   };
 }
 
@@ -418,18 +589,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Daqui pra baixo, ações que mutam dados precisam de payment_id.
-      if (!body.payment_id || !pay) {
-        return jsonResp({
-          step: "respond",
-          action: "unsupported",
-          summary: "Para aplicar essa ação preciso estar dentro de um pagamento específico. Abra o lote e tente de novo.",
-        });
-      }
-
       const scope: Scope = llm.scope ?? {};
       const payload: Record<string, unknown> = llm.payload ?? {};
+      const REGISTRY_ACTIONS = new Set(["register_doctor_pending", "register_company", "resolve_registry_match"]);
 
+      // Validações de payload por ação → se faltar campo, vira clarify
       if (llm.action === "set_sector" && !payload.sector_code) {
         return jsonResp({ step: "respond", action: "clarify", summary: "Qual setor (código) devo aplicar?" });
       }
@@ -438,6 +602,67 @@ Deno.serve(async (req) => {
       }
       if (llm.action === "link_doctor_company" && !payload.company_id) {
         return jsonResp({ step: "respond", action: "clarify", summary: "Em qual empresa (ID) devo vincular os médicos?" });
+      }
+      if (llm.action === "register_doctor_pending") {
+        const missing: string[] = [];
+        if (!payload.full_name) missing.push("nome completo");
+        if (!payload.crm) missing.push("CRM");
+        if (!payload.crm_uf) missing.push("UF do CRM");
+        if (missing.length) {
+          return jsonResp({ step: "respond", action: "clarify", summary: `Pra cadastrar o médico preciso de: ${missing.join(", ")}.` });
+        }
+      }
+      if (llm.action === "register_company") {
+        const missing: string[] = [];
+        if (!payload.name) missing.push("razão social");
+        if (!payload.document) missing.push("CNPJ");
+        if (missing.length) {
+          return jsonResp({ step: "respond", action: "clarify", summary: `Pra cadastrar a empresa preciso de: ${missing.join(", ")}.` });
+        }
+      }
+      if (llm.action === "resolve_registry_match") {
+        if (!payload.alias_type || !payload.alias_text || (!payload.canonical_id && !payload.canonical_slug)) {
+          return jsonResp({ step: "respond", action: "clarify", summary: "Pra registrar o alias preciso de: tipo (convenio/sector/doctor), texto alternativo e o cadastro canônico de destino." });
+        }
+      }
+
+      // Ações de cadastro: NÃO precisam de payment_id e usam details em vez de sample_items.
+      if (REGISTRY_ACTIONS.has(llm.action)) {
+        const details: Array<{ label: string; value: string }> = [];
+        if (llm.action === "register_doctor_pending") {
+          details.push({ label: "Nome", value: String(payload.full_name) });
+          details.push({ label: "CRM", value: `${payload.crm}/${String(payload.crm_uf).toUpperCase()}` });
+          if (payload.cpf) details.push({ label: "CPF", value: digitsOnly(String(payload.cpf)) });
+          if (payload.vinculo) details.push({ label: "Vínculo", value: String(payload.vinculo) });
+          details.push({ label: "Status", value: "pendente aprovação admin" });
+        } else if (llm.action === "register_company") {
+          details.push({ label: "Razão social", value: String(payload.name) });
+          details.push({ label: "CNPJ", value: digitsOnly(String(payload.document)) });
+          if (payload.state_uf) details.push({ label: "UF", value: String(payload.state_uf).toUpperCase() });
+        } else if (llm.action === "resolve_registry_match") {
+          details.push({ label: "Tipo", value: String(payload.alias_type) });
+          details.push({ label: "Texto novo", value: String(payload.alias_text) });
+          details.push({ label: "Aponta para", value: String(payload.canonical_id ?? payload.canonical_slug) });
+        }
+        const proposal: Proposal = {
+          action: llm.action,
+          scope: {},
+          payload,
+          summary: llm.summary ?? "",
+          preview_count: 1,
+          sample_items: [],
+          details,
+        };
+        return jsonResp({ step: "propose", proposal });
+      }
+
+      // Ações de mutação no lote — exigem payment_id
+      if (!body.payment_id || !pay) {
+        return jsonResp({
+          step: "respond",
+          action: "unsupported",
+          summary: "Para aplicar essa ação preciso estar dentro de um pagamento específico. Abra o lote e tente de novo.",
+        });
       }
 
       const { count, samples } = await buildPreview(sb, body.payment_id, scope, llm.action as Action);
@@ -456,8 +681,49 @@ Deno.serve(async (req) => {
 
     if (body.step === "execute") {
       if (!body.proposal) return jsonResp({ error: "proposal obrigatória" }, 400);
-      if (!body.payment_id || !pay) return jsonResp({ error: "payment_id obrigatório para executar" }, 400);
       const p = body.proposal;
+      const REGISTRY_ACTIONS = new Set(["register_doctor_pending", "register_company", "resolve_registry_match"]);
+
+      // Registros: gate de papel interno; não exigem payment_id
+      if (REGISTRY_ACTIONS.has(p.action)) {
+        const ok = await userHasInternalRole(sb, actorId);
+        if (!ok) return jsonResp({ error: "Apenas papéis internos (analista+) podem cadastrar." }, 403);
+
+        let result: { affected: number; before: unknown; after: unknown };
+        if (p.action === "register_doctor_pending") {
+          result = await execRegisterDoctorPending(sb, p.payload, actorId, pay?.hospital_id ?? null);
+        } else if (p.action === "register_company") {
+          result = await execRegisterCompany(sb, p.payload, actorId);
+        } else {
+          result = await execResolveRegistryMatch(sb, p.payload, actorId);
+        }
+
+        const after = result.after as { id?: string };
+        await sb.from("audit_log").insert({
+          entity_type: p.action === "register_doctor_pending" ? "doctor"
+                     : p.action === "register_company" ? "company"
+                     : "alias",
+          entity_id: after?.id ?? null,
+          action: `zeev.${p.action}`,
+          actor_id: actorId,
+          hospital_id: pay?.hospital_id ?? null,
+          company_name: pay?.company_name ?? null,
+          diff: {
+            source: "zeev_executor",
+            summary: p.summary,
+            payload: p.payload,
+            after: result.after,
+          },
+        });
+
+        const msg = p.action === "register_doctor_pending" ? "Médico cadastrado (pendente aprovação)."
+                  : p.action === "register_company" ? "Empresa cadastrada."
+                  : "Alias registrado.";
+        return jsonResp({ step: "executed", action: p.action, affected: 1, message: msg });
+      }
+
+      // Mutações no lote
+      if (!body.payment_id || !pay) return jsonResp({ error: "payment_id obrigatório para executar" }, 400);
 
       let result: { affected: number; before: unknown; after: unknown; created_link_ids?: string[] };
       if (p.action === "set_sector") {
@@ -469,6 +735,7 @@ Deno.serve(async (req) => {
       } else {
         return jsonResp({ error: `ação não suportada: ${p.action}` }, 400);
       }
+
 
       await sb.from("audit_log").insert({
         entity_type: "payment",
