@@ -92,6 +92,7 @@ import { isCompanyGroupEditable, isCompanyGroupReopenable, COMPANY_GROUP_LOCKED_
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
+import { usePaymentTypeMeta } from "@/hooks/usePaymentTypeMeta";
 import {
   DropdownMenu,
   DropdownMenuContent,
