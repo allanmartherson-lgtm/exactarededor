@@ -154,6 +154,19 @@ export default function NewManualPayment() {
             <p className="text-xs text-muted-foreground">Obrigatório. Define o centro de custos contábil deste lote.</p>
           </div>
           <div className="space-y-1.5">
+            <Label>Regime de competência *</Label>
+            <Select value={competenceRegime} onValueChange={(v) => setCompetenceRegime(v as "producao" | "remessa")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="producao">Produção realizada (procedimentos do mês da competência)</SelectItem>
+                <SelectItem value="remessa">Produção remetida (pago quando enviado ao convênio — pode incluir meses anteriores)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Use <span className="font-medium">Remetida</span> para especialidades como infectologia/nefrologia históricas, em que o pagamento depende da remessa ao convênio e os atendimentos podem ser de meses anteriores.
+            </p>
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="desc">Descrição (opcional)</Label>
             <Textarea
               id="desc"
