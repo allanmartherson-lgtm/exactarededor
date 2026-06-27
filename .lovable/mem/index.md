@@ -11,8 +11,11 @@ Lookup de cadastros é ESTRITO: só aceita match por documento, nome exato ou al
 Normalização de convênio NÃO depende exclusivamente do banco: stems hardcoded em convenioStems.ts garantem que Bradesco/Sul América/Amil/Unimed resolvem mesmo com convenios vazia. Aliases aprendidos enriquecem a tabela automaticamente.
 Notificações multi-canal: e-mail (Outlook/Gmail) + WhatsApp (Twilio). Aprovação por magic link assinado (JWT HS256, TTL 72h, single-use). Secret MAGIC_LINK_SECRET nunca expor.
 Pool participant pode ser `company` (gera recebível) ou `hospital_nao_paga` (retenção = receita do hospital, NÃO entra na DRE de pagamento). NULL company_id só é válido com hospital_nao_paga — nunca tratar como bug.
+Identidade visual: azul `#003DA5` + bronze `#C6A27C`, Playfair Display + DM Sans. Ícone oficial sempre via `<ExactaIcon />` (src/components/brand/ExactaIcon.tsx) — nunca recriar checkmark inline.
 
 ## Memories
+- [Identidade Exacta/Rede D'Or](mem://design/brand-exacta-rededor) — Paleta, fontes, ícone oficial, favicon, pendências de marca
+
 - [Escopo — base tratada](mem://constraints/scope-base-tratada) — Limites do que o sistema faz/não faz sobre a base enviada
 - [Especialidade não impacta](mem://constraints/especialidade-nao-impacta) — Especialidade é só relatório/filtro, nunca afeta cálculo ou status
 - [Sem default hardcoded](mem://constraints/no-hardcoded-default) — Motor não pode aplicar % default quando não há regra cadastrada

@@ -35,6 +35,8 @@ import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/confi
 import { useQueueNotifications } from "@/hooks/useQueueNotifications";
 import { NotificationBell } from "@/components/NotificationBell";
 import { InboxBadge } from "@/components/InboxBadge";
+import { ExactaIcon } from "@/components/brand/ExactaIcon";
+
 import { PortalUnreadBadge } from "@/components/portal/PortalUnreadBadge";
 import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
 import { SystemAnnouncementBanner } from "@/components/SystemAnnouncementBanner";
@@ -84,32 +86,8 @@ const Logo = ({ compact = false }: { compact?: boolean }) => (
     className="flex items-center gap-3 flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
     aria-label="Exacta — início"
   >
-    <div
-      style={{
-        width: 34,
-        height: 34,
-        borderRadius: 8,
-        background: "hsl(var(--primary-dark))",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-      }}
-      aria-hidden
-    >
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="hsl(var(--accent))"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <polyline points="5 12.5 10 17.5 19 7" />
-      </svg>
-    </div>
+    <ExactaIcon size={34} />
+
     {!compact && (
       <div className="min-w-0 leading-tight">
         <p
