@@ -5,19 +5,27 @@ import { detectDoctorSectorAnomalies, type DoctorSectorAnomaly } from "@/lib/doc
 
 interface Props {
   paymentId: string;
+  /** Quando 'manual', a detecção é pulada (setor não tem significado operacional no modo manual). */
+  analysisMode?: string | null;
 }
 
-export function DoctorAnomalyAlerts({ paymentId }: Props) {
+
+
+export function DoctorAnomalyAlerts({ paymentId, analysisMode }: Props) {
   const [anomalies, setAnomalies] = useState<DoctorSectorAnomaly[] | null>(null);
   const [expanded, setExpanded] = useState(false);
 
+  const isManual = analysisMode === "manual";
+
   useEffect(() => {
+    if (isManual) { setAnomalies([]); return; }
     let cancelled = false;
     detectDoctorSectorAnomalies(paymentId).then((res) => {
       if (!cancelled) setAnomalies(res);
     });
     return () => { cancelled = true; };
-  }, [paymentId]);
+  }, [paymentId, isManual]);
+
 
   if (!anomalies || anomalies.length === 0) return null;
 
