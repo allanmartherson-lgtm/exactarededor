@@ -4020,6 +4020,35 @@ const PaymentDetail = () => {
             </CardContent>
           </Card>
         )}
+        {payment.analysis_mode === "manual" && (
+          <Card className="shadow-card border-0 ring-1 ring-amber-500/40 bg-gradient-to-r from-amber-500/10 via-background to-background relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500" aria-hidden />
+            <CardContent className="p-4 pl-5 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="rounded-lg bg-amber-500/20 ring-1 ring-amber-500/40 p-2 flex-shrink-0">
+                  <Calculator className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-amber-700 dark:text-amber-300 tracking-wide uppercase">Lançamento manual</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Lote alimentado a partir de planilha externa. O motor de regras não roda — o valor de cada item é o informado pelo analista. A composição (rubricas) e a planilha-fonte ficam anexadas ao item para auditoria.
+                  </p>
+                </div>
+              </div>
+              {isAnalista && (payment.status === "rascunho" || payment.status === "em_analise_ia") && (
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button
+                    size="sm"
+                    onClick={() => navigate(`/pagamentos/${payment.id}/manual`)}
+                    className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    Editar lançamentos
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
         <div className="flex flex-col gap-4">
           <div className="flex flex-col md:flex-row flex-wrap items-stretch md:items-center gap-2 md:gap-3">
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-1">
