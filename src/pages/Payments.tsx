@@ -188,7 +188,7 @@ type PersistedPaymentsState = Partial<{
   analystFilter: string;
   typeFilter: string;
   trackFilter: string;
-  statusFilter: string;
+  statusFilter: string[];
   competenceFilter: string;
   view: "lista" | "kanban";
   sortBy: "relevance" | "created" | "elapsed" | "status" | "priority";
