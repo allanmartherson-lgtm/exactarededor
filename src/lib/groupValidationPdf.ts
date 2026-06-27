@@ -65,14 +65,18 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
   const allItems = (items ?? []) as Array<{
     id: string;
     doctor_name: string | null;
+    patient_name: string | null;
     attendance_number: string | null;
     procedure_code: string | null;
+    procedure_name: string | null;
+    procedure_date: string | null;
     quantity: number | null;
     procedure_amount: number | null;
     gross_amount: number | null;
     expected_amount: number | null;
     applied_calc_id: string | null;
     applied_calc_method: string | null;
+    validation_findings: unknown;
   }>;
 
   const semRegra = allItems.filter((i) => !i.applied_calc_id);
