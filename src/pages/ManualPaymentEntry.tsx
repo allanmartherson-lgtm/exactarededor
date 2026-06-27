@@ -104,6 +104,9 @@ export default function ManualPaymentEntry() {
   const [savingAll, setSavingAll] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [compositionFor, setCompositionFor] = useState<string | null>(null);
+  const [generalAttPath, setGeneralAttPath] = useState<string | null>(null);
+  const [generalAttName, setGeneralAttName] = useState<string | null>(null);
+  const [uploadingGeneral, setUploadingGeneral] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -111,11 +114,13 @@ export default function ManualPaymentEntry() {
     const { data: p } = await supabase.from("payments").select("*").eq("id", id).single();
     setPayment(p);
     setDefaultTypeId((p as any)?.payment_type_id ?? null);
+    setGeneralAttPath((p as any)?.manual_general_attachment_path ?? null);
+    setGeneralAttName((p as any)?.manual_general_attachment_name ?? null);
 
     const { data: items } = await supabase
       .from("payment_items")
       .select(
-        "id,company_id,company_name,doctor_id,doctor_name,payment_type_id,specialty,attendance_number,patient_name,gross_amount,manual_composition,manual_source_attachment_path",
+        "id,company_id,company_name,doctor_id,doctor_name,payment_type_id,specialty,attendance_number,patient_name,gross_amount,manual_note,manual_composition,manual_source_attachment_path",
       )
       .eq("payment_id", id)
       .eq("is_manual_entry", true)
@@ -135,6 +140,7 @@ export default function ManualPaymentEntry() {
       attendance: it.attendance_number ?? "",
       patient: it.patient_name ?? "",
       amount: Number(it.gross_amount) || 0,
+      observation: it.manual_note ?? "",
       composition: (it.manual_composition as CompositionRow[] | null) ?? null,
       attachmentPath: it.manual_source_attachment_path ?? null,
       attachmentName: it.manual_source_attachment_path
