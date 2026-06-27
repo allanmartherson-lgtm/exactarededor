@@ -41,6 +41,7 @@ export default function NewManualPayment() {
   const [paymentTypeId, setPaymentTypeId] = useState<string>("");
   const [paymentDueDate, setPaymentDueDate] = useState("");
   const [costCenterCode, setCostCenterCode] = useState<string | null>(null);
+  const [competenceRegime, setCompetenceRegime] = useState<"producao" | "remessa">("producao");
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = !!reference.trim() && !!paymentTypeId && !!competence && !!hospital?.id && !!costCenterCode;
