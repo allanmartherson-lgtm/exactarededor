@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_SHORT_LABELS, type PaymentStatus, type PaymentType, type PaymentKind, type PaymentTrack } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope, Trash2, SlidersHorizontal, Receipt, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, EyeOff } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, ChevronsUpDown, Stethoscope, Trash2, SlidersHorizontal, Receipt, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, EyeOff } from "lucide-react";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
@@ -188,7 +188,7 @@ type PersistedPaymentsState = Partial<{
   analystFilter: string;
   typeFilter: string;
   trackFilter: string;
-  statusFilter: string;
+  statusFilter: string[];
   competenceFilter: string;
   view: "lista" | "kanban";
   sortBy: "relevance" | "created" | "elapsed" | "status" | "priority";
@@ -240,7 +240,12 @@ const Payments = () => {
   const [analystFilter, setAnalystFilter] = useState<string>(persisted.analystFilter ?? "all");
   const [typeFilter, setTypeFilter] = useState<string>(persisted.typeFilter ?? "all");
   const [trackFilter, setTrackFilter] = useState<string>(persisted.trackFilter ?? "all");
-  const [statusFilter, setStatusFilter] = useState<string>(persisted.statusFilter ?? "all");
+  const [statusFilter, setStatusFilter] = useState<string[]>(() => {
+    const raw: any = persisted.statusFilter;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string" && raw && raw !== "all") return [raw];
+    return [];
+  });
   const [competenceFilter, setCompetenceFilter] = useState<string>(persisted.competenceFilter ?? "all");
   const [delayedOnly, setDelayedOnly] = useState(searchParams.get("delayed") === "1");
   // Filtros vindos do Dashboard ("seus pagamentos por papel"). Quando ativos
@@ -277,7 +282,7 @@ const Payments = () => {
     if (st === "analista" || st === "validador" || st === "diretor") {
       setOwnerGroup(st);
     } else if (st) {
-      setStatusFilter(st);
+      setStatusFilter([st]);
     }
     setOnlyMine(searchParams.get("owner") === "me");
   }, [searchParams]);
@@ -465,11 +470,11 @@ const Payments = () => {
     // Concluídos (pago/lançado) só aparecem se: (a) a visão de arquivados estiver
     // ativa, (b) o usuário ligou explicitamente "ver concluídos", ou (c) o filtro
     // de status pediu um desses status diretamente.
-    if (!archivedView && !showConcluded && statusFilter === "all") {
+    if (!archivedView && !showConcluded && statusFilter.length === 0) {
       base = base.filter((s) => !CONCLUDED_STATUSES.has(s));
     }
-    if (statusFilter !== "all") {
-      base = base.includes(statusFilter) ? [statusFilter] : [statusFilter];
+    if (statusFilter.length > 0) {
+      base = statusFilter;
     }
     if (ownerGroup !== "all") {
       const allowed = STATUSES_BY_OWNER[ownerGroup] as readonly string[];
@@ -1376,13 +1381,57 @@ const Payments = () => {
                 prominent
                 className="min-w-0 md:min-w-[260px] w-full md:w-auto"
               />
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos status</SelectItem>
-                  {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full md:w-[200px] justify-between font-normal">
+                    <span className="truncate">
+                      {statusFilter.length === 0
+                        ? "Todos status"
+                        : statusFilter.length === 1
+                          ? (PAYMENT_STATUS_LABELS as any)[statusFilter[0]] ?? statusFilter[0]
+                          : `${statusFilter.length} status selecionados`}
+                    </span>
+                    <ChevronsUpDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[260px] p-2">
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase">Status</span>
+                    {statusFilter.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                        onClick={() => setStatusFilter([])}
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto space-y-0.5">
+                    {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => {
+                      const checked = statusFilter.includes(k);
+                      return (
+                        <label
+                          key={k}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-border accent-primary"
+                            checked={checked}
+                            onChange={(e) => {
+                              setStatusFilter((prev) =>
+                                e.target.checked ? [...prev, k] : prev.filter((s) => s !== k),
+                              );
+                            }}
+                          />
+                          <span className="truncate">{v}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Button
                 variant={delayedOnly ? "default" : "outline"}
                 size="sm"
@@ -1451,7 +1500,7 @@ const Payments = () => {
                 const anyActive =
                   !!q ||
                   !!companyFilter ||
-                  statusFilter !== "all" ||
+                  statusFilter.length > 0 ||
                   delayedOnly ||
                   openQuestionOnly ||
                   onlyMine ||
@@ -1465,7 +1514,7 @@ const Payments = () => {
                     onClick={() => {
                       setQ("");
                       setCompanyFilter(null);
-                      setStatusFilter("all");
+                      setStatusFilter([]);
                       setDelayedOnly(false);
                       setOpenQuestionOnly(false);
                       setOnlyMine(false);
@@ -1528,10 +1577,10 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || trackFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly) && (
+              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || trackFilter !== "all" || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly) && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
-                  setAnalystFilter("all"); setTypeFilter("all"); setTrackFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
+                  setAnalystFilter("all"); setTypeFilter("all"); setTrackFilter("all"); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
                   setOwnerGroup("all"); setOnlyMine(false);
                   setDivergenceFilter("all"); setQuestionedFilter("all");
                   setPoolFilter("all"); setImportModeFilter("all"); setEmptyOnly(false);
