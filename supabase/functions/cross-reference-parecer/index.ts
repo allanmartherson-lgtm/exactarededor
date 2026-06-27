@@ -42,14 +42,11 @@ function sameDayUtc(a: string | null, b: string | null) {
 }
 
 // A data de referência do parecer é SEMPRE a data da RESPOSTA — é quando o
-// médico efetivamente executou o atendimento e gerou o repasse. A data de
-// solicitação só é usada como fallback quando o relatório não traz resposta
-// (parecer ainda não respondido / coluna ausente no export do Tasy).
+// médico efetivamente executou o atendimento e gerou o repasse. Se a resposta
+// estiver vazia, não pode cair para solicitação: isso confirmaria parecer ainda
+// não respondido usando a data errada, mesmo com o mapping correto.
 function matchesParecerDate(row: any, procedureDate: string | null) {
-  if (row.dt_resposta_parecer) {
-    return sameDayUtc(row.dt_resposta_parecer, procedureDate);
-  }
-  return sameDayUtc(row.dt_solic_parecer, procedureDate);
+  return sameDayUtc(row.dt_resposta_parecer, procedureDate);
 }
 
 
@@ -238,7 +235,7 @@ Deno.serve(async (req) => {
       }
       if (!hit && att && nm) {
         const list = byAttendName.get(`${att}|${nm}`) ?? [];
-        // fallback exige mesma data (solicitação OU resposta do parecer)
+        // fallback por nome também exige a data da resposta do parecer.
         hit =
           list.find((r) => matchesParecerDate(r, it.procedure_date)) ?? null;
         if (hit) weak = true;
