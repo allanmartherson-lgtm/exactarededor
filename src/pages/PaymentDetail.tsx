@@ -2915,6 +2915,14 @@ const PaymentDetail = () => {
           <PaymentStatusFunnel status={payment.status} />
         )}
 
+        {/* Lotes de remessa: competência por item + bucket sem competência */}
+        {!isConfeccao && (
+          <RemessaCompetenceBuckets
+            paymentId={payment.id}
+            competenceRegime={(payment as any).competence_regime ?? null}
+          />
+        )}
+
         {/* Linha compacta: metadados + responsável — sempre primeiro */}
         {(() => {
           const currentResponsibleId = assignments[0]?.analyst_id ?? null;
