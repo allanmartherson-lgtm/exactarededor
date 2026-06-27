@@ -217,7 +217,7 @@ export default function ManualPaymentEntry() {
     patient_name: row.patient || null,
     gross_amount: Number(row.amount) || 0,
     expected_amount: Number(row.amount) || 0,
-    applied_calc_method: "manual_entry",
+    applied_calc_method: null,
     ai_status: "acatado",
     procedure_date: payment?.competence_month ?? null,
   });
@@ -260,9 +260,12 @@ export default function ManualPaymentEntry() {
       .eq("id", id);
   };
 
-  const saveAll = async () => {
+  const saveAll = async (): Promise<{ saved: number; failed: number; skipped: number }> => {
     setSavingAll(true);
     const updated: DraftRow[] = [];
+    let saved = 0;
+    let failed = 0;
+    let skipped = 0;
     for (const r of rows) {
       if (!r.dirty) {
         updated.push(r);
@@ -270,17 +273,44 @@ export default function ManualPaymentEntry() {
       }
       if (!r.company || r.amount <= 0) {
         updated.push(r);
+        skipped++;
         continue;
       }
       const id2 = await saveRow(r);
-      if (id2) updated.push({ ...r, dbId: id2, key: id2, dirty: false });
-      else updated.push(r);
+      if (id2) {
+        updated.push({ ...r, dbId: id2, key: id2, dirty: false });
+        saved++;
+      } else {
+        updated.push(r);
+        failed++;
+      }
     }
     setRows(updated);
     await recomputeTotal();
     setSavingAll(false);
-    toast({ title: "Itens salvos" });
+    if (failed === 0 && saved > 0) {
+      toast({ title: `${saved} ${saved === 1 ? "item salvo" : "itens salvos"}` });
+    } else if (failed > 0 && saved > 0) {
+      toast({
+        title: `${saved} salvo(s), ${failed} com erro`,
+        description: "Veja as mensagens de erro acima.",
+        variant: "destructive",
+      });
+    } else if (failed > 0) {
+      toast({
+        title: `Falha ao salvar (${failed})`,
+        description: "Nenhuma linha foi gravada. Veja o erro acima.",
+        variant: "destructive",
+      });
+    } else if (skipped > 0) {
+      toast({
+        title: "Nada para salvar",
+        description: "Preencha empresa e valor antes de salvar.",
+      });
+    }
+    return { saved, failed, skipped };
   };
+
 
   const finalize = async () => {
     if (!id) return;
@@ -293,7 +323,12 @@ export default function ManualPaymentEntry() {
       return;
     }
     setFinalizing(true);
-    await saveAll();
+    const result = await saveAll();
+    if (result.failed > 0) {
+      setFinalizing(false);
+      return;
+    }
+
     // Encaminha para validação (mesma esteira dos demais lotes).
     const { error } = await supabase
       .from("payments")
