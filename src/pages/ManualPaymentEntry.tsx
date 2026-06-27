@@ -300,7 +300,8 @@ export default function ManualPaymentEntry() {
   const finalize = async () => {
     if (!id) return;
     setFinalizing(true);
-    const outcome = await runFinalize(
+    type DraftWithValid = DraftRow & { valid: boolean };
+    const outcome = await runFinalize<DraftWithValid>(
       rows.map((r) => ({ ...r, valid: !!r.company && r.amount > 0 })),
       (r) => saveRow(r),
       async (status) => {
