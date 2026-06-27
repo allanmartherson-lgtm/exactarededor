@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, RefreshCw, Info } from "lucide-react";
+import { Calculator, RefreshCw, Info, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -15,12 +16,31 @@ type Run = {
   quotas: any;
   snapshot: any;
   created_at: string;
+  competence_month: string | null;
+  invalidated_at: string | null;
+  invalidated_reason: string | null;
+  error_detail: any;
 };
 
 type PoolInfo = { id: string; nome: string; base_calculo: string };
 
 const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const INVALID_REASONS: Record<string, string> = {
+  valor_variavel_competencia_nao_cadastrado:
+    "Falta cadastrar o valor de uma dedução variável para a competência deste lote.",
+  item_duplicado_em_outro_pool:
+    "Há itens deste lote já capturados por outro pool na mesma competência.",
+  competencia_nao_definida_para_valor_variavel:
+    "Lote sem competência definida — não é possível resolver deduções variáveis.",
+};
+
+const fmtComp = (iso: string | null) => {
+  if (!iso) return "";
+  const [y, m] = String(iso).slice(0, 10).split("-");
+  return `${m}/${y}`;
+};
 
 export function PoolCalculationCard({ paymentId, onRecalculated }: { paymentId: string; onRecalculated?: () => void | Promise<void> }) {
   const [runs, setRuns] = useState<Run[]>([]);
@@ -118,61 +138,106 @@ export function PoolCalculationCard({ paymentId, onRecalculated }: { paymentId: 
             const pool = poolMap[run.pool_id];
             const deds = Array.isArray(run.deductions_applied) ? run.deductions_applied : [];
             const quotas = Array.isArray(run.quotas) ? run.quotas : [];
+            const invalid = !!run.invalidated_at;
+            const reasonMsg = run.invalidated_reason
+              ? INVALID_REASONS[run.invalidated_reason] ?? run.invalidated_reason
+              : null;
+            const missingItems = Array.isArray(run.error_detail?.items) ? run.error_detail.items : [];
             return (
-              <div key={run.id} className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <div
+                key={run.id}
+                className={`rounded-md border p-3 space-y-2 ${invalid ? "border-destructive/50 bg-destructive/5" : "bg-muted/30"}`}
+              >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm">{pool?.nome ?? "Pool"}</span>
                   <span className="text-xs text-muted-foreground">
                     base: {pool?.base_calculo}
                   </span>
                 </div>
-                <div className="text-sm space-y-1 font-mono">
-                  <div className="flex justify-between">
-                    <span>Base ({pool?.base_calculo ?? "—"})</span>
-                    <span>{brl(run.base_amount)}</span>
-                  </div>
-                  {deds.map((d: any, i: number) => (
-                    <div key={i} className="flex justify-between text-destructive">
-                      <span>(−) {d.descricao}</span>
-                      <span>−{brl(d.valor)}</span>
+
+                {invalid && (
+                  <div className="rounded border border-destructive/40 bg-destructive/10 p-2 text-xs space-y-1.5">
+                    <div className="flex items-start gap-1.5 font-medium text-destructive">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>Pool não recalculado — {reasonMsg}</span>
                     </div>
-                  ))}
-                  <div className="flex justify-between border-t pt-1 font-semibold">
-                    <span>Bolo líquido</span>
-                    <span>{brl(run.bolo_liquido)}</span>
-                  </div>
-                </div>
-                <div className="text-xs space-y-1 pt-2 border-t">
-                  <div className="text-muted-foreground mb-1">Rateio:</div>
-                  {quotas.map((q: any, i: number) => {
-                    const isRetido = q.participant_type === "hospital_nao_paga";
-                    return (
-                      <div key={i} className="flex justify-between">
-                        <span className="flex items-center gap-1.5">
-                          {isRetido && (
-                            <Badge variant="outline" className="h-4 px-1 text-[10px]">
-                              retido
-                            </Badge>
-                          )}
-                          {isRetido
-                            ? `Retenção do hospital (${q.percentual}%)`
-                            : `Participante ${q.percentual}%`}
-                        </span>
-                        <span
-                          className={
-                            isRetido
-                              ? "text-muted-foreground italic"
-                              : "font-medium"
-                          }
-                          title={isRetido ? "Receita do hospital — não gera pagamento, fora da DRE de pagamento" : undefined}
-                        >
-                          {brl(q.quota)}
-                          {isRetido && " · receita hosp."}
-                        </span>
+                    {run.invalidated_reason === "valor_variavel_competencia_nao_cadastrado" && missingItems.length > 0 && (
+                      <div className="pl-5 space-y-1">
+                        <div className="text-muted-foreground">
+                          Falta cadastrar para a competência <b>{fmtComp(run.competence_month)}</b>:
+                        </div>
+                        <ul className="list-disc pl-4 space-y-0.5">
+                          {missingItems.map((it: any, k: number) => (
+                            <li key={k}>{it.descricao}</li>
+                          ))}
+                        </ul>
+                        <Button asChild size="sm" variant="outline" className="mt-1 h-7">
+                          <Link to={`/pools/${run.pool_id}/valores-mensais`}>
+                            Cadastrar valor mensal
+                          </Link>
+                        </Button>
                       </div>
-                    );
-                  })}
-                </div>
+                    )}
+                    {run.invalidated_reason === "item_duplicado_em_outro_pool" && (
+                      <div className="pl-5 text-muted-foreground">
+                        {(run.error_detail?.conflicts ?? []).length} item(ns) já capturados por outro pool — abra a tela do pool conflitante para liberar.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!invalid && (
+                  <>
+                    <div className="text-sm space-y-1 font-mono">
+                      <div className="flex justify-between">
+                        <span>Base ({pool?.base_calculo ?? "—"})</span>
+                        <span>{brl(run.base_amount)}</span>
+                      </div>
+                      {deds.map((d: any, i: number) => (
+                        <div key={i} className="flex justify-between text-destructive">
+                          <span>(−) {d.descricao}</span>
+                          <span>−{brl(d.valor)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between border-t pt-1 font-semibold">
+                        <span>Bolo líquido</span>
+                        <span>{brl(run.bolo_liquido)}</span>
+                      </div>
+                    </div>
+                    <div className="text-xs space-y-1 pt-2 border-t">
+                      <div className="text-muted-foreground mb-1">Rateio:</div>
+                      {quotas.map((q: any, i: number) => {
+                        const isRetido = q.participant_type === "hospital_nao_paga";
+                        return (
+                          <div key={i} className="flex justify-between">
+                            <span className="flex items-center gap-1.5">
+                              {isRetido && (
+                                <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                                  retido
+                                </Badge>
+                              )}
+                              {isRetido
+                                ? `Retenção do hospital (${q.percentual}%)`
+                                : `Participante ${q.percentual}%`}
+                            </span>
+                            <span
+                              className={
+                                isRetido
+                                  ? "text-muted-foreground italic"
+                                  : "font-medium"
+                              }
+                              title={isRetido ? "Receita do hospital — não gera pagamento, fora da DRE de pagamento" : undefined}
+                            >
+                              {brl(q.quota)}
+                              {isRetido && " · receita hosp."}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
                 <div className="text-[10px] text-muted-foreground pt-1">
                   Executado em {new Date(run.created_at).toLocaleString("pt-BR")}
                 </div>
