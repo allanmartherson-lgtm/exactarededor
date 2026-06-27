@@ -1,78 +1,68 @@
-# Plano — Pagamento Manual com Ficha de Composição
+## Objetivo
 
-Objetivo: permitir lançar pagamentos cuja origem é uma planilha externa (nefrologia, UTI, plantão fechado, coordenação rateada, etc.) sem modelar as fórmulas no motor. O analista informa o valor final por médico/empresa, anexa a fonte e opcionalmente descreve a composição em rubricas. O resto do fluxo (glosa, NF, conciliação, aprovação, auditoria) continua igual.
+Tratar o modo **manual** como um fluxo de primeira classe, com layout, colunas e relatório próprios — sem reaproveitar o que veio de análise/confecção (que pressupõem regra, TUSS, paciente, divergências).
 
-## 1. Conceito
+## Descobertas relevantes do código
 
-- Novo modo de análise no lote: `analysis_mode = 'manual'`.
-- Itens criados nesse modo já chegam com `gross_amount` definido pelo analista — o motor **pula regras de cálculo** e marca `applied_calc_method = 'manual_entry'`.
-- Cada item carrega: tipo de serviço, médico (opcional), empresa, especialidade (opcional), atendimento (opcional), paciente (opcional), competência, valor, anexo-fonte e composição estruturada (JSON livre de rubricas).
-- Glosa, vínculo médico→PJ, NF, conciliação e aprovação rodam exatamente como nos lotes normais.
+- `payment_items` já tem o campo `manual_note` (livre) e `specialty` (livre) — não precisa de migration para observação nem especialidade por linha.
+- `manual_source_attachment_path` já guarda o anexo por linha; o lançamento manual (`ManualPaymentEntry.tsx`) já faz upload, só falta exibir depois.
+- Não existe ainda anexo geral do lote no modo manual — vamos adicionar `payments.manual_general_attachment_path` (nullable) via migration.
+- `payment_items.is_manual_entry = true` é a flag autoritativa.
+- A tela do print é `CompanyAnalysis.tsx` (3.3k linhas) e reusa `ItemsDataGrid` (focado em regras/divergências). Para o manual vamos renderizar um grid próprio e esconder as áreas que não fazem sentido — sem refatorar o resto.
 
-## 2. Mudanças no banco
+## Mudanças
 
-Migração única adicionando:
+### 1. Migration (anexo geral do lote manual)
+```text
+ALTER TABLE public.payments
+  ADD COLUMN IF NOT EXISTS manual_general_attachment_path text,
+  ADD COLUMN IF NOT EXISTS manual_general_attachment_name text;
+```
+Sem alteração de RLS (políticas existentes já cobrem).
 
-- `payments.analysis_mode` aceita novo valor `'manual'` (sem CHECK rígido — já é text).
-- `payment_items`:
-  - `is_manual_entry boolean default false`
-  - `manual_composition jsonb` — array `[{rubrica, qtd, unit, total, obs}]`
-  - `manual_source_attachment_path text` — caminho no bucket
-  - `manual_entered_by uuid` / `manual_entered_at timestamptz`
-- `payment_types.calc_strategy` ganha valor `'manual'` para marcar tipos que sempre entram como manual (ex: "Nefrologia — Composição", "Plantão Fechado", "Coordenação").
-- Novo bucket privado `payment-manual-sources` para os PDFs/XLSX de origem, com RLS por hospital_id do pagamento.
+### 2. `ManualPaymentEntry.tsx` (mesa de lançamento)
+- Adicionar **campo Observação** (textarea curta) por linha — persiste em `manual_note`.
+- Carregar/salvar `manual_note` no `loaded`/`buildPayload`.
+- Bloco de **anexo geral** no topo (acima da tabela): upload único do lote → grava em `payments.manual_general_attachment_path/_name`. Bucket `payment-manual-sources`, mesma chave `${hospital}/${id}/_general/`. Texto: "Anexo do lote (opcional) — planilha-fonte que cobre o pagamento inteiro."
+- Manter o anexo por linha como opcional (já existe).
 
-Auditoria: trigger já existente em payment_items registra mudança; adicionar log explícito em `audit_log` quando `is_manual_entry = true` no insert.
+### 3. `CompanyAnalysis.tsx` — modo manual (condicional `isManual = analysis_mode === 'manual'`)
+Quando `isManual`:
+- **Cabeçalho**: esconder cards "Alertas" e "Críticos" (não existem alertas de regra no manual). Manter Itens, Valor Líquido.
+- **Faixa de deduções/composição**: manter (débitos/glosas/pool podem existir).
+- **Abas**: mostrar só `Itens` e `Histórico` — esconder `Divergências`, `Detalhe IA`.
+- **Filtros do grid** (`Todos status`, `Sem regra`, `Alertas assistenciais`, `Colunas`): esconder no manual.
+- **Grid de itens**: renderizar componente novo `ManualItemsGrid` em vez de `ItemsDataGrid`. Colunas:
+  | Médico | Empresa | Especialidade | Valor | Observação | Anexo |
+  - Anexo: ícone clipe + nome com link `getPublicUrl`/`createSignedUrl` do bucket `payment-manual-sources`.
+  - Se não tiver anexo por linha, mostra "—" (e o usuário sabe que tem o geral no header).
+  - Totalizador no rodapé: soma dos `gross_amount`.
+- **Banner do header do grupo**: mostrar link do anexo geral do lote (se houver).
 
-## 3. Motor de cálculo
+### 4. Botão/link "Adicionar item manual"
+Já existe. No modo manual, manter — leva para `ManualPaymentEntry`.
 
-- `dispatchAnalysis` / pipeline de regras: se `payment.analysis_mode = 'manual'` **ou** item com `is_manual_entry = true`, pular busca de regra, manter `gross_amount` informado, setar `applied_calc_method = 'manual_entry'`, `expected_amount = gross_amount`, `ai_status = 'sem_intervencao'`.
-- Glosa, recompute de status do pagamento, vínculo médico→PJ e cruzamento NF continuam ativos.
-- Conciliação contra base hospitalar: itens manuais não tentam matching por TUSS — vão para uma seção própria "Lançamentos manuais" no modal, conferidos só por presença/valor.
+### 5. Relatório de validação (PDF)
+- `groupValidationPdf.ts` — detectar `analysis_mode === 'manual'` e gerar **versão enxuta**:
+  - Cabeçalho do lote + empresa + tipo "Lançamento manual"
+  - Tabela: Médico · Especialidade · Observação · Valor · Anexo (nome do arquivo)
+  - Totais + assinatura
+  - Remover seções: "Sem regra", divergências de cálculo, comparativo esperado vs pago, alertas assistenciais.
 
-## 4. UI
+### 6. Memória de projeto
+Adicionar `mem://features/manual-mode-ui` registrando: campos próprios, sem regra/divergência, anexo dual (geral + linha), `manual_note` é a observação.
 
-### 4.1. Criação do lote
-No wizard de novo pagamento, terceira opção ao lado de "Importar planilha" e "Em confecção": **"Lançamento manual"**. Define `analysis_mode = 'manual'` e abre direto a tela de edição de itens manuais (sem upload).
+## Fora de escopo desta rodada
+- Repensar fluxo de aprovação/validação do manual (continua o mesmo: encaminhar para validação → diretor).
+- Anexar múltiplos arquivos por linha (mantém 1).
+- Conciliação NF×pedido específica do manual.
 
-### 4.2. Tela de lançamento manual (`/pagamentos/:id` quando manual)
-- Tabela editável de itens, uma linha por médico/empresa.
-- Colunas: empresa (combobox), médico (combobox, opcional), tipo de serviço (combobox de payment_types), especialidade (opcional), competência, valor total (R$).
-- Botão "Anexar fonte" por linha → upload no bucket, fica vinculado ao item.
-- Botão "Composição" abre dialog com tabela de rubricas (rubrica/qtd/unit/total/obs). Soma das rubricas precisa bater com o valor total — aviso visual se divergir, não bloqueia.
-- Botão "Adicionar linha", "Duplicar linha", "Excluir".
-- Validação mínima: empresa + tipo + valor > 0.
+## Arquivos tocados
+- `supabase/migrations/...` (1 migration nova)
+- `src/pages/ManualPaymentEntry.tsx`
+- `src/pages/CompanyAnalysis.tsx`
+- `src/components/payment-detail/ManualItemsGrid.tsx` (novo)
+- `src/lib/groupValidationPdf.ts`
+- `.lovable/memory/features/manual-mode-ui.md` (novo) + index
 
-### 4.3. Detalhe do item
-- No `PaymentDetail`, itens manuais ganham badge "Manual" e seção "Composição" mostrando a tabela de rubricas + link para baixar o anexo-fonte.
-- PDF de validação do lote inclui a composição quando presente.
-
-## 5. Aprovação e fluxo posterior
-
-- Mesma esteira: análise → validação → aprovação por diretor.
-- Diretor vê no card: "Lote manual — N itens, R$ X total" + acesso aos anexos-fonte.
-- Após aprovar: gera NF, concilia, paga — sem mudança.
-
-## 6. O que NÃO entra agora
-
-- Fórmulas paramétricas (horas × valor hora, sessões CRRT × valor sessão). A composição é só descritiva.
-- Promoção automática de composições recorrentes em tipos calculados. Fica como passo futuro quando algum padrão se provar estável entre hospitais.
-- Importação de XLSX externo para popular composição. Por ora é digitação manual + anexo da planilha original como prova.
-
-## 7. Ordem de execução
-
-1. Migration (schema + bucket + RLS).
-2. Tipos de pagamento seed: marcar/criar alguns com `calc_strategy = 'manual'` (Nefrologia Composição, Plantão Fechado, Coordenação Rateada).
-3. Backend: ajuste no pipeline de regras para pular itens manuais.
-4. UI wizard: nova opção "Lançamento manual".
-5. UI tela de lançamento (tabela editável + dialog de composição + upload).
-6. UI detalhe: badge + seção composição + anexo no PDF.
-7. Conciliação: seção "Lançamentos manuais" no modal.
-8. Testes: contrato garantindo que item manual não roda motor e preserva valor.
-
-## Detalhes técnicos (referência)
-
-- `payment_items.manual_composition` formato: `[{"rubrica":"Horas CRRT","qtd":130.35,"unit":120,"total":15643,"obs":""}, {"rubrica":"Coordenação","total":3000}, {"rubrica":"Pareceres","qtd":31,"unit":400,"total":12400}]`.
-- Bucket `payment-manual-sources`, paths `{hospital_id}/{payment_id}/{item_id}/{filename}`. RLS via `has_hospital_access(auth.uid(), hospital_id)`.
-- Hook novo `useManualPaymentItems(paymentId)` para CRUD da tabela.
-- Skip do motor: em `dispatchAnalysis.ts`, primeira checagem `if (item.is_manual_entry) return { method: 'manual_entry', expected: item.gross_amount, status: 'sem_intervencao' }`.
+Quer que eu siga assim?

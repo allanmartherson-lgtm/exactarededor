@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
+import { ManualItemsGrid } from "@/components/payment-detail/ManualItemsGrid";
 import { ZeevAssistant } from "@/components/copilot/ZeevAssistant";
 import { MarkSpecialCaseDialog } from "@/components/payment-detail/MarkSpecialCaseDialog";
 import { useHasSpecialCaseRules } from "@/components/payment-detail/useHasSpecialCaseRules";
@@ -1849,6 +1850,13 @@ export default function CompanyAnalysis() {
   // em 'rascunho' como placeholder). Em ANÁLISE, o estado vivo é gStatus.
   const gConfeccaoStatus = (group as any)?.confeccao_status as string | null | undefined;
   const isConfeccao = (payment as any)?.analysis_mode === "confeccao";
+  /** Modo MANUAL: pagamento lançado linha a linha pelo analista a partir de
+   *  planilha externa (nefrologia, plantão fechado, coordenação). NÃO tem
+   *  regra, TUSS, paciente, divergência ou alerta assistencial — então o
+   *  layout aqui é reduzido: sem cards de Alertas/Críticos, sem abas de
+   *  Divergências/Detalhe IA, sem filtros do grid de regras, e os itens
+   *  são exibidos pelo <ManualItemsGrid /> dedicado. */
+  const isManual = (payment as any)?.analysis_mode === "manual";
   const isParecerPayment = String((payment as any)?.payment_type ?? "").toLowerCase().includes("parecer");
   const isConfeccaoEditable = isConfeccao && gConfeccaoStatus === "em_confeccao";
   // Governança: analista só atua se for o dono do lote (ou admin).
@@ -2216,7 +2224,26 @@ export default function CompanyAnalysis() {
               tone="info"
               icon={<FileText className="h-4 w-4" />}
             />
-            {isConfeccao ? (
+            {isManual ? (
+              <>
+                <Stat
+                  label="Valor total"
+                  value={formatCurrency(composition.liquido || composition.bruto)}
+                  sub="Lançamento manual"
+                  mono
+                  tone="success"
+                  icon={<Wallet className="h-4 w-4" />}
+                />
+                <Stat
+                  label="Com anexo"
+                  value={String(
+                    items.filter((it) => !!(it as any).manual_source_attachment_path).length,
+                  )}
+                  tone="info"
+                  icon={<FileText className="h-4 w-4" />}
+                />
+              </>
+            ) : isConfeccao ? (
               <>
                 <Stat
                   label="Repasse calculado"
@@ -2358,14 +2385,14 @@ export default function CompanyAnalysis() {
       <Tabs defaultValue="analise" className="space-y-3">
         <TabsList>
           <TabsTrigger value="analise">
-            {(payment as any)?.analysis_mode === "confeccao" ? "Confecção" : "Análise"}
+            {isManual ? "Itens" : (payment as any)?.analysis_mode === "confeccao" ? "Confecção" : "Análise"}
           </TabsTrigger>
           {(payment as any)?.analysis_mode === "confeccao" && (
             <TabsTrigger value="confeccao-audit" data-testid="tab-confeccao-audit">
               Auditoria de cálculo
             </TabsTrigger>
           )}
-          {!isConfeccao && (
+          {!isConfeccao && !isManual && (
             <TabsTrigger value="divergencias">
               Divergências
               {divergentes.length > 0 && (
@@ -2373,7 +2400,7 @@ export default function CompanyAnalysis() {
               )}
             </TabsTrigger>
           )}
-          {!isConfeccao && isParecerPayment && (
+          {!isConfeccao && !isManual && isParecerPayment && (
             <TabsTrigger value="parecer">
               <FileText className="h-3.5 w-3.5 mr-1" /> Parecer
             </TabsTrigger>
@@ -2381,7 +2408,7 @@ export default function CompanyAnalysis() {
           <TabsTrigger value="historico">
             <History className="h-3.5 w-3.5 mr-1" /> Histórico
           </TabsTrigger>
-          {!isConfeccao && <TabsTrigger value="ia">Detalhe IA</TabsTrigger>}
+          {!isConfeccao && !isManual && <TabsTrigger value="ia">Detalhe IA</TabsTrigger>}
         </TabsList>
 
         {/* ABA 1 — Análise */}
@@ -2417,6 +2444,32 @@ export default function CompanyAnalysis() {
           })()}
 
           <HighlightBanner observations={obs} profiles={profiles} />
+
+          {/* Anexo geral do lote no modo MANUAL — visível antes do grid. */}
+          {isManual && (payment as any)?.manual_general_attachment_path && (
+            <div className="flex items-center gap-2 text-xs rounded-md border border-border bg-muted/30 px-3 py-2">
+              <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="text-muted-foreground">Anexo do lote:</span>
+              <button
+                type="button"
+                className="font-medium text-primary hover:underline truncate"
+                title={(payment as any).manual_general_attachment_name ?? ""}
+                onClick={async () => {
+                  const path = (payment as any).manual_general_attachment_path as string;
+                  const { data } = await supabase.storage
+                    .from("payment-manual-sources")
+                    .createSignedUrl(path, 60 * 10);
+                  if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+                }}
+              >
+                {(payment as any).manual_general_attachment_name ?? "abrir"}
+              </button>
+            </div>
+          )}
+
+          {isManual ? (
+            <ManualItemsGrid items={items as any} />
+          ) : (
           <Card className="shadow-card">
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
@@ -2494,6 +2547,7 @@ export default function CompanyAnalysis() {
               />
             </CardContent>
           </Card>
+          )}
           <ZeevAssistant
             pageLabel={`Análise da empresa${group?.company_name ? ` · ${group.company_name}` : ""}`}
             summary={{

@@ -65,6 +65,9 @@ type DraftRow = {
   attendance: string;
   patient: string;
   amount: number;
+  /** Texto livre por linha — descrição do tipo de pagamento, contexto,
+   *  origem do valor. Persistido em `payment_items.manual_note`. */
+  observation: string;
   composition: CompositionRow[] | null;
   attachmentPath: string | null;
   attachmentName: string | null;
@@ -80,6 +83,7 @@ const newDraft = (): DraftRow => ({
   attendance: "",
   patient: "",
   amount: 0,
+  observation: "",
   composition: null,
   attachmentPath: null,
   attachmentName: null,
@@ -100,6 +104,9 @@ export default function ManualPaymentEntry() {
   const [savingAll, setSavingAll] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [compositionFor, setCompositionFor] = useState<string | null>(null);
+  const [generalAttPath, setGeneralAttPath] = useState<string | null>(null);
+  const [generalAttName, setGeneralAttName] = useState<string | null>(null);
+  const [uploadingGeneral, setUploadingGeneral] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -107,11 +114,13 @@ export default function ManualPaymentEntry() {
     const { data: p } = await supabase.from("payments").select("*").eq("id", id).single();
     setPayment(p);
     setDefaultTypeId((p as any)?.payment_type_id ?? null);
+    setGeneralAttPath((p as any)?.manual_general_attachment_path ?? null);
+    setGeneralAttName((p as any)?.manual_general_attachment_name ?? null);
 
     const { data: items } = await supabase
       .from("payment_items")
       .select(
-        "id,company_id,company_name,doctor_id,doctor_name,payment_type_id,specialty,attendance_number,patient_name,gross_amount,manual_composition,manual_source_attachment_path",
+        "id,company_id,company_name,doctor_id,doctor_name,payment_type_id,specialty,attendance_number,patient_name,gross_amount,manual_note,manual_composition,manual_source_attachment_path",
       )
       .eq("payment_id", id)
       .eq("is_manual_entry", true)
@@ -131,6 +140,7 @@ export default function ManualPaymentEntry() {
       attendance: it.attendance_number ?? "",
       patient: it.patient_name ?? "",
       amount: Number(it.gross_amount) || 0,
+      observation: it.manual_note ?? "",
       composition: (it.manual_composition as CompositionRow[] | null) ?? null,
       attachmentPath: it.manual_source_attachment_path ?? null,
       attachmentName: it.manual_source_attachment_path
@@ -209,6 +219,7 @@ export default function ManualPaymentEntry() {
     manual_entered_at: new Date().toISOString(),
     manual_composition: row.composition as any,
     manual_source_attachment_path: row.attachmentPath,
+    manual_note: row.observation?.trim() || null,
     company_id: row.company?.id ?? null,
     company_name: row.company?.name ?? null,
     doctor_id: row.doctor?.id ?? null,
@@ -223,6 +234,62 @@ export default function ManualPaymentEntry() {
     ai_status: "acatado",
     procedure_date: payment?.competence_month ?? null,
   });
+
+  const handleGeneralUpload = async (file: File) => {
+    if (!hospital?.id || !id) return;
+    setUploadingGeneral(true);
+    const ext = file.name.split(".").pop() ?? "bin";
+    const objectKey = `${hospital.id}/${id}/_general/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("payment-manual-sources")
+      .upload(objectKey, file, { upsert: true, contentType: file.type || undefined });
+    if (upErr) {
+      setUploadingGeneral(false);
+      toast({ title: "Falha no upload", description: upErr.message, variant: "destructive" });
+      return;
+    }
+    const { error: pErr } = await supabase
+      .from("payments")
+      .update({
+        manual_general_attachment_path: objectKey,
+        manual_general_attachment_name: file.name,
+      } as any)
+      .eq("id", id);
+    setUploadingGeneral(false);
+    if (pErr) {
+      toast({ title: "Erro ao registrar anexo", description: pErr.message, variant: "destructive" });
+      return;
+    }
+    setGeneralAttPath(objectKey);
+    setGeneralAttName(file.name);
+    toast({ title: "Anexo do lote salvo" });
+  };
+
+  const removeGeneralAttachment = async () => {
+    if (!id) return;
+    const { error } = await supabase
+      .from("payments")
+      .update({
+        manual_general_attachment_path: null,
+        manual_general_attachment_name: null,
+      } as any)
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao remover", description: error.message, variant: "destructive" });
+      return;
+    }
+    setGeneralAttPath(null);
+    setGeneralAttName(null);
+  };
+
+  const openGeneralAttachment = async () => {
+    if (!generalAttPath) return;
+    const { data } = await supabase.storage
+      .from("payment-manual-sources")
+      .createSignedUrl(generalAttPath, 60 * 10);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+  };
+
 
   const saveRow = async (row: DraftRow): Promise<string | null> => {
     if (!row.company || row.amount <= 0) return null;
@@ -419,6 +486,67 @@ export default function ManualPaymentEntry() {
       </div>
 
 
+      {/* Anexo geral do lote — opcional. Cobre quando uma única planilha
+          comprova todas as linhas (caso comum em nefrologia, coordenação). */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Paperclip className="h-4 w-4 text-muted-foreground" />
+            Anexo do lote (opcional)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="text-xs text-muted-foreground mb-2">
+            Use quando uma única planilha/PDF cobre todas as linhas. Anexos por linha continuam disponíveis abaixo.
+          </p>
+          {generalAttPath ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5 max-w-[320px]"
+                onClick={openGeneralAttachment}
+                title={generalAttName ?? generalAttPath}
+              >
+                <Paperclip className="h-3 w-3 shrink-0" />
+                <span className="truncate">{generalAttName ?? "anexo do lote"}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs text-muted-foreground"
+                onClick={removeGeneralAttachment}
+              >
+                <X className="h-3 w-3 mr-1" /> Remover
+              </Button>
+            </div>
+          ) : (
+            <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer rounded-md border border-dashed border-border px-3 h-8 hover:bg-muted/50 w-fit">
+              {uploadingGeneral ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Upload className="h-3 w-3 shrink-0" />
+              )}
+              <span className="text-muted-foreground">
+                {uploadingGeneral ? "Enviando…" : "Anexar planilha do lote"}
+              </span>
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleGeneralUpload(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-border/50">
           <CardTitle className="text-base">Itens</CardTitle>
@@ -431,14 +559,15 @@ export default function ManualPaymentEntry() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-muted/60 backdrop-blur supports-[backdrop-filter]:bg-muted/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[18%] text-xs uppercase tracking-wide">Empresa *</TableHead>
-                  <TableHead className="w-[16%] text-xs uppercase tracking-wide">Médico</TableHead>
-                  <TableHead className="w-[12%] text-xs uppercase tracking-wide">Tipo</TableHead>
-                  <TableHead className="w-[12%] text-xs uppercase tracking-wide">Especialidade</TableHead>
-                  <TableHead className="w-[8%] text-xs uppercase tracking-wide">Atend.</TableHead>
+                  <TableHead className="w-[16%] text-xs uppercase tracking-wide">Empresa *</TableHead>
+                  <TableHead className="w-[14%] text-xs uppercase tracking-wide">Médico</TableHead>
+                  <TableHead className="w-[11%] text-xs uppercase tracking-wide">Tipo</TableHead>
+                  <TableHead className="w-[11%] text-xs uppercase tracking-wide">Especialidade</TableHead>
+                  <TableHead className="w-[7%] text-xs uppercase tracking-wide">Atend.</TableHead>
                   <TableHead className="text-xs uppercase tracking-wide">Paciente</TableHead>
                   <TableHead className="w-[10%] text-right text-xs uppercase tracking-wide">Valor (R$) *</TableHead>
-                  <TableHead className="w-[12%] text-xs uppercase tracking-wide">Fonte / Composição</TableHead>
+                  <TableHead className="w-[14%] text-xs uppercase tracking-wide">Observação</TableHead>
+                  <TableHead className="w-[11%] text-xs uppercase tracking-wide">Fonte / Composição</TableHead>
                   <TableHead className="w-[80px] text-right text-xs uppercase tracking-wide">Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -516,6 +645,15 @@ export default function ManualPaymentEntry() {
                           value={r.amount || null}
                           onChange={(v) => updateRow(r.key, { amount: Number(v) || 0 })}
                           className="h-8 text-right text-xs font-medium tabular-nums"
+                        />
+                      </TableCell>
+                      <TableCell className="py-1.5">
+                        <textarea
+                          value={r.observation}
+                          onChange={(e) => updateRow(r.key, { observation: e.target.value })}
+                          placeholder="Ex.: plantão fechado de domingo"
+                          rows={2}
+                          className="w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-xs leading-snug focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </TableCell>
                       <TableCell className="py-1.5">
