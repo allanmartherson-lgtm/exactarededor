@@ -306,6 +306,8 @@ const App = () => (
                   <Route path="/pagamentos" element={<Payments />} />
                   <Route path="/perfil" element={<Profile />} />
                   <Route path="/pagamentos/novo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewPayment /></ProtectedRoute>} />
+                  <Route path="/pagamentos/novo-manual" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewManualPayment /></ProtectedRoute>} />
+                  <Route path="/pagamentos/:id/manual" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><ManualPaymentEntry /></ProtectedRoute>} />
                   <Route path="/pagamentos/:id" element={<PaymentDetail />} />
                   <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
                   <Route path="/pagamentos/:id/pool" element={<PoolAnalysis />} />
