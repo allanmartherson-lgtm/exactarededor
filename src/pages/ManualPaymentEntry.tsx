@@ -323,7 +323,12 @@ export default function ManualPaymentEntry() {
       return;
     }
     setFinalizing(true);
-    await saveAll();
+    const result = await saveAll();
+    if (result.failed > 0) {
+      setFinalizing(false);
+      return;
+    }
+
     // Encaminha para validação (mesma esteira dos demais lotes).
     const { error } = await supabase
       .from("payments")
