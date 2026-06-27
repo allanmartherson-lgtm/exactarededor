@@ -2547,6 +2547,7 @@ export default function CompanyAnalysis() {
               />
             </CardContent>
           </Card>
+          )}
           <ZeevAssistant
             pageLabel={`Análise da empresa${group?.company_name ? ` · ${group.company_name}` : ""}`}
             summary={{
