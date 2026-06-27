@@ -571,7 +571,94 @@ async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Act
   };
 }
 
-// -------------------- LLM call --------------------
+// -------------------- Contexto de rota (Fase 5) --------------------
+
+/**
+ * Constrói sinais específicos da rota onde o analista está, pra dar contexto ao LLM
+ * sem o cliente precisar enviar tudo. Mantém queries leves (apenas counts/top-N).
+ */
+async function buildRouteContext(sb: SB, path: string | null, hospitalId: string | null): Promise<Record<string, unknown> | null> {
+  if (!path || !hospitalId) return null;
+  const p = path.toLowerCase();
+
+  try {
+    if (p.startsWith("/pendencias")) {
+      const { count: abertas } = await sb
+        .from("pendencias")
+        .select("id", { count: "exact", head: true })
+        .eq("hospital_id", hospitalId)
+        .in("status", ["aberta", "em_analise"]);
+      const { data: oldest } = await sb
+        .from("pendencias")
+        .select("id, titulo, created_at, assigned_to_user_id")
+        .eq("hospital_id", hospitalId)
+        .in("status", ["aberta", "em_analise"])
+        .order("created_at", { ascending: true })
+        .limit(3);
+      return { route: "pendencias", abertas: abertas ?? 0, oldest_open: oldest ?? [] };
+    }
+
+    if (p.startsWith("/medicos")) {
+      const { count: pending } = await sb
+        .from("doctors")
+        .select("id", { count: "exact", head: true })
+        .eq("pending_admin_review", true);
+      return { route: "medicos", pendentes_aprovacao: pending ?? 0 };
+    }
+
+    if (p.startsWith("/empresas")) {
+      const { count: total } = await sb.from("companies").select("id", { count: "exact", head: true }).eq("active", true);
+      const { count: sem_doc } = await sb.from("companies").select("id", { count: "exact", head: true }).is("document", null);
+      return { route: "empresas", total_ativas: total ?? 0, sem_cnpj: sem_doc ?? 0 };
+    }
+
+    if (p.startsWith("/regras")) {
+      const { count: sugestoes } = await sb
+        .from("rule_suggestions")
+        .select("id", { count: "exact", head: true })
+        .eq("hospital_id", hospitalId)
+        .eq("status", "pendente");
+      return { route: "regras", sugestoes_pendentes: sugestoes ?? 0 };
+    }
+
+    if (p.startsWith("/pagamentos") && !p.match(/\/pagamentos\/[0-9a-f-]{36}/i)) {
+      const { count: em_analise } = await sb
+        .from("payments")
+        .select("id", { count: "exact", head: true })
+        .eq("hospital_id", hospitalId)
+        .in("status", ["em_analise", "em_confeccao"]);
+      const { count: validacao } = await sb
+        .from("payments")
+        .select("id", { count: "exact", head: true })
+        .eq("hospital_id", hospitalId)
+        .eq("status", "validacao");
+      return { route: "pagamentos_lista", em_analise: em_analise ?? 0, em_validacao: validacao ?? 0 };
+    }
+
+    if (p.startsWith("/conversas") || p.startsWith("/comunicacao")) {
+      const { count: campanhas } = await sb
+        .from("comm_campaigns")
+        .select("id", { count: "exact", head: true })
+        .eq("hospital_id", hospitalId)
+        .eq("status", "rascunho");
+      return { route: "comunicacao", campanhas_rascunho: campanhas ?? 0 };
+    }
+
+    if (p.startsWith("/glosas")) {
+      const { count: abertas } = await sb
+        .from("glosa_items")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "aberta");
+      return { route: "glosas", itens_abertos: abertas ?? 0 };
+    }
+  } catch {
+    return null;
+  }
+
+  return { route: p };
+}
+
+
 
 async function callLLM(prompt: string, paymentContext: Record<string, unknown>) {
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
