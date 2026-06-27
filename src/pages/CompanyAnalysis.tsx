@@ -1977,40 +1977,45 @@ export default function CompanyAnalysis() {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
-                    <AlertDialogDescription className="space-y-3">
-                      <p>Esta ação <strong>substitui apenas os itens desta empresa</strong> ({group.company_name}) pelo conteúdo dos arquivos selecionados e reinicia a análise <strong>somente desta PJ</strong>. As demais empresas do lote não são afetadas. Os arquivos devem conter apenas linhas desta empresa. Não pode ser desfeita.</p>
-                      <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 text-[10px] px-2"
-                            onClick={() => reimportInputRef.current?.click()}
-                          >
-                            <Plus className="h-3 w-3 mr-1" /> Adicionar mais
-                          </Button>
-                        </div>
-                        <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
-                          {reimportConfirm?.map((f, i) => (
-                            <li key={i} className="flex items-center justify-between gap-2 group">
-                              <span className="truncate flex-1">• {f.name}</span>
-                              <button 
-                                type="button" 
-                                onClick={() => setReimportConfirm(prev => prev?.filter((_, idx) => idx !== i) || null)}
-                                className="text-muted-foreground hover:text-destructive p-0.5"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
-                        Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
-                      </p>
+                    <AlertDialogDescription>
+                      Esta ação <strong>substitui apenas os itens desta empresa</strong> ({group.company_name}) pelo conteúdo dos arquivos selecionados e reinicia a análise <strong>somente desta PJ</strong>. As demais empresas do lote não são afetadas. Os arquivos devem conter apenas linhas desta empresa. Não pode ser desfeita.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
+                  {/* Conteúdo bloco-nivel fica FORA do <AlertDialogDescription> (que renderiza como <p>),
+                      senão o browser fecha o <p> automaticamente e o conteúdo escapa do container. */}
+                  <div className="space-y-3">
+                    <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-[10px] px-2"
+                          onClick={() => reimportInputRef.current?.click()}
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Adicionar mais
+                        </Button>
+                      </div>
+                      <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
+                        {reimportConfirm?.map((f, i) => (
+                          <li key={i} className="flex items-center justify-between gap-2 group">
+                            <span className="truncate flex-1 min-w-0">• {f.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setReimportConfirm(prev => prev?.filter((_, idx) => idx !== i) || null)}
+                              className="text-muted-foreground hover:text-destructive p-0.5 shrink-0"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
+                      Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
+                    </p>
+                  </div>
+
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
