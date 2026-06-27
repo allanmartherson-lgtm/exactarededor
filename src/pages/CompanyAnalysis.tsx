@@ -2224,7 +2224,26 @@ export default function CompanyAnalysis() {
               tone="info"
               icon={<FileText className="h-4 w-4" />}
             />
-            {isConfeccao ? (
+            {isManual ? (
+              <>
+                <Stat
+                  label="Valor total"
+                  value={formatCurrency(composition.liquido || composition.bruto)}
+                  sub="Lançamento manual"
+                  mono
+                  tone="success"
+                  icon={<Wallet className="h-4 w-4" />}
+                />
+                <Stat
+                  label="Com anexo"
+                  value={String(
+                    items.filter((it) => !!(it as any).manual_source_attachment_path).length,
+                  )}
+                  tone="info"
+                  icon={<FileText className="h-4 w-4" />}
+                />
+              </>
+            ) : isConfeccao ? (
               <>
                 <Stat
                   label="Repasse calculado"
