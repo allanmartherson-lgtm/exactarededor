@@ -1514,7 +1514,7 @@ const Payments = () => {
                     onClick={() => {
                       setQ("");
                       setCompanyFilter(null);
-                      setStatusFilter("all");
+                      setStatusFilter([]);
                       setDelayedOnly(false);
                       setOpenQuestionOnly(false);
                       setOnlyMine(false);
