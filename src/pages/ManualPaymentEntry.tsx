@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -500,14 +501,9 @@ export default function ManualPaymentEntry() {
                         />
                       </TableCell>
                       <TableCell className="py-1.5">
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          value={r.amount || ""}
-                          onChange={(e) =>
-                            updateRow(r.key, { amount: Number(e.target.value) || 0 })
-                          }
+                        <CurrencyInput
+                          value={r.amount || null}
+                          onChange={(v) => updateRow(r.key, { amount: Number(v) || 0 })}
                           className="h-8 text-right text-xs font-medium tabular-nums"
                         />
                       </TableCell>
