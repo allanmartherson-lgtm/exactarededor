@@ -49,6 +49,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { formatBRL } from "@/lib/financialStats";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { TONE_CLASSES } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 type DraftRow = {
@@ -514,18 +515,19 @@ export default function ManualPaymentEntry() {
                       <TableCell className="py-1.5">
                         <div className="flex flex-col items-end gap-1">
                           {r.dirty ? (
-                            <Badge variant="outline" className="text-[10px] border-warning/40 text-warning bg-warning-soft/60">
+                            <Badge variant="outline" className={cn("text-[10px]", TONE_CLASSES.warning)}>
                               não salvo
                             </Badge>
                           ) : valid ? (
-                            <Badge variant="outline" className="text-[10px] border-success/30 text-success bg-success-soft/60 gap-1">
+                            <Badge variant="outline" className={cn("text-[10px] gap-1", TONE_CLASSES.success)}>
                               <CheckCircle2 className="h-3 w-3" /> ok
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            <Badge variant="outline" className={cn("text-[10px]", TONE_CLASSES.muted)}>
                               rascunho
                             </Badge>
                           )}
+
                           <div className="flex items-center gap-0.5">
                             <Button
                               type="button"
