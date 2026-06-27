@@ -3010,6 +3010,11 @@ export default function CompanyAnalysis() {
           sampleRow={mappingPrompt.sampleRow}
           hospitalId={(payment as any)?.hospital_id ?? null}
           mode={isConfeccao ? "confeccao" : "analise"}
+          paymentTypeMeta={paymentTypeMeta ? {
+            tuss_default: paymentTypeMeta.tuss_default,
+            requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
+            default_function: paymentTypeMeta.default_function,
+          } : null}
           onApply={(mapping) => {
             const file = mappingPrompt.file;
             setMappingOverrides((prev) => ({ ...prev, [file.name]: mapping }));
