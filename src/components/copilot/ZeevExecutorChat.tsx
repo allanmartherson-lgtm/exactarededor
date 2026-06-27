@@ -275,21 +275,32 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
                   {m.status === "cancelled" && <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />}
                 </div>
                 <p className="text-[13px] text-foreground leading-snug">{p.summary}</p>
-                <div className="text-xs text-muted-foreground">
-                  <strong className="text-foreground">{p.preview_count}</strong> {p.preview_count === 1 ? "item afetado" : "itens afetados"}
-                  {p.preview_count > 0 && p.sample_items.length > 0 && (
-                    <ul className="mt-1.5 space-y-0.5 text-[11px]">
-                      {p.sample_items.map((s) => (
-                        <li key={s.id} className="truncate">
-                          • {s.doctor_name ?? "—"} · {s.procedure_code ?? "—"} · {s.description ?? "—"}
-                        </li>
-                      ))}
-                      {p.preview_count > p.sample_items.length && (
-                        <li className="text-muted-foreground/70">… e mais {p.preview_count - p.sample_items.length}</li>
-                      )}
-                    </ul>
-                  )}
-                </div>
+                {REGISTRY_ACTIONS.has(p.action) && p.details && p.details.length > 0 ? (
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
+                    {p.details.map((d, di) => (
+                      <div key={di} className="contents">
+                        <dt className="text-muted-foreground">{d.label}:</dt>
+                        <dd className="text-foreground font-medium truncate">{d.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <div className="text-xs text-muted-foreground">
+                    <strong className="text-foreground">{p.preview_count}</strong> {p.preview_count === 1 ? "item afetado" : "itens afetados"}
+                    {p.preview_count > 0 && p.sample_items.length > 0 && (
+                      <ul className="mt-1.5 space-y-0.5 text-[11px]">
+                        {p.sample_items.map((s) => (
+                          <li key={s.id} className="truncate">
+                            • {s.doctor_name ?? "—"} · {s.procedure_code ?? "—"} · {s.description ?? "—"}
+                          </li>
+                        ))}
+                        {p.preview_count > p.sample_items.length && (
+                          <li className="text-muted-foreground/70">… e mais {p.preview_count - p.sample_items.length}</li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                )}
 
                 {m.result && (
                   <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{m.result}</div>
