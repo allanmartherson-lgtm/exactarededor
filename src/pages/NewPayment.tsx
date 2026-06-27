@@ -3239,6 +3239,21 @@ const NewPayment = () => {
                 </p>
               </div>
 
+              {/* Regime de competência */}
+              <div className="space-y-2 sm:col-span-2 rounded-md border border-border bg-muted/30 p-3">
+                <Label className="text-sm">Regime de competência *</Label>
+                <Select value={competenceRegime} onValueChange={(v) => setCompetenceRegime(v as "producao" | "remessa")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="producao">Produção realizada (procedimentos do mês da competência)</SelectItem>
+                    <SelectItem value="remessa">Produção remetida (pago quando enviado ao convênio — pode incluir meses anteriores)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Em lotes <span className="font-medium">remetida</span> (ex.: infectologia, nefrologia históricas), a conciliação preserva atendimentos de meses anteriores à competência.
+                </p>
+              </div>
+
               {/* Vínculo com rateio (pool) */}
               <div className="space-y-2 sm:col-span-2 rounded-md border border-info/30 bg-info-soft/20 p-3">
                 <Label className="text-sm">Modo de pagamento</Label>
