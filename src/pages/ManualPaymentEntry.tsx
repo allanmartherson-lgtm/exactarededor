@@ -364,11 +364,12 @@ export default function ManualPaymentEntry() {
       />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Metric label="Itens" value={String(rows.length)} />
-        <Metric label="Válidos" value={String(validCount)} tone={validCount ? "success" : "muted"} />
-        <Metric label="Não salvos" value={String(dirtyCount)} tone={dirtyCount ? "warning" : "muted"} />
-        <Metric label="Total" value={formatBRL(total)} tone="success" />
+        <Metric label="Itens" value={String(rows.length)} tone="info" icon={<FileEdit className="h-4 w-4" />} />
+        <Metric label="Válidos" value={String(validCount)} tone={validCount ? "success" : "muted"} icon={<CheckCircle2 className="h-4 w-4" />} />
+        <Metric label="Não salvos" value={String(dirtyCount)} tone={dirtyCount ? "warning" : "muted"} icon={<Save className="h-4 w-4" />} />
+        <Metric label="Total" value={formatBRL(total)} mono tone="success" icon={<Paperclip className="h-4 w-4" />} />
       </div>
+
 
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-border/50">
