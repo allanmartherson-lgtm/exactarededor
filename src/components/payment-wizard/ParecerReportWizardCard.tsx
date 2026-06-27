@@ -145,10 +145,7 @@ export function ParecerReportWizardCard({
 
   const startParse = async () => {
     if (!file) return;
-    if (!periodStart || !periodEnd) {
-      toast({ title: "Informe o período do relatório", variant: "destructive" });
-      return;
-    }
+    // Período é auto-detectado das datas do arquivo durante o mapping.
     setLoading(true);
     try {
       const buf = await file.arrayBuffer();
@@ -200,6 +197,13 @@ export function ParecerReportWizardCard({
         raw: rec,
       };
     });
+    // Auto-detecta período do arquivo (min/max das datas presentes).
+    const allDates = rows
+      .flatMap((r) => [r.dt_solic_parecer, r.dt_resposta_parecer])
+      .filter((d): d is string => !!d);
+    const isoDays = allDates.map((d) => d.slice(0, 10)).sort();
+    const periodStart = isoDays[0] ?? fallbackStart;
+    const periodEnd = isoDays[isoDays.length - 1] ?? fallbackEnd;
     onChange({
       fileName: file.name,
       fileHash: parseState.fileHash,
