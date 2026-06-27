@@ -65,6 +65,7 @@ export default function NewManualPayment() {
         analysis_mode: "manual" as any,
         payment_type_id: paymentTypeId,
         cost_center_code: costCenterCode,
+        competence_regime: competenceRegime,
         import_mode: "normal",
       } as any)
       .select()
