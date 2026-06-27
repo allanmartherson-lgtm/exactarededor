@@ -3422,6 +3422,15 @@ const PaymentDetail = () => {
               {/* Coluna principal (2/3): cards de IA + Anomalias. No mobile, IA já aparece no collapsible. */}
               <div className="md:col-span-2 min-w-0 space-y-4">
                 <div className="hidden md:block space-y-4">
+                  {id && !isConfeccao && (() => {
+                    const hasVal = groups.some((g) => String(g.status) === "aguardando_validacao");
+                    const hasApr = groups.some((g) => String(g.status) === "aguardando_aprovacao");
+                    if (!hasVal && !hasApr) return null;
+                    const aud: "validator" | "director" = (isDiretor && hasApr) ? "director" : "validator";
+                    const map: Record<string, string> = {};
+                    groups.forEach((g) => { map[g.company_name] = g.id; });
+                    return <LotValidationChecklist paymentId={id} audience={aud} companyToGroupId={map} />;
+                  })()}
                   {id && !isConfeccao && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
                   {id && <DirectorBriefingCard
                     paymentId={id}
