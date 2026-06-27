@@ -101,6 +101,7 @@ function csvEscape(v: string | number | null | undefined): string {
 export function AssistanceAlertsDetailModal({ open, onOpenChange, items, paymentReference }: Props) {
   const [query, setQuery] = useState("");
   const [ruleFilter, setRuleFilter] = useState<string>("__all__");
+  const [viewMode, setViewMode] = useState<"list" | "grouped">("grouped");
 
   const rows: AssistanceAlertRow[] = useMemo(() => {
     const out: AssistanceAlertRow[] = [];
