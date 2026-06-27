@@ -880,6 +880,8 @@ Deno.serve(async (req) => {
         },
       });
 
+      await recordZeevPreference(sb, activeHospitalId, p.action, p.scope ?? {}, p.payload ?? {}, body.payment_id);
+
       return jsonResp({
         step: "executed",
         action: p.action,
