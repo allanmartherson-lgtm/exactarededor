@@ -23,3 +23,11 @@ Pagamentos em `analysis_mode='manual'` (nefrologia, plantão fechado, coordenaç
 ## Especialidade
 
 Analista informa por linha (`payment_items.specialty`, texto livre com sugestões de `COMMON_SPECIALTIES`). Não vem do cadastro do médico nem do tipo do lote.
+
+## Fluxos a jusante (aprovação, NF, portais) — mode-agnostic
+
+Aprovação do diretor (`approve_payment` RPC + `processDirectorApproval` email/WhatsApp), pedido de NF (`send-invoice-request`) e portal da empresa (`InvoicePortal`/`submit-invoice`) **não ramificam por modo**. Só consomem status + valor + listas agregadas (sectors/specialties) do payment. Portal do médico não existe como UI dedicada — médico interage por `doctor_messages`/pendências, também mode-agnostic.
+
+Cuidado conhecido: `payments.specialties` precisa ser populado no save manual senão o e-mail de pedido de NF cai no fallback "Produção médica". `recomputeTotal` em `ManualPaymentEntry.tsx` agrega `distinct(payment_items.specialty WHERE is_manual_entry)` e grava no payment.
+
+Cobertura: `src/lib/__tests__/manualDownstream.contract.test.ts` blinda o template (sem termos de regra/glosa), a agregação de specialties e o contrato do RPC approve_payment.
