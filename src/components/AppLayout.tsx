@@ -36,6 +36,8 @@ import { useQueueNotifications } from "@/hooks/useQueueNotifications";
 import { NotificationBell } from "@/components/NotificationBell";
 import { InboxBadge } from "@/components/InboxBadge";
 import { ExactaIcon } from "@/components/brand/ExactaIcon";
+import { ExactaLogo } from "@/components/brand/ExactaLogo";
+
 
 import { PortalUnreadBadge } from "@/components/portal/PortalUnreadBadge";
 import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
@@ -81,40 +83,9 @@ function getInitials(name?: string | null, email?: string | null) {
 }
 
 const Logo = ({ compact = false }: { compact?: boolean }) => (
-  <NavLink
-    to="/"
-    className="flex items-center gap-3 flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
-    aria-label="Exacta — início"
-  >
-    <ExactaIcon size={34} />
-
-    {!compact && (
-      <div className="min-w-0 leading-tight">
-        <p
-          className="font-wordmark"
-          style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 400, letterSpacing: "0.04em", color: "hsl(var(--foreground))", lineHeight: 1 }}
-        >
-          E<span style={{ color: "hsl(var(--accent))" }}>x</span>acta
-        </p>
-        <p
-          style={{
-            fontSize: 9,
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-            color: "hsl(var(--muted-foreground))",
-            marginTop: 4,
-            lineHeight: 1.2,
-            whiteSpace: "nowrap",
-          }}
-        >
-          Pagamento Médico
-          <br />
-          Rede D'Or
-        </p>
-      </div>
-    )}
-  </NavLink>
+  <ExactaLogo variant={compact ? "icon" : "full"} iconSize={compact ? 34 : 36} wordmarkSize={20} />
 );
+
 
 const LayoutToggle = () => {
   const { layout, toggleLayout } = useNavLayout();
