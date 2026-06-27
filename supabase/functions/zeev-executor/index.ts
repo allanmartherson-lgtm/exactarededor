@@ -121,8 +121,7 @@ const SYSTEM_PROMPT = [
   "  - Soma dos percentuais dos participants deve SEMPRE = 100%.",
   "  - Participant com company_id NULL é dado corrompido — deve ser limpo e o percentual realocado.",
   "",
-].join(\"\\n\");",
-        "Note: the closing `].join('\\n');` is part of the literal above intentionally — DO NOT duplicate.",
+].join("\n");
 
 const RESPOND_SCHEMA = {
   type: "object",
