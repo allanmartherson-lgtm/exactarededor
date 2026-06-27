@@ -835,6 +835,7 @@ const NewPayment = () => {
 
   // === Vínculo com rateio (pool) ===
   const [paymentMode, setPaymentMode] = useState<"producao" | "rateio">("producao");
+  const [competenceRegime, setCompetenceRegime] = useState<"producao" | "remessa">("producao");
   const [poolId, setPoolId] = useState<string>("");
   const [poolDeductionId, setPoolDeductionId] = useState<string>("");
   const [rateioSource, setRateioSource] = useState<"planilha" | "sintetico">("planilha");
@@ -2456,6 +2457,7 @@ const NewPayment = () => {
         payment_type_id: paymentTypeId,
         import_mode: isHistoricoImport ? "historico" : "normal",
         payment_mode: paymentMode,
+        competence_regime: competenceRegime,
         pool_id: poolId || null,
         pool_deduction_id: (isPlantaoType && poolDeductionId) ? poolDeductionId : null,
         rateio_source: paymentMode === "rateio" ? rateioSource : null,
@@ -3234,6 +3236,21 @@ const NewPayment = () => {
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   Gerenciar tipos em <span className="font-medium">Cadastros → Tipos de pagamento</span>.
+                </p>
+              </div>
+
+              {/* Regime de competência */}
+              <div className="space-y-2 sm:col-span-2 rounded-md border border-border bg-muted/30 p-3">
+                <Label className="text-sm">Regime de competência *</Label>
+                <Select value={competenceRegime} onValueChange={(v) => setCompetenceRegime(v as "producao" | "remessa")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="producao">Produção realizada (procedimentos do mês da competência)</SelectItem>
+                    <SelectItem value="remessa">Produção remetida (pago quando enviado ao convênio — pode incluir meses anteriores)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Em lotes <span className="font-medium">remetida</span> (ex.: infectologia, nefrologia históricas), a conciliação preserva atendimentos de meses anteriores à competência.
                 </p>
               </div>
 

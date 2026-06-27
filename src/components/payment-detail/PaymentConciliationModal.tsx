@@ -1166,20 +1166,27 @@ export function PaymentConciliationModal({
         try {
           const { data: pay } = await (supabase as any)
             .from("payments")
-            .select("competence_month, competence_months")
+            .select("competence_month, competence_months, competence_regime")
             .eq("id", paymentId)
             .single();
-          const candidates: string[] = [];
-          if (Array.isArray(pay?.competence_months)) {
-            for (const c of pay.competence_months) {
-              if (c) candidates.push(String(c).slice(0, 10));
+          // Lotes marcados como "remessa" NÃO devem filtrar itens anteriores —
+          // o pagamento é justamente sobre produção remetida agora ao convênio,
+          // mesmo que o procedimento tenha sido feito meses antes.
+          if (pay?.competence_regime === "remessa") {
+            console.log('[Conciliação] Lote por remessa — filtro de competência desativado.');
+          } else {
+            const candidates: string[] = [];
+            if (Array.isArray(pay?.competence_months)) {
+              for (const c of pay.competence_months) {
+                if (c) candidates.push(String(c).slice(0, 10));
+              }
             }
-          }
-          if (pay?.competence_month) candidates.push(String(pay.competence_month).slice(0, 10));
-          if (candidates.length > 0) {
-            const earliest = candidates.sort()[0];
-            const m = earliest.match(/^(\d{4})-(\d{2})/);
-            if (m) lotePeriodStart = `${m[1]}-${m[2]}-01`;
+            if (pay?.competence_month) candidates.push(String(pay.competence_month).slice(0, 10));
+            if (candidates.length > 0) {
+              const earliest = candidates.sort()[0];
+              const m = earliest.match(/^(\d{4})-(\d{2})/);
+              if (m) lotePeriodStart = `${m[1]}-${m[2]}-01`;
+            }
           }
         } catch (e) {
           console.warn('[Conciliação] não foi possível ler competência do lote — filtro de remessa desativado.', e);
