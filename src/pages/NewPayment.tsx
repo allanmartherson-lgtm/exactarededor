@@ -835,6 +835,7 @@ const NewPayment = () => {
 
   // === Vínculo com rateio (pool) ===
   const [paymentMode, setPaymentMode] = useState<"producao" | "rateio">("producao");
+  const [competenceRegime, setCompetenceRegime] = useState<"producao" | "remessa">("producao");
   const [poolId, setPoolId] = useState<string>("");
   const [poolDeductionId, setPoolDeductionId] = useState<string>("");
   const [rateioSource, setRateioSource] = useState<"planilha" | "sintetico">("planilha");
