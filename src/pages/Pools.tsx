@@ -558,7 +558,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
                       <div className="pt-2 border-t">Rateio:</div>
                       {simBolo.quotas.map((q, i) => (
                         <div key={i} className={`flex justify-between ${q.tipo === "hospital_nao_paga" ? "text-muted-foreground italic" : ""}`}>
-                          <span>{q.label} ({q.pct}%){q.tipo === "hospital_nao_paga" ? " — não paga" : ""}</span>
+                          <span>{q.label} ({q.pct}%){q.tipo === "hospital_nao_paga" ? " — receita hospital (não paga)" : ""}</span>
                           <span>R$ {q.val.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                         </div>
                       ))}
