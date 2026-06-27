@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, FileEdit, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { CostCenterCombobox } from "@/components/CostCenterCombobox";
 
 export default function NewManualPayment() {
   const navigate = useNavigate();
@@ -39,9 +40,10 @@ export default function NewManualPayment() {
   });
   const [paymentTypeId, setPaymentTypeId] = useState<string>("");
   const [paymentDueDate, setPaymentDueDate] = useState("");
+  const [costCenterCode, setCostCenterCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = !!reference.trim() && !!paymentTypeId && !!competence && !!hospital?.id;
+  const canSubmit = !!reference.trim() && !!paymentTypeId && !!competence && !!hospital?.id && !!costCenterCode;
 
   const handleCreate = async () => {
     if (!canSubmit || !user) return;
@@ -61,6 +63,7 @@ export default function NewManualPayment() {
         payment_due_date: paymentDueDate || null,
         analysis_mode: "manual" as any,
         payment_type_id: paymentTypeId,
+        cost_center_code: costCenterCode,
         import_mode: "normal",
       } as any)
       .select()
@@ -138,6 +141,15 @@ export default function NewManualPayment() {
                 onChange={(e) => setPaymentDueDate(e.target.value)}
               />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Centro de custos *</Label>
+            <CostCenterCombobox
+              value={costCenterCode}
+              onChange={setCostCenterCode}
+              placeholder="Buscar por código P12 ou nome…"
+            />
+            <p className="text-xs text-muted-foreground">Obrigatório. Define o centro de custos contábil deste lote.</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="desc">Descrição (opcional)</Label>
