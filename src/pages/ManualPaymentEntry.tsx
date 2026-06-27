@@ -7,7 +7,7 @@
  * is_manual_entry=true, gross_amount = valor informado, applied_calc_method
  * = 'manual_entry'. O motor de regras NÃO roda — itens já chegam validados.
  */
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
