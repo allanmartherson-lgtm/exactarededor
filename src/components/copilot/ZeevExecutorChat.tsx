@@ -8,7 +8,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type ExecAction = "set_sector" | "set_cost_center" | "link_doctor_company";
+type ExecAction =
+  | "set_sector"
+  | "set_cost_center"
+  | "link_doctor_company"
+  | "register_doctor_pending"
+  | "register_company"
+  | "resolve_registry_match";
 type SoftAction = "navigate" | "answer";
 type Action = ExecAction | SoftAction;
 
@@ -25,6 +31,7 @@ type Proposal = {
     description: string | null;
     attendance_number: string | null;
   }>;
+  details?: Array<{ label: string; value: string }>;
 };
 
 type NavPayload = { url?: string; filter?: "zerados" | "divergentes" | "sem_regra" | "reprovados" };
@@ -39,7 +46,12 @@ const ACTION_LABEL: Record<ExecAction, string> = {
   set_sector: "Definir setor em lote",
   set_cost_center: "Definir centro de custos em lote",
   link_doctor_company: "Vincular médico → empresa",
+  register_doctor_pending: "Cadastrar médico (pendente aprovação)",
+  register_company: "Cadastrar empresa (PJ)",
+  resolve_registry_match: "Registrar alias de cadastro",
 };
+
+const REGISTRY_ACTIONS = new Set<ExecAction>(["register_doctor_pending", "register_company", "resolve_registry_match"]);
 
 const FILTER_LABEL: Record<NonNullable<NavPayload["filter"]>, string> = {
   zerados: "valores zerados",
