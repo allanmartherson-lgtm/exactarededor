@@ -282,7 +282,7 @@ const Payments = () => {
     if (st === "analista" || st === "validador" || st === "diretor") {
       setOwnerGroup(st);
     } else if (st) {
-      setStatusFilter(st);
+      setStatusFilter([st]);
     }
     setOnlyMine(searchParams.get("owner") === "me");
   }, [searchParams]);
