@@ -47,7 +47,13 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
 
   const [{ data: payment }, { data: company }, { data: items }] = await Promise.all([
     t.payment_id
-      ? supabase.from("payments").select("id,reference,competence_month,status,hospital_id").eq("id", t.payment_id).maybeSingle()
+      ? supabase
+          .from("payments")
+          .select(
+            "id,reference,competence_month,status,hospital_id,analysis_mode,manual_general_attachment_name",
+          )
+          .eq("id", t.payment_id)
+          .maybeSingle()
       : Promise.resolve({ data: null }),
     t.company_id
       ? supabase.from("companies").select("id,name,document").eq("id", t.company_id).maybeSingle()
@@ -55,12 +61,23 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
     supabase
       .from("payment_items")
       .select(
-        "id,doctor_name,patient_name,attendance_number,procedure_code,procedure_name,procedure_date,quantity,procedure_amount,gross_amount,expected_amount,applied_calc_id,applied_calc_method,validation_findings",
+        "id,doctor_name,patient_name,attendance_number,procedure_code,procedure_name,procedure_date,quantity,procedure_amount,gross_amount,expected_amount,applied_calc_id,applied_calc_method,validation_findings,specialty,manual_note,manual_source_attachment_path,is_manual_entry",
       )
       .eq("payment_id", t.payment_id ?? "")
       .eq("company_id", t.company_id ?? "")
       .limit(2000),
   ]);
+
+  // Modo MANUAL: relatório enxuto, sem regra/divergência/alerta assistencial.
+  if ((payment as any)?.analysis_mode === "manual") {
+    return renderManualPdf({
+      t,
+      payment: payment as any,
+      company: company as any,
+      items: (items ?? []) as any[],
+    });
+  }
+
 
   const allItems = (items ?? []) as Array<{
     id: string;
