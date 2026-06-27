@@ -170,6 +170,75 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
     return Array.from(m.entries()).sort((a, b) => b[1].n - a[1].n);
   }, [filtered]);
 
+  // Agrupa alertas por (paciente + data) e monta uma timeline com itens do lote
+  // atual e itens conflitantes (de outros lotes) lado a lado.
+  type TimelineEntry = {
+    procedure_name: string;
+    procedure_code: string;
+    doctor: string;
+    attendance: string;
+    payment_ref: string;
+    rule_name: string;
+    gross_amount: number;
+    isConflict: boolean;
+  };
+  const grouped = useMemo(() => {
+    const map = new Map<string, {
+      key: string;
+      patient: string;
+      date: string;
+      rows: AssistanceAlertRow[];
+      timeline: TimelineEntry[];
+      total: number;
+    }>();
+    const seen = new Set<string>();
+    for (const r of filtered) {
+      const dateKey = (r.procedure_date || "").slice(0, 10);
+      const patientKey = (r.patient || "").toLowerCase().trim();
+      const key = `${patientKey}|${dateKey}`;
+      let g = map.get(key);
+      if (!g) {
+        g = { key, patient: r.patient, date: r.procedure_date, rows: [], timeline: [], total: 0 };
+        map.set(key, g);
+      }
+      g.rows.push(r);
+      g.total += r.gross_amount;
+      // item atual
+      const curId = `cur|${r.itemId}`;
+      if (!seen.has(curId)) {
+        seen.add(curId);
+        g.timeline.push({
+          procedure_name: r.procedure_name,
+          procedure_code: r.procedure_code,
+          doctor: r.doctor,
+          attendance: r.attendance,
+          payment_ref: paymentReference ?? "",
+          rule_name: r.rule_name,
+          gross_amount: r.gross_amount,
+          isConflict: false,
+        });
+      }
+      // item em conflito
+      if (r.conflicting_procedure || r.conflicting_doctor || r.conflicting_attendance) {
+        const cid = `conf|${r.itemId}|${r.conflicting_attendance}|${r.conflicting_procedure}|${r.conflicting_payment_ref}`;
+        if (!seen.has(cid)) {
+          seen.add(cid);
+          g.timeline.push({
+            procedure_name: r.conflicting_procedure,
+            procedure_code: "",
+            doctor: r.conflicting_doctor,
+            attendance: r.conflicting_attendance,
+            payment_ref: r.conflicting_payment_ref,
+            rule_name: r.rule_name,
+            gross_amount: 0,
+            isConflict: true,
+          });
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [filtered, paymentReference]);
+
   function exportCsv() {
     const headers = [
       "Regra", "Severidade", "Tipo", "Mensagem",
