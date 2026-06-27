@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, FileEdit, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { CostCenterCombobox } from "@/components/CostCenterCombobox";
 
 export default function NewManualPayment() {
   const navigate = useNavigate();
