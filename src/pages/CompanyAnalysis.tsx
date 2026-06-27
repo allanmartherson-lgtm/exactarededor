@@ -1273,6 +1273,11 @@ export default function CompanyAnalysis() {
         });
         const isReimportConfeccao = (payment as any)?.analysis_mode === "confeccao";
         const missingRequired = hits.filter((h) => {
+          // Tipo de pagamento que injeta TUSS/função padrão (parecer, visita, plantão fixo)
+          // dispensa essas colunas da planilha — mesma regra do ColumnMappingDialog.
+          const tussInjected = !!paymentTypeMeta?.tuss_default || paymentTypeMeta?.requires_tuss_in_sheet === false;
+          if (tussInjected && (h.field === "procedure_code" || h.field === "procedure_name")) return false;
+          if (paymentTypeMeta?.default_function && h.field === "doctor_role") return false;
           const required = isReimportConfeccao
             ? h.field === "procedure_amount" || (FIELD_BY_KEY[h.field].requirement === "required" && h.field !== "gross_amount")
             : FIELD_BY_KEY[h.field].requirement === "required";
@@ -1288,7 +1293,18 @@ export default function CompanyAnalysis() {
           return;
         }
 
-        const bucket = await parsePaymentFile(file, companies, payment.payment_kind, { manualMapping });
+        const bucket = await parsePaymentFile(file, companies, payment.payment_kind, {
+          manualMapping,
+          paymentTypeMeta: paymentTypeMeta
+            ? {
+                label: paymentTypeMeta.label,
+                tuss_default: paymentTypeMeta.tuss_default,
+                requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
+                default_function: paymentTypeMeta.default_function,
+              }
+            : null,
+        });
+
         if (tpl) {
           await supabase
             .from("sheet_column_templates" as never)
