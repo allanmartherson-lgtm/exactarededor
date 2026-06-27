@@ -78,7 +78,8 @@ const SYSTEM_PROMPT = [
   "",
   "REGRAS ABSOLUTAS:",
   "- NUNCA proponha apagar pagamentos, mexer em regras, aprovar lote, finalizar NF, ou qualquer ação financeira.",
-  "- Use os números/contexto que o servidor já te passou (contagens, agregados). Não invente.",
+  "- Use os números/contexto que o servidor já te passou (contagens, agregados, preferências aprendidas). Não invente.",
+  "- Se 'learned_preferences' do contexto incluir uma preferência cujo 'when' bate com a situação atual (ex.: mesmo convenio_slug + sector_missing), proponha o mesmo payload aprendido. Mencione no summary que é uma preferência recorrente — mas SEMPRE espere confirmação humana.",
   "- Responda sempre em PT-BR, breve e direto. Sem rodeio.",
   "",
   "AÇÕES DISPONÍVEIS (escolha exatamente UMA):",
@@ -427,6 +428,117 @@ async function execResolveRegistryMatch(sb: SB, payload: Record<string, unknown>
   };
 }
 
+// -------------------- Memória híbrida (Fase 4) --------------------
+
+/** Gera assinatura estável e curta do que foi aceito, para agrupar repetições. */
+function buildPreferenceScope(action: string, scope: Scope, payload: Record<string, unknown>): { scope: Record<string, unknown>; hash: string } {
+  const keys: Record<string, unknown> = { action };
+  // Campos relevantes do escopo (filtros)
+  if (scope.convenio_slug) keys.convenio_slug = scope.convenio_slug;
+  if (scope.procedure_code) keys.procedure_code = scope.procedure_code;
+  if (scope.sector_missing) keys.sector_missing = true;
+  if (scope.cost_center_missing) keys.cost_center_missing = true;
+  if (scope.doctor_company_missing) keys.doctor_company_missing = true;
+  // Campos relevantes do payload (o "valor" da preferência)
+  for (const k of ["sector_code", "cost_center_code", "company_id", "alias_type", "canonical_id", "canonical_slug"]) {
+    if (payload[k]) keys[k] = payload[k];
+  }
+  const hashSrc = Object.keys(keys).sort().map((k) => `${k}=${String(keys[k])}`).join("|");
+  // hash SHA-256 → hex
+  return { scope: keys, hash: hashSrc };
+}
+
+async function sha256Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Após um execute aceito, grava evento + upsert do pattern. */
+async function recordZeevPreference(
+  sb: SB,
+  hospitalId: string | null,
+  action: string,
+  scope: Scope,
+  payload: Record<string, unknown>,
+  paymentId: string | null,
+) {
+  if (!hospitalId) return; // sem hospital, sem memória
+  const { scope: prefScope, hash: rawHash } = buildPreferenceScope(action, scope, payload);
+  const scope_hash = await sha256Hex(rawHash);
+
+  // Tenta upsert via select+update / insert
+  const { data: existing } = await sb
+    .from("learned_patterns")
+    .select("id, occurrences")
+    .eq("hospital_id", hospitalId)
+    .eq("kind", "zeev_preference")
+    .eq("scope_hash", scope_hash)
+    .maybeSingle();
+
+  let patternId: string;
+  if (existing) {
+    const newCount = (existing.occurrences ?? 0) + 1;
+    const newConfidence = Math.min(1, newCount / 3); // 1→0.33, 2→0.66, 3+→1.0
+    const { error } = await sb
+      .from("learned_patterns")
+      .update({
+        occurrences: newCount,
+        confidence: newConfidence,
+        last_seen_at: new Date().toISOString(),
+        signal: { last_payload: payload, last_scope: scope },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+    if (error) return;
+    patternId = existing.id as string;
+  } else {
+    const { data: ins, error } = await sb
+      .from("learned_patterns")
+      .insert({
+        hospital_id: hospitalId,
+        kind: "zeev_preference",
+        scope: prefScope,
+        scope_hash,
+        signal: { last_payload: payload, last_scope: scope },
+        occurrences: 1,
+        confidence: 0.33,
+        status: "ativo",
+        first_seen_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    if (error || !ins) return;
+    patternId = ins.id as string;
+  }
+
+  await sb.from("learned_pattern_events").insert({
+    pattern_id: patternId,
+    source_kind: "zeev_executor",
+    payment_id: paymentId,
+    payload: { action, scope, payload },
+  });
+}
+
+/** Carrega top N preferências ativas do hospital pra injetar no contexto do LLM. */
+async function loadLearnedPreferences(sb: SB, hospitalId: string | null) {
+  if (!hospitalId) return [];
+  const { data } = await sb
+    .from("learned_patterns")
+    .select("scope, signal, occurrences, confidence")
+    .eq("hospital_id", hospitalId)
+    .eq("kind", "zeev_preference")
+    .eq("status", "ativo")
+    .order("occurrences", { ascending: false })
+    .limit(15);
+  return (data ?? []).map((p) => ({
+    when: p.scope,
+    suggested_payload: (p.signal as { last_payload?: unknown } | null)?.last_payload ?? null,
+    seen: p.occurrences,
+    confidence: p.confidence,
+  }));
+}
+
 // -------------------- Preview --------------------
 
 async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Action): Promise<{ count: number; samples: Proposal["sample_items"] }> {
@@ -569,14 +681,24 @@ Deno.serve(async (req) => {
     }
 
 
+    // Hospital ativo (necessário pra memória híbrida quando não há payment_id)
+    let activeHospitalId: string | null = pay?.hospital_id ?? null;
+    if (!activeHospitalId) {
+      const { data: ah } = await sb.from("user_active_hospital").select("hospital_id").eq("user_id", actorId).maybeSingle();
+      activeHospitalId = (ah?.hospital_id as string) ?? null;
+    }
+
     if (body.step === "propose") {
       if (!body.prompt) return jsonResp({ error: "prompt obrigatório" }, 400);
+
+      const learnedPrefs = await loadLearnedPreferences(sb, activeHospitalId);
 
       const llm = await callLLM(body.prompt, {
         current_path: body.current_path ?? null,
         payment: pay ? { id: pay.id, reference: pay.reference, company_name: pay.company_name } : null,
         aggregates: aggregates ?? null,
         has_payment_context: !!body.payment_id,
+        learned_preferences: learnedPrefs,
       });
 
       // Ações sem mutação — devolve direto pro cliente aplicar.
@@ -716,6 +838,8 @@ Deno.serve(async (req) => {
           },
         });
 
+        await recordZeevPreference(sb, activeHospitalId, p.action, p.scope ?? {}, p.payload ?? {}, body.payment_id ?? null);
+
         const msg = p.action === "register_doctor_pending" ? "Médico cadastrado (pendente aprovação)."
                   : p.action === "register_company" ? "Empresa cadastrada."
                   : "Alias registrado.";
@@ -755,6 +879,8 @@ Deno.serve(async (req) => {
           created_link_ids: result.created_link_ids ?? null,
         },
       });
+
+      await recordZeevPreference(sb, activeHospitalId, p.action, p.scope ?? {}, p.payload ?? {}, body.payment_id);
 
       return jsonResp({
         step: "executed",

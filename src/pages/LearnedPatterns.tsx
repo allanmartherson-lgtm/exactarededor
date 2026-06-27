@@ -27,6 +27,7 @@ const KIND_LABEL: Record<string, string> = {
   ausencia: "Ausência recorrente",
   override_valor: "Override de valor",
   aceitar_divergencia: "Aceitação de divergência",
+  zeev_preference: "Preferência do Zeev",
 };
 
 export default function LearnedPatterns() {
