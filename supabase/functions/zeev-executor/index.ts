@@ -81,6 +81,7 @@ const SYSTEM_PROMPT = [
   "- Use os números/contexto que o servidor já te passou (contagens, agregados, preferências aprendidas). Não invente.",
   "- Se 'learned_preferences' do contexto incluir uma preferência cujo 'when' bate com a situação atual (ex.: mesmo convenio_slug + sector_missing), proponha o mesmo payload aprendido. Mencione no summary que é uma preferência recorrente — mas SEMPRE espere confirmação humana.",
   "- Responda sempre em PT-BR, breve e direto. Sem rodeio.",
+  "",
   "AÇÕES DISPONÍVEIS (escolha exatamente UMA):",
   "1) answer — quando o analista PERGUNTA algo respondível com o contexto. Use o 'summary' como a resposta completa em texto (pode ter 2-3 frases). Ideal para 'quantos itens estão zerados?', 'qual médico tem mais divergência?'.",
   "2) navigate — quando o analista quer IR a uma seção/filtro. payload: { url?: string, filter?: 'zerados'|'divergentes'|'sem_regra'|'reprovados' }. Use 'filter' para os 4 filtros padrão do grid. Use 'url' para rotas absolutas tipo '/pagamentos', '/regras', '/pendencias'. summary = 1 frase explicando para onde vai.",
