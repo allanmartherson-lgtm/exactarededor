@@ -486,6 +486,67 @@ export default function ManualPaymentEntry() {
       </div>
 
 
+      {/* Anexo geral do lote — opcional. Cobre quando uma única planilha
+          comprova todas as linhas (caso comum em nefrologia, coordenação). */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Paperclip className="h-4 w-4 text-muted-foreground" />
+            Anexo do lote (opcional)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="text-xs text-muted-foreground mb-2">
+            Use quando uma única planilha/PDF cobre todas as linhas. Anexos por linha continuam disponíveis abaixo.
+          </p>
+          {generalAttPath ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5 max-w-[320px]"
+                onClick={openGeneralAttachment}
+                title={generalAttName ?? generalAttPath}
+              >
+                <Paperclip className="h-3 w-3 shrink-0" />
+                <span className="truncate">{generalAttName ?? "anexo do lote"}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs text-muted-foreground"
+                onClick={removeGeneralAttachment}
+              >
+                <X className="h-3 w-3 mr-1" /> Remover
+              </Button>
+            </div>
+          ) : (
+            <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer rounded-md border border-dashed border-border px-3 h-8 hover:bg-muted/50 w-fit">
+              {uploadingGeneral ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Upload className="h-3 w-3 shrink-0" />
+              )}
+              <span className="text-muted-foreground">
+                {uploadingGeneral ? "Enviando…" : "Anexar planilha do lote"}
+              </span>
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleGeneralUpload(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-border/50">
           <CardTitle className="text-base">Itens</CardTitle>
@@ -498,14 +559,15 @@ export default function ManualPaymentEntry() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-muted/60 backdrop-blur supports-[backdrop-filter]:bg-muted/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[18%] text-xs uppercase tracking-wide">Empresa *</TableHead>
-                  <TableHead className="w-[16%] text-xs uppercase tracking-wide">Médico</TableHead>
-                  <TableHead className="w-[12%] text-xs uppercase tracking-wide">Tipo</TableHead>
-                  <TableHead className="w-[12%] text-xs uppercase tracking-wide">Especialidade</TableHead>
-                  <TableHead className="w-[8%] text-xs uppercase tracking-wide">Atend.</TableHead>
+                  <TableHead className="w-[16%] text-xs uppercase tracking-wide">Empresa *</TableHead>
+                  <TableHead className="w-[14%] text-xs uppercase tracking-wide">Médico</TableHead>
+                  <TableHead className="w-[11%] text-xs uppercase tracking-wide">Tipo</TableHead>
+                  <TableHead className="w-[11%] text-xs uppercase tracking-wide">Especialidade</TableHead>
+                  <TableHead className="w-[7%] text-xs uppercase tracking-wide">Atend.</TableHead>
                   <TableHead className="text-xs uppercase tracking-wide">Paciente</TableHead>
                   <TableHead className="w-[10%] text-right text-xs uppercase tracking-wide">Valor (R$) *</TableHead>
-                  <TableHead className="w-[12%] text-xs uppercase tracking-wide">Fonte / Composição</TableHead>
+                  <TableHead className="w-[14%] text-xs uppercase tracking-wide">Observação</TableHead>
+                  <TableHead className="w-[11%] text-xs uppercase tracking-wide">Fonte / Composição</TableHead>
                   <TableHead className="w-[80px] text-right text-xs uppercase tracking-wide">Status</TableHead>
                 </TableRow>
               </TableHeader>
