@@ -665,7 +665,9 @@ export function ZeevAssistant({
                 />
               ) : (
                 <ZeevExecutorChat
+                  key={chatInitialPrompt?.nonce ?? "default"}
                   paymentId={bulkContext?.paymentId ?? null}
+                  initialPrompt={chatInitialPrompt?.text}
                   onApplied={onBulkApplied}
                   onApplyFilter={onApplyFilter}
                   onNavigateUrl={(url) => { window.location.assign(url); }}
