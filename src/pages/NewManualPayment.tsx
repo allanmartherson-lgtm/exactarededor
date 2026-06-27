@@ -143,6 +143,15 @@ export default function NewManualPayment() {
             </div>
           </div>
           <div className="space-y-1.5">
+            <Label>Centro de custos *</Label>
+            <CostCenterCombobox
+              value={costCenterCode}
+              onChange={setCostCenterCode}
+              placeholder="Buscar por código P12 ou nome…"
+            />
+            <p className="text-xs text-muted-foreground">Obrigatório. Define o centro de custos contábil deste lote.</p>
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="desc">Descrição (opcional)</Label>
             <Textarea
               id="desc"
