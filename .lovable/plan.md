@@ -1,68 +1,45 @@
-## Objetivo
+## Escopo
 
-Tratar o modo **manual** como um fluxo de primeira classe, com layout, colunas e relatório próprios — sem reaproveitar o que veio de análise/confecção (que pressupõem regra, TUSS, paciente, divergências).
+Validar e cobrir com testes o comportamento do **modo manual** em 4 superfícies a jusante da análise. Antes de codar, registrei o que já existe vs. o que precisa mudar.
 
-## Descobertas relevantes do código
+### Mapeamento do estado atual
 
-- `payment_items` já tem o campo `manual_note` (livre) e `specialty` (livre) — não precisa de migration para observação nem especialidade por linha.
-- `manual_source_attachment_path` já guarda o anexo por linha; o lançamento manual (`ManualPaymentEntry.tsx`) já faz upload, só falta exibir depois.
-- Não existe ainda anexo geral do lote no modo manual — vamos adicionar `payments.manual_general_attachment_path` (nullable) via migration.
-- `payment_items.is_manual_entry = true` é a flag autoritativa.
-- A tela do print é `CompanyAnalysis.tsx` (3.3k linhas) e reusa `ItemsDataGrid` (focado em regras/divergências). Para o manual vamos renderizar um grid próprio e esconder as áreas que não fazem sentido — sem refatorar o resto.
+| Fluxo | Onde mora | Status para modo manual |
+|---|---|---|
+| Aprovação diretor | RPC `approve_payment` + `processDirectorApproval` (email/WhatsApp) + `CompanyAnalysis` | RPC é mode-agnostic (só muda status). E-mail/WhatsApp só citam total + nº empresas, sem regra/glosa. **OK por construção.** |
+| E-mail de pedido de NF | `send-invoice-request/templates.ts` | Template não menciona regra/glosa, monta com `sectors`/`specialties` do payment. Para manual: confirmar que `payment.specialties` agrega o que o analista lançou por item. |
+| Portal da empresa | `InvoicePortal.tsx` + `submit-invoice` | Mostra valor, prazo, formulário de NF. Não renderiza itens detalhados — **não exibe "regras"**, só valor da empresa. OK. |
+| Portal do médico | **Não existe como página separada.** Médico interage por `doctor_messages` / pendências (mode-agnostic). | Nada a esconder — não há tela com colunas de regra/divergência. |
 
-## Mudanças
+### Conclusão da auditoria
+A maioria dos fluxos a jusante **já é neutra ao modo** porque só consomem status + valor + listas agregadas (setor/especialidade). O risco real é:
 
-### 1. Migration (anexo geral do lote manual)
-```text
-ALTER TABLE public.payments
-  ADD COLUMN IF NOT EXISTS manual_general_attachment_path text,
-  ADD COLUMN IF NOT EXISTS manual_general_attachment_name text;
-```
-Sem alteração de RLS (políticas existentes já cobrem).
+1. `payment.specialties` (array no nível payment) pode ficar vazio em manual se o agregador não considerar `payment_items.specialty` lançado manualmente → e-mail de NF sai sem o trecho "Produção de …".
+2. Nenhuma cobertura de teste garante que esses contratos não regridam.
 
-### 2. `ManualPaymentEntry.tsx` (mesa de lançamento)
-- Adicionar **campo Observação** (textarea curta) por linha — persiste em `manual_note`.
-- Carregar/salvar `manual_note` no `loaded`/`buildPayload`.
-- Bloco de **anexo geral** no topo (acima da tabela): upload único do lote → grava em `payments.manual_general_attachment_path/_name`. Bucket `payment-manual-sources`, mesma chave `${hospital}/${id}/_general/`. Texto: "Anexo do lote (opcional) — planilha-fonte que cobre o pagamento inteiro."
-- Manter o anexo por linha como opcional (já existe).
+### O que vou fazer
 
-### 3. `CompanyAnalysis.tsx` — modo manual (condicional `isManual = analysis_mode === 'manual'`)
-Quando `isManual`:
-- **Cabeçalho**: esconder cards "Alertas" e "Críticos" (não existem alertas de regra no manual). Manter Itens, Valor Líquido.
-- **Faixa de deduções/composição**: manter (débitos/glosas/pool podem existir).
-- **Abas**: mostrar só `Itens` e `Histórico` — esconder `Divergências`, `Detalhe IA`.
-- **Filtros do grid** (`Todos status`, `Sem regra`, `Alertas assistenciais`, `Colunas`): esconder no manual.
-- **Grid de itens**: renderizar componente novo `ManualItemsGrid` em vez de `ItemsDataGrid`. Colunas:
-  | Médico | Empresa | Especialidade | Valor | Observação | Anexo |
-  - Anexo: ícone clipe + nome com link `getPublicUrl`/`createSignedUrl` do bucket `payment-manual-sources`.
-  - Se não tiver anexo por linha, mostra "—" (e o usuário sabe que tem o geral no header).
-  - Totalizador no rodapé: soma dos `gross_amount`.
-- **Banner do header do grupo**: mostrar link do anexo geral do lote (se houver).
+1. **Verificar agregação de especialidade em manual** — abrir o trecho que popula `payments.specialties` e garantir que ele lê `payment_items.specialty` independente do modo. Corrigir se necessário (escopo mínimo: 1 trigger ou 1 função de recompute).
 
-### 4. Botão/link "Adicionar item manual"
-Já existe. No modo manual, manter — leva para `ManualPaymentEntry`.
+2. **Testes de contrato (vitest)** em `src/lib/__tests__/manualDownstream.contract.test.ts`:
+   - `buildSubject` e `buildEmailBody` do `send-invoice-request` produzem texto sem "regra/glosa/divergência" para um contexto manual (setores vazios, só especialties).
+   - Snapshot do payload do `submit-invoice` info-GET para um pagamento manual mock — confirma ausência de campos de regra.
+   - `processDirectorApproval` — teste de pureza dos builders de mensagem (greeting/html/text/whatsapp) para um payment manual.
 
-### 5. Relatório de validação (PDF)
-- `groupValidationPdf.ts` — detectar `analysis_mode === 'manual'` e gerar **versão enxuta**:
-  - Cabeçalho do lote + empresa + tipo "Lançamento manual"
-  - Tabela: Médico · Especialidade · Observação · Valor · Anexo (nome do arquivo)
-  - Totais + assinatura
-  - Remover seções: "Sem regra", divergências de cálculo, comparativo esperado vs pago, alertas assistenciais.
+3. **Teste de contrato do RPC** em `src/pages/__tests__/approveManualPayment.contract.test.ts`: monta um payment mock com `analysis_mode='manual'` + grupos em `aguardando_aprovacao` e verifica que o caminho do componente `PaymentBatchActionsFooter` chama `approve_payment` com o mesmo payload que para modos normais (sem ramificação manual).
 
-### 6. Memória de projeto
-Adicionar `mem://features/manual-mode-ui` registrando: campos próprios, sem regra/divergência, anexo dual (geral + linha), `manual_note` é a observação.
+4. **Playwright E2E (1 cenário, não 4)** — login na preview, navegar até um lote manual existente (se houver na base) ou abrir `CompanyAnalysis` num lote de teste e capturar 3 screenshots: (a) tela mostra ManualItemsGrid sem abas "Divergências/Detalhe IA"; (b) banner de anexo geral; (c) PDF de validação manual renderiza sem seções de regra.
+   *Se não houver lote manual real na base, o E2E é pulado e marcado como "skipped — sem fixture"*; o usuário decide se quero criar um fixture seed.
 
-## Fora de escopo desta rodada
-- Repensar fluxo de aprovação/validação do manual (continua o mesmo: encaminhar para validação → diretor).
-- Anexar múltiplos arquivos por linha (mantém 1).
-- Conciliação NF×pedido específica do manual.
+5. **Memória atualizada** — adicionar à `mem://features/manual-mode-ui.md`: "fluxos a jusante (aprovação, NF, portal empresa) são mode-agnostic; portal do médico não é UI dedicada".
 
-## Arquivos tocados
-- `supabase/migrations/...` (1 migration nova)
-- `src/pages/ManualPaymentEntry.tsx`
-- `src/pages/CompanyAnalysis.tsx`
-- `src/components/payment-detail/ManualItemsGrid.tsx` (novo)
-- `src/lib/groupValidationPdf.ts`
-- `.lovable/memory/features/manual-mode-ui.md` (novo) + index
+### Fora de escopo
+- Criar portal do médico como UI dedicada (não existe e não foi pedido).
+- Mexer em `approve_payment` RPC (já é mode-agnostic).
+- Reformatar template de e-mail (já não cita regras).
 
-Quer que eu siga assim?
+### Entregáveis
+- 2 arquivos de teste novos (vitest).
+- 1 ajuste em agregação de specialties **somente se** a auditoria revelar gap.
+- 1 atualização de memória.
+- 1 relatório curto no chat com os resultados (incluindo E2E ou justificativa de skip).

@@ -318,14 +318,25 @@ export default function ManualPaymentEntry() {
     if (!id) return;
     const { data } = await supabase
       .from("payment_items")
-      .select("gross_amount")
+      .select("gross_amount, specialty")
       .eq("payment_id", id)
       .eq("is_manual_entry", true);
     const sum = (data ?? []).reduce((a, b: any) => a + (Number(b.gross_amount) || 0), 0);
     const count = (data ?? []).length;
+    // Agrega especialidades lançadas manualmente para alimentar payments.specialties
+    // (consumido pelo template de e-mail de pedido de NF, que monta "Produção de …").
+    const specialtiesSet = new Set<string>();
+    for (const it of data ?? []) {
+      const s = String((it as any).specialty ?? "").trim();
+      if (s) specialtiesSet.add(s);
+    }
     await supabase
       .from("payments")
-      .update({ total_amount: sum, items_count: count } as any)
+      .update({
+        total_amount: sum,
+        items_count: count,
+        specialties: Array.from(specialtiesSet),
+      } as any)
       .eq("id", id);
   };
 
