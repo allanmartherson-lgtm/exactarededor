@@ -3146,7 +3146,7 @@ const PaymentDetail = () => {
                 } : undefined}
               />}
               <PreAnalysisScoreCard payment={payment} />
-              {id && <DoctorAnomalyAlerts paymentId={id} />}
+              {id && <DoctorAnomalyAlerts paymentId={id} analysisMode={(payment as any)?.analysis_mode} />}
             </div>
           )}
         </div>
