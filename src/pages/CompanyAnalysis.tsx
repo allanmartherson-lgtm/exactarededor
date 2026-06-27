@@ -2444,6 +2444,32 @@ export default function CompanyAnalysis() {
           })()}
 
           <HighlightBanner observations={obs} profiles={profiles} />
+
+          {/* Anexo geral do lote no modo MANUAL — visível antes do grid. */}
+          {isManual && (payment as any)?.manual_general_attachment_path && (
+            <div className="flex items-center gap-2 text-xs rounded-md border border-border bg-muted/30 px-3 py-2">
+              <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="text-muted-foreground">Anexo do lote:</span>
+              <button
+                type="button"
+                className="font-medium text-primary hover:underline truncate"
+                title={(payment as any).manual_general_attachment_name ?? ""}
+                onClick={async () => {
+                  const path = (payment as any).manual_general_attachment_path as string;
+                  const { data } = await supabase.storage
+                    .from("payment-manual-sources")
+                    .createSignedUrl(path, 60 * 10);
+                  if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+                }}
+              >
+                {(payment as any).manual_general_attachment_name ?? "abrir"}
+              </button>
+            </div>
+          )}
+
+          {isManual ? (
+            <ManualItemsGrid items={items as any} />
+          ) : (
           <Card className="shadow-card">
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
