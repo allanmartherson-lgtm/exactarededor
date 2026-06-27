@@ -264,7 +264,8 @@ export default function ManualPaymentEntry() {
 
   const saveAll = async (): Promise<{ saved: number; failed: number; skipped: number }> => {
     setSavingAll(true);
-    const result = await runSaveAll(
+    type DraftWithValid = DraftRow & { valid: boolean };
+    const result = await runSaveAll<DraftWithValid>(
       rows.map((r) => ({ ...r, valid: !!r.company && r.amount > 0 })),
       (r) => saveRow(r),
     );
