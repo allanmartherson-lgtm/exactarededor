@@ -35,12 +35,12 @@ Deno.serve(async (req) => {
         period_end,
         notes,
       } = body ?? {};
-      // period_start/period_end são OPCIONAIS — o cliente envia min/max
-      // detectados do arquivo. Se vier vazio, gravamos null e o finalize
-      // recalcula a partir das linhas inseridas (fallback resiliente).
-      if (!payment_id || !file_hash) {
+      // period_start/period_end são derivados automaticamente no cliente
+      // (min/max das datas do arquivo). Mantidos como obrigatórios aqui
+      // como guard-rail — colunas no banco são NOT NULL.
+      if (!payment_id || !file_hash || !period_start || !period_end) {
         return json(
-          { error: "payment_id e file_hash são obrigatórios" },
+          { error: "payment_id, file_hash, period_start, period_end são obrigatórios" },
           400,
         );
       }
