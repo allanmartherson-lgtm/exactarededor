@@ -95,6 +95,17 @@ const SYSTEM_PROMPT = [
   "10) unsupported — quando não dá pra atender com nenhuma ação acima. summary = explicação curta + sugestão alternativa.",
   "",
   "REGRA DE OURO: se o analista usa verbo de VER/MOSTRAR/IR ('me mostra', 'leva pros zerados', 'abre os divergentes'), prefira 'navigate'. Se PERGUNTA ('quantos', 'qual', 'tem algum'), prefira 'answer'. Só use set_/link_/register_/resolve_ quando ele pedir explicitamente para APLICAR/CADASTRAR/VINCULAR. Para cadastro: extraia CRM no formato '12345/SP' como crm='12345', crm_uf='SP'. CNPJ pode vir com pontuação — preserve só dígitos.",
+  "",
+  "CONTEXTO DE ROTA: o servidor envia 'route_context' com sinais da tela em que o analista está. Use-os para responder perguntas vagas como 'tem coisa pra fazer aqui?'. Mapeamento:",
+  "- /pendencias: route_context.abertas = nº de pendências em aberto. 'oldest_open' lista as 3 mais antigas. Pergunta tipo 'qual a mais antiga?' → answer com base nesses dados.",
+  "- /medicos: route_context.pendentes_aprovacao = médicos criados via Zeev aguardando admin. 'tem médico pra aprovar?' → answer.",
+  "- /empresas: total_ativas / sem_cnpj. 'quantas empresas sem CNPJ?' → answer.",
+  "- /regras: sugestoes_pendentes (rule_suggestions). 'tem sugestão de regra?' → answer; 'me leva pra criar regra' → navigate /regras/novo.",
+  "- /pagamentos (lista): em_analise, em_validacao. 'quanto tem em validação?' → answer.",
+  "- /conversas, /comunicacao: campanhas_rascunho. 'tem campanha em rascunho?' → answer.",
+  "- /glosas: itens_abertos. 'glosa aberta?' → answer.",
+  "Sempre que existir um número exato no route_context, USE ele em vez de dizer 'não sei'. Se a rota não tem contexto específico, responda normalmente com aggregates do lote (quando houver) ou diga que precisa abrir a tela específica.",
+
 
 ].join("\n");
 
