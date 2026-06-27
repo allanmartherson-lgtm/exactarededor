@@ -83,16 +83,8 @@ function getInitials(name?: string | null, email?: string | null) {
 }
 
 const Logo = ({ compact = false }: { compact?: boolean }) => (
-  // Topbar: usa lockup compacto (ícone + wordmark) sem tagline para não estourar a largura.
-  // Tagline aparece só na sidebar lateral expandida, onde há espaço vertical.
-  <ExactaLogo
-    variant={compact ? "icon" : "compact"}
-    iconSize={compact ? 32 : 30}
-    wordmarkSize={18}
-    className="max-w-full"
-  />
+  <ExactaLogo variant={compact ? "icon" : "full"} iconSize={compact ? 34 : 36} wordmarkSize={20} />
 );
-
 
 
 const LayoutToggle = () => {
