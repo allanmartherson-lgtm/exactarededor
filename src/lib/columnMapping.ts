@@ -317,15 +317,45 @@ export const inspectColumnMapping = (headers: string[]): FieldMappingHit[] => {
   });
 };
 
-export const summarizeMissing = (hits: FieldMappingHit[]) => {
+/**
+ * Meta do tipo de pagamento usada para relaxar campos obrigatórios.
+ * Quando o tipo (parecer/visita/plantão fixo) já injeta TUSS e/ou função
+ * padrão, o analista não precisa mapear essas colunas na planilha.
+ * MESMA regra que o ColumnMappingDialog usa visualmente — extraída aqui
+ * para que os pré-checks em CompanyAnalysis/PaymentDetail batam com a UI.
+ */
+export type PaymentTypeRequirementMeta = {
+  tuss_default?: string | null;
+  requires_tuss_in_sheet?: boolean;
+  default_function?: string | null;
+} | null | undefined;
+
+export const isFieldRequiredFor = (
+  field: FieldKey,
+  meta: PaymentTypeRequirementMeta,
+): boolean => {
+  const baseReq = FIELD_BY_KEY[field].requirement === "required";
+  if (!baseReq) return false;
+  if (!meta) return true;
+  const tussInjected = !!meta.tuss_default || meta.requires_tuss_in_sheet === false;
+  if (tussInjected && (field === "procedure_code" || field === "procedure_name")) return false;
+  if (meta.default_function && field === "doctor_role") return false;
+  return true;
+};
+
+export const summarizeMissing = (
+  hits: FieldMappingHit[],
+  meta?: PaymentTypeRequirementMeta,
+) => {
   const missingRequired = hits.filter(
-    (h) => FIELD_BY_KEY[h.field].requirement === "required" && (!h.header || h.score < 30),
+    (h) => isFieldRequiredFor(h.field, meta) && (!h.header || h.score < 30),
   );
   const lowConfidence = hits.filter(
     (h) => FIELD_BY_KEY[h.field].requirement !== "optional" && h.header && h.score < 60,
   );
   return { missingRequired, lowConfidence };
 };
+
 
 /**
  * Constrói um manualMapping (campo → header) a partir de uma lista de hits,

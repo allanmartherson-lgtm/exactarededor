@@ -92,6 +92,7 @@ import { isCompanyGroupEditable, isCompanyGroupReopenable, COMPANY_GROUP_LOCKED_
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
+import { usePaymentTypeMeta } from "@/hooks/usePaymentTypeMeta";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -260,6 +261,8 @@ export default function CompanyAnalysis() {
     load,
     setItems,
   } = usePaymentDetailData(id, { groupId });
+  const paymentTypeMeta = usePaymentTypeMeta((payment as any)?.payment_type_id ?? null);
+
 
   // Pool é soberano: lote de pool NÃO usa a tela por-PJ. Redireciona para a
   // tela pool-mode (lista única + cards por PJ). Regra arquitetural — não
@@ -1273,6 +1276,11 @@ export default function CompanyAnalysis() {
         });
         const isReimportConfeccao = (payment as any)?.analysis_mode === "confeccao";
         const missingRequired = hits.filter((h) => {
+          // Tipo de pagamento que injeta TUSS/função padrão (parecer, visita, plantão fixo)
+          // dispensa essas colunas da planilha — mesma regra do ColumnMappingDialog.
+          const tussInjected = !!paymentTypeMeta?.tuss_default || paymentTypeMeta?.requires_tuss_in_sheet === false;
+          if (tussInjected && (h.field === "procedure_code" || h.field === "procedure_name")) return false;
+          if (paymentTypeMeta?.default_function && h.field === "doctor_role") return false;
           const required = isReimportConfeccao
             ? h.field === "procedure_amount" || (FIELD_BY_KEY[h.field].requirement === "required" && h.field !== "gross_amount")
             : FIELD_BY_KEY[h.field].requirement === "required";
@@ -1288,7 +1296,18 @@ export default function CompanyAnalysis() {
           return;
         }
 
-        const bucket = await parsePaymentFile(file, companies, payment.payment_kind, { manualMapping });
+        const bucket = await parsePaymentFile(file, companies, payment.payment_kind, {
+          manualMapping,
+          paymentTypeMeta: paymentTypeMeta
+            ? {
+                label: paymentTypeMeta.label,
+                tuss_default: paymentTypeMeta.tuss_default,
+                requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
+                default_function: paymentTypeMeta.default_function,
+              }
+            : null,
+        });
+
         if (tpl) {
           await supabase
             .from("sheet_column_templates" as never)
@@ -1958,40 +1977,45 @@ export default function CompanyAnalysis() {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
-                    <AlertDialogDescription className="space-y-3">
-                      <p>Esta ação <strong>substitui apenas os itens desta empresa</strong> ({group.company_name}) pelo conteúdo dos arquivos selecionados e reinicia a análise <strong>somente desta PJ</strong>. As demais empresas do lote não são afetadas. Os arquivos devem conter apenas linhas desta empresa. Não pode ser desfeita.</p>
-                      <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 text-[10px] px-2"
-                            onClick={() => reimportInputRef.current?.click()}
-                          >
-                            <Plus className="h-3 w-3 mr-1" /> Adicionar mais
-                          </Button>
-                        </div>
-                        <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
-                          {reimportConfirm?.map((f, i) => (
-                            <li key={i} className="flex items-center justify-between gap-2 group">
-                              <span className="truncate flex-1">• {f.name}</span>
-                              <button 
-                                type="button" 
-                                onClick={() => setReimportConfirm(prev => prev?.filter((_, idx) => idx !== i) || null)}
-                                className="text-muted-foreground hover:text-destructive p-0.5"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
-                        Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
-                      </p>
+                    <AlertDialogDescription>
+                      Esta ação <strong>substitui apenas os itens desta empresa</strong> ({group.company_name}) pelo conteúdo dos arquivos selecionados e reinicia a análise <strong>somente desta PJ</strong>. As demais empresas do lote não são afetadas. Os arquivos devem conter apenas linhas desta empresa. Não pode ser desfeita.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
+                  {/* Conteúdo bloco-nivel fica FORA do <AlertDialogDescription> (que renderiza como <p>),
+                      senão o browser fecha o <p> automaticamente e o conteúdo escapa do container. */}
+                  <div className="space-y-3">
+                    <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-[10px] px-2"
+                          onClick={() => reimportInputRef.current?.click()}
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Adicionar mais
+                        </Button>
+                      </div>
+                      <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
+                        {reimportConfirm?.map((f, i) => (
+                          <li key={i} className="flex items-center justify-between gap-2 group">
+                            <span className="truncate flex-1 min-w-0">• {f.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setReimportConfirm(prev => prev?.filter((_, idx) => idx !== i) || null)}
+                              className="text-muted-foreground hover:text-destructive p-0.5 shrink-0"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
+                      Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
+                    </p>
+                  </div>
+
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
@@ -2991,6 +3015,11 @@ export default function CompanyAnalysis() {
           sampleRow={mappingPrompt.sampleRow}
           hospitalId={(payment as any)?.hospital_id ?? null}
           mode={isConfeccao ? "confeccao" : "analise"}
+          paymentTypeMeta={paymentTypeMeta ? {
+            tuss_default: paymentTypeMeta.tuss_default,
+            requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
+            default_function: paymentTypeMeta.default_function,
+          } : null}
           onApply={(mapping) => {
             const file = mappingPrompt.file;
             setMappingOverrides((prev) => ({ ...prev, [file.name]: mapping }));
