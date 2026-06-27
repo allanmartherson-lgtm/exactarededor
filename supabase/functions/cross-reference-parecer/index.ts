@@ -33,7 +33,7 @@ function crmDigits(crm: string | null) {
 
 // Compara apenas a porção YYYY-MM-DD em UTC, ignorando hora/timezone.
 // Chave do parecer = atendimento + médico + DATA (sem hora).
-function sameDayUtc(a: string | null, b: string | null) {
+export function sameDayUtc(a: string | null, b: string | null) {
   if (!a || !b) return false;
   const da = new Date(a);
   const db = new Date(b);
@@ -45,9 +45,10 @@ function sameDayUtc(a: string | null, b: string | null) {
 // médico efetivamente executou o atendimento e gerou o repasse. Se a resposta
 // estiver vazia, não pode cair para solicitação: isso confirmaria parecer ainda
 // não respondido usando a data errada, mesmo com o mapping correto.
-function matchesParecerDate(row: any, procedureDate: string | null) {
+export function matchesParecerDate(row: any, procedureDate: string | null) {
   return sameDayUtc(row.dt_resposta_parecer, procedureDate);
 }
+
 
 
 Deno.serve(async (req) => {
