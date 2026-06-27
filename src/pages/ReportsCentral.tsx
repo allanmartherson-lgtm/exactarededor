@@ -251,10 +251,10 @@ const ReportsCentral = () => {
         download(`${r.key}_${stamp}.csv`, toCsv(columns, rows), "text/csv;charset=utf-8");
       } else {
         // PDF e PRINT compartilham o mesmo HTML formatado; o navegador imprime/salva.
-        const html = `<h1>${r.label}</h1>
-<div class="meta">${new Date().toLocaleString("pt-BR")} · ${rows.length} linha(s) · Hospital: ${
-          currentHospital?.name ?? "—"
-        }</div>${toHtmlTable(columns, rows)}`;
+        const html = `<h1>${escHtml(r.label)}</h1>
+<div class="meta">${escHtml(new Date().toLocaleString("pt-BR"))} · ${rows.length} linha(s) · Hospital: ${escHtml(
+          currentHospital?.name ?? "—",
+        )}</div>${toHtmlTable(columns, rows)}`;
         printHtml(r.label, html);
       }
 
