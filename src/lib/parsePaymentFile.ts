@@ -743,9 +743,47 @@ export const parsePaymentFile = async (
         ...(accessRouteNorm.raw ? { __via_acesso_original: accessRouteNorm.raw } : {}),
       },
     };
+
+    // === Injeção de defaults do tipo de pagamento ===
+    // Espelho exato do que NewPayment.tsx aplica na importação inicial:
+    //  - tuss_default → preenche/sobrescreve procedure_code; quando o procedimento
+    //    é fixo (parecer/visita/consulta), procedure_name vira "{label} - {Espec dest}";
+    //  - default_function → preenche doctor_role vazio (ex.: "Parecerista");
+    //  - tipos por evento (que injetam função padrão) não têm dimensão de setor —
+    //    a coluna de setor é zerada para o lookup estrito não tentar resolver.
+    if (paymentTypeMeta) {
+      const procFixed =
+        !!paymentTypeMeta.tuss_default || paymentTypeMeta.requires_tuss_in_sheet === false;
+      if (procFixed) {
+        if (paymentTypeMeta.tuss_default) {
+          base.procedure_code = paymentTypeMeta.tuss_default;
+          (base.raw_data as Record<string, unknown>).__tuss_default_applied = paymentTypeMeta.tuss_default;
+        }
+        const especDest = toStr(pick(row, [
+          "espec dest", "espec. dest", "especialidade destino",
+          "especialidade do parecerista", "especialidade",
+        ]));
+        const baseName = paymentTypeMeta.label || "Procedimento";
+        base.procedure_name = especDest ? `${baseName} - ${especDest}` : baseName;
+        (base.raw_data as Record<string, unknown>).__procedure_name_defaulted = base.procedure_name;
+      } else if (!base.procedure_code && paymentTypeMeta.tuss_default) {
+        base.procedure_code = paymentTypeMeta.tuss_default;
+        (base.raw_data as Record<string, unknown>).__tuss_default_applied = paymentTypeMeta.tuss_default;
+      }
+      if (!base.doctor_role && paymentTypeMeta.default_function) {
+        base.doctor_role = paymentTypeMeta.default_function;
+        (base.raw_data as Record<string, unknown>).__role_default_applied = paymentTypeMeta.default_function;
+      }
+      if (paymentTypeMeta.default_function) {
+        base.sector = null;
+        (base.raw_data as Record<string, unknown>).__sector_skipped_by_payment_type = true;
+      }
+    }
+
     const explicitType = extractExplicitItemType(row);
     const tipo_linha = explicitType ?? classifyLine(base, paymentKind || null);
     const withType = { ...base, tipo_linha };
+
     const line_issues = validateLine(withType);
     if (accessRouteNorm.fallback && accessRouteNorm.raw) {
       line_issues.push({
