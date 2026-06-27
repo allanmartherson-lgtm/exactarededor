@@ -219,6 +219,7 @@ export default function ManualPaymentEntry() {
     manual_entered_at: new Date().toISOString(),
     manual_composition: row.composition as any,
     manual_source_attachment_path: row.attachmentPath,
+    manual_note: row.observation?.trim() || null,
     company_id: row.company?.id ?? null,
     company_name: row.company?.name ?? null,
     doctor_id: row.doctor?.id ?? null,
@@ -233,6 +234,62 @@ export default function ManualPaymentEntry() {
     ai_status: "acatado",
     procedure_date: payment?.competence_month ?? null,
   });
+
+  const handleGeneralUpload = async (file: File) => {
+    if (!hospital?.id || !id) return;
+    setUploadingGeneral(true);
+    const ext = file.name.split(".").pop() ?? "bin";
+    const objectKey = `${hospital.id}/${id}/_general/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("payment-manual-sources")
+      .upload(objectKey, file, { upsert: true, contentType: file.type || undefined });
+    if (upErr) {
+      setUploadingGeneral(false);
+      toast({ title: "Falha no upload", description: upErr.message, variant: "destructive" });
+      return;
+    }
+    const { error: pErr } = await supabase
+      .from("payments")
+      .update({
+        manual_general_attachment_path: objectKey,
+        manual_general_attachment_name: file.name,
+      } as any)
+      .eq("id", id);
+    setUploadingGeneral(false);
+    if (pErr) {
+      toast({ title: "Erro ao registrar anexo", description: pErr.message, variant: "destructive" });
+      return;
+    }
+    setGeneralAttPath(objectKey);
+    setGeneralAttName(file.name);
+    toast({ title: "Anexo do lote salvo" });
+  };
+
+  const removeGeneralAttachment = async () => {
+    if (!id) return;
+    const { error } = await supabase
+      .from("payments")
+      .update({
+        manual_general_attachment_path: null,
+        manual_general_attachment_name: null,
+      } as any)
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao remover", description: error.message, variant: "destructive" });
+      return;
+    }
+    setGeneralAttPath(null);
+    setGeneralAttName(null);
+  };
+
+  const openGeneralAttachment = async () => {
+    if (!generalAttPath) return;
+    const { data } = await supabase.storage
+      .from("payment-manual-sources")
+      .createSignedUrl(generalAttPath, 60 * 10);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+  };
+
 
   const saveRow = async (row: DraftRow): Promise<string | null> => {
     if (!row.company || row.amount <= 0) return null;
