@@ -11,7 +11,7 @@
 
 export type SaveableRow = {
   key: string;
-  dbId: string | null;
+  dbId?: string | null;
   dirty: boolean;
   /** Linha é válida quando tem empresa e valor > 0. */
   valid: boolean;
