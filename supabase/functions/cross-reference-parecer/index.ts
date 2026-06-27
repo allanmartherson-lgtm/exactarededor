@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
 
     const updates: Array<{
       id: string;
-      evidence: "confirmed" | "not_found" | "no_report";
+      evidence: "confirmed" | "not_found" | "no_report" | "reclassified";
       row_id: string | null;
       weak: boolean;
     }> = [];
