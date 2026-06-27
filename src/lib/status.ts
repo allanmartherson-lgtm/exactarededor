@@ -188,12 +188,14 @@ export const PAYMENT_ANALYSIS_MODE_LABELS: Record<PaymentAnalysisMode, string> =
   isolado: "Isolado (sem histórico)",
   empresa_prioritaria: "Empresa prioritária (isolado)",
   confeccao: "Confecção",
+  manual: "Lançamento manual",
 };
 export const PAYMENT_ANALYSIS_MODE_DESCRIPTIONS: Record<PaymentAnalysisMode, string> = {
   padrao: "Análise considera observações de outros pagamentos como contexto.",
   isolado: "Cada pagamento é analisado por si só, sem buscar contexto histórico de outros lotes.",
   empresa_prioritaria: "Cada arquivo é analisado isoladamente; só itens com erro aparecem no detalhe.",
   confeccao: "Modo de confecção (em construção).",
+  manual: "Valores informados pelo analista a partir de planilha externa; motor não calcula.",
 };
 
 // Prioridade da regra escolhida pelo motor determinístico (Fase 2/3)

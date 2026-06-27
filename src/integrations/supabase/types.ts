@@ -4984,11 +4984,15 @@ export type Database = {
           hospital_id: string
           id: string
           is_cancelled: boolean
+          is_manual_entry: boolean
           is_pool_item: boolean
           item_hash: string | null
           item_origem: string | null
           item_origin: string
+          manual_composition: Json | null
           manual_edit: boolean
+          manual_entered_at: string | null
+          manual_entered_by: string | null
           manual_entry: boolean
           manual_intervention_at: string | null
           manual_intervention_by: string | null
@@ -4996,6 +5000,7 @@ export type Database = {
           manual_intervention_reason_id: string | null
           manual_intervention_source: string | null
           manual_note: string | null
+          manual_source_attachment_path: string | null
           origem_reconciliation_item_id: string | null
           origem_referencia: string | null
           package_absorbed: boolean | null
@@ -5103,11 +5108,15 @@ export type Database = {
           hospital_id: string
           id?: string
           is_cancelled?: boolean
+          is_manual_entry?: boolean
           is_pool_item?: boolean
           item_hash?: string | null
           item_origem?: string | null
           item_origin?: string
+          manual_composition?: Json | null
           manual_edit?: boolean
+          manual_entered_at?: string | null
+          manual_entered_by?: string | null
           manual_entry?: boolean
           manual_intervention_at?: string | null
           manual_intervention_by?: string | null
@@ -5115,6 +5124,7 @@ export type Database = {
           manual_intervention_reason_id?: string | null
           manual_intervention_source?: string | null
           manual_note?: string | null
+          manual_source_attachment_path?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
           package_absorbed?: boolean | null
@@ -5222,11 +5232,15 @@ export type Database = {
           hospital_id?: string
           id?: string
           is_cancelled?: boolean
+          is_manual_entry?: boolean
           is_pool_item?: boolean
           item_hash?: string | null
           item_origem?: string | null
           item_origin?: string
+          manual_composition?: Json | null
           manual_edit?: boolean
+          manual_entered_at?: string | null
+          manual_entered_by?: string | null
           manual_entry?: boolean
           manual_intervention_at?: string | null
           manual_intervention_by?: string | null
@@ -5234,6 +5248,7 @@ export type Database = {
           manual_intervention_reason_id?: string | null
           manual_intervention_source?: string | null
           manual_note?: string | null
+          manual_source_attachment_path?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
           package_absorbed?: boolean | null
@@ -6103,6 +6118,7 @@ export type Database = {
         Row: {
           active: boolean
           allow_mixed_subtypes: boolean
+          calc_strategy: string
           category: string | null
           code: string
           color: string | null
@@ -6123,6 +6139,7 @@ export type Database = {
         Insert: {
           active?: boolean
           allow_mixed_subtypes?: boolean
+          calc_strategy?: string
           category?: string | null
           code: string
           color?: string | null
@@ -6143,6 +6160,7 @@ export type Database = {
         Update: {
           active?: boolean
           allow_mixed_subtypes?: boolean
+          calc_strategy?: string
           category?: string | null
           code?: string
           color?: string | null
@@ -11626,6 +11644,7 @@ export type Database = {
         | "empresa_prioritaria"
         | "isolado"
         | "confeccao"
+        | "manual"
       payment_cancellation_reason:
         | "medico_fatura_externamente"
         | "contrato_encerrado"
@@ -11928,6 +11947,7 @@ export const Constants = {
         "empresa_prioritaria",
         "isolado",
         "confeccao",
+        "manual",
       ],
       payment_cancellation_reason: [
         "medico_fatura_externamente",

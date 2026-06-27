@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Search, Calculator, ArrowLeft } from "lucide-react";
+import { Search, Calculator, ArrowLeft, FileEdit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
@@ -12,12 +12,13 @@ interface Props {
 }
 
 type Step = "mode" | "type";
+type Mode = "analise" | "confeccao" | "manual";
 
 export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
   const { list: paymentTypes, loading } = usePaymentTypes({ onlyActive: true });
   const [step, setStep] = useState<Step>("mode");
-  const [modo, setModo] = useState<"analise" | "confeccao">("analise");
+  const [modo, setModo] = useState<Mode>("analise");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -27,7 +28,12 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
     }
   }, [open]);
 
-  const selectMode = (m: "analise" | "confeccao") => {
+  const selectMode = (m: Mode) => {
+    if (m === "manual") {
+      onOpenChange(false);
+      navigate("/pagamentos/novo-manual");
+      return;
+    }
     setModo(m);
     try {
       sessionStorage.setItem("newPaymentMode", m === "confeccao" ? "confeccao" : "padrao");
@@ -70,7 +76,7 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
                 Escolha o modo antes de continuar
               </DialogDescription>
             </DialogHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-5">
               <button
                 type="button"
                 onClick={() => selectMode("analise")}
@@ -99,6 +105,22 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
                   <p className="font-semibold text-base sm:text-lg leading-snug">Confecção de pagamento</p>
                   <p className="text-sm sm:text-[15px] text-muted-foreground leading-relaxed">
                     Você sobe a base com o valor do convênio. O sistema aplica as regras e calcula o repasse automaticamente.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => selectMode("manual")}
+                className="flex flex-col items-start gap-4 rounded-lg border border-border p-5 text-left hover:border-primary hover:bg-primary/5 transition-colors"
+              >
+                <div className="rounded-md bg-amber-500/10 p-2.5">
+                  <FileEdit className="h-6 w-6 text-amber-600" />
+                </div>
+                <div className="space-y-2">
+                  <p className="font-semibold text-base sm:text-lg leading-snug">Lançamento manual</p>
+                  <p className="text-sm sm:text-[15px] text-muted-foreground leading-relaxed">
+                    Para pagamentos que vêm de planilha externa (nefrologia, plantão fechado, coordenação). Você informa o valor por médico/empresa e anexa a fonte.
                   </p>
                 </div>
               </button>
