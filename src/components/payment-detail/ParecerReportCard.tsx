@@ -204,10 +204,7 @@ export function ParecerReportCard({
       toast({ title: "Selecione um arquivo .xls/.xlsx", variant: "destructive" });
       return;
     }
-    if (!periodStart || !periodEnd) {
-      toast({ title: "Informe o período do relatório", variant: "destructive" });
-      return;
-    }
+    // Período é auto-detectado das datas do arquivo após o parse — sem validação manual aqui.
     setUploading(true);
     try {
       const buf = await file.arrayBuffer();
@@ -284,6 +281,16 @@ export function ParecerReportCard({
           raw: rec,
         };
       });
+
+      // Auto-detecta período do arquivo: min/max de dt_solic e dt_resposta.
+      // Fallback à competência do lote só quando o arquivo não tem datas válidas.
+      const allDates = rows
+        .flatMap((r) => [r.dt_solic_parecer, r.dt_resposta_parecer])
+        .filter((d): d is string => !!d);
+      const isoDays = allDates.map((d) => d.slice(0, 10)).sort();
+      const periodStart = isoDays[0] ?? fallbackStart;
+      const periodEnd = isoDays[isoDays.length - 1] ?? fallbackEnd;
+      console.log(`[ParecerReport] period auto-detected: ${periodStart} → ${periodEnd}`);
 
       // 2) Init: cria/encontra cabeçalho (idempotente por hash)
       const initRes = await supabase.functions.invoke("import-parecer-report", {
