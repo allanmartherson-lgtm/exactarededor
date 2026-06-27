@@ -680,14 +680,24 @@ Deno.serve(async (req) => {
     }
 
 
+    // Hospital ativo (necessário pra memória híbrida quando não há payment_id)
+    let activeHospitalId: string | null = pay?.hospital_id ?? null;
+    if (!activeHospitalId) {
+      const { data: ah } = await sb.from("user_active_hospital").select("hospital_id").eq("user_id", actorId).maybeSingle();
+      activeHospitalId = (ah?.hospital_id as string) ?? null;
+    }
+
     if (body.step === "propose") {
       if (!body.prompt) return jsonResp({ error: "prompt obrigatório" }, 400);
+
+      const learnedPrefs = await loadLearnedPreferences(sb, activeHospitalId);
 
       const llm = await callLLM(body.prompt, {
         current_path: body.current_path ?? null,
         payment: pay ? { id: pay.id, reference: pay.reference, company_name: pay.company_name } : null,
         aggregates: aggregates ?? null,
         has_payment_context: !!body.payment_id,
+        learned_preferences: learnedPrefs,
       });
 
       // Ações sem mutação — devolve direto pro cliente aplicar.
