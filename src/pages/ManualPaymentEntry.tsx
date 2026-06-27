@@ -364,11 +364,12 @@ export default function ManualPaymentEntry() {
       />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Metric label="Itens" value={String(rows.length)} />
-        <Metric label="Válidos" value={String(validCount)} tone={validCount ? "success" : "muted"} />
-        <Metric label="Não salvos" value={String(dirtyCount)} tone={dirtyCount ? "warning" : "muted"} />
-        <Metric label="Total" value={formatBRL(total)} tone="success" />
+        <Metric label="Itens" value={String(rows.length)} tone="info" icon={<FileEdit className="h-4 w-4" />} />
+        <Metric label="Válidos" value={String(validCount)} tone={validCount ? "success" : "muted"} icon={<CheckCircle2 className="h-4 w-4" />} />
+        <Metric label="Não salvos" value={String(dirtyCount)} tone={dirtyCount ? "warning" : "muted"} icon={<Save className="h-4 w-4" />} />
+        <Metric label="Total" value={formatBRL(total)} mono tone="success" icon={<Paperclip className="h-4 w-4" />} />
       </div>
+
 
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-border/50">
@@ -575,23 +576,40 @@ export default function ManualPaymentEntry() {
 function Metric({
   label,
   value,
+  sub,
+  mono,
   tone = "muted",
+  icon,
 }: {
   label: string;
   value: string;
-  tone?: "success" | "warning" | "muted";
+  sub?: string;
+  mono?: boolean;
+  tone?: "muted" | "info" | "success" | "warning" | "destructive";
+  icon?: React.ReactNode;
 }) {
+  const tones: Record<NonNullable<typeof tone>, string> = {
+    muted: "bg-muted text-muted-foreground",
+    info: "bg-info-soft text-info",
+    success: "bg-success-soft text-success",
+    warning: "bg-warning-soft text-warning-text",
+    destructive: "bg-destructive/10 text-destructive",
+  };
   return (
-    <div
-      className={cn(
-        "rounded-md border p-3",
-        tone === "success" && "bg-success-soft border-success/20",
-        tone === "warning" && "bg-warning-soft border-warning/30",
-        tone === "muted" && "bg-muted/20",
-      )}
-    >
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold tabular-nums">{value}</div>
+    <div className="rounded-2xl border border-border/50 bg-card shadow-card">
+      <div className="flex items-start gap-3 px-3 py-3">
+        {icon && (
+          <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0", tones[tone])}>
+            {icon}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">{label}</div>
+          <div className={cn("mt-1 text-lg sm:text-xl font-semibold leading-tight break-words text-foreground", mono && "tabular-nums")}>{value}</div>
+          {sub && <div className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">{sub}</div>}
+        </div>
+      </div>
     </div>
   );
 }
+
