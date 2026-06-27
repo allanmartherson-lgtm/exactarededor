@@ -11644,6 +11644,7 @@ export type Database = {
         | "empresa_prioritaria"
         | "isolado"
         | "confeccao"
+        | "manual"
       payment_cancellation_reason:
         | "medico_fatura_externamente"
         | "contrato_encerrado"
@@ -11946,6 +11947,7 @@ export const Constants = {
         "empresa_prioritaria",
         "isolado",
         "confeccao",
+        "manual",
       ],
       payment_cancellation_reason: [
         "medico_fatura_externamente",
