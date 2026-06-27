@@ -240,7 +240,12 @@ const Payments = () => {
   const [analystFilter, setAnalystFilter] = useState<string>(persisted.analystFilter ?? "all");
   const [typeFilter, setTypeFilter] = useState<string>(persisted.typeFilter ?? "all");
   const [trackFilter, setTrackFilter] = useState<string>(persisted.trackFilter ?? "all");
-  const [statusFilter, setStatusFilter] = useState<string>(persisted.statusFilter ?? "all");
+  const [statusFilter, setStatusFilter] = useState<string[]>(() => {
+    const raw: any = persisted.statusFilter;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string" && raw && raw !== "all") return [raw];
+    return [];
+  });
   const [competenceFilter, setCompetenceFilter] = useState<string>(persisted.competenceFilter ?? "all");
   const [delayedOnly, setDelayedOnly] = useState(searchParams.get("delayed") === "1");
   // Filtros vindos do Dashboard ("seus pagamentos por papel"). Quando ativos
