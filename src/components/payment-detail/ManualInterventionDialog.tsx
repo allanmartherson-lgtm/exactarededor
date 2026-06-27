@@ -126,6 +126,8 @@ export function ManualInterventionDialog({
             manual_intervention_by: null,
             manual_intervention_at: null,
             manual_intervention_source: null,
+            ai_status: "pendente",
+            expected_amount: null,
           };
 
 
@@ -137,7 +139,7 @@ export function ManualInterventionDialog({
       if (next) {
         const { data: row, error: readErr } = await supabase
           .from("payment_items")
-          .select("procedure_amount")
+          .select("procedure_amount,gross_amount,gross_amount_original,gross_override_at")
           .eq("id", itemId)
           .maybeSingle();
         if (readErr) throw readErr;
@@ -152,7 +154,31 @@ export function ManualInterventionDialog({
             : Number(rawProc);
         (patch as any).expected_amount = procAmt;
         (patch as any).gross_amount = procAmt;
+        if (!(row as any)?.gross_override_at) {
+          (patch as any).gross_amount_original = (row as any)?.gross_amount ?? null;
+        }
+        (patch as any).gross_override_at = new Date().toISOString();
+        (patch as any).gross_override_by = user.id;
+        (patch as any).gross_override_reason = "tratamento_manual";
         (patch as any).ai_status = "aprovado";
+      } else {
+        const { data: row, error: readErr } = await supabase
+          .from("payment_items")
+          .select("gross_amount,gross_amount_original,gross_override_reason")
+          .eq("id", itemId)
+          .maybeSingle();
+        if (readErr) throw readErr;
+        const overrideReason = (row as any)?.gross_override_reason;
+        if (
+          (overrideReason === "tratamento_manual" || overrideReason === "zeev_bulk_manual") &&
+          (row as any)?.gross_amount_original != null
+        ) {
+          (patch as any).gross_amount = (row as any).gross_amount_original;
+          (patch as any).gross_amount_original = null;
+          (patch as any).gross_override_at = null;
+          (patch as any).gross_override_by = null;
+          (patch as any).gross_override_reason = null;
+        }
       }
 
       const { error } = await supabase

@@ -196,9 +196,15 @@ export function ZeevBulkManualDialog({
     try {
       let done = 0;
       for (const it of targetItems) {
-        // Lê procedure_amount atual (igual ManualInterventionDialog)
+        // Lê valores atuais para preservar o pago original e permitir undo fiel.
+        const { data: row, error: readErr } = await supabase
+          .from("payment_items")
+          .select("procedure_amount,gross_amount,gross_amount_original,gross_override_at")
+          .eq("id", it.id)
+          .maybeSingle();
+        if (readErr) throw readErr;
         const procAmt =
-          it.procedure_amount == null ? null : Number(it.procedure_amount);
+          (row as any)?.procedure_amount == null ? null : Number((row as any).procedure_amount);
 
         const patch: Record<string, unknown> = {
           manual_intervention_reason_id: reasonId,
@@ -209,6 +215,13 @@ export function ZeevBulkManualDialog({
         };
         if (procAmt != null && Number.isFinite(procAmt)) {
           patch.expected_amount = procAmt;
+          patch.gross_amount = procAmt;
+          if (!(row as any)?.gross_override_at) {
+            patch.gross_amount_original = (row as any)?.gross_amount ?? null;
+          }
+          patch.gross_override_at = new Date().toISOString();
+          patch.gross_override_by = user.id;
+          patch.gross_override_reason = "zeev_bulk_manual";
         }
 
         const { error } = await supabase
