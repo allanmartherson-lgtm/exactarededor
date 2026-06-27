@@ -34,15 +34,16 @@ export const ExactaIcon = ({
     style={style}
   >
     <title>{title}</title>
-    <circle cx="256" cy="256" r="256" fill={bg} />
+    <circle cx="256" cy="256" r="236" fill={bg} />
     <polyline
-      points="128,272 213,358 384,170"
+      points="148,272 223,348 374,180"
       fill="none"
       stroke={check}
-      strokeWidth="44"
+      strokeWidth="42"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
+
   </svg>
 );
 
