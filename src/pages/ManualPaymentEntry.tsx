@@ -617,7 +617,7 @@ export default function ManualPaymentEntry() {
                       <TableCell className="py-1.5">
                         <DoctorCombobox
                           value={r.doctor}
-                          onChange={(d) => updateRow(r.key, { doctor: d })}
+                          onChange={(d) => { void handleDoctorChange(r.key, d); }}
                           filterCompanyId={r.company?.id ?? null}
                         />
                       </TableCell>
