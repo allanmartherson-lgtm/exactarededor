@@ -838,6 +838,8 @@ Deno.serve(async (req) => {
           },
         });
 
+        await recordZeevPreference(sb, activeHospitalId, p.action, p.scope ?? {}, p.payload ?? {}, body.payment_id ?? null);
+
         const msg = p.action === "register_doctor_pending" ? "Médico cadastrado (pendente aprovação)."
                   : p.action === "register_company" ? "Empresa cadastrada."
                   : "Alias registrado.";
