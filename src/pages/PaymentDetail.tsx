@@ -1457,7 +1457,7 @@ const PaymentDetail = () => {
           return h;
         });
         const { missingRequired } = summarizeMissing(hits, paymentTypeMeta);
-        if (missingRequired.length > 0) {
+        if (!overrideForFile || missingRequired.length > 0) {
           const initial: Record<string, string> = {};
           hits.forEach((h) => { if (h.header) initial[h.field] = h.header; });
           setColumnMappingDialog({
@@ -1477,6 +1477,7 @@ const PaymentDetail = () => {
         const bucket = await parsePaymentFile(file, companies, payment.payment_kind, {
           manualMapping,
           paymentTypeMeta: paymentTypeMeta ? {
+            code: paymentTypeMeta.code,
             label: paymentTypeMeta.label,
             tuss_default: paymentTypeMeta.tuss_default,
             requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
@@ -3200,31 +3201,33 @@ const PaymentDetail = () => {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>{canImportInitialPaymentBase ? "Importar base de pagamento?" : "Reimportar base?"}</AlertDialogTitle>
-                <AlertDialogDescription className="space-y-3">
-                  <p>{canImportInitialPaymentBase ? "Esta ação cria os itens deste lote a partir dos arquivos selecionados e inicia a análise." : "Esta ação substitui todos os itens e grupos deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita."}</p>
-                  <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
-                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => reimportInputRef.current?.click()}>
-                        <Plus className="h-3 w-3 mr-1" /> Adicionar mais
-                      </Button>
-                    </div>
-                    <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
-                      {reimportConfirm?.map((f, i) => (
-                        <li key={i} className="flex items-center justify-between gap-2 group">
-                          <span className="truncate flex-1">• {f.name}</span>
-                          <button type="button" onClick={() => setReimportConfirm((prev) => prev?.filter((_, idx) => idx !== i) || null)} className="text-muted-foreground hover:text-destructive p-0.5">
-                            <X className="h-3 w-3" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
-                    Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
-                  </p>
+                <AlertDialogDescription>
+                  {canImportInitialPaymentBase ? "Esta ação cria os itens deste lote a partir dos arquivos selecionados e inicia a análise." : "Esta ação substitui todos os itens e grupos deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita."}
                 </AlertDialogDescription>
               </AlertDialogHeader>
+              <div className="space-y-3">
+                <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
+                    <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => reimportInputRef.current?.click()}>
+                      <Plus className="h-3 w-3 mr-1" /> Adicionar mais
+                    </Button>
+                  </div>
+                  <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
+                    {reimportConfirm?.map((f, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2 group">
+                        <span className="truncate flex-1">• {f.name}</span>
+                        <button type="button" onClick={() => setReimportConfirm((prev) => prev?.filter((_, idx) => idx !== i) || null)} className="text-muted-foreground hover:text-destructive p-0.5">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
+                  Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
+                </p>
+              </div>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction disabled={reimporting} onClick={() => reimportConfirm && doReimport(reimportConfirm)}>
