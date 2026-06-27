@@ -2385,14 +2385,14 @@ export default function CompanyAnalysis() {
       <Tabs defaultValue="analise" className="space-y-3">
         <TabsList>
           <TabsTrigger value="analise">
-            {(payment as any)?.analysis_mode === "confeccao" ? "Confecção" : "Análise"}
+            {isManual ? "Itens" : (payment as any)?.analysis_mode === "confeccao" ? "Confecção" : "Análise"}
           </TabsTrigger>
           {(payment as any)?.analysis_mode === "confeccao" && (
             <TabsTrigger value="confeccao-audit" data-testid="tab-confeccao-audit">
               Auditoria de cálculo
             </TabsTrigger>
           )}
-          {!isConfeccao && (
+          {!isConfeccao && !isManual && (
             <TabsTrigger value="divergencias">
               Divergências
               {divergentes.length > 0 && (
@@ -2400,7 +2400,7 @@ export default function CompanyAnalysis() {
               )}
             </TabsTrigger>
           )}
-          {!isConfeccao && isParecerPayment && (
+          {!isConfeccao && !isManual && isParecerPayment && (
             <TabsTrigger value="parecer">
               <FileText className="h-3.5 w-3.5 mr-1" /> Parecer
             </TabsTrigger>
@@ -2408,7 +2408,7 @@ export default function CompanyAnalysis() {
           <TabsTrigger value="historico">
             <History className="h-3.5 w-3.5 mr-1" /> Histórico
           </TabsTrigger>
-          {!isConfeccao && <TabsTrigger value="ia">Detalhe IA</TabsTrigger>}
+          {!isConfeccao && !isManual && <TabsTrigger value="ia">Detalhe IA</TabsTrigger>}
         </TabsList>
 
         {/* ABA 1 — Análise */}
