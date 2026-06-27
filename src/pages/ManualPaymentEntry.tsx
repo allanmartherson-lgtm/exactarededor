@@ -500,14 +500,9 @@ export default function ManualPaymentEntry() {
                         />
                       </TableCell>
                       <TableCell className="py-1.5">
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          value={r.amount || ""}
-                          onChange={(e) =>
-                            updateRow(r.key, { amount: Number(e.target.value) || 0 })
-                          }
+                        <CurrencyInput
+                          value={r.amount || null}
+                          onChange={(v) => updateRow(r.key, { amount: Number(v) || 0 })}
                           className="h-8 text-right text-xs font-medium tabular-nums"
                         />
                       </TableCell>
