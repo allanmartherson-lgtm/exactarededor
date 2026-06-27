@@ -165,14 +165,15 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
 
   const confirm = useCallback(
     async (idx: number, proposal: Proposal) => {
-      if (!paymentId) {
+      const isRegistry = REGISTRY_ACTIONS.has(proposal.action);
+      if (!isRegistry && !paymentId) {
         toast.error("Sem pagamento ativo para executar.");
         return;
       }
       setMessages((m) => m.map((msg, i) => (i === idx && msg.role === "proposal" ? { ...msg, status: "applying" } : msg)));
       try {
         const { data, error } = await supabase.functions.invoke("zeev-executor", {
-          body: { step: "execute", payment_id: paymentId, proposal },
+          body: { step: "execute", payment_id: paymentId ?? null, proposal },
         });
         if (error) throw error;
         const r = data as { affected: number; message: string };
