@@ -778,7 +778,10 @@ Deno.serve(async (req) => {
     if (body.step === "propose") {
       if (!body.prompt) return jsonResp({ error: "prompt obrigatório" }, 400);
 
-      const learnedPrefs = await loadLearnedPreferences(sb, activeHospitalId);
+      const [learnedPrefs, routeContext] = await Promise.all([
+        loadLearnedPreferences(sb, activeHospitalId),
+        buildRouteContext(sb, body.current_path ?? null, activeHospitalId),
+      ]);
 
       const llm = await callLLM(body.prompt, {
         current_path: body.current_path ?? null,
@@ -786,6 +789,7 @@ Deno.serve(async (req) => {
         aggregates: aggregates ?? null,
         has_payment_context: !!body.payment_id,
         learned_preferences: learnedPrefs,
+        route_context: routeContext,
       });
 
       // Ações sem mutação — devolve direto pro cliente aplicar.
