@@ -1,3 +1,5 @@
+import { ExactaLogo } from "@/components/brand/ExactaLogo";
+
 const LoginAnimation = () => {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden gap-0">
@@ -90,30 +92,15 @@ const LoginAnimation = () => {
         style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(200,169,110,0.5), transparent)' }}
       />
 
-      {/* ── EXACTA — produto, menor ── */}
-      <div className="exacta-block flex items-center gap-4">
-        <div
-          className="flex items-center justify-center rounded-[11px] flex-shrink-0"
-          style={{ width: 44, height: 44, background: 'hsl(var(--accent))' }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" width={24} height={24}>
-            <polyline points="3,13 10,20 21,7" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <div className="flex flex-col gap-1">
-          <p
-            className="text-white"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 32, fontWeight: 400, letterSpacing: '0.04em', lineHeight: 1 }}
-          >
-            E<span style={{ color: 'hsl(var(--accent))' }}>x</span>acta
-          </p>
-          <p
-            className="text-white/40 uppercase"
-            style={{ fontSize: 9, letterSpacing: '0.2em', fontFamily: 'monospace' }}
-          >
-            Pagamento Médico
-          </p>
-        </div>
+      {/* ── EXACTA — logo oficial, theme-aware (onDark) ── */}
+      <div className="exacta-block">
+        <ExactaLogo
+          variant="full"
+          iconSize={52}
+          wordmarkSize={32}
+          asLink={false}
+          onDark
+        />
       </div>
 
     </div>
