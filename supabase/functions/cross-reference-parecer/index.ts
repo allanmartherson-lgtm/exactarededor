@@ -90,16 +90,48 @@ Deno.serve(async (req) => {
     // Tipo do lote (parecer_adulto, normalmente) e tipo Visita (alvo da reclassificação)
     const { data: paymentRow } = await supabase
       .from("payments")
-      .select("payment_type_id")
+      .select("payment_type_id, has_mixed_parecer, mixed_parecer_payment_type_id")
       .eq("id", payment_id)
       .maybeSingle();
-    const lotePaymentTypeId = (paymentRow as any)?.payment_type_id ?? null;
+    const lotePaymentTypeIdRaw = (paymentRow as any)?.payment_type_id ?? null;
+    const isMixed = !!(paymentRow as any)?.has_mixed_parecer;
+    const mixedParecerTypeId = (paymentRow as any)?.mixed_parecer_payment_type_id ?? null;
+    // Em lote misto, o "tipo parecer destino" não é o tipo do lote (que é produção);
+    // é o subtipo escolhido pelo analista no wizard / na ação de retro-marcação.
+    const lotePaymentTypeId = isMixed ? mixedParecerTypeId : lotePaymentTypeIdRaw;
     const { data: visitaType } = await supabase
       .from("payment_types")
       .select("id")
       .eq("code", "visita")
       .maybeSingle();
     const visitaPaymentTypeId = (visitaType as any)?.id ?? null;
+
+    // Em lote misto, monta o conjunto de TUSS "ambíguos" (Parecer/Visita/Consulta)
+    // a partir dos payment_types cadastrados. Itens fora desse conjunto NÃO
+    // entram no cruzamento — permanecem com o tipo de produção do lote.
+    let ambiguousTussSet: Set<string> | null = null;
+    if (isMixed) {
+      const { data: ambTypes } = await supabase
+        .from("payment_types")
+        .select("tuss_default, tuss_codes_extra, category, code");
+      const set = new Set<string>();
+      for (const t of (ambTypes ?? []) as any[]) {
+        const cat = String(t.category ?? "").toLowerCase();
+        const code = String(t.code ?? "").toLowerCase();
+        const isAmb =
+          cat === "parecer" || cat === "visita" || cat === "consulta" ||
+          code.startsWith("parecer") || code === "visita" || code === "consulta";
+        if (!isAmb) continue;
+        if (t.tuss_default) set.add(String(t.tuss_default).trim());
+        for (const c of (t.tuss_codes_extra ?? []) as string[]) {
+          if (c) set.add(String(c).trim());
+        }
+      }
+      ambiguousTussSet = set;
+      console.log(
+        `[cross-reference-parecer] mixed_mode=on parecerType=${mixedParecerTypeId} ambiguousTuss=${[...set].join(",")}`,
+      );
+    }
 
     // Reports do lote
     const { data: reports, error: repErr } = await supabase
@@ -176,7 +208,7 @@ Deno.serve(async (req) => {
       const { data: page, error } = await supabase
         .from("payment_items")
         .select(
-          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, manual_intervention_reason_id, manual_intervention_source, payment_type_id, payment_type_source, patient_name, specialty, convenio_slug, hospital_id",
+          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, procedure_code, manual_intervention_reason_id, manual_intervention_source, payment_type_id, payment_type_source, patient_name, specialty, convenio_slug, hospital_id",
         )
         .eq("payment_id", payment_id)
         .range(from, from + pageSize - 1);
@@ -217,6 +249,14 @@ Deno.serve(async (req) => {
           weak: false,
         });
         continue;
+      }
+      // Em lote misto, só processa itens cujo TUSS é "ambíguo" (parecer/visita/consulta).
+      // Procedimentos puros (cirurgia/exame) ficam intocados — sem patch.
+      if (isMixed && ambiguousTussSet) {
+        const code = String(it.procedure_code ?? "").trim();
+        if (!code || !ambiguousTussSet.has(code)) {
+          continue;
+        }
       }
       const att = onlyDigits(it.attendance_number);
       const cd = crmByDoctor.get(it.doctor_id ?? "") ?? "";

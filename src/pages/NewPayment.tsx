@@ -67,6 +67,7 @@ import { confirmDialog } from "@/lib/confirm";
 import { detectSuspiciousRows } from "@/lib/detectSuspiciousRows";
 import { SuspiciousRowsReview, type SuspiciousDecision } from "@/components/payment-wizard/SuspiciousRowsReview";
 import { ParecerReportWizardCard, type ParecerWizardPayload } from "@/components/payment-wizard/ParecerReportWizardCard";
+import { MixedParecerSetupCard, useAmbiguousTussCount, type MixedParecerSetup } from "@/components/payment-wizard/MixedParecerSetupCard";
 import { SpecialtyResolutionModal } from "@/components/payment-wizard/SpecialtyResolutionModal";
 
 import { ZeevAssistant, type ZeevInsight } from "@/components/copilot/ZeevAssistant";
@@ -615,7 +616,16 @@ const NewPayment = () => {
   // Relatório de pareceres anexado no wizard (modo confecção + tipo parecer).
   const [parecerPayload, setParecerPayload] = useState<ParecerWizardPayload | null>(null);
   const isParecerType = !!paymentTypeMeta?.code?.startsWith("parecer");
-  const requiresParecerReport = modoConfeccao && isParecerType;
+  const isVisitaType = paymentTypeMeta?.code === "visita";
+  // Lote MISTO: produção que também tem parecer/visita misturados nos TUSS.
+  // Esconde a opção quando o lote já é puro parecer/visita (esses já cruzam por padrão).
+  const [mixedParecer, setMixedParecer] = useState<MixedParecerSetup>({ enabled: false, payment_type_id: null });
+  const showMixedParecerOption = !!paymentTypeMeta && !isParecerType && !isVisitaType;
+  const ambiguousTussCount = useAmbiguousTussCount();
+  const requiresParecerReport = (modoConfeccao && isParecerType) || (showMixedParecerOption && mixedParecer.enabled);
+  // Gate de especialidade só vale em confecção parecer puro (decide Parecer vs Visita por especialidade).
+  // Em lote misto, a classificação é por TUSS ambíguo + relatório — especialidade não é obrigatória em todo item.
+  const requiresSpecialtyOnAllRows = modoConfeccao && isParecerType;
   // Especialidade é obrigatória em todo item de confecção parecer.
   // Quando a base Tasy não traz, o modal abaixo coleta antes do submit.
   const [specialtyOverrides, setSpecialtyOverrides] = useState<Record<string, string>>({});
@@ -2055,7 +2065,7 @@ const NewPayment = () => {
   // e sobrevive a re-renders enquanto buckets não mudarem.
   const getRowKey = (r: any) => `${r.source_bucket_index ?? 0}|${r.source_row_index ?? 0}`;
   const pendingSpecialtyRows = useMemo(() => {
-    if (!requiresParecerReport) return [];
+    if (!requiresSpecialtyOnAllRows) return [];
     return allRows
       .filter((r) => !r.specialty && !specialtyOverrides[getRowKey(r)])
       .map((r) => ({
@@ -2065,7 +2075,7 @@ const NewPayment = () => {
         patient_name: r.patient_name ?? null,
         procedure_date: r.procedure_date ?? null,
       }));
-  }, [allRows, requiresParecerReport, specialtyOverrides]);
+  }, [allRows, requiresSpecialtyOnAllRows, specialtyOverrides]);
 
 
   // ===== Lookup estrito de cadastros (médicos / convênios / setores) =====
@@ -2278,12 +2288,22 @@ const NewPayment = () => {
     if (requiresParecerReport && !parecerPayload) {
       toast({
         title: "Anexe o relatório de pareceres",
-        description: "Em confecção de Parecer, o relatório do Tasy é obrigatório para cruzar com a base e classificar cada item.",
+        description: requiresSpecialtyOnAllRows
+          ? "Em confecção de Parecer, o relatório do Tasy é obrigatório para cruzar com a base e classificar cada item."
+          : "Lote misto: anexe o relatório do Tasy para cruzar os atendimentos de parecer/visita.",
         variant: "destructive",
       });
       return;
     }
-    if (requiresParecerReport && pendingSpecialtyRows.length > 0) {
+    if (mixedParecer.enabled && !mixedParecer.payment_type_id) {
+      toast({
+        title: "Selecione o subtipo de parecer",
+        description: "No lote misto, escolha qual subtipo de parecer aplicar aos itens cruzados.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) {
       toast({
         title: `Especialidade obrigatória em ${pendingSpecialtyRows.length} item(ns)`,
         description: "Em confecção de Parecer a especialidade decide Parecer vs Visita. Preencha antes de criar o lote.",
@@ -2292,6 +2312,7 @@ const NewPayment = () => {
       setSpecialtyModalOpen(true);
       return;
     }
+
 
     if (competenceMonths.length === 0) {
       toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
@@ -2455,6 +2476,8 @@ const NewPayment = () => {
         specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
         payment_type_id: paymentTypeId,
+        has_mixed_parecer: mixedParecer.enabled,
+        mixed_parecer_payment_type_id: mixedParecer.enabled ? mixedParecer.payment_type_id : null,
         import_mode: isHistoricoImport ? "historico" : "normal",
         payment_mode: paymentMode,
         competence_regime: competenceRegime,
@@ -4249,6 +4272,14 @@ const NewPayment = () => {
           />
         )}
 
+        {showMixedParecerOption && allRows.length > 0 && (
+          <MixedParecerSetupCard
+            value={mixedParecer}
+            onChange={setMixedParecer}
+            ambiguousTussCount={ambiguousTussCount}
+          />
+        )}
+
         {requiresParecerReport && (
           <ParecerReportWizardCard
             competenceMonths={competenceMonths}
@@ -4279,7 +4310,7 @@ const NewPayment = () => {
           />
         )}
 
-        {requiresParecerReport && pendingSpecialtyRows.length > 0 && (
+        {requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0 && (
           <div className="rounded-md border border-warning/40 bg-warning/5 p-3 flex items-center justify-between gap-2">
             <div className="text-sm">
               <strong>{pendingSpecialtyRows.length}</strong> item(ns) sem especialidade. Em confecção parecer,
@@ -4311,7 +4342,7 @@ const NewPayment = () => {
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && (!parecerPayload || pendingSpecialtyRows.length > 0))}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.payment_type_id)}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             {pendingSuspiciousCount > 0
 

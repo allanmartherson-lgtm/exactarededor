@@ -126,6 +126,7 @@ import { Info, ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon }
 import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
 import { ParecerCrossReferencePanel } from "@/components/payment-detail/ParecerCrossReferencePanel";
+import { MixedParecerRetroAction } from "@/components/payment-detail/MixedParecerRetroAction";
 
 const HighlightBanner = ({
   observations,
@@ -1880,6 +1881,8 @@ export default function CompanyAnalysis() {
    *  são exibidos pelo <ManualItemsGrid /> dedicado. */
   const isManual = (payment as any)?.analysis_mode === "manual";
   const isParecerPayment = String((payment as any)?.payment_type ?? "").toLowerCase().includes("parecer");
+  const hasMixedParecer = !!(payment as any)?.has_mixed_parecer;
+  const showParecerTab = isParecerPayment || hasMixedParecer;
   const isConfeccaoEditable = isConfeccao && gConfeccaoStatus === "em_confeccao";
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
@@ -2403,6 +2406,16 @@ export default function CompanyAnalysis() {
           o bloco redundante na página foi removido a pedido do usuário. */}
 
 
+      {!isConfeccao && !isManual && (
+        <MixedParecerRetroAction
+          paymentId={id!}
+          paymentTypeCode={paymentTypeMeta?.code ?? null}
+          competenceMonths={((payment as any)?.competence_months ?? []).map((d: string) => d.slice(0, 7))}
+          hasMixedParecer={hasMixedParecer}
+          onApplied={() => window.location.reload()}
+        />
+      )}
+
       {/* ABAS */}
       <Tabs defaultValue="analise" className="space-y-3">
         <TabsList>
@@ -2422,7 +2435,7 @@ export default function CompanyAnalysis() {
               )}
             </TabsTrigger>
           )}
-          {!isConfeccao && !isManual && isParecerPayment && (
+          {!isConfeccao && !isManual && showParecerTab && (
             <TabsTrigger value="parecer">
               <FileText className="h-3.5 w-3.5 mr-1" /> Parecer
             </TabsTrigger>
@@ -2685,15 +2698,16 @@ export default function CompanyAnalysis() {
           </Card>
         </TabsContent>
 
-        {!isConfeccao && isParecerPayment && (
+        {!isConfeccao && showParecerTab && (
           <TabsContent value="parecer" className="space-y-3">
             <ParecerCrossReferencePanel
               paymentId={id!}
               companyName={group.company_name}
-              enabled={isParecerPayment}
+              enabled={showParecerTab}
             />
           </TabsContent>
         )}
+
 
         {/* ABA 2 — Divergências (não existe em confecção) */}
         {!isConfeccao && (
