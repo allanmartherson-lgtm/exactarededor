@@ -62,6 +62,36 @@ interface DoctorUsage {
   [name: string]: number; // lowercase name → count
 }
 
+function SortButton({
+  label,
+  k,
+  sortKey,
+  sortDir,
+  onClick,
+  align = "left",
+}: {
+  label: string;
+  k: SortKey;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onClick: (k: SortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = sortKey === k;
+  const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(k)}
+      className={`inline-flex items-center gap-1 text-xs font-medium hover:text-foreground transition-colors ${
+        active ? "text-foreground" : "text-muted-foreground"
+      } ${align === "right" ? "ml-auto" : ""}`}
+    >
+      {label}
+      <Icon className="h-3 w-3" />
+    </button>
+  );
+
 export default function Specialties({ embedded = false }: Props) {
   const { allRows, loading, refetch } = useSpecialties({ includeInactive: true });
   const [search, setSearch] = useState("");
