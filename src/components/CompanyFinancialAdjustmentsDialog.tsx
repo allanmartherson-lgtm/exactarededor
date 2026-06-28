@@ -227,6 +227,13 @@ export function CompanyFinancialAdjustmentsDialog({
                             {TIPOS.find(t => t.v === a.tipo)?.l ?? a.tipo}
                           </Badge>
                           {!a.ativo && <Badge variant="outline">Inativo</Badge>}
+                          {a.payment_type_ids && a.payment_type_ids.length > 0 && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Só em: {a.payment_type_ids
+                                .map(id => paymentTypes.find(p => p.id === id)?.label ?? "—")
+                                .join(", ")}
+                            </Badge>
+                          )}
                           <span className="text-xs text-muted-foreground">desde {new Date(a.data_inicio).toLocaleDateString("pt-BR")}</span>
                         </div>
                         <p className="text-sm">{a.descricao}</p>
