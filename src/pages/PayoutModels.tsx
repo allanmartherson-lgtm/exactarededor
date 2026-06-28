@@ -410,35 +410,14 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
     return null;
   };
 
-  const goNext = () => {
-    const err = validateStep(step);
-    if (err) {
-      setStepError(err);
-      toast({ title: err, variant: "destructive" });
-      return;
-    }
-    setStepError(null);
-    const i = WIZARD_STEPS.findIndex((s) => s.id === step);
-    if (i < WIZARD_STEPS.length - 1) setStep(WIZARD_STEPS[i + 1].id);
-  };
-
-  const goPrev = () => {
-    setStepError(null);
-    const i = WIZARD_STEPS.findIndex((s) => s.id === step);
-    if (i > 0) setStep(WIZARD_STEPS[i - 1].id);
-  };
-
   const handleSave = async () => {
     for (const s of WIZARD_STEPS) {
       const err = validateStep(s.id);
       if (err) {
-        setStep(s.id);
-        setStepError(err);
         toast({ title: err, variant: "destructive" });
         return;
       }
     }
-    setStepError(null);
     await save();
   };
 
