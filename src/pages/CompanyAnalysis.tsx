@@ -1880,6 +1880,8 @@ export default function CompanyAnalysis() {
    *  são exibidos pelo <ManualItemsGrid /> dedicado. */
   const isManual = (payment as any)?.analysis_mode === "manual";
   const isParecerPayment = String((payment as any)?.payment_type ?? "").toLowerCase().includes("parecer");
+  const hasMixedParecer = !!(payment as any)?.has_mixed_parecer;
+  const showParecerTab = isParecerPayment || hasMixedParecer;
   const isConfeccaoEditable = isConfeccao && gConfeccaoStatus === "em_confeccao";
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
