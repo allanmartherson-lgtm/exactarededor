@@ -24,6 +24,7 @@ import {
   ChevronsUpDown,
   CheckCircle2,
   CheckSquare,
+  HandCoins,
   FileText,
   FilterX,
   HelpCircle,
@@ -766,8 +767,10 @@ export type ItemsDataGridProps = {
   canEdit?: boolean;
   onEditItem?: (item: PaymentItemRowData) => void;
   onDeleteItem?: (item: PaymentItemRowData) => void;
-  /** Acatar divergência (item reprovado/alerta com observação ≥ 20 chars). */
+  /** Acatar divergência usando o valor esperado (sobrescreve gross_amount). */
   onAcceptItem?: (item: PaymentItemRowData) => void;
+  /** Acatar divergência mantendo o valor pago (não sobrescreve gross_amount). */
+  onAcceptItemKeepPaid?: (item: PaymentItemRowData) => void;
   /** Desfazer acate (volta ao status original). */
   onUndoAcceptItem?: (item: PaymentItemRowData) => void;
   className?: string;
@@ -798,6 +801,7 @@ export function ItemsDataGrid({
   onEditItem,
   onDeleteItem,
   onAcceptItem,
+  onAcceptItemKeepPaid,
   onUndoAcceptItem,
   className,
   mode = "analise",
@@ -2937,6 +2941,7 @@ export function ItemsDataGrid({
                         onEditItem={onEditItem}
                         onDeleteItem={onDeleteItem}
                         onAcceptItem={onAcceptItem}
+                        onAcceptItemKeepPaid={onAcceptItemKeepPaid}
                         onUndoAcceptItem={onUndoAcceptItem}
                         showGrossColumn={showGrossColumn}
                         showProcedureColumn={showProcedureColumn}
@@ -3629,6 +3634,7 @@ function RowMain({
   onEditItem,
   onDeleteItem,
   onAcceptItem,
+  onAcceptItemKeepPaid,
   onUndoAcceptItem,
   showGrossColumn = true,
   showProcedureColumn = false,
@@ -3665,6 +3671,7 @@ function RowMain({
   onEditItem?: (item: PaymentItemRowData) => void;
   onDeleteItem?: (item: PaymentItemRowData) => void;
   onAcceptItem?: (item: PaymentItemRowData) => void;
+  onAcceptItemKeepPaid?: (item: PaymentItemRowData) => void;
   onUndoAcceptItem?: (item: PaymentItemRowData) => void;
   showGrossColumn?: boolean;
   showProcedureColumn?: boolean;
@@ -4115,10 +4122,22 @@ function RowMain({
                   variant="ghost"
                   className="h-6 w-6"
                   style={{ color: "hsl(var(--success))" }}
-                  title="Acatar divergência (status acatado)"
+                  title="Acatar usando o valor ESPERADO (sobrescreve o pago)"
                   onClick={() => onAcceptItem(it)}
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {!isBonus && onAcceptItemKeepPaid && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  style={{ color: "hsl(var(--success))" }}
+                  title="Acatar mantendo o valor PAGO (não sobrescreve)"
+                  onClick={() => onAcceptItemKeepPaid(it)}
+                >
+                  <HandCoins className="h-3.5 w-3.5" />
                 </Button>
               )}
               {!isBonus && onUndoAcceptItem && it.ai_status === "acatado" && (

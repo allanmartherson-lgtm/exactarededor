@@ -730,6 +730,28 @@ export default function CompanyAnalysis() {
     await composition.refresh();
   };
 
+  const acceptItemKeepPaid = async (it: PaymentItemRow) => {
+    if (!guardEditable()) return;
+    const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
+    if (justif.length < 20) {
+      return toast.error("Justificativa obrigatória", {
+        description: "Adicione uma observação de ao menos 20 caracteres no item antes de acatar.",
+      });
+    }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("accept_payment_item_keep_paid", {
+      _item_id: it.id,
+      _justification: justif,
+    });
+    setBusy(false);
+    if (error) return toast.error("Erro ao acatar", { description: error.message });
+    const res = data as { ok: boolean; error?: string } | null;
+    if (!res?.ok) return toast.error("Erro ao acatar", { description: res?.error ?? "Falha desconhecida" });
+    toast.success("Item acatado (valor pago mantido)");
+    await load();
+    await composition.refresh();
+  };
+
   const undoAcceptItem = async (it: PaymentItemRow) => {
     if (!guardEditable()) return;
     setBusy(true);
@@ -2540,6 +2562,7 @@ export default function CompanyAnalysis() {
                   }
                 }}
                 onAcceptItem={acceptItem}
+                onAcceptItemKeepPaid={acceptItemKeepPaid}
                 onUndoAcceptItem={undoAcceptItem}
                 mode={(payment as any).analysis_mode === "confeccao" ? "confeccao" : "analise"}
                 isParecerPayment={isParecerPayment}
