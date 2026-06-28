@@ -16,7 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { FlaskConical, Loader2, AlertTriangle, CheckCircle2, XCircle, ChevronsUpDown, Search } from "lucide-react";
 import { DoctorCombobox, type DoctorOption } from "@/components/DoctorCombobox";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
-import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { useSpecialties } from "@/hooks/useSpecialties";
 import { RULE_SECTOR_LABELS } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { DateInput } from "@/components/ui/date-input";
@@ -95,6 +95,7 @@ const PAYMENT_TYPE = [
 
 export default function RuleSimulator({ embedded = false }: { embedded?: boolean } = {}) {
   const { hospital } = useHospital();
+  const { specialties: COMMON_SPECIALTIES } = useSpecialties();
   const [form, setForm] = useState<SimForm>(empty);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any | null>(null);

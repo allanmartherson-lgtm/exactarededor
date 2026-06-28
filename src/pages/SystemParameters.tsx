@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/command";
 import { toast } from "@/hooks/use-toast";
 import { Settings, Plus, Edit, Trash2, Globe, Check, ChevronsUpDown } from "lucide-react";
-import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { useSpecialties } from "@/hooks/useSpecialties";
 import { cn } from "@/lib/utils";
 
 type ParamDef = {
@@ -85,6 +85,7 @@ function SpecialtyCombobox({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const { specialties: COMMON_SPECIALTIES } = useSpecialties();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const display = value

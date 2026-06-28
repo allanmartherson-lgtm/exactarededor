@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { useSpecialties } from "@/hooks/useSpecialties";
 import { computeZeevSuggestion } from "./specialtyZeev";
 
 export type PendingSpecialtyRow = {

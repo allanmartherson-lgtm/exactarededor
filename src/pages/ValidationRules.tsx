@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
-import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { useSpecialties } from "@/hooks/useSpecialties";
 
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { RULE_SECTOR_LABELS, type RuleSector, PAYMENT_TYPE_LABELS, type PaymentType, formatCurrency } from "@/lib/status";
@@ -283,6 +283,7 @@ const emptyForm = (): FormState => ({
 });
 
 export default function ValidationRules({ embedded = false }: { embedded?: boolean } = {}) {
+  const { specialties: COMMON_SPECIALTIES } = useSpecialties();
   const [rules, setRules] = useState<ValidationRule[]>([]);
   const [groups, setGroups] = useState<AssistanceGroup[]>([]);
   const [loading, setLoading] = useState(true);

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { useSpecialties } from "@/hooks/useSpecialties";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { Stethoscope, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 
@@ -22,6 +22,7 @@ const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v ?? 0);
 
 export function DoctorMissingSpecialtyPanel() {
+  const { specialties: COMMON_SPECIALTIES } = useSpecialties();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");

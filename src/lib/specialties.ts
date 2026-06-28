@@ -1,7 +1,10 @@
-// Lista comum de especialidades médicas — usada em selects multi nas Regras e Pagamentos.
-// Pode ser estendida livremente: o componente aceita valores fora desta lista também.
-// Base atualizada a partir do cadastro institucional.
-export const COMMON_SPECIALTIES: string[] = [
+// Fallback estático usado APENAS enquanto o hook `useSpecialties()` carrega
+// o catálogo do banco (tabela `public.specialties`). Em runtime, os componentes
+// devem consumir o hook — esta lista é a fonte legacy mantida só para evitar
+// "flash" de select vazio na 1ª renderização.
+//
+// @deprecated Use `useSpecialties()` em src/hooks/useSpecialties.ts.
+export const COMMON_SPECIALTIES_FALLBACK: string[] = [
   "Alergia e Imunologia",
   "Anestesiologia",
   "Angiologia",
@@ -79,3 +82,6 @@ export const COMMON_SPECIALTIES: string[] = [
   "Terapia Intensiva",
   "Urologia",
 ];
+
+/** @deprecated mantido para compatibilidade — use `useSpecialties()`. */
+export const COMMON_SPECIALTIES = COMMON_SPECIALTIES_FALLBACK;
