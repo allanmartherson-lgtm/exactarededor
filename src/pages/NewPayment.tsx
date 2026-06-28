@@ -616,7 +616,16 @@ const NewPayment = () => {
   // Relatório de pareceres anexado no wizard (modo confecção + tipo parecer).
   const [parecerPayload, setParecerPayload] = useState<ParecerWizardPayload | null>(null);
   const isParecerType = !!paymentTypeMeta?.code?.startsWith("parecer");
-  const requiresParecerReport = modoConfeccao && isParecerType;
+  const isVisitaType = paymentTypeMeta?.code === "visita";
+  // Lote MISTO: produção que também tem parecer/visita misturados nos TUSS.
+  // Esconde a opção quando o lote já é puro parecer/visita (esses já cruzam por padrão).
+  const [mixedParecer, setMixedParecer] = useState<MixedParecerSetup>({ enabled: false, payment_type_id: null });
+  const showMixedParecerOption = !!paymentTypeMeta && !isParecerType && !isVisitaType;
+  const ambiguousTussCount = useAmbiguousTussCount();
+  const requiresParecerReport = (modoConfeccao && isParecerType) || (showMixedParecerOption && mixedParecer.enabled);
+  // Gate de especialidade só vale em confecção parecer puro (decide Parecer vs Visita por especialidade).
+  // Em lote misto, a classificação é por TUSS ambíguo + relatório — especialidade não é obrigatória em todo item.
+  const requiresSpecialtyOnAllRows = modoConfeccao && isParecerType;
   // Especialidade é obrigatória em todo item de confecção parecer.
   // Quando a base Tasy não traz, o modal abaixo coleta antes do submit.
   const [specialtyOverrides, setSpecialtyOverrides] = useState<Record<string, string>>({});
