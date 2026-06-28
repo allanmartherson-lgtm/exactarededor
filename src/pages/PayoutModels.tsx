@@ -166,17 +166,24 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
       effective_to: null,
     });
     setEditingRubrics([]);
+    setEditingCompany(null);
     setDialogOpen(true);
   };
 
   const openEdit = async (m: PayoutModel) => {
     setEditing(m);
-    const { data } = await supabase
-      .from("payout_model_rubrics" as any)
-      .select("*")
-      .eq("model_id", m.id)
-      .order("sort_order");
-    setEditingRubrics((data ?? []) as any);
+    const [{ data: rubrics }, companyRes] = await Promise.all([
+      supabase
+        .from("payout_model_rubrics" as any)
+        .select("*")
+        .eq("model_id", m.id)
+        .order("sort_order"),
+      m.company_id
+        ? supabase.from("companies").select("id,name,document").eq("id", m.company_id).maybeSingle()
+        : Promise.resolve({ data: null } as any),
+    ]);
+    setEditingRubrics((rubrics ?? []) as any);
+    setEditingCompany((companyRes?.data as any) ?? null);
     setDialogOpen(true);
   };
 
