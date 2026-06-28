@@ -138,6 +138,8 @@ export default function PaymentEvolution() {
   const [drillCompanies, setDrillCompanies] = useState<Record<string, CompanyGroupRow[]>>({});
   const [drillLoading, setDrillLoading] = useState(false);
   const [dialogCc, setDialogCc] = useState<{ code: string; month: string } | null>(null);
+  // Mês ancorador para "Último mês" / Variação MoM. "auto" = último fechado (não-corrente).
+  const [anchorMonth, setAnchorMonth] = useState<string>("auto");
 
   // Filters
   const [ccFilter, setCcFilter] = useState<string[]>([]);
@@ -354,19 +356,23 @@ export default function PaymentEvolution() {
   const grandTotal = matrix.reduce((s, r) => s + r.total, 0);
   const ccCount = matrix.length;
   // O mês calendário corrente é "em andamento" — pagamentos ainda estão sendo gerados.
-  // Para "Último mês" / "Variação MoM" / Δ MoM da matriz, ancoramos no último mês
-  // FECHADO (último do range que não seja o mês calendário corrente).
+  // Por padrão (auto), ancoramos no último mês FECHADO. O usuário pode escolher
+  // manualmente outro mês via o seletor "Mês ancorador" para comparar MoM em
+  // cenários com competências em aberto.
   const currentYM = new Date().toISOString().slice(0, 7);
-  const lastClosedIdx = (() => {
+  const autoLastClosedIdx = (() => {
     for (let i = months.length - 1; i >= 0; i--) {
       if (months[i] !== currentYM) return i;
     }
     return months.length - 1;
   })();
+  const manualIdx = anchorMonth !== "auto" ? months.indexOf(anchorMonth) : -1;
+  const lastClosedIdx = manualIdx >= 0 ? manualIdx : autoLastClosedIdx;
   const prevClosedIdx = lastClosedIdx - 1;
   const lastMonth = months[lastClosedIdx];
   const prevMonth = prevClosedIdx >= 0 ? months[prevClosedIdx] : undefined;
   const isCurrentMonthInRange = months.includes(currentYM);
+  const isManualAnchor = anchorMonth !== "auto" && manualIdx >= 0;
   const totalLast = matrix.reduce((s, r) => s + (r.byMonth[lastClosedIdx] ?? 0), 0);
   const totalPrev = matrix.reduce((s, r) => s + (r.byMonth[prevClosedIdx] ?? 0), 0);
   const momPct = totalPrev > 0 ? ((totalLast - totalPrev) / totalPrev) * 100 : 0;
@@ -578,6 +584,20 @@ export default function PaymentEvolution() {
               Limpar filtros
             </Button>
           )}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground whitespace-nowrap">Mês ancorador (MoM):</label>
+            <Select value={anchorMonth} onValueChange={setAnchorMonth}>
+              <SelectTrigger className="w-[200px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto (último fechado)</SelectItem>
+                {[...months].reverse().map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {monthLabel(m)}{m === currentYM ? " (em andamento)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {mode === "caixa" && (
             <span className="text-xs text-muted-foreground">
               Caixa = pagamentos com status <code>pago</code> (data de atualização).
@@ -595,12 +615,14 @@ export default function PaymentEvolution() {
             hint={`${months.length} meses · ${ccCount} centros de custo`}
           />
           <KpiCard
-            label={`Último mês fechado (${monthLabel(lastMonth)})`}
+            label={`${isManualAnchor ? "Mês ancorador" : "Último mês fechado"} (${monthLabel(lastMonth)})`}
             value={loading ? <Skeleton className="h-8 w-28" /> : BRL(totalLast)}
             hint={
-              isCurrentMonthInRange
-                ? `${monthLabel(currentYM)} em andamento — excluído da comparação`
-                : prevMonth ? `vs ${monthLabel(prevMonth)}: ${BRL(totalPrev)}` : "—"
+              isManualAnchor
+                ? prevMonth ? `vs ${monthLabel(prevMonth)}: ${BRL(totalPrev)} · manual` : "manual"
+                : isCurrentMonthInRange
+                  ? `${monthLabel(currentYM)} em andamento — excluído da comparação`
+                  : prevMonth ? `vs ${monthLabel(prevMonth)}: ${BRL(totalPrev)}` : "—"
             }
           />
           <KpiCard
