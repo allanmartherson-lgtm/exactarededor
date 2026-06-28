@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { useSpecialties } from "@/hooks/useSpecialties";
 import { computeZeevSuggestion } from "./specialtyZeev";
 
 export type PendingSpecialtyRow = {
@@ -48,7 +48,7 @@ export function SpecialtyResolutionModal({
   suggestionsByDoctor?: Record<string, string[]>;
   onConfirm: (overrides: SpecialtyOverrides) => void;
 }) {
-
+  const { specialties: COMMON_SPECIALTIES } = useSpecialties();
   const [overrides, setOverrides] = useState<SpecialtyOverrides>({});
   const [filter, setFilter] = useState("");
   const [bulkSpecialty, setBulkSpecialty] = useState<string>("");

@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatBRL } from "@/lib/financialStats";
-import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { useSpecialties } from "@/hooks/useSpecialties";
 import { TONE_CLASSES } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
@@ -97,6 +97,7 @@ export default function ManualPaymentEntry() {
   const { user } = useAuth();
   const { hospital } = useHospital();
   const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
+  const { specialties: COMMON_SPECIALTIES } = useSpecialties();
 
   const [loading, setLoading] = useState(true);
   const [payment, setPayment] = useState<any>(null);
