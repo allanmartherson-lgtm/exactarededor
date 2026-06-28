@@ -274,17 +274,35 @@ export default function Specialties({ embedded = false }: Props) {
             className="pl-8"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="show-inactive"
-            checked={showInactive}
-            onCheckedChange={setShowInactive}
-          />
-          <Label htmlFor="show-inactive" className="text-sm cursor-pointer">
-            Mostrar inativas
-          </Label>
-        </div>
-        <div className="ml-auto">
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Ativas ({totals.active})</SelectItem>
+            <SelectItem value="inactive">Inativas ({totals.inactive})</SelectItem>
+            <SelectItem value="all">Todas ({totals.total})</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as UsageFilter)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Uso" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Qualquer uso</SelectItem>
+            <SelectItem value="in_use">Em uso ({totals.inUse})</SelectItem>
+            <SelectItem value="unused">Sem médicos ({totals.unused})</SelectItem>
+          </SelectContent>
+        </Select>
+        {filtersDirty && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <X className="h-3.5 w-3.5 mr-1" /> Limpar
+          </Button>
+        )}
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {filtered.length} de {totals.total}
+          </span>
           <Button onClick={openCreate} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Nova especialidade
           </Button>
@@ -301,10 +319,18 @@ export default function Specialties({ embedded = false }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead className="hidden md:table-cell">Código</TableHead>
-              <TableHead className="text-right">Médicos</TableHead>
-              <TableHead className="text-right">Status</TableHead>
+              <TableHead>
+                <SortButton label="Nome" k="name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              </TableHead>
+              <TableHead className="hidden md:table-cell">
+                <SortButton label="Código" k="code" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortButton label="Médicos" k="count" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortButton label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+              </TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
