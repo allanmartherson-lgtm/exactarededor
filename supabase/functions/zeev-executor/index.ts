@@ -21,11 +21,15 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 type Action =
   | "set_sector"
   | "set_cost_center"
+  | "set_convenio"
   | "link_doctor_company"
   | "register_doctor_pending"
   | "register_company"
   | "resolve_registry_match"
   | "accept_keep_paid"
+  | "accept_keep_expected"
+  | "undo_accept"
+  | "apply_manual_reason"
   | "navigate"
   | "answer";
 
