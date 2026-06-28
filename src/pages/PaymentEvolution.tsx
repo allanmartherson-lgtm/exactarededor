@@ -138,6 +138,8 @@ export default function PaymentEvolution() {
   const [drillCompanies, setDrillCompanies] = useState<Record<string, CompanyGroupRow[]>>({});
   const [drillLoading, setDrillLoading] = useState(false);
   const [dialogCc, setDialogCc] = useState<{ code: string; month: string } | null>(null);
+  // Mês ancorador para "Último mês" / Variação MoM. "auto" = último fechado (não-corrente).
+  const [anchorMonth, setAnchorMonth] = useState<string>("auto");
 
   // Filters
   const [ccFilter, setCcFilter] = useState<string[]>([]);
