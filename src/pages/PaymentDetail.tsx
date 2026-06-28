@@ -1424,6 +1424,10 @@ const PaymentDetail = () => {
   };
   const saveMeta = async () => {
     if (!id || !payment) return;
+    if (!metaDraft.cost_center_code) {
+      toast({ title: "Centro de custos obrigatório", description: "Selecione um centro de custos antes de salvar.", variant: "destructive" });
+      return;
+    }
     setSavingMeta(true);
     const newPoolId = metaDraft.pool_id || null;
     const updates: PaymentUpdate = {
@@ -1434,7 +1438,8 @@ const PaymentDetail = () => {
       analysis_mode: (metaDraft.analysis_mode || "padrao") as PaymentUpdate["analysis_mode"],
       pool_id: newPoolId,
       rateio_source: newPoolId ? (metaDraft.rateio_source || "planilha") : null,
-    };
+      cost_center_code: metaDraft.cost_center_code,
+    } as PaymentUpdate;
     const { error } = await supabase.from("payments").update(updates).eq("id", id);
     if (error) {
       setSavingMeta(false);
