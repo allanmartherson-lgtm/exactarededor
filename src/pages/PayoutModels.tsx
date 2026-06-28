@@ -1224,8 +1224,9 @@ function AjustesStep({
         <div>
           <h3 className="text-sm font-semibold">Descontos, acréscimos e retenções</h3>
           <p className="text-xs text-muted-foreground">
-            Aplicados após as bases. Definem o que sai (descontos/retenções) e o que entra (acréscimos)
-            antes do total. Opcional — pode não haver nenhum.
+            O sistema só sabe onde aplicar um desconto pelo campo "Incide sobre". Para glosa somente nos
+            demais convênios, use "Rubrica específica" apontando para a base "Produção demais convênios".
+            Para TRD no fim, use "Subtotal anterior" depois da glosa.
           </p>
         </div>
         <div className="flex flex-wrap gap-1 justify-end">
@@ -1332,10 +1333,17 @@ function ConveniosStep({
       <div>
         <h3 className="text-sm font-semibold">Vínculo de convênios por rubrica</h3>
         <p className="text-xs text-muted-foreground">
-          O convênio é apenas <em>identificação</em> — usado na memória de cálculo e em overrides de
-          parâmetros (ex.: TRD diferente por convênio). <span className="font-medium">Não filtra nem soma sozinho</span>.
-          Deixar vazio = vale para qualquer convênio.
+          Aqui o vínculo serve para deixar claro na memória de cálculo quais convênios compõem cada linha.
+          A regra de cálculo vem da estrutura das rubricas: bases #1–#3 sem glosa, glosa apontando para a
+          base "demais convênios" e TRD sobre o subtotal final. Deixar vazio = qualquer convênio.
         </p>
+      </div>
+
+      <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground space-y-1">
+        <p><span className="font-medium text-foreground">Exemplo esperado:</span></p>
+        <p>Rubricas #1, #2 e #3: Sul América, Bradesco e Particular — entram no bruto e não recebem glosa.</p>
+        <p>Rubrica #4: demais convênios — recebe a glosa porque a rubrica de desconto aponta para ela.</p>
+        <p>Última rubrica: TRD — usa subtotal anterior, então considera as três bases sem glosa + demais convênios já glosados.</p>
       </div>
 
       {rubrics.length === 0 ? (
