@@ -584,6 +584,20 @@ export default function PaymentEvolution() {
               Limpar filtros
             </Button>
           )}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground whitespace-nowrap">Mês ancorador (MoM):</label>
+            <Select value={anchorMonth} onValueChange={setAnchorMonth}>
+              <SelectTrigger className="w-[200px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto (último fechado)</SelectItem>
+                {[...months].reverse().map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {monthLabel(m)}{m === currentYM ? " (em andamento)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {mode === "caixa" && (
             <span className="text-xs text-muted-foreground">
               Caixa = pagamentos com status <code>pago</code> (data de atualização).
