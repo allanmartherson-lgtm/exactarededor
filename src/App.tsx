@@ -126,6 +126,7 @@ const HealthMonitoring = lazy(loadHealthMonitoring);
 const Payments = lazy(loadPayments);
 const NewPayment = lazy(loadNewPayment);
 const NewManualPayment = lazy(loadNewManualPayment);
+const NewManualPaymentComposicao = lazy(loadNewManualPaymentComposicao);
 const ManualPaymentEntry = lazy(loadManualPaymentEntry);
 const PaymentDetail = lazy(loadPaymentDetail);
 const CompanyAnalysis = lazy(loadCompanyAnalysis);
