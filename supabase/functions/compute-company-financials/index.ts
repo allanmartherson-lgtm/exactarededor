@@ -50,13 +50,25 @@ Deno.serve(async (req) => {
     let poolGrossShare = 0;
     let poolShareDeducoes = 0;
     if (poolId) {
+      const { data: pmtPool } = await supabase
+        .from("pools")
+        .select("base_calculo")
+        .eq("id", poolId)
+        .maybeSingle();
+      const poolBaseField = (pmtPool as any)?.base_calculo === "soma_expected" ? "expected_amount" : "gross_amount";
       const { data: poolItems } = await supabase
         .from("payment_items")
-        .select("gross_amount, is_cancelled, package_absorbed, is_pool_item, item_origin, company_id")
+        .select("gross_amount, expected_amount, gross_override_reason, is_cancelled, package_absorbed, is_pool_item, item_origin, company_id")
         .eq("payment_id", payment_id).eq("is_pool_item", true);
+      const effectivePoolItemValue = (it: any) => {
+        // “Acatar mantendo pago” fixa o pago como valor financeiro efetivo,
+        // inclusive em pools cujo cadastro usa soma_expected como base.
+        if (it.gross_override_reason === "acatado_pago") return Number(it.gross_amount || 0);
+        return Number(it[poolBaseField] || 0);
+      };
       const totalPool = (poolItems ?? [])
         .filter((it: any) => !it.is_cancelled && !it.package_absorbed && it.item_origin !== "complemento_minimo")
-        .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0);
+        .reduce((s, it: any) => s + effectivePoolItemValue(it), 0);
       const companyMinimumComplement = (poolItems ?? [])
         .filter((it: any) => !it.is_cancelled && it.item_origin === "complemento_minimo" && it.company_id === company_id)
         .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0);

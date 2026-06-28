@@ -108,6 +108,29 @@ describe("acatar item · sobrescrita de gross_amount", () => {
     expect(fn).toMatch(/ELSE\s+gross_amount_original\s+END/i);
     expect(fn).toMatch(/ELSE\s+gross_override_reason\s+END/i);
   });
+
+  it("accept_payment_item_keep_paid marca reason='acatado_pago' e preserva gross", () => {
+    const body = lastFn("accept_payment_item_keep_paid");
+    expect(body).toMatch(/gross_amount\s*=\s*v_effective_paid/i);
+    expect(body).toMatch(/gross_override_reason\s*=\s*'acatado_pago'/i);
+    expect(body).toMatch(/v_override_reason\s*=\s*'acatado_esperado'[\s\S]*v_gross_original/i);
+  });
+});
+
+describe("pool · acate mantendo pago", () => {
+  const recalcPools = readFileSync(
+    resolve(__dirname, "../../../supabase/functions/recalc-payment-pools/index.ts"),
+    "utf8",
+  );
+  const computeFinancials = readFileSync(
+    resolve(__dirname, "../../../supabase/functions/compute-company-financials/index.ts"),
+    "utf8",
+  );
+
+  it("pool usa gross_amount quando item foi acatado mantendo pago", () => {
+    expect(recalcPools).toMatch(/gross_override_reason\s*===\s*"acatado_pago"[\s\S]*gross_amount/);
+    expect(computeFinancials).toMatch(/gross_override_reason\s*===\s*"acatado_pago"[\s\S]*gross_amount/);
+  });
 });
 
 describe("composição financeira · líquido reflete acate", () => {
