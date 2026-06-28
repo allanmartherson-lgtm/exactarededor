@@ -44,9 +44,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Loader2, FileText, Layers } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Plus, Pencil, Trash2, Loader2, FileText, Layers, Check, ChevronsUpDown, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { CompanyCombobox } from "@/components/CompanyCombobox";
+
 
 // ---------- tipos ----------
 type RubricKind =
@@ -119,6 +123,8 @@ interface PayoutRubric {
   fixed_value: number | null;
   tier_table_id: string | null;
   convenio_slug: string | null;
+  convenio_slugs: string[];
+
   required: boolean;
   notes: string | null;
 }
@@ -279,7 +285,9 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         fixed_pct: r.fixed_pct,
         fixed_value: r.fixed_value,
         tier_table_id: r.tier_table_id,
-        convenio_slug: r.convenio_slug,
+        convenio_slug: r.convenio_slugs?.[0] ?? r.convenio_slug ?? null,
+        convenio_slugs: r.convenio_slugs ?? [],
+
         required: r.required,
         notes: r.notes,
       }));
@@ -317,6 +325,8 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         fixed_value: null,
         tier_table_id: null,
         convenio_slug: null,
+        convenio_slugs: [],
+
         required: true,
         notes: null,
       },
@@ -624,24 +634,31 @@ function RubricEditor({
   const isFaixa = rubric.kind === "acrescimo_faixa";
   const isBase = rubric.kind === "base_producao" || rubric.kind === "base_fixa";
 
-  const convenioName = rubric.convenio_slug
-    ? convenios.find((c) => c.slug === rubric.convenio_slug)?.name ?? rubric.convenio_slug
-    : null;
+  const selectedSlugs = rubric.convenio_slugs?.length
+    ? rubric.convenio_slugs
+    : rubric.convenio_slug
+      ? [rubric.convenio_slug]
+      : [];
+  const slugLabel = (slug: string) => convenios.find((c) => c.slug === slug)?.name ?? slug;
 
   return (
     <div className="border rounded-md p-3 space-y-3 bg-muted/30">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">
+        <span className="text-xs font-medium text-muted-foreground flex flex-wrap items-center gap-1">
           Rubrica #{index + 1}
-          {convenioName && (
-            <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px]">
-              {convenioName}
+          {selectedSlugs.map((s) => (
+            <span
+              key={s}
+              className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px]"
+            >
+              {slugLabel(s)}
             </span>
-          )}
+          ))}
         </span>
         <Button variant="ghost" size="icon" onClick={onRemove} aria-label="Remover rubrica">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
+
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -783,33 +800,111 @@ function RubricEditor({
         )}
 
         <div className="md:col-span-2 space-y-1">
-          <Label className="text-xs">Convênio (opcional)</Label>
-          <Select
-            value={rubric.convenio_slug ?? "__none"}
-            onValueChange={(v) => onChange({ convenio_slug: v === "__none" ? null : v })}
-          >
-            <SelectTrigger className="h-8 text-sm">
-              <SelectValue placeholder="Sem vínculo de convênio" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none">— Sem vínculo (vale para qualquer convênio)</SelectItem>
-              {convenios.map((c) => (
-                <SelectItem key={c.slug} value={c.slug}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label className="text-xs">Convênios (opcional)</Label>
+          <ConvenioMultiSelectField
+            convenios={convenios}
+            value={rubric.convenio_slugs ?? []}
+            onChange={(slugs) =>
+              onChange({ convenio_slugs: slugs, convenio_slug: slugs[0] ?? null })
+            }
+          />
           <p className="text-[11px] text-muted-foreground leading-snug">
             <span className="font-medium text-foreground">Para que serve:</span> apenas
-            <em> identifica </em> a qual convênio esta rubrica se refere. Serve para (1) a memória de
-            cálculo no PDF/portal exibir o convênio ao lado da linha e (2) buscar % específico em
+            <em> identifica </em> a quais convênios esta rubrica se refere. Serve para (1) a memória de
+            cálculo no PDF/portal exibir os convênios ao lado da linha e (2) buscar % específico em
             Parâmetros do Sistema quando houver override por convênio (ex.: TRD diferente para Sul
             América). <span className="font-medium">Não filtra nem soma sozinho</span> — o cálculo
-            usa sempre o valor que o analista digita na base de produção correspondente.
+            usa sempre o valor que o analista digita na base de produção correspondente. Vazio = vale
+            para qualquer convênio.
           </p>
         </div>
+
       </div>
     </div>
   );
 }
+
+// ---------- multi-select de convênios ----------
+function ConvenioMultiSelectField({
+  convenios,
+  value,
+  onChange,
+}: {
+  convenios: Array<{ slug: string; name: string }>;
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const bySlug = useMemo(() => {
+    const m = new Map<string, string>();
+    convenios.forEach((c) => m.set(c.slug, c.name));
+    return m;
+  }, [convenios]);
+
+  const toggle = (slug: string) => {
+    if (value.includes(slug)) onChange(value.filter((s) => s !== slug));
+    else onChange([...value, slug]);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            className={cn(
+              "w-full justify-between font-normal h-8 text-sm",
+              !value.length && "text-muted-foreground",
+            )}
+          >
+            <span className="truncate">
+              {value.length === 0
+                ? "Sem vínculo — vale para qualquer convênio"
+                : `${value.length} convênio${value.length > 1 ? "s" : ""} selecionado${value.length > 1 ? "s" : ""}`}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Buscar convênio…" />
+            <CommandList>
+              <CommandEmpty>Nenhum convênio encontrado.</CommandEmpty>
+              <CommandGroup>
+                {convenios.map((c) => {
+                  const checked = value.includes(c.slug);
+                  return (
+                    <CommandItem key={c.slug} value={`${c.name} ${c.slug}`} onSelect={() => toggle(c.slug)}>
+                      <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
+                      <span className="text-xs">{c.name}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {value.map((slug) => (
+            <button
+              key={slug}
+              type="button"
+              onClick={() => onChange(value.filter((s) => s !== slug))}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border border-primary/40 bg-accent text-primary hover:bg-accent/70"
+              title="Remover"
+            >
+              <span className="truncate max-w-[200px]">{bySlug.get(slug) ?? slug}</span>
+              <X className="h-3 w-3" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+

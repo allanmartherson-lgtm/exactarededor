@@ -6524,6 +6524,7 @@ export type Database = {
       payout_model_rubrics: {
         Row: {
           convenio_slug: string | null
+          convenio_slugs: string[]
           created_at: string
           fixed_pct: number | null
           fixed_value: number | null
@@ -6542,6 +6543,7 @@ export type Database = {
         }
         Insert: {
           convenio_slug?: string | null
+          convenio_slugs?: string[]
           created_at?: string
           fixed_pct?: number | null
           fixed_value?: number | null
@@ -6560,6 +6562,7 @@ export type Database = {
         }
         Update: {
           convenio_slug?: string | null
+          convenio_slugs?: string[]
           created_at?: string
           fixed_pct?: number | null
           fixed_value?: number | null
