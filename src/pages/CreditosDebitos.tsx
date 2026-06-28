@@ -13,6 +13,8 @@ import { Trash2, Plus, Pencil, Scale, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 
 type Company = { id: string; name: string };
 type Adjustment = {
@@ -26,6 +28,9 @@ type Adjustment = {
   data_inicio: string;
   ativo: boolean;
   origem: string | null;
+  payment_type_ids: string[] | null;
+  recorrente: boolean;
+  data_fim: string | null;
   _company_name?: string;
 };
 
