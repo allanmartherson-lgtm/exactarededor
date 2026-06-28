@@ -384,10 +384,14 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
     const sulAmerica = findConvenioSlug(convenios, ["sul america", "sulamerica"]);
     const bradesco = findConvenioSlug(convenios, ["bradesco"]);
     const particular = findConvenioSlug(convenios, ["particular"]);
+    const semGlosaSlugs = normalizeConvenioSlugs([sulAmerica, bradesco, particular].filter(Boolean) as string[]);
+    const demaisSlugs = normalizeConvenioSlugs(
+      convenios.map((c) => c.slug).filter((slug) => !semGlosaSlugs.includes(slug)),
+    );
 
     const baseRubric = (
       label: string,
-      convenioSlug: string | undefined,
+      convenioSlugs: string[],
       notes: string | null = null,
     ): PayoutRubric => ({
       sort_order: 0,
@@ -399,8 +403,8 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
       fixed_pct: null,
       fixed_value: null,
       tier_table_id: null,
-      convenio_slug: convenioSlug ?? null,
-      convenio_slugs: convenioSlug ? [convenioSlug] : [],
+      convenio_slug: convenioSlugs[0] ?? null,
+      convenio_slugs: convenioSlugs,
       required: true,
       notes,
     });
@@ -408,13 +412,13 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
     const rubricRow = (rubric: PayoutRubric) => rubric;
 
     const rows: PayoutRubric[] = [
-      baseRubric("Produção Sul América — sem glosa", sulAmerica),
-      baseRubric("Produção Bradesco — sem glosa", bradesco),
-      baseRubric("Produção Particular — sem glosa", particular),
+      baseRubric("Produção Sul América — sem glosa", sulAmerica ? [sulAmerica] : []),
+      baseRubric("Produção Bradesco — sem glosa", bradesco ? [bradesco] : []),
+      baseRubric("Produção Particular — sem glosa", particular ? [particular] : []),
       baseRubric(
         "Produção demais convênios — com glosa",
-        undefined,
-        "Agrupe aqui todos os convênios que não são Sul América, Bradesco ou Particular.",
+        demaisSlugs,
+        "Agrupa todos os convênios cadastrados exceto Sul América, Bradesco e Particular.",
       ),
       rubricRow({
         sort_order: 0,
@@ -426,8 +430,8 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         fixed_pct: null,
         fixed_value: null,
         tier_table_id: null,
-        convenio_slug: null,
-        convenio_slugs: [],
+        convenio_slug: demaisSlugs[0] ?? null,
+        convenio_slugs: demaisSlugs,
         required: true,
         notes: "Aplica glosa somente sobre a rubrica #4. As bases #1, #2 e #3 ficam fora da glosa.",
       }),
