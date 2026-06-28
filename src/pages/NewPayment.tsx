@@ -2065,7 +2065,7 @@ const NewPayment = () => {
   // e sobrevive a re-renders enquanto buckets não mudarem.
   const getRowKey = (r: any) => `${r.source_bucket_index ?? 0}|${r.source_row_index ?? 0}`;
   const pendingSpecialtyRows = useMemo(() => {
-    if (!requiresParecerReport) return [];
+    if (!requiresSpecialtyOnAllRows) return [];
     return allRows
       .filter((r) => !r.specialty && !specialtyOverrides[getRowKey(r)])
       .map((r) => ({
@@ -2075,7 +2075,7 @@ const NewPayment = () => {
         patient_name: r.patient_name ?? null,
         procedure_date: r.procedure_date ?? null,
       }));
-  }, [allRows, requiresParecerReport, specialtyOverrides]);
+  }, [allRows, requiresSpecialtyOnAllRows, specialtyOverrides]);
 
 
   // ===== Lookup estrito de cadastros (médicos / convênios / setores) =====
