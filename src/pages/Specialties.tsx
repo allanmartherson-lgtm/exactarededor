@@ -24,9 +24,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Search, Stethoscope, AlertTriangle } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Pencil, Search, Stethoscope, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown, X } from "lucide-react";
 import { toast } from "sonner";
 import { useSpecialties, invalidateSpecialtiesCache, type SpecialtyRow } from "@/hooks/useSpecialties";
+
+type SortKey = "name" | "code" | "count" | "status";
+type SortDir = "asc" | "desc";
+type StatusFilter = "all" | "active" | "inactive";
+type UsageFilter = "all" | "in_use" | "unused";
 
 const slugify = (s: string) =>
   s
@@ -50,15 +62,67 @@ interface DoctorUsage {
   [name: string]: number; // lowercase name → count
 }
 
+function SortButton({
+  label,
+  k,
+  sortKey,
+  sortDir,
+  onClick,
+  align = "left",
+}: {
+  label: string;
+  k: SortKey;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onClick: (k: SortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = sortKey === k;
+  const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(k)}
+      className={`inline-flex items-center gap-1 text-xs font-medium hover:text-foreground transition-colors ${
+        active ? "text-foreground" : "text-muted-foreground"
+      } ${align === "right" ? "ml-auto" : ""}`}
+    >
+      {label}
+      <Icon className="h-3 w-3" />
+    </button>
+  );
+}
+
+
 export default function Specialties({ embedded = false }: Props) {
   const { allRows, loading, refetch } = useSpecialties({ includeInactive: true });
   const [search, setSearch] = useState("");
-  const [showInactive, setShowInactive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  const [usageFilter, setUsageFilter] = useState<UsageFilter>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [usage, setUsage] = useState<DoctorUsage>({});
   const [editing, setEditing] = useState<SpecialtyRow | null>(null);
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "count" ? "desc" : "asc");
+    }
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("active");
+    setUsageFilter("all");
+    setSortKey("name");
+    setSortDir("asc");
+  };
 
   // Conta uso por médicos (best-effort — limita a 5000 médicos).
   useEffect(() => {
@@ -86,15 +150,59 @@ export default function Specialties({ embedded = false }: Props) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return allRows
-      .filter((r) => (showInactive ? true : r.active))
+    const collator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+    const filteredRows = allRows
+      .filter((r) => {
+        if (statusFilter === "active") return r.active;
+        if (statusFilter === "inactive") return !r.active;
+        return true;
+      })
+      .filter((r) => {
+        if (usageFilter === "all") return true;
+        const count = usage[r.name.toLowerCase()] ?? 0;
+        return usageFilter === "in_use" ? count > 0 : count === 0;
+      })
       .filter(
         (r) =>
           !q ||
           r.name.toLowerCase().includes(q) ||
           r.code.toLowerCase().includes(q),
       );
-  }, [allRows, search, showInactive]);
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filteredRows].sort((a, b) => {
+      if (sortKey === "name") return collator.compare(a.name, b.name) * dir;
+      if (sortKey === "code") return collator.compare(a.code, b.code) * dir;
+      if (sortKey === "count") {
+        const ca = usage[a.name.toLowerCase()] ?? 0;
+        const cb = usage[b.name.toLowerCase()] ?? 0;
+        if (ca !== cb) return (ca - cb) * dir;
+        return collator.compare(a.name, b.name);
+      }
+      // status
+      if (a.active !== b.active) return (a.active ? -1 : 1) * dir;
+      return collator.compare(a.name, b.name);
+    });
+  }, [allRows, search, statusFilter, usageFilter, usage, sortKey, sortDir]);
+
+  const totals = useMemo(() => {
+    let active = 0;
+    let inactive = 0;
+    let inUse = 0;
+    allRows.forEach((r) => {
+      if (r.active) active++;
+      else inactive++;
+      if ((usage[r.name.toLowerCase()] ?? 0) > 0) inUse++;
+    });
+    return { total: allRows.length, active, inactive, inUse, unused: allRows.length - inUse };
+  }, [allRows, usage]);
+
+  const filtersDirty =
+    !!search.trim() ||
+    statusFilter !== "active" ||
+    usageFilter !== "all" ||
+    sortKey !== "name" ||
+    sortDir !== "asc";
 
   const openCreate = () => {
     setEditing(null);
@@ -198,17 +306,35 @@ export default function Specialties({ embedded = false }: Props) {
             className="pl-8"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="show-inactive"
-            checked={showInactive}
-            onCheckedChange={setShowInactive}
-          />
-          <Label htmlFor="show-inactive" className="text-sm cursor-pointer">
-            Mostrar inativas
-          </Label>
-        </div>
-        <div className="ml-auto">
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Ativas ({totals.active})</SelectItem>
+            <SelectItem value="inactive">Inativas ({totals.inactive})</SelectItem>
+            <SelectItem value="all">Todas ({totals.total})</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as UsageFilter)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Uso" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Qualquer uso</SelectItem>
+            <SelectItem value="in_use">Em uso ({totals.inUse})</SelectItem>
+            <SelectItem value="unused">Sem médicos ({totals.unused})</SelectItem>
+          </SelectContent>
+        </Select>
+        {filtersDirty && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <X className="h-3.5 w-3.5 mr-1" /> Limpar
+          </Button>
+        )}
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {filtered.length} de {totals.total}
+          </span>
           <Button onClick={openCreate} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Nova especialidade
           </Button>
@@ -225,10 +351,18 @@ export default function Specialties({ embedded = false }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead className="hidden md:table-cell">Código</TableHead>
-              <TableHead className="text-right">Médicos</TableHead>
-              <TableHead className="text-right">Status</TableHead>
+              <TableHead>
+                <SortButton label="Nome" k="name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              </TableHead>
+              <TableHead className="hidden md:table-cell">
+                <SortButton label="Código" k="code" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortButton label="Médicos" k="count" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortButton label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+              </TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
