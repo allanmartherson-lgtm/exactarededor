@@ -392,7 +392,7 @@ export function ZeevAssistant({
           side="top"
           align={side === "bottom-right" ? "end" : "start"}
           sideOffset={12}
-          className="w-[360px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden rounded-2xl border-[hsl(var(--primary))]/20 shadow-2xl"
+          className="w-[400px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden rounded-2xl border-[hsl(var(--primary))]/20 shadow-2xl"
         >
           {/* Cabeçalho */}
           <div className="relative bg-gradient-to-br from-[hsl(var(--primary))] via-[hsl(var(--primary))] to-[hsl(var(--primary-dark))] px-4 py-3.5 text-[hsl(var(--primary-foreground))]">

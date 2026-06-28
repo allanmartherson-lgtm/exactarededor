@@ -85,8 +85,8 @@ const SYSTEM_PROMPT = [
   "AÇÕES DISPONÍVEIS (escolha exatamente UMA):",
   "1) answer — quando o analista PERGUNTA algo respondível com o contexto. Use o 'summary' como a resposta completa em texto (pode ter 2-3 frases). Ideal para 'quantos itens estão zerados?', 'qual médico tem mais divergência?'.",
   "2) navigate — quando o analista quer IR a uma seção/filtro. payload: { url?: string, filter?: 'zerados'|'divergentes'|'sem_regra'|'reprovados' }. Use 'filter' para os 4 filtros padrão do grid. Use 'url' para rotas absolutas tipo '/pagamentos', '/regras', '/pendencias'. summary = 1 frase explicando para onde vai.",
-  "3) set_sector — aplica setor em lote. payload: { sector_code }. scope.sector_missing=true para 'sem setor'.",
-  "4) set_cost_center — aplica centro de custos. payload: { cost_center_code }. scope.cost_center_missing=true.",
+  "3) set_sector — aplica setor em lote. payload: { sector_code }. Aceita código, nome OU slug do setor (ex.: 'SET-001', 'Outro', 'outro'). scope.sector_missing=true para 'sem setor'.",
+  "4) set_cost_center — define o CENTRO DE CUSTOS DO LOTE (payments.cost_center_code), que propaga pra todos os itens. NÃO existe CC por item — é sempre lote-wide. payload: { cost_center_code } aceita código ou nome. Use sempre que o usuário mencionar centro de custos.",
   "5) link_doctor_company — vincula médico→PJ. payload: { company_id }. scope.doctor_company_missing=true.",
   "6) register_doctor_pending — cria médico em modo 'pending_admin_review=true'. payload: { full_name, crm, crm_uf (2 letras), cpf?, vinculo? } — full_name+crm+crm_uf são obrigatórios; se faltar, use 'clarify'. Use quando o analista pede 'cadastrar médico novo X com CRM Y/UF'.",
   "7) register_company — cria PJ. payload: { name, document (CNPJ — 14 dígitos), state_uf? } — name+document obrigatórios. Use quando pedir 'cadastrar empresa X CNPJ Y'.",
@@ -240,13 +240,42 @@ async function filterDoctorCompanyMissing(sb: SB, items: Array<{ doctor_id: stri
 
 // -------------------- Execução de cada ação --------------------
 
-async function execSetSector(sb: SB, paymentId: string, scope: Scope, payload: Record<string, unknown>) {
-  const sectorCode = String(payload.sector_code ?? "").trim();
-  if (!sectorCode) throw new Error("sector_code obrigatório");
+async function resolveSector(sb: SB, input: string): Promise<{ code: string; name: string } | null> {
+  const raw = input.trim();
+  if (!raw) return null;
+  // 1) match exato por code
+  const byCode = await sb.from("sectors").select("code, name").eq("code", raw).maybeSingle();
+  if (byCode.data) return byCode.data as { code: string; name: string };
+  // 2) case-insensitive por code, slug ou name
+  const ilike = await sb
+    .from("sectors")
+    .select("code, name, slug")
+    .or(`code.ilike.${raw},slug.ilike.${raw.toLowerCase()},name.ilike.${raw}`)
+    .limit(1);
+  const hit = (ilike.data ?? [])[0] as { code: string; name: string } | undefined;
+  return hit ?? null;
+}
 
-  // Resolve setor canônico
-  const { data: secRow } = await sb.from("sectors").select("code, name").eq("code", sectorCode).maybeSingle();
-  if (!secRow) throw new Error(`Setor ${sectorCode} não encontrado no cadastro.`);
+async function resolveCostCenter(sb: SB, input: string): Promise<{ code: string; name: string } | null> {
+  const raw = input.trim();
+  if (!raw) return null;
+  const byCode = await sb.from("cost_centers").select("code, name").eq("code", raw).maybeSingle();
+  if (byCode.data) return byCode.data as { code: string; name: string };
+  const ilike = await sb
+    .from("cost_centers")
+    .select("code, name")
+    .or(`code.ilike.${raw},name.ilike.${raw}`)
+    .limit(1);
+  const hit = (ilike.data ?? [])[0] as { code: string; name: string } | undefined;
+  return hit ?? null;
+}
+
+async function execSetSector(sb: SB, paymentId: string, scope: Scope, payload: Record<string, unknown>) {
+  const sectorInput = String(payload.sector_code ?? payload.sector ?? "").trim();
+  if (!sectorInput) throw new Error("sector_code obrigatório");
+
+  const secRow = await resolveSector(sb, sectorInput);
+  if (!secRow) throw new Error(`Setor "${sectorInput}" não encontrado no cadastro (tente código, nome ou slug).`);
 
   const items = await buildItemsQuery(sb, paymentId, scope);
   if (items.length === 0) return { affected: 0, before: [], after: { sector: secRow.name } };
@@ -261,22 +290,47 @@ async function execSetSector(sb: SB, paymentId: string, scope: Scope, payload: R
 }
 
 async function execSetCostCenter(sb: SB, paymentId: string, scope: Scope, payload: Record<string, unknown>) {
-  const ccCode = String(payload.cost_center_code ?? "").trim();
-  if (!ccCode) throw new Error("cost_center_code obrigatório");
+  const ccInput = String(payload.cost_center_code ?? payload.cost_center ?? "").trim();
+  if (!ccInput) throw new Error("cost_center_code obrigatório");
 
-  const { data: ccRow } = await sb.from("cost_centers").select("code, name").eq("code", ccCode).maybeSingle();
-  if (!ccRow) throw new Error(`Centro de custos ${ccCode} não encontrado.`);
+  const ccRow = await resolveCostCenter(sb, ccInput);
+  if (!ccRow) throw new Error(`Centro de custos "${ccInput}" não encontrado.`);
+
+  // CC vive no nível do LOTE (payments.cost_center_code). Se o usuário pediu
+  // "aplicar em itens sem CC" ou não restringiu por filtro específico, atualiza
+  // o lote inteiro — é assim que CC funciona no Exacta (lote propaga p/ itens).
+  const isLoteWide = !!scope.cost_center_missing || (
+    !scope.convenio_slug && !scope.procedure_code && !scope.doctor_name_like && !scope.description_like
+  );
+
+  if (isLoteWide) {
+    const { data: payBefore } = await sb
+      .from("payments")
+      .select("cost_center_code")
+      .eq("id", paymentId)
+      .maybeSingle();
+    const { error: payErr } = await sb
+      .from("payments")
+      .update({ cost_center_code: ccRow.code })
+      .eq("id", paymentId);
+    if (payErr) throw new Error(`update_lote_cc: ${payErr.message}`);
+    return {
+      affected: 1,
+      before: [{ payment_id: paymentId, cost_center_code: (payBefore as { cost_center_code?: string | null } | null)?.cost_center_code ?? null }],
+      after: { scope: "lote", cost_center_code: ccRow.code, cost_center_name: ccRow.name },
+    };
+  }
 
   const items = await buildItemsQuery(sb, paymentId, scope);
-  if (items.length === 0) return { affected: 0, before: [], after: { cost_center_code: ccCode } };
+  if (items.length === 0) return { affected: 0, before: [], after: { cost_center_code: ccRow.code } };
 
   const before = items.map((i) => ({ id: i.id, cost_center_code: i.cost_center_code }));
   const { error } = await sb
     .from("payment_items")
-    .update({ cost_center_code: ccCode })
+    .update({ cost_center_code: ccRow.code })
     .in("id", items.map((i) => i.id));
   if (error) throw new Error(`update_cc: ${error.message}`);
-  return { affected: items.length, before, after: { cost_center_code: ccCode } };
+  return { affected: items.length, before, after: { cost_center_code: ccRow.code } };
 }
 
 async function execLinkDoctorCompany(sb: SB, paymentId: string, scope: Scope, payload: Record<string, unknown>) {

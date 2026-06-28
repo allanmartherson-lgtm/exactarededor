@@ -43,11 +43,28 @@ interface Props {
 export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Props) {
   const [counts, setCounts] = useState<Counts | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+
+  // Refetch sempre que o Zeev aplicar algo
+  useEffect(() => {
+    const handler = () => setRefreshNonce((n) => n + 1);
+    window.addEventListener("zeev:applied", handler);
+    return () => window.removeEventListener("zeev:applied", handler);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     (async () => {
+      // CC do lote propaga pra itens sem CC. Se o lote já tem CC, não conta "itens sem CC".
+      const { data: pay } = await supabase
+        .from("payments")
+        .select("cost_center_code")
+        .eq("id", paymentId)
+        .maybeSingle();
+      const loteCc = (pay as { cost_center_code?: string | null } | null)?.cost_center_code ?? null;
+      const loteHasCc = !!loteCc && String(loteCc).trim() !== "";
+
       const { data, error } = await supabase
         .from("payment_items")
         .select(
@@ -81,7 +98,7 @@ export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Pro
         const findings = it.ai_findings as { needs_human_review?: boolean } | null;
         if (findings?.needs_human_review) c.sem_regra++;
         if (!it.sector || it.sector === "") c.sem_setor++;
-        if (!it.cost_center_code || it.cost_center_code === "") c.sem_cc++;
+        if (!loteHasCc && (!it.cost_center_code || it.cost_center_code === "")) c.sem_cc++;
         if (!it.company_id && !it.is_pool_item) c.sem_empresa++;
       }
       setCounts(c);
@@ -90,7 +107,7 @@ export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Pro
     return () => {
       cancelled = true;
     };
-  }, [paymentId]);
+  }, [paymentId, refreshNonce]);
 
   const buckets: Bucket[] = useMemo(() => {
     if (!counts) return [];
