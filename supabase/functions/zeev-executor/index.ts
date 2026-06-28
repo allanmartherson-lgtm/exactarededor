@@ -141,6 +141,7 @@ const RESPOND_SCHEMA = {
         "register_doctor_pending",
         "register_company",
         "resolve_registry_match",
+        "accept_keep_paid",
         "navigate",
         "answer",
         "unsupported",
