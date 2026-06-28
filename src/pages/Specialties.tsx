@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Search, Stethoscope, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown, X } from "lucide-react";
+import { Plus, Pencil, Search, Stethoscope, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown, X, History, Clock, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSpecialties, invalidateSpecialtiesCache, type SpecialtyRow } from "@/hooks/useSpecialties";
 
