@@ -112,6 +112,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import * as XLSX from "xlsx-js-style";
 import { confirmDialog } from "@/lib/confirm";
 import { DateInput } from "@/components/ui/date-input";
+import { CostCenterCombobox } from "@/components/CostCenterCombobox";
 
 const ObservationTypeSelector = ({
   value,
