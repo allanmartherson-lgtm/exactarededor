@@ -2793,7 +2793,7 @@ const NewPayment = () => {
           .filter((r) => r.company_id);
         if (rows.length > 0) {
           const hospitalId = (payment as any).hospital_id ?? hospital?.id;
-          const initialStatus = modoConfeccao ? "rascunho" : "revisao_analista";
+          const initialStatus = modoConfeccao ? "rascunho" : "em_analise_ia";
           const groupRows = rows.map((r) => ({
             payment_id: payment.id,
             hospital_id: hospitalId,
