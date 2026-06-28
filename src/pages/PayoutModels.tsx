@@ -1318,6 +1318,7 @@ function RubricListByKinds({
           key={i}
           index={i}
           rubric={r}
+          allRubrics={rubrics}
           tierTables={tierTables}
           convenios={convenios}
           allowedKinds={allowedKinds}
