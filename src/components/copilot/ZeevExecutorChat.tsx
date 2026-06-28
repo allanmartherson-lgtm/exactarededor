@@ -229,7 +229,7 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary mt-0.5">
                   <ZeevIcon className="h-3 w-3" />
                 </div>
-                <div className="flex-1 rounded-xl border border-primary/30 bg-primary-soft/30 p-3 space-y-2">
+                <div className="flex-1 min-w-0 rounded-xl border border-primary/30 bg-primary-soft/30 p-3 space-y-2">
                   <p className="text-[13px] text-foreground leading-snug">{m.text}</p>
                   <div className="text-[11px] text-muted-foreground">
                     {m.payload.filter ? (
@@ -262,7 +262,7 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
                 <ZeevIcon className="h-3 w-3" />
               </div>
               <div className={cn(
-                "flex-1 rounded-xl border p-3 space-y-2",
+                "flex-1 min-w-0 rounded-xl border p-3 space-y-2",
                 m.status === "confirmed" && "border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20",
                 m.status === "cancelled" && "border-border bg-muted/40 opacity-70",
                 m.status === "pending" && "border-primary/30 bg-primary-soft/30",

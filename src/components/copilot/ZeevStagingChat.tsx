@@ -363,7 +363,7 @@ export function ZeevStagingChat({ staging, initialPrompt }: Props) {
                 <ZeevIcon className="h-3 w-3" />
               </div>
               <div className={cn(
-                "flex-1 rounded-xl border p-3 space-y-2",
+                "flex-1 min-w-0 rounded-xl border p-3 space-y-2",
                 m.status === "confirmed" && "border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20",
                 m.status === "cancelled" && "border-border bg-muted/40 opacity-70",
                 (m.status === "pending" || m.status === "applying") && "border-primary/30 bg-primary-soft/30",
