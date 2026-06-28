@@ -1045,6 +1045,7 @@ function BasesStep({
   paymentTypes,
   rubrics,
   addRubric,
+  applyGlosaTrdScenario,
   updateRubric,
   removeRubric,
   tierTables,
@@ -1138,6 +1139,40 @@ function BasesStep({
             <Label>Ativo</Label>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-md border bg-muted/20 p-3 space-y-3">
+        <div className="flex items-start gap-2">
+          <Info className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Assistente de cenário</h3>
+              <p>
+                Para o caso informado, cadastre as bases separadas: Sul América, Bradesco e Particular
+                entram como bases sem glosa; os outros convênios entram juntos na base "demais convênios".
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="rounded border bg-background/60 p-2">
+                <span className="font-medium text-foreground">1. Sem glosa</span>
+                <p>Sul América + Bradesco + Particular ficam em bases próprias, sem desconto vinculado.</p>
+              </div>
+              <div className="rounded border bg-background/60 p-2">
+                <span className="font-medium text-foreground">2. Com glosa</span>
+                <p>A glosa aponta para a rubrica "demais convênios" usando Incide sobre: rubrica específica.</p>
+              </div>
+              <div className="rounded border bg-background/60 p-2">
+                <span className="font-medium text-foreground">3. TRD final</span>
+                <p>O TRD usa Subtotal anterior, ou seja, calcula após somar tudo e aplicar a glosa.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {applyGlosaTrdScenario && (
+          <Button type="button" size="sm" variant="outline" onClick={applyGlosaTrdScenario}>
+            <Wand2 className="h-3.5 w-3.5 mr-1" /> Montar cenário sem glosa + glosa + TRD
+          </Button>
+        )}
       </section>
 
       <section className="space-y-2">
