@@ -477,7 +477,7 @@ export default function CreditosDebitos() {
 
       {/* Dialog: novo/editar ajuste manual */}
       <Dialog open={adjDialogOpen} onOpenChange={setAdjDialogOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingAdj?.id ? "Editar ajuste" : "Novo crédito/débito"}</DialogTitle></DialogHeader>
           {editingAdj && (
             <div className="grid grid-cols-2 gap-3">
@@ -508,22 +508,95 @@ export default function CreditosDebitos() {
                 <Label>Descrição</Label>
                 <Input value={editingAdj.descricao || ""} onChange={e => setEditingAdj({ ...editingAdj, descricao: e.target.value })} />
               </div>
-              <div>
-                <Label>Valor total (R$)</Label>
-                <CurrencyInput value={editingAdj.valor_total} onChange={(v) => setEditingAdj({ ...editingAdj, valor_total: v ?? 0 })} />
+
+              {/* Modo: parcelado x fixo mensal */}
+              <div className="col-span-2 rounded-md border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={!!editingAdj.recorrente}
+                    onCheckedChange={v => setEditingAdj({ ...editingAdj, recorrente: v })}
+                  />
+                  <Label className="cursor-pointer">Fixo mensal (recorrente, sem fim definido)</Label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {editingAdj.recorrente
+                    ? "Aplica o valor abaixo como mensalidade fixa em todo lote elegível, até a data fim (se informada)."
+                    : "Lançamento finito: divide o valor total em N parcelas e encerra ao final."}
+                </p>
               </div>
-              <div>
-                <Label>Parcelas total</Label>
-                <Input type="number" min={1} value={editingAdj.parcelas_total ?? 1} onChange={e => setEditingAdj({ ...editingAdj, parcelas_total: parseInt(e.target.value) || 1 })} />
-              </div>
-              <div>
-                <Label>Parcelas pagas</Label>
-                <Input type="number" min={0} value={editingAdj.parcelas_pagas ?? 0} onChange={e => setEditingAdj({ ...editingAdj, parcelas_pagas: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
+
+              {editingAdj.recorrente ? (
+                <>
+                  <div>
+                    <Label>Valor mensal (R$)</Label>
+                    <CurrencyInput value={editingAdj.valor_total} onChange={(v) => setEditingAdj({ ...editingAdj, valor_total: v ?? 0 })} />
+                  </div>
+                  <div>
+                    <Label>Data fim (opcional)</Label>
+                    <DateInput value={editingAdj.data_fim || ""} onChange={(v) => setEditingAdj({ ...editingAdj, data_fim: v || null })} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <Label>Valor total (R$)</Label>
+                    <CurrencyInput value={editingAdj.valor_total} onChange={(v) => setEditingAdj({ ...editingAdj, valor_total: v ?? 0 })} />
+                  </div>
+                  <div>
+                    <Label>Parcelas total</Label>
+                    <Input type="number" min={1} value={editingAdj.parcelas_total ?? 1} onChange={e => setEditingAdj({ ...editingAdj, parcelas_total: parseInt(e.target.value) || 1 })} />
+                  </div>
+                  <div>
+                    <Label>Parcelas pagas</Label>
+                    <Input type="number" min={0} value={editingAdj.parcelas_pagas ?? 0} onChange={e => setEditingAdj({ ...editingAdj, parcelas_pagas: parseInt(e.target.value) || 0 })} />
+                  </div>
+                </>
+              )}
+
+              <div className={editingAdj.recorrente ? "" : "col-span-2"}>
                 <Label>Origem</Label>
                 <Input value={editingAdj.origem || ""} onChange={e => setEditingAdj({ ...editingAdj, origem: e.target.value })} placeholder="ex: manual, glosa 03/2025" />
               </div>
+
+              {/* Restrição por tipo de lote */}
+              <div className="col-span-2 rounded-md border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">Aplicar somente em lotes do tipo</Label>
+                  {(editingAdj.payment_type_ids?.length ?? 0) > 0 && (
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs"
+                      onClick={() => setEditingAdj({ ...editingAdj, payment_type_ids: null })}>
+                      Limpar (qualquer tipo)
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Vazio = aplica em qualquer lote da empresa. Marque para restringir somente aos tipos selecionados.
+                </p>
+                <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
+                  {paymentTypes.map(pt => {
+                    const cur = editingAdj.payment_type_ids ?? [];
+                    const checked = cur.includes(pt.id);
+                    return (
+                      <label key={pt.id} className="flex items-center gap-2 text-xs rounded px-2 py-1 hover:bg-muted/50 cursor-pointer">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => setEditingAdj({
+                            ...editingAdj,
+                            payment_type_ids: v
+                              ? Array.from(new Set([...cur, pt.id]))
+                              : cur.filter(id => id !== pt.id),
+                          })}
+                        />
+                        <span className="truncate">{pt.label}</span>
+                      </label>
+                    );
+                  })}
+                  {paymentTypes.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic col-span-2">Nenhum tipo de lote ativo cadastrado.</p>
+                  )}
+                </div>
+              </div>
+
               <div className="flex items-center gap-2 col-span-2">
                 <Switch checked={editingAdj.ativo ?? true} onCheckedChange={v => setEditingAdj({ ...editingAdj, ativo: v })} />
                 <Label>Ativo (aplica em próximos pagamentos)</Label>
@@ -533,6 +606,12 @@ export default function CreditosDebitos() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAdjDialogOpen(false)}>Cancelar</Button>
             <Button onClick={saveAdj}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
           </DialogFooter>
         </DialogContent>
       </Dialog>
