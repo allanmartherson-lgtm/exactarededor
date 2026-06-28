@@ -719,6 +719,9 @@ function RubricEditor({
   convenios,
   onChange,
   onRemove,
+  allowedKinds,
+  hideConvenio = false,
+  hideReuso = false,
 }: {
   index: number;
   rubric: PayoutRubric;
@@ -726,6 +729,9 @@ function RubricEditor({
   convenios: Array<{ slug: string; name: string }>;
   onChange: (patch: Partial<PayoutRubric>) => void;
   onRemove: () => void;
+  allowedKinds?: RubricKind[];
+  hideConvenio?: boolean;
+  hideReuso?: boolean;
 }) {
   const isPct = rubric.kind.endsWith("_pct");
   const isValor = rubric.kind === "desconto_valor" || rubric.kind === "acrescimo_valor" || rubric.kind === "base_fixa";
@@ -738,6 +744,8 @@ function RubricEditor({
       ? [rubric.convenio_slug]
       : [];
   const slugLabel = (slug: string) => convenios.find((c) => c.slug === slug)?.name ?? slug;
+
+  const kindOptions = (allowedKinds ?? (Object.keys(RUBRIC_KIND_LABEL) as RubricKind[]));
 
   return (
     <div className="border rounded-md p-3 space-y-3 bg-muted/30">
@@ -756,7 +764,6 @@ function RubricEditor({
         <Button variant="ghost" size="icon" onClick={onRemove} aria-label="Remover rubrica">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
-
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -767,7 +774,7 @@ function RubricEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(RUBRIC_KIND_LABEL) as RubricKind[]).map((k) => (
+              {kindOptions.map((k) => (
                 <SelectItem key={k} value={k}>
                   {RUBRIC_KIND_LABEL[k]}
                 </SelectItem>
@@ -776,6 +783,7 @@ function RubricEditor({
           </Select>
           <p className="text-[11px] text-muted-foreground leading-snug">{RUBRIC_KIND_HELP[rubric.kind]}</p>
         </div>
+
         <div className="space-y-1">
           <Label className="text-xs">Rótulo (aparece na memória de cálculo)</Label>
           <Input
