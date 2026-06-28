@@ -36,10 +36,12 @@ interface RuleFormStepperProps {
   saving?: boolean;
   summaryBanner?: React.ReactNode;
   syncErrorBanner?: React.ReactNode;
+  submitLabel?: { create: string; update: string };
 }
 
 export function RuleFormStepper({
   steps, onSubmit, onCancel, isEditing, saving, summaryBanner, syncErrorBanner,
+  submitLabel = { create: "Criar regra", update: "Atualizar regra" },
 }: RuleFormStepperProps) {
   const [activeStep, setActiveStep] = useState(0);
 
@@ -152,7 +154,7 @@ export function RuleFormStepper({
             type="button" onClick={onSubmit} disabled={saving}
             style={{ opacity: saving ? 0.7 : 1, paddingLeft: 20, paddingRight: 20, fontWeight: 600 }}
           >
-            {saving ? "Salvando…" : isEditing ? "Atualizar regra" : "Criar regra"}
+            {saving ? "Salvando…" : isEditing ? submitLabel.update : submitLabel.create}
           </Button>
         </div>
       </div>
