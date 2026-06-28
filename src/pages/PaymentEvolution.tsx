@@ -615,12 +615,14 @@ export default function PaymentEvolution() {
             hint={`${months.length} meses · ${ccCount} centros de custo`}
           />
           <KpiCard
-            label={`Último mês fechado (${monthLabel(lastMonth)})`}
+            label={`${isManualAnchor ? "Mês ancorador" : "Último mês fechado"} (${monthLabel(lastMonth)})`}
             value={loading ? <Skeleton className="h-8 w-28" /> : BRL(totalLast)}
             hint={
-              isCurrentMonthInRange
-                ? `${monthLabel(currentYM)} em andamento — excluído da comparação`
-                : prevMonth ? `vs ${monthLabel(prevMonth)}: ${BRL(totalPrev)}` : "—"
+              isManualAnchor
+                ? prevMonth ? `vs ${monthLabel(prevMonth)}: ${BRL(totalPrev)} · manual` : "manual"
+                : isCurrentMonthInRange
+                  ? `${monthLabel(currentYM)} em andamento — excluído da comparação`
+                  : prevMonth ? `vs ${monthLabel(prevMonth)}: ${BRL(totalPrev)}` : "—"
             }
           />
           <KpiCard
