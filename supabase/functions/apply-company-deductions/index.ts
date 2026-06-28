@@ -38,11 +38,26 @@ Deno.serve(async (req) => {
     };
 
     // ============ DÉBITOS (company_financial_adjustments) ============
-    const { data: adjustments } = await supabase
+    // Carrega payment_type_id deste lote para filtrar ajustes restritos a tipos específicos.
+    const { data: paymentTypeRow } = await supabase
+      .from("payments")
+      .select("payment_type_id")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const lotePaymentTypeId: string | null = (paymentTypeRow?.payment_type_id as string) ?? null;
+
+    const { data: adjustmentsRaw } = await supabase
       .from("company_financial_adjustments")
       .select("*")
       .eq("company_id", company_id)
       .eq("ativo", true);
+
+    // Filtro payment_type_ids: NULL/vazio = qualquer lote; senão exige match com o tipo do lote.
+    const adjustments = (adjustmentsRaw ?? []).filter((a: any) => {
+      const ids: string[] | null = a.payment_type_ids ?? null;
+      if (!ids || ids.length === 0) return true;
+      return lotePaymentTypeId ? ids.includes(lotePaymentTypeId) : false;
+    });
 
     const { data: existingCaa } = await supabase
       .from("company_adjustment_applications")
