@@ -25,6 +25,7 @@ type Action =
   | "register_doctor_pending"
   | "register_company"
   | "resolve_registry_match"
+  | "accept_keep_paid"
   | "navigate"
   | "answer";
 
@@ -91,8 +92,9 @@ const SYSTEM_PROMPT = [
   "6) register_doctor_pending — cria médico em modo 'pending_admin_review=true'. payload: { full_name, crm, crm_uf (2 letras), cpf?, vinculo? } — full_name+crm+crm_uf são obrigatórios; se faltar, use 'clarify'. Use quando o analista pede 'cadastrar médico novo X com CRM Y/UF'.",
   "7) register_company — cria PJ. payload: { name, document (CNPJ — 14 dígitos), state_uf? } — name+document obrigatórios. Use quando pedir 'cadastrar empresa X CNPJ Y'.",
   "8) resolve_registry_match — registra alias para texto novo que devia bater com cadastro existente. payload: { alias_type: 'convenio'|'sector'|'doctor', alias_text, canonical_id (uuid do doctor) OU canonical_slug (slug do convenio/setor) }. Use quando o analista diz 'sempre que vier \"X\" considera como Y'.",
-  "9) clarify — quando o pedido é ambíguo e você precisa perguntar de volta. summary = a pergunta.",
-  "10) unsupported — quando não dá pra atender com nenhuma ação acima. summary = explicação curta + sugestão alternativa.",
+  "9) accept_keep_paid — acata em lote itens REPROVADOS/ALERTA mantendo o valor pago (gross_amount) como esperado. payload: { justification? (texto, opcional — usa default se não vier) }. scope opcional: ai_status_in (default ['reprovado','alerta']), doctor_name_like, procedure_code, convenio_slug, description_like. Use quando o analista pede 'acatar os reprovados mantendo o valor pago' ou 'aceitar como está'.",
+  "10) clarify — quando o pedido é ambíguo e você precisa perguntar de volta. summary = a pergunta.",
+  "11) unsupported — quando não dá pra atender com nenhuma ação acima. summary = explicação curta + sugestão alternativa.",
   "",
   "REGRA DE OURO: se o analista usa verbo de VER/MOSTRAR/IR ('me mostra', 'leva pros zerados', 'abre os divergentes'), prefira 'navigate'. Se PERGUNTA ('quantos', 'qual', 'tem algum'), prefira 'answer'. Só use set_/link_/register_/resolve_ quando ele pedir explicitamente para APLICAR/CADASTRAR/VINCULAR. Para cadastro: extraia CRM no formato '12345/SP' como crm='12345', crm_uf='SP'. CNPJ pode vir com pontuação — preserve só dígitos.",
   "",
@@ -139,6 +141,7 @@ const RESPOND_SCHEMA = {
         "register_doctor_pending",
         "register_company",
         "resolve_registry_match",
+        "accept_keep_paid",
         "navigate",
         "answer",
         "unsupported",
@@ -157,6 +160,7 @@ const RESPOND_SCHEMA = {
         description_like: { type: "string" },
         gross_zero: { type: "boolean" },
         needs_human_review: { type: "boolean" },
+        ai_status_in: { type: "array", items: { type: "string" } },
       },
       additionalProperties: false,
     },
@@ -180,6 +184,7 @@ const RESPOND_SCHEMA = {
         alias_text: { type: "string" },
         canonical_id: { type: "string" },
         canonical_slug: { type: "string" },
+        justification: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -202,7 +207,7 @@ type SB = ReturnType<typeof createClient>;
 async function buildItemsQuery(sb: SB, paymentId: string, scope: Scope) {
   let q = sb
     .from("payment_items")
-    .select("id, doctor_id, doctor_name, procedure_code, description, attendance_number, sector, cost_center_code, convenio_slug, company_id")
+    .select("id, doctor_id, doctor_name, procedure_code, description, attendance_number, sector, cost_center_code, convenio_slug, company_id, ai_status, manual_intervention_reason_id, gross_amount")
     .eq("payment_id", paymentId)
     .limit(1000);
 
@@ -212,6 +217,7 @@ async function buildItemsQuery(sb: SB, paymentId: string, scope: Scope) {
   if (scope.procedure_code) q = q.eq("procedure_code", scope.procedure_code);
   if (scope.doctor_name_like) q = q.ilike("doctor_name", `%${scope.doctor_name_like}%`);
   if (scope.description_like) q = q.ilike("description", `%${scope.description_like}%`);
+  if (scope.ai_status_in && scope.ai_status_in.length > 0) q = q.in("ai_status", scope.ai_status_in);
 
   const { data, error } = await q;
   if (error) throw new Error(`query_items: ${error.message}`);
@@ -226,6 +232,9 @@ async function buildItemsQuery(sb: SB, paymentId: string, scope: Scope) {
     cost_center_code: string | null;
     convenio_slug: string | null;
     company_id: string | null;
+    ai_status: string | null;
+    manual_intervention_reason_id: string | null;
+    gross_amount: number | null;
   }>;
 }
 
@@ -363,6 +372,84 @@ async function execLinkDoctorCompany(sb: SB, paymentId: string, scope: Scope, pa
     created_link_ids: (inserted ?? []).map((r) => r.id),
   };
 }
+
+async function execAcceptKeepPaid(
+  sb: SB,
+  paymentId: string,
+  scope: Scope,
+  payload: Record<string, unknown>,
+  actorId: string,
+) {
+  const scopeWithStatus: Scope = {
+    ...scope,
+    ai_status_in: scope.ai_status_in && scope.ai_status_in.length > 0
+      ? scope.ai_status_in
+      : ["reprovado", "alerta"],
+  };
+  const items = await buildItemsQuery(sb, paymentId, scopeWithStatus);
+  // Filtra apenas itens ainda não tratados manualmente
+  const targets = items.filter((i) => !i.manual_intervention_reason_id);
+  if (targets.length === 0) {
+    return { affected: 0, before: [], after: { reason: "acatado_pago" } };
+  }
+
+  const justification = String(payload.justification ?? "").trim()
+    || "Acatado em lote via Zeev — mantendo o valor pago como esperado.";
+  const justifFinal = justification.length < 20
+    ? justification + " (acatamento em lote pelo assistente)"
+    : justification;
+
+  // Busca um reason genérico de "manter pago" se existir
+  const { data: reasons } = await sb
+    .from("manual_intervention_reasons")
+    .select("id, code")
+    .or("code.ilike.%manter_pago%,code.ilike.%acatado_pago%,code.ilike.%keep_paid%")
+    .limit(1);
+  const reasonId = (reasons?.[0]?.id as string | undefined) ?? null;
+
+  const ids = targets.map((t) => t.id);
+  const nowIso = new Date().toISOString();
+  const before = targets.map((t) => ({
+    id: t.id,
+    ai_status: t.ai_status,
+    gross_amount: t.gross_amount,
+  }));
+
+  const patch: Record<string, unknown> = {
+    ai_status: "acatado",
+    acatado_by: actorId,
+    acatado_at: nowIso,
+    gross_override_at: nowIso,
+    gross_override_by: actorId,
+    gross_override_reason: "acatado_pago",
+    manual_intervention_source: "zeev_bulk",
+    manual_intervention_by: actorId,
+    manual_intervention_at: nowIso,
+    manual_intervention_notes: justifFinal,
+  };
+  if (reasonId) patch.manual_intervention_reason_id = reasonId;
+
+  const { error } = await sb.from("payment_items").update(patch).in("id", ids);
+  if (error) throw new Error(`accept_keep_paid: ${error.message}`);
+
+  // Salva acatado_status_original em itens onde estava ai_status original (reprovado/alerta)
+  // (best-effort — não bloqueia se falhar)
+  for (const t of targets) {
+    await sb
+      .from("payment_items")
+      .update({ acatado_status_original: t.ai_status })
+      .eq("id", t.id)
+      .is("acatado_status_original", null);
+  }
+
+  return {
+    affected: targets.length,
+    before,
+    after: { reason: "acatado_pago", justification: justifFinal, reason_id: reasonId },
+  };
+}
+
+
 
 // -------------------- Cadastros (Fase 2) --------------------
 
@@ -625,11 +712,28 @@ async function loadLearnedPreferences(sb: SB, hospitalId: string | null) {
 // -------------------- Preview --------------------
 
 async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Action): Promise<{ count: number; samples: Proposal["sample_items"] }> {
-  const items = await buildItemsQuery(sb, paymentId, scope);
+  const effectiveScope: Scope = action === "accept_keep_paid"
+    ? { ...scope, ai_status_in: scope.ai_status_in && scope.ai_status_in.length > 0 ? scope.ai_status_in : ["reprovado", "alerta"] }
+    : scope;
+  const items = await buildItemsQuery(sb, paymentId, effectiveScope);
 
   if (action === "link_doctor_company") {
     const missing = await filterDoctorCompanyMissing(sb, items);
     const filtered = items.filter((i) => i.doctor_id && missing.has(i.doctor_id));
+    return {
+      count: filtered.length,
+      samples: filtered.slice(0, 3).map((i) => ({
+        id: i.id,
+        doctor_name: i.doctor_name,
+        procedure_code: i.procedure_code,
+        description: i.description,
+        attendance_number: i.attendance_number,
+      })),
+    };
+  }
+
+  if (action === "accept_keep_paid") {
+    const filtered = items.filter((i) => !i.manual_intervention_reason_id);
     return {
       count: filtered.length,
       samples: filtered.slice(0, 3).map((i) => ({
@@ -1052,6 +1156,8 @@ Deno.serve(async (req) => {
         result = await execSetCostCenter(sb, body.payment_id, p.scope, p.payload);
       } else if (p.action === "link_doctor_company") {
         result = await execLinkDoctorCompany(sb, body.payment_id, p.scope, p.payload);
+      } else if (p.action === "accept_keep_paid") {
+        result = await execAcceptKeepPaid(sb, body.payment_id, p.scope, p.payload, actorId);
       } else {
         return jsonResp({ error: `ação não suportada: ${p.action}` }, 400);
       }

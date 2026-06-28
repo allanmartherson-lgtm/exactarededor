@@ -14,7 +14,8 @@ type ExecAction =
   | "link_doctor_company"
   | "register_doctor_pending"
   | "register_company"
-  | "resolve_registry_match";
+  | "resolve_registry_match"
+  | "accept_keep_paid";
 type SoftAction = "navigate" | "answer";
 type Action = ExecAction | SoftAction;
 
@@ -49,6 +50,7 @@ const ACTION_LABEL: Record<ExecAction, string> = {
   register_doctor_pending: "Cadastrar médico (pendente aprovação)",
   register_company: "Cadastrar empresa (PJ)",
   resolve_registry_match: "Registrar alias de cadastro",
+  accept_keep_paid: "Acatar mantendo valor pago",
 };
 
 const REGISTRY_ACTIONS = new Set<ExecAction>(["register_doctor_pending", "register_company", "resolve_registry_match"]);
