@@ -3403,9 +3403,9 @@ const NewPayment = () => {
                 </p>
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Centro de custos (padrão do lote)</Label>
+                <Label>Centro de custos <span className="text-destructive">*</span></Label>
                 <CostCenterCombobox value={costCenterCode} onChange={setCostCenterCode} placeholder="Buscar por código P12 ou nome…" />
-                <p className="text-xs text-muted-foreground">Pode ser sobrescrito por item depois. Itens sem centro herdam este.</p>
+                <p className="text-xs text-muted-foreground">Obrigatório. Define o centro de custos contábil padrão do lote. Pode ser sobrescrito por item depois — itens sem CC herdam este.</p>
               </div>
               {!modoConfeccao && (
               <div className="space-y-4 sm:col-span-2">
@@ -4311,16 +4311,18 @@ const NewPayment = () => {
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || (requiresParecerReport && (!parecerPayload || pendingSpecialtyRows.length > 0))}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && (!parecerPayload || pendingSpecialtyRows.length > 0))}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             {pendingSuspiciousCount > 0
 
               ? `Revise ${pendingSuspiciousCount} linha${pendingSuspiciousCount === 1 ? "" : "s"} suspeita${pendingSuspiciousCount === 1 ? "" : "s"}`
               : hasUnresolved
                 ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar`
-                : requiresParecerReport && !parecerPayload
-                  ? "Anexe o relatório de pareceres"
-                  : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
+                : !costCenterCode
+                  ? "Selecione o centro de custos"
+                  : requiresParecerReport && !parecerPayload
+                    ? "Anexe o relatório de pareceres"
+                    : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
           </Button>
         </div>
 

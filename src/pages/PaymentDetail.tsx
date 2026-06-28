@@ -112,6 +112,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import * as XLSX from "xlsx-js-style";
 import { confirmDialog } from "@/lib/confirm";
 import { DateInput } from "@/components/ui/date-input";
+import { CostCenterCombobox } from "@/components/CostCenterCombobox";
 
 const ObservationTypeSelector = ({
   value,
@@ -272,7 +273,8 @@ const PaymentDetail = () => {
     analysis_mode: string;
     pool_id: string; // "" = nenhum
     rateio_source: string;
-  }>({ reference: "", description: "", payment_due_date: "", competence_month: "", analysis_mode: "padrao", pool_id: "", rateio_source: "" });
+    cost_center_code: string;
+  }>({ reference: "", description: "", payment_due_date: "", competence_month: "", analysis_mode: "padrao", pool_id: "", rateio_source: "", cost_center_code: "" });
   const [savingMeta, setSavingMeta] = useState(false);
   const [poolsForEdit, setPoolsForEdit] = useState<Array<{ id: string; nome: string }>>([]);
   const [externalRegistrationOpen, setExternalRegistrationOpen] = useState<"validation" | "approval" | null>(null);
@@ -1404,6 +1406,7 @@ const PaymentDetail = () => {
       analysis_mode: (payment as any).analysis_mode ?? "padrao",
       pool_id: (payment as any).pool_id ?? "",
       rateio_source: (payment as any).rateio_source ?? "",
+      cost_center_code: (payment as any).cost_center_code ?? "",
     });
     setEditMetaOpen(true);
     // carrega pools do hospital do lote
@@ -1421,6 +1424,10 @@ const PaymentDetail = () => {
   };
   const saveMeta = async () => {
     if (!id || !payment) return;
+    if (!metaDraft.cost_center_code) {
+      toast({ title: "Centro de custos obrigatório", description: "Selecione um centro de custos antes de salvar.", variant: "destructive" });
+      return;
+    }
     setSavingMeta(true);
     const newPoolId = metaDraft.pool_id || null;
     const updates: PaymentUpdate = {
@@ -1431,7 +1438,8 @@ const PaymentDetail = () => {
       analysis_mode: (metaDraft.analysis_mode || "padrao") as PaymentUpdate["analysis_mode"],
       pool_id: newPoolId,
       rateio_source: newPoolId ? (metaDraft.rateio_source || "planilha") : null,
-    };
+      cost_center_code: metaDraft.cost_center_code,
+    } as PaymentUpdate;
     const { error } = await supabase.from("payments").update(updates).eq("id", id);
     if (error) {
       setSavingMeta(false);
@@ -3372,6 +3380,17 @@ const PaymentDetail = () => {
                     </p>
                   </div>
                 )}
+                <div>
+                  <label className="text-xs text-muted-foreground">Centro de custos *</label>
+                  <CostCenterCombobox
+                    value={metaDraft.cost_center_code || null}
+                    onChange={(v) => setMetaDraft((m) => ({ ...m, cost_center_code: v ?? "" }))}
+                    placeholder="Buscar por código P12 ou nome…"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Obrigatório. Define o centro de custos contábil do lote (usado no DRE e no rateio por CC).
+                  </p>
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setEditMetaOpen(false)} disabled={savingMeta}>Cancelar</Button>
