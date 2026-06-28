@@ -48,7 +48,7 @@ export function SpecialtyResolutionModal({
   suggestionsByDoctor?: Record<string, string[]>;
   onConfirm: (overrides: SpecialtyOverrides) => void;
 }) {
-
+  const { specialties: COMMON_SPECIALTIES } = useSpecialties();
   const [overrides, setOverrides] = useState<SpecialtyOverrides>({});
   const [filter, setFilter] = useState("");
   const [bulkSpecialty, setBulkSpecialty] = useState<string>("");
