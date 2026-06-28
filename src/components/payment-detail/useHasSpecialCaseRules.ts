@@ -49,13 +49,38 @@ export function useHasSpecialCaseRules(
         return;
       }
 
-      // Modo legado: filtra só por hospital.
+      // Modo escopado por pagamento (sem PJ específica): coleta TODAS as PJs e
+      // médicos com itens nesse pagamento e exige que pelo menos uma regra
+      // com special_case_filter aponte para algum desses targets. Regras
+      // globais (sem target) NÃO contam — analistas reportaram banner
+      // aparecendo em lotes cuja empresa não tem nenhuma regra de caso
+      // especial cadastrada.
       if (!companyId) {
+        const { data: items } = await supabase
+          .from("payment_items")
+          .select("company_id, doctor_id")
+          .eq("payment_id", paymentId);
+        const companyIds = Array.from(new Set(
+          ((items ?? []) as Array<{ company_id: string | null }>)
+            .map((r) => r.company_id)
+            .filter((c): c is string => !!c),
+        ));
+        const doctorIds = Array.from(new Set(
+          ((items ?? []) as Array<{ doctor_id: string | null }>)
+            .map((r) => r.doctor_id)
+            .filter((d): d is string => !!d),
+        ));
+        const orParts: string[] = [];
+        if (companyIds.length > 0) orParts.push(`target_company_id.in.(${companyIds.join(",")})`);
+        if (doctorIds.length > 0) orParts.push(`target_doctor_id.in.(${doctorIds.join(",")})`);
+        if (orParts.length === 0) { if (!cancelled) setHasRules(false); return; }
+
         let q = supabase
           .from("rules")
           .select("id", { count: "exact", head: true })
           .eq("active", true)
-          .in("id", ruleIdsWithSpecialCalc);
+          .in("id", ruleIdsWithSpecialCalc)
+          .or(orParts.join(","));
         if (hospitalId) q = q.eq("hospital_id", hospitalId);
         const { count } = await q;
         if (!cancelled) setHasRules((count ?? 0) > 0);
