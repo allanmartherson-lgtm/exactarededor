@@ -41,7 +41,8 @@ export const ExactaLogo = ({
 
   const textColor = onDark ? "#FFFFFF" : "hsl(var(--foreground))";
   const taglineColor = onDark ? "rgba(255,255,255,0.45)" : "hsl(var(--muted-foreground))";
-  const accentColor = "hsl(var(--accent))"; // bronze nos dois temas
+  // Bronze claro contrasta no escuro; bronze escuro garante leitura no claro
+  const accentColor = onDark ? "#C6A27C" : "#8A6830";
 
   const content = (
     <>
