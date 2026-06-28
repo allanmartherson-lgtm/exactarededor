@@ -1244,6 +1244,12 @@ Deno.serve(async (req) => {
       if (llm.action === "link_doctor_company" && !payload.company_id) {
         return jsonResp({ step: "respond", action: "clarify", summary: "Em qual empresa (ID) devo vincular os médicos?" });
       }
+      if (llm.action === "set_convenio" && !payload.convenio_slug && !payload.convenio_name) {
+        return jsonResp({ step: "respond", action: "clarify", summary: "Qual convênio devo aplicar? (slug ou nome)" });
+      }
+      if (llm.action === "apply_manual_reason" && !payload.reason_code && !payload.reason_id) {
+        return jsonResp({ step: "respond", action: "clarify", summary: "Qual motivo de intervenção manual devo aplicar? (código)" });
+      }
       if (llm.action === "register_doctor_pending") {
         const missing: string[] = [];
         if (!payload.full_name) missing.push("nome completo");
