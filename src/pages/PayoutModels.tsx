@@ -241,8 +241,6 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
     ]);
     setEditingRubrics((rubrics ?? []) as any);
     setEditingCompany((companyRes?.data as any) ?? null);
-    setStep("bases");
-    setStepError(null);
     setDialogOpen(true);
   };
 
