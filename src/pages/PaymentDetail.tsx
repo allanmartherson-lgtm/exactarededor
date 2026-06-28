@@ -1898,6 +1898,21 @@ const PaymentDetail = () => {
 
       const dispatched = (data as any)?.total_companies ?? 0;
       const alreadyRunning = (data as any)?.already_running === true;
+      const deferredTo = (data as any)?.deferred_to as string | undefined;
+
+      // Lote de parecer: dispatch foi deferido para cross-reference-parecer,
+      // que vai reclassificar Parecer/Visita e re-chamar dispatch com
+      // skip_parecer_cross_ref=true. Não é erro — é o caminho esperado.
+      if (deferredTo === "cross-reference-parecer") {
+        toast({
+          title: "Reanálise enfileirada",
+          description:
+            (data as any)?.message ||
+            "Reclassificando Parecer/Visita antes de aplicar as regras. Acompanhe pelo status do lote.",
+        });
+        await load();
+        return;
+      }
 
       // Nada foi disparado: todas as empresas foram bloqueadas pelo gate de governança
       // (status fora de revisao_analista/devolvido_analista — tipicamente já pago/validado).
@@ -1914,6 +1929,7 @@ const PaymentDetail = () => {
         });
         return;
       }
+
 
       if (alreadyRunning) {
         toast({
