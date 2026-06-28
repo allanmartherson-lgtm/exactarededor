@@ -650,6 +650,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
               steps={stepperSteps}
               onCancel={() => setDialogOpen(false)}
               onSubmit={handleSave}
+              submitLabel={{ create: "Criar modelo", update: "Atualizar modelo" }}
             />
           );
         })()}
