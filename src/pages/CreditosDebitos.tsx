@@ -69,6 +69,7 @@ const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
 
 export default function CreditosDebitos() {
+  const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
   const [companies, setCompanies] = useState<Company[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [glosaDebts, setGlosaDebts] = useState<GlosaDebt[]>([]);
