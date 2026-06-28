@@ -21,11 +21,15 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 type Action =
   | "set_sector"
   | "set_cost_center"
+  | "set_convenio"
   | "link_doctor_company"
   | "register_doctor_pending"
   | "register_company"
   | "resolve_registry_match"
   | "accept_keep_paid"
+  | "accept_keep_expected"
+  | "undo_accept"
+  | "apply_manual_reason"
   | "navigate"
   | "answer";
 
@@ -100,8 +104,12 @@ const SYSTEM_PROMPT = [
   "    - 'acata os reprovados' / 'acata os divergentes mantendo pago' / 'aprova mantendo pago'",
   "    - 'quero acatar os demais itens reprovados [como acatar] mantendo o valor pago' → SIM, é esta ação. Não peça setor nem nada.",
   "    Heurística: se o verbo for ACATAR/ACEITAR/APROVAR + qualificador MANTER/MANTENDO/SEM MUDAR/SEM ALTERAR/COMO ESTÁ/COMO VEIO/PAGO → use accept_keep_paid com scope.ai_status_in=['reprovado','alerta'] (ou só ['reprovado'] se o analista disser 'reprovados'). summary deve confirmar o que vai ser feito e quantos itens (use aggregates.reprovados/divergentes).",
-  "10) clarify — quando o pedido é ambíguo e você precisa perguntar de volta. summary = a pergunta.",
-  "11) unsupported — quando não dá pra atender com nenhuma ação acima. summary = explicação curta + sugestão alternativa.",
+  "10) accept_keep_expected — acata em lote adotando o VALOR ESPERADO da regra. payload: { justification? }. scope opcional igual ao accept_keep_paid. GATILHOS: 'acatar com valor esperado', 'acatar com valor da regra', 'acatar pelo esperado', 'acata usando o esperado', 'aprova adotando o valor calculado'.",
+  "11) undo_accept — desfaz acatamentos em lote (volta status original e restaura gross original quando override foi acatado_pago/acatado_esperado). scope opcional: doctor_name_like, procedure_code, convenio_slug, description_like. GATILHOS: 'desfaz os acatados', 'reverte acatamento', 'volta os acatados', 'desacatar em lote'.",
+  "12) set_convenio — vincula convênio em lote por filtro. payload: { convenio_slug } ou { convenio_name }. scope normalmente especifica doctor_name_like / procedure_code / description_like / convenio_slug (origem). GATILHOS: 'troca o convênio X por Y nos itens de M', 'aplica convênio Bradesco nos itens do Dr. Silva'.",
+  "13) apply_manual_reason — marca um motivo de intervenção manual cadastrado em itens filtrados (sem alterar gross). payload: { reason_code } ou { reason_id }, notes? (opcional). scope: filtros normais. GATILHOS: 'aplica o motivo \"X\" nos itens Y', 'marca como tratamento manual com motivo X'.",
+  "14) clarify — quando o pedido é ambíguo e você precisa perguntar de volta. summary = a pergunta.",
+  "15) unsupported — quando não dá pra atender com nenhuma ação acima. summary = explicação curta + sugestão alternativa.",
   "",
   "REGRA DE OURO: se o analista usa verbo de VER/MOSTRAR/IR ('me mostra', 'leva pros zerados', 'abre os divergentes'), prefira 'navigate'. Se PERGUNTA ('quantos', 'qual', 'tem algum'), prefira 'answer'. Só use set_/link_/register_/resolve_ quando ele pedir explicitamente para APLICAR/CADASTRAR/VINCULAR. Para cadastro: extraia CRM no formato '12345/SP' como crm='12345', crm_uf='SP'. CNPJ pode vir com pontuação — preserve só dígitos.",
   "",
@@ -144,11 +152,15 @@ const RESPOND_SCHEMA = {
       enum: [
         "set_sector",
         "set_cost_center",
+        "set_convenio",
         "link_doctor_company",
         "register_doctor_pending",
         "register_company",
         "resolve_registry_match",
         "accept_keep_paid",
+        "accept_keep_expected",
+        "undo_accept",
+        "apply_manual_reason",
         "navigate",
         "answer",
         "unsupported",
@@ -192,6 +204,11 @@ const RESPOND_SCHEMA = {
         canonical_id: { type: "string" },
         canonical_slug: { type: "string" },
         justification: { type: "string" },
+        convenio_slug: { type: "string" },
+        convenio_name: { type: "string" },
+        reason_code: { type: "string" },
+        reason_id: { type: "string" },
+        notes: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -456,6 +473,201 @@ async function execAcceptKeepPaid(
   };
 }
 
+async function execAcceptKeepExpected(
+  sb: SB,
+  paymentId: string,
+  scope: Scope,
+  payload: Record<string, unknown>,
+  actorId: string,
+) {
+  const scopeWithStatus: Scope = {
+    ...scope,
+    ai_status_in: scope.ai_status_in && scope.ai_status_in.length > 0
+      ? scope.ai_status_in
+      : ["reprovado", "alerta"],
+  };
+  const items = await buildItemsQuery(sb, paymentId, scopeWithStatus);
+  // Carrega expected_amount + estado de override (não vinha no select padrão)
+  const ids = items.filter((i) => !i.manual_intervention_reason_id).map((i) => i.id);
+  if (ids.length === 0) return { affected: 0, before: [], after: { reason: "acatado_esperado" } };
+
+  const { data: extra } = await sb
+    .from("payment_items")
+    .select("id, ai_status, gross_amount, gross_amount_original, expected_amount, gross_override_at")
+    .in("id", ids);
+  const targets = (extra ?? []).filter((r: any) =>
+    r.expected_amount != null && Number.isFinite(Number(r.expected_amount)),
+  );
+  if (targets.length === 0) return { affected: 0, before: [], after: { reason: "acatado_esperado", note: "nenhum item com esperado válido" } };
+
+  const nowIso = new Date().toISOString();
+  const justification = String(payload.justification ?? "Acatado em lote via Zeev — adotando valor esperado.").trim();
+
+  // Atualiza em lotes individuais para preservar gross_amount_original só na 1ª sobrescrita
+  const before: any[] = [];
+  let affected = 0;
+  for (const t of targets as any[]) {
+    const wasOverridden = !!t.gross_override_at;
+    const patch: Record<string, unknown> = {
+      acatado_status_original: t.ai_status,
+      ai_status: "acatado",
+      acatado_by: actorId,
+      acatado_at: nowIso,
+      gross_amount: Number(t.expected_amount),
+      gross_override_at: nowIso,
+      gross_override_by: actorId,
+      gross_override_reason: "acatado_esperado",
+    };
+    if (!wasOverridden) patch.gross_amount_original = t.gross_amount;
+    const { error } = await sb.from("payment_items").update(patch).eq("id", t.id);
+    if (!error) {
+      before.push({ id: t.id, ai_status: t.ai_status, gross_amount: t.gross_amount });
+      affected++;
+    }
+  }
+  return { affected, before, after: { reason: "acatado_esperado", justification } };
+}
+
+async function execUndoAccept(
+  sb: SB,
+  paymentId: string,
+  scope: Scope,
+  _payload: Record<string, unknown>,
+  actorId: string,
+) {
+  const scopeWithStatus: Scope = { ...scope, ai_status_in: ["acatado"] };
+  const items = await buildItemsQuery(sb, paymentId, scopeWithStatus);
+  if (items.length === 0) return { affected: 0, before: [], after: { event: "acate_desfeito" } };
+
+  const ids = items.map((i) => i.id);
+  const { data: rows } = await sb
+    .from("payment_items")
+    .select("id, ai_status, acatado_status_original, gross_amount, gross_amount_original, gross_override_reason")
+    .in("id", ids);
+
+  const before: any[] = [];
+  let affected = 0;
+  for (const r of (rows ?? []) as any[]) {
+    const restoreStatus = r.acatado_status_original || "reprovado";
+    const isExpectedOverride = r.gross_override_reason === "acatado_esperado" || r.gross_override_reason === "acatado_pago";
+    const patch: Record<string, unknown> = {
+      ai_status: restoreStatus,
+      acatado_by: null,
+      acatado_at: null,
+      acatado_status_original: null,
+    };
+    if (isExpectedOverride) {
+      if (r.gross_amount_original != null) patch.gross_amount = r.gross_amount_original;
+      patch.gross_amount_original = null;
+      patch.gross_override_at = null;
+      patch.gross_override_by = null;
+      patch.gross_override_reason = null;
+    }
+    const { error } = await sb.from("payment_items").update(patch).eq("id", r.id);
+    if (!error) {
+      before.push({ id: r.id, ai_status: "acatado", gross_amount: r.gross_amount });
+      affected++;
+    }
+  }
+  // log apenas resumido — auditoria por item ficaria muito verbosa
+  await sb.from("audit_log").insert({
+    entity_type: "payment",
+    entity_id: paymentId,
+    action: "zeev.undo_accept_bulk",
+    actor_id: actorId,
+    diff: { event: "acate_desfeito_lote", affected, item_ids: ids.slice(0, 50) },
+  });
+  return { affected, before, after: { event: "acate_desfeito" } };
+}
+
+async function execSetConvenio(
+  sb: SB,
+  paymentId: string,
+  scope: Scope,
+  payload: Record<string, unknown>,
+) {
+  const input = String(payload.convenio_slug ?? payload.convenio_name ?? payload.convenio ?? "").trim();
+  if (!input) throw new Error("convenio_slug ou convenio_name obrigatório.");
+
+  // resolve por slug exato, depois ilike em slug/name
+  let resolved: { slug: string; name: string } | null = null;
+  const bySlug = await sb.from("convenios").select("slug, name").eq("slug", input.toLowerCase()).maybeSingle();
+  if (bySlug.data) resolved = bySlug.data as any;
+  if (!resolved) {
+    const ilike = await sb
+      .from("convenios")
+      .select("slug, name")
+      .or(`slug.ilike.${input.toLowerCase()},name.ilike.%${input}%`)
+      .limit(1);
+    resolved = ((ilike.data ?? [])[0] as any) ?? null;
+  }
+  if (!resolved) throw new Error(`Convênio "${input}" não encontrado no cadastro.`);
+
+  const items = await buildItemsQuery(sb, paymentId, scope);
+  if (items.length === 0) return { affected: 0, before: [], after: { convenio_slug: resolved.slug } };
+
+  const before = items.map((i) => ({ id: i.id, convenio_slug: i.convenio_slug }));
+  const { error } = await sb
+    .from("payment_items")
+    .update({ convenio_slug: resolved.slug, convenio_matched_by: "zeev_bulk" })
+    .in("id", items.map((i) => i.id));
+  if (error) throw new Error(`update_convenio: ${error.message}`);
+  return { affected: items.length, before, after: { convenio_slug: resolved.slug, convenio_name: resolved.name } };
+}
+
+async function execApplyManualReason(
+  sb: SB,
+  paymentId: string,
+  scope: Scope,
+  payload: Record<string, unknown>,
+  actorId: string,
+  hospitalId: string | null,
+) {
+  const code = String(payload.reason_code ?? payload.code ?? "").trim();
+  const reasonIdInput = String(payload.reason_id ?? "").trim();
+  if (!code && !reasonIdInput) throw new Error("reason_code ou reason_id obrigatório.");
+
+  let reason: { id: string; code: string; label?: string | null } | null = null;
+  if (reasonIdInput) {
+    const r = await sb.from("manual_intervention_reasons").select("id, code, label").eq("id", reasonIdInput).maybeSingle();
+    reason = (r.data as any) ?? null;
+  } else {
+    // tenta match exato global ou do hospital
+    let q = sb.from("manual_intervention_reasons").select("id, code, label, hospital_id").or(`code.eq.${code},code.ilike.${code}`);
+    if (hospitalId) q = q.or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`);
+    const { data } = await q.limit(5);
+    const list = (data ?? []) as any[];
+    // prioriza hospital_id != null se ambíguo
+    reason = list.find((r) => r.hospital_id) ?? list[0] ?? null;
+  }
+  if (!reason) throw new Error(`Motivo "${code || reasonIdInput}" não encontrado em manual_intervention_reasons.`);
+
+  // por segurança, não aplica em itens já tratados nem já acatados
+  const items = await buildItemsQuery(sb, paymentId, scope);
+  const targets = items.filter((i) => !i.manual_intervention_reason_id && i.ai_status !== "acatado");
+  if (targets.length === 0) return { affected: 0, before: [], after: { reason_code: reason.code } };
+
+  const notes = String(payload.notes ?? `Aplicado em lote via Zeev — motivo "${reason.code}".`).trim();
+  const nowIso = new Date().toISOString();
+  const before = targets.map((t) => ({ id: t.id, ai_status: t.ai_status }));
+  const { error } = await sb
+    .from("payment_items")
+    .update({
+      manual_intervention_reason_id: reason.id,
+      manual_intervention_notes: notes,
+      manual_intervention_by: actorId,
+      manual_intervention_at: nowIso,
+      manual_intervention_source: "zeev_bulk",
+    })
+    .in("id", targets.map((t) => t.id));
+  if (error) throw new Error(`apply_manual_reason: ${error.message}`);
+  return { affected: targets.length, before, after: { reason_id: reason.id, reason_code: reason.code, notes } };
+}
+
+
+
+
+
 
 
 // -------------------- Cadastros (Fase 2) --------------------
@@ -719,9 +931,15 @@ async function loadLearnedPreferences(sb: SB, hospitalId: string | null) {
 // -------------------- Preview --------------------
 
 async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Action): Promise<{ count: number; samples: Proposal["sample_items"] }> {
-  const effectiveScope: Scope = action === "accept_keep_paid"
-    ? { ...scope, ai_status_in: scope.ai_status_in && scope.ai_status_in.length > 0 ? scope.ai_status_in : ["reprovado", "alerta"] }
-    : scope;
+  let effectiveScope: Scope = scope;
+  if (action === "accept_keep_paid" || action === "accept_keep_expected") {
+    effectiveScope = {
+      ...scope,
+      ai_status_in: scope.ai_status_in && scope.ai_status_in.length > 0 ? scope.ai_status_in : ["reprovado", "alerta"],
+    };
+  } else if (action === "undo_accept") {
+    effectiveScope = { ...scope, ai_status_in: ["acatado"] };
+  }
   const items = await buildItemsQuery(sb, paymentId, effectiveScope);
 
   if (action === "link_doctor_company") {
@@ -739,7 +957,7 @@ async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Act
     };
   }
 
-  if (action === "accept_keep_paid") {
+  if (action === "accept_keep_paid" || action === "accept_keep_expected" || action === "apply_manual_reason") {
     const filtered = items.filter((i) => !i.manual_intervention_reason_id);
     return {
       count: filtered.length,
@@ -1032,6 +1250,12 @@ Deno.serve(async (req) => {
       if (llm.action === "link_doctor_company" && !payload.company_id) {
         return jsonResp({ step: "respond", action: "clarify", summary: "Em qual empresa (ID) devo vincular os médicos?" });
       }
+      if (llm.action === "set_convenio" && !payload.convenio_slug && !payload.convenio_name) {
+        return jsonResp({ step: "respond", action: "clarify", summary: "Qual convênio devo aplicar? (slug ou nome)" });
+      }
+      if (llm.action === "apply_manual_reason" && !payload.reason_code && !payload.reason_id) {
+        return jsonResp({ step: "respond", action: "clarify", summary: "Qual motivo de intervenção manual devo aplicar? (código)" });
+      }
       if (llm.action === "register_doctor_pending") {
         const missing: string[] = [];
         if (!payload.full_name) missing.push("nome completo");
@@ -1165,6 +1389,14 @@ Deno.serve(async (req) => {
         result = await execLinkDoctorCompany(sb, body.payment_id, p.scope, p.payload);
       } else if (p.action === "accept_keep_paid") {
         result = await execAcceptKeepPaid(sb, body.payment_id, p.scope, p.payload, actorId);
+      } else if (p.action === "accept_keep_expected") {
+        result = await execAcceptKeepExpected(sb, body.payment_id, p.scope, p.payload, actorId);
+      } else if (p.action === "undo_accept") {
+        result = await execUndoAccept(sb, body.payment_id, p.scope, p.payload, actorId);
+      } else if (p.action === "set_convenio") {
+        result = await execSetConvenio(sb, body.payment_id, p.scope, p.payload);
+      } else if (p.action === "apply_manual_reason") {
+        result = await execApplyManualReason(sb, body.payment_id, p.scope, p.payload, actorId, pay.hospital_id);
       } else {
         return jsonResp({ error: `ação não suportada: ${p.action}` }, 400);
       }
