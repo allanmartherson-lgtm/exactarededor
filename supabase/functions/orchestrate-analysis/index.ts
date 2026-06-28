@@ -380,10 +380,23 @@ Deno.serve(async (req) => {
               .in("company_id", ids);
           }
           const computeUrl = `${SUPABASE_URL}/functions/v1/compute-company-financials`;
+          const deductionsUrl = `${SUPABASE_URL}/functions/v1/apply-company-deductions`;
           // Sequencial em chunks pequenos para não saturar o pool — best-effort.
           const CONCURRENCY = 4;
           for (let i = 0; i < ids.length; i += CONCURRENCY) {
             const batch = ids.slice(i, i + CONCURRENCY);
+            // [Fix débitos manuais não enxergados] Aplica deduções da PJ
+            // (company_financial_adjustments + glosa_debts) ANTES do snapshot
+            // financeiro. Sem isso, débitos/créditos cadastrados em
+            // /financeiro/creditos-debitos só eram materializados quando o
+            // usuário abria a página de cada PJ — lotes em modo isolado/pool
+            // ficavam sem deduções até que alguém clicasse na empresa.
+            await Promise.all(batch.map((cid) => fetch(deductionsUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_KEY}` },
+              body: JSON.stringify({ payment_id, company_id: cid }),
+            }).then(async (r) => { await r.text(); if (!r.ok) console.error("[orchestrate] apply-deductions falhou", cid, r.status); })
+              .catch((e) => console.error("[orchestrate] apply-deductions exception", cid, e))));
             await Promise.all(batch.map((cid) => fetch(computeUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_KEY}` },
@@ -391,6 +404,7 @@ Deno.serve(async (req) => {
             }).then(async (r) => { await r.text(); if (!r.ok) console.error("[orchestrate] compute snapshot falhou", cid, r.status); })
               .catch((e) => console.error("[orchestrate] compute snapshot exception", cid, e))));
           }
+
         })(), "falha ao recomputar snapshots financeiros");
 
         // Aprendizado: aplica hints de padrões aprendidos (validações aceitas)
