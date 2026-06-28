@@ -1392,32 +1392,73 @@ const PaymentDetail = () => {
     load();
   };
 
-  const openEditMeta = () => {
+  const openEditMeta = async () => {
     if (!payment) return;
     setMetaDraft({
       reference: payment.reference ?? "",
       description: payment.description ?? "",
       payment_due_date: payment.payment_due_date ?? "",
+      competence_month: payment.competence_month ?? "",
+      analysis_mode: (payment as any).analysis_mode ?? "padrao",
+      pool_id: (payment as any).pool_id ?? "",
+      rateio_source: (payment as any).rateio_source ?? "",
     });
     setEditMetaOpen(true);
+    // carrega pools do hospital do lote
+    try {
+      const { data } = await supabase
+        .from("pools")
+        .select("id, nome, ativo, hospital_id")
+        .eq("hospital_id", (payment as any).hospital_id)
+        .eq("ativo", true)
+        .order("nome");
+      setPoolsForEdit(((data || []) as Array<{ id: string; nome: string }>).map((p) => ({ id: p.id, nome: p.nome })));
+    } catch {
+      setPoolsForEdit([]);
+    }
   };
   const saveMeta = async () => {
     if (!id || !payment) return;
     setSavingMeta(true);
+    const newPoolId = metaDraft.pool_id || null;
     const updates: PaymentUpdate = {
       reference: metaDraft.reference.trim() || payment.reference,
       description: metaDraft.description.trim() || null,
       payment_due_date: metaDraft.payment_due_date || null,
+      competence_month: metaDraft.competence_month || (payment as any).competence_month,
+      analysis_mode: (metaDraft.analysis_mode || "padrao") as PaymentUpdate["analysis_mode"],
+      pool_id: newPoolId,
+      rateio_source: newPoolId ? (metaDraft.rateio_source || "planilha") : null,
     };
     const { error } = await supabase.from("payments").update(updates).eq("id", id);
-    setSavingMeta(false);
     if (error) {
+      setSavingMeta(false);
       toast({ title: "Falha ao salvar", description: error.message, variant: "destructive" });
       return;
     }
+    // Se mudou algo estrutural (pool/modo/competência), invalida fontes do motor
+    // para que recalc-payment-pools + finalize-payment-engine releiam tudo.
+    const structuralChanged =
+      newPoolId !== ((payment as any).pool_id ?? null) ||
+      (metaDraft.analysis_mode || "padrao") !== ((payment as any).analysis_mode ?? "padrao") ||
+      (metaDraft.competence_month || "") !== ((payment as any).competence_month ?? "");
+    if (structuralChanged) {
+      try {
+        await supabase
+          .from("payment_engine_sources")
+          .update({ read_at: null, applied_count: 0, total_value: 0 })
+          .eq("payment_id", id);
+        await supabase.functions.invoke("finalize-payment-engine", { body: { payment_id: id, reason: "edit_meta_structural" } });
+      } catch (e) {
+        console.warn("[edit-meta] falha ao re-disparar motor:", e);
+      }
+    }
+    setSavingMeta(false);
     await recordObservation({
       payment_id: id, author_type: "analista", author_id: user!.id,
-      message: `Lote editado pelo analista (referência/descrição/vencimento).`,
+      message: structuralChanged
+        ? `Lote editado pelo analista (metadados + vínculo de pool/modo). Motor re-disparado.`
+        : `Lote editado pelo analista (referência/descrição/vencimento).`,
       status_from: payment.status, status_to: payment.status,
     });
     toast({ title: "Lote atualizado" });
