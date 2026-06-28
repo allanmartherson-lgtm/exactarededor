@@ -2476,6 +2476,8 @@ const NewPayment = () => {
         specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
         payment_type_id: paymentTypeId,
+        has_mixed_parecer: mixedParecer.enabled,
+        mixed_parecer_payment_type_id: mixedParecer.enabled ? mixedParecer.payment_type_id : null,
         import_mode: isHistoricoImport ? "historico" : "normal",
         payment_mode: paymentMode,
         competence_regime: competenceRegime,
