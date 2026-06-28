@@ -24,6 +24,7 @@ import {
   ChevronsUpDown,
   CheckCircle2,
   CheckSquare,
+  HandCoins,
   FileText,
   FilterX,
   HelpCircle,
