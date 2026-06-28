@@ -3633,6 +3633,7 @@ function RowMain({
   onEditItem,
   onDeleteItem,
   onAcceptItem,
+  onAcceptItemKeepPaid,
   onUndoAcceptItem,
   showGrossColumn = true,
   showProcedureColumn = false,
