@@ -24,9 +24,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Search, Stethoscope, AlertTriangle } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Pencil, Search, Stethoscope, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown, X } from "lucide-react";
 import { toast } from "sonner";
 import { useSpecialties, invalidateSpecialtiesCache, type SpecialtyRow } from "@/hooks/useSpecialties";
+
+type SortKey = "name" | "code" | "count" | "status";
+type SortDir = "asc" | "desc";
+type StatusFilter = "all" | "active" | "inactive";
+type UsageFilter = "all" | "in_use" | "unused";
 
 const slugify = (s: string) =>
   s
