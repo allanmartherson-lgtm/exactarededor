@@ -41,7 +41,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, Pencil, Trash2, Loader2, FileText, Layers, Check, ChevronsUpDown, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, FileText, Layers, Check, ChevronsUpDown, X, Wand2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { normalizeConvenioSlugs, toggleConvenioSlug } from "@/lib/convenioMatching";
 import { PageHeader } from "@/components/PageHeader";
@@ -152,6 +152,23 @@ const AJUSTE_KINDS: RubricKind[] = [
 ];
 const isBaseKind = (k: RubricKind) => BASE_KINDS.includes(k);
 const isPctKind = (k: RubricKind) => k.endsWith("_pct");
+
+const normalizeLookup = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const findConvenioSlug = (
+  convenios: Array<{ slug: string; name: string }>,
+  aliases: string[],
+) => {
+  const normalizedAliases = aliases.map(normalizeLookup);
+  return convenios.find((c) => {
+    const haystack = normalizeLookup(`${c.name} ${c.slug}`);
+    return normalizedAliases.some((alias) => haystack.includes(alias));
+  })?.slug;
+};
 
 
 // ---------- página ----------
@@ -354,6 +371,89 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         notes: null,
       },
     ]);
+  };
+
+  const applyGlosaTrdScenario = () => {
+    if (editingRubrics.length > 0) {
+      const ok = window.confirm(
+        "Substituir as rubricas atuais pelo cenário: 3 convênios sem glosa, demais com glosa e TRD no final?",
+      );
+      if (!ok) return;
+    }
+
+    const sulAmerica = findConvenioSlug(convenios, ["sul america", "sulamerica"]);
+    const bradesco = findConvenioSlug(convenios, ["bradesco"]);
+    const particular = findConvenioSlug(convenios, ["particular"]);
+    const semGlosaSlugs = normalizeConvenioSlugs([sulAmerica, bradesco, particular].filter(Boolean) as string[]);
+    const demaisSlugs = normalizeConvenioSlugs(
+      convenios.map((c) => c.slug).filter((slug) => !semGlosaSlugs.includes(slug)),
+    );
+
+    const baseRubric = (
+      label: string,
+      convenioSlugs: string[],
+      notes: string | null = null,
+    ): PayoutRubric => ({
+      sort_order: 0,
+      kind: "base_producao",
+      label,
+      incide_sobre: null,
+      ref_rubric_order: null,
+      param_key: null,
+      fixed_pct: null,
+      fixed_value: null,
+      tier_table_id: null,
+      convenio_slug: convenioSlugs[0] ?? null,
+      convenio_slugs: convenioSlugs,
+      required: true,
+      notes,
+    });
+
+    const rubricRow = (rubric: PayoutRubric) => rubric;
+
+    const rows: PayoutRubric[] = [
+      baseRubric("Produção Sul América — sem glosa", sulAmerica ? [sulAmerica] : []),
+      baseRubric("Produção Bradesco — sem glosa", bradesco ? [bradesco] : []),
+      baseRubric("Produção Particular — sem glosa", particular ? [particular] : []),
+      baseRubric(
+        "Produção demais convênios — com glosa",
+        demaisSlugs,
+        "Agrupa todos os convênios cadastrados exceto Sul América, Bradesco e Particular.",
+      ),
+      rubricRow({
+        sort_order: 0,
+        kind: "desconto_pct",
+        label: "Glosa sobre demais convênios",
+        incide_sobre: "rubrica_especifica",
+        ref_rubric_order: 4,
+        param_key: "repasse.glosa_demais_convenios",
+        fixed_pct: null,
+        fixed_value: null,
+        tier_table_id: null,
+        convenio_slug: demaisSlugs[0] ?? null,
+        convenio_slugs: demaisSlugs,
+        required: true,
+        notes: "Aplica glosa somente sobre a rubrica #4. As bases #1, #2 e #3 ficam fora da glosa.",
+      }),
+      rubricRow({
+        sort_order: 0,
+        kind: "retencao_pct",
+        label: "TRD sobre valor final",
+        incide_sobre: "subtotal_anterior",
+        ref_rubric_order: null,
+        param_key: "repasse.trd",
+        fixed_pct: null,
+        fixed_value: null,
+        tier_table_id: null,
+        convenio_slug: null,
+        convenio_slugs: [],
+        required: true,
+        notes: "Calcula depois da glosa: incide sobre as 3 bases sem glosa + demais convênios já com glosa aplicada.",
+      }),
+    ].map((r, idx) => ({ ...r, sort_order: idx + 1 }));
+
+    setEditingRubrics(rows);
+    toast({ title: "Cenário aplicado", description: "Revise os percentuais/param keys antes de salvar." });
   };
 
 
@@ -578,6 +678,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
                     paymentTypes={paymentTypes}
                     rubrics={editingRubrics}
                     addRubric={addRubric}
+                    applyGlosaTrdScenario={applyGlosaTrdScenario}
                     updateRubric={updateRubric}
                     removeRubric={removeRubric}
                     tierTables={tierTables}
@@ -680,6 +781,12 @@ function RubricEditor({
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
+
+      {rubric.notes && (
+        <div className="rounded border bg-background/60 px-2 py-1.5 text-[11px] text-muted-foreground leading-snug">
+          {rubric.notes}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="space-y-1">
@@ -933,6 +1040,7 @@ function ConvenioMultiSelectField({
 interface BaseStepProps {
   rubrics: PayoutRubric[];
   addRubric: (kind?: RubricKind) => void;
+  applyGlosaTrdScenario?: () => void;
   updateRubric: (idx: number, patch: Partial<PayoutRubric>) => void;
   removeRubric: (idx: number) => void;
   tierTables: TierTable[];
@@ -947,6 +1055,7 @@ function BasesStep({
   paymentTypes,
   rubrics,
   addRubric,
+  applyGlosaTrdScenario,
   updateRubric,
   removeRubric,
   tierTables,
@@ -1042,6 +1151,40 @@ function BasesStep({
         </div>
       </section>
 
+      <section className="rounded-md border bg-muted/20 p-3 space-y-3">
+        <div className="flex items-start gap-2">
+          <Info className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Assistente de cenário</h3>
+              <p>
+                Para o caso informado, cadastre as bases separadas: Sul América, Bradesco e Particular
+                entram como bases sem glosa; os outros convênios entram juntos na base "demais convênios".
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="rounded border bg-background/60 p-2">
+                <span className="font-medium text-foreground">1. Sem glosa</span>
+                <p>Sul América + Bradesco + Particular ficam em bases próprias, sem desconto vinculado.</p>
+              </div>
+              <div className="rounded border bg-background/60 p-2">
+                <span className="font-medium text-foreground">2. Com glosa</span>
+                <p>A glosa aponta para a rubrica "demais convênios" usando Incide sobre: rubrica específica.</p>
+              </div>
+              <div className="rounded border bg-background/60 p-2">
+                <span className="font-medium text-foreground">3. TRD final</span>
+                <p>O TRD usa Subtotal anterior, ou seja, calcula após somar tudo e aplicar a glosa.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {applyGlosaTrdScenario && (
+          <Button type="button" size="sm" variant="outline" onClick={applyGlosaTrdScenario}>
+            <Wand2 className="h-3.5 w-3.5 mr-1" /> Montar cenário sem glosa + glosa + TRD
+          </Button>
+        )}
+      </section>
+
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <div>
@@ -1091,8 +1234,9 @@ function AjustesStep({
         <div>
           <h3 className="text-sm font-semibold">Descontos, acréscimos e retenções</h3>
           <p className="text-xs text-muted-foreground">
-            Aplicados após as bases. Definem o que sai (descontos/retenções) e o que entra (acréscimos)
-            antes do total. Opcional — pode não haver nenhum.
+            O sistema só sabe onde aplicar um desconto pelo campo "Incide sobre". Para glosa somente nos
+            demais convênios, use "Rubrica específica" apontando para a base "Produção demais convênios".
+            Para TRD no fim, use "Subtotal anterior" depois da glosa.
           </p>
         </div>
         <div className="flex flex-wrap gap-1 justify-end">
@@ -1199,10 +1343,17 @@ function ConveniosStep({
       <div>
         <h3 className="text-sm font-semibold">Vínculo de convênios por rubrica</h3>
         <p className="text-xs text-muted-foreground">
-          O convênio é apenas <em>identificação</em> — usado na memória de cálculo e em overrides de
-          parâmetros (ex.: TRD diferente por convênio). <span className="font-medium">Não filtra nem soma sozinho</span>.
-          Deixar vazio = vale para qualquer convênio.
+          Aqui o vínculo serve para deixar claro na memória de cálculo quais convênios compõem cada linha.
+          A regra de cálculo vem da estrutura das rubricas: bases #1–#3 sem glosa, glosa apontando para a
+          base "demais convênios" e TRD sobre o subtotal final. Deixar vazio = qualquer convênio.
         </p>
+      </div>
+
+      <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground space-y-1">
+        <p><span className="font-medium text-foreground">Exemplo esperado:</span></p>
+        <p>Rubricas #1, #2 e #3: Sul América, Bradesco e Particular — entram no bruto e não recebem glosa.</p>
+        <p>Rubrica #4: demais convênios — recebe a glosa porque a rubrica de desconto aponta para ela.</p>
+        <p>Última rubrica: TRD — usa subtotal anterior, então considera as três bases sem glosa + demais convênios já glosados.</p>
       </div>
 
       {rubrics.length === 0 ? (
