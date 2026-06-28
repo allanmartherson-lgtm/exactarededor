@@ -11,6 +11,8 @@ import { Plus, Trash2, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { DateInput } from "@/components/ui/date-input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 
 type Adjustment = {
   id: string;
