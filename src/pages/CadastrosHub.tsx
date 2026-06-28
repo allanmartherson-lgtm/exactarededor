@@ -62,6 +62,7 @@ export default function CadastrosHub() {
       case "tipos-pagamento": return <PaymentTypes embedded />;
       case "motivos-intervencao-manual": return <ManualInterventionReasons embedded />;
       case "mapa-especialidades": return <ProcedureSpecialtyMap embedded />;
+      case "modelos-repasse": return <PayoutModels embedded />;
     }
   }, [active]);
 
