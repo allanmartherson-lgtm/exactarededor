@@ -4272,6 +4272,14 @@ const NewPayment = () => {
           />
         )}
 
+        {showMixedParecerOption && allRows.length > 0 && (
+          <MixedParecerSetupCard
+            value={mixedParecer}
+            onChange={setMixedParecer}
+            ambiguousTussCount={ambiguousTussCount}
+          />
+        )}
+
         {requiresParecerReport && (
           <ParecerReportWizardCard
             competenceMonths={competenceMonths}
