@@ -550,7 +550,7 @@ Deno.serve(async (req) => {
     // auto-aplicados, o lote pode estar bloqueado pelo gate de parecer.
     if (trigger_reanalysis && hasReport) {
       try {
-        await fetch(`${SUPABASE_URL}/functions/v1/dispatch-payment-analysis`, {
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/dispatch-payment-analysis`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -562,6 +562,10 @@ Deno.serve(async (req) => {
             skip_parecer_cross_ref: true,
           }),
         });
+        const txt = await resp.text();
+        if (!resp.ok) {
+          console.warn("[cross-reference-parecer] dispatch retornou erro", resp.status, txt.slice(0, 500));
+        }
       } catch (e) {
         console.warn("[cross-reference-parecer] dispatch falhou", e);
       }

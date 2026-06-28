@@ -28,6 +28,8 @@ const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const INVALID_REASONS: Record<string, string> = {
+  analise_pendente:
+    "A análise de regras ainda não calculou os valores esperados. Dispare a análise antes do rateio.",
   valor_variavel_competencia_nao_cadastrado:
     "Falta cadastrar o valor de uma dedução variável para a competência deste lote.",
   item_duplicado_em_outro_pool:
@@ -81,16 +83,49 @@ export function PoolCalculationCard({ paymentId, onRecalculated }: { paymentId: 
   const recalc = async () => {
     setBusy(true);
     try {
+      const { count: pendingCount, error: pendingErr } = await supabase
+        .from("payment_items")
+        .select("id", { count: "exact", head: true })
+        .eq("payment_id", paymentId)
+        .eq("is_pool_item", true)
+        .eq("ai_status", "pendente");
+      if (pendingErr) throw pendingErr;
+
+      if ((pendingCount ?? 0) > 0) {
+        const { data: dispatchData, error: dispatchErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
+          body: { payment_id: paymentId, force_fresh_rules: true },
+        });
+        if (dispatchErr) throw dispatchErr;
+        toast({
+          title: (dispatchData as any)?.already_running ? "Análise já em andamento" : "Análise enfileirada",
+          description: (dispatchData as any)?.message ?? "O pool usa valor esperado; o rateio será aplicado depois que o motor calcular os itens.",
+        });
+        try { await onRecalculated?.(); } catch {}
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("recalc-payment-pools", {
         body: { payment_id: paymentId },
       });
       if (error) throw error;
+      if (data?.accepted) {
+        toast({
+          title: "Recálculo enfileirado",
+          description: data.message ?? "O pool será recalculado em segundo plano. Atualize em instantes.",
+        });
+        try { await onRecalculated?.(); } catch {}
+        return;
+      }
       const n = data?.pools_processed ?? 0;
+      const blocked = data?.blocked_count ?? 0;
       toast({
-        title: n > 0 ? `Pool recalculado` : "Nenhum pool aplicável",
-        description: n > 0
+        title: blocked > 0 ? "Pool aguardando análise" : n > 0 ? `Pool recalculado` : "Nenhum pool aplicável",
+        description: blocked > 0
+          ? "Ainda há itens pendentes de cálculo. Clique novamente após a análise concluir."
+          : n > 0
           ? `${n} pool(s) processado(s). Totais das empresas atualizados.`
           : "Nenhuma empresa deste pagamento participa de pool ativo vigente.",
+        variant: blocked > 0 ? "destructive" : undefined,
       });
       await load();
       // Notifica todos os consumidores de financials (cards, totais, etc.)

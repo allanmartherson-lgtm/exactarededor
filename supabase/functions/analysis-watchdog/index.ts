@@ -220,6 +220,48 @@ Deno.serve(async (req) => {
       });
     }
 
+    // CASO E: lote já caiu em revisão, mas ainda há itens pendentes sem nenhum
+    // job. Esse é o falso-positivo visto em lotes de pool/parecer: grupos em
+    // `revisao_analista` fazem o status pai parecer pronto, embora o motor nunca
+    // tenha calculado `expected_amount`.
+    const { data: pendingRows, error: pendingErr } = await supabase
+      .from("payment_items")
+      .select("payment_id, payments!inner(id, status, analysis_mode, reference, updated_at, processing_diagnostics)")
+      .eq("ai_status", "pendente")
+      .is("expected_amount", null)
+      .eq("payments.status", "revisao_analista")
+      .in("payments.analysis_mode", ["padrao", "isolado", "empresa_prioritaria"])
+      .lt("payments.updated_at", cutoffStuck)
+      .limit(2000);
+
+    if (pendingErr) throw pendingErr;
+
+    const pendingPaymentIds = Array.from(new Set((pendingRows ?? []).map((r: any) => r.payment_id).filter(Boolean)));
+    for (const paymentId of pendingPaymentIds.slice(0, 20)) {
+      const { data: activeJobs } = await supabase
+        .from("payment_processing_jobs")
+        .select("id, status")
+        .eq("payment_id", paymentId)
+        .eq("status", "em_andamento")
+        .limit(1);
+      if (activeJobs && activeJobs.length > 0) continue;
+
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/dispatch-payment-analysis`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SERVICE_KEY}`,
+        },
+        body: JSON.stringify({ payment_id: paymentId, _watchdog_pending_items: true }),
+      });
+
+      actions.push({
+        payment_id: paymentId,
+        action: "dispatched_pending_items_without_job",
+        http_status: resp.status,
+      });
+    }
+
     return new Response(
       JSON.stringify({ ok: true, jobs_inspected: jobs?.length ?? 0, actions }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
