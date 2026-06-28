@@ -262,8 +262,17 @@ const PaymentDetail = () => {
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
   const [groupCommentType, setGroupCommentType] = useState<Record<string, ObservationType>>({});
   const [editMetaOpen, setEditMetaOpen] = useState(false);
-  const [metaDraft, setMetaDraft] = useState<{ reference: string; description: string; payment_due_date: string }>({ reference: "", description: "", payment_due_date: "" });
+  const [metaDraft, setMetaDraft] = useState<{
+    reference: string;
+    description: string;
+    payment_due_date: string;
+    competence_month: string;
+    analysis_mode: string;
+    pool_id: string; // "" = nenhum
+    rateio_source: string;
+  }>({ reference: "", description: "", payment_due_date: "", competence_month: "", analysis_mode: "padrao", pool_id: "", rateio_source: "" });
   const [savingMeta, setSavingMeta] = useState(false);
+  const [poolsForEdit, setPoolsForEdit] = useState<Array<{ id: string; nome: string }>>([]);
   const [externalRegistrationOpen, setExternalRegistrationOpen] = useState<"validation" | "approval" | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
   const [reimporting, setReimporting] = useState(false);
@@ -1383,32 +1392,73 @@ const PaymentDetail = () => {
     load();
   };
 
-  const openEditMeta = () => {
+  const openEditMeta = async () => {
     if (!payment) return;
     setMetaDraft({
       reference: payment.reference ?? "",
       description: payment.description ?? "",
       payment_due_date: payment.payment_due_date ?? "",
+      competence_month: payment.competence_month ?? "",
+      analysis_mode: (payment as any).analysis_mode ?? "padrao",
+      pool_id: (payment as any).pool_id ?? "",
+      rateio_source: (payment as any).rateio_source ?? "",
     });
     setEditMetaOpen(true);
+    // carrega pools do hospital do lote
+    try {
+      const { data } = await supabase
+        .from("pools")
+        .select("id, nome, ativo, hospital_id")
+        .eq("hospital_id", (payment as any).hospital_id)
+        .eq("ativo", true)
+        .order("nome");
+      setPoolsForEdit(((data || []) as Array<{ id: string; nome: string }>).map((p) => ({ id: p.id, nome: p.nome })));
+    } catch {
+      setPoolsForEdit([]);
+    }
   };
   const saveMeta = async () => {
     if (!id || !payment) return;
     setSavingMeta(true);
+    const newPoolId = metaDraft.pool_id || null;
     const updates: PaymentUpdate = {
       reference: metaDraft.reference.trim() || payment.reference,
       description: metaDraft.description.trim() || null,
       payment_due_date: metaDraft.payment_due_date || null,
+      competence_month: metaDraft.competence_month || (payment as any).competence_month,
+      analysis_mode: (metaDraft.analysis_mode || "padrao") as PaymentUpdate["analysis_mode"],
+      pool_id: newPoolId,
+      rateio_source: newPoolId ? (metaDraft.rateio_source || "planilha") : null,
     };
     const { error } = await supabase.from("payments").update(updates).eq("id", id);
-    setSavingMeta(false);
     if (error) {
+      setSavingMeta(false);
       toast({ title: "Falha ao salvar", description: error.message, variant: "destructive" });
       return;
     }
+    // Se mudou algo estrutural (pool/modo/competência), invalida fontes do motor
+    // para que recalc-payment-pools + finalize-payment-engine releiam tudo.
+    const structuralChanged =
+      newPoolId !== ((payment as any).pool_id ?? null) ||
+      (metaDraft.analysis_mode || "padrao") !== ((payment as any).analysis_mode ?? "padrao") ||
+      (metaDraft.competence_month || "") !== ((payment as any).competence_month ?? "");
+    if (structuralChanged) {
+      try {
+        await supabase
+          .from("payment_engine_sources")
+          .update({ read_at: null, applied_count: 0, total_value: 0 })
+          .eq("payment_id", id);
+        await supabase.functions.invoke("finalize-payment-engine", { body: { payment_id: id, reason: "edit_meta_structural" } });
+      } catch (e) {
+        console.warn("[edit-meta] falha ao re-disparar motor:", e);
+      }
+    }
+    setSavingMeta(false);
     await recordObservation({
       payment_id: id, author_type: "analista", author_id: user!.id,
-      message: `Lote editado pelo analista (referência/descrição/vencimento).`,
+      message: structuralChanged
+        ? `Lote editado pelo analista (metadados + vínculo de pool/modo). Motor re-disparado.`
+        : `Lote editado pelo analista (referência/descrição/vencimento).`,
       status_from: payment.status, status_to: payment.status,
     });
     toast({ title: "Lote atualizado" });
@@ -3229,9 +3279,9 @@ const PaymentDetail = () => {
 
         {canEditMeta && (
           <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
-            <DialogContent>
+            <DialogContent className="max-w-lg">
               <DialogHeader><DialogTitle>Editar lote</DialogTitle></DialogHeader>
-              <div className="space-y-3 py-2">
+              <div className="space-y-3 py-2 max-h-[70vh] overflow-y-auto pr-1">
                 <div>
                   <label className="text-xs text-muted-foreground">Referência</label>
                   <Input value={metaDraft.reference} onChange={(e) => setMetaDraft((m) => ({ ...m, reference: e.target.value }))} />
@@ -3240,10 +3290,62 @@ const PaymentDetail = () => {
                   <label className="text-xs text-muted-foreground">Descrição</label>
                   <Textarea rows={3} value={metaDraft.description} onChange={(e) => setMetaDraft((m) => ({ ...m, description: e.target.value }))} />
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
-                  <DateInput value={metaDraft.payment_due_date} onChange={(v) => setMetaDraft((m) => ({ ...m, payment_due_date: v }))} />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Competência</label>
+                    <DateInput value={metaDraft.competence_month} onChange={(v) => setMetaDraft((m) => ({ ...m, competence_month: v }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
+                    <DateInput value={metaDraft.payment_due_date} onChange={(v) => setMetaDraft((m) => ({ ...m, payment_due_date: v }))} />
+                  </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Modo de análise</label>
+                    <select
+                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                      value={metaDraft.analysis_mode}
+                      onChange={(e) => setMetaDraft((m) => ({ ...m, analysis_mode: e.target.value }))}
+                    >
+                      <option value="padrao">Padrão</option>
+                      <option value="isolado">Isolado</option>
+                      <option value="empresa_prioritaria">Empresa prioritária</option>
+                      <option value="confeccao">Confecção</option>
+                      <option value="manual">Manual</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Pool de rateio</label>
+                    <select
+                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                      value={metaDraft.pool_id}
+                      onChange={(e) => setMetaDraft((m) => ({ ...m, pool_id: e.target.value }))}
+                    >
+                      <option value="">— Sem rateio —</option>
+                      {poolsForEdit.map((p) => (
+                        <option key={p.id} value={p.id}>{p.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {metaDraft.pool_id && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">Origem do rateio</label>
+                    <select
+                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                      value={metaDraft.rateio_source || "planilha"}
+                      onChange={(e) => setMetaDraft((m) => ({ ...m, rateio_source: e.target.value }))}
+                    >
+                      <option value="planilha">Planilha</option>
+                      <option value="participantes">Participantes do pool</option>
+                      <option value="filtrado">Filtros do pool</option>
+                    </select>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Alterar pool, modo ou competência re-dispara o motor (releitura de regras, deduções, créditos/débitos, glosas e garantia mínima).
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setEditMetaOpen(false)} disabled={savingMeta}>Cancelar</Button>
