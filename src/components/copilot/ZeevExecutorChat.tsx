@@ -181,6 +181,7 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
           m.map((msg, i) => (i === idx && msg.role === "proposal" ? { ...msg, status: "confirmed", result: r.message } : msg)),
         );
         toast.success(r.message);
+        try { window.dispatchEvent(new CustomEvent("zeev:applied")); } catch { /* noop */ }
         onApplied?.();
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
