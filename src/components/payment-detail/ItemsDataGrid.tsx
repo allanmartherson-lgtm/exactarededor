@@ -2940,6 +2940,7 @@ export function ItemsDataGrid({
                         onEditItem={onEditItem}
                         onDeleteItem={onDeleteItem}
                         onAcceptItem={onAcceptItem}
+                        onAcceptItemKeepPaid={onAcceptItemKeepPaid}
                         onUndoAcceptItem={onUndoAcceptItem}
                         showGrossColumn={showGrossColumn}
                         showProcedureColumn={showProcedureColumn}
