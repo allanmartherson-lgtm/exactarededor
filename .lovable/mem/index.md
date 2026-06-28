@@ -44,3 +44,4 @@ Identidade visual: azul `#003DA5` + bronze `#C6A27C`, Playfair Display + DM Sans
 - [Parecer — período auto](mem://features/parecer-auto-period) — Período do relatório Tasy sempre derivado do arquivo; range maior que competência é cenário normal
 - [Descompasso competência (produção)](mem://features/descompasso-competencia-producao) — Zeev sugere remessa quando ≥20% dos itens têm procedure_date fora da competence_month
 - [Pool — retenção do hospital](mem://features/pool-hospital-retention) — hospital_nao_paga é receita do hospital (retenção em caixa), NÃO gera pagamento e NÃO entra na DRE de pagamento
+- [Modelos de Repasse](mem://features/payout-models) — composição genérica (rubricas + faixas) para lançamentos manuais por equipe; substitui telas/tabelas por especialidade; coexiste com regras (rules calculam item; modelos montam a NF)

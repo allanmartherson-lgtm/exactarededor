@@ -14,6 +14,7 @@ import CostCenters from "./CostCenters";
 import PaymentTypes from "./PaymentTypes";
 import ManualInterventionReasons from "./ManualInterventionReasons";
 import Hospitals from "./Hospitals";
+import PayoutModels from "./PayoutModels";
 
 type TabValue =
   | "hospitais"
@@ -23,7 +24,8 @@ type TabValue =
   | "centros-de-custo"
   | "tipos-pagamento"
   | "motivos-intervencao-manual"
-  | "mapa-especialidades";
+  | "mapa-especialidades"
+  | "modelos-repasse";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "hospitais", label: "Hospitais" },
@@ -34,6 +36,7 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "tipos-pagamento", label: "Tipos de Pagamento" },
   { value: "motivos-intervencao-manual", label: "Motivos de Tratamento Manual" },
   { value: "mapa-especialidades", label: "Mapa de Especialidades" },
+  { value: "modelos-repasse", label: "Modelos de Repasse" },
 ];
 
 const VALID = new Set(TABS.map((t) => t.value));
@@ -59,6 +62,7 @@ export default function CadastrosHub() {
       case "tipos-pagamento": return <PaymentTypes embedded />;
       case "motivos-intervencao-manual": return <ManualInterventionReasons embedded />;
       case "mapa-especialidades": return <ProcedureSpecialtyMap embedded />;
+      case "modelos-repasse": return <PayoutModels embedded />;
     }
   }, [active]);
 

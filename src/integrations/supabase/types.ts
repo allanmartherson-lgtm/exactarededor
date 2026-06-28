@@ -6351,6 +6351,9 @@ export type Database = {
           payment_track: Database["public"]["Enums"]["payment_track"] | null
           payment_type: string | null
           payment_type_id: string | null
+          payout_breakdown: Json | null
+          payout_model_id: string | null
+          payout_model_version: number | null
           pool_deduction_id: string | null
           pool_id: string | null
           priority_score: number
@@ -6404,6 +6407,9 @@ export type Database = {
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
           payment_type_id?: string | null
+          payout_breakdown?: Json | null
+          payout_model_id?: string | null
+          payout_model_version?: number | null
           pool_deduction_id?: string | null
           pool_id?: string | null
           priority_score?: number
@@ -6457,6 +6463,9 @@ export type Database = {
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
           payment_type_id?: string | null
+          payout_breakdown?: Json | null
+          payout_model_id?: string | null
+          payout_model_version?: number | null
           pool_deduction_id?: string | null
           pool_id?: string | null
           priority_score?: number
@@ -6490,6 +6499,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payments_payout_model_id_fkey"
+            columns: ["payout_model_id"]
+            isOneToOne: false
+            referencedRelation: "payout_models"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payments_pool_deduction_id_fkey"
             columns: ["pool_deduction_id"]
             isOneToOne: false
@@ -6501,6 +6517,239 @@ export type Database = {
             columns: ["pool_id"]
             isOneToOne: false
             referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payout_model_rubrics: {
+        Row: {
+          convenio_slug: string | null
+          created_at: string
+          fixed_pct: number | null
+          fixed_value: number | null
+          id: string
+          incide_sobre: string | null
+          kind: string
+          label: string
+          model_id: string
+          notes: string | null
+          param_key: string | null
+          ref_rubric_order: number | null
+          required: boolean
+          sort_order: number
+          tier_table_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          convenio_slug?: string | null
+          created_at?: string
+          fixed_pct?: number | null
+          fixed_value?: number | null
+          id?: string
+          incide_sobre?: string | null
+          kind: string
+          label: string
+          model_id: string
+          notes?: string | null
+          param_key?: string | null
+          ref_rubric_order?: number | null
+          required?: boolean
+          sort_order: number
+          tier_table_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          convenio_slug?: string | null
+          created_at?: string
+          fixed_pct?: number | null
+          fixed_value?: number | null
+          id?: string
+          incide_sobre?: string | null
+          kind?: string
+          label?: string
+          model_id?: string
+          notes?: string | null
+          param_key?: string | null
+          ref_rubric_order?: number | null
+          required?: boolean
+          sort_order?: number
+          tier_table_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_model_rubrics_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "payout_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_model_rubrics_tier_table_id_fkey"
+            columns: ["tier_table_id"]
+            isOneToOne: false
+            referencedRelation: "payout_tier_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payout_models: {
+        Row: {
+          active: boolean
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          effective_from: string | null
+          effective_to: string | null
+          hospital_id: string
+          id: string
+          name: string
+          payment_type_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
+          hospital_id: string
+          id?: string
+          name: string
+          payment_type_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
+          hospital_id?: string
+          id?: string
+          name?: string
+          payment_type_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_models_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_models_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_models_payment_type_id_fkey"
+            columns: ["payment_type_id"]
+            isOneToOne: false
+            referencedRelation: "payment_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payout_tier_rows: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          max_value: number | null
+          min_value: number
+          output_value: number
+          sort_order: number
+          tier_table_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          max_value?: number | null
+          min_value: number
+          output_value: number
+          sort_order?: number
+          tier_table_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          max_value?: number | null
+          min_value?: number
+          output_value?: number
+          sort_order?: number
+          tier_table_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_tier_rows_tier_table_id_fkey"
+            columns: ["tier_table_id"]
+            isOneToOne: false
+            referencedRelation: "payout_tier_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payout_tier_tables: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          dimension: string
+          hospital_id: string | null
+          id: string
+          name: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          dimension: string
+          hospital_id?: string | null
+          id?: string
+          name: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          dimension?: string
+          hospital_id?: string | null
+          id?: string
+          name?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_tier_tables_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
         ]
