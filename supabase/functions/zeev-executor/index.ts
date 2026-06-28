@@ -786,13 +786,35 @@ Deno.serve(async (req) => {
     let pay: { id: string; hospital_id: string | null; company_name: string | null; reference: string | null } | null = null;
     let aggregates: Awaited<ReturnType<typeof buildPaymentAggregates>> = null;
     if (body.payment_id) {
-      const { data } = await sb
+      // payments não tem company_name (lote multi-empresa). Deriva nome a partir do
+      // primeiro payment_item.company_id apenas para enriquecer o contexto do LLM.
+      const { data, error: payErr } = await sb
         .from("payments")
-        .select("id, hospital_id, company_name, reference")
+        .select("id, hospital_id, reference")
         .eq("id", body.payment_id)
         .maybeSingle();
+      if (payErr) {
+        return jsonResp({ error: `Falha ao carregar pagamento: ${payErr.message}` }, 500);
+      }
       if (!data) return jsonResp({ error: "Pagamento não encontrado" }, 404);
-      pay = data;
+      let companyName: string | null = null;
+      const { data: firstItem } = await sb
+        .from("payment_items")
+        .select("company_id")
+        .eq("payment_id", body.payment_id)
+        .not("company_id", "is", null)
+        .limit(1)
+        .maybeSingle();
+      const firstCompanyId = (firstItem as { company_id?: string | null } | null)?.company_id ?? null;
+      if (firstCompanyId) {
+        const { data: comp } = await sb
+          .from("companies")
+          .select("name")
+          .eq("id", firstCompanyId)
+          .maybeSingle();
+        companyName = (comp as { name?: string | null } | null)?.name ?? null;
+      }
+      pay = { id: data.id, hospital_id: data.hospital_id, reference: data.reference, company_name: companyName };
       aggregates = await buildPaymentAggregates(sb, body.payment_id);
     }
 
