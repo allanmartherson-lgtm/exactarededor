@@ -353,10 +353,22 @@ export default function PaymentEvolution() {
   // KPIs
   const grandTotal = matrix.reduce((s, r) => s + r.total, 0);
   const ccCount = matrix.length;
-  const lastMonth = months[months.length - 1];
-  const prevMonth = months[months.length - 2];
-  const totalLast = matrix.reduce((s, r) => s + r.byMonth[months.length - 1], 0);
-  const totalPrev = matrix.reduce((s, r) => s + (r.byMonth[months.length - 2] ?? 0), 0);
+  // O mês calendário corrente é "em andamento" — pagamentos ainda estão sendo gerados.
+  // Para "Último mês" / "Variação MoM" / Δ MoM da matriz, ancoramos no último mês
+  // FECHADO (último do range que não seja o mês calendário corrente).
+  const currentYM = new Date().toISOString().slice(0, 7);
+  const lastClosedIdx = (() => {
+    for (let i = months.length - 1; i >= 0; i--) {
+      if (months[i] !== currentYM) return i;
+    }
+    return months.length - 1;
+  })();
+  const prevClosedIdx = lastClosedIdx - 1;
+  const lastMonth = months[lastClosedIdx];
+  const prevMonth = prevClosedIdx >= 0 ? months[prevClosedIdx] : undefined;
+  const isCurrentMonthInRange = months.includes(currentYM);
+  const totalLast = matrix.reduce((s, r) => s + (r.byMonth[lastClosedIdx] ?? 0), 0);
+  const totalPrev = matrix.reduce((s, r) => s + (r.byMonth[prevClosedIdx] ?? 0), 0);
   const momPct = totalPrev > 0 ? ((totalLast - totalPrev) / totalPrev) * 100 : 0;
 
   // Top growth CC (compare avg first half × second half)
@@ -583,9 +595,13 @@ export default function PaymentEvolution() {
             hint={`${months.length} meses · ${ccCount} centros de custo`}
           />
           <KpiCard
-            label={`Último mês (${monthLabel(lastMonth)})`}
+            label={`Último mês fechado (${monthLabel(lastMonth)})`}
             value={loading ? <Skeleton className="h-8 w-28" /> : BRL(totalLast)}
-            hint={prevMonth ? `vs ${monthLabel(prevMonth)}: ${BRL(totalPrev)}` : "—"}
+            hint={
+              isCurrentMonthInRange
+                ? `${monthLabel(currentYM)} em andamento — excluído da comparação`
+                : prevMonth ? `vs ${monthLabel(prevMonth)}: ${BRL(totalPrev)}` : "—"
+            }
           />
           <KpiCard
             label="Variação MoM"
@@ -710,8 +726,8 @@ export default function PaymentEvolution() {
                   </TableRow>
                 ) : (
                   matrix.map((r) => {
-                    const last = r.byMonth[months.length - 1];
-                    const prev = r.byMonth[months.length - 2] ?? 0;
+                    const last = r.byMonth[lastClosedIdx] ?? 0;
+                    const prev = prevClosedIdx >= 0 ? (r.byMonth[prevClosedIdx] ?? 0) : 0;
                     const delta = prev > 0 ? ((last - prev) / prev) * 100 : last > 0 ? 100 : 0;
                     const open = expandedCc === r.cc;
                     const d = ccDisplay(r.cc);
@@ -775,8 +791,8 @@ export default function PaymentEvolution() {
               {!loading && matrix.length > 0 && (() => {
                 const monthTotals = months.map((_, i) => matrix.reduce((s, r) => s + (r.byMonth[i] ?? 0), 0));
                 const grand = monthTotals.reduce((s, v) => s + v, 0);
-                const lastT = monthTotals[months.length - 1] ?? 0;
-                const prevT = monthTotals[months.length - 2] ?? 0;
+                const lastT = monthTotals[lastClosedIdx] ?? 0;
+                const prevT = prevClosedIdx >= 0 ? (monthTotals[prevClosedIdx] ?? 0) : 0;
                 const deltaT = prevT > 0 ? ((lastT - prevT) / prevT) * 100 : lastT > 0 ? 100 : 0;
                 return (
                   <tfoot className="border-t bg-muted/40 font-semibold">
