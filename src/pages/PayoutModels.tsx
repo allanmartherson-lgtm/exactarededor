@@ -405,6 +405,8 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
       notes,
     });
 
+    const rubricRow = (rubric: PayoutRubric) => rubric;
+
     const rows: PayoutRubric[] = [
       baseRubric("Produção Sul América — sem glosa", sulAmerica),
       baseRubric("Produção Bradesco — sem glosa", bradesco),
@@ -414,7 +416,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         undefined,
         "Agrupe aqui todos os convênios que não são Sul América, Bradesco ou Particular.",
       ),
-      {
+      rubricRow({
         sort_order: 0,
         kind: "desconto_pct",
         label: "Glosa sobre demais convênios",
@@ -428,8 +430,8 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         convenio_slugs: [],
         required: true,
         notes: "Aplica glosa somente sobre a rubrica #4. As bases #1, #2 e #3 ficam fora da glosa.",
-      },
-      {
+      }),
+      rubricRow({
         sort_order: 0,
         kind: "retencao_pct",
         label: "TRD sobre valor final",
@@ -443,7 +445,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         convenio_slugs: [],
         required: true,
         notes: "Calcula depois da glosa: incide sobre as 3 bases sem glosa + demais convênios já com glosa aplicada.",
-      },
+      }),
     ].map((r, idx) => ({ ...r, sort_order: idx + 1 }));
 
     setEditingRubrics(rows);
@@ -1028,6 +1030,7 @@ function ConvenioMultiSelectField({
 interface BaseStepProps {
   rubrics: PayoutRubric[];
   addRubric: (kind?: RubricKind) => void;
+  applyGlosaTrdScenario?: () => void;
   updateRubric: (idx: number, patch: Partial<PayoutRubric>) => void;
   removeRubric: (idx: number) => void;
   tierTables: TierTable[];
