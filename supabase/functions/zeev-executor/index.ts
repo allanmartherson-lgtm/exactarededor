@@ -183,6 +183,7 @@ const RESPOND_SCHEMA = {
         alias_text: { type: "string" },
         canonical_id: { type: "string" },
         canonical_slug: { type: "string" },
+        justification: { type: "string" },
       },
       additionalProperties: false,
     },
