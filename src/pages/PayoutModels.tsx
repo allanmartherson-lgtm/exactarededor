@@ -1308,9 +1308,10 @@ function ConveniosStep({
               <ConvenioMultiSelectField
                 convenios={convenios}
                 value={r.convenio_slugs ?? []}
-                onChange={(slugs) =>
-                  updateRubric(i, { convenio_slugs: slugs, convenio_slug: slugs[0] ?? null })
-                }
+                onChange={(slugs) => {
+                  const norm = normalizeConvenioSlugs(slugs);
+                  updateRubric(i, { convenio_slugs: norm, convenio_slug: norm[0] ?? null });
+                }}
               />
             </div>
           ))}
