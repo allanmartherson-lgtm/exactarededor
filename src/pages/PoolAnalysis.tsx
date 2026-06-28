@@ -206,7 +206,10 @@ export default function PoolAnalysis() {
         })}
       </div>
 
+      <EngineSourcesCard paymentId={id!} />
+
       <PoolCalculationCard paymentId={id!} onRecalculated={async () => { await load(); await reloadFinancials(); }} />
+
 
       <UnmatchedItemsPanel paymentId={id!} onChanged={() => load()} />
 
