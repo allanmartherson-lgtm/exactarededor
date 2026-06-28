@@ -50,11 +50,15 @@ type Msg =
 const ACTION_LABEL: Record<ExecAction, string> = {
   set_sector: "Definir setor em lote",
   set_cost_center: "Definir centro de custos em lote",
+  set_convenio: "Vincular convênio em lote",
   link_doctor_company: "Vincular médico → empresa",
   register_doctor_pending: "Cadastrar médico (pendente aprovação)",
   register_company: "Cadastrar empresa (PJ)",
   resolve_registry_match: "Registrar alias de cadastro",
   accept_keep_paid: "Acatar mantendo valor pago",
+  accept_keep_expected: "Acatar mantendo valor esperado",
+  undo_accept: "Desfazer acatamento em lote",
+  apply_manual_reason: "Aplicar motivo de intervenção manual",
 };
 
 const REGISTRY_ACTIONS = new Set<ExecAction>(["register_doctor_pending", "register_company", "resolve_registry_match"]);
