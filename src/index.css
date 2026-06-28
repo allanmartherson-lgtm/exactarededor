@@ -171,6 +171,7 @@ All colors MUST be HSL.
     --accent: 37 42% 61%;             /* #C6A27C — Pantone 728 C Rede D'Or */
     --accent-foreground: 0 0% 100%;
     --accent-light: 35 80% 86%;       /* #F7CEA7 — dourado claro D'Or */
+    --brand-wordmark-accent: 37 55% 70%; /* bronze claro p/ contraste em fundo escuro */
 
     --accent-blue: 211 90% 66%;
     --accent-blue-soft: 222 25% 20%;
