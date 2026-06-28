@@ -48,6 +48,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Plus, Pencil, Trash2, Loader2, FileText, Layers, Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { normalizeConvenioSlugs, toggleConvenioSlug } from "@/lib/convenioMatching";
 import { PageHeader } from "@/components/PageHeader";
 import { CompanyCombobox } from "@/components/CompanyCombobox";
 
@@ -947,8 +948,8 @@ function ConvenioMultiSelectField({
   }, [convenios]);
 
   const toggle = (slug: string) => {
-    if (value.includes(slug)) onChange(value.filter((s) => s !== slug));
-    else onChange([...value, slug]);
+    // dedupe + normalização (case/trim) garantida pelo helper
+    onChange(toggleConvenioSlug(value, slug));
   };
 
   return (
