@@ -250,6 +250,14 @@ Deno.serve(async (req) => {
         });
         continue;
       }
+      // Em lote misto, só processa itens cujo TUSS é "ambíguo" (parecer/visita/consulta).
+      // Procedimentos puros (cirurgia/exame) ficam intocados — sem patch.
+      if (isMixed && ambiguousTussSet) {
+        const code = String(it.procedure_code ?? "").trim();
+        if (!code || !ambiguousTussSet.has(code)) {
+          continue;
+        }
+      }
       const att = onlyDigits(it.attendance_number);
       const cd = crmByDoctor.get(it.doctor_id ?? "") ?? "";
       const nm = norm(it.doctor_name);
