@@ -70,6 +70,27 @@ const RUBRIC_KIND_LABEL: Record<RubricKind, string> = {
   retencao_pct: "Retenção % (TRD/imposto)",
 };
 
+/** Texto explicativo curto exibido abaixo do select de Tipo. */
+const RUBRIC_KIND_HELP: Record<RubricKind, string> = {
+  base_producao:
+    "O analista digita o valor no lançamento (ex.: produção do mês de Sul América). Soma ao bruto.",
+  base_fixa:
+    "Valor fixo cadastrado aqui — usado quando o repasse independe da produção (ex.: sessão fixa para Particular).",
+  desconto_pct:
+    "Subtrai um percentual aplicado sobre o que você escolher em 'Incide sobre' (bruto, subtotal anterior ou rubrica específica).",
+  desconto_valor:
+    "Subtrai um valor fixo do cálculo (ex.: ajuste contratual em R$).",
+  acrescimo_pct:
+    "Soma um percentual sobre o que você escolher em 'Incide sobre'.",
+  acrescimo_valor:
+    "Soma um valor fixo ao cálculo.",
+  acrescimo_faixa:
+    "Soma um valor lido de uma tabela de faixas (ex.: bônus por nº de atendimentos). Cadastre a tabela em Modelos de Repasse → Tabelas de Faixas.",
+  retencao_pct:
+    "Subtrai um percentual de retenção no final (ex.: TRD, ISS). Pode reusar valor cadastrado em Parâmetros do Sistema via 'Param key'.",
+};
+
+
 type IncideSobre = "bruto" | "subtotal_anterior" | "rubrica_especifica";
 
 interface PayoutModel {
