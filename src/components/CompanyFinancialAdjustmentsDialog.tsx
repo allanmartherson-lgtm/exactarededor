@@ -93,12 +93,13 @@ export function CompanyFinancialAdjustmentsDialog({
       origem: form.origem.trim() || null,
       ativo: true,
       created_by: user?.id ?? null,
+      payment_type_ids: form.payment_type_ids.length > 0 ? form.payment_type_ids : null,
     } as any);
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
-    setForm({ tipo: "credito", descricao: "", valor_total: "", parcelas_total: "1", data_inicio: new Date().toISOString().slice(0, 10), origem: "" });
+    setForm({ tipo: "credito", descricao: "", valor_total: "", parcelas_total: "1", data_inicio: new Date().toISOString().slice(0, 10), origem: "", payment_type_ids: [] });
     setCreating(false);
     await load();
     toast({ title: "Ajuste cadastrado" });
