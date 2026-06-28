@@ -160,6 +160,7 @@ const RESPOND_SCHEMA = {
         description_like: { type: "string" },
         gross_zero: { type: "boolean" },
         needs_human_review: { type: "boolean" },
+        ai_status_in: { type: "array", items: { type: "string" } },
       },
       additionalProperties: false,
     },
