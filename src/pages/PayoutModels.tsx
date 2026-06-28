@@ -1013,3 +1013,421 @@ function ConvenioMultiSelectField({
   );
 }
 
+// ---------- steps ----------
+interface BaseStepProps {
+  rubrics: PayoutRubric[];
+  addRubric: (kind?: RubricKind) => void;
+  updateRubric: (idx: number, patch: Partial<PayoutRubric>) => void;
+  removeRubric: (idx: number) => void;
+  tierTables: TierTable[];
+  convenios: Array<{ slug: string; name: string }>;
+}
+
+function BasesStep({
+  editing,
+  setEditing,
+  editingCompany,
+  setEditingCompany,
+  paymentTypes,
+  rubrics,
+  addRubric,
+  updateRubric,
+  removeRubric,
+  tierTables,
+  convenios,
+}: BaseStepProps & {
+  editing: PayoutModel;
+  setEditing: (m: PayoutModel) => void;
+  editingCompany: { id: string; name: string; document: string | null } | null;
+  setEditingCompany: (c: { id: string; name: string; document: string | null } | null) => void;
+  paymentTypes: Array<{ id: string; label: string }>;
+}) {
+  return (
+    <div className="space-y-5">
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold">Identificação do modelo</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Nome *</Label>
+            <Input
+              value={editing.name}
+              onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+              placeholder="Ex.: Fisio HDF — repasse mensal"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Tipo de pagamento</Label>
+            <Select
+              value={editing.payment_type_id ?? "none"}
+              onValueChange={(v) =>
+                setEditing({ ...editing, payment_type_id: v === "none" ? null : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Qualquer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Qualquer tipo</SelectItem>
+                {paymentTypes.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Empresa (opcional)</Label>
+            <CompanyCombobox
+              value={editingCompany}
+              onChange={(c) => {
+                setEditingCompany(c);
+                setEditing({ ...editing, company_id: c?.id ?? null });
+              }}
+              placeholder="Qualquer empresa do tipo selecionado"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Vigência início</Label>
+            <Input
+              type="date"
+              value={editing.effective_from ?? ""}
+              onChange={(e) =>
+                setEditing({ ...editing, effective_from: e.target.value || null })
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Vigência fim</Label>
+            <Input
+              type="date"
+              value={editing.effective_to ?? ""}
+              onChange={(e) =>
+                setEditing({ ...editing, effective_to: e.target.value || null })
+              }
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Descrição</Label>
+            <Textarea
+              rows={2}
+              value={editing.description ?? ""}
+              onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+              placeholder="Contexto do acordo, referência contratual, observações."
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={editing.active}
+              onCheckedChange={(v) => setEditing({ ...editing, active: v })}
+            />
+            <Label>Ativo</Label>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold">Bases — o que entra na conta</h3>
+            <p className="text-xs text-muted-foreground">
+              Adicione ao menos uma base. "Base de produção" recebe valor digitado pelo analista todo mês;
+              "Base fixa" usa o valor cadastrado aqui.
+            </p>
+          </div>
+          <div className="flex gap-1">
+            <Button size="sm" variant="outline" onClick={() => addRubric("base_producao")}>
+              <Plus className="h-3 w-3 mr-1" /> Base produção
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => addRubric("base_fixa")}>
+              <Plus className="h-3 w-3 mr-1" /> Base fixa
+            </Button>
+          </div>
+        </div>
+
+        <RubricListByKinds
+          rubrics={rubrics}
+          allowedKinds={BASE_KINDS}
+          updateRubric={updateRubric}
+          removeRubric={removeRubric}
+          tierTables={tierTables}
+          convenios={convenios}
+          hideConvenio
+          hideReuso
+          emptyHint="Nenhuma base adicionada ainda. Use os botões acima."
+        />
+      </section>
+    </div>
+  );
+}
+
+function AjustesStep({
+  rubrics,
+  addRubric,
+  updateRubric,
+  removeRubric,
+  tierTables,
+  convenios,
+}: BaseStepProps) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold">Descontos, acréscimos e retenções</h3>
+          <p className="text-xs text-muted-foreground">
+            Aplicados após as bases. Definem o que sai (descontos/retenções) e o que entra (acréscimos)
+            antes do total. Opcional — pode não haver nenhum.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1 justify-end">
+          <Button size="sm" variant="outline" onClick={() => addRubric("desconto_pct")}>
+            <Plus className="h-3 w-3 mr-1" /> Desc. %
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => addRubric("desconto_valor")}>
+            <Plus className="h-3 w-3 mr-1" /> Desc. R$
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => addRubric("acrescimo_pct")}>
+            <Plus className="h-3 w-3 mr-1" /> Acr. %
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => addRubric("acrescimo_valor")}>
+            <Plus className="h-3 w-3 mr-1" /> Acr. R$
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => addRubric("acrescimo_faixa")}>
+            <Plus className="h-3 w-3 mr-1" /> Faixa
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => addRubric("retencao_pct")}>
+            <Plus className="h-3 w-3 mr-1" /> Reten. %
+          </Button>
+        </div>
+      </div>
+
+      <RubricListByKinds
+        rubrics={rubrics}
+        allowedKinds={AJUSTE_KINDS}
+        updateRubric={updateRubric}
+        removeRubric={removeRubric}
+        tierTables={tierTables}
+        convenios={convenios}
+        hideConvenio
+        hideReuso
+        emptyHint="Nenhum ajuste adicionado — siga para a próxima etapa se não precisar."
+      />
+    </div>
+  );
+}
+
+function RubricListByKinds({
+  rubrics,
+  allowedKinds,
+  updateRubric,
+  removeRubric,
+  tierTables,
+  convenios,
+  hideConvenio,
+  hideReuso,
+  emptyHint,
+}: {
+  rubrics: PayoutRubric[];
+  allowedKinds: RubricKind[];
+  updateRubric: (idx: number, patch: Partial<PayoutRubric>) => void;
+  removeRubric: (idx: number) => void;
+  tierTables: TierTable[];
+  convenios: Array<{ slug: string; name: string }>;
+  hideConvenio?: boolean;
+  hideReuso?: boolean;
+  emptyHint: string;
+}) {
+  const filtered = rubrics
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => allowedKinds.includes(r.kind));
+
+  if (filtered.length === 0) {
+    return (
+      <div className="text-xs text-muted-foreground border border-dashed rounded p-4 text-center">
+        {emptyHint}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {filtered.map(({ r, i }) => (
+        <RubricEditor
+          key={i}
+          index={i}
+          rubric={r}
+          tierTables={tierTables}
+          convenios={convenios}
+          allowedKinds={allowedKinds}
+          hideConvenio={hideConvenio}
+          hideReuso={hideReuso}
+          onChange={(patch) => updateRubric(i, patch)}
+          onRemove={() => removeRubric(i)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ConveniosStep({
+  rubrics,
+  updateRubric,
+  convenios,
+}: {
+  rubrics: PayoutRubric[];
+  updateRubric: (idx: number, patch: Partial<PayoutRubric>) => void;
+  convenios: Array<{ slug: string; name: string }>;
+}) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold">Vínculo de convênios por rubrica</h3>
+        <p className="text-xs text-muted-foreground">
+          O convênio é apenas <em>identificação</em> — usado na memória de cálculo e em overrides de
+          parâmetros (ex.: TRD diferente por convênio). <span className="font-medium">Não filtra nem soma sozinho</span>.
+          Deixar vazio = vale para qualquer convênio.
+        </p>
+      </div>
+
+      {rubrics.length === 0 ? (
+        <div className="text-xs text-muted-foreground border border-dashed rounded p-4 text-center">
+          Sem rubricas para vincular.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {rubrics.map((r, i) => (
+            <div key={i} className="border rounded-md p-3 bg-muted/30 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium">
+                  #{i + 1} · {RUBRIC_KIND_LABEL[r.kind]}
+                </span>
+                <span className="text-muted-foreground truncate max-w-[60%]">{r.label || "(sem rótulo)"}</span>
+              </div>
+              <ConvenioMultiSelectField
+                convenios={convenios}
+                value={r.convenio_slugs ?? []}
+                onChange={(slugs) =>
+                  updateRubric(i, { convenio_slugs: slugs, convenio_slug: slugs[0] ?? null })
+                }
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReusoStep({
+  rubrics,
+  updateRubric,
+  editing,
+  paymentTypeLabel,
+  editingCompany,
+}: {
+  rubrics: PayoutRubric[];
+  updateRubric: (idx: number, patch: Partial<PayoutRubric>) => void;
+  editing: PayoutModel;
+  paymentTypeLabel: (id: string | null) => string;
+  editingCompany: { id: string; name: string; document: string | null } | null;
+}) {
+  const pcts = rubrics
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => isPctKind(r.kind));
+
+  return (
+    <div className="space-y-4">
+      <section className="space-y-2">
+        <h3 className="text-sm font-semibold">Reuso de parâmetros nos %</h3>
+        <p className="text-xs text-muted-foreground">
+          Para cada rubrica %, escolha entre <span className="font-medium">% fixo</span> (vale só para este
+          modelo) ou <span className="font-medium">Param key</span> (lê de Parâmetros do Sistema — uma mudança
+          atualiza todos os modelos). Pelo menos um dos dois é obrigatório.
+        </p>
+
+        {pcts.length === 0 ? (
+          <div className="text-xs text-muted-foreground border border-dashed rounded p-4 text-center">
+            Nenhuma rubrica % neste modelo.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {pcts.map(({ r, i }) => {
+              const hasFixed = r.fixed_pct != null && r.fixed_pct !== 0;
+              const hasParam = !!r.param_key?.trim();
+              const ok = hasFixed || hasParam;
+              return (
+                <div
+                  key={i}
+                  className={`border rounded-md p-3 space-y-2 ${ok ? "bg-muted/30" : "border-destructive/40 bg-destructive/5"}`}
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium">
+                      #{i + 1} · {RUBRIC_KIND_LABEL[r.kind]}
+                    </span>
+                    <span className="text-muted-foreground truncate max-w-[60%]">{r.label || "(sem rótulo)"}</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">% fixo</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="h-8 text-sm"
+                        value={r.fixed_pct ?? ""}
+                        onChange={(e) =>
+                          updateRubric(i, { fixed_pct: e.target.value ? Number(e.target.value) : null })
+                        }
+                        placeholder="Ex.: 10"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Param key</Label>
+                      <Input
+                        className="h-8 text-sm"
+                        value={r.param_key ?? ""}
+                        onChange={(e) => updateRubric(i, { param_key: e.target.value || null })}
+                        placeholder="repasse.glosa_media"
+                      />
+                    </div>
+                  </div>
+                  {!ok && (
+                    <p className="text-[11px] text-destructive">
+                      Defina % fixo ou Param key para esta rubrica.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="text-sm font-semibold">Revisão final</h3>
+        <div className="rounded-md border p-3 text-xs space-y-1 bg-muted/20">
+          <div><span className="text-muted-foreground">Nome:</span> <span className="font-medium">{editing.name || "—"}</span></div>
+          <div><span className="text-muted-foreground">Tipo de pagamento:</span> {paymentTypeLabel(editing.payment_type_id)}</div>
+          <div><span className="text-muted-foreground">Empresa:</span> {editingCompany?.name ?? "qualquer empresa"}</div>
+          <div><span className="text-muted-foreground">Rubricas:</span> {rubrics.length}</div>
+        </div>
+        <div className="space-y-1">
+          {rubrics.map((r, i) => (
+            <div key={i} className="text-xs flex justify-between border-b border-border/60 py-1">
+              <span>
+                <span className="font-mono text-muted-foreground">#{i + 1}</span> {RUBRIC_KIND_LABEL[r.kind]} — {r.label || "(sem rótulo)"}
+              </span>
+              <span className="text-muted-foreground">
+                {r.fixed_pct != null && `${r.fixed_pct}%`}
+                {r.fixed_value != null && `R$ ${r.fixed_value}`}
+                {r.param_key && ` · ${r.param_key}`}
+                {(r.convenio_slugs?.length ?? 0) > 0 && ` · ${r.convenio_slugs!.length} convênio(s)`}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+
