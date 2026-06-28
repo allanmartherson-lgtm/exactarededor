@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Search, Stethoscope, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown, X } from "lucide-react";
+import { Plus, Pencil, Search, Stethoscope, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown, X, History, Clock, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSpecialties, invalidateSpecialtiesCache, type SpecialtyRow } from "@/hooks/useSpecialties";
 
@@ -93,6 +93,43 @@ function SortButton({
   );
 }
 
+interface AuditEntry {
+  id: string;
+  specialty_id: string;
+  specialty_code: string;
+  action: "created" | "renamed" | "activated" | "inactivated";
+  old_name: string | null;
+  new_name: string | null;
+  old_active: boolean | null;
+  new_active: boolean | null;
+  actor_id: string | null;
+  actor_email: string | null;
+  created_at: string;
+}
+
+const ACTION_LABEL: Record<AuditEntry["action"], string> = {
+  created: "Criada",
+  renamed: "Renomeada",
+  activated: "Reativada",
+  inactivated: "Inativada",
+};
+
+const ACTION_VARIANT: Record<AuditEntry["action"], "default" | "secondary" | "outline"> = {
+  created: "default",
+  renamed: "outline",
+  activated: "outline",
+  inactivated: "secondary",
+};
+
+function formatTs(iso: string) {
+  try {
+    return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  } catch {
+    return iso;
+  }
+}
+
+
 
 export default function Specialties({ embedded = false }: Props) {
   const { allRows, loading, refetch } = useSpecialties({ includeInactive: true });
@@ -106,6 +143,38 @@ export default function Specialties({ embedded = false }: Props) {
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Histórico / auditoria
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyScope, setHistoryScope] = useState<{ specialtyId: string; name: string } | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<AuditEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadHistory = async (scope: { specialtyId: string; name: string } | null) => {
+    setHistoryLoading(true);
+    try {
+      let q = (supabase as any)
+        .from("specialty_audit_log")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(scope ? 200 : 100);
+      if (scope) q = q.eq("specialty_id", scope.specialtyId);
+      const { data, error } = await q;
+      if (error) throw error;
+      setHistoryEntries((data ?? []) as AuditEntry[]);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao carregar histórico");
+      setHistoryEntries([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const openHistory = (scope: { specialtyId: string; name: string } | null) => {
+    setHistoryScope(scope);
+    setHistoryOpen(true);
+    loadHistory(scope);
+  };
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -335,6 +404,9 @@ export default function Specialties({ embedded = false }: Props) {
           <span className="text-xs text-muted-foreground tabular-nums">
             {filtered.length} de {totals.total}
           </span>
+          <Button variant="outline" size="sm" onClick={() => openHistory(null)}>
+            <History className="h-4 w-4 mr-1" /> Histórico
+          </Button>
           <Button onClick={openCreate} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Nova especialidade
           </Button>
@@ -403,7 +475,15 @@ export default function Specialties({ embedded = false }: Props) {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="inline-flex gap-2">
+                      <div className="inline-flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openHistory({ specialtyId: row.id, name: row.name })}
+                          title="Ver histórico"
+                        >
+                          <History className="h-3.5 w-3.5" />
+                        </Button>
                         <Button size="sm" variant="ghost" onClick={() => openEdit(row)}>
                           <Pencil className="h-3.5 w-3.5 mr-1" />
                           Editar
@@ -468,6 +548,84 @@ export default function Specialties({ embedded = false }: Props) {
             <Button onClick={handleSave} disabled={saving}>
               {saving ? "Salvando…" : "Salvar"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {historyScope
+                ? `Histórico — ${historyScope.name}`
+                : "Histórico de especialidades"}
+            </DialogTitle>
+            <DialogDescription>
+              {historyScope
+                ? "Todas as alterações desta especialidade, em ordem do mais recente para o mais antigo."
+                : "Últimas 100 alterações registradas em qualquer especialidade."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
+            {historyLoading ? (
+              <div className="space-y-2 py-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : historyEntries.length === 0 ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                Nenhum registro de alteração ainda.
+              </div>
+            ) : (
+              <ol className="relative border-l ml-2">
+                {historyEntries.map((e) => {
+                  let detail: React.ReactNode = null;
+                  if (e.action === "renamed") {
+                    detail = (
+                      <span>
+                        <span className="line-through text-muted-foreground">{e.old_name}</span>{" "}
+                        → <span className="font-medium">{e.new_name}</span>
+                      </span>
+                    );
+                  } else if (e.action === "created") {
+                    detail = <span className="font-medium">{e.new_name}</span>;
+                  } else {
+                    detail = (
+                      <span className="text-muted-foreground">
+                        Status: {e.old_active ? "Ativa" : "Inativa"} → {e.new_active ? "Ativa" : "Inativa"}
+                      </span>
+                    );
+                  }
+                  return (
+                    <li key={e.id} className="ml-4 py-3 border-b last:border-b-0">
+                      <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full bg-primary" />
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <Badge variant={ACTION_VARIANT[e.action]}>{ACTION_LABEL[e.action]}</Badge>
+                        {!historyScope && (
+                          <code className="text-xs text-muted-foreground">{e.specialty_code}</code>
+                        )}
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatTs(e.created_at)}
+                        </span>
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1 ml-auto">
+                          <UserCircle2 className="h-3 w-3" />
+                          {e.actor_email ?? (e.actor_id ? e.actor_id.slice(0, 8) : "sistema")}
+                        </span>
+                      </div>
+                      <div className="text-sm">{detail}</div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => loadHistory(historyScope)} disabled={historyLoading}>
+              Atualizar
+            </Button>
+            <Button onClick={() => setHistoryOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

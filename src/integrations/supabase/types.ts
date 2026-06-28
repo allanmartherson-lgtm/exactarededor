@@ -9666,6 +9666,48 @@ export type Database = {
         }
         Relationships: []
       }
+      specialty_audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          created_at: string
+          id: string
+          new_active: boolean | null
+          new_name: string | null
+          old_active: boolean | null
+          old_name: string | null
+          specialty_code: string
+          specialty_id: string
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          new_active?: boolean | null
+          new_name?: string | null
+          old_active?: boolean | null
+          old_name?: string | null
+          specialty_code: string
+          specialty_id: string
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          new_active?: boolean | null
+          new_name?: string | null
+          old_active?: boolean | null
+          old_name?: string | null
+          specialty_code?: string
+          specialty_id?: string
+        }
+        Relationships: []
+      }
       status_anomalies: {
         Row: {
           context: Json
