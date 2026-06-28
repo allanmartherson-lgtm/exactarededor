@@ -555,9 +555,11 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
                         index={idx}
                         rubric={r}
                         tierTables={tierTables}
+                        convenios={convenios}
                         onChange={(patch) => updateRubric(idx, patch)}
                         onRemove={() => removeRubric(idx)}
                       />
+
                     ))}
                   </div>
                 )}
