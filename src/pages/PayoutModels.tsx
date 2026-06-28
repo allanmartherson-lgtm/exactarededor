@@ -138,6 +138,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
 
   const [models, setModels] = useState<PayoutModel[]>([]);
   const [tierTables, setTierTables] = useState<TierTable[]>([]);
+  const [convenios, setConvenios] = useState<Array<{ slug: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PayoutModel | null>(null);
   const [editingCompany, setEditingCompany] = useState<{ id: string; name: string; document: string | null } | null>(null);
@@ -148,7 +149,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
   const reload = async () => {
     if (!hospital?.id) return;
     setLoading(true);
-    const [{ data: ms }, { data: tt }] = await Promise.all([
+    const [{ data: ms }, { data: tt }, { data: cv }] = await Promise.all([
       supabase
         .from("payout_models" as any)
         .select("*")
@@ -161,11 +162,18 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         .or(`hospital_id.eq.${hospital.id},hospital_id.is.null`)
         .eq("active", true)
         .order("name"),
+      supabase
+        .from("convenios")
+        .select("slug,name")
+        .eq("active", true)
+        .order("name"),
     ]);
     setModels((ms ?? []) as any);
     setTierTables((tt ?? []) as any);
+    setConvenios((cv ?? []) as any);
     setLoading(false);
   };
+
 
   useEffect(() => {
     reload();
