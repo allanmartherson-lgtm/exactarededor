@@ -6206,6 +6206,7 @@ export type Database = {
           requires_tuss_in_sheet: boolean
           sort_order: number
           subtype_split_hint: Json | null
+          tuss_codes_extra: string[]
           tuss_default: string | null
           updated_at: string
         }
@@ -6227,6 +6228,7 @@ export type Database = {
           requires_tuss_in_sheet?: boolean
           sort_order?: number
           subtype_split_hint?: Json | null
+          tuss_codes_extra?: string[]
           tuss_default?: string | null
           updated_at?: string
         }
@@ -6248,6 +6250,7 @@ export type Database = {
           requires_tuss_in_sheet?: boolean
           sort_order?: number
           subtype_split_hint?: Json | null
+          tuss_codes_extra?: string[]
           tuss_default?: string | null
           updated_at?: string
         }
@@ -6401,6 +6404,7 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          has_mixed_parecer: boolean
           historico_window_end: string | null
           historico_window_start: string | null
           hospital_id: string
@@ -6411,6 +6415,7 @@ export type Database = {
           liquido_total: number
           manual_general_attachment_name: string | null
           manual_general_attachment_path: string | null
+          mixed_parecer_payment_type_id: string | null
           origem: string
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
@@ -6457,6 +6462,7 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          has_mixed_parecer?: boolean
           historico_window_end?: string | null
           historico_window_start?: string | null
           hospital_id: string
@@ -6467,6 +6473,7 @@ export type Database = {
           liquido_total?: number
           manual_general_attachment_name?: string | null
           manual_general_attachment_path?: string | null
+          mixed_parecer_payment_type_id?: string | null
           origem?: string
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
@@ -6513,6 +6520,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          has_mixed_parecer?: boolean
           historico_window_end?: string | null
           historico_window_start?: string | null
           hospital_id?: string
@@ -6523,6 +6531,7 @@ export type Database = {
           liquido_total?: number
           manual_general_attachment_name?: string | null
           manual_general_attachment_path?: string | null
+          mixed_parecer_payment_type_id?: string | null
           origem?: string
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
@@ -6556,6 +6565,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_mixed_parecer_payment_type_id_fkey"
+            columns: ["mixed_parecer_payment_type_id"]
+            isOneToOne: false
+            referencedRelation: "payment_types"
             referencedColumns: ["id"]
           },
           {
