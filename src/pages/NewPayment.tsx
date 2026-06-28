@@ -4272,7 +4272,7 @@ const NewPayment = () => {
           />
         )}
 
-        {showMixedParecerOption && allRows.length > 0 && (
+        {showMixedParecerOption && (
           <MixedParecerSetupCard
             value={mixedParecer}
             onChange={setMixedParecer}
