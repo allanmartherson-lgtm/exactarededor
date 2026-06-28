@@ -612,9 +612,4 @@ export default function CreditosDebitos() {
     </div>
   );
 }
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+
