@@ -93,6 +93,43 @@ function SortButton({
   );
 }
 
+interface AuditEntry {
+  id: string;
+  specialty_id: string;
+  specialty_code: string;
+  action: "created" | "renamed" | "activated" | "inactivated";
+  old_name: string | null;
+  new_name: string | null;
+  old_active: boolean | null;
+  new_active: boolean | null;
+  actor_id: string | null;
+  actor_email: string | null;
+  created_at: string;
+}
+
+const ACTION_LABEL: Record<AuditEntry["action"], string> = {
+  created: "Criada",
+  renamed: "Renomeada",
+  activated: "Reativada",
+  inactivated: "Inativada",
+};
+
+const ACTION_VARIANT: Record<AuditEntry["action"], "default" | "secondary" | "outline"> = {
+  created: "default",
+  renamed: "outline",
+  activated: "outline",
+  inactivated: "secondary",
+};
+
+function formatTs(iso: string) {
+  try {
+    return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  } catch {
+    return iso;
+  }
+}
+
+
 
 export default function Specialties({ embedded = false }: Props) {
   const { allRows, loading, refetch } = useSpecialties({ includeInactive: true });
