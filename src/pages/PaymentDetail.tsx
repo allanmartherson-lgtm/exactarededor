@@ -199,6 +199,7 @@ const PaymentDetail = () => {
   const navigate = useNavigate();
   const { user, hasRole, roles } = useAuth();
   const location = useLocation();
+  const hasSpecialCaseRules = useHasSpecialCaseRules(id ?? null);
 
   // Quando o usuário chega via "?highlight=<itemId>" (link a partir de outro
   // lote por duplicidade), pisca a linha alvo assim que ela aparece no DOM.
