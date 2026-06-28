@@ -40,9 +40,9 @@ export const ExactaLogo = ({
   const resolvedWordmarkSize = wordmarkSize ?? (variant === "full" ? 22 : 18);
 
   const textColor = onDark ? "#FFFFFF" : "hsl(var(--foreground))";
-  const taglineColor = onDark ? "rgba(255,255,255,0.45)" : "hsl(var(--muted-foreground))";
-  // Bronze claro contrasta no escuro; bronze escuro garante leitura no claro
-  const accentColor = onDark ? "#C6A27C" : "#8A6830";
+  const taglineColor = onDark ? "rgba(255,255,255,0.55)" : "hsl(var(--muted-foreground))";
+  // Token theme-aware: bronze escuro no claro, bronze claro no escuro; força claro em onDark
+  const accentColor = onDark ? "#E8C9A0" : "hsl(var(--brand-wordmark-accent))";
 
   const content = (
     <>
