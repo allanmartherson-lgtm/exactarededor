@@ -38,6 +38,7 @@ export const COMMON_SPECIALTIES: string[] = [
   "Endovascular",
   "Estimulação Cardíaca Artificial",
   "Fisiatra",
+  "Fisioterapia",
   "Gastroenterologia",
   "Geriatria",
   "Ginecologia e Obstetrícia",
