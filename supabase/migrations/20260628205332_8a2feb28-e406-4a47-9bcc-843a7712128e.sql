@@ -1,0 +1,2 @@
+DELETE FROM company_adjustment_applications WHERE adjustment_id IN ('10aba20d-df70-4a60-a9b8-aed73161317f','975d3af2-c39e-4711-b31c-677b654d20bf');
+DELETE FROM company_financial_adjustments WHERE id IN ('10aba20d-df70-4a60-a9b8-aed73161317f','975d3af2-c39e-4711-b31c-677b654d20bf');
