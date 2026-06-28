@@ -311,14 +311,14 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
     reload();
   };
 
-  const addRubric = () => {
+  const addRubric = (kind: RubricKind = "base_producao") => {
     setEditingRubrics((prev) => [
       ...prev,
       {
         sort_order: prev.length + 1,
-        kind: "base_producao",
+        kind,
         label: "",
-        incide_sobre: "subtotal_anterior",
+        incide_sobre: kind === "base_producao" || kind === "base_fixa" ? null : "subtotal_anterior",
         ref_rubric_order: null,
         param_key: null,
         fixed_pct: null,
@@ -326,12 +326,12 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         tier_table_id: null,
         convenio_slug: null,
         convenio_slugs: [],
-
         required: true,
         notes: null,
       },
     ]);
   };
+
 
   const updateRubric = (idx: number, patch: Partial<PayoutRubric>) => {
     setEditingRubrics((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
