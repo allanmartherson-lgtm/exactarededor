@@ -3175,7 +3175,7 @@ const PaymentDetail = () => {
             paymentUpdatedAt={(payment as any).updated_at ?? null}
           />
         )}
-        {id && (isAnalista || isDiretor) && (
+        {id && (isAnalista || isDiretor) && hasSpecialCaseRules && (
           <div className="rounded-md border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-950/20 dark:border-indigo-900/60 px-4 py-3 flex items-center justify-between gap-3">
             <div className="flex items-start gap-2 min-w-0">
               <Sparkles className="h-4 w-4 mt-0.5 text-indigo-600 shrink-0" />
