@@ -3403,9 +3403,9 @@ const NewPayment = () => {
                 </p>
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Centro de custos (padrão do lote)</Label>
+                <Label>Centro de custos <span className="text-destructive">*</span></Label>
                 <CostCenterCombobox value={costCenterCode} onChange={setCostCenterCode} placeholder="Buscar por código P12 ou nome…" />
-                <p className="text-xs text-muted-foreground">Pode ser sobrescrito por item depois. Itens sem centro herdam este.</p>
+                <p className="text-xs text-muted-foreground">Obrigatório. Define o centro de custos contábil padrão do lote. Pode ser sobrescrito por item depois — itens sem CC herdam este.</p>
               </div>
               {!modoConfeccao && (
               <div className="space-y-4 sm:col-span-2">
