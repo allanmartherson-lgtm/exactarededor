@@ -103,7 +103,7 @@ export function ConvenioMultiSelect({ values, onChange, matchMode, onMatchModeCh
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
           <Command>
             <CommandInput placeholder="Buscar por nome ou alias…" />
-            <CommandList>
+            <CommandList className="max-h-[320px] overflow-y-auto overscroll-contain">
               <CommandEmpty>Nenhum convênio. Cadastre em Convênios.</CommandEmpty>
               <CommandGroup>
                 {visible.map((r) => {
