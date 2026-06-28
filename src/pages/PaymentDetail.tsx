@@ -3141,7 +3141,9 @@ const PaymentDetail = () => {
                 return <LotValidationChecklist paymentId={id} audience={aud} companyToGroupId={map} />;
               })()}
               {id && !isConfeccao && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+              {id && <EngineSourcesCard paymentId={id} />}
               {id && <PoolCalculationCard paymentId={id} />}
+
               {id && (
                 <EmailApprovalCard
                   paymentId={id}
