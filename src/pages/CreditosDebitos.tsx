@@ -13,6 +13,8 @@ import { Trash2, Plus, Pencil, Scale, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 
 type Company = { id: string; name: string };
 type Adjustment = {
@@ -26,6 +28,9 @@ type Adjustment = {
   data_inicio: string;
   ativo: boolean;
   origem: string | null;
+  payment_type_ids: string[] | null;
+  recorrente: boolean;
+  data_fim: string | null;
   _company_name?: string;
 };
 
@@ -64,6 +69,7 @@ const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
 
 export default function CreditosDebitos() {
+  const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
   const [companies, setCompanies] = useState<Company[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [glosaDebts, setGlosaDebts] = useState<GlosaDebt[]>([]);
@@ -118,6 +124,7 @@ export default function CreditosDebitos() {
     setEditingAdj(a ? { ...a } : {
       tipo: "credito", descricao: "", valor_total: 0, parcelas_total: 1,
       parcelas_pagas: 0, data_inicio: new Date().toISOString().slice(0, 10), ativo: true, origem: "",
+      payment_type_ids: null, recorrente: false, data_fim: null,
     });
     setAdjDialogOpen(true);
   };
@@ -125,11 +132,17 @@ export default function CreditosDebitos() {
     if (!editingAdj?.company_id || !editingAdj.descricao || !editingAdj.valor_total) {
       toast.error("Preencha empresa, descrição e valor"); return;
     }
+    const recorrente = !!editingAdj.recorrente;
     const payload: any = {
       company_id: editingAdj.company_id, tipo: editingAdj.tipo, descricao: editingAdj.descricao,
-      valor_total: editingAdj.valor_total, parcelas_total: editingAdj.parcelas_total ?? 1,
-      parcelas_pagas: editingAdj.parcelas_pagas ?? 0, data_inicio: editingAdj.data_inicio,
+      valor_total: editingAdj.valor_total,
+      parcelas_total: recorrente ? 1 : (editingAdj.parcelas_total ?? 1),
+      parcelas_pagas: editingAdj.parcelas_pagas ?? 0,
+      data_inicio: editingAdj.data_inicio,
       ativo: editingAdj.ativo ?? true, origem: editingAdj.origem || null,
+      payment_type_ids: (editingAdj.payment_type_ids && editingAdj.payment_type_ids.length > 0) ? editingAdj.payment_type_ids : null,
+      recorrente,
+      data_fim: recorrente ? (editingAdj.data_fim || null) : null,
     };
     const { error } = editingAdj.id
       ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id)
@@ -137,6 +150,7 @@ export default function CreditosDebitos() {
     if (error) { toast.error(error.message); return; }
     toast.success("Ajuste salvo");
     setAdjDialogOpen(false); setEditingAdj(null); loadAll();
+
   };
   const removeAdj = async (id: string) => {
     if (!confirm("Excluir este ajuste?")) return;
@@ -376,14 +390,24 @@ export default function CreditosDebitos() {
               : adjustments.map(a => (
                 <div key={a.id} className="flex justify-between items-center border border-border rounded-md px-3 py-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant={a.tipo === "credito" ? "default" : "secondary"}>{a.tipo}</Badge>
                       <span className="font-medium text-sm">{a._company_name}</span>
+                      {a.recorrente && <Badge variant="outline" className="text-[10px]">Fixo mensal</Badge>}
                       {!a.ativo && <Badge variant="outline">Inativo</Badge>}
+                      {a.payment_type_ids && a.payment_type_ids.length > 0 && (
+                        <Badge variant="outline" className="text-[10px]">
+                          Só em: {a.payment_type_ids
+                            .map(id => paymentTypes.find(p => p.id === id)?.label ?? "—")
+                            .join(", ")}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">{a.descricao}</p>
                     <p className="text-xs">
-                      {brl(a.valor_total)} · parc. {a.parcelas_pagas}/{a.parcelas_total} · início {a.data_inicio}
+                      {a.recorrente
+                        ? <>{brl(a.valor_total)} / mês{a.data_fim ? ` · até ${a.data_fim}` : " · sem fim definido"} · início {a.data_inicio}</>
+                        : <>{brl(a.valor_total)} · parc. {a.parcelas_pagas}/{a.parcelas_total} · início {a.data_inicio}</>}
                     </p>
                   </div>
                   <div className="flex gap-1">
@@ -453,7 +477,7 @@ export default function CreditosDebitos() {
 
       {/* Dialog: novo/editar ajuste manual */}
       <Dialog open={adjDialogOpen} onOpenChange={setAdjDialogOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingAdj?.id ? "Editar ajuste" : "Novo crédito/débito"}</DialogTitle></DialogHeader>
           {editingAdj && (
             <div className="grid grid-cols-2 gap-3">
@@ -484,22 +508,95 @@ export default function CreditosDebitos() {
                 <Label>Descrição</Label>
                 <Input value={editingAdj.descricao || ""} onChange={e => setEditingAdj({ ...editingAdj, descricao: e.target.value })} />
               </div>
-              <div>
-                <Label>Valor total (R$)</Label>
-                <CurrencyInput value={editingAdj.valor_total} onChange={(v) => setEditingAdj({ ...editingAdj, valor_total: v ?? 0 })} />
+
+              {/* Modo: parcelado x fixo mensal */}
+              <div className="col-span-2 rounded-md border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={!!editingAdj.recorrente}
+                    onCheckedChange={v => setEditingAdj({ ...editingAdj, recorrente: v })}
+                  />
+                  <Label className="cursor-pointer">Fixo mensal (recorrente, sem fim definido)</Label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {editingAdj.recorrente
+                    ? "Aplica o valor abaixo como mensalidade fixa em todo lote elegível, até a data fim (se informada)."
+                    : "Lançamento finito: divide o valor total em N parcelas e encerra ao final."}
+                </p>
               </div>
-              <div>
-                <Label>Parcelas total</Label>
-                <Input type="number" min={1} value={editingAdj.parcelas_total ?? 1} onChange={e => setEditingAdj({ ...editingAdj, parcelas_total: parseInt(e.target.value) || 1 })} />
-              </div>
-              <div>
-                <Label>Parcelas pagas</Label>
-                <Input type="number" min={0} value={editingAdj.parcelas_pagas ?? 0} onChange={e => setEditingAdj({ ...editingAdj, parcelas_pagas: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
+
+              {editingAdj.recorrente ? (
+                <>
+                  <div>
+                    <Label>Valor mensal (R$)</Label>
+                    <CurrencyInput value={editingAdj.valor_total} onChange={(v) => setEditingAdj({ ...editingAdj, valor_total: v ?? 0 })} />
+                  </div>
+                  <div>
+                    <Label>Data fim (opcional)</Label>
+                    <DateInput value={editingAdj.data_fim || ""} onChange={(v) => setEditingAdj({ ...editingAdj, data_fim: v || null })} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <Label>Valor total (R$)</Label>
+                    <CurrencyInput value={editingAdj.valor_total} onChange={(v) => setEditingAdj({ ...editingAdj, valor_total: v ?? 0 })} />
+                  </div>
+                  <div>
+                    <Label>Parcelas total</Label>
+                    <Input type="number" min={1} value={editingAdj.parcelas_total ?? 1} onChange={e => setEditingAdj({ ...editingAdj, parcelas_total: parseInt(e.target.value) || 1 })} />
+                  </div>
+                  <div>
+                    <Label>Parcelas pagas</Label>
+                    <Input type="number" min={0} value={editingAdj.parcelas_pagas ?? 0} onChange={e => setEditingAdj({ ...editingAdj, parcelas_pagas: parseInt(e.target.value) || 0 })} />
+                  </div>
+                </>
+              )}
+
+              <div className={editingAdj.recorrente ? "" : "col-span-2"}>
                 <Label>Origem</Label>
                 <Input value={editingAdj.origem || ""} onChange={e => setEditingAdj({ ...editingAdj, origem: e.target.value })} placeholder="ex: manual, glosa 03/2025" />
               </div>
+
+              {/* Restrição por tipo de lote */}
+              <div className="col-span-2 rounded-md border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">Aplicar somente em lotes do tipo</Label>
+                  {(editingAdj.payment_type_ids?.length ?? 0) > 0 && (
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs"
+                      onClick={() => setEditingAdj({ ...editingAdj, payment_type_ids: null })}>
+                      Limpar (qualquer tipo)
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Vazio = aplica em qualquer lote da empresa. Marque para restringir somente aos tipos selecionados.
+                </p>
+                <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
+                  {paymentTypes.map(pt => {
+                    const cur = editingAdj.payment_type_ids ?? [];
+                    const checked = cur.includes(pt.id);
+                    return (
+                      <label key={pt.id} className="flex items-center gap-2 text-xs rounded px-2 py-1 hover:bg-muted/50 cursor-pointer">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => setEditingAdj({
+                            ...editingAdj,
+                            payment_type_ids: v
+                              ? Array.from(new Set([...cur, pt.id]))
+                              : cur.filter(id => id !== pt.id),
+                          })}
+                        />
+                        <span className="truncate">{pt.label}</span>
+                      </label>
+                    );
+                  })}
+                  {paymentTypes.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic col-span-2">Nenhum tipo de lote ativo cadastrado.</p>
+                  )}
+                </div>
+              </div>
+
               <div className="flex items-center gap-2 col-span-2">
                 <Switch checked={editingAdj.ativo ?? true} onCheckedChange={v => setEditingAdj({ ...editingAdj, ativo: v })} />
                 <Label>Ativo (aplica em próximos pagamentos)</Label>
@@ -515,3 +612,4 @@ export default function CreditosDebitos() {
     </div>
   );
 }
+

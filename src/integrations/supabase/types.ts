@@ -838,6 +838,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          data_fim: string | null
           data_inicio: string
           descricao: string
           hospital_id: string | null
@@ -846,6 +847,7 @@ export type Database = {
           parcelas_pagas: number
           parcelas_total: number
           payment_type_ids: string[] | null
+          recorrente: boolean
           tipo: string
           updated_at: string
           valor_total: number
@@ -855,6 +857,7 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          data_fim?: string | null
           data_inicio?: string
           descricao: string
           hospital_id?: string | null
@@ -863,6 +866,7 @@ export type Database = {
           parcelas_pagas?: number
           parcelas_total?: number
           payment_type_ids?: string[] | null
+          recorrente?: boolean
           tipo: string
           updated_at?: string
           valor_total: number
@@ -872,6 +876,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          data_fim?: string | null
           data_inicio?: string
           descricao?: string
           hospital_id?: string | null
@@ -880,6 +885,7 @@ export type Database = {
           parcelas_pagas?: number
           parcelas_total?: number
           payment_type_ids?: string[] | null
+          recorrente?: boolean
           tipo?: string
           updated_at?: string
           valor_total?: number
