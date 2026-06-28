@@ -33,6 +33,7 @@ const loadHealthMonitoring = () => import("./pages/HealthMonitoring.tsx");
 const loadPayments = () => import("./pages/Payments.tsx");
 const loadNewPayment = () => import("./pages/NewPayment.tsx");
 const loadNewManualPayment = () => import("./pages/NewManualPayment.tsx");
+const loadNewManualPaymentComposicao = () => import("./pages/NewManualPaymentComposicao.tsx");
 const loadManualPaymentEntry = () => import("./pages/ManualPaymentEntry.tsx");
 const loadPaymentDetail = () => import("./pages/PaymentDetail.tsx");
 const loadCompanyAnalysis = () => import("./pages/CompanyAnalysis.tsx");
