@@ -245,7 +245,10 @@ export default function ManualPaymentEntry() {
     company_id: row.company?.id ?? null,
     company_name: row.company?.name ?? null,
     doctor_id: row.doctor?.id ?? null,
-    doctor_name: row.doctor?.name ?? null,
+    // Modo manual: médico é opcional (ex.: fisio/PJ pura). payment_items.doctor_name
+    // é NOT NULL no banco, então usamos empresa como fallback para preservar
+    // rastreabilidade sem quebrar o constraint.
+    doctor_name: row.doctor?.name ?? row.company?.name ?? "—",
     payment_type_id: row.paymentTypeId ?? defaultTypeId,
     specialty: row.specialty || null,
     attendance_number: row.attendance || null,
