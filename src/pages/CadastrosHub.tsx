@@ -24,7 +24,8 @@ type TabValue =
   | "centros-de-custo"
   | "tipos-pagamento"
   | "motivos-intervencao-manual"
-  | "mapa-especialidades";
+  | "mapa-especialidades"
+  | "modelos-repasse";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "hospitais", label: "Hospitais" },
@@ -35,6 +36,7 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "tipos-pagamento", label: "Tipos de Pagamento" },
   { value: "motivos-intervencao-manual", label: "Motivos de Tratamento Manual" },
   { value: "mapa-especialidades", label: "Mapa de Especialidades" },
+  { value: "modelos-repasse", label: "Modelos de Repasse" },
 ];
 
 const VALID = new Set(TABS.map((t) => t.value));
