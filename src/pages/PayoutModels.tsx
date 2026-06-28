@@ -281,7 +281,9 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         fixed_pct: r.fixed_pct,
         fixed_value: r.fixed_value,
         tier_table_id: r.tier_table_id,
-        convenio_slug: r.convenio_slug,
+        convenio_slug: r.convenio_slugs?.[0] ?? r.convenio_slug ?? null,
+        convenio_slugs: r.convenio_slugs ?? [],
+
         required: r.required,
         notes: r.notes,
       }));
