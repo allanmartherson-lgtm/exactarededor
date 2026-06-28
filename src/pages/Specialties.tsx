@@ -144,6 +144,38 @@ export default function Specialties({ embedded = false }: Props) {
   const [draftName, setDraftName] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Histórico / auditoria
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyScope, setHistoryScope] = useState<{ specialtyId: string; name: string } | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<AuditEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadHistory = async (scope: { specialtyId: string; name: string } | null) => {
+    setHistoryLoading(true);
+    try {
+      let q = (supabase as any)
+        .from("specialty_audit_log")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(scope ? 200 : 100);
+      if (scope) q = q.eq("specialty_id", scope.specialtyId);
+      const { data, error } = await q;
+      if (error) throw error;
+      setHistoryEntries((data ?? []) as AuditEntry[]);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao carregar histórico");
+      setHistoryEntries([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const openHistory = (scope: { specialtyId: string; name: string } | null) => {
+    setHistoryScope(scope);
+    setHistoryOpen(true);
+    loadHistory(scope);
+  };
+
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
