@@ -658,7 +658,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         onOpenChange={setDialogOpen}
         title={editing?.id ? "Editar modelo de repasse" : "Novo modelo de repasse"}
         description="Receita de cálculo aplicada nos lançamentos manuais."
-        maxWidth="5xl"
+        maxWidth="7xl"
       >
         {editing && (() => {
           const stepperSteps = WIZARD_STEPS.map((s) => {
