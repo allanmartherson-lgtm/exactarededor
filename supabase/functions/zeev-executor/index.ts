@@ -1383,6 +1383,14 @@ Deno.serve(async (req) => {
         result = await execLinkDoctorCompany(sb, body.payment_id, p.scope, p.payload);
       } else if (p.action === "accept_keep_paid") {
         result = await execAcceptKeepPaid(sb, body.payment_id, p.scope, p.payload, actorId);
+      } else if (p.action === "accept_keep_expected") {
+        result = await execAcceptKeepExpected(sb, body.payment_id, p.scope, p.payload, actorId);
+      } else if (p.action === "undo_accept") {
+        result = await execUndoAccept(sb, body.payment_id, p.scope, p.payload, actorId);
+      } else if (p.action === "set_convenio") {
+        result = await execSetConvenio(sb, body.payment_id, p.scope, p.payload);
+      } else if (p.action === "apply_manual_reason") {
+        result = await execApplyManualReason(sb, body.payment_id, p.scope, p.payload, actorId, pay.hospital_id);
       } else {
         return jsonResp({ error: `ação não suportada: ${p.action}` }, 400);
       }
