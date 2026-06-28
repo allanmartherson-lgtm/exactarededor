@@ -17,6 +17,7 @@ import {
   formatBytes,
   validateAttachment,
 } from "@/lib/questionAttachments";
+import { PayoutBreakdownCard } from "@/components/PayoutBreakdownCard";
 
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-invoice`;
 const AUTH = `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
