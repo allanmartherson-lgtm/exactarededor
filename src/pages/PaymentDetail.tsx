@@ -1444,6 +1444,15 @@ const PaymentDetail = () => {
       (metaDraft.competence_month || "") !== ((payment as any).competence_month ?? "");
     if (structuralChanged) {
       try {
+        // Se o vínculo de pool mudou, refleti-lo nos itens (is_pool_item) —
+        // o PoolAnalysis filtra por essa flag; sem ela o pool fica "0 item(ns)".
+        const poolChanged = newPoolId !== ((payment as any).pool_id ?? null);
+        if (poolChanged) {
+          await supabase
+            .from("payment_items")
+            .update({ is_pool_item: newPoolId !== null })
+            .eq("payment_id", id);
+        }
         // Só invalida fontes que finalize-payment-engine sabe relê-las.
         // rules/payout_model são remarcadas pelo analyze-payment ao final do
         // processamento — invalidar aqui deixaria o card travado em "pendente"
@@ -1466,6 +1475,7 @@ const PaymentDetail = () => {
         console.warn("[edit-meta] falha ao re-disparar motor:", e);
       }
     }
+
 
     setSavingMeta(false);
     await recordObservation({
