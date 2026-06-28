@@ -76,31 +76,35 @@ export function MixedParecerRetroAction({
 
       const initRes = await supabase.functions.invoke("import-parecer-report", {
         body: {
-          action: "init",
+          mode: "init",
           payment_id: paymentId,
           filename: parecerPayload.fileName,
           file_hash: parecerPayload.fileHash,
           period_start: parecerPayload.periodStart,
           period_end: parecerPayload.periodEnd,
-          row_count: parecerPayload.rows.length,
         },
       });
+      if (initRes.error) throw initRes.error;
       const reportId = (initRes.data as any)?.report_id;
       if (!reportId) throw new Error("Falha ao criar cabeçalho do relatório");
 
-      const CHUNK = 200;
+      const CHUNK = 300;
+      let inserted = 0;
       for (let i = 0; i < parecerPayload.rows.length; i += CHUNK) {
         const chunk = parecerPayload.rows.slice(i, i + CHUNK);
         const { error: appErr } = await supabase.functions.invoke("import-parecer-report", {
-          body: { action: "append", report_id: reportId, rows: chunk },
+          body: { mode: "append", report_id: reportId, rows: chunk },
         });
         if (appErr) throw appErr;
+        inserted += chunk.length;
       }
 
       await supabase.functions.invoke("import-parecer-report", {
-        body: { action: "finalize", report_id: reportId },
+        body: { mode: "finalize", report_id: reportId, row_count: inserted },
       });
 
+      // finalize já dispara cross-reference-parecer; chamamos novamente com
+      // trigger_reanalysis=true para forçar reanálise das regras pós-classificação.
       const { error: xrefErr } = await supabase.functions.invoke("cross-reference-parecer", {
         body: { payment_id: paymentId, trigger_reanalysis: true },
       });
