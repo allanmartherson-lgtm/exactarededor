@@ -830,7 +830,7 @@ function RubricEditor({
           </div>
         )}
 
-        {isPct && (
+        {isPct && !hideReuso && (
           <>
             <div className="space-y-1">
               <Label className="text-xs">% fixo</Label>
@@ -862,6 +862,7 @@ function RubricEditor({
             </div>
           </>
         )}
+
 
         {isValor && (
           <div className="space-y-1">
