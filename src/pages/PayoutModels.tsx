@@ -630,24 +630,31 @@ function RubricEditor({
   const isFaixa = rubric.kind === "acrescimo_faixa";
   const isBase = rubric.kind === "base_producao" || rubric.kind === "base_fixa";
 
-  const convenioName = rubric.convenio_slug
-    ? convenios.find((c) => c.slug === rubric.convenio_slug)?.name ?? rubric.convenio_slug
-    : null;
+  const selectedSlugs = rubric.convenio_slugs?.length
+    ? rubric.convenio_slugs
+    : rubric.convenio_slug
+      ? [rubric.convenio_slug]
+      : [];
+  const slugLabel = (slug: string) => convenios.find((c) => c.slug === slug)?.name ?? slug;
 
   return (
     <div className="border rounded-md p-3 space-y-3 bg-muted/30">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">
+        <span className="text-xs font-medium text-muted-foreground flex flex-wrap items-center gap-1">
           Rubrica #{index + 1}
-          {convenioName && (
-            <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px]">
-              {convenioName}
+          {selectedSlugs.map((s) => (
+            <span
+              key={s}
+              className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px]"
+            >
+              {slugLabel(s)}
             </span>
-          )}
+          ))}
         </span>
         <Button variant="ghost" size="icon" onClick={onRemove} aria-label="Remover rubrica">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
+
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
