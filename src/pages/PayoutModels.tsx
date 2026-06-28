@@ -119,6 +119,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
   const [tierTables, setTierTables] = useState<TierTable[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PayoutModel | null>(null);
+  const [editingCompany, setEditingCompany] = useState<{ id: string; name: string; document: string | null } | null>(null);
   const [editingRubrics, setEditingRubrics] = useState<PayoutRubric[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
