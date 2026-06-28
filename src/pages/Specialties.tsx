@@ -551,6 +551,84 @@ export default function Specialties({ embedded = false }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {historyScope
+                ? `Histórico — ${historyScope.name}`
+                : "Histórico de especialidades"}
+            </DialogTitle>
+            <DialogDescription>
+              {historyScope
+                ? "Todas as alterações desta especialidade, em ordem do mais recente para o mais antigo."
+                : "Últimas 100 alterações registradas em qualquer especialidade."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
+            {historyLoading ? (
+              <div className="space-y-2 py-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : historyEntries.length === 0 ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                Nenhum registro de alteração ainda.
+              </div>
+            ) : (
+              <ol className="relative border-l ml-2">
+                {historyEntries.map((e) => {
+                  let detail: React.ReactNode = null;
+                  if (e.action === "renamed") {
+                    detail = (
+                      <span>
+                        <span className="line-through text-muted-foreground">{e.old_name}</span>{" "}
+                        → <span className="font-medium">{e.new_name}</span>
+                      </span>
+                    );
+                  } else if (e.action === "created") {
+                    detail = <span className="font-medium">{e.new_name}</span>;
+                  } else {
+                    detail = (
+                      <span className="text-muted-foreground">
+                        Status: {e.old_active ? "Ativa" : "Inativa"} → {e.new_active ? "Ativa" : "Inativa"}
+                      </span>
+                    );
+                  }
+                  return (
+                    <li key={e.id} className="ml-4 py-3 border-b last:border-b-0">
+                      <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full bg-primary" />
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <Badge variant={ACTION_VARIANT[e.action]}>{ACTION_LABEL[e.action]}</Badge>
+                        {!historyScope && (
+                          <code className="text-xs text-muted-foreground">{e.specialty_code}</code>
+                        )}
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatTs(e.created_at)}
+                        </span>
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1 ml-auto">
+                          <UserCircle2 className="h-3 w-3" />
+                          {e.actor_email ?? (e.actor_id ? e.actor_id.slice(0, 8) : "sistema")}
+                        </span>
+                      </div>
+                      <div className="text-sm">{detail}</div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => loadHistory(historyScope)} disabled={historyLoading}>
+              Atualizar
+            </Button>
+            <Button onClick={() => setHistoryOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
