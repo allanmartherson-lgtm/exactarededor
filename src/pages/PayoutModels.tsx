@@ -586,130 +586,74 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
       )}
       <div className={embedded ? "w-full" : "p-4 md:p-8 w-full"}>{content}</div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editing?.id ? "Editar modelo" : "Novo modelo de repasse"}</DialogTitle>
-            <DialogDescription>
-              {WIZARD_STEPS.find((s) => s.id === step)?.description}
-            </DialogDescription>
-          </DialogHeader>
+      <FormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editing?.id ? "Editar modelo de repasse" : "Novo modelo de repasse"}
+        description="Receita de cálculo aplicada nos lançamentos manuais."
+        maxWidth="5xl"
+      >
+        {editing && (() => {
+          const stepperSteps = WIZARD_STEPS.map((s) => {
+            const err = validateStep(s.id);
+            return {
+              key: s.id,
+              label: s.label,
+              description: s.description,
+              errorCount: err ? 1 : 0,
+              content:
+                s.id === "bases" ? (
+                  <BasesStep
+                    editing={editing}
+                    setEditing={setEditing}
+                    editingCompany={editingCompany}
+                    setEditingCompany={setEditingCompany}
+                    paymentTypes={paymentTypes}
+                    rubrics={editingRubrics}
+                    addRubric={addRubric}
+                    updateRubric={updateRubric}
+                    removeRubric={removeRubric}
+                    tierTables={tierTables}
+                    convenios={convenios}
+                  />
+                ) : s.id === "ajustes" ? (
+                  <AjustesStep
+                    rubrics={editingRubrics}
+                    addRubric={addRubric}
+                    updateRubric={updateRubric}
+                    removeRubric={removeRubric}
+                    tierTables={tierTables}
+                    convenios={convenios}
+                  />
+                ) : s.id === "convenios" ? (
+                  <ConveniosStep
+                    rubrics={editingRubrics}
+                    updateRubric={updateRubric}
+                    convenios={convenios}
+                  />
+                ) : (
+                  <ReusoStep
+                    rubrics={editingRubrics}
+                    updateRubric={updateRubric}
+                    editing={editing}
+                    paymentTypeLabel={paymentTypeLabel}
+                    editingCompany={editingCompany}
+                  />
+                ),
+            };
+          });
 
-          {/* Stepper */}
-          <ol className="flex items-center gap-2 text-xs">
-            {WIZARD_STEPS.map((s, i) => {
-              const active = s.id === step;
-              const currentIdx = WIZARD_STEPS.findIndex((x) => x.id === step);
-              const done = i < currentIdx;
-              return (
-                <li key={s.id} className="flex items-center gap-2 flex-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // permite voltar livremente; avançar exige validação
-                      if (i <= currentIdx) setStep(s.id);
-                    }}
-                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 border transition-colors ${
-                      active
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : done
-                          ? "border-success/40 bg-success/10 text-success"
-                          : "border-border bg-muted/30 text-muted-foreground"
-                    }`}
-                  >
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-background/60 text-[10px] font-semibold">
-                      {i + 1}
-                    </span>
-                    <span className="font-medium">{s.label}</span>
-                  </button>
-                  {i < WIZARD_STEPS.length - 1 && (
-                    <span className="flex-1 h-px bg-border" aria-hidden />
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-
-          {stepError && (
-            <div className="text-xs rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2">
-              {stepError}
-            </div>
-          )}
-
-          {editing && (
-            <div className="space-y-5">
-              {step === "bases" && (
-                <BasesStep
-                  editing={editing}
-                  setEditing={setEditing}
-                  editingCompany={editingCompany}
-                  setEditingCompany={setEditingCompany}
-                  paymentTypes={paymentTypes}
-                  rubrics={editingRubrics}
-                  addRubric={addRubric}
-                  updateRubric={updateRubric}
-                  removeRubric={removeRubric}
-                  tierTables={tierTables}
-                  convenios={convenios}
-                />
-              )}
-
-              {step === "ajustes" && (
-                <AjustesStep
-                  rubrics={editingRubrics}
-                  addRubric={addRubric}
-                  updateRubric={updateRubric}
-                  removeRubric={removeRubric}
-                  tierTables={tierTables}
-                  convenios={convenios}
-                />
-              )}
-
-              {step === "convenios" && (
-                <ConveniosStep
-                  rubrics={editingRubrics}
-                  updateRubric={updateRubric}
-                  convenios={convenios}
-                />
-              )}
-
-              {step === "reuso" && (
-                <ReusoStep
-                  rubrics={editingRubrics}
-                  updateRubric={updateRubric}
-                  editing={editing}
-                  paymentTypeLabel={paymentTypeLabel}
-                  editingCompany={editingCompany}
-                />
-              )}
-            </div>
-          )}
-
-          <DialogFooter className="flex sm:justify-between gap-2">
-            <Button variant="ghost" onClick={() => setDialogOpen(false)} disabled={saving}>
-              Cancelar
-            </Button>
-            <div className="flex gap-2">
-              {step !== "bases" && (
-                <Button variant="outline" onClick={goPrev} disabled={saving}>
-                  Voltar
-                </Button>
-              )}
-              {step !== "reuso" ? (
-                <Button onClick={goNext} disabled={saving}>
-                  Próximo
-                </Button>
-              ) : (
-                <Button onClick={handleSave} disabled={saving || !canManage}>
-                  {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                  Salvar modelo
-                </Button>
-              )}
-            </div>
-          </DialogFooter>
-        </DialogContent>
-
-      </Dialog>
+          return (
+            <RuleFormStepper
+              isEditing={!!editing?.id}
+              saving={saving}
+              steps={stepperSteps}
+              onCancel={() => setDialogOpen(false)}
+              onSubmit={handleSave}
+            />
+          );
+        })()}
+      </FormDialog>
     </div>
   );
 }
