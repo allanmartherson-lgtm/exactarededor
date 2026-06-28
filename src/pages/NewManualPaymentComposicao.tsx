@@ -87,7 +87,7 @@ export default function NewManualPaymentComposicao() {
       if (paymentTypeId) q = q.or(`payment_type_id.eq.${paymentTypeId},payment_type_id.is.null`);
       else q = q.is("payment_type_id", null);
       const { data } = await q.order("name");
-      let list = (data ?? []) as PayoutModelRow[];
+      let list = ((data ?? []) as unknown) as PayoutModelRow[];
       // Prioriza match exato por empresa; depois empresa nula (genérico)
       if (company?.id) {
         list = list.filter((m) => !m.company_id || m.company_id === company.id);
