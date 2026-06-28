@@ -70,6 +70,27 @@ const RUBRIC_KIND_LABEL: Record<RubricKind, string> = {
   retencao_pct: "Retenção % (TRD/imposto)",
 };
 
+/** Texto explicativo curto exibido abaixo do select de Tipo. */
+const RUBRIC_KIND_HELP: Record<RubricKind, string> = {
+  base_producao:
+    "O analista digita o valor no lançamento (ex.: produção do mês de Sul América). Soma ao bruto.",
+  base_fixa:
+    "Valor fixo cadastrado aqui — usado quando o repasse independe da produção (ex.: sessão fixa para Particular).",
+  desconto_pct:
+    "Subtrai um percentual aplicado sobre o que você escolher em 'Incide sobre' (bruto, subtotal anterior ou rubrica específica).",
+  desconto_valor:
+    "Subtrai um valor fixo do cálculo (ex.: ajuste contratual em R$).",
+  acrescimo_pct:
+    "Soma um percentual sobre o que você escolher em 'Incide sobre'.",
+  acrescimo_valor:
+    "Soma um valor fixo ao cálculo.",
+  acrescimo_faixa:
+    "Soma um valor lido de uma tabela de faixas (ex.: bônus por nº de atendimentos). Cadastre a tabela em Modelos de Repasse → Tabelas de Faixas.",
+  retencao_pct:
+    "Subtrai um percentual de retenção no final (ex.: TRD, ISS). Pode reusar valor cadastrado em Parâmetros do Sistema via 'Param key'.",
+};
+
+
 type IncideSobre = "bruto" | "subtotal_anterior" | "rubrica_especifica";
 
 interface PayoutModel {
@@ -117,6 +138,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
 
   const [models, setModels] = useState<PayoutModel[]>([]);
   const [tierTables, setTierTables] = useState<TierTable[]>([]);
+  const [convenios, setConvenios] = useState<Array<{ slug: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PayoutModel | null>(null);
   const [editingCompany, setEditingCompany] = useState<{ id: string; name: string; document: string | null } | null>(null);
@@ -127,7 +149,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
   const reload = async () => {
     if (!hospital?.id) return;
     setLoading(true);
-    const [{ data: ms }, { data: tt }] = await Promise.all([
+    const [{ data: ms }, { data: tt }, { data: cv }] = await Promise.all([
       supabase
         .from("payout_models" as any)
         .select("*")
@@ -140,11 +162,18 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         .or(`hospital_id.eq.${hospital.id},hospital_id.is.null`)
         .eq("active", true)
         .order("name"),
+      supabase
+        .from("convenios")
+        .select("slug,name")
+        .eq("active", true)
+        .order("name"),
     ]);
     setModels((ms ?? []) as any);
     setTierTables((tt ?? []) as any);
+    setConvenios((cv ?? []) as any);
     setLoading(false);
   };
+
 
   useEffect(() => {
     reload();
@@ -379,25 +408,46 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
       <Card className="border-dashed">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Layers className="h-4 w-4" /> Como funciona
+            <Layers className="h-4 w-4" /> Como funciona um modelo
           </CardTitle>
+          <CardDescription className="text-xs">
+            Um modelo é uma <span className="font-medium">receita</span> que o analista executa todo mês no lançamento manual.
+            Cada linha é uma <span className="font-medium">rubrica</span>, e elas são calculadas
+            na ordem em que aparecem.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="text-xs text-muted-foreground space-y-1">
+        <CardContent className="text-xs text-muted-foreground space-y-2">
           <p>
-            <span className="font-medium text-foreground">Tipos de rubrica:</span> base (entrada manual ou
-            valor fixo), desconto (% ou valor), acréscimo (% / valor / faixa de tabela) e retenção (% no final).
+            <span className="font-medium text-foreground">1) Bases</span> — o que entra na conta.
+            Use <em>Base de produção</em> para valores digitados pelo analista (ex.: produção do
+            mês por convênio) e <em>Base fixa</em> quando o valor está cadastrado aqui (ex.:
+            sessão fixa para Particular).
           </p>
           <p>
-            <span className="font-medium text-foreground">Incidência:</span> cada rubrica % aponta sobre o que
-            incide — bruto, subtotal anterior ou uma rubrica específica.
+            <span className="font-medium text-foreground">2) Descontos / Acréscimos / Retenções</span>{" "}
+            — apontam sobre o que incidem (bruto, subtotal anterior ou rubrica específica) e podem
+            ser % ou valor fixo. <em>Acréscimo por faixa</em> lê o valor de uma tabela
+            (ex.: bônus por atendimentos).
           </p>
           <p>
-            <span className="font-medium text-foreground">Reuso:</span> glosa média e TRD podem vir de
-            <code className="px-1">system_parameter_defs</code> via <code className="px-1">param_key</code> — mude
-            no parâmetro e todo modelo que aponta atualiza.
+            <span className="font-medium text-foreground">3) Convênio na rubrica</span> — é apenas{" "}
+            <em>identificação</em>. Aparece na memória de cálculo (PDF/portal) e permite buscar %
+            específico em Parâmetros do Sistema (ex.: TRD diferente para Sul América).{" "}
+            <span className="font-medium">Não filtra nem soma sozinho</span> — a soma vem sempre
+            do valor digitado pelo analista naquela base.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">4) Reuso de parâmetros</span> — em
+            descontos/retenções %, prefira "Param key" (ex.: <code className="px-1">repasse.glosa_media</code>)
+            em vez de % fixo: você muda no cadastro central e todos os modelos atualizam.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">Versão</span> — cada salvamento incrementa
+            a versão. Pagamentos antigos preservam a versão usada na hora do cálculo (auditoria estável).
           </p>
         </CardContent>
       </Card>
+
     </div>
   );
 
@@ -526,9 +576,11 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
                         index={idx}
                         rubric={r}
                         tierTables={tierTables}
+                        convenios={convenios}
                         onChange={(patch) => updateRubric(idx, patch)}
                         onRemove={() => removeRubric(idx)}
                       />
+
                     ))}
                   </div>
                 )}
@@ -556,12 +608,14 @@ function RubricEditor({
   index,
   rubric,
   tierTables,
+  convenios,
   onChange,
   onRemove,
 }: {
   index: number;
   rubric: PayoutRubric;
   tierTables: TierTable[];
+  convenios: Array<{ slug: string; name: string }>;
   onChange: (patch: Partial<PayoutRubric>) => void;
   onRemove: () => void;
 }) {
@@ -570,16 +624,28 @@ function RubricEditor({
   const isFaixa = rubric.kind === "acrescimo_faixa";
   const isBase = rubric.kind === "base_producao" || rubric.kind === "base_fixa";
 
+  const convenioName = rubric.convenio_slug
+    ? convenios.find((c) => c.slug === rubric.convenio_slug)?.name ?? rubric.convenio_slug
+    : null;
+
   return (
-    <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+    <div className="border rounded-md p-3 space-y-3 bg-muted/30">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
-        <Button variant="ghost" size="icon" onClick={onRemove}>
+        <span className="text-xs font-medium text-muted-foreground">
+          Rubrica #{index + 1}
+          {convenioName && (
+            <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px]">
+              {convenioName}
+            </span>
+          )}
+        </span>
+        <Button variant="ghost" size="icon" onClick={onRemove} aria-label="Remover rubrica">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        <div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="space-y-1">
           <Label className="text-xs">Tipo</Label>
           <Select value={rubric.kind} onValueChange={(v) => onChange({ kind: v as RubricKind })}>
             <SelectTrigger className="h-8 text-sm">
@@ -593,9 +659,10 @@ function RubricEditor({
               ))}
             </SelectContent>
           </Select>
+          <p className="text-[11px] text-muted-foreground leading-snug">{RUBRIC_KIND_HELP[rubric.kind]}</p>
         </div>
-        <div>
-          <Label className="text-xs">Rótulo</Label>
+        <div className="space-y-1">
+          <Label className="text-xs">Rótulo (aparece na memória de cálculo)</Label>
           <Input
             className="h-8 text-sm"
             value={rubric.label}
@@ -605,7 +672,7 @@ function RubricEditor({
         </div>
 
         {!isBase && (
-          <div>
+          <div className="space-y-1">
             <Label className="text-xs">Incide sobre</Label>
             <Select
               value={rubric.incide_sobre ?? "subtotal_anterior"}
@@ -615,16 +682,19 @@ function RubricEditor({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="bruto">Bruto (soma das bases)</SelectItem>
-                <SelectItem value="subtotal_anterior">Subtotal anterior</SelectItem>
+                <SelectItem value="bruto">Bruto (soma de todas as bases)</SelectItem>
+                <SelectItem value="subtotal_anterior">Subtotal anterior (bases + rubricas até aqui)</SelectItem>
                 <SelectItem value="rubrica_especifica">Rubrica específica</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Define a base de cálculo do % ou referência do valor.
+            </p>
           </div>
         )}
 
         {rubric.incide_sobre === "rubrica_especifica" && (
-          <div>
+          <div className="space-y-1">
             <Label className="text-xs">Nº da rubrica de referência</Label>
             <Input
               type="number"
@@ -639,8 +709,8 @@ function RubricEditor({
 
         {isPct && (
           <>
-            <div>
-              <Label className="text-xs">% fixo (opcional)</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">% fixo</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -651,22 +721,28 @@ function RubricEditor({
                 }
                 placeholder="Ex.: 10"
               />
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Use isto OU "Param key" — se ambos preenchidos, o % fixo vence.
+              </p>
             </div>
-            <div>
-              <Label className="text-xs">Param key (alternativa)</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Param key (Parâmetros do Sistema)</Label>
               <Input
                 className="h-8 text-sm"
                 value={rubric.param_key ?? ""}
                 onChange={(e) => onChange({ param_key: e.target.value || null })}
                 placeholder="repasse.glosa_media"
               />
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Lê o % do cadastro central — mude lá uma vez e todos os modelos atualizam.
+              </p>
             </div>
           </>
         )}
 
         {isValor && (
-          <div>
-            <Label className="text-xs">Valor fixo</Label>
+          <div className="space-y-1">
+            <Label className="text-xs">Valor fixo (R$)</Label>
             <Input
               type="number"
               step="0.01"
@@ -680,7 +756,7 @@ function RubricEditor({
         )}
 
         {isFaixa && (
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 space-y-1">
             <Label className="text-xs">Tabela de faixas</Label>
             <Select
               value={rubric.tier_table_id ?? ""}
@@ -706,14 +782,32 @@ function RubricEditor({
           </div>
         )}
 
-        <div className="md:col-span-2">
-          <Label className="text-xs">Convênio (opcional — restringe a base/rubrica)</Label>
-          <Input
-            className="h-8 text-sm"
-            value={rubric.convenio_slug ?? ""}
-            onChange={(e) => onChange({ convenio_slug: e.target.value || null })}
-            placeholder="sul_america, bradesco_segur, particular…"
-          />
+        <div className="md:col-span-2 space-y-1">
+          <Label className="text-xs">Convênio (opcional)</Label>
+          <Select
+            value={rubric.convenio_slug ?? "__none"}
+            onValueChange={(v) => onChange({ convenio_slug: v === "__none" ? null : v })}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="Sem vínculo de convênio" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">— Sem vínculo (vale para qualquer convênio)</SelectItem>
+              {convenios.map((c) => (
+                <SelectItem key={c.slug} value={c.slug}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            <span className="font-medium text-foreground">Para que serve:</span> apenas
+            <em> identifica </em> a qual convênio esta rubrica se refere. Serve para (1) a memória de
+            cálculo no PDF/portal exibir o convênio ao lado da linha e (2) buscar % específico em
+            Parâmetros do Sistema quando houver override por convênio (ex.: TRD diferente para Sul
+            América). <span className="font-medium">Não filtra nem soma sozinho</span> — o cálculo
+            usa sempre o valor que o analista digita na base de produção correspondente.
+          </p>
         </div>
       </div>
     </div>
