@@ -1444,15 +1444,29 @@ const PaymentDetail = () => {
       (metaDraft.competence_month || "") !== ((payment as any).competence_month ?? "");
     if (structuralChanged) {
       try {
+        // Só invalida fontes que finalize-payment-engine sabe relê-las.
+        // rules/payout_model são remarcadas pelo analyze-payment ao final do
+        // processamento — invalidar aqui deixaria o card travado em "pendente"
+        // sem motivo (os cálculos por item permanecem íntegros após edição
+        // de pool/modo/competência).
         await supabase
           .from("payment_engine_sources")
           .update({ read_at: null, applied_count: 0, total_value: 0 })
-          .eq("payment_id", id);
+          .eq("payment_id", id)
+          .in("source", [
+            "company_adjustments",
+            "glosa_debts",
+            "minimum_guarantee",
+            "pool_deductions",
+            "retroactive_reconciliation",
+            "special_case_marks",
+          ]);
         await supabase.functions.invoke("finalize-payment-engine", { body: { payment_id: id, reason: "edit_meta_structural" } });
       } catch (e) {
         console.warn("[edit-meta] falha ao re-disparar motor:", e);
       }
     }
+
     setSavingMeta(false);
     await recordObservation({
       payment_id: id, author_type: "analista", author_id: user!.id,
