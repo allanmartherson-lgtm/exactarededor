@@ -3670,6 +3670,7 @@ function RowMain({
   onEditItem?: (item: PaymentItemRowData) => void;
   onDeleteItem?: (item: PaymentItemRowData) => void;
   onAcceptItem?: (item: PaymentItemRowData) => void;
+  onAcceptItemKeepPaid?: (item: PaymentItemRowData) => void;
   onUndoAcceptItem?: (item: PaymentItemRowData) => void;
   showGrossColumn?: boolean;
   showProcedureColumn?: boolean;
