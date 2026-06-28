@@ -64,6 +64,7 @@ import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBa
 import { RegisterExternalApprovalDialog } from "@/components/payment-detail/RegisterExternalApprovalDialog";
 import { SpecialCaseRetroactiveBanner } from "@/components/payment-detail/SpecialCaseRetroactiveBanner";
 import { MarkSpecialCaseDialog } from "@/components/payment-detail/MarkSpecialCaseDialog";
+import { useHasSpecialCaseRules } from "@/components/payment-detail/useHasSpecialCaseRules";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
