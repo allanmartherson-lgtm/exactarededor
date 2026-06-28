@@ -1139,6 +1139,8 @@ Deno.serve(async (req) => {
         result = await execSetCostCenter(sb, body.payment_id, p.scope, p.payload);
       } else if (p.action === "link_doctor_company") {
         result = await execLinkDoctorCompany(sb, body.payment_id, p.scope, p.payload);
+      } else if (p.action === "accept_keep_paid") {
+        result = await execAcceptKeepPaid(sb, body.payment_id, p.scope, p.payload, actorId);
       } else {
         return jsonResp({ error: `ação não suportada: ${p.action}` }, 400);
       }
