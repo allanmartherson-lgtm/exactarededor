@@ -451,8 +451,11 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
                 <div className="space-y-1.5 md:col-span-2">
                   <Label>Empresa (opcional)</Label>
                   <CompanyCombobox
-                    value={editing.company_id ?? null}
-                    onChange={(v) => setEditing({ ...editing, company_id: v })}
+                    value={editingCompany}
+                    onChange={(c) => {
+                      setEditingCompany(c);
+                      setEditing({ ...editing, company_id: c?.id ?? null });
+                    }}
                     placeholder="Qualquer empresa do tipo selecionado"
                   />
                 </div>
