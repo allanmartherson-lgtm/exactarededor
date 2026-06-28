@@ -67,6 +67,7 @@ import { confirmDialog } from "@/lib/confirm";
 import { detectSuspiciousRows } from "@/lib/detectSuspiciousRows";
 import { SuspiciousRowsReview, type SuspiciousDecision } from "@/components/payment-wizard/SuspiciousRowsReview";
 import { ParecerReportWizardCard, type ParecerWizardPayload } from "@/components/payment-wizard/ParecerReportWizardCard";
+import { MixedParecerSetupCard, useAmbiguousTussCount, type MixedParecerSetup } from "@/components/payment-wizard/MixedParecerSetupCard";
 import { SpecialtyResolutionModal } from "@/components/payment-wizard/SpecialtyResolutionModal";
 
 import { ZeevAssistant, type ZeevInsight } from "@/components/copilot/ZeevAssistant";
