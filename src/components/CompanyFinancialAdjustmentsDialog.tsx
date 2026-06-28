@@ -26,6 +26,7 @@ type Adjustment = {
   origem: string | null;
   ativo: boolean;
   created_at: string;
+  payment_type_ids: string[] | null;
 };
 
 const TIPOS = [
