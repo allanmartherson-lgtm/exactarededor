@@ -588,137 +588,124 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
           <DialogHeader>
             <DialogTitle>{editing?.id ? "Editar modelo" : "Novo modelo de repasse"}</DialogTitle>
             <DialogDescription>
-              Cada salvamento incrementa a versão. Pagamentos antigos preservam a versão usada no
-              <code className="px-1">payout_breakdown</code>.
+              {WIZARD_STEPS.find((s) => s.id === step)?.description}
             </DialogDescription>
           </DialogHeader>
 
-          {editing && (
-            <div className="space-y-5">
-              {/* Cabeçalho */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Nome *</Label>
-                  <Input
-                    value={editing.name}
-                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                    placeholder="Ex.: Fisio HDF — repasse mensal"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Tipo de pagamento</Label>
-                  <Select
-                    value={editing.payment_type_id ?? "none"}
-                    onValueChange={(v) =>
-                      setEditing({ ...editing, payment_type_id: v === "none" ? null : v })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Qualquer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Qualquer tipo</SelectItem>
-                      {paymentTypes.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label>Empresa (opcional)</Label>
-                  <CompanyCombobox
-                    value={editingCompany}
-                    onChange={(c) => {
-                      setEditingCompany(c);
-                      setEditing({ ...editing, company_id: c?.id ?? null });
+          {/* Stepper */}
+          <ol className="flex items-center gap-2 text-xs">
+            {WIZARD_STEPS.map((s, i) => {
+              const active = s.id === step;
+              const currentIdx = WIZARD_STEPS.findIndex((x) => x.id === step);
+              const done = i < currentIdx;
+              return (
+                <li key={s.id} className="flex items-center gap-2 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // permite voltar livremente; avançar exige validação
+                      if (i <= currentIdx) setStep(s.id);
                     }}
-                    placeholder="Qualquer empresa do tipo selecionado"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Vigência início</Label>
-                  <Input
-                    type="date"
-                    value={editing.effective_from ?? ""}
-                    onChange={(e) =>
-                      setEditing({ ...editing, effective_from: e.target.value || null })
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Vigência fim</Label>
-                  <Input
-                    type="date"
-                    value={editing.effective_to ?? ""}
-                    onChange={(e) =>
-                      setEditing({ ...editing, effective_to: e.target.value || null })
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label>Descrição</Label>
-                  <Textarea
-                    rows={2}
-                    value={editing.description ?? ""}
-                    onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                    placeholder="Contexto do acordo, referência contratual, observações."
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={editing.active}
-                    onCheckedChange={(v) => setEditing({ ...editing, active: v })}
-                  />
-                  <Label>Ativo</Label>
-                </div>
-              </div>
+                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 border transition-colors ${
+                      active
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : done
+                          ? "border-success/40 bg-success/10 text-success"
+                          : "border-border bg-muted/30 text-muted-foreground"
+                    }`}
+                  >
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-background/60 text-[10px] font-semibold">
+                      {i + 1}
+                    </span>
+                    <span className="font-medium">{s.label}</span>
+                  </button>
+                  {i < WIZARD_STEPS.length - 1 && (
+                    <span className="flex-1 h-px bg-border" aria-hidden />
+                  )}
+                </li>
+              );
+            })}
+          </ol>
 
-              {/* Rubricas */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">Rubricas (em ordem de cálculo)</h3>
-                  <Button size="sm" variant="outline" onClick={addRubric}>
-                    <Plus className="h-3 w-3 mr-1" /> Adicionar rubrica
-                  </Button>
-                </div>
-
-                {editingRubrics.length === 0 ? (
-                  <div className="text-xs text-muted-foreground border border-dashed rounded p-4 text-center">
-                    Nenhuma rubrica. Comece adicionando as bases de produção, depois descontos e
-                    retenções.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {editingRubrics.map((r, idx) => (
-                      <RubricEditor
-                        key={idx}
-                        index={idx}
-                        rubric={r}
-                        tierTables={tierTables}
-                        convenios={convenios}
-                        onChange={(patch) => updateRubric(idx, patch)}
-                        onRemove={() => removeRubric(idx)}
-                      />
-
-                    ))}
-                  </div>
-                )}
-              </div>
+          {stepError && (
+            <div className="text-xs rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2">
+              {stepError}
             </div>
           )}
 
-          <DialogFooter>
+          {editing && (
+            <div className="space-y-5">
+              {step === "bases" && (
+                <BasesStep
+                  editing={editing}
+                  setEditing={setEditing}
+                  editingCompany={editingCompany}
+                  setEditingCompany={setEditingCompany}
+                  paymentTypes={paymentTypes}
+                  rubrics={editingRubrics}
+                  addRubric={addRubric}
+                  updateRubric={updateRubric}
+                  removeRubric={removeRubric}
+                  tierTables={tierTables}
+                  convenios={convenios}
+                />
+              )}
+
+              {step === "ajustes" && (
+                <AjustesStep
+                  rubrics={editingRubrics}
+                  addRubric={addRubric}
+                  updateRubric={updateRubric}
+                  removeRubric={removeRubric}
+                  tierTables={tierTables}
+                  convenios={convenios}
+                />
+              )}
+
+              {step === "convenios" && (
+                <ConveniosStep
+                  rubrics={editingRubrics}
+                  updateRubric={updateRubric}
+                  convenios={convenios}
+                />
+              )}
+
+              {step === "reuso" && (
+                <ReusoStep
+                  rubrics={editingRubrics}
+                  updateRubric={updateRubric}
+                  editing={editing}
+                  paymentTypeLabel={paymentTypeLabel}
+                  editingCompany={editingCompany}
+                />
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="flex sm:justify-between gap-2">
             <Button variant="ghost" onClick={() => setDialogOpen(false)} disabled={saving}>
               Cancelar
             </Button>
-            <Button onClick={save} disabled={saving || !canManage}>
-              {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-              Salvar
-            </Button>
+            <div className="flex gap-2">
+              {step !== "bases" && (
+                <Button variant="outline" onClick={goPrev} disabled={saving}>
+                  Voltar
+                </Button>
+              )}
+              {step !== "reuso" ? (
+                <Button onClick={goNext} disabled={saving}>
+                  Próximo
+                </Button>
+              ) : (
+                <Button onClick={handleSave} disabled={saving || !canManage}>
+                  {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                  Salvar modelo
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
+
       </Dialog>
     </div>
   );
