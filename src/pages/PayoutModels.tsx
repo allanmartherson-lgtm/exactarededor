@@ -408,25 +408,46 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
       <Card className="border-dashed">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Layers className="h-4 w-4" /> Como funciona
+            <Layers className="h-4 w-4" /> Como funciona um modelo
           </CardTitle>
+          <CardDescription className="text-xs">
+            Um modelo é uma <span className="font-medium">receita</span> que o analista executa todo mês no lançamento manual.
+            Cada linha é uma <span className="font-medium">rubrica</span>, e elas são calculadas
+            na ordem em que aparecem.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="text-xs text-muted-foreground space-y-1">
+        <CardContent className="text-xs text-muted-foreground space-y-2">
           <p>
-            <span className="font-medium text-foreground">Tipos de rubrica:</span> base (entrada manual ou
-            valor fixo), desconto (% ou valor), acréscimo (% / valor / faixa de tabela) e retenção (% no final).
+            <span className="font-medium text-foreground">1) Bases</span> — o que entra na conta.
+            Use <em>Base de produção</em> para valores digitados pelo analista (ex.: produção do
+            mês por convênio) e <em>Base fixa</em> quando o valor está cadastrado aqui (ex.:
+            sessão fixa para Particular).
           </p>
           <p>
-            <span className="font-medium text-foreground">Incidência:</span> cada rubrica % aponta sobre o que
-            incide — bruto, subtotal anterior ou uma rubrica específica.
+            <span className="font-medium text-foreground">2) Descontos / Acréscimos / Retenções</span>{" "}
+            — apontam sobre o que incidem (bruto, subtotal anterior ou rubrica específica) e podem
+            ser % ou valor fixo. <em>Acréscimo por faixa</em> lê o valor de uma tabela
+            (ex.: bônus por atendimentos).
           </p>
           <p>
-            <span className="font-medium text-foreground">Reuso:</span> glosa média e TRD podem vir de
-            <code className="px-1">system_parameter_defs</code> via <code className="px-1">param_key</code> — mude
-            no parâmetro e todo modelo que aponta atualiza.
+            <span className="font-medium text-foreground">3) Convênio na rubrica</span> — é apenas{" "}
+            <em>identificação</em>. Aparece na memória de cálculo (PDF/portal) e permite buscar %
+            específico em Parâmetros do Sistema (ex.: TRD diferente para Sul América).{" "}
+            <span className="font-medium">Não filtra nem soma sozinho</span> — a soma vem sempre
+            do valor digitado pelo analista naquela base.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">4) Reuso de parâmetros</span> — em
+            descontos/retenções %, prefira "Param key" (ex.: <code className="px-1">repasse.glosa_media</code>)
+            em vez de % fixo: você muda no cadastro central e todos os modelos atualizam.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">Versão</span> — cada salvamento incrementa
+            a versão. Pagamentos antigos preservam a versão usada na hora do cálculo (auditoria estável).
           </p>
         </CardContent>
       </Card>
+
     </div>
   );
 
