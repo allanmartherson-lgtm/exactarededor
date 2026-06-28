@@ -2406,15 +2406,6 @@ export default function CompanyAnalysis() {
           o bloco redundante na página foi removido a pedido do usuário. */}
 
 
-      {!isConfeccao && !isManual && (
-        <MixedParecerRetroAction
-          paymentId={id!}
-          paymentTypeCode={paymentTypeMeta?.code ?? null}
-          competenceMonths={((payment as any)?.competence_months ?? []).map((d: string) => d.slice(0, 7))}
-          hasMixedParecer={hasMixedParecer}
-          onApplied={() => window.location.reload()}
-        />
-      )}
 
       {/* ABAS */}
       <Tabs defaultValue="analise" className="space-y-3">
