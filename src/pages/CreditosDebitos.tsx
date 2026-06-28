@@ -54,6 +54,21 @@ type LoteOption = {
   label: string;
 };
 
+type AdjApplication = {
+  id: string;
+  adjustment_id: string;
+  payment_id: string;
+  parcela_numero: number | null;
+  valor_aplicado: number;
+  status: string;
+  source: string | null;
+  applied_at: string | null;
+  confirmed_at: string | null;
+  reverted_at: string | null;
+  reverted_reason: string | null;
+};
+
+
 const OPEN_PAYMENT_STATUSES = [
   "rascunho",
   "em_analise_ia",
