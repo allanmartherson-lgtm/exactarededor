@@ -427,36 +427,77 @@ export default function CreditosDebitos() {
           <CardContent className="space-y-2">
             {loading ? <p className="text-sm text-muted-foreground">Carregando…</p>
               : adjustments.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum ajuste cadastrado.</p>
-              : adjustments.map(a => (
-                <div key={a.id} className="flex justify-between items-center border border-border rounded-md px-3 py-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant={a.tipo === "credito" ? "default" : "secondary"}>{a.tipo}</Badge>
-                      <span className="font-medium text-sm">{a._company_name}</span>
-                      {a.recorrente && <Badge variant="outline" className="text-[10px]">Fixo mensal</Badge>}
-                      {!a.ativo && <Badge variant="outline">Inativo</Badge>}
-                      {a.payment_type_ids && a.payment_type_ids.length > 0 && (
-                        <Badge variant="outline" className="text-[10px]">
-                          Só em: {a.payment_type_ids
-                            .map(id => paymentTypes.find(p => p.id === id)?.label ?? "—")
-                            .join(", ")}
-                        </Badge>
-                      )}
+              : adjustments.map(a => {
+                const apps = appsByAdj[a.id] ?? [];
+                const ativas = apps.filter(x => x.status !== "revertido");
+                const aplicadasCount = ativas.length; // proposto+confirmado+pago contam como "aplicada"
+                const revertidasCount = apps.length - ativas.length;
+                const isOpen = !!historyOpen[a.id];
+                return (
+                <div key={a.id} className="border border-border rounded-md px-3 py-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant={a.tipo === "credito" ? "default" : "secondary"}>{a.tipo}</Badge>
+                        <span className="font-medium text-sm">{a._company_name}</span>
+                        {a.recorrente && <Badge variant="outline" className="text-[10px]">Fixo mensal</Badge>}
+                        {!a.ativo && <Badge variant="outline">Inativo</Badge>}
+                        {a.payment_type_ids && a.payment_type_ids.length > 0 && (
+                          <Badge variant="outline" className="text-[10px]">
+                            Só em: {a.payment_type_ids
+                              .map(id => paymentTypes.find(p => p.id === id)?.label ?? "—")
+                              .join(", ")}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{a.descricao}</p>
+                      <p className="text-xs">
+                        {a.recorrente
+                          ? <>{brl(a.valor_total)} / mês{a.data_fim ? ` · até ${a.data_fim}` : " · sem fim definido"} · início {a.data_inicio} · <span className="text-muted-foreground">{aplicadasCount} mês(es) aplicado(s)</span></>
+                          : <>{brl(a.valor_total)} · parc. <span className="font-medium">{aplicadasCount}/{a.parcelas_total}</span> aplicada(s) · início {a.data_inicio}</>}
+                        {revertidasCount > 0 && <span className="text-muted-foreground"> · {revertidasCount} revertida(s)</span>}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{a.descricao}</p>
-                    <p className="text-xs">
-                      {a.recorrente
-                        ? <>{brl(a.valor_total)} / mês{a.data_fim ? ` · até ${a.data_fim}` : " · sem fim definido"} · início {a.data_inicio}</>
-                        : <>{brl(a.valor_total)} · parc. {a.parcelas_pagas}/{a.parcelas_total} · início {a.data_inicio}</>}
-                    </p>
+                    <div className="flex gap-1 items-center">
+                      <Button size="sm" variant="ghost" onClick={() => setHistoryOpen(s => ({ ...s, [a.id]: !s[a.id] }))} title="Histórico">
+                        {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        <span className="ml-1 text-xs">{apps.length}</span>
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => openAdj(a)}><Pencil className="w-4 h-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => removeAdj(a.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => openAdj(a)}><Pencil className="w-4 h-4" /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => removeAdj(a.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                  </div>
+                  {isOpen && (
+                    <div className="mt-2 border-t pt-2 space-y-1">
+                      {apps.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">Nenhuma aplicação registrada ainda.</p>
+                      ) : apps.map(ap => {
+                        const isRev = ap.status === "revertido";
+                        return (
+                          <div key={ap.id} className={`text-xs flex items-center justify-between gap-2 rounded px-2 py-1 ${isRev ? "bg-muted/30 line-through text-muted-foreground" : "bg-muted/10"}`}>
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                              <Badge variant={isRev ? "outline" : ap.status === "confirmado" || ap.status === "pago" ? "default" : "secondary"} className="text-[10px]">
+                                {ap.status}
+                              </Badge>
+                              <span className="font-mono">parc. {ap.parcela_numero ?? "—"}</span>
+                              <span className="font-mono">{brl(Number(ap.valor_aplicado))}</span>
+                              <span className="truncate">→ lote {paymentLabels[ap.payment_id] ?? ap.payment_id.slice(0, 8)}</span>
+                            </div>
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                              {ap.confirmed_at ? `confirmado ${new Date(ap.confirmed_at).toLocaleDateString("pt-BR")}` :
+                                ap.reverted_at ? `revertido ${new Date(ap.reverted_at).toLocaleDateString("pt-BR")}` :
+                                ap.applied_at ? `proposto ${new Date(ap.applied_at).toLocaleDateString("pt-BR")}` : ""}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              ))
+                );
+              })
             }
+
           </CardContent>
         </Card>
       </div>
