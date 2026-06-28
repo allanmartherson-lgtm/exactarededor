@@ -91,6 +91,8 @@ function SortButton({
       <Icon className="h-3 w-3" />
     </button>
   );
+}
+
 
 export default function Specialties({ embedded = false }: Props) {
   const { allRows, loading, refetch } = useSpecialties({ includeInactive: true });
