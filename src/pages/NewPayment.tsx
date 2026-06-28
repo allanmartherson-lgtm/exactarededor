@@ -4310,7 +4310,7 @@ const NewPayment = () => {
           />
         )}
 
-        {requiresParecerReport && pendingSpecialtyRows.length > 0 && (
+        {requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0 && (
           <div className="rounded-md border border-warning/40 bg-warning/5 p-3 flex items-center justify-between gap-2">
             <div className="text-sm">
               <strong>{pendingSpecialtyRows.length}</strong> item(ns) sem especialidade. Em confecção parecer,
