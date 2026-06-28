@@ -55,6 +55,8 @@ import { EmailApprovalCard } from "@/components/payment-detail/EmailApprovalCard
 import { ExecutiveSummaryCard } from "@/components/payment-detail/ExecutiveSummaryCard";
 import { PaymentStatusFunnel } from "@/components/payment-detail/PaymentStatusFunnel";
 import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
+import { EngineSourcesCard } from "@/components/payment-detail/EngineSourcesCard";
+
 import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
 import { LotValidationChecklist } from "@/components/payment-detail/LotValidationChecklist";
 import { PhaseSummary, resolvePhase } from "@/components/payment-detail/PhaseSummary";
