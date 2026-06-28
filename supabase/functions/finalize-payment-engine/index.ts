@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
       const { data: items } = await supabase
         .from("retroactive_reconciliation_items")
         .select("status, valor")
-        .eq("target_payment_id", payment_id);
+        .eq("payment_id", payment_id);
       const pendentes = (items ?? []).filter((r: any) => r.status === "pendente").length;
       const totalVal = (items ?? []).reduce((s: number, r: any) => s + Number(r.valor ?? 0), 0);
       await markSource(payment_id, "retroactive_reconciliation", (items ?? []).length, totalVal, {
