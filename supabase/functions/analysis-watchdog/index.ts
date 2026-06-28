@@ -262,6 +262,41 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ============================================================
+    // CASO F — fontes do motor pendentes há mais de 5 minutos
+    // ------------------------------------------------------------
+    // payment_engine_sources tem applicable=true e read_at IS NULL
+    // por > 5 min em lote sem job ativo → re-invoca finalize-payment-engine.
+    // Garante recuperação se cadastros novos invalidaram fontes mas a
+    // chamada de finalize falhou ou nunca foi disparada.
+    // ============================================================
+    const { data: stalePending } = await supabase
+      .from("payment_engine_sources")
+      .select("payment_id, source, updated_at")
+      .is("read_at", null)
+      .eq("applicable", true)
+      .lt("updated_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+      .limit(200);
+
+    const stalePaymentIds = Array.from(new Set((stalePending ?? []).map((r: any) => r.payment_id as string)));
+    for (const pid of stalePaymentIds.slice(0, 20)) {
+      const { data: aj } = await supabase
+        .from("payment_processing_jobs")
+        .select("id").eq("payment_id", pid).eq("status", "em_andamento").limit(1);
+      if (aj && aj.length > 0) continue;
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/finalize-payment-engine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_KEY}` },
+        body: JSON.stringify({ payment_id: pid }),
+      });
+      actions.push({
+        payment_id: pid,
+        action: "finalize_engine_stale_sources",
+        http_status: resp.status,
+      });
+    }
+
+
     return new Response(
       JSON.stringify({ ok: true, jobs_inspected: jobs?.length ?? 0, actions }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },

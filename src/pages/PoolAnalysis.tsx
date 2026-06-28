@@ -26,6 +26,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
 import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
+import { EngineSourcesCard } from "@/components/payment-detail/EngineSourcesCard";
+
 import { confirmDialog } from "@/lib/confirm";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 
@@ -204,7 +206,10 @@ export default function PoolAnalysis() {
         })}
       </div>
 
+      <EngineSourcesCard paymentId={id!} />
+
       <PoolCalculationCard paymentId={id!} onRecalculated={async () => { await load(); await reloadFinancials(); }} />
+
 
       <UnmatchedItemsPanel paymentId={id!} onChanged={() => load()} />
 

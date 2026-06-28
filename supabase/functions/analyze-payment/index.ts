@@ -2800,6 +2800,33 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       console.warn(`${__t} [apply-minimum-guarantee] erro ao disparar:`, (mgErr as any)?.message ?? mgErr);
     }
 
+    // [Engine sources] Marca leitura de regras / modelo de remuneração para
+    // esta PJ. O motor leu o snapshot de regras vigente — registra na tabela
+    // de auditoria/gate. A finalização global (deduções/glosas/pool) é
+    // disparada por orchestrate-analysis quando todas as PJs terminam.
+    try {
+      const appliedCount = results.filter((r: any) => r.applied_rule_id || r.applied_calc_id).length;
+      await supabase.rpc("mark_engine_source", {
+        _payment_id: __payment_id,
+        _source: "rules",
+        _applied_count: appliedCount,
+        _total_value: 0,
+        _job_id: null,
+        _details: { total_items: results.length } as never,
+      });
+      await supabase.rpc("mark_engine_source", {
+        _payment_id: __payment_id,
+        _source: "payout_model",
+        _applied_count: results.filter((r: any) => r.applied_calc_method).length,
+        _total_value: 0,
+        _job_id: null,
+        _details: {} as never,
+      });
+    } catch (e) {
+      console.warn(`${__t} [engine-sources] falha ao marcar rules/payout_model:`, (e as any)?.message ?? e);
+    }
+
+
 
     return new Response(
       JSON.stringify({

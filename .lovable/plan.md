@@ -1,87 +1,156 @@
-## Objetivo
+# Motor Exacta — Pipeline único e gate de "leitura completa"
 
-Resolver as duas dores que apareceram no diagnóstico:
+## Diagnóstico — por que ainda há falhas pontuais
 
-1. O card "Cálculo de pool de rateio" não diz que a run está **inválida** — usuário vê base = bolo e acha que o motor esqueceu a dedução.
-2. A tela de "Valores mensais" trata **todo tipo** de dedução como se fosse plantão (valor variável + escala obrigatória). Faz sentido pra plantão, **não faz** pra fixo de coordenação que é o mesmo valor recorrente todo mês.
+O motor é executado por várias funções independentes, cada uma disparada por um gatilho diferente. Hoje:
 
----
+| Fonte que afeta o líquido     | Onde é lida           | Quem dispara                                       | Falha observada |
+|-------------------------------|-----------------------|----------------------------------------------------|------------------|
+| Regras de repasse             | `analyze-payment`     | dispatch (sempre)                                  | OK |
+| Modelo de remuneração         | `analyze-payment`     | dispatch (sempre)                                  | OK |
+| Pool e deduções fixas/mensais | `recalc-payment-pools`| `orchestrate-analysis` ao terminar (sempre)        | OK |
+| **Garantia mínima**           | `apply-minimum-guarantee` | `analyze-payment` por PJ (best-effort)         | Pode falhar silenciosamente |
+| **Débitos/créditos manuais**  | `apply-company-deductions` | **só quando o analista abre a PJ**            | Materialização ausente em lote isolado/pool |
+| **Glosas (médico→PJ)**        | `apply-company-deductions` | mesmo gatilho acima                            | Mesmo problema |
+| **Conciliação retroativa**    | `run-retroactive-reconciliation` | só pelo botão da UI                       | Não é re-executada quando o lote é reaberto |
+| **Special cases retroativos** | `special-case-adjust` | só pelo dialog da UI                               | Idem |
 
-## Parte 1 — Aviso de invalidação no card
+Resultado: dependendo de **qual tela o analista abre**, o líquido do lote muda. É o oposto do que o nome do produto promete.
 
-Em `PoolCalculationCard.tsx`, quando a run mais recente tem `invalidated_at` preenchido:
+## Princípio de correção
 
-- Faixa de alerta vermelha no topo do bloco do pool com:
-  - Título: "Pool não recalculado" + motivo legível (mapa de `invalidated_reason`).
-  - Para `valor_variavel_competencia_nao_cadastrado`: listar cada `descricao` faltante a partir de `error_detail.items` + botão "Cadastrar valor de {competência}" que abre `/pools/{pool_id}/valores-mensais` numa nova aba/âncora pra dedução certa.
-  - Para `item_duplicado_em_outro_pool`: mostrar quantos itens conflitam e link para o pool conflitante.
-- Esconder a seção "Rateio" quando inválido (valores não confiáveis).
-- Botão "Recalcular" segue ativo.
+> Nenhum lote sai de `em_analise_ia` enquanto o motor não tiver lido **todas** as fontes aplicáveis àquele lote e gravado, com timestamp e contagem, o que foi considerado.
 
-Carregar `invalidated_at, invalidated_reason, error_detail` no SELECT (já existem na tabela).
+Três pilares:
 
----
+1. **Pipeline único de finalização** (`finalize-payment-engine`).
+2. **Gate de readiness** no banco (não dá pra "esquecer" via UI).
+3. **Reatividade**: alterar uma fonte invalida o readiness e re-enfileira o lote automaticamente.
 
-## Parte 2 — Cadastro inteligente de fixo mensal
+## Mudanças
 
-### Conceito
+### 1. Tabela `payment_engine_sources` (nova, auditoria + gate)
 
-Dois modos de "fixo":
+Uma linha por (payment_id, source). Cada fonte registra: `read_at`, `applied_count`, `total_value`, `job_id`. Vira a **verdade única** para "o motor leu isso?".
 
-- **Fixo recorrente** (coordenação, retainer): mesmo valor todo mês, com vigência aberta. **Não exige escala**, não precisa ser cadastrado mês a mês.
-- **Valor variável por competência** (plantão, sobreaviso): valor muda mês a mês, exige escala/comprovante.
+Fontes versionadas:
+- `rules` — regras de repasse
+- `payout_model` — modelo de remuneração / tabela
+- `pool_deductions` — deduções fixas do pool
+- `company_adjustments` — créditos/débitos manuais
+- `glosa_debts` — glosas médico→PJ
+- `minimum_guarantee` — garantia mínima
+- `retroactive_reconciliation` — conciliação retroativa
+- `special_case_marks` — marcações de caso especial
 
-Hoje o modelo só tem o flag `valor_variavel` (true/false) — a coluna `valor` em `pool_deductions` já existe e é justamente o caso "recorrente". O problema é puramente de UX: o formulário de pool não deixa claro essa escolha e a tela de valores mensais aceita qualquer tipo.
+### 2. `finalize-payment-engine` (nova edge function)
 
-### Mudanças no formulário de deduções (`Pools.tsx`)
+Substitui o trecho que hoje vive em `orchestrate-analysis` "ao terminar". Roda em ordem determinística para cada PJ do lote:
 
-Onde hoje o usuário escolhe `tipo` (`fixo_mensal` / `plantao` / `ajuste_*`):
+```text
+PARA CADA PJ do lote:
+   1. apply-company-deductions   (débitos/créditos/glosas)
+   2. apply-minimum-guarantee    (item sintético, se cabível)
+   3. compute-company-financials (snapshot)
+FIM
+4. recalc-payment-pools          (uma vez no lote)
+5. run-retroactive-reconciliation (somente se houver mark pendente)
+6. atualiza payment_engine_sources de cada fonte
+```
 
-- Para **`fixo_mensal`**: subescolha "Como é o valor?"
-  - **Recorrente (mesmo valor todo mês)** → `valor_variavel=false`, campo `valor` (R$) e opcional `vigencia_inicio` (default = hoje). Aceito direto pelo motor sem precisar abrir a tela mensal.
-  - **Varia por competência** → `valor_variavel=true`, vai pra `pool_deduction_values` mensal (caso de fixo que muda).
-- Para **`plantao`**: forçar `valor_variavel=true` (não faz sentido recorrente).
-- Para **`ajuste_credito/debito/glosa_parcelada`**: já vêm de `company_financial_adjustments`, ocultar a escolha.
+Toda chamada é idempotente — já tem proteção própria, basta encadear.
 
-Default para `fixo_mensal` passa a ser **recorrente** (resolve o caso clássico do coordenação).
+### 3. Gate no `recompute_payment_status`
 
-### Mudanças na tela `/pools/:id/valores-mensais` (`PoolMonthlyValues.tsx`)
+Trigger SQL existente que decide a transição passa a exigir que **todas as fontes aplicáveis** estejam com `read_at >= updated_at do lote`. Se faltar qualquer uma, o lote permanece em `em_analise_ia` com motivo "Aguardando leitura de fontes: <lista>".
 
-- Listar **apenas** deduções com `valor_variavel=true`. Hoje lista tudo, o que confunde.
-- Para deduções recorrentes mostrar um bloco separado "Valores fixos do pool" (read-only) com link "Editar valor" voltando para o formulário do pool.
-- Manter o atual exigir de "Anexar escala" só para `tipo='plantao'`. Para fixo variável (raro), escala vira opcional.
+A UI já tem o banner de status; só passa a mostrar a lista de fontes pendentes.
 
-### Mudanças no motor (`recalc-payment-pools/index.ts`)
+### 4. Invalidação automática quando uma fonte muda
 
-Nenhuma mudança lógica necessária — o ramo `if (d.valor_variavel)` continua exigindo `pool_deduction_values`; o ramo `else` já usa `Number(d.valor ?? 0)`. Só precisa garantir que a migration de dados existente não obrigue todo `fixo_mensal` antigo a virar variável.
+Triggers SQL em:
+- `company_financial_adjustments` (insert/update/delete)
+- `glosa_debts` (status passa a `ativo` ou `confirmed_at` muda)
+- `pool_deductions` / `pool_deduction_values`
+- `rules` (publicação de nova versão)
+- `special_case_marks` (approved)
 
-### Data fix imediato
+Cada um faz: para todo `payments` em aberto que aquela fonte afeta → zera `payment_engine_sources.read_at` da fonte correspondente → enfileira chamada de `finalize-payment-engine`.
 
-O "Fixo Infectologia" da Infectologistas está como `valor_variavel=true`. Após o ajuste de UI:
+Resultado: cadastrar débito hoje aparece automaticamente em todos os lotes abertos da PJ. Não depende mais de o analista clicar.
 
-- Opção A (sugerida): converter essa dedução para `valor_variavel=false` com `valor=45000`. Resolve jan/2026 e todo mês seguinte automaticamente.
-- Opção B: manter variável e gravar `pool_deduction_values` só para jan/2026 (caso eventualmente o valor mude).
+### 5. Watchdog
 
-Vou pedir confirmação antes da conversão.
+`analysis-watchdog` ganha um caso novo: para todo lote em `em_analise_ia` há > 5 min com `payment_engine_sources` incompleto, re-invoca `finalize-payment-engine`. Garante recuperação mesmo se uma execução individual falhar.
 
----
+### 6. UI — card "Fontes lidas pelo motor"
 
-## Fora de escopo
+Em `PaymentDetail` e `PoolAnalysis`, ao lado de "Pool calculado":
 
-- Vigência por período no fixo recorrente (`vigencia_inicio` / `vigencia_fim`). Pode entrar depois se houver reajuste anual.
-- Histórico de alteração do valor recorrente (audit já cobre via `audit_log` se for ligado).
-- Mudança no schema de `pool_deductions` (já tem todas as colunas necessárias).
+```text
+Fontes lidas pelo motor
+✓ Regras                      lido 16:21  · 749 itens
+✓ Modelo de remuneração       lido 16:21  · Infectologia
+✓ Pool                        lido 16:21  · R$ 45.000 deduzido
+✓ Débitos/créditos manuais    lido 16:34  · 1 ajuste (R$ 3.730,90)
+✓ Glosas                      lido 16:34  · 0
+○ Conciliação retroativa      pendente
+```
 
----
+Botão "Forçar releitura" no card — chama `finalize-payment-engine` direto.
 
 ## Detalhes técnicos
 
-Arquivos a editar:
+**Schema:**
 
-- `src/components/payment-detail/PoolCalculationCard.tsx` — carregar e renderizar `invalidated_*` + deep-link.
-- `src/pages/Pools.tsx` — subescolha "recorrente vs variável" no form de dedução; default recorrente para `fixo_mensal`.
-- `src/pages/PoolMonthlyValues.tsx` — filtrar para `valor_variavel=true`, bloco read-only com fixos recorrentes, escala opcional fora de plantão.
+```sql
+CREATE TABLE public.payment_engine_sources (
+  payment_id uuid NOT NULL REFERENCES payments(id) ON DELETE CASCADE,
+  source text NOT NULL,
+  read_at timestamptz,
+  applied_count integer DEFAULT 0,
+  total_value numeric DEFAULT 0,
+  job_id uuid,
+  applicable boolean DEFAULT true,
+  PRIMARY KEY (payment_id, source)
+);
+GRANT SELECT ON public.payment_engine_sources TO authenticated;
+GRANT ALL ON public.payment_engine_sources TO service_role;
+ALTER TABLE public.payment_engine_sources ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "leitura por usuário do hospital do lote"
+  ON public.payment_engine_sources FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM payments p WHERE p.id = payment_id
+                 AND p.hospital_id IN (SELECT hospital_id FROM user_hospitals WHERE user_id = auth.uid())));
+```
 
-Tipos: nenhum novo enum. `pool_deductions.valor_variavel` já existe e é o switch certo.
+**Função de gate (substitui parte de `recompute_payment_status`):**
 
-Migration: nenhuma de schema. Eventual UPDATE pontual da dedução `Fixo Infectologia` rodo via insert-tool depois da confirmação do valor.
+```sql
+CREATE OR REPLACE FUNCTION public.engine_sources_ready(_payment_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT NOT EXISTS (
+    SELECT 1 FROM payment_engine_sources
+    WHERE payment_id = _payment_id AND applicable = true AND read_at IS NULL
+  );
+$$;
+```
+
+**Ordem em `finalize-payment-engine`:** sequencial por PJ (concurrency=4 entre PJs), porque débito altera o que `compute-company-financials` precisa gravar. Cada PJ é independente.
+
+**Idempotência:** todas as edge functions chamadas já são idempotentes hoje (proposto/confirmado, UNIQUE parciais, etc.) — não precisamos refatorá-las.
+
+**Compatibilidade:** lotes antigos sem registros em `payment_engine_sources` são tratados como `applicable=false` (não bloqueia). Backfill rápido: ao primeiro `finalize-payment-engine` do lote, popular a tabela com as fontes que existem.
+
+## Critérios de aceite
+
+1. Cadastrar um débito em /financeiro/creditos-debitos para uma PJ com lote aberto → ao recarregar o lote, o débito já está aplicado, sem clicar em nada.
+2. Reaplicar regras de um lote → todas as 8 fontes são re-lidas; readiness vai a 100%.
+3. Lote em `em_analise_ia` com fonte pendente não consegue ir para `revisao_analista` (nem por SQL direto, nem por UI).
+4. UI mostra, antes do envio para validação, a lista do que o motor leu, com timestamps.
+5. Watchdog recupera lotes que ficaram com fonte pendente por mais de 5 min.
+
+## O que sai do escopo desta entrega
+
+- Refazer a UI de cadastro de débitos/créditos/glosas (já funcional).
+- Mudar a lógica de cada source individualmente — só o orquestrador e o gate são novos.
+- Migração histórica de auditoria para lotes já fechados.

@@ -311,22 +311,27 @@ Deno.serve(async (req) => {
       const done = finalJob && (finalJob.status === "concluido" || finalJob.status === "parcial"
         || (finalJob.processed_companies ?? 0) >= (finalJob.total_companies ?? 0));
       if (done) {
-        const recalcUrl = `${SUPABASE_URL}/functions/v1/recalc-payment-pools`;
-        runInBackground(fetch(recalcUrl, {
+        // [Pipeline único] Substituímos a colcha de retalhos (recalc-pools +
+        // loops manuais por PJ) por uma chamada a `finalize-payment-engine`,
+        // que garante leitura idempotente e auditável de TODAS as fontes:
+        // company_adjustments, glosa_debts, minimum_guarantee, pool_deductions,
+        // retroactive_reconciliation e special_case_marks. Cada fonte fica
+        // registrada em payment_engine_sources com data/contagem/valor.
+        const finalizeUrl = `${SUPABASE_URL}/functions/v1/finalize-payment-engine`;
+        runInBackground(fetch(finalizeUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${SERVICE_KEY}`,
           },
-          body: JSON.stringify({ payment_id }),
+          body: JSON.stringify({ payment_id, force: true }),
         }).then(async (resp) => {
-          if (!resp.ok) console.error("[orchestrate] recalc-pools erro", resp.status, (await resp.text()).slice(0, 500));
-          else console.log("[orchestrate] recalc-pools disparado");
-        }), "falha ao disparar recalc-payment-pools");
+          if (!resp.ok) console.error("[orchestrate] finalize-payment-engine erro", resp.status, (await resp.text()).slice(0, 500));
+          else console.log("[orchestrate] finalize-payment-engine concluído");
+        }), "falha ao disparar finalize-payment-engine");
 
-        // [Sprint 6 - Rule snapshot] Em vez de apagar, marca o cache de contexto
-        // como snapshot permanente para auditoria/reprodutibilidade.
-        // O snapshot fica disponível para inspeção e re-análises reproduzíveis.
+        // [Sprint 6 - Rule snapshot] Marca o cache de contexto como snapshot
+        // permanente para auditoria/reprodutibilidade.
         runInBackground(
           supabase
             .from("payment_job_context")
@@ -336,76 +341,7 @@ Deno.serve(async (req) => {
           "falha ao marcar payment_job_context como snapshot",
         );
 
-        // [Fix snapshot stale] Após reanálise, recomputa payment_company_financials
-        // para todas as empresas impactadas — evita UI mostrar R$ 0,00 ou valores
-        // antigos enquanto ninguém abre cada página de empresa.
-        runInBackground((async () => {
-          const companySet = new Set<string>();
-          const pageSize = 1000;
-          for (let from = 0; ; from += pageSize) {
-            const { data: page, error } = await supabase
-              .from("payment_items")
-              .select("company_id")
-              .eq("payment_id", payment_id)
-              .not("company_id", "is", null)
-              .range(from, from + pageSize - 1);
-            if (error) { console.error("[orchestrate] falha lendo company_ids para snapshot", error); break; }
-            for (const r of page ?? []) {
-              if ((r as any).company_id) companySet.add((r as any).company_id as string);
-            }
-            if (!page || page.length < pageSize) break;
-          }
-          // Pool soberano: itens têm company_id=NULL. As PJs que recebem snapshot
-          // são as participantes do pool, não os donos dos itens.
-          const { data: pmt } = await supabase
-            .from("payments").select("pool_id").eq("id", payment_id).maybeSingle();
-          if ((pmt as any)?.pool_id) {
-            const { data: parts } = await supabase
-              .from("pool_participants")
-              .select("company_id")
-              .eq("pool_id", (pmt as any).pool_id);
-            for (const p of parts ?? []) {
-              if ((p as any).company_id) companySet.add((p as any).company_id as string);
-            }
-          }
-          const ids = [...companySet];
-          console.log(`[orchestrate] disparando recompute snapshots para ${ids.length} empresa(s)`);
-          // Invalida em massa (computed_at=null) — assim qualquer UI que abra
-          // antes do recompute ver o stale como missing e força recompute.
-          if (ids.length > 0) {
-            await supabase
-              .from("payment_company_financials")
-              .update({ computed_at: null })
-              .eq("payment_id", payment_id)
-              .in("company_id", ids);
-          }
-          const computeUrl = `${SUPABASE_URL}/functions/v1/compute-company-financials`;
-          const deductionsUrl = `${SUPABASE_URL}/functions/v1/apply-company-deductions`;
-          // Sequencial em chunks pequenos para não saturar o pool — best-effort.
-          const CONCURRENCY = 4;
-          for (let i = 0; i < ids.length; i += CONCURRENCY) {
-            const batch = ids.slice(i, i + CONCURRENCY);
-            // [Fix débitos manuais não enxergados] Aplica deduções da PJ
-            // (company_financial_adjustments + glosa_debts) ANTES do snapshot
-            // financeiro. Sem isso, débitos/créditos cadastrados em
-            // /financeiro/creditos-debitos só eram materializados quando o
-            // usuário abria a página de cada PJ — lotes em modo isolado/pool
-            // ficavam sem deduções até que alguém clicasse na empresa.
-            await Promise.all(batch.map((cid) => fetch(deductionsUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_KEY}` },
-              body: JSON.stringify({ payment_id, company_id: cid }),
-            }).then(async (r) => { await r.text(); if (!r.ok) console.error("[orchestrate] apply-deductions falhou", cid, r.status); })
-              .catch((e) => console.error("[orchestrate] apply-deductions exception", cid, e))));
-            await Promise.all(batch.map((cid) => fetch(computeUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_KEY}` },
-              body: JSON.stringify({ payment_id, company_id: cid }),
-            }).then(async (r) => { await r.text(); if (!r.ok) console.error("[orchestrate] compute snapshot falhou", cid, r.status); })
-              .catch((e) => console.error("[orchestrate] compute snapshot exception", cid, e))));
-          }
 
-        })(), "falha ao recomputar snapshots financeiros");
 
         // Aprendizado: aplica hints de padrões aprendidos (validações aceitas)
         // aos itens deste pagamento. Soft — só gera badge na UI.
