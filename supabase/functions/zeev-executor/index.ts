@@ -207,7 +207,7 @@ type SB = ReturnType<typeof createClient>;
 async function buildItemsQuery(sb: SB, paymentId: string, scope: Scope) {
   let q = sb
     .from("payment_items")
-    .select("id, doctor_id, doctor_name, procedure_code, description, attendance_number, sector, cost_center_code, convenio_slug, company_id")
+    .select("id, doctor_id, doctor_name, procedure_code, description, attendance_number, sector, cost_center_code, convenio_slug, company_id, ai_status, manual_intervention_reason_id, gross_amount")
     .eq("payment_id", paymentId)
     .limit(1000);
 
@@ -217,6 +217,7 @@ async function buildItemsQuery(sb: SB, paymentId: string, scope: Scope) {
   if (scope.procedure_code) q = q.eq("procedure_code", scope.procedure_code);
   if (scope.doctor_name_like) q = q.ilike("doctor_name", `%${scope.doctor_name_like}%`);
   if (scope.description_like) q = q.ilike("description", `%${scope.description_like}%`);
+  if (scope.ai_status_in && scope.ai_status_in.length > 0) q = q.in("ai_status", scope.ai_status_in);
 
   const { data, error } = await q;
   if (error) throw new Error(`query_items: ${error.message}`);
@@ -231,6 +232,9 @@ async function buildItemsQuery(sb: SB, paymentId: string, scope: Scope) {
     cost_center_code: string | null;
     convenio_slug: string | null;
     company_id: string | null;
+    ai_status: string | null;
+    manual_intervention_reason_id: string | null;
+    gross_amount: number | null;
   }>;
 }
 
