@@ -390,14 +390,24 @@ export default function CreditosDebitos() {
               : adjustments.map(a => (
                 <div key={a.id} className="flex justify-between items-center border border-border rounded-md px-3 py-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant={a.tipo === "credito" ? "default" : "secondary"}>{a.tipo}</Badge>
                       <span className="font-medium text-sm">{a._company_name}</span>
+                      {a.recorrente && <Badge variant="outline" className="text-[10px]">Fixo mensal</Badge>}
                       {!a.ativo && <Badge variant="outline">Inativo</Badge>}
+                      {a.payment_type_ids && a.payment_type_ids.length > 0 && (
+                        <Badge variant="outline" className="text-[10px]">
+                          Só em: {a.payment_type_ids
+                            .map(id => paymentTypes.find(p => p.id === id)?.label ?? "—")
+                            .join(", ")}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">{a.descricao}</p>
                     <p className="text-xs">
-                      {brl(a.valor_total)} · parc. {a.parcelas_pagas}/{a.parcelas_total} · início {a.data_inicio}
+                      {a.recorrente
+                        ? <>{brl(a.valor_total)} / mês{a.data_fim ? ` · até ${a.data_fim}` : " · sem fim definido"} · início {a.data_inicio}</>
+                        : <>{brl(a.valor_total)} · parc. {a.parcelas_pagas}/{a.parcelas_total} · início {a.data_inicio}</>}
                     </p>
                   </div>
                   <div className="flex gap-1">
