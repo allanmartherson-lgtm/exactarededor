@@ -2424,7 +2424,7 @@ export default function CompanyAnalysis() {
               )}
             </TabsTrigger>
           )}
-          {!isConfeccao && !isManual && isParecerPayment && (
+          {!isConfeccao && !isManual && showParecerTab && (
             <TabsTrigger value="parecer">
               <FileText className="h-3.5 w-3.5 mr-1" /> Parecer
             </TabsTrigger>
