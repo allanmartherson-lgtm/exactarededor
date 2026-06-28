@@ -404,6 +404,9 @@ export default function Specialties({ embedded = false }: Props) {
           <span className="text-xs text-muted-foreground tabular-nums">
             {filtered.length} de {totals.total}
           </span>
+          <Button variant="outline" size="sm" onClick={() => openHistory(null)}>
+            <History className="h-4 w-4 mr-1" /> Histórico
+          </Button>
           <Button onClick={openCreate} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Nova especialidade
           </Button>
