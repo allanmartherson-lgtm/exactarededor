@@ -782,6 +782,12 @@ function RubricEditor({
         </Button>
       </div>
 
+      {rubric.notes && (
+        <div className="rounded border bg-background/60 px-2 py-1.5 text-[11px] text-muted-foreground leading-snug">
+          {rubric.notes}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Tipo</Label>
