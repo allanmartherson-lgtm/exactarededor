@@ -3279,9 +3279,9 @@ const PaymentDetail = () => {
 
         {canEditMeta && (
           <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
-            <DialogContent>
+            <DialogContent className="max-w-lg">
               <DialogHeader><DialogTitle>Editar lote</DialogTitle></DialogHeader>
-              <div className="space-y-3 py-2">
+              <div className="space-y-3 py-2 max-h-[70vh] overflow-y-auto pr-1">
                 <div>
                   <label className="text-xs text-muted-foreground">Referência</label>
                   <Input value={metaDraft.reference} onChange={(e) => setMetaDraft((m) => ({ ...m, reference: e.target.value }))} />
@@ -3290,10 +3290,62 @@ const PaymentDetail = () => {
                   <label className="text-xs text-muted-foreground">Descrição</label>
                   <Textarea rows={3} value={metaDraft.description} onChange={(e) => setMetaDraft((m) => ({ ...m, description: e.target.value }))} />
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
-                  <DateInput value={metaDraft.payment_due_date} onChange={(v) => setMetaDraft((m) => ({ ...m, payment_due_date: v }))} />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Competência</label>
+                    <DateInput value={metaDraft.competence_month} onChange={(v) => setMetaDraft((m) => ({ ...m, competence_month: v }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
+                    <DateInput value={metaDraft.payment_due_date} onChange={(v) => setMetaDraft((m) => ({ ...m, payment_due_date: v }))} />
+                  </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Modo de análise</label>
+                    <select
+                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                      value={metaDraft.analysis_mode}
+                      onChange={(e) => setMetaDraft((m) => ({ ...m, analysis_mode: e.target.value }))}
+                    >
+                      <option value="padrao">Padrão</option>
+                      <option value="isolado">Isolado</option>
+                      <option value="empresa_prioritaria">Empresa prioritária</option>
+                      <option value="confeccao">Confecção</option>
+                      <option value="manual">Manual</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Pool de rateio</label>
+                    <select
+                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                      value={metaDraft.pool_id}
+                      onChange={(e) => setMetaDraft((m) => ({ ...m, pool_id: e.target.value }))}
+                    >
+                      <option value="">— Sem rateio —</option>
+                      {poolsForEdit.map((p) => (
+                        <option key={p.id} value={p.id}>{p.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {metaDraft.pool_id && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">Origem do rateio</label>
+                    <select
+                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                      value={metaDraft.rateio_source || "planilha"}
+                      onChange={(e) => setMetaDraft((m) => ({ ...m, rateio_source: e.target.value }))}
+                    >
+                      <option value="planilha">Planilha</option>
+                      <option value="participantes">Participantes do pool</option>
+                      <option value="filtrado">Filtros do pool</option>
+                    </select>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Alterar pool, modo ou competência re-dispara o motor (releitura de regras, deduções, créditos/débitos, glosas e garantia mínima).
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setEditMetaOpen(false)} disabled={savingMeta}>Cancelar</Button>
