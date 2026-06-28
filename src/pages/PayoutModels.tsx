@@ -27,14 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+// Dialog primitives substituídos por FormDialog (alinhamento com cadastro de regras).
 import { FormDialog } from "@/components/FormDialog";
 import { RuleFormStepper } from "@/components/rules/RuleFormStepper";
 import {
