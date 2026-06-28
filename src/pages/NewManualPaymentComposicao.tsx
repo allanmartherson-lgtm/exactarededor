@@ -115,7 +115,7 @@ export default function NewManualPaymentComposicao() {
         .select("*")
         .eq("model_id", selectedModelId)
         .order("sort_order");
-      const list = (rs ?? []) as RubricDef[];
+      const list = ((rs ?? []) as unknown) as RubricDef[];
       setRubrics(list);
 
       // Resolve tier tables
