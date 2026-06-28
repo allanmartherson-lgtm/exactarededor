@@ -64,6 +64,7 @@ import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBa
 import { RegisterExternalApprovalDialog } from "@/components/payment-detail/RegisterExternalApprovalDialog";
 import { SpecialCaseRetroactiveBanner } from "@/components/payment-detail/SpecialCaseRetroactiveBanner";
 import { MarkSpecialCaseDialog } from "@/components/payment-detail/MarkSpecialCaseDialog";
+import { useHasSpecialCaseRules } from "@/components/payment-detail/useHasSpecialCaseRules";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -198,6 +199,7 @@ const PaymentDetail = () => {
   const navigate = useNavigate();
   const { user, hasRole, roles } = useAuth();
   const location = useLocation();
+  const hasSpecialCaseRules = useHasSpecialCaseRules(id ?? null);
 
   // Quando o usuário chega via "?highlight=<itemId>" (link a partir de outro
   // lote por duplicidade), pisca a linha alvo assim que ela aparece no DOM.
@@ -3173,7 +3175,7 @@ const PaymentDetail = () => {
             paymentUpdatedAt={(payment as any).updated_at ?? null}
           />
         )}
-        {id && (isAnalista || isDiretor) && (
+        {id && (isAnalista || isDiretor) && hasSpecialCaseRules && (
           <div className="rounded-md border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-950/20 dark:border-indigo-900/60 px-4 py-3 flex items-center justify-between gap-3">
             <div className="flex items-start gap-2 min-w-0">
               <Sparkles className="h-4 w-4 mt-0.5 text-indigo-600 shrink-0" />
