@@ -170,6 +170,42 @@ export function CompanyFinancialAdjustmentsDialog({
                   <Input placeholder="acordo, glosa..." value={form.origem} onChange={e => setForm(f => ({ ...f, origem: e.target.value }))} />
                 </div>
               </div>
+              <div className="rounded-md border bg-background p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">Aplicar somente em lotes do tipo</Label>
+                  {form.payment_type_ids.length > 0 && (
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs"
+                      onClick={() => setForm(f => ({ ...f, payment_type_ids: [] }))}>
+                      Limpar (qualquer tipo)
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Vazio = aplica em qualquer lote da empresa. Marque os tipos para restringir a aplicação somente neles.
+                </p>
+                <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
+                  {paymentTypes.map(pt => {
+                    const checked = form.payment_type_ids.includes(pt.id);
+                    return (
+                      <label key={pt.id} className="flex items-center gap-2 text-xs rounded px-2 py-1 hover:bg-muted/50 cursor-pointer">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => setForm(f => ({
+                            ...f,
+                            payment_type_ids: v
+                              ? Array.from(new Set([...f.payment_type_ids, pt.id]))
+                              : f.payment_type_ids.filter(id => id !== pt.id),
+                          }))}
+                        />
+                        <span className="truncate">{pt.label}</span>
+                      </label>
+                    );
+                  })}
+                  {paymentTypes.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic col-span-2">Nenhum tipo de lote ativo cadastrado.</p>
+                  )}
+                </div>
+              </div>
               <DialogFooter>
                 <Button size="sm" onClick={save}>Cadastrar</Button>
               </DialogFooter>
