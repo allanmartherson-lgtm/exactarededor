@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const EDITABLE_STATUSES = ["revisao_analista", "devolvido_analista"];
+    const EDITABLE_STATUSES = ["em_analise_ia", "revisao_analista", "devolvido_analista"];
     const { data: companyGroupsForGate, error: gateErr } = await supabase
       .from("payment_company_groups")
       .select("company_name, status, confeccao_status")
@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
 
     if (companyNames.length === 0) {
       const msg = skippedCompanies.length > 0
-        ? "Nenhuma empresa em revisão — todas estão concluídas/em validação. Reabra alguma para reanalisar."
+        ? "Nenhuma empresa disponível para análise — todas estão concluídas/em validação. Reabra alguma para reanalisar."
         : "nenhuma empresa para processar com os filtros aplicados";
       return new Response(JSON.stringify({
         ok: true,
