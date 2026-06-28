@@ -800,6 +800,7 @@ export function ItemsDataGrid({
   onEditItem,
   onDeleteItem,
   onAcceptItem,
+  onAcceptItemKeepPaid,
   onUndoAcceptItem,
   className,
   mode = "analise",
