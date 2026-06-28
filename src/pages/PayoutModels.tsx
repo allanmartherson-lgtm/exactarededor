@@ -321,6 +321,8 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         fixed_value: null,
         tier_table_id: null,
         convenio_slug: null,
+        convenio_slugs: [],
+
         required: true,
         notes: null,
       },
