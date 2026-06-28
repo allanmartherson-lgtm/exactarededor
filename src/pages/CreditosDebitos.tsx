@@ -98,9 +98,12 @@ export default function CreditosDebitos() {
   const [loadingLotes, setLoadingLotes] = useState(false);
   const [lotePick, setLotePick] = useState<string>("");
   const [paymentLabels, setPaymentLabels] = useState<Record<string, string>>({});
+  const [appsByAdj, setAppsByAdj] = useState<Record<string, AdjApplication[]>>({});
+  const [historyOpen, setHistoryOpen] = useState<Record<string, boolean>>({});
 
   const loadAll = async () => {
     setLoading(true);
+
     const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
     const [companiesAll, a, g] = await Promise.all([
       fetchAllPaginated<{ id: string; name: string }>((from, to) =>
