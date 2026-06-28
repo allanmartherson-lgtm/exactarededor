@@ -595,9 +595,13 @@ export default function PaymentEvolution() {
             hint={`${months.length} meses · ${ccCount} centros de custo`}
           />
           <KpiCard
-            label={`Último mês (${monthLabel(lastMonth)})`}
+            label={`Último mês fechado (${monthLabel(lastMonth)})`}
             value={loading ? <Skeleton className="h-8 w-28" /> : BRL(totalLast)}
-            hint={prevMonth ? `vs ${monthLabel(prevMonth)}: ${BRL(totalPrev)}` : "—"}
+            hint={
+              isCurrentMonthInRange
+                ? `${monthLabel(currentYM)} em andamento — excluído da comparação`
+                : prevMonth ? `vs ${monthLabel(prevMonth)}: ${BRL(totalPrev)}` : "—"
+            }
           />
           <KpiCard
             label="Variação MoM"
