@@ -83,6 +83,7 @@ import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
 import { TussPrincipalAuditPanel, useTussAuditOpenCount } from "@/components/payment-detail/TussPrincipalAuditPanel";
+import { PayoutBreakdownCard } from "@/components/PayoutBreakdownCard";
 import type {
   PaymentItemRow as PaymentItemRowType,
   GroupRow,
@@ -2900,6 +2901,12 @@ const PaymentDetail = () => {
         }
       />
       <div className="p-3 md:px-6 md:py-6 space-y-4 md:space-y-6">
+
+        {/* Memória de cálculo (lançamentos por Modelo de Repasse) */}
+        {(payment as any)?.payout_breakdown && (
+          <PayoutBreakdownCard breakdown={(payment as any).payout_breakdown} />
+        )}
+
 
         {/* Card de Relatório de Parecer — só para lotes do tipo parecer */}
         {!isConfeccao &&

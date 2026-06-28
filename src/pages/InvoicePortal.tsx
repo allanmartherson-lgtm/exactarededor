@@ -17,6 +17,7 @@ import {
   formatBytes,
   validateAttachment,
 } from "@/lib/questionAttachments";
+import { PayoutBreakdownCard } from "@/components/PayoutBreakdownCard";
 
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-invoice`;
 const AUTH = `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
@@ -351,6 +352,13 @@ const InvoicePortal = () => {
                 <dd className="font-semibold text-right">{formatCurrency(inv.expected_amount)}</dd>
               </div>
             </dl>
+
+            {pay.payout_breakdown && (
+              <div className="mb-4">
+                <PayoutBreakdownCard breakdown={pay.payout_breakdown} compact />
+              </div>
+            )}
+
             {done ? (
               <div className={`rounded-lg p-4 text-sm space-y-2 ${done.matches ? "bg-success-soft text-success" : "bg-destructive-soft text-destructive"}`}>
                 {done.matches ? (
