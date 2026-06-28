@@ -2562,6 +2562,7 @@ export default function CompanyAnalysis() {
                   }
                 }}
                 onAcceptItem={acceptItem}
+                onAcceptItemKeepPaid={acceptItemKeepPaid}
                 onUndoAcceptItem={undoAcceptItem}
                 mode={(payment as any).analysis_mode === "confeccao" ? "confeccao" : "analise"}
                 isParecerPayment={isParecerPayment}
