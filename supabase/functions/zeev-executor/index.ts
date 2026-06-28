@@ -456,6 +456,201 @@ async function execAcceptKeepPaid(
   };
 }
 
+async function execAcceptKeepExpected(
+  sb: SB,
+  paymentId: string,
+  scope: Scope,
+  payload: Record<string, unknown>,
+  actorId: string,
+) {
+  const scopeWithStatus: Scope = {
+    ...scope,
+    ai_status_in: scope.ai_status_in && scope.ai_status_in.length > 0
+      ? scope.ai_status_in
+      : ["reprovado", "alerta"],
+  };
+  const items = await buildItemsQuery(sb, paymentId, scopeWithStatus);
+  // Carrega expected_amount + estado de override (não vinha no select padrão)
+  const ids = items.filter((i) => !i.manual_intervention_reason_id).map((i) => i.id);
+  if (ids.length === 0) return { affected: 0, before: [], after: { reason: "acatado_esperado" } };
+
+  const { data: extra } = await sb
+    .from("payment_items")
+    .select("id, ai_status, gross_amount, gross_amount_original, expected_amount, gross_override_at")
+    .in("id", ids);
+  const targets = (extra ?? []).filter((r: any) =>
+    r.expected_amount != null && Number.isFinite(Number(r.expected_amount)),
+  );
+  if (targets.length === 0) return { affected: 0, before: [], after: { reason: "acatado_esperado", note: "nenhum item com esperado válido" } };
+
+  const nowIso = new Date().toISOString();
+  const justification = String(payload.justification ?? "Acatado em lote via Zeev — adotando valor esperado.").trim();
+
+  // Atualiza em lotes individuais para preservar gross_amount_original só na 1ª sobrescrita
+  const before: any[] = [];
+  let affected = 0;
+  for (const t of targets as any[]) {
+    const wasOverridden = !!t.gross_override_at;
+    const patch: Record<string, unknown> = {
+      acatado_status_original: t.ai_status,
+      ai_status: "acatado",
+      acatado_by: actorId,
+      acatado_at: nowIso,
+      gross_amount: Number(t.expected_amount),
+      gross_override_at: nowIso,
+      gross_override_by: actorId,
+      gross_override_reason: "acatado_esperado",
+    };
+    if (!wasOverridden) patch.gross_amount_original = t.gross_amount;
+    const { error } = await sb.from("payment_items").update(patch).eq("id", t.id);
+    if (!error) {
+      before.push({ id: t.id, ai_status: t.ai_status, gross_amount: t.gross_amount });
+      affected++;
+    }
+  }
+  return { affected, before, after: { reason: "acatado_esperado", justification } };
+}
+
+async function execUndoAccept(
+  sb: SB,
+  paymentId: string,
+  scope: Scope,
+  _payload: Record<string, unknown>,
+  actorId: string,
+) {
+  const scopeWithStatus: Scope = { ...scope, ai_status_in: ["acatado"] };
+  const items = await buildItemsQuery(sb, paymentId, scopeWithStatus);
+  if (items.length === 0) return { affected: 0, before: [], after: { event: "acate_desfeito" } };
+
+  const ids = items.map((i) => i.id);
+  const { data: rows } = await sb
+    .from("payment_items")
+    .select("id, ai_status, acatado_status_original, gross_amount, gross_amount_original, gross_override_reason")
+    .in("id", ids);
+
+  const before: any[] = [];
+  let affected = 0;
+  for (const r of (rows ?? []) as any[]) {
+    const restoreStatus = r.acatado_status_original || "reprovado";
+    const isExpectedOverride = r.gross_override_reason === "acatado_esperado" || r.gross_override_reason === "acatado_pago";
+    const patch: Record<string, unknown> = {
+      ai_status: restoreStatus,
+      acatado_by: null,
+      acatado_at: null,
+      acatado_status_original: null,
+    };
+    if (isExpectedOverride) {
+      if (r.gross_amount_original != null) patch.gross_amount = r.gross_amount_original;
+      patch.gross_amount_original = null;
+      patch.gross_override_at = null;
+      patch.gross_override_by = null;
+      patch.gross_override_reason = null;
+    }
+    const { error } = await sb.from("payment_items").update(patch).eq("id", r.id);
+    if (!error) {
+      before.push({ id: r.id, ai_status: "acatado", gross_amount: r.gross_amount });
+      affected++;
+    }
+  }
+  // log apenas resumido — auditoria por item ficaria muito verbosa
+  await sb.from("audit_log").insert({
+    entity_type: "payment",
+    entity_id: paymentId,
+    action: "zeev.undo_accept_bulk",
+    actor_id: actorId,
+    diff: { event: "acate_desfeito_lote", affected, item_ids: ids.slice(0, 50) },
+  });
+  return { affected, before, after: { event: "acate_desfeito" } };
+}
+
+async function execSetConvenio(
+  sb: SB,
+  paymentId: string,
+  scope: Scope,
+  payload: Record<string, unknown>,
+) {
+  const input = String(payload.convenio_slug ?? payload.convenio_name ?? payload.convenio ?? "").trim();
+  if (!input) throw new Error("convenio_slug ou convenio_name obrigatório.");
+
+  // resolve por slug exato, depois ilike em slug/name
+  let resolved: { slug: string; name: string } | null = null;
+  const bySlug = await sb.from("convenios").select("slug, name").eq("slug", input.toLowerCase()).maybeSingle();
+  if (bySlug.data) resolved = bySlug.data as any;
+  if (!resolved) {
+    const ilike = await sb
+      .from("convenios")
+      .select("slug, name")
+      .or(`slug.ilike.${input.toLowerCase()},name.ilike.%${input}%`)
+      .limit(1);
+    resolved = ((ilike.data ?? [])[0] as any) ?? null;
+  }
+  if (!resolved) throw new Error(`Convênio "${input}" não encontrado no cadastro.`);
+
+  const items = await buildItemsQuery(sb, paymentId, scope);
+  if (items.length === 0) return { affected: 0, before: [], after: { convenio_slug: resolved.slug } };
+
+  const before = items.map((i) => ({ id: i.id, convenio_slug: i.convenio_slug }));
+  const { error } = await sb
+    .from("payment_items")
+    .update({ convenio_slug: resolved.slug, convenio_matched_by: "zeev_bulk" })
+    .in("id", items.map((i) => i.id));
+  if (error) throw new Error(`update_convenio: ${error.message}`);
+  return { affected: items.length, before, after: { convenio_slug: resolved.slug, convenio_name: resolved.name } };
+}
+
+async function execApplyManualReason(
+  sb: SB,
+  paymentId: string,
+  scope: Scope,
+  payload: Record<string, unknown>,
+  actorId: string,
+  hospitalId: string | null,
+) {
+  const code = String(payload.reason_code ?? payload.code ?? "").trim();
+  const reasonIdInput = String(payload.reason_id ?? "").trim();
+  if (!code && !reasonIdInput) throw new Error("reason_code ou reason_id obrigatório.");
+
+  let reason: { id: string; code: string; label?: string | null } | null = null;
+  if (reasonIdInput) {
+    const r = await sb.from("manual_intervention_reasons").select("id, code, label").eq("id", reasonIdInput).maybeSingle();
+    reason = (r.data as any) ?? null;
+  } else {
+    // tenta match exato global ou do hospital
+    let q = sb.from("manual_intervention_reasons").select("id, code, label, hospital_id").or(`code.eq.${code},code.ilike.${code}`);
+    if (hospitalId) q = q.or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`);
+    const { data } = await q.limit(5);
+    const list = (data ?? []) as any[];
+    // prioriza hospital_id != null se ambíguo
+    reason = list.find((r) => r.hospital_id) ?? list[0] ?? null;
+  }
+  if (!reason) throw new Error(`Motivo "${code || reasonIdInput}" não encontrado em manual_intervention_reasons.`);
+
+  // por segurança, não aplica em itens já tratados nem já acatados
+  const items = await buildItemsQuery(sb, paymentId, scope);
+  const targets = items.filter((i) => !i.manual_intervention_reason_id && i.ai_status !== "acatado");
+  if (targets.length === 0) return { affected: 0, before: [], after: { reason_code: reason.code } };
+
+  const notes = String(payload.notes ?? `Aplicado em lote via Zeev — motivo "${reason.code}".`).trim();
+  const nowIso = new Date().toISOString();
+  const before = targets.map((t) => ({ id: t.id, ai_status: t.ai_status }));
+  const { error } = await sb
+    .from("payment_items")
+    .update({
+      manual_intervention_reason_id: reason.id,
+      manual_intervention_notes: notes,
+      manual_intervention_by: actorId,
+      manual_intervention_at: nowIso,
+      manual_intervention_source: "zeev_bulk",
+    })
+    .in("id", targets.map((t) => t.id));
+  if (error) throw new Error(`apply_manual_reason: ${error.message}`);
+  return { affected: targets.length, before, after: { reason_id: reason.id, reason_code: reason.code, notes } };
+}
+
+
+
+
+
 
 
 // -------------------- Cadastros (Fase 2) --------------------
