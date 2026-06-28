@@ -82,20 +82,36 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Competência do lote (usada para encerrar ajustes recorrentes com data_fim)
+    const { data: paymentRowForDate } = await supabase
+      .from("payments")
+      .select("competence_month")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const loteCompetence: string | null = (paymentRowForDate?.competence_month as string) ?? null;
+
     for (const adj of adjustments ?? []) {
-      const restantes = (adj.parcelas_total ?? 1) - (adj.parcelas_pagas ?? 0);
+      const isRecorrente = !!adj.recorrente;
       const existingRows = existingByAdj.get(adj.id) ?? [];
-      if (restantes <= 0) {
+
+      // Encerramento: recorrente com data_fim já ultrapassada OU parcelado já com tudo pago
+      const expiredRecorrente = isRecorrente && adj.data_fim && loteCompetence && loteCompetence > adj.data_fim;
+      const restantes = isRecorrente ? 1 : (adj.parcelas_total ?? 1) - (adj.parcelas_pagas ?? 0);
+      if (expiredRecorrente || restantes <= 0) {
         for (const row of existingRows.filter((r: any) => r.status === "proposto" && r.source === "auto")) {
           await supabase.from("company_adjustment_applications")
-            .update({ status: "revertido", reverted_at: new Date().toISOString(), reverted_by: user_id, reverted_reason: "Ajuste sem parcelas pendentes antes da reaplicação" })
+            .update({ status: "revertido", reverted_at: new Date().toISOString(), reverted_by: user_id, reverted_reason: expiredRecorrente ? "Ajuste recorrente encerrado (data_fim ultrapassada)" : "Ajuste sem parcelas pendentes antes da reaplicação" })
             .eq("id", row.id);
           summary.debitos.reverted_stale++;
         }
         continue;
       }
-      const parcelaValor = round2(Number(adj.valor_total) / Number(adj.parcelas_total));
+
+      const parcelaValor = isRecorrente
+        ? round2(Number(adj.valor_total))
+        : round2(Number(adj.valor_total) / Number(adj.parcelas_total));
       const parcelaNumero = (adj.parcelas_pagas ?? 0) + 1;
+      const parcelaLabel = isRecorrente ? "mensal" : `${parcelaNumero}/${adj.parcelas_total}`;
 
       const autoProposto = existingRows.find((r: any) => r.status === "proposto" && r.source === "auto");
       if (autoProposto) {
@@ -108,7 +124,7 @@ Deno.serve(async (req) => {
             .eq("id", autoProposto.id);
           if (!updErr) {
             summary.debitos.updated_existing++;
-            summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: `${parcelaNumero}/${adj.parcelas_total}`, action: "updated" });
+            summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel, action: "updated" });
           }
         } else {
           summary.debitos.skipped_existing++;
@@ -127,7 +143,7 @@ Deno.serve(async (req) => {
           .eq("id", reusableReverted.id);
         if (!reviveErr) {
           summary.debitos.proposed++;
-          summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: `${parcelaNumero}/${adj.parcelas_total}`, action: "revived" });
+          summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel, action: "revived" });
         }
         continue;
       }
@@ -141,7 +157,7 @@ Deno.serve(async (req) => {
         });
       if (!insErr) {
         summary.debitos.proposed++;
-        summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: `${parcelaNumero}/${adj.parcelas_total}` });
+        summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel });
       }
     }
 
