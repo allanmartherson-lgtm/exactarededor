@@ -273,7 +273,8 @@ const PaymentDetail = () => {
     analysis_mode: string;
     pool_id: string; // "" = nenhum
     rateio_source: string;
-  }>({ reference: "", description: "", payment_due_date: "", competence_month: "", analysis_mode: "padrao", pool_id: "", rateio_source: "" });
+    cost_center_code: string;
+  }>({ reference: "", description: "", payment_due_date: "", competence_month: "", analysis_mode: "padrao", pool_id: "", rateio_source: "", cost_center_code: "" });
   const [savingMeta, setSavingMeta] = useState(false);
   const [poolsForEdit, setPoolsForEdit] = useState<Array<{ id: string; nome: string }>>([]);
   const [externalRegistrationOpen, setExternalRegistrationOpen] = useState<"validation" | "approval" | null>(null);
