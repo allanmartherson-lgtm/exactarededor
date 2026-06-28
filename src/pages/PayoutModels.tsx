@@ -119,6 +119,8 @@ interface PayoutRubric {
   fixed_value: number | null;
   tier_table_id: string | null;
   convenio_slug: string | null;
+  convenio_slugs: string[];
+
   required: boolean;
   notes: string | null;
 }
