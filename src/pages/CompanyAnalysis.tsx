@@ -2687,15 +2687,16 @@ export default function CompanyAnalysis() {
           </Card>
         </TabsContent>
 
-        {!isConfeccao && isParecerPayment && (
+        {!isConfeccao && showParecerTab && (
           <TabsContent value="parecer" className="space-y-3">
             <ParecerCrossReferencePanel
               paymentId={id!}
               companyName={group.company_name}
-              enabled={isParecerPayment}
+              enabled={showParecerTab}
             />
           </TabsContent>
         )}
+
 
         {/* ABA 2 — Divergências (não existe em confecção) */}
         {!isConfeccao && (
