@@ -30,6 +30,7 @@ All colors MUST be HSL.
     --accent: 37 42% 61%;                /* #C6A27C — Pantone 728 C Rede D'Or oficial */
     --accent-foreground: 214 28% 7%;
     --accent-light: 35 80% 86%;          /* #F7CEA7 — Pantone 2015 C (dourado claro D'Or) */
+    --brand-wordmark-accent: 32 46% 36%; /* #8A6830 — bronze escuro p/ contraste em fundo claro */
 
     /* Mantém token de azul apenas para status info */
     --accent-blue: 211 100% 45%;
