@@ -791,8 +791,8 @@ export default function PaymentEvolution() {
               {!loading && matrix.length > 0 && (() => {
                 const monthTotals = months.map((_, i) => matrix.reduce((s, r) => s + (r.byMonth[i] ?? 0), 0));
                 const grand = monthTotals.reduce((s, v) => s + v, 0);
-                const lastT = monthTotals[months.length - 1] ?? 0;
-                const prevT = monthTotals[months.length - 2] ?? 0;
+                const lastT = monthTotals[lastClosedIdx] ?? 0;
+                const prevT = prevClosedIdx >= 0 ? (monthTotals[prevClosedIdx] ?? 0) : 0;
                 const deltaT = prevT > 0 ? ((lastT - prevT) / prevT) * 100 : lastT > 0 ? 100 : 0;
                 return (
                   <tfoot className="border-t bg-muted/40 font-semibold">
