@@ -842,15 +842,33 @@ function RubricEditor({
 
         {rubric.incide_sobre === "rubrica_especifica" && (
           <div className="space-y-1">
-            <Label className="text-xs">Nº da rubrica de referência</Label>
-            <Input
-              type="number"
-              className="h-8 text-sm"
-              value={rubric.ref_rubric_order ?? ""}
-              onChange={(e) =>
-                onChange({ ref_rubric_order: e.target.value ? Number(e.target.value) : null })
-              }
-            />
+            <Label className="text-xs">Rubrica de referência</Label>
+            <Select
+              value={rubric.ref_rubric_order ? String(rubric.ref_rubric_order) : ""}
+              onValueChange={(v) => onChange({ ref_rubric_order: v ? Number(v) : null })}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Selecione a rubrica…" />
+              </SelectTrigger>
+              <SelectContent>
+                {allRubrics
+                  .map((r, i) => ({ r, i }))
+                  .filter(({ i }) => i < index)
+                  .map(({ r, i }) => (
+                    <SelectItem key={i} value={String(i + 1)}>
+                      #{i + 1} · {r.label || RUBRIC_KIND_LABEL[r.kind]}
+                    </SelectItem>
+                  ))}
+                {allRubrics.filter((_, i) => i < index).length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    Nenhuma rubrica anterior cadastrada.
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Aponte para a rubrica cujo valor servirá de base de cálculo (ex.: Base #4 “demais convênios”).
+            </p>
           </div>
         )}
 
