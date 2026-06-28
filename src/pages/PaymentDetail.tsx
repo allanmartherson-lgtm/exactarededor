@@ -262,8 +262,17 @@ const PaymentDetail = () => {
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
   const [groupCommentType, setGroupCommentType] = useState<Record<string, ObservationType>>({});
   const [editMetaOpen, setEditMetaOpen] = useState(false);
-  const [metaDraft, setMetaDraft] = useState<{ reference: string; description: string; payment_due_date: string }>({ reference: "", description: "", payment_due_date: "" });
+  const [metaDraft, setMetaDraft] = useState<{
+    reference: string;
+    description: string;
+    payment_due_date: string;
+    competence_month: string;
+    analysis_mode: string;
+    pool_id: string; // "" = nenhum
+    rateio_source: string;
+  }>({ reference: "", description: "", payment_due_date: "", competence_month: "", analysis_mode: "padrao", pool_id: "", rateio_source: "" });
   const [savingMeta, setSavingMeta] = useState(false);
+  const [poolsForEdit, setPoolsForEdit] = useState<Array<{ id: string; nome: string }>>([]);
   const [externalRegistrationOpen, setExternalRegistrationOpen] = useState<"validation" | "approval" | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
   const [reimporting, setReimporting] = useState(false);
