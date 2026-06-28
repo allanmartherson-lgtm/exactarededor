@@ -123,8 +123,29 @@ export default function CreditosDebitos() {
     setAdjustments(adjs.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
     const debts = ((g as any).data || []) as GlosaDebt[];
     setGlosaDebts(debts.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
-    // Resolve rótulos dos lotes-alvo já referenciados
-    const tgtIds = Array.from(new Set(debts.map(d => d.target_payment_id).filter(Boolean))) as string[];
+
+    // Carrega histórico real de aplicações por ajuste
+    const adjIds = adjs.map(x => x.id);
+    const appsMap: Record<string, AdjApplication[]> = {};
+    const allPaymentIds = new Set<string>();
+    if (adjIds.length) {
+      const { data: apps } = await supabase
+        .from("company_adjustment_applications")
+        .select("id, adjustment_id, payment_id, parcela_numero, valor_aplicado, status, source, applied_at, confirmed_at, reverted_at, reverted_reason")
+        .in("adjustment_id", adjIds)
+        .order("applied_at", { ascending: false });
+      ((apps as any[]) ?? []).forEach(r => {
+        (appsMap[r.adjustment_id] ??= []).push(r as AdjApplication);
+        if (r.payment_id) allPaymentIds.add(r.payment_id);
+      });
+    }
+    setAppsByAdj(appsMap);
+
+    // Resolve rótulos dos lotes-alvo (glosas + aplicações de ajustes)
+    const tgtIds = Array.from(new Set([
+      ...debts.map(d => d.target_payment_id).filter(Boolean) as string[],
+      ...Array.from(allPaymentIds),
+    ]));
     if (tgtIds.length) {
       const { data: pays } = await supabase
         .from("payments").select("id, competence_month, status").in("id", tgtIds);
@@ -136,6 +157,7 @@ export default function CreditosDebitos() {
     }
     setLoading(false);
   };
+
   useEffect(() => { loadAll(); }, []);
 
   const openAdj = (a?: Adjustment) => {
