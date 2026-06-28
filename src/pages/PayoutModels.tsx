@@ -823,3 +823,88 @@ function RubricEditor({
     </div>
   );
 }
+
+// ---------- multi-select de convênios ----------
+function ConvenioMultiSelectField({
+  convenios,
+  value,
+  onChange,
+}: {
+  convenios: Array<{ slug: string; name: string }>;
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const bySlug = useMemo(() => {
+    const m = new Map<string, string>();
+    convenios.forEach((c) => m.set(c.slug, c.name));
+    return m;
+  }, [convenios]);
+
+  const toggle = (slug: string) => {
+    if (value.includes(slug)) onChange(value.filter((s) => s !== slug));
+    else onChange([...value, slug]);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            className={cn(
+              "w-full justify-between font-normal h-8 text-sm",
+              !value.length && "text-muted-foreground",
+            )}
+          >
+            <span className="truncate">
+              {value.length === 0
+                ? "Sem vínculo — vale para qualquer convênio"
+                : `${value.length} convênio${value.length > 1 ? "s" : ""} selecionado${value.length > 1 ? "s" : ""}`}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Buscar convênio…" />
+            <CommandList>
+              <CommandEmpty>Nenhum convênio encontrado.</CommandEmpty>
+              <CommandGroup>
+                {convenios.map((c) => {
+                  const checked = value.includes(c.slug);
+                  return (
+                    <CommandItem key={c.slug} value={`${c.name} ${c.slug}`} onSelect={() => toggle(c.slug)}>
+                      <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
+                      <span className="text-xs">{c.name}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {value.map((slug) => (
+            <button
+              key={slug}
+              type="button"
+              onClick={() => onChange(value.filter((s) => s !== slug))}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border border-primary/40 bg-accent text-primary hover:bg-accent/70"
+              title="Remover"
+            >
+              <span className="truncate max-w-[200px]">{bySlug.get(slug) ?? slug}</span>
+              <X className="h-3 w-3" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
