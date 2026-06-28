@@ -83,6 +83,7 @@ import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
 import { TussPrincipalAuditPanel, useTussAuditOpenCount } from "@/components/payment-detail/TussPrincipalAuditPanel";
+import { PayoutBreakdownCard } from "@/components/PayoutBreakdownCard";
 import type {
   PaymentItemRow as PaymentItemRowType,
   GroupRow,
