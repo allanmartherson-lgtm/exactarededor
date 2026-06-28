@@ -4809,6 +4809,64 @@ export type Database = {
           },
         ]
       }
+      payment_engine_sources: {
+        Row: {
+          applicable: boolean
+          applied_count: number
+          details: Json
+          job_id: string | null
+          payment_id: string
+          read_at: string | null
+          source: string
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          applicable?: boolean
+          applied_count?: number
+          details?: Json
+          job_id?: string | null
+          payment_id: string
+          read_at?: string | null
+          source: string
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          applicable?: boolean
+          applied_count?: number
+          details?: Json
+          job_id?: string | null
+          payment_id?: string
+          read_at?: string | null
+          source?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_engine_sources_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_engine_sources_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_engine_sources_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
       payment_group_reconciliation_overrides: {
         Row: {
           approved_by: string
@@ -10524,6 +10582,14 @@ export type Database = {
         Returns: undefined
       }
       _can_cancel_payment: { Args: { _uid: string }; Returns: boolean }
+      _open_payment_ids_for_company: {
+        Args: { _company_id: string }
+        Returns: string[]
+      }
+      _open_payment_ids_for_pool: {
+        Args: { _competence?: string; _pool_id: string }
+        Returns: string[]
+      }
       _validate_cancel_target: {
         Args: { _group_id: string }
         Returns: undefined
@@ -10766,6 +10832,10 @@ export type Database = {
         Returns: string
       }
       current_active_hospital: { Args: never; Returns: string }
+      declare_engine_source_applicable: {
+        Args: { _applicable?: boolean; _payment_id: string; _source: string }
+        Returns: undefined
+      }
       delete_parecer_report: {
         Args: { p_report_id: string }
         Returns: undefined
@@ -10779,6 +10849,11 @@ export type Database = {
           unresolved: number
         }[]
       }
+      engine_sources_pending: {
+        Args: { _payment_id: string }
+        Returns: string[]
+      }
+      engine_sources_ready: { Args: { _payment_id: string }; Returns: boolean }
       enqueue_ai_retry: {
         Args: {
           p_company_name: string
@@ -11418,6 +11493,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      init_engine_sources_for_payment: {
+        Args: { _payment_id: string }
+        Returns: undefined
+      }
+      invalidate_engine_source: {
+        Args: { _payment_id: string; _source: string }
+        Returns: undefined
+      }
       is_any_company_portal_user: { Args: { _uid: string }; Returns: boolean }
       is_any_doctor_portal_user: { Args: { _uid: string }; Returns: boolean }
       is_company_portal_user: {
@@ -11501,6 +11584,17 @@ export type Database = {
       mark_doctor_notification_read: {
         Args: { p_id: string }
         Returns: boolean
+      }
+      mark_engine_source: {
+        Args: {
+          _applied_count?: number
+          _details?: Json
+          _job_id?: string
+          _payment_id: string
+          _source: string
+          _total_value?: number
+        }
+        Returns: undefined
       }
       mark_notification_read: { Args: { _id: string }; Returns: undefined }
       mark_portal_thread_read: {
