@@ -374,7 +374,85 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
     setEditingRubrics((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // ---------- validações por etapa ----------
+  const validateStep = (s: WizardStep): string | null => {
+    if (s === "bases") {
+      if (!editing?.name.trim()) return "Informe o nome do modelo.";
+      const bases = editingRubrics.filter((r) => isBaseKind(r.kind));
+      if (bases.length === 0) return "Adicione ao menos uma base (produção ou fixa).";
+      const semLabel = bases.find((r) => !r.label.trim());
+      if (semLabel) return "Toda base precisa de um rótulo.";
+      const fixaSemValor = bases.find(
+        (r) => r.kind === "base_fixa" && (r.fixed_value == null || r.fixed_value <= 0),
+      );
+      if (fixaSemValor)
+        return `A base fixa "${fixaSemValor.label}" precisa de um valor maior que zero.`;
+      return null;
+    }
+    if (s === "ajustes") {
+      const ajustes = editingRubrics.filter((r) => !isBaseKind(r.kind));
+      for (const r of ajustes) {
+        if (!r.label.trim()) return "Toda rubrica de ajuste precisa de um rótulo.";
+        if (r.kind === "acrescimo_faixa" && !r.tier_table_id)
+          return `Rubrica "${r.label}" precisa de uma tabela de faixas.`;
+        if (
+          (r.kind === "desconto_valor" || r.kind === "acrescimo_valor") &&
+          (r.fixed_value == null || r.fixed_value === 0)
+        )
+          return `Rubrica "${r.label}" precisa de um valor fixo.`;
+        if (r.incide_sobre === "rubrica_especifica" && !r.ref_rubric_order)
+          return `Rubrica "${r.label}" precisa do nº da rubrica de referência.`;
+      }
+      return null;
+    }
+    if (s === "convenios") return null; // sempre opcional
+    if (s === "reuso") {
+      const pcts = editingRubrics.filter((r) => isPctKind(r.kind));
+      for (const r of pcts) {
+        const hasFixed = r.fixed_pct != null && r.fixed_pct !== 0;
+        const hasParam = !!r.param_key?.trim();
+        if (!hasFixed && !hasParam)
+          return `Rubrica % "${r.label || "(sem rótulo)"}" precisa de % fixo ou Param key.`;
+      }
+      return null;
+    }
+    return null;
+  };
+
+  const goNext = () => {
+    const err = validateStep(step);
+    if (err) {
+      setStepError(err);
+      toast({ title: err, variant: "destructive" });
+      return;
+    }
+    setStepError(null);
+    const i = WIZARD_STEPS.findIndex((s) => s.id === step);
+    if (i < WIZARD_STEPS.length - 1) setStep(WIZARD_STEPS[i + 1].id);
+  };
+
+  const goPrev = () => {
+    setStepError(null);
+    const i = WIZARD_STEPS.findIndex((s) => s.id === step);
+    if (i > 0) setStep(WIZARD_STEPS[i - 1].id);
+  };
+
+  const handleSave = async () => {
+    for (const s of WIZARD_STEPS) {
+      const err = validateStep(s.id);
+      if (err) {
+        setStep(s.id);
+        setStepError(err);
+        toast({ title: err, variant: "destructive" });
+        return;
+      }
+    }
+    setStepError(null);
+    await save();
+  };
+
   const paymentTypeLabel = (id: string | null) =>
+
     paymentTypes.find((p) => p.id === id)?.label ?? "—";
 
   const content = (
