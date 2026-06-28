@@ -913,9 +913,10 @@ function RubricEditor({
             <ConvenioMultiSelectField
               convenios={convenios}
               value={rubric.convenio_slugs ?? []}
-              onChange={(slugs) =>
-                onChange({ convenio_slugs: slugs, convenio_slug: slugs[0] ?? null })
-              }
+              onChange={(slugs) => {
+                const norm = normalizeConvenioSlugs(slugs);
+                onChange({ convenio_slugs: norm, convenio_slug: norm[0] ?? null });
+              }}
             />
             <p className="text-[11px] text-muted-foreground leading-snug">
               <span className="font-medium text-foreground">Para que serve:</span> apenas
