@@ -35,6 +35,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FormDialog } from "@/components/FormDialog";
+import { RuleFormStepper } from "@/components/rules/RuleFormStepper";
 import {
   Table,
   TableBody,
