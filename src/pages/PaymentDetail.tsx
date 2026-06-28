@@ -1406,6 +1406,7 @@ const PaymentDetail = () => {
       analysis_mode: (payment as any).analysis_mode ?? "padrao",
       pool_id: (payment as any).pool_id ?? "",
       rateio_source: (payment as any).rateio_source ?? "",
+      cost_center_code: (payment as any).cost_center_code ?? "",
     });
     setEditMetaOpen(true);
     // carrega pools do hospital do lote
