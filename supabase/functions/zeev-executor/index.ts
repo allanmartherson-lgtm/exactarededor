@@ -373,6 +373,84 @@ async function execLinkDoctorCompany(sb: SB, paymentId: string, scope: Scope, pa
   };
 }
 
+async function execAcceptKeepPaid(
+  sb: SB,
+  paymentId: string,
+  scope: Scope,
+  payload: Record<string, unknown>,
+  actorId: string,
+) {
+  const scopeWithStatus: Scope = {
+    ...scope,
+    ai_status_in: scope.ai_status_in && scope.ai_status_in.length > 0
+      ? scope.ai_status_in
+      : ["reprovado", "alerta"],
+  };
+  const items = await buildItemsQuery(sb, paymentId, scopeWithStatus);
+  // Filtra apenas itens ainda não tratados manualmente
+  const targets = items.filter((i) => !i.manual_intervention_reason_id);
+  if (targets.length === 0) {
+    return { affected: 0, before: [], after: { reason: "acatado_pago" } };
+  }
+
+  const justification = String(payload.justification ?? "").trim()
+    || "Acatado em lote via Zeev — mantendo o valor pago como esperado.";
+  const justifFinal = justification.length < 20
+    ? justification + " (acatamento em lote pelo assistente)"
+    : justification;
+
+  // Busca um reason genérico de "manter pago" se existir
+  const { data: reasons } = await sb
+    .from("manual_intervention_reasons")
+    .select("id, code")
+    .or("code.ilike.%manter_pago%,code.ilike.%acatado_pago%,code.ilike.%keep_paid%")
+    .limit(1);
+  const reasonId = (reasons?.[0]?.id as string | undefined) ?? null;
+
+  const ids = targets.map((t) => t.id);
+  const nowIso = new Date().toISOString();
+  const before = targets.map((t) => ({
+    id: t.id,
+    ai_status: t.ai_status,
+    gross_amount: t.gross_amount,
+  }));
+
+  const patch: Record<string, unknown> = {
+    ai_status: "acatado",
+    acatado_by: actorId,
+    acatado_at: nowIso,
+    gross_override_at: nowIso,
+    gross_override_by: actorId,
+    gross_override_reason: "acatado_pago",
+    manual_intervention_source: "zeev_bulk",
+    manual_intervention_by: actorId,
+    manual_intervention_at: nowIso,
+    manual_intervention_notes: justifFinal,
+  };
+  if (reasonId) patch.manual_intervention_reason_id = reasonId;
+
+  const { error } = await sb.from("payment_items").update(patch).in("id", ids);
+  if (error) throw new Error(`accept_keep_paid: ${error.message}`);
+
+  // Salva acatado_status_original em itens onde estava ai_status original (reprovado/alerta)
+  // (best-effort — não bloqueia se falhar)
+  for (const t of targets) {
+    await sb
+      .from("payment_items")
+      .update({ acatado_status_original: t.ai_status })
+      .eq("id", t.id)
+      .is("acatado_status_original", null);
+  }
+
+  return {
+    affected: targets.length,
+    before,
+    after: { reason: "acatado_pago", justification: justifFinal, reason_id: reasonId },
+  };
+}
+
+
+
 // -------------------- Cadastros (Fase 2) --------------------
 
 function digitsOnly(s: string): string {
