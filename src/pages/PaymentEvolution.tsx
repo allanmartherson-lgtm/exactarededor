@@ -353,10 +353,22 @@ export default function PaymentEvolution() {
   // KPIs
   const grandTotal = matrix.reduce((s, r) => s + r.total, 0);
   const ccCount = matrix.length;
-  const lastMonth = months[months.length - 1];
-  const prevMonth = months[months.length - 2];
-  const totalLast = matrix.reduce((s, r) => s + r.byMonth[months.length - 1], 0);
-  const totalPrev = matrix.reduce((s, r) => s + (r.byMonth[months.length - 2] ?? 0), 0);
+  // O mês calendário corrente é "em andamento" — pagamentos ainda estão sendo gerados.
+  // Para "Último mês" / "Variação MoM" / Δ MoM da matriz, ancoramos no último mês
+  // FECHADO (último do range que não seja o mês calendário corrente).
+  const currentYM = new Date().toISOString().slice(0, 7);
+  const lastClosedIdx = (() => {
+    for (let i = months.length - 1; i >= 0; i--) {
+      if (months[i] !== currentYM) return i;
+    }
+    return months.length - 1;
+  })();
+  const prevClosedIdx = lastClosedIdx - 1;
+  const lastMonth = months[lastClosedIdx];
+  const prevMonth = prevClosedIdx >= 0 ? months[prevClosedIdx] : undefined;
+  const isCurrentMonthInRange = months.includes(currentYM);
+  const totalLast = matrix.reduce((s, r) => s + (r.byMonth[lastClosedIdx] ?? 0), 0);
+  const totalPrev = matrix.reduce((s, r) => s + (r.byMonth[prevClosedIdx] ?? 0), 0);
   const momPct = totalPrev > 0 ? ((totalLast - totalPrev) / totalPrev) * 100 : 0;
 
   // Top growth CC (compare avg first half × second half)
