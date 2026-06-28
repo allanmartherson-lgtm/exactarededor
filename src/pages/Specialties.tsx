@@ -475,7 +475,15 @@ export default function Specialties({ embedded = false }: Props) {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="inline-flex gap-2">
+                      <div className="inline-flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openHistory({ specialtyId: row.id, name: row.name })}
+                          title="Ver histórico"
+                        >
+                          <History className="h-3.5 w-3.5" />
+                        </Button>
                         <Button size="sm" variant="ghost" onClick={() => openEdit(row)}>
                           <Pencil className="h-3.5 w-3.5 mr-1" />
                           Editar
