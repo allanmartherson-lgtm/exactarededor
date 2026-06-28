@@ -766,8 +766,10 @@ export type ItemsDataGridProps = {
   canEdit?: boolean;
   onEditItem?: (item: PaymentItemRowData) => void;
   onDeleteItem?: (item: PaymentItemRowData) => void;
-  /** Acatar divergência (item reprovado/alerta com observação ≥ 20 chars). */
+  /** Acatar divergência usando o valor esperado (sobrescreve gross_amount). */
   onAcceptItem?: (item: PaymentItemRowData) => void;
+  /** Acatar divergência mantendo o valor pago (não sobrescreve gross_amount). */
+  onAcceptItemKeepPaid?: (item: PaymentItemRowData) => void;
   /** Desfazer acate (volta ao status original). */
   onUndoAcceptItem?: (item: PaymentItemRowData) => void;
   className?: string;
