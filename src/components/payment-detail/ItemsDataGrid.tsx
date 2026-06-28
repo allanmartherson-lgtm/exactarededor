@@ -4122,10 +4122,22 @@ function RowMain({
                   variant="ghost"
                   className="h-6 w-6"
                   style={{ color: "hsl(var(--success))" }}
-                  title="Acatar divergência (status acatado)"
+                  title="Acatar usando o valor ESPERADO (sobrescreve o pago)"
                   onClick={() => onAcceptItem(it)}
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {!isBonus && onAcceptItemKeepPaid && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  style={{ color: "hsl(var(--success))" }}
+                  title="Acatar mantendo o valor PAGO (não sobrescreve)"
+                  onClick={() => onAcceptItemKeepPaid(it)}
+                >
+                  <HandCoins className="h-3.5 w-3.5" />
                 </Button>
               )}
               {!isBonus && onUndoAcceptItem && it.ai_status === "acatado" && (
