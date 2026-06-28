@@ -41,7 +41,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, Pencil, Trash2, Loader2, FileText, Layers, Check, ChevronsUpDown, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, FileText, Layers, Check, ChevronsUpDown, X, Wand2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { normalizeConvenioSlugs, toggleConvenioSlug } from "@/lib/convenioMatching";
 import { PageHeader } from "@/components/PageHeader";
@@ -152,6 +152,23 @@ const AJUSTE_KINDS: RubricKind[] = [
 ];
 const isBaseKind = (k: RubricKind) => BASE_KINDS.includes(k);
 const isPctKind = (k: RubricKind) => k.endsWith("_pct");
+
+const normalizeLookup = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const findConvenioSlug = (
+  convenios: Array<{ slug: string; name: string }>,
+  aliases: string[],
+) => {
+  const normalizedAliases = aliases.map(normalizeLookup);
+  return convenios.find((c) => {
+    const haystack = normalizeLookup(`${c.name} ${c.slug}`);
+    return normalizedAliases.some((alias) => haystack.includes(alias));
+  })?.slug;
+};
 
 
 // ---------- página ----------
@@ -354,6 +371,83 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         notes: null,
       },
     ]);
+  };
+
+  const applyGlosaTrdScenario = () => {
+    if (editingRubrics.length > 0) {
+      const ok = window.confirm(
+        "Substituir as rubricas atuais pelo cenário: 3 convênios sem glosa, demais com glosa e TRD no final?",
+      );
+      if (!ok) return;
+    }
+
+    const sulAmerica = findConvenioSlug(convenios, ["sul america", "sulamerica"]);
+    const bradesco = findConvenioSlug(convenios, ["bradesco"]);
+    const particular = findConvenioSlug(convenios, ["particular"]);
+
+    const baseRubric = (
+      label: string,
+      convenioSlug: string | undefined,
+      notes: string | null = null,
+    ): PayoutRubric => ({
+      sort_order: 0,
+      kind: "base_producao",
+      label,
+      incide_sobre: null,
+      ref_rubric_order: null,
+      param_key: null,
+      fixed_pct: null,
+      fixed_value: null,
+      tier_table_id: null,
+      convenio_slug: convenioSlug ?? null,
+      convenio_slugs: convenioSlug ? [convenioSlug] : [],
+      required: true,
+      notes,
+    });
+
+    const rows: PayoutRubric[] = [
+      baseRubric("Produção Sul América — sem glosa", sulAmerica),
+      baseRubric("Produção Bradesco — sem glosa", bradesco),
+      baseRubric("Produção Particular — sem glosa", particular),
+      baseRubric(
+        "Produção demais convênios — com glosa",
+        undefined,
+        "Agrupe aqui todos os convênios que não são Sul América, Bradesco ou Particular.",
+      ),
+      {
+        sort_order: 0,
+        kind: "desconto_pct",
+        label: "Glosa sobre demais convênios",
+        incide_sobre: "rubrica_especifica",
+        ref_rubric_order: 4,
+        param_key: "repasse.glosa_demais_convenios",
+        fixed_pct: null,
+        fixed_value: null,
+        tier_table_id: null,
+        convenio_slug: null,
+        convenio_slugs: [],
+        required: true,
+        notes: "Aplica glosa somente sobre a rubrica #4. As bases #1, #2 e #3 ficam fora da glosa.",
+      },
+      {
+        sort_order: 0,
+        kind: "retencao_pct",
+        label: "TRD sobre valor final",
+        incide_sobre: "subtotal_anterior",
+        ref_rubric_order: null,
+        param_key: "repasse.trd",
+        fixed_pct: null,
+        fixed_value: null,
+        tier_table_id: null,
+        convenio_slug: null,
+        convenio_slugs: [],
+        required: true,
+        notes: "Calcula depois da glosa: incide sobre as 3 bases sem glosa + demais convênios já com glosa aplicada.",
+      },
+    ].map((r, idx) => ({ ...r, sort_order: idx + 1 }));
+
+    setEditingRubrics(rows);
+    toast({ title: "Cenário aplicado", description: "Revise os percentuais/param keys antes de salvar." });
   };
 
 
@@ -578,6 +672,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
                     paymentTypes={paymentTypes}
                     rubrics={editingRubrics}
                     addRubric={addRubric}
+                    applyGlosaTrdScenario={applyGlosaTrdScenario}
                     updateRubric={updateRubric}
                     removeRubric={removeRubric}
                     tierTables={tierTables}
