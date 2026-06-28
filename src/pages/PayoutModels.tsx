@@ -228,7 +228,10 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
     });
     setEditingRubrics([]);
     setEditingCompany(null);
+    setStep("bases");
+    setStepError(null);
     setDialogOpen(true);
+
   };
 
   const openEdit = async (m: PayoutModel) => {
