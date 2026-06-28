@@ -46,16 +46,21 @@ export function CompanyFinancialAdjustmentsDialog({
   companyId: string;
   companyName: string;
 }) {
+  const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
   const [items, setItems] = useState<Adjustment[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    tipo: string; descricao: string; valor_total: string; parcelas_total: string;
+    data_inicio: string; origem: string; payment_type_ids: string[];
+  }>({
     tipo: "credito",
     descricao: "",
     valor_total: "",
     parcelas_total: "1",
     data_inicio: new Date().toISOString().slice(0, 10),
     origem: "",
+    payment_type_ids: [],
   });
 
   const load = useCallback(async () => {
