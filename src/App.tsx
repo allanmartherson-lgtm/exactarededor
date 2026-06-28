@@ -33,6 +33,7 @@ const loadHealthMonitoring = () => import("./pages/HealthMonitoring.tsx");
 const loadPayments = () => import("./pages/Payments.tsx");
 const loadNewPayment = () => import("./pages/NewPayment.tsx");
 const loadNewManualPayment = () => import("./pages/NewManualPayment.tsx");
+const loadNewManualPaymentComposicao = () => import("./pages/NewManualPaymentComposicao.tsx");
 const loadManualPaymentEntry = () => import("./pages/ManualPaymentEntry.tsx");
 const loadPaymentDetail = () => import("./pages/PaymentDetail.tsx");
 const loadCompanyAnalysis = () => import("./pages/CompanyAnalysis.tsx");
@@ -125,6 +126,7 @@ const HealthMonitoring = lazy(loadHealthMonitoring);
 const Payments = lazy(loadPayments);
 const NewPayment = lazy(loadNewPayment);
 const NewManualPayment = lazy(loadNewManualPayment);
+const NewManualPaymentComposicao = lazy(loadNewManualPaymentComposicao);
 const ManualPaymentEntry = lazy(loadManualPaymentEntry);
 const PaymentDetail = lazy(loadPaymentDetail);
 const CompanyAnalysis = lazy(loadCompanyAnalysis);
@@ -311,6 +313,7 @@ const App = () => (
                   <Route path="/perfil" element={<Profile />} />
                   <Route path="/pagamentos/novo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewPayment /></ProtectedRoute>} />
                   <Route path="/pagamentos/novo-manual" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewManualPayment /></ProtectedRoute>} />
+                  <Route path="/pagamentos/novo-manual-modelo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewManualPaymentComposicao /></ProtectedRoute>} />
                   <Route path="/pagamentos/:id/manual" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><ManualPaymentEntry /></ProtectedRoute>} />
                   <Route path="/pagamentos/:id" element={<PaymentDetail />} />
                   <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
