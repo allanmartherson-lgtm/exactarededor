@@ -845,6 +845,7 @@ export type Database = {
           origem: string | null
           parcelas_pagas: number
           parcelas_total: number
+          payment_type_ids: string[] | null
           tipo: string
           updated_at: string
           valor_total: number
@@ -861,6 +862,7 @@ export type Database = {
           origem?: string | null
           parcelas_pagas?: number
           parcelas_total?: number
+          payment_type_ids?: string[] | null
           tipo: string
           updated_at?: string
           valor_total: number
@@ -877,6 +879,7 @@ export type Database = {
           origem?: string | null
           parcelas_pagas?: number
           parcelas_total?: number
+          payment_type_ids?: string[] | null
           tipo?: string
           updated_at?: string
           valor_total?: number
