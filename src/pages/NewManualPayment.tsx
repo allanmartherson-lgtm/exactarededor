@@ -108,9 +108,14 @@ export default function NewManualPayment() {
         description="Para pagamentos cuja base vem de planilha externa (nefrologia, plantão fechado, coordenação rateada). O motor não calcula — você informa o valor por médico/empresa."
         icon={FileEdit}
         actions={
-          <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/pagamentos/novo-manual-modelo")}>
+              Lançar por modelo de repasse
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+            </Button>
+          </div>
         }
       />
 
