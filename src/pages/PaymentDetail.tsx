@@ -3380,6 +3380,17 @@ const PaymentDetail = () => {
                     </p>
                   </div>
                 )}
+                <div>
+                  <label className="text-xs text-muted-foreground">Centro de custos *</label>
+                  <CostCenterCombobox
+                    value={metaDraft.cost_center_code || null}
+                    onChange={(v) => setMetaDraft((m) => ({ ...m, cost_center_code: v ?? "" }))}
+                    placeholder="Buscar por código P12 ou nome…"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Obrigatório. Define o centro de custos contábil do lote (usado no DRE e no rateio por CC).
+                  </p>
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setEditMetaOpen(false)} disabled={savingMeta}>Cancelar</Button>
