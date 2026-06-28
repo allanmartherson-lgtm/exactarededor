@@ -712,11 +712,28 @@ async function loadLearnedPreferences(sb: SB, hospitalId: string | null) {
 // -------------------- Preview --------------------
 
 async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Action): Promise<{ count: number; samples: Proposal["sample_items"] }> {
-  const items = await buildItemsQuery(sb, paymentId, scope);
+  const effectiveScope: Scope = action === "accept_keep_paid"
+    ? { ...scope, ai_status_in: scope.ai_status_in && scope.ai_status_in.length > 0 ? scope.ai_status_in : ["reprovado", "alerta"] }
+    : scope;
+  const items = await buildItemsQuery(sb, paymentId, effectiveScope);
 
   if (action === "link_doctor_company") {
     const missing = await filterDoctorCompanyMissing(sb, items);
     const filtered = items.filter((i) => i.doctor_id && missing.has(i.doctor_id));
+    return {
+      count: filtered.length,
+      samples: filtered.slice(0, 3).map((i) => ({
+        id: i.id,
+        doctor_name: i.doctor_name,
+        procedure_code: i.procedure_code,
+        description: i.description,
+        attendance_number: i.attendance_number,
+      })),
+    };
+  }
+
+  if (action === "accept_keep_paid") {
+    const filtered = items.filter((i) => !i.manual_intervention_reason_id);
     return {
       count: filtered.length,
       samples: filtered.slice(0, 3).map((i) => ({
