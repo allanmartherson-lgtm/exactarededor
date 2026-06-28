@@ -587,12 +587,14 @@ function RubricEditor({
   index,
   rubric,
   tierTables,
+  convenios,
   onChange,
   onRemove,
 }: {
   index: number;
   rubric: PayoutRubric;
   tierTables: TierTable[];
+  convenios: Array<{ slug: string; name: string }>;
   onChange: (patch: Partial<PayoutRubric>) => void;
   onRemove: () => void;
 }) {
@@ -601,16 +603,28 @@ function RubricEditor({
   const isFaixa = rubric.kind === "acrescimo_faixa";
   const isBase = rubric.kind === "base_producao" || rubric.kind === "base_fixa";
 
+  const convenioName = rubric.convenio_slug
+    ? convenios.find((c) => c.slug === rubric.convenio_slug)?.name ?? rubric.convenio_slug
+    : null;
+
   return (
-    <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+    <div className="border rounded-md p-3 space-y-3 bg-muted/30">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
-        <Button variant="ghost" size="icon" onClick={onRemove}>
+        <span className="text-xs font-medium text-muted-foreground">
+          Rubrica #{index + 1}
+          {convenioName && (
+            <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px]">
+              {convenioName}
+            </span>
+          )}
+        </span>
+        <Button variant="ghost" size="icon" onClick={onRemove} aria-label="Remover rubrica">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        <div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="space-y-1">
           <Label className="text-xs">Tipo</Label>
           <Select value={rubric.kind} onValueChange={(v) => onChange({ kind: v as RubricKind })}>
             <SelectTrigger className="h-8 text-sm">
@@ -624,9 +638,10 @@ function RubricEditor({
               ))}
             </SelectContent>
           </Select>
+          <p className="text-[11px] text-muted-foreground leading-snug">{RUBRIC_KIND_HELP[rubric.kind]}</p>
         </div>
-        <div>
-          <Label className="text-xs">Rótulo</Label>
+        <div className="space-y-1">
+          <Label className="text-xs">Rótulo (aparece na memória de cálculo)</Label>
           <Input
             className="h-8 text-sm"
             value={rubric.label}
@@ -636,7 +651,7 @@ function RubricEditor({
         </div>
 
         {!isBase && (
-          <div>
+          <div className="space-y-1">
             <Label className="text-xs">Incide sobre</Label>
             <Select
               value={rubric.incide_sobre ?? "subtotal_anterior"}
@@ -646,16 +661,19 @@ function RubricEditor({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="bruto">Bruto (soma das bases)</SelectItem>
-                <SelectItem value="subtotal_anterior">Subtotal anterior</SelectItem>
+                <SelectItem value="bruto">Bruto (soma de todas as bases)</SelectItem>
+                <SelectItem value="subtotal_anterior">Subtotal anterior (bases + rubricas até aqui)</SelectItem>
                 <SelectItem value="rubrica_especifica">Rubrica específica</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Define a base de cálculo do % ou referência do valor.
+            </p>
           </div>
         )}
 
         {rubric.incide_sobre === "rubrica_especifica" && (
-          <div>
+          <div className="space-y-1">
             <Label className="text-xs">Nº da rubrica de referência</Label>
             <Input
               type="number"
@@ -670,8 +688,8 @@ function RubricEditor({
 
         {isPct && (
           <>
-            <div>
-              <Label className="text-xs">% fixo (opcional)</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">% fixo</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -682,22 +700,28 @@ function RubricEditor({
                 }
                 placeholder="Ex.: 10"
               />
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Use isto OU "Param key" — se ambos preenchidos, o % fixo vence.
+              </p>
             </div>
-            <div>
-              <Label className="text-xs">Param key (alternativa)</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Param key (Parâmetros do Sistema)</Label>
               <Input
                 className="h-8 text-sm"
                 value={rubric.param_key ?? ""}
                 onChange={(e) => onChange({ param_key: e.target.value || null })}
                 placeholder="repasse.glosa_media"
               />
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Lê o % do cadastro central — mude lá uma vez e todos os modelos atualizam.
+              </p>
             </div>
           </>
         )}
 
         {isValor && (
-          <div>
-            <Label className="text-xs">Valor fixo</Label>
+          <div className="space-y-1">
+            <Label className="text-xs">Valor fixo (R$)</Label>
             <Input
               type="number"
               step="0.01"
@@ -711,7 +735,7 @@ function RubricEditor({
         )}
 
         {isFaixa && (
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 space-y-1">
             <Label className="text-xs">Tabela de faixas</Label>
             <Select
               value={rubric.tier_table_id ?? ""}
@@ -737,14 +761,32 @@ function RubricEditor({
           </div>
         )}
 
-        <div className="md:col-span-2">
-          <Label className="text-xs">Convênio (opcional — restringe a base/rubrica)</Label>
-          <Input
-            className="h-8 text-sm"
-            value={rubric.convenio_slug ?? ""}
-            onChange={(e) => onChange({ convenio_slug: e.target.value || null })}
-            placeholder="sul_america, bradesco_segur, particular…"
-          />
+        <div className="md:col-span-2 space-y-1">
+          <Label className="text-xs">Convênio (opcional)</Label>
+          <Select
+            value={rubric.convenio_slug ?? "__none"}
+            onValueChange={(v) => onChange({ convenio_slug: v === "__none" ? null : v })}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="Sem vínculo de convênio" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">— Sem vínculo (vale para qualquer convênio)</SelectItem>
+              {convenios.map((c) => (
+                <SelectItem key={c.slug} value={c.slug}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            <span className="font-medium text-foreground">Para que serve:</span> apenas
+            <em> identifica </em> a qual convênio esta rubrica se refere. Serve para (1) a memória de
+            cálculo no PDF/portal exibir o convênio ao lado da linha e (2) buscar % específico em
+            Parâmetros do Sistema quando houver override por convênio (ex.: TRD diferente para Sul
+            América). <span className="font-medium">Não filtra nem soma sozinho</span> — o cálculo
+            usa sempre o valor que o analista digita na base de produção correspondente.
+          </p>
         </div>
       </div>
     </div>
