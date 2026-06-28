@@ -118,15 +118,59 @@ export default function Specialties({ embedded = false }: Props) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return allRows
-      .filter((r) => (showInactive ? true : r.active))
+    const collator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+    const filteredRows = allRows
+      .filter((r) => {
+        if (statusFilter === "active") return r.active;
+        if (statusFilter === "inactive") return !r.active;
+        return true;
+      })
+      .filter((r) => {
+        if (usageFilter === "all") return true;
+        const count = usage[r.name.toLowerCase()] ?? 0;
+        return usageFilter === "in_use" ? count > 0 : count === 0;
+      })
       .filter(
         (r) =>
           !q ||
           r.name.toLowerCase().includes(q) ||
           r.code.toLowerCase().includes(q),
       );
-  }, [allRows, search, showInactive]);
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filteredRows].sort((a, b) => {
+      if (sortKey === "name") return collator.compare(a.name, b.name) * dir;
+      if (sortKey === "code") return collator.compare(a.code, b.code) * dir;
+      if (sortKey === "count") {
+        const ca = usage[a.name.toLowerCase()] ?? 0;
+        const cb = usage[b.name.toLowerCase()] ?? 0;
+        if (ca !== cb) return (ca - cb) * dir;
+        return collator.compare(a.name, b.name);
+      }
+      // status
+      if (a.active !== b.active) return (a.active ? -1 : 1) * dir;
+      return collator.compare(a.name, b.name);
+    });
+  }, [allRows, search, statusFilter, usageFilter, usage, sortKey, sortDir]);
+
+  const totals = useMemo(() => {
+    let active = 0;
+    let inactive = 0;
+    let inUse = 0;
+    allRows.forEach((r) => {
+      if (r.active) active++;
+      else inactive++;
+      if ((usage[r.name.toLowerCase()] ?? 0) > 0) inUse++;
+    });
+    return { total: allRows.length, active, inactive, inUse, unused: allRows.length - inUse };
+  }, [allRows, usage]);
+
+  const filtersDirty =
+    !!search.trim() ||
+    statusFilter !== "active" ||
+    usageFilter !== "all" ||
+    sortKey !== "name" ||
+    sortDir !== "asc";
 
   const openCreate = () => {
     setEditing(null);
