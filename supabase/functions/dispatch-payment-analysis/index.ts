@@ -166,7 +166,15 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
               Authorization: `Bearer ${SERVICE_KEY}`,
             },
-            body: JSON.stringify({ payment_id, trigger_reanalysis: true }),
+            // Chama diretamente o worker real. A chamada sem `_background`
+            // apenas agenda outro fetch e retorna 202; em cadeia fire-and-forget
+            // isso pode encerrar antes do redispatch final ser criado.
+            body: JSON.stringify({ payment_id, trigger_reanalysis: true, _background: true }),
+          }).then(async (resp) => {
+            const txt = await resp.text();
+            if (!resp.ok) {
+              console.error("[dispatch] cross-reference-parecer erro", resp.status, txt.slice(0, 500));
+            }
           }),
           "cross-reference-parecer dispatch",
         );

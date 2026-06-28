@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
         }
         let q = supabase
           .from("payment_items")
-          .select("id, company_id, doctor_id, doctor_name, doctor_role, payment_type_id, sector_slug, convenio_slug, gross_amount, expected_amount, gross_override_reason, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
+          .select("id, company_id, doctor_id, doctor_name, doctor_role, payment_type_id, sector_slug, convenio_slug, gross_amount, expected_amount, gross_override_reason, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number, ai_status")
           .eq("payment_id", payment_id)
           .neq("item_origin", "complemento_minimo");
         if (filtros.tipo_ato_ids.length) q = q.in("payment_type_id", filtros.tipo_ato_ids);
@@ -181,11 +181,47 @@ Deno.serve(async (req) => {
         if (participantCompanyIds.length === 0) { continue; }
         const { data: items } = await supabase
           .from("payment_items")
-          .select("id, company_id, gross_amount, expected_amount, gross_override_reason, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number")
+          .select("id, company_id, gross_amount, expected_amount, gross_override_reason, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number, ai_status")
           .eq("payment_id", payment_id)
           .neq("item_origin", "complemento_minimo")
           .in("company_id", participantCompanyIds);
         elig = items ?? [];
+      }
+
+      const baseField = pool.base_calculo === "soma_expected" ? "expected_amount" : "gross_amount";
+      const pendingAnalysis = baseField === "expected_amount"
+        ? elig.filter((it: any) => String(it.ai_status ?? "").toLowerCase() === "pendente")
+        : [];
+      if (pendingAnalysis.length > 0) {
+        await supabase.from("pool_calculation_runs")
+          .delete().eq("payment_id", payment_id).eq("pool_id", pool.id);
+        await supabase.from("pool_calculation_runs").insert({
+          payment_id, pool_id: pool.id,
+          base_amount: 0,
+          bolo_liquido: 0,
+          deductions_applied: [],
+          quotas: [],
+          competence_month: competenceDate,
+          captured_item_ids: isFiltered ? elig.map((it: any) => it.id) : null,
+          invalidated_at: new Date().toISOString(),
+          invalidated_reason: "analise_pendente",
+          error_detail: {
+            pending_items: pendingAnalysis.length,
+            total_items: elig.length,
+            message: "O pool usa valor esperado; rode a análise de regras antes do rateio.",
+          },
+          hospital_id: payment.hospital_id ?? null,
+          snapshot: { pool_nome: pool.nome, executed_at: new Date().toISOString() },
+          created_by: userId,
+        } as any);
+        results.push({
+          pool_id: pool.id,
+          pool_nome: pool.nome,
+          error: "analise_pendente",
+          pending_items: pendingAnalysis.length,
+          total_items: elig.length,
+        });
+        continue;
       }
 
       // Bloqueio de duplicidade: o mesmo item não pode estar em 2 pools na mesma competência
@@ -219,7 +255,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      const baseField = pool.base_calculo === "soma_expected" ? "expected_amount" : "gross_amount";
       const effectiveBaseValue = (it: any) => {
         // Em lançamento retroativo, “acatar mantendo pago” torna o valor pago
         // a verdade financeira, mesmo quando o pool foi cadastrado como soma_expected.
@@ -680,7 +715,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, pools_processed: results.length, results }), {
+    const blockedCount = results.filter((r: any) => r.error === "analise_pendente").length;
+    return new Response(JSON.stringify({ ok: true, pools_processed: results.length - blockedCount, blocked_count: blockedCount, results }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
