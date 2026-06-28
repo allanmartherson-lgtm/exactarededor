@@ -124,6 +124,7 @@ export default function CreditosDebitos() {
     setEditingAdj(a ? { ...a } : {
       tipo: "credito", descricao: "", valor_total: 0, parcelas_total: 1,
       parcelas_pagas: 0, data_inicio: new Date().toISOString().slice(0, 10), ativo: true, origem: "",
+      payment_type_ids: null, recorrente: false, data_fim: null,
     });
     setAdjDialogOpen(true);
   };
@@ -131,11 +132,17 @@ export default function CreditosDebitos() {
     if (!editingAdj?.company_id || !editingAdj.descricao || !editingAdj.valor_total) {
       toast.error("Preencha empresa, descrição e valor"); return;
     }
+    const recorrente = !!editingAdj.recorrente;
     const payload: any = {
       company_id: editingAdj.company_id, tipo: editingAdj.tipo, descricao: editingAdj.descricao,
-      valor_total: editingAdj.valor_total, parcelas_total: editingAdj.parcelas_total ?? 1,
-      parcelas_pagas: editingAdj.parcelas_pagas ?? 0, data_inicio: editingAdj.data_inicio,
+      valor_total: editingAdj.valor_total,
+      parcelas_total: recorrente ? 1 : (editingAdj.parcelas_total ?? 1),
+      parcelas_pagas: editingAdj.parcelas_pagas ?? 0,
+      data_inicio: editingAdj.data_inicio,
       ativo: editingAdj.ativo ?? true, origem: editingAdj.origem || null,
+      payment_type_ids: (editingAdj.payment_type_ids && editingAdj.payment_type_ids.length > 0) ? editingAdj.payment_type_ids : null,
+      recorrente,
+      data_fim: recorrente ? (editingAdj.data_fim || null) : null,
     };
     const { error } = editingAdj.id
       ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id)
@@ -143,6 +150,7 @@ export default function CreditosDebitos() {
     if (error) { toast.error(error.message); return; }
     toast.success("Ajuste salvo");
     setAdjDialogOpen(false); setEditingAdj(null); loadAll();
+
   };
   const removeAdj = async (id: string) => {
     if (!confirm("Excluir este ajuste?")) return;
