@@ -170,8 +170,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
   const [editingRubrics, setEditingRubrics] = useState<PayoutRubric[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [step, setStep] = useState<WizardStep>("bases");
-  const [stepError, setStepError] = useState<string | null>(null);
+  // Navegação entre etapas é controlada internamente pelo RuleFormStepper.
 
 
   const reload = async () => {
@@ -224,8 +223,6 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
     });
     setEditingRubrics([]);
     setEditingCompany(null);
-    setStep("bases");
-    setStepError(null);
     setDialogOpen(true);
 
   };
