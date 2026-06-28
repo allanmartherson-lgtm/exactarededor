@@ -731,6 +731,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
 function RubricEditor({
   index,
   rubric,
+  allRubrics,
   tierTables,
   convenios,
   onChange,
@@ -741,6 +742,7 @@ function RubricEditor({
 }: {
   index: number;
   rubric: PayoutRubric;
+  allRubrics: PayoutRubric[];
   tierTables: TierTable[];
   convenios: Array<{ slug: string; name: string }>;
   onChange: (patch: Partial<PayoutRubric>) => void;
