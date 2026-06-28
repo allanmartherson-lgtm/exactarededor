@@ -135,6 +135,29 @@ interface TierTable {
   dimension: string;
 }
 
+// ---------- wizard ----------
+type WizardStep = "bases" | "ajustes" | "convenios" | "reuso";
+
+const WIZARD_STEPS: { id: WizardStep; label: string; description: string }[] = [
+  { id: "bases", label: "Bases", description: "Identifique o modelo e o que entra na conta." },
+  { id: "ajustes", label: "Ajustes", description: "Descontos, acréscimos e retenções." },
+  { id: "convenios", label: "Convênios", description: "A quais convênios cada rubrica se refere." },
+  { id: "reuso", label: "Reuso & Revisão", description: "% fixo ou param key, e revisão final." },
+];
+
+const BASE_KINDS: RubricKind[] = ["base_producao", "base_fixa"];
+const AJUSTE_KINDS: RubricKind[] = [
+  "desconto_pct",
+  "desconto_valor",
+  "acrescimo_pct",
+  "acrescimo_valor",
+  "acrescimo_faixa",
+  "retencao_pct",
+];
+const isBaseKind = (k: RubricKind) => BASE_KINDS.includes(k);
+const isPctKind = (k: RubricKind) => k.endsWith("_pct");
+
+
 // ---------- página ----------
 export default function PayoutModels({ embedded = false }: { embedded?: boolean } = {}) {
   const { roles } = useAuth() as { roles?: string[] };
