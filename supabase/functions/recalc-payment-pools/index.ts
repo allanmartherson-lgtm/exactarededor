@@ -20,10 +20,35 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payment_id } = await req.json();
+    const { payment_id, _background } = await req.json();
     if (!payment_id) {
       return new Response(JSON.stringify({ error: "payment_id obrigatório" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Lotes grandes de pool podem demorar por causa do snapshot financeiro das
+    // PJs. A chamada pública apenas agenda o trabalho e retorna rápido; o worker
+    // real roda com `_background=true` para não estourar o timeout do cliente.
+    if (!_background) {
+      const bgPromise = fetch(`${Deno.env.get("SUPABASE_URL")!}/functions/v1/recalc-payment-pools`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: req.headers.get("Authorization") ?? `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
+        },
+        body: JSON.stringify({ payment_id, _background: true }),
+      }).then(async (resp) => {
+        const txt = await resp.text();
+        if (!resp.ok) console.error("[recalc-payment-pools] background erro", resp.status, txt.slice(0, 500));
+      }).catch((e) => console.error("[recalc-payment-pools] background dispatch falhou", e));
+      try {
+        const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+        edgeRuntime?.waitUntil?.(bgPromise);
+      } catch { /* noop */ }
+      return new Response(JSON.stringify({ ok: true, accepted: true, message: "Recálculo do pool enfileirado." }), {
+        status: 202,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 

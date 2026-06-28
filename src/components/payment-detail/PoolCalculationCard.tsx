@@ -108,6 +108,14 @@ export function PoolCalculationCard({ paymentId, onRecalculated }: { paymentId: 
         body: { payment_id: paymentId },
       });
       if (error) throw error;
+      if (data?.accepted) {
+        toast({
+          title: "Recálculo enfileirado",
+          description: data.message ?? "O pool será recalculado em segundo plano. Atualize em instantes.",
+        });
+        try { await onRecalculated?.(); } catch {}
+        return;
+      }
       const n = data?.pools_processed ?? 0;
       const blocked = data?.blocked_count ?? 0;
       toast({
