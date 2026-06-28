@@ -126,6 +126,7 @@ import { Info, ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon }
 import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
 import { ParecerCrossReferencePanel } from "@/components/payment-detail/ParecerCrossReferencePanel";
+import { MixedParecerRetroAction } from "@/components/payment-detail/MixedParecerRetroAction";
 
 const HighlightBanner = ({
   observations,
