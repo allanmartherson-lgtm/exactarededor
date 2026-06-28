@@ -2288,12 +2288,22 @@ const NewPayment = () => {
     if (requiresParecerReport && !parecerPayload) {
       toast({
         title: "Anexe o relatório de pareceres",
-        description: "Em confecção de Parecer, o relatório do Tasy é obrigatório para cruzar com a base e classificar cada item.",
+        description: requiresSpecialtyOnAllRows
+          ? "Em confecção de Parecer, o relatório do Tasy é obrigatório para cruzar com a base e classificar cada item."
+          : "Lote misto: anexe o relatório do Tasy para cruzar os atendimentos de parecer/visita.",
         variant: "destructive",
       });
       return;
     }
-    if (requiresParecerReport && pendingSpecialtyRows.length > 0) {
+    if (mixedParecer.enabled && !mixedParecer.payment_type_id) {
+      toast({
+        title: "Selecione o subtipo de parecer",
+        description: "No lote misto, escolha qual subtipo de parecer aplicar aos itens cruzados.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) {
       toast({
         title: `Especialidade obrigatória em ${pendingSpecialtyRows.length} item(ns)`,
         description: "Em confecção de Parecer a especialidade decide Parecer vs Visita. Preencha antes de criar o lote.",
@@ -2302,6 +2312,7 @@ const NewPayment = () => {
       setSpecialtyModalOpen(true);
       return;
     }
+
 
     if (competenceMonths.length === 0) {
       toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
