@@ -65,12 +65,32 @@ interface DoctorUsage {
 export default function Specialties({ embedded = false }: Props) {
   const { allRows, loading, refetch } = useSpecialties({ includeInactive: true });
   const [search, setSearch] = useState("");
-  const [showInactive, setShowInactive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  const [usageFilter, setUsageFilter] = useState<UsageFilter>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [usage, setUsage] = useState<DoctorUsage>({});
   const [editing, setEditing] = useState<SpecialtyRow | null>(null);
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "count" ? "desc" : "asc");
+    }
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("active");
+    setUsageFilter("all");
+    setSortKey("name");
+    setSortDir("asc");
+  };
 
   // Conta uso por médicos (best-effort — limita a 5000 médicos).
   useEffect(() => {
