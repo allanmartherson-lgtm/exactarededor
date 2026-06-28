@@ -906,25 +906,23 @@ function RubricEditor({
           </div>
         )}
 
-        <div className="md:col-span-2 space-y-1">
-          <Label className="text-xs">Convênios (opcional)</Label>
-          <ConvenioMultiSelectField
-            convenios={convenios}
-            value={rubric.convenio_slugs ?? []}
-            onChange={(slugs) =>
-              onChange({ convenio_slugs: slugs, convenio_slug: slugs[0] ?? null })
-            }
-          />
-          <p className="text-[11px] text-muted-foreground leading-snug">
-            <span className="font-medium text-foreground">Para que serve:</span> apenas
-            <em> identifica </em> a quais convênios esta rubrica se refere. Serve para (1) a memória de
-            cálculo no PDF/portal exibir os convênios ao lado da linha e (2) buscar % específico em
-            Parâmetros do Sistema quando houver override por convênio (ex.: TRD diferente para Sul
-            América). <span className="font-medium">Não filtra nem soma sozinho</span> — o cálculo
-            usa sempre o valor que o analista digita na base de produção correspondente. Vazio = vale
-            para qualquer convênio.
-          </p>
-        </div>
+        {!hideConvenio && (
+          <div className="md:col-span-2 space-y-1">
+            <Label className="text-xs">Convênios (opcional)</Label>
+            <ConvenioMultiSelectField
+              convenios={convenios}
+              value={rubric.convenio_slugs ?? []}
+              onChange={(slugs) =>
+                onChange({ convenio_slugs: slugs, convenio_slug: slugs[0] ?? null })
+              }
+            />
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              <span className="font-medium text-foreground">Para que serve:</span> apenas
+              <em> identifica </em> a quais convênios esta rubrica se refere. Não filtra nem soma sozinho.
+            </p>
+          </div>
+        )}
+
 
       </div>
     </div>
