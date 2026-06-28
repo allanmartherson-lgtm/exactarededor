@@ -726,8 +726,8 @@ export default function PaymentEvolution() {
                   </TableRow>
                 ) : (
                   matrix.map((r) => {
-                    const last = r.byMonth[months.length - 1];
-                    const prev = r.byMonth[months.length - 2] ?? 0;
+                    const last = r.byMonth[lastClosedIdx] ?? 0;
+                    const prev = prevClosedIdx >= 0 ? (r.byMonth[prevClosedIdx] ?? 0) : 0;
                     const delta = prev > 0 ? ((last - prev) / prev) * 100 : last > 0 ? 100 : 0;
                     const open = expandedCc === r.cc;
                     const d = ccDisplay(r.cc);
