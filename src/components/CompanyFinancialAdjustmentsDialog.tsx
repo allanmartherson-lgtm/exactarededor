@@ -11,6 +11,8 @@ import { Plus, Trash2, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { DateInput } from "@/components/ui/date-input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 
 type Adjustment = {
   id: string;
@@ -24,6 +26,7 @@ type Adjustment = {
   origem: string | null;
   ativo: boolean;
   created_at: string;
+  payment_type_ids: string[] | null;
 };
 
 const TIPOS = [
@@ -43,16 +46,21 @@ export function CompanyFinancialAdjustmentsDialog({
   companyId: string;
   companyName: string;
 }) {
+  const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
   const [items, setItems] = useState<Adjustment[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    tipo: string; descricao: string; valor_total: string; parcelas_total: string;
+    data_inicio: string; origem: string; payment_type_ids: string[];
+  }>({
     tipo: "credito",
     descricao: "",
     valor_total: "",
     parcelas_total: "1",
     data_inicio: new Date().toISOString().slice(0, 10),
     origem: "",
+    payment_type_ids: [],
   });
 
   const load = useCallback(async () => {
@@ -85,12 +93,13 @@ export function CompanyFinancialAdjustmentsDialog({
       origem: form.origem.trim() || null,
       ativo: true,
       created_by: user?.id ?? null,
+      payment_type_ids: form.payment_type_ids.length > 0 ? form.payment_type_ids : null,
     } as any);
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
-    setForm({ tipo: "credito", descricao: "", valor_total: "", parcelas_total: "1", data_inicio: new Date().toISOString().slice(0, 10), origem: "" });
+    setForm({ tipo: "credito", descricao: "", valor_total: "", parcelas_total: "1", data_inicio: new Date().toISOString().slice(0, 10), origem: "", payment_type_ids: [] });
     setCreating(false);
     await load();
     toast({ title: "Ajuste cadastrado" });
@@ -161,6 +170,42 @@ export function CompanyFinancialAdjustmentsDialog({
                   <Input placeholder="acordo, glosa..." value={form.origem} onChange={e => setForm(f => ({ ...f, origem: e.target.value }))} />
                 </div>
               </div>
+              <div className="rounded-md border bg-background p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">Aplicar somente em lotes do tipo</Label>
+                  {form.payment_type_ids.length > 0 && (
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs"
+                      onClick={() => setForm(f => ({ ...f, payment_type_ids: [] }))}>
+                      Limpar (qualquer tipo)
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Vazio = aplica em qualquer lote da empresa. Marque os tipos para restringir a aplicação somente neles.
+                </p>
+                <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
+                  {paymentTypes.map(pt => {
+                    const checked = form.payment_type_ids.includes(pt.id);
+                    return (
+                      <label key={pt.id} className="flex items-center gap-2 text-xs rounded px-2 py-1 hover:bg-muted/50 cursor-pointer">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => setForm(f => ({
+                            ...f,
+                            payment_type_ids: v
+                              ? Array.from(new Set([...f.payment_type_ids, pt.id]))
+                              : f.payment_type_ids.filter(id => id !== pt.id),
+                          }))}
+                        />
+                        <span className="truncate">{pt.label}</span>
+                      </label>
+                    );
+                  })}
+                  {paymentTypes.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic col-span-2">Nenhum tipo de lote ativo cadastrado.</p>
+                  )}
+                </div>
+              </div>
               <DialogFooter>
                 <Button size="sm" onClick={save}>Cadastrar</Button>
               </DialogFooter>
@@ -182,6 +227,13 @@ export function CompanyFinancialAdjustmentsDialog({
                             {TIPOS.find(t => t.v === a.tipo)?.l ?? a.tipo}
                           </Badge>
                           {!a.ativo && <Badge variant="outline">Inativo</Badge>}
+                          {a.payment_type_ids && a.payment_type_ids.length > 0 && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Só em: {a.payment_type_ids
+                                .map(id => paymentTypes.find(p => p.id === id)?.label ?? "—")
+                                .join(", ")}
+                            </Badge>
+                          )}
                           <span className="text-xs text-muted-foreground">desde {new Date(a.data_inicio).toLocaleDateString("pt-BR")}</span>
                         </div>
                         <p className="text-sm">{a.descricao}</p>
