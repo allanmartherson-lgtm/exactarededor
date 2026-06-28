@@ -14,6 +14,7 @@ import CostCenters from "./CostCenters";
 import PaymentTypes from "./PaymentTypes";
 import ManualInterventionReasons from "./ManualInterventionReasons";
 import Hospitals from "./Hospitals";
+import PayoutModels from "./PayoutModels";
 
 type TabValue =
   | "hospitais"
