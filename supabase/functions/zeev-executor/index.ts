@@ -1148,18 +1148,22 @@ async function callLLM(prompt: string, paymentContext: Record<string, unknown>) 
 
 // -------------------- Aggregates --------------------
 
-async function buildPaymentAggregates(sb: SB, paymentId: string) {
-  const { data, error } = await sb
+async function buildPaymentAggregates(sb: SB, paymentId: string, scopeCompanyId?: string | null) {
+  let q = sb
     .from("payment_items")
     .select("id, ai_status, gross_amount, expected_amount, manual_intervention_reason_id, ai_findings, company_id, sector, cost_center_code, doctor_id, is_pool_item")
     .eq("payment_id", paymentId)
     .limit(20000);
+  if (scopeCompanyId) q = q.eq("company_id", scopeCompanyId);
+  const { data, error } = await q;
   if (error || !data) return null;
 
   let total = 0, zerados = 0, divergentes = 0, semRegra = 0, reprovados = 0, semSetor = 0, semCc = 0, semEmpresa = 0;
+  let brutoTotal = 0;
   for (const it of data) {
     total++;
     const g = Number(it.gross_amount ?? 0);
+    brutoTotal += g;
     if (!g || g === 0) zerados++;
     if ((it.ai_status === "reprovado" || it.ai_status === "alerta") && !it.manual_intervention_reason_id) divergentes++;
     if (it.ai_status === "reprovado") reprovados++;
@@ -1169,7 +1173,18 @@ async function buildPaymentAggregates(sb: SB, paymentId: string) {
     if (!it.cost_center_code || it.cost_center_code === "") semCc++;
     if (!it.company_id && !it.is_pool_item) semEmpresa++;
   }
-  return { total, zerados, divergentes, sem_regra: semRegra, reprovados, sem_setor: semSetor, sem_cc: semCc, sem_empresa: semEmpresa };
+  return {
+    scope: scopeCompanyId ? "company" : "payment",
+    total,
+    zerados,
+    divergentes,
+    sem_regra: semRegra,
+    reprovados,
+    sem_setor: semSetor,
+    sem_cc: semCc,
+    sem_empresa: semEmpresa,
+    bruto_total: Math.round(brutoTotal * 100) / 100,
+  };
 }
 
 // -------------------- HTTP handler --------------------
