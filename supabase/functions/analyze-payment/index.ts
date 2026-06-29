@@ -24,6 +24,11 @@ import {
 import { buildScopedRulesOr } from "../_shared/scopedRulesFilter.ts";
 import { classifyDuplicateMatch, evaluateDuplicate, type DuplicateOverridePayload } from "../_shared/itemHash.ts";
 import { buildPrimaryItemByRole, isPrimaryAnchor, normRole } from "../_shared/packagePrimary.ts";
+import {
+  normDocKey,
+  sheetSpecialtyFromRaw,
+  makeResolveMedicalSpecialty,
+} from "../_shared/specialtyResolver.ts";
 // rebuild: allowlist estrita para group_company_links com doctors preenchido (2026-06-04)
 
 const corsHeaders = {
@@ -617,7 +622,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     // e `resolveMedicalSpecialty` devolve null mesmo quando o médico tem
     // especialidade única cadastrada — fazendo cálculos com match_by_specialty
     // serem rejeitados por "especialidade_nao_informada".
-    const normDocKey = (s: string) => s.trim().toLowerCase();
+    // normDocKey importado de _shared/specialtyResolver.ts
     const doctorNamesNorm = Array.from(new Set(
       (itemsRaw ?? [])
         .map((it: any) => String(it.doctor_name ?? "").trim())
@@ -647,29 +652,9 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]+/g, "");
-    const sheetSpecialtyHeaders = new Set([
-      "especialidade",
-      "especialidade médica",
-      "especialidade medica",
-      "especialidade médico",
-      "especialidade medico",
-      "espec médico",
-      "espec medico",
-      "espec. médico",
-      "espec. medico",
-      "espec destino",
-      "espec. destino",
-      "especialidade destino",
-    ].map(normRawHeader));
-    const sheetSpecialtyFromRaw = (raw: unknown): string | null => {
-      if (!raw || typeof raw !== "object") return null;
-      for (const [header, value] of Object.entries(raw as Record<string, unknown>)) {
-        if (!sheetSpecialtyHeaders.has(normRawHeader(header))) continue;
-        const text = String(value ?? "").trim();
-        if (text) return text;
-      }
-      return null;
-    };
+    // sheetSpecialtyFromRaw / makeResolveMedicalSpecialty importados de
+    // _shared/specialtyResolver.ts — ver testes de regressão em
+    // _shared/specialty_regression_test.ts.
 
     // ---------- 3.16 Especialidade DOMINANTE do lote/empresa ----------
     // Conta a especialidade resolvida (via procedure_specialty_map) de cada
@@ -694,34 +679,8 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       if (top && top.count / withSpec > 0.51) dominantSpecialty = top.label;
     }
 
-    const resolveMedicalSpecialty = (it: any): { value: string | null; source: string } => {
-      // Ordem canônica (definida pelo produto):
-      //   1) Especialidade declarada na planilha (coluna "Especialidade
-      //      Médico" / "Especialidade") — analista é a fonte da verdade.
-      //   2) Cadastro do médico vinculado (doctors.specialties). Se o médico
-      //      tiver uma única especialidade cadastrada, ela é usada.
-      //   3) Nada. NÃO inferimos a partir do TUSS/procedure_specialty_map,
-      //      do nome do procedimento, nem da especialidade dominante do lote.
-      //      Especialidade é informacional (relatório/filtro) e nunca deve
-      //      ser "chutada" pelo motor.
-      // Reanálise deve reler a planilha por inteiro via raw_data. Em bases já
-      // importadas, `payment_items.specialty` pode estar nulo ou contaminado por
-      // cadastro antigo; se a coluna existe no arquivo, ela vence sempre.
-      const fromRawSheet = sheetSpecialtyFromRaw(it.raw_data);
-      if (fromRawSheet) return { value: fromRawSheet, source: "planilha" };
+    const resolveMedicalSpecialty = makeResolveMedicalSpecialty(doctorSpecsByName);
 
-      const fromPersistedField = String(it.specialty ?? "").trim();
-      if (fromPersistedField) return { value: fromPersistedField, source: "planilha" };
-
-      const docList = doctorSpecsByName[normDocKey(String(it.doctor_name ?? ""))] ?? [];
-      if (docList.length === 1) return { value: docList[0], source: "doctor" };
-      if (docList.length > 1) {
-        // Médico com múltiplas especialidades e planilha vazia → ambíguo.
-        // Preferimos null + alerta a escolher arbitrariamente.
-        return { value: null, source: "doctor_ambiguous" };
-      }
-      return { value: null, source: "none" };
-    };
 
 
     const items: ItemInput[] = (itemsRaw ?? []).map((it: any) => {
