@@ -114,6 +114,8 @@ export function ZeevExecutorChat({ paymentId, companyGroupId, companyName, onApp
           body: {
             step: "propose",
             payment_id: paymentId ?? null,
+            company_group_id: companyGroupId ?? null,
+            company_name: companyName ?? null,
             current_path: location.pathname,
             prompt,
             screen_context: getCurrentZeevContext(),
