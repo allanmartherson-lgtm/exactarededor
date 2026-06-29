@@ -2090,14 +2090,14 @@ export default function CompanyAnalysis() {
                   </AlertDialogHeader>
                   {/* Conteúdo bloco-nivel fica FORA do <AlertDialogDescription> (que renderiza como <p>),
                       senão o browser fecha o <p> automaticamente e o conteúdo escapa do container. */}
-                  <div className="space-y-3">
-                    <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
+                  <div className="space-y-3 min-w-0">
+                    <div className="bg-muted/50 p-2.5 rounded-md border border-border/50 min-w-0 overflow-hidden">
+                      <div className="flex items-center justify-between gap-2 mb-1.5 min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate min-w-0">Arquivos para reimportar ({reimportConfirm?.length}):</p>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 text-[10px] px-2"
+                          className="h-6 text-[10px] px-2 shrink-0"
                           onClick={() => reimportInputRef.current?.click()}
                         >
                           <Plus className="h-3 w-3 mr-1" /> Adicionar mais
@@ -2105,8 +2105,8 @@ export default function CompanyAnalysis() {
                       </div>
                       <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
                         {reimportConfirm?.map((f, i) => (
-                          <li key={i} className="flex items-center justify-between gap-2 group">
-                            <span className="truncate flex-1 min-w-0">• {f.name}</span>
+                          <li key={i} className="flex items-center justify-between gap-2 group min-w-0">
+                            <span className="truncate flex-1 min-w-0" title={f.name}>• {f.name}</span>
                             <button
                               type="button"
                               onClick={() => setReimportConfirm(prev => prev?.filter((_, idx) => idx !== i) || null)}
