@@ -902,6 +902,15 @@ const NewPayment = () => {
     const blob = `${t?.code ?? ""} ${t?.label ?? ""}`.toLowerCase();
     return /plant(a|ã)o/.test(blob);
   }, [paymentType, paymentTypeOptions]);
+
+  // Sincroniza o Select visível ("Tipo de pagamento") com o tipo escolhido
+  // no modal pré-wizard (PaymentModeSelectModal grava só o id). Sem isso o
+  // analista vê "Selecione o tipo" mesmo após escolher Consulta/Parecer/etc.
+  useEffect(() => {
+    if (!paymentTypeId || paymentType) return;
+    const match = paymentTypeOptions.find((o) => o.id === paymentTypeId);
+    if (match?.code) setPaymentType(match.code as PaymentType);
+  }, [paymentTypeId, paymentType, paymentTypeOptions]);
   const [autoSectors, setAutoSectors] = useState(true);
   const [autoSpecialties, setAutoSpecialties] = useState(true);
   const [autoPaymentKind, setAutoPaymentKind] = useState(true);
