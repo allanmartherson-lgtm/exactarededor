@@ -970,10 +970,8 @@ export default function PaymentEvolution() {
                                           : { cc: r.cc, name },
                                       );
                                       // scroll to chart
-                                      if (typeof window !== "undefined") {
-                                        const el = document.getElementById("evolucao-chart");
-                                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                                      }
+                                      const el = document.getElementById("evolucao-chart");
+                                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
                                     }}
                                   />
                                 )}
