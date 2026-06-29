@@ -1027,17 +1027,32 @@ const NewPayment = () => {
       // sem precisarmos refatorar todas as listas de sinônimos.
       const row = applyManualMappingShim(rawRow, sanitizedMapping);
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
+      const grossMappedByAnalyst = !!sanitizedMapping?.gross_amount;
+      const procMappedByAnalyst = !!sanitizedMapping?.procedure_amount;
       const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "valor a repassar", "valor repassar", "vlrepasse", "vl. repasse"]));
       const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
-      const r_gross = normalizeNumericValue(pick(row, ["valor bruto", "vlrbruto", "bruto", "valor"], ["repasse"]));
+      // r_gross é heurística genérica (alias "valor") — só consultar se o
+      // analista NÃO mapeou gross_amount explicitamente, senão a coluna mapeada
+      // (mesmo com valor 0 — ex: "não pagar") é silenciosamente sobrescrita
+      // por outra coluna como "Valor Tot".
+      const r_gross = grossMappedByAnalyst
+        ? { value: 0, invalid: false }
+        : normalizeNumericValue(pick(row, ["valor bruto", "vlrbruto", "bruto", "valor"], ["repasse"]));
       const r_qty = normalizeNumericValue(pick(row, ["qtd", "quantidade", "quant"]));
 
       const repasse = r_repasse.value;
       const procVal = r_procVal.value;
-      const grossFromAny = repasse || r_gross.value || procVal;
-      const procedureAmountFinal = procVal || grossFromAny || null;
+      // Quando o analista mapeou explicitamente, o valor mapeado é autoritativo
+      // (inclusive 0) — não cai em fallback para outras colunas.
+      const grossFromAny = grossMappedByAnalyst
+        ? repasse
+        : (repasse || r_gross.value || procVal);
+      const procedureAmountFinal = procMappedByAnalyst
+        ? procVal
+        : (procVal || grossFromAny || null);
       const quantity = r_qty.value || null;
       const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid;
+
 
       const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
       let rowMatchedCompany: CompanyRow | null = null;
