@@ -8596,6 +8596,7 @@ export type Database = {
           instrumentador_pct: number | null
           is_catch_all: boolean
           label: string | null
+          match_by_specialty: boolean
           multiplier: number | null
           noturno_fim: string | null
           noturno_inicio: string | null
@@ -8659,6 +8660,7 @@ export type Database = {
           instrumentador_pct?: number | null
           is_catch_all?: boolean
           label?: string | null
+          match_by_specialty?: boolean
           multiplier?: number | null
           noturno_fim?: string | null
           noturno_inicio?: string | null
@@ -8722,6 +8724,7 @@ export type Database = {
           instrumentador_pct?: number | null
           is_catch_all?: boolean
           label?: string | null
+          match_by_specialty?: boolean
           multiplier?: number | null
           noturno_fim?: string | null
           noturno_inicio?: string | null
@@ -8988,6 +8991,7 @@ export type Database = {
             | Database["public"]["Enums"]["threshold_type"]
             | null
           limiar_bloqueio_valor: number | null
+          match_by_specialty: boolean
           minimo_garantido_ativo: boolean
           minimo_garantido_base: string | null
           minimo_garantido_escopo: string | null
@@ -9064,6 +9068,7 @@ export type Database = {
             | Database["public"]["Enums"]["threshold_type"]
             | null
           limiar_bloqueio_valor?: number | null
+          match_by_specialty?: boolean
           minimo_garantido_ativo?: boolean
           minimo_garantido_base?: string | null
           minimo_garantido_escopo?: string | null
@@ -9140,6 +9145,7 @@ export type Database = {
             | Database["public"]["Enums"]["threshold_type"]
             | null
           limiar_bloqueio_valor?: number | null
+          match_by_specialty?: boolean
           minimo_garantido_ativo?: boolean
           minimo_garantido_base?: string | null
           minimo_garantido_escopo?: string | null

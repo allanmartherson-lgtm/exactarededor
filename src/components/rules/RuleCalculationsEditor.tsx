@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { RULE_SECTOR_LABELS } from "@/lib/status";
 import { SectorMultiSelect } from "@/components/rules/SectorMultiSelect";
+import { SpecialtyMultiSelect } from "@/components/rules/SpecialtyMultiSelect";
 import { ConvenioMultiSelect } from "@/components/rules/ConvenioMultiSelect";
 
 import { Input } from "@/components/ui/input";
@@ -91,6 +92,8 @@ export type CalcItem = {
   elective_mode: ElectiveMode;
   sectors: string[];
   specialties: string[];
+  /** Quando true, o motor filtra por specialties[]. Default false = especialidade fica só informativa. */
+  match_by_specialty: boolean;
   force_totalized: boolean;
   /** Para bônus: define se aplica por linha, por atendimento ou por paciente+dia (fallback). */
   application_unit: "por_item" | "por_atendimento" | "por_paciente_dia";
@@ -156,7 +159,7 @@ export function makeEmptyCalc(): CalcItem {
     allowed_access_routes: [],
     has_conditions: false, time_mode: "qualquer", weekdays: [],
     time_start: "", time_end: "", includes_holidays: false, elective_mode: "qualquer",
-    sectors: [], specialties: [],
+    sectors: [], specialties: [], match_by_specialty: false,
     force_totalized: false,
     application_unit: "por_item",
     procedure_codes: [],
@@ -1135,6 +1138,38 @@ function WhenApplySection({
               />
               <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Vazio = qualquer setor. Use os setores oficiais do Tasy (código).</p>
             </div>
+
+            {/* Filtro por especialidade — opt-in explícito (default off) */}
+            <div>
+              <Label className="text-xs" style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                <Checkbox
+                  checked={c.match_by_specialty}
+                  onCheckedChange={(v) => onChange({
+                    match_by_specialty: !!v,
+                    has_conditions: !!v || c.has_conditions,
+                  })}
+                />
+                <span>Filtrar este cálculo por especialidade médica</span>
+              </Label>
+              {c.match_by_specialty ? (
+                <>
+                  <SpecialtyMultiSelect
+                    values={c.specialties}
+                    onChange={(next) => onChange({
+                      specialties: next,
+                      has_conditions: true,
+                    })}
+                  />
+                  <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+                    O motor só aplicará este cálculo quando a especialidade do item estiver na lista. Vazio = nenhuma especialidade casa (cálculo descartado).
+                  </p>
+                </>
+              ) : (
+                <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+                  Desligado: especialidade fica só como informação no relatório (comportamento padrão). Ligue para usar tabelas tipo "consulta por especialidade".
+                </p>
+              )}
+            </div>
           </div>
         </FilterBtn>
 
@@ -1634,6 +1669,7 @@ export function calcFromDb(r: any): CalcItem {
     elective_mode: eMode,
     sectors: Array.isArray(r.sectors) ? r.sectors : [],
     specialties: Array.isArray(r.specialties) ? r.specialties : [],
+    match_by_specialty: !!(r as any).match_by_specialty,
     force_totalized: !!r.force_totalized,
     application_unit: (r.application_unit === "por_atendimento" || r.application_unit === "por_paciente_dia") ? r.application_unit : "por_item",
     procedure_codes: Array.isArray(r.procedure_codes) ? r.procedure_codes : [],
@@ -1733,6 +1769,9 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     elective_mode: c.has_conditions ? c.elective_mode : "qualquer",
     sectors: c.has_conditions ? c.sectors : [],
     specialties: c.has_conditions ? c.specialties : [],
+    // Toggle persistido independente de has_conditions: o filtro só atua quando
+    // explicitamente ligado E há especialidades selecionadas (default off).
+    match_by_specialty: c.has_conditions && c.match_by_specialty && c.specialties.length > 0,
     force_totalized: c.calculation_type === "percentual_sobre_convenio" ? c.force_totalized : false,
     application_unit: c.calculation_type === "bonus" ? c.application_unit : "por_item",
     // Para tipos de pacote, o escopo de código é determinado pelos campos do pacote

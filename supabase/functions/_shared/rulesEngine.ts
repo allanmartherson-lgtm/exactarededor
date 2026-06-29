@@ -277,8 +277,10 @@ export interface RuleCalculationItem {
   agreement_match_mode?: "whitelist" | "blacklist" | null;
   /** Setores aplicáveis (vazio = qualquer). */
   sectors?: string[] | null;
-  /** Especialidades aplicáveis (vazio = qualquer). */
+  /** Especialidades aplicáveis (vazio = qualquer). Só filtra quando match_by_specialty=true. */
   specialties?: string[] | null;
+  /** Toggle explícito do filtro por especialidade. Default false = ignora specialties[] (comportamento histórico). */
+  match_by_specialty?: boolean | null;
   /** Caso especial aplicável neste cálculo. Vazio = padrão; códigos ou '*' exigem caso especial aprovado. */
   special_case_filter?: string[] | null;
   /** Tipo de pagamento aplicável neste cálculo (Parecer, Visita, etc.).
@@ -1852,12 +1854,13 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
       return { ok: false, reason: "setor" };
     }
   }
-  // Especialidade — exceção à regra "especialidade é só relatório": quando o
-  // analista declara `specialties[]` no cálculo (ex.: tabela de consultas
-  // tarifada por especialidade), passa a filtrar match. Vazio = sem filtro,
-  // preservando o comportamento histórico para regras de cirurgia/hemo.
+  // Especialidade — exceção à regra "especialidade é só relatório". Agora exige
+  // opt-in explícito via `match_by_specialty=true` no cálculo (default false).
+  // Quando ligado E specialties[] não-vazio, passa a filtrar. Sem o toggle,
+  // specialties[] é apenas informativo, preservando o comportamento histórico
+  // (cirurgia/hemo) mesmo se a lista estiver populada por engano.
   const cSpecs = Array.isArray(c.specialties) ? c.specialties.filter(Boolean) : [];
-  if (cSpecs.length > 0) {
+  if (c.match_by_specialty === true && cSpecs.length > 0) {
     const itemSpec = normName(String(item.specialty ?? ""));
     if (!itemSpec) return { ok: false, reason: "especialidade_nao_informada" };
     const normSpecs = cSpecs.map((s) => normName(String(s)));
