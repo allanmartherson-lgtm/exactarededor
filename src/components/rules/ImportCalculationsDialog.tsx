@@ -24,6 +24,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSpecialties } from "@/hooks/useSpecialties";
 import { RULE_CALCULATION_TYPE_LABELS, type RuleCalculationType } from "@/lib/status";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { makeEmptyCalc, type CalcItem } from "./RuleCalculationsEditor";
 
 type AiCalc = Record<string, any>;
@@ -32,6 +34,8 @@ export type ImportCalculationsDialogProps = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   paymentTypes: { id: string; label: string; code?: string | null }[];
+  /** Rótulos dos cálculos já existentes na regra — usado para detectar duplicidade no preview. */
+  existingLabels?: string[];
   onImport: (calcs: CalcItem[]) => void;
 };
 
@@ -108,7 +112,111 @@ function summarize(c: AiCalc): string {
   return bits.join(" · ");
 }
 
-export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, onImport }: ImportCalculationsDialogProps) {
+/* ============================================================
+ * Validação de mapeamento — roda no preview, antes da confirmação.
+ *  - errors  : bloqueiam o "Adicionar à regra" (cálculo inválido/incompleto).
+ *  - warnings: alertam mas permitem importar (valores fora de catálogo,
+ *              duplicidade de rótulo, TUSS suspeito, etc.).
+ * Decisão de design: NUNCA dropar campos silenciosamente — o motor depende
+ * de label, tipo e parâmetro numérico para selecionar e calcular valor.
+ * ============================================================ */
+type ValidationResult = { errors: string[]; warnings: string[] };
+type ValidationCtx = {
+  specialties: string[];
+  paymentTypeCodes: Set<string>;
+  existingLabels: Set<string>;
+  importedLabels: Map<string, number>; // label → primeiro índice (para duplicatas dentro do batch)
+};
+
+const KNOWN_TYPES: RuleCalculationType[] = [
+  "informativo", "valor_fixo", "percentual_sobre_convenio", "tabela_diferenciada",
+  "pacote", "pacote_fechado", "pacote_com_extras", "pacote_por_atendimento",
+  "bonus", "complemento", "exclusao", "regra_vias",
+];
+
+const isFiniteNum = (v: any) => {
+  if (v === null || v === undefined || v === "") return false;
+  const n = Number(String(v).replace(",", "."));
+  return Number.isFinite(n);
+};
+
+function validateAiCalc(c: AiCalc, idx: number, ctx: ValidationCtx): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const ct = String(c?.calculation_type ?? "");
+
+  // 1) Tipo de cálculo
+  if (!ct) errors.push("Tipo de cálculo ausente (calculation_type)");
+  else if (!KNOWN_TYPES.includes(ct as RuleCalculationType)) {
+    errors.push(`Tipo desconhecido: "${ct}"`);
+  }
+
+  // 2) Parâmetro financeiro obrigatório por tipo
+  switch (ct as RuleCalculationType) {
+    case "valor_fixo":
+      if (!isFiniteNum(c?.fixed_amount)) errors.push("valor_fixo exige fixed_amount numérico");
+      break;
+    case "percentual_sobre_convenio":
+      if (!isFiniteNum(c?.convenio_percentage)) errors.push("percentual_sobre_convenio exige convenio_percentage");
+      break;
+    case "tabela_diferenciada":
+      if (!isFiniteNum(c?.multiplier)) errors.push("tabela_diferenciada exige multiplier");
+      break;
+    case "pacote":
+      if (!isFiniteNum(c?.package_amount)) errors.push("pacote exige package_amount");
+      break;
+    case "bonus":
+      if (!isFiniteNum(c?.bonus_amount) && !isFiniteNum(c?.bonus_pct)) {
+        errors.push("bonus exige bonus_amount ou bonus_pct");
+      }
+      break;
+    case "complemento":
+      if (!isFiniteNum(c?.target_amount)) errors.push("complemento exige target_amount");
+      break;
+  }
+
+  // 3) Rótulo
+  const label = String(c?.label ?? "").trim();
+  if (!label) warnings.push("Sem rótulo — recomenda-se nomear para facilitar auditoria");
+  else {
+    if (ctx.existingLabels.has(label.toLowerCase())) {
+      warnings.push(`Já existe um cálculo "${label}" nesta regra`);
+    }
+    const firstIdx = ctx.importedLabels.get(label.toLowerCase());
+    if (firstIdx !== undefined && firstIdx !== idx) {
+      warnings.push(`Rótulo duplicado no preview (mesmo nome de outro cálculo extraído)`);
+    }
+  }
+
+  // 4) Especialidades fora do catálogo
+  if (Array.isArray(c?.specialties) && c.specialties.length) {
+    const known = new Set(ctx.specialties.map((s) => s.toLowerCase()));
+    const unknown = c.specialties.filter((s: any) => s && !known.has(String(s).toLowerCase()));
+    if (unknown.length) {
+      warnings.push(`Especialidade(s) fora do cadastro: ${unknown.slice(0, 3).join(", ")}${unknown.length > 3 ? "…" : ""}`);
+    }
+  }
+
+  // 5) TUSS — espera 8 dígitos (motor usa o tronco de 8)
+  if (Array.isArray(c?.procedure_codes) && c.procedure_codes.length) {
+    const bad = c.procedure_codes.filter((x: any) => {
+      const d = String(x ?? "").replace(/\D/g, "");
+      return d.length === 0 || d.length > 10;
+    });
+    if (bad.length) warnings.push(`${bad.length} código(s) TUSS suspeito(s) — confirmar antes de salvar`);
+  }
+
+  // 6) payment_type_code precisa existir no catálogo do hospital
+  if (c?.payment_type_code) {
+    if (!ctx.paymentTypeCodes.has(String(c.payment_type_code))) {
+      warnings.push(`payment_type_code "${c.payment_type_code}" não encontrado — será ignorado`);
+    }
+  }
+
+  return { errors, warnings };
+}
+
+export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, existingLabels = [], onImport }: ImportCalculationsDialogProps) {
   const { specialties: specialtiesList } = useSpecialties();
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -130,6 +238,33 @@ export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, onI
     [extracted, checked],
   );
 
+  /* Validações por linha — recalculadas a cada mudança em `extracted`. */
+  const diagnostics = useMemo<ValidationResult[]>(() => {
+    if (!extracted) return [];
+    const importedLabels = new Map<string, number>();
+    extracted.forEach((c, i) => {
+      const lab = String(c?.label ?? "").trim().toLowerCase();
+      if (lab && !importedLabels.has(lab)) importedLabels.set(lab, i);
+    });
+    const ctx: ValidationCtx = {
+      specialties: specialtiesList,
+      paymentTypeCodes: new Set(paymentTypes.map((p) => String((p as any).code ?? "")).filter(Boolean)),
+      existingLabels: new Set(existingLabels.map((l) => l.trim().toLowerCase()).filter(Boolean)),
+      importedLabels,
+    };
+    return extracted.map((c, i) => validateAiCalc(c, i, ctx));
+  }, [extracted, specialtiesList, paymentTypes, existingLabels]);
+
+  const totals = useMemo(() => {
+    let err = 0, warn = 0, blockedSelected = 0;
+    diagnostics.forEach((d, i) => {
+      if (d.errors.length) err++;
+      if (d.warnings.length) warn++;
+      if (d.errors.length && checked.has(i)) blockedSelected++;
+    });
+    return { err, warn, blockedSelected };
+  }, [diagnostics, checked]);
+
   const toggle = (i: number) => {
     const next = new Set(checked);
     next.has(i) ? next.delete(i) : next.add(i);
@@ -138,6 +273,13 @@ export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, onI
   const toggleAll = () => {
     if (!extracted) return;
     setChecked(allChecked ? new Set() : new Set(extracted.map((_, i) => i)));
+  };
+  /** Desmarca rapidamente todas as linhas com erro — atalho para liberar o "Adicionar". */
+  const uncheckErrors = () => {
+    if (!extracted) return;
+    const next = new Set(checked);
+    diagnostics.forEach((d, i) => { if (d.errors.length) next.delete(i); });
+    setChecked(next);
   };
 
   const runExtraction = async () => {
@@ -200,6 +342,13 @@ export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, onI
       toast.error("Selecione ao menos um cálculo");
       return;
     }
+    if (totals.blockedSelected > 0) {
+      toast.error(
+        `${totals.blockedSelected} cálculo(s) selecionado(s) com erro de mapeamento`,
+        { description: "Corrija/desmarque as linhas em vermelho antes de adicionar." },
+      );
+      return;
+    }
     const picked = extracted.filter((_, i) => checked.has(i));
     onImport(picked.map((c) => aiCalcToCalcItem(c, paymentTypes)));
     toast.success(`${picked.length} cálculo(s) adicionado(s)`);
@@ -259,34 +408,105 @@ export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, onI
               <span className="text-muted-foreground">
                 {extracted.length} cálculo(s) extraído(s) · {checked.size} selecionado(s)
               </span>
-              <Button variant="ghost" size="sm" onClick={toggleAll}>
-                {allChecked ? "Desmarcar todos" : "Marcar todos"}
-              </Button>
+              <div className="flex gap-1">
+                {totals.err > 0 && (
+                  <Button variant="ghost" size="sm" onClick={uncheckErrors}>
+                    Desmarcar com erro
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={toggleAll}>
+                  {allChecked ? "Desmarcar todos" : "Marcar todos"}
+                </Button>
+              </div>
             </div>
-            <ScrollArea className="h-[360px] border rounded-md">
+
+            {/* Resumo da validação automática do preview */}
+            {totals.err > 0 ? (
+              <Alert variant="destructive">
+                <ShieldAlert className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <strong>{totals.err} cálculo(s) com erro de mapeamento</strong>
+                  {totals.warn > 0 ? ` · ${totals.warn} aviso(s)` : ""}
+                  . Corrija ou desmarque essas linhas antes de adicionar.
+                </AlertDescription>
+              </Alert>
+            ) : totals.warn > 0 ? (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Nenhum erro bloqueante. <strong>{totals.warn} aviso(s)</strong> — revise antes de adicionar.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Mapeamento OK — todos os cálculos passaram na validação.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <ScrollArea className="h-[320px] border rounded-md">
               <ul className="divide-y">
                 {extracted.map((c, i) => {
                   const isOn = checked.has(i);
                   const ctLabel = RULE_CALCULATION_TYPE_LABELS[c?.calculation_type as RuleCalculationType] ?? c?.calculation_type ?? "?";
+                  const diag = diagnostics[i] ?? { errors: [], warnings: [] };
+                  const hasErr = diag.errors.length > 0;
+                  const hasWarn = diag.warnings.length > 0;
                   return (
-                    <li key={i} className="flex items-start gap-3 p-3 hover:bg-muted/30">
+                    <li
+                      key={i}
+                      className={
+                        hasErr
+                          ? "flex items-start gap-3 p-3 bg-destructive/5 hover:bg-destructive/10"
+                          : hasWarn
+                          ? "flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 hover:bg-amber-100/60 dark:hover:bg-amber-950/30"
+                          : "flex items-start gap-3 p-3 hover:bg-muted/30"
+                      }
+                    >
                       <Checkbox checked={isOn} onCheckedChange={() => toggle(i)} className="mt-0.5" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium truncate">{c?.label || "(sem rótulo)"}</span>
                           <Badge variant="outline" className="text-[10px]">{ctLabel}</Badge>
+                          {hasErr && (
+                            <Badge variant="destructive" className="text-[10px]">
+                              <ShieldAlert className="h-3 w-3 mr-0.5" /> {diag.errors.length} erro(s)
+                            </Badge>
+                          )}
+                          {!hasErr && hasWarn && (
+                            <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700 dark:text-amber-300">
+                              <AlertTriangle className="h-3 w-3 mr-0.5" /> {diag.warnings.length} aviso(s)
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">{summarize(c) || "—"}</p>
+                        {(hasErr || hasWarn) && (
+                          <ul className="mt-1.5 space-y-0.5 text-[11px]">
+                            {diag.errors.map((m, k) => (
+                              <li key={`e-${k}`} className="text-destructive">• {m}</li>
+                            ))}
+                            {diag.warnings.map((m, k) => (
+                              <li key={`w-${k}`} className="text-amber-700 dark:text-amber-300">• {m}</li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     </li>
                   );
                 })}
               </ul>
             </ScrollArea>
+
             <DialogFooter>
               <Button variant="outline" onClick={() => { setExtracted(null); setChecked(new Set()); }}>Voltar</Button>
-              <Button onClick={confirm} disabled={checked.size === 0}>
-                Adicionar {checked.size} à regra
+              <Button
+                onClick={confirm}
+                disabled={checked.size === 0 || totals.blockedSelected > 0}
+                title={totals.blockedSelected > 0 ? `${totals.blockedSelected} linha(s) selecionada(s) com erro` : undefined}
+              >
+                Adicionar {checked.size - totals.blockedSelected} à regra
               </Button>
             </DialogFooter>
           </div>

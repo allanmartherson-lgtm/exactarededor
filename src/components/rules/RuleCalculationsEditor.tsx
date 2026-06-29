@@ -310,6 +310,7 @@ export function RuleCalculationsEditor({ value, onChange, refTables, specialCase
         open={importOpen}
         onOpenChange={setImportOpen}
         paymentTypes={paymentTypes}
+        existingLabels={value.map((c) => c.label ?? "").filter(Boolean)}
         onImport={(news) => {
           // Append: pré-visualização já filtrou; mantemos os existentes e
           // adicionamos os novos no final para o analista revisar/ajustar.
