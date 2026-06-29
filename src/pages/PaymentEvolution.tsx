@@ -404,6 +404,36 @@ export default function PaymentEvolution() {
     return row;
   });
 
+  // Payment id → competence/cash month (depends on mode)
+  const paymentMonth = useMemo(() => {
+    const m = new Map<string, string>();
+    payments.forEach((p) => {
+      const ds =
+        mode === "competencia"
+          ? p.competence_month
+          : p.approved_at?.slice(0, 10) ?? p.updated_at.slice(0, 10);
+      if (ds) m.set(p.id, ds.slice(0, 7));
+    });
+    return m;
+  }, [payments, mode]);
+
+  // Company-focus chart series (single line: empresa dentro do CC, mês a mês)
+  const companyChartData = useMemo(() => {
+    if (!focusedCompany) return null;
+    const groups = drillCompanies[focusedCompany.cc] ?? [];
+    const byMonth = new Map<string, number>();
+    groups.forEach((g) => {
+      if (g.company_name !== focusedCompany.name) return;
+      const mk = paymentMonth.get(g.payment_id);
+      if (!mk || !months.includes(mk)) return;
+      const v = g.liquido_total ?? g.bruto_total ?? g.total_amount ?? 0;
+      byMonth.set(mk, (byMonth.get(mk) ?? 0) + v);
+    });
+    return months.map((mk) => ({ month: monthLabel(mk), value: byMonth.get(mk) ?? 0 }));
+  }, [focusedCompany, drillCompanies, paymentMonth, months]);
+
+
+
   // Drill: load companies for a (cc, month) pair
   const loadDrill = async (cc: string) => {
     if (drillCompanies[cc]) {
