@@ -112,7 +112,110 @@ function summarize(c: AiCalc): string {
   return bits.join(" · ");
 }
 
-export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, onImport }: ImportCalculationsDialogProps) {
+/* ============================================================
+ * Validação de mapeamento — roda no preview, antes da confirmação.
+ *  - errors  : bloqueiam o "Adicionar à regra" (cálculo inválido/incompleto).
+ *  - warnings: alertam mas permitem importar (valores fora de catálogo,
+ *              duplicidade de rótulo, TUSS suspeito, etc.).
+ * Decisão de design: NUNCA dropar campos silenciosamente — o motor depende
+ * de label, tipo e parâmetro numérico para selecionar e calcular valor.
+ * ============================================================ */
+type ValidationResult = { errors: string[]; warnings: string[] };
+type ValidationCtx = {
+  specialties: string[];
+  paymentTypeCodes: Set<string>;
+  existingLabels: Set<string>;
+  importedLabels: Map<string, number>; // label → primeiro índice (para duplicatas dentro do batch)
+};
+
+const KNOWN_TYPES: RuleCalculationType[] = [
+  "informativo", "valor_fixo", "percentual_sobre_convenio", "tabela_diferenciada",
+  "pacote", "bonus", "complemento", "exclusao", "regra_vias", "bloqueio",
+];
+
+const isFiniteNum = (v: any) => {
+  if (v === null || v === undefined || v === "") return false;
+  const n = Number(String(v).replace(",", "."));
+  return Number.isFinite(n);
+};
+
+function validateAiCalc(c: AiCalc, idx: number, ctx: ValidationCtx): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const ct = String(c?.calculation_type ?? "");
+
+  // 1) Tipo de cálculo
+  if (!ct) errors.push("Tipo de cálculo ausente (calculation_type)");
+  else if (!KNOWN_TYPES.includes(ct as RuleCalculationType)) {
+    errors.push(`Tipo desconhecido: "${ct}"`);
+  }
+
+  // 2) Parâmetro financeiro obrigatório por tipo
+  switch (ct as RuleCalculationType) {
+    case "valor_fixo":
+      if (!isFiniteNum(c?.fixed_amount)) errors.push("valor_fixo exige fixed_amount numérico");
+      break;
+    case "percentual_sobre_convenio":
+      if (!isFiniteNum(c?.convenio_percentage)) errors.push("percentual_sobre_convenio exige convenio_percentage");
+      break;
+    case "tabela_diferenciada":
+      if (!isFiniteNum(c?.multiplier)) errors.push("tabela_diferenciada exige multiplier");
+      break;
+    case "pacote":
+      if (!isFiniteNum(c?.package_amount)) errors.push("pacote exige package_amount");
+      break;
+    case "bonus":
+      if (!isFiniteNum(c?.bonus_amount) && !isFiniteNum(c?.bonus_pct)) {
+        errors.push("bonus exige bonus_amount ou bonus_pct");
+      }
+      break;
+    case "complemento":
+      if (!isFiniteNum(c?.target_amount)) errors.push("complemento exige target_amount");
+      break;
+  }
+
+  // 3) Rótulo
+  const label = String(c?.label ?? "").trim();
+  if (!label) warnings.push("Sem rótulo — recomenda-se nomear para facilitar auditoria");
+  else {
+    if (ctx.existingLabels.has(label.toLowerCase())) {
+      warnings.push(`Já existe um cálculo "${label}" nesta regra`);
+    }
+    const firstIdx = ctx.importedLabels.get(label.toLowerCase());
+    if (firstIdx !== undefined && firstIdx !== idx) {
+      warnings.push(`Rótulo duplicado no preview (mesmo nome de outro cálculo extraído)`);
+    }
+  }
+
+  // 4) Especialidades fora do catálogo
+  if (Array.isArray(c?.specialties) && c.specialties.length) {
+    const known = new Set(ctx.specialties.map((s) => s.toLowerCase()));
+    const unknown = c.specialties.filter((s: any) => s && !known.has(String(s).toLowerCase()));
+    if (unknown.length) {
+      warnings.push(`Especialidade(s) fora do cadastro: ${unknown.slice(0, 3).join(", ")}${unknown.length > 3 ? "…" : ""}`);
+    }
+  }
+
+  // 5) TUSS — espera 8 dígitos (motor usa o tronco de 8)
+  if (Array.isArray(c?.procedure_codes) && c.procedure_codes.length) {
+    const bad = c.procedure_codes.filter((x: any) => {
+      const d = String(x ?? "").replace(/\D/g, "");
+      return d.length === 0 || d.length > 10;
+    });
+    if (bad.length) warnings.push(`${bad.length} código(s) TUSS suspeito(s) — confirmar antes de salvar`);
+  }
+
+  // 6) payment_type_code precisa existir no catálogo do hospital
+  if (c?.payment_type_code) {
+    if (!ctx.paymentTypeCodes.has(String(c.payment_type_code))) {
+      warnings.push(`payment_type_code "${c.payment_type_code}" não encontrado — será ignorado`);
+    }
+  }
+
+  return { errors, warnings };
+}
+
+export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, existingLabels = [], onImport }: ImportCalculationsDialogProps) {
   const { specialties: specialtiesList } = useSpecialties();
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
