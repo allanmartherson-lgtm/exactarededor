@@ -69,6 +69,10 @@ interface RequestBody {
   step: "propose" | "execute";
   /** Opcional — quando ausente, só ações sem mutação (navigate/answer) são possíveis. */
   payment_id?: string | null;
+  /** Quando o analista está na tela de UMA empresa do lote, escopa contexto/aggregates. */
+  company_group_id?: string | null;
+  /** Nome da empresa visível na tela — autoritativo sobre qualquer derivação no servidor. */
+  company_name?: string | null;
   /** Rota atual no app (para dar contexto de navegação ao Zeev). */
   current_path?: string | null;
   prompt?: string;
@@ -164,6 +168,12 @@ const SYSTEM_PROMPT = [
   "  - Códigos de cadastros (doctors/companies/convenios/sectors/cost_centers) são imutáveis e DELETE é bloqueado — só inativação.",
   "",
   "ATITUDE EM /regras e telas de cadastro: quando o usuário relata erro ou faz dúvida conceitual, EXPLIQUE a regra de negócio aplicável (precedência, eixos, whitelist/blacklist) ANTES de propor ação. Use 'answer' com 2-4 frases didáticas e cite o eixo ou nível de precedência específico. Só use 'navigate' se ele pedir explicitamente para ir a outra tela.",
+  "",
+  "ESCOPO DE EMPRESA ('company_scope'): quando presente, o analista está na ANÁLISE DE UMA empresa do lote (rota /pagamentos/:id/empresa/:companyId). NESTE CASO:",
+  "- Trate 'company_scope.company_name' como a empresa ATUAL — nunca cite outra empresa do lote.",
+  "- 'aggregates' já vêm FILTRADAS por essa empresa (aggregates.scope = 'company'). Use aggregates.total / reprovados / divergentes / bruto_total como a verdade da tela.",
+  "- 'company_scope.bruto_total' (vem da tabela payment_company_groups) e 'aggregates.bruto_total' (soma viva dos gross_amount dos itens) devem bater; se divergirem, mencione a divergência ao analista e sugira recalcular o lote.",
+  "- Frases como 'essa empresa', 'aqui', 'nesta tela' referem-se SEMPRE a company_scope. NUNCA use o nome derivado do primeiro item do lote.",
   "",
   "CONTEXTO AO VIVO DA TELA ('screen_context'): quando presente, a UI publicou o estado exato do que o usuário está editando/vendo. Use SEMPRE em prioridade ao chute. Em particular:",
   "- screen_context.regras_conflict: o usuário está olhando um modal de conflitos detectados ao tentar salvar uma regra. Cada item em .problems já traz o tipo (calc_overlap | doctor_already_bound | company_already_bound | validity_overlap | master_already_exists) e os labels reais dos cálculos/regras envolvidos. Quando o usuário perguntar 'por que está dando conflito?' ou 'como resolver?', responda com 'answer' citando os labels exatos vindos do contexto e explicando o eixo da sobreposição (calc_overlap → 11 eixos do cálculo; validity_overlap → vigência; *_already_bound → mesma chave já vinculada a outra regra). Para calc_overlap, recomende WHITELIST do convênio específico no cálculo restritivo OU BLACKLIST no cálculo geral (regra de ouro: 'exceto', não duplicar regra).",
@@ -1144,18 +1154,22 @@ async function callLLM(prompt: string, paymentContext: Record<string, unknown>) 
 
 // -------------------- Aggregates --------------------
 
-async function buildPaymentAggregates(sb: SB, paymentId: string) {
-  const { data, error } = await sb
+async function buildPaymentAggregates(sb: SB, paymentId: string, scopeCompanyId?: string | null) {
+  let q = sb
     .from("payment_items")
     .select("id, ai_status, gross_amount, expected_amount, manual_intervention_reason_id, ai_findings, company_id, sector, cost_center_code, doctor_id, is_pool_item")
     .eq("payment_id", paymentId)
     .limit(20000);
+  if (scopeCompanyId) q = q.eq("company_id", scopeCompanyId);
+  const { data, error } = await q;
   if (error || !data) return null;
 
   let total = 0, zerados = 0, divergentes = 0, semRegra = 0, reprovados = 0, semSetor = 0, semCc = 0, semEmpresa = 0;
+  let brutoTotal = 0;
   for (const it of data) {
     total++;
     const g = Number(it.gross_amount ?? 0);
+    brutoTotal += g;
     if (!g || g === 0) zerados++;
     if ((it.ai_status === "reprovado" || it.ai_status === "alerta") && !it.manual_intervention_reason_id) divergentes++;
     if (it.ai_status === "reprovado") reprovados++;
@@ -1165,7 +1179,18 @@ async function buildPaymentAggregates(sb: SB, paymentId: string) {
     if (!it.cost_center_code || it.cost_center_code === "") semCc++;
     if (!it.company_id && !it.is_pool_item) semEmpresa++;
   }
-  return { total, zerados, divergentes, sem_regra: semRegra, reprovados, sem_setor: semSetor, sem_cc: semCc, sem_empresa: semEmpresa };
+  return {
+    scope: scopeCompanyId ? "company" : "payment",
+    total,
+    zerados,
+    divergentes,
+    sem_regra: semRegra,
+    reprovados,
+    sem_setor: semSetor,
+    sem_cc: semCc,
+    sem_empresa: semEmpresa,
+    bruto_total: Math.round(brutoTotal * 100) / 100,
+  };
 }
 
 // -------------------- HTTP handler --------------------
@@ -1194,9 +1219,14 @@ Deno.serve(async (req) => {
     // payment_id opcional. Quando presente, busca contexto enriquecido.
     let pay: { id: string; hospital_id: string | null; company_name: string | null; reference: string | null } | null = null;
     let aggregates: Awaited<ReturnType<typeof buildPaymentAggregates>> = null;
+    let companyGroupInfo: {
+      id: string;
+      company_id: string | null;
+      company_name: string | null;
+      items_count: number | null;
+      bruto_total: number | null;
+    } | null = null;
     if (body.payment_id) {
-      // payments não tem company_name (lote multi-empresa). Deriva nome a partir do
-      // primeiro payment_item.company_id apenas para enriquecer o contexto do LLM.
       const { data, error: payErr } = await sb
         .from("payments")
         .select("id, hospital_id, reference")
@@ -1206,25 +1236,51 @@ Deno.serve(async (req) => {
         return jsonResp({ error: `Falha ao carregar pagamento: ${payErr.message}` }, 500);
       }
       if (!data) return jsonResp({ error: "Pagamento não encontrado" }, 404);
-      let companyName: string | null = null;
-      const { data: firstItem } = await sb
-        .from("payment_items")
-        .select("company_id")
-        .eq("payment_id", body.payment_id)
-        .not("company_id", "is", null)
-        .limit(1)
-        .maybeSingle();
-      const firstCompanyId = (firstItem as { company_id?: string | null } | null)?.company_id ?? null;
-      if (firstCompanyId) {
-        const { data: comp } = await sb
-          .from("companies")
-          .select("name")
-          .eq("id", firstCompanyId)
+
+      // Escopo de empresa — autoritativo via company_group_id da tela quando disponível.
+      let scopeCompanyId: string | null = null;
+      let companyName: string | null = body.company_name ?? null;
+      if (body.company_group_id) {
+        const { data: grp } = await sb
+          .from("payment_company_groups")
+          .select("id, company_id, company_name, items_count, bruto_total")
+          .eq("id", body.company_group_id)
+          .eq("payment_id", body.payment_id)
           .maybeSingle();
-        companyName = (comp as { name?: string | null } | null)?.name ?? null;
+        const g = grp as {
+          id: string;
+          company_id: string | null;
+          company_name: string | null;
+          items_count: number | null;
+          bruto_total: number | null;
+        } | null;
+        if (g) {
+          companyGroupInfo = g;
+          scopeCompanyId = g.company_id;
+          companyName = companyName ?? g.company_name;
+        }
+      }
+      // Fallback: deriva nome a partir do primeiro item só se nada veio da tela.
+      if (!companyName) {
+        const { data: firstItem } = await sb
+          .from("payment_items")
+          .select("company_id")
+          .eq("payment_id", body.payment_id)
+          .not("company_id", "is", null)
+          .limit(1)
+          .maybeSingle();
+        const firstCompanyId = (firstItem as { company_id?: string | null } | null)?.company_id ?? null;
+        if (firstCompanyId) {
+          const { data: comp } = await sb
+            .from("companies")
+            .select("name")
+            .eq("id", firstCompanyId)
+            .maybeSingle();
+          companyName = (comp as { name?: string | null } | null)?.name ?? null;
+        }
       }
       pay = { id: data.id, hospital_id: data.hospital_id, reference: data.reference, company_name: companyName };
-      aggregates = await buildPaymentAggregates(sb, body.payment_id);
+      aggregates = await buildPaymentAggregates(sb, body.payment_id, scopeCompanyId);
     }
 
 
@@ -1246,6 +1302,15 @@ Deno.serve(async (req) => {
       const llm = await callLLM(body.prompt, {
         current_path: body.current_path ?? null,
         payment: pay ? { id: pay.id, reference: pay.reference, company_name: pay.company_name } : null,
+        company_scope: companyGroupInfo
+          ? {
+              company_group_id: companyGroupInfo.id,
+              company_id: companyGroupInfo.company_id,
+              company_name: companyGroupInfo.company_name,
+              items_count: companyGroupInfo.items_count,
+              bruto_total: companyGroupInfo.bruto_total,
+            }
+          : null,
         aggregates: aggregates ?? null,
         has_payment_context: !!body.payment_id,
         learned_preferences: learnedPrefs,
