@@ -242,7 +242,7 @@ export type RuleCalculationsEditorProps = {
  * bloco de "Aplica-se a algum período, dia ou horário específico?" porque a
  * janela temporal pertence ao cálculo, não à regra.
  */
-export function RuleCalculationsEditor({ value, onChange, refTables, specialCaseTypes = [], paymentTypes = [], enabled }: RuleCalculationsEditorProps) {
+export function RuleCalculationsEditor({ value, onChange, refTables, specialCaseTypes = [], paymentTypes = [], enabled, renderCalcExtras }: RuleCalculationsEditorProps) {
   const crossErrorsByIndex = useMemo(() => calcCrossItemErrorMessages(value), [value]);
   const [importOpen, setImportOpen] = useState(false);
 
