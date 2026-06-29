@@ -5084,9 +5084,6 @@ export type Database = {
           patient_name: string | null
           payment_id: string
           payment_type_id: string | null
-          payment_type_override_at: string | null
-          payment_type_override_by: string | null
-          payment_type_override_source: string | null
           payment_type_source: string | null
           procedure_amount: number | null
           procedure_code: string | null
@@ -5213,9 +5210,6 @@ export type Database = {
           patient_name?: string | null
           payment_id: string
           payment_type_id?: string | null
-          payment_type_override_at?: string | null
-          payment_type_override_by?: string | null
-          payment_type_override_source?: string | null
           payment_type_source?: string | null
           procedure_amount?: number | null
           procedure_code?: string | null
@@ -5342,9 +5336,6 @@ export type Database = {
           patient_name?: string | null
           payment_id?: string
           payment_type_id?: string | null
-          payment_type_override_at?: string | null
-          payment_type_override_by?: string | null
-          payment_type_override_source?: string | null
           payment_type_source?: string | null
           procedure_amount?: number | null
           procedure_code?: string | null
