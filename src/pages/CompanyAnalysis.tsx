@@ -127,6 +127,7 @@ import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
 import { ParecerCrossReferencePanel } from "@/components/payment-detail/ParecerCrossReferencePanel";
 import { MixedParecerRetroAction } from "@/components/payment-detail/MixedParecerRetroAction";
+import { AutoClassifiedBanner } from "@/components/payment-detail/AutoClassifiedBanner";
 
 const HighlightBanner = ({
   observations,
@@ -2434,6 +2435,11 @@ export default function CompanyAnalysis() {
 
       {/* Faixa de composição financeira: Bruto − Débitos − Glosas − Pool ± Conciliação = Líquido */}
       {id && group?.company_id && <FinancialCompositionStrip comp={composition} mode={compMode} />}
+
+      <AutoClassifiedBanner
+        items={items as Array<{ payment_type_id?: string | null; payment_type_source?: string | null }>}
+        lotePaymentTypeId={(payment as any)?.payment_type_id ?? null}
+      />
 
       {!isConfeccao && !isManual && (
         <MixedParecerRetroAction
