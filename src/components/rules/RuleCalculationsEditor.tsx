@@ -372,7 +372,7 @@ function ValorFixoBlock({
         </p>
       </div>
 
-      <label data-checkbox-wrapper style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+      <label data-checkbox-wrapper style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
         <Checkbox
           checked={byRoleOpen}
           onCheckedChange={(v) => toggleByRole(!!v)}
@@ -908,7 +908,7 @@ function WhenApplySection({
         background: c.is_catch_all ? "hsl(var(--primary) / 0.06)" : "hsl(var(--card))",
         borderBottom: "1px solid hsl(var(--border) / 0.6)",
       }}>
-        <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
           <Checkbox
             checked={c.is_catch_all}
             onCheckedChange={(v) => onChange({ is_catch_all: !!v })}
@@ -1175,7 +1175,7 @@ function WhenApplySection({
                     has_conditions: !!v || c.has_conditions,
                   })}
                 />
-                <span style={{ marginLeft: 2 }}>Filtrar este cálculo por especialidade médica</span>
+                <span>Filtrar este cálculo por especialidade médica</span>
               </Label>
 
               {c.match_by_specialty ? (
@@ -1393,19 +1393,19 @@ function CalcCard({
                   onValueChange={(v) => onChange({ application_unit: v as CalcItem["application_unit"] })}
                   className="space-y-1"
                 >
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-2.5">
                     <RadioGroupItem value="por_item" id={`au-item-${c.label ?? "x"}`} className="mt-0.5" />
                     <Label htmlFor={`au-item-${c.label ?? "x"}`} className="text-xs font-normal leading-tight">
                       <strong>Por item / código</strong> — aplica 1× em cada linha que casar (padrão).
                     </Label>
                   </div>
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-2.5">
                     <RadioGroupItem value="por_atendimento" id={`au-att-${c.label ?? "x"}`} className="mt-0.5" />
                     <Label htmlFor={`au-att-${c.label ?? "x"}`} className="text-xs font-normal leading-tight">
                       <strong>Por atendimento (paciente)</strong> — aplica 1× por atendimento, mesmo com vários códigos/cirurgiões. Use para bônus de plantão de fim de semana/feriado.
                     </Label>
                   </div>
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-2.5">
                     <RadioGroupItem value="por_paciente_dia" id={`au-pd-${c.label ?? "x"}`} className="mt-0.5" />
                     <Label htmlFor={`au-pd-${c.label ?? "x"}`} className="text-xs font-normal leading-tight">
                       <strong>Por paciente + dia</strong> — fallback quando o item não traz número de atendimento.
@@ -1593,7 +1593,7 @@ function CalcCard({
                         <label
                           key={opt.value}
                           data-checkbox-wrapper
-                          style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: checked ? "hsl(var(--accent))" : "transparent" }}
+                          style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "6px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: checked ? "hsl(var(--accent))" : "transparent" }}
                         >
                           <Checkbox
                             checked={checked}
