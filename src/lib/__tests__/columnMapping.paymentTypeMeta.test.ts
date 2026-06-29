@@ -45,9 +45,9 @@ const PARECER_META: PaymentTypeRequirementMeta = {
 };
 
 describe("Zeev × modal — paridade de mapeamento com defaults do payment_type", () => {
-  it("sem meta, procedure_code e doctor_role aparecem como faltando (estado bruto)", () => {
+  it("sem meta (null), procedure_code e doctor_role aparecem como faltando (estado bruto)", () => {
     const hits = inspectColumnMapping(PARECER_HEADERS);
-    const sumNoMeta = summarizeMissing(hits);
+    const sumNoMeta = summarizeMissing(hits, null);
     const missingFields = sumNoMeta.missingRequired.map((h) => h.field);
     expect(missingFields).toEqual(expect.arrayContaining(["procedure_code", "doctor_role"]));
   });
@@ -73,14 +73,15 @@ describe("Zeev × modal — paridade de mapeamento com defaults do payment_type"
       .toEqual(modalView.lowConfidence.map((h) => h.field).sort());
   });
 
-  it("se UMA das chamadas esquecer o meta, surge a discordância que motivou o bug", () => {
+  it("se UMA das chamadas passar meta=null, surge a discordância que motivou o bug", () => {
     const hits = inspectColumnMapping(PARECER_HEADERS);
 
-    const zeevBug = summarizeMissing(hits);            // forma antiga (sem meta)
+    const zeevBug = summarizeMissing(hits, null);           // forma antiga simulada (sem meta)
     const modalFixed = summarizeMissing(hits, PARECER_META);
 
-    // Esta diferença NÃO PODE existir em runtime — o teste documenta o bug
-    // e garante que as duas chamadas sempre passem o mesmo meta.
+    // Esta diferença NÃO PODE existir em runtime — o TS agora obriga as duas
+    // chamadas a passarem meta, e o teste documenta o que aconteceria se uma
+    // delas passasse `null` indevidamente.
     expect(zeevBug.missingRequired.length).toBeGreaterThan(modalFixed.missingRequired.length);
   });
 

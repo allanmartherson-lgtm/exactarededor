@@ -344,9 +344,23 @@ export const isFieldRequiredFor = (
   return true;
 };
 
+/**
+ * Função ÚNICA e CANÔNICA para resumir o estado de mapeamento de uma planilha.
+ *
+ * Contrato: `paymentTypeMeta` é **obrigatório** (use `null` quando o tipo de
+ * pagamento ainda não estiver definido). Isso evita o bug histórico em que o
+ * sinal do Zeev chamava sem meta e o badge do modal chamava com meta — fazendo
+ * as duas superfícies discordarem sobre "X campos faltando" quando o tipo de
+ * pagamento injeta defaults (TUSS/função). Toda chamada nova precisa passar o
+ * meta explicitamente; o TypeScript bloqueia o esquecimento.
+ *
+ * Aliases `computeMappingStatus` apontam para esta mesma função para deixar
+ * o nome semântico nos call sites de UI (Zeev/badge), sem manter duas
+ * implementações em paralelo.
+ */
 export const summarizeMissing = (
   hits: FieldMappingHit[],
-  meta?: PaymentTypeRequirementMeta,
+  meta: PaymentTypeRequirementMeta,
 ) => {
   const missingRequired = hits.filter(
     (h) => isFieldRequiredFor(h.field, meta) && (!h.header || h.score < 30),
@@ -356,6 +370,13 @@ export const summarizeMissing = (
   );
   return { missingRequired, lowConfidence };
 };
+
+/**
+ * Alias semântico de `summarizeMissing` para os call sites de UI que medem
+ * "mapeamento completo?" (badge do modal, sinal do Zeev). Mesma assinatura,
+ * mesmo retorno — manter sincronizado é trivial porque é a mesma função.
+ */
+export const computeMappingStatus = summarizeMissing;
 
 
 /**
