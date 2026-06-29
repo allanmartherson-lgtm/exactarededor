@@ -2053,7 +2053,7 @@ const NewPayment = () => {
     }
 
     return out;
-  }, [buckets, pendingSuspiciousCount]);
+  }, [buckets, pendingSuspiciousCount, paymentTypeMeta]);
 
   const allRows = useMemo(() => {
     return buckets.flatMap((b, bucketIndex) =>
