@@ -262,7 +262,7 @@ Deno.test("REGRESSÃO/lote real — 27 consultas Mastologia com nome em Title Ca
   for (const r of out) {
     assertEquals(r.matched_rule_id, "r-consultas", `${r.item_id} sem regra`);
     assertEquals(r.expected_amount, 220, `${r.item_id} expected errado`);
-    assert(r.status !== "sem_regra", `${r.item_id} marcado sem_regra`);
+    assert(String(r.status) !== "sem_regra", `${r.item_id} marcado sem_regra`);
   }
 });
 
