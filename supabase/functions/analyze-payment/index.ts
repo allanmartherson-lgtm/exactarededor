@@ -24,6 +24,11 @@ import {
 import { buildScopedRulesOr } from "../_shared/scopedRulesFilter.ts";
 import { classifyDuplicateMatch, evaluateDuplicate, type DuplicateOverridePayload } from "../_shared/itemHash.ts";
 import { buildPrimaryItemByRole, isPrimaryAnchor, normRole } from "../_shared/packagePrimary.ts";
+import {
+  normDocKey,
+  sheetSpecialtyFromRaw,
+  makeResolveMedicalSpecialty,
+} from "../_shared/specialtyResolver.ts";
 // rebuild: allowlist estrita para group_company_links com doctors preenchido (2026-06-04)
 
 const corsHeaders = {
