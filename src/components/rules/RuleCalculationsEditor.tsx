@@ -1062,7 +1062,7 @@ function WhenApplySection({
         </FilterBtn>
 
 
-        <FilterBtn id="periodo" label="Período, horário, via de acesso e setor" active={hasPeriodoFilter} openSection={openSection} onToggle={toggle}>
+        <FilterBtn id="periodo" label="Período, horário, tipo de atendimento, adicionais, setor e especialidade" active={hasPeriodoFilter} openSection={openSection} onToggle={toggle}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
