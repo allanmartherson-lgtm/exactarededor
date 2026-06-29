@@ -1100,7 +1100,7 @@ function WhenApplySection({
                 <div><Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Horário final</Label><Input type="time" value={c.time_end} onChange={e => onChange({ time_end: e.target.value })} /></div>
               </div>
             )}
-            <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+            <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
               <Checkbox checked={c.includes_holidays} onCheckedChange={v => onChange({ includes_holidays: !!v, has_conditions: c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || !!v || c.allowed_access_routes.length > 0 })} />
               <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Incluir feriados</span>
             </label>
@@ -1358,7 +1358,7 @@ function CalcCard({
               <Label className="text-xs">Percentual sobre o convênio (%)</Label>
               <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
                 value={c.convenio_percentage} onChange={(e) => onChange({ convenio_percentage: e.target.value })} />
-              <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", cursor: "pointer" }}>
+              <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px", cursor: "pointer" }}>
                 <Checkbox
                   style={{ flexShrink: 0 }}
                   checked={c.force_totalized}
@@ -1487,15 +1487,15 @@ function CalcCard({
 
                 {isPacoteComExtras && (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                    <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                    <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
                       <Checkbox checked={c.package_visits_count} onCheckedChange={(v) => onChange({ package_visits_count: !!v })} />
                       <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Visitas somam ao pacote</span>
                     </label>
-                    <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                    <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
                       <Checkbox checked={c.package_opinions_count} onCheckedChange={(v) => onChange({ package_opinions_count: !!v })} />
                       <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Pareceres somam ao pacote</span>
                     </label>
-                    <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                    <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
                       <Checkbox checked={c.package_auxiliaries_included} onCheckedChange={(v) => onChange({ package_auxiliaries_included: !!v })} />
                       <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Auxiliares incluídos no pacote</span>
                     </label>
@@ -1547,7 +1547,7 @@ function CalcCard({
                       <p className="text-[10px] text-muted-foreground leading-tight">Aditivo. Ex.: 20 = +20% sobre o valor calculado, antes do deflator.</p>
                     </div>
                   </div>
-                  <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                  <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
                     <Checkbox checked={c.apply_access_route} onCheckedChange={(v) => onChange({
                       apply_access_route: !!v,
                       // Ao desmarcar, limpar as vias para o motor não considerar fantasmas.
@@ -1555,7 +1555,7 @@ function CalcCard({
                     })} />
                     <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Aplicar regra de via de acesso</span>
                   </label>
-                  <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                  <label data-checkbox-wrapper style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
                     <Checkbox checked={c.include_auxiliaries} onCheckedChange={(v) => onChange({ include_auxiliaries: !!v })} />
                     <span style={{ fontSize: "12px", lineHeight: "1.4" }}>Considerar auxiliares</span>
                   </label>
