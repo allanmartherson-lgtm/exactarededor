@@ -84,22 +84,50 @@ export const resolvePaymentAmounts = (
   rawRow: Record<string, unknown>,
   manualMapping?: ManualMapping,
 ): ResolvedAmounts => {
-  const row = applyManualMappingShim(rawRow, manualMapping);
+  // Regra de precedência:
+  // 1. Coluna mapeada explicitamente pelo analista → leitura DIRETA do header,
+  //    sem alias/heurística. O que o analista escolheu é lei.
+  // 2. Coluna canônica detectada por alias (ex.: planilha já vem com "Vl a
+  //    Repassar" e nenhum mapeamento manual) → autoritativa, inclui valor 0.
+  // 3. Heurística genérica ("Valor"/"Valor Tot") → fallback de último recurso.
   const grossMappedByAnalyst = !!manualMapping?.gross_amount;
   const procMappedByAnalyst = !!manualMapping?.procedure_amount;
 
-  const repasseRaw = pick(row, REPASSE_ALIASES);
-  const repasseFound = repasseRaw !== undefined;
+  // (1) Leitura direta do header mapeado — não passa por shim/pick.
+  let repasseRaw: unknown;
+  let repasseFound = false;
+  if (grossMappedByAnalyst) {
+    const header = manualMapping!.gross_amount!;
+    if (header in rawRow) {
+      repasseRaw = rawRow[header];
+      repasseFound = true;
+    }
+  } else {
+    repasseRaw = pick(rawRow, REPASSE_ALIASES);
+    repasseFound = repasseRaw !== undefined;
+  }
   const r_repasse = normalizeNumericValue(repasseRaw);
 
-  const procValRaw = pick(row, PROC_AMOUNT_ALIASES);
-  const procValFound = procValRaw !== undefined;
+  let procValRaw: unknown;
+  let procValFound = false;
+  if (procMappedByAnalyst) {
+    const header = manualMapping!.procedure_amount!;
+    if (header in rawRow) {
+      procValRaw = rawRow[header];
+      procValFound = true;
+    }
+  } else {
+    procValRaw = pick(rawRow, PROC_AMOUNT_ALIASES);
+    procValFound = procValRaw !== undefined;
+  }
   const r_procVal = normalizeNumericValue(procValRaw);
 
   const grossAuthoritative = grossMappedByAnalyst || repasseFound;
+  // r_gross só importa como fallback heurístico — ignorado quando temos
+  // fonte autoritativa (mapeamento ou coluna canônica encontrada).
   const r_gross = grossAuthoritative
     ? { value: 0, invalid: false }
-    : normalizeNumericValue(pick(row, GROSS_FALLBACK_ALIASES, GROSS_FALLBACK_EXCLUDES));
+    : normalizeNumericValue(pick(rawRow, GROSS_FALLBACK_ALIASES, GROSS_FALLBACK_EXCLUDES));
 
   const repasse = r_repasse.value;
   const procVal = r_procVal.value;
