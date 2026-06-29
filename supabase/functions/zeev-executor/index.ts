@@ -73,6 +73,8 @@ interface RequestBody {
   current_path?: string | null;
   prompt?: string;
   proposal?: Proposal;
+  /** Fase 2 — snapshot publicado pela tela ativa (regra em edição, conflitos, filtros). */
+  screen_context?: Record<string, unknown> | null;
 }
 
 // -------------------- LLM prompt --------------------
@@ -162,6 +164,9 @@ const SYSTEM_PROMPT = [
   "  - Códigos de cadastros (doctors/companies/convenios/sectors/cost_centers) são imutáveis e DELETE é bloqueado — só inativação.",
   "",
   "ATITUDE EM /regras e telas de cadastro: quando o usuário relata erro ou faz dúvida conceitual, EXPLIQUE a regra de negócio aplicável (precedência, eixos, whitelist/blacklist) ANTES de propor ação. Use 'answer' com 2-4 frases didáticas e cite o eixo ou nível de precedência específico. Só use 'navigate' se ele pedir explicitamente para ir a outra tela.",
+  "",
+  "CONTEXTO AO VIVO DA TELA ('screen_context'): quando presente, a UI publicou o estado exato do que o usuário está editando/vendo. Use SEMPRE em prioridade ao chute. Em particular:",
+  "- screen_context.regras_conflict: o usuário está olhando um modal de conflitos detectados ao tentar salvar uma regra. Cada item em .problems já traz o tipo (calc_overlap | doctor_already_bound | company_already_bound | validity_overlap | master_already_exists) e os labels reais dos cálculos/regras envolvidos. Quando o usuário perguntar 'por que está dando conflito?' ou 'como resolver?', responda com 'answer' citando os labels exatos vindos do contexto e explicando o eixo da sobreposição (calc_overlap → 11 eixos do cálculo; validity_overlap → vigência; *_already_bound → mesma chave já vinculada a outra regra). Para calc_overlap, recomende WHITELIST do convênio específico no cálculo restritivo OU BLACKLIST no cálculo geral (regra de ouro: 'exceto', não duplicar regra).",
   "",
 ].join("\n");
 
@@ -1245,6 +1250,7 @@ Deno.serve(async (req) => {
         has_payment_context: !!body.payment_id,
         learned_preferences: learnedPrefs,
         route_context: routeContext,
+        screen_context: body.screen_context ?? null,
       });
 
       // Ações sem mutação — devolve direto pro cliente aplicar.

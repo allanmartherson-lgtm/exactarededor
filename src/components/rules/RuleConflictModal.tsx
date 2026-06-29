@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertTriangle, Calendar, User, Building2, Star, Hand } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { publishZeevContext, clearZeevContext } from "@/lib/zeevScreenContext";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -162,6 +163,34 @@ export function RuleConflictModal({ open, problems, onCancel, onApplyAndSave }: 
       setCompanyNames(map);
     })();
   }, [problems]);
+
+  // Fase 2 — publica contexto de conflito ativo para o Zeev dar diagnóstico cirúrgico.
+  useEffect(() => {
+    if (!open || problems.length === 0) return;
+    const summary = problems.map((p) => {
+      if (p.type === "calc_overlap") {
+        return {
+          type: "calc_overlap",
+          calc_a: p.calc_a_label,
+          calc_b: p.calc_b_label,
+          intersection: p.intersection_description,
+        };
+      }
+      return {
+        type: p.type,
+        existing_rule_name: (p as { existing_rule_name?: string }).existing_rule_name ?? null,
+        existing_valid_from: (p as { existing_valid_from?: string | null }).existing_valid_from ?? null,
+        existing_valid_until: (p as { existing_valid_until?: string | null }).existing_valid_until ?? null,
+        suggested_valid_until: (p as { suggested_valid_until?: string | null }).suggested_valid_until ?? null,
+      };
+    });
+    publishZeevContext("regras_conflict", {
+      open: true,
+      has_calc_overlap: problems.some((p) => p.type === "calc_overlap"),
+      problems: summary,
+    });
+    return () => clearZeevContext("regras_conflict");
+  }, [open, problems]);
 
   const canApply = !hasCalcOverlap && !submitting;
 

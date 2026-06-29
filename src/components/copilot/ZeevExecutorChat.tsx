@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getCurrentZeevContext } from "@/lib/zeevScreenContext";
 
 type ExecAction =
   | "set_sector"
@@ -112,6 +113,7 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
             payment_id: paymentId ?? null,
             current_path: location.pathname,
             prompt,
+            screen_context: getCurrentZeevContext(),
           },
         });
         if (error) throw error;
