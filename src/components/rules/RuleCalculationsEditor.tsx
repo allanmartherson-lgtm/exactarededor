@@ -229,6 +229,12 @@ export type RuleCalculationsEditorProps = {
   paymentTypes?: { id: string; label: string }[];
   /** Quando "informativa/bloqueio", o editor fica oculto (regra não calcula). */
   enabled: boolean;
+  /**
+   * Slot opcional para renderizar configuração extra DENTRO do card do cálculo.
+   * Recebe o item e o índice. Usado, por ex., para colar "Configuração da exclusão"
+   * logo abaixo do cálculo do tipo `exclusao` que a originou.
+   */
+  renderCalcExtras?: (item: CalcItem, index: number) => React.ReactNode;
 };
 
 /**
@@ -236,7 +242,7 @@ export type RuleCalculationsEditorProps = {
  * bloco de "Aplica-se a algum período, dia ou horário específico?" porque a
  * janela temporal pertence ao cálculo, não à regra.
  */
-export function RuleCalculationsEditor({ value, onChange, refTables, specialCaseTypes = [], paymentTypes = [], enabled }: RuleCalculationsEditorProps) {
+export function RuleCalculationsEditor({ value, onChange, refTables, specialCaseTypes = [], paymentTypes = [], enabled, renderCalcExtras }: RuleCalculationsEditorProps) {
   const crossErrorsByIndex = useMemo(() => calcCrossItemErrorMessages(value), [value]);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -290,6 +296,7 @@ export function RuleCalculationsEditor({ value, onChange, refTables, specialCase
           onChange={(patch) => update(i, patch)}
           onRemove={() => remove(i)}
           onDuplicate={() => duplicate(i)}
+          extras={renderCalcExtras?.(c, i)}
         />
       ))}
       <div className="flex gap-2">
@@ -1209,13 +1216,14 @@ function WhenApplySection({
  *  Card de UM cálculo (método + parâmetros + condições)
  * ============================================================ */
 function CalcCard({
-  index, total, item, refTables, specialCaseTypes, paymentTypes, extraErrorMessages, onChange, onRemove, onDuplicate,
+  index, total, item, refTables, specialCaseTypes, paymentTypes, extraErrorMessages, onChange, onRemove, onDuplicate, extras,
 }: {
   index: number; total: number; item: CalcItem; refTables: RefTable[];
   specialCaseTypes: { code: string; label: string }[];
   paymentTypes: { id: string; label: string }[];
   extraErrorMessages: string[];
   onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void; onDuplicate: () => void;
+  extras?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -1623,6 +1631,8 @@ function CalcCard({
           {c.calculation_type === "valor_fixo" && (
             <ComplementosBlock c={c} onChange={onChange} />
           )}
+
+          {extras}
         </div>
       )}
     </div>
