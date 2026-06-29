@@ -770,7 +770,9 @@ export const AppLayout = () => {
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
   const effectiveLayout = isMobile ? "top" : layout;
-  const sidebarWidth = sidebarCollapsed ? 68 : 260;
+  // Largura dinâmica: colapsado mostra só ícones; expandido acomoda logo + tagline
+  // "Pagamento Médico · Rede D'Or" + botão de recolher sem overflow.
+  const sidebarWidth = sidebarCollapsed ? 68 : 296;
 
   const renderSideLink = (
     to: string,
