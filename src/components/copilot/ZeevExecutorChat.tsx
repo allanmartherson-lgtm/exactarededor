@@ -113,6 +113,7 @@ export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNaviga
             payment_id: paymentId ?? null,
             current_path: location.pathname,
             prompt,
+            screen_context: getCurrentZeevContext(),
           },
         });
         if (error) throw error;
