@@ -1296,6 +1296,15 @@ Deno.serve(async (req) => {
       const llm = await callLLM(body.prompt, {
         current_path: body.current_path ?? null,
         payment: pay ? { id: pay.id, reference: pay.reference, company_name: pay.company_name } : null,
+        company_scope: companyGroupInfo
+          ? {
+              company_group_id: companyGroupInfo.id,
+              company_id: companyGroupInfo.company_id,
+              company_name: companyGroupInfo.company_name,
+              items_count: companyGroupInfo.items_count,
+              bruto_total: companyGroupInfo.bruto_total,
+            }
+          : null,
         aggregates: aggregates ?? null,
         has_payment_context: !!body.payment_id,
         learned_preferences: learnedPrefs,
