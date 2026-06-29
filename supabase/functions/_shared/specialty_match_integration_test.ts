@@ -113,9 +113,9 @@ Deno.test("INTEGRAÇÃO/histórico — regras sem specialties[] aceitam itens in
   } as any);
 
   const items: ItemInput[] = [
-    baseItem({ id: "i1", doctor_role: "Cirurgião Principal", specialty: "Cardiologia", procedure_amount: 0, gross_amount: 0 }),
-    baseItem({ id: "i2", doctor_role: "Cirurgião Principal", specialty: "Dermatologia", procedure_amount: 0, gross_amount: 0 }),
-    baseItem({ id: "i3", doctor_role: "Cirurgião Principal", specialty: null, procedure_amount: 0, gross_amount: 0 }),
+    baseItem({ id: "i1", doctor_role: "Cirurgião Principal", specialty: "Cardiologia" }),
+    baseItem({ id: "i2", doctor_role: "Cirurgião Principal", specialty: "Dermatologia" }),
+    baseItem({ id: "i3", doctor_role: "Cirurgião Principal", specialty: null }),
   ];
 
   const out = analyzePaymentItems(items, [cirurgia, tabela], CTX);
@@ -177,11 +177,11 @@ Deno.test("INTEGRAÇÃO/consultas — regra de consultas com specialties[] rotei
 
   const items: ItemInput[] = [
     // Consultas — devem rotear por especialidade
-    baseItem({ id: "c1", procedure_code: "10101012", specialty: "Cardiologia", procedure_amount: 0, gross_amount: 0 }),
+    baseItem({ id: "c1", procedure_code: "10101012", specialty: "Cardiologia" }),
     baseItem({ id: "c2", procedure_code: "10101012", specialty: "Pediatria",  procedure_amount: 0, gross_amount: 0 }),
     baseItem({ id: "c3", procedure_code: "10101012", specialty: "Ortopedia",  procedure_amount: 0, gross_amount: 0 }), // não casa nenhum
     // Cirurgia — não deve sofrer interferência da especialidade
-    baseItem({ id: "s1", procedure_code: "31001010", specialty: "Cardiologia", procedure_amount: 0, gross_amount: 0 }),
+    baseItem({ id: "s1", procedure_code: "31001010", specialty: "Cardiologia" }),
     baseItem({ id: "s2", procedure_code: "31001010", specialty: null,           procedure_amount: 0, gross_amount: 0 }),
   ];
 
@@ -230,9 +230,9 @@ Deno.test("INTEGRAÇÃO/regressão — specialties[] sem match_by_specialty se c
   } as any);
 
   const items: ItemInput[] = [
-    baseItem({ id: "x1", specialty: "Cardiologia", procedure_amount: 0, gross_amount: 0 }),
-    baseItem({ id: "x2", specialty: "Dermatologia", procedure_amount: 0, gross_amount: 0 }),
-    baseItem({ id: "x3", specialty: null, procedure_amount: 0, gross_amount: 0 }),
+    baseItem({ id: "x1", specialty: "Cardiologia" }),
+    baseItem({ id: "x2", specialty: "Dermatologia" }),
+    baseItem({ id: "x3", specialty: null }),
   ];
 
   const out = analyzePaymentItems(items, [regraAntiga], CTX);
@@ -273,9 +273,9 @@ Deno.test("INTEGRAÇÃO/mista — cálculo com specialties + fallback sem filtro
   } as any);
 
   const items: ItemInput[] = [
-    baseItem({ id: "a", specialty: "Cardiologia", procedure_amount: 0, gross_amount: 0 }),
-    baseItem({ id: "b", specialty: "Dermatologia", procedure_amount: 0, gross_amount: 0 }),
-    baseItem({ id: "c", specialty: null, procedure_amount: 0, gross_amount: 0 }),
+    baseItem({ id: "a", specialty: "Cardiologia" }),
+    baseItem({ id: "b", specialty: "Dermatologia" }),
+    baseItem({ id: "c", specialty: null }),
   ];
   const out = analyzePaymentItems(items, [r], CTX);
   const byId = Object.fromEntries(out.map((x) => [x.item_id, x]));
@@ -312,7 +312,7 @@ Deno.test("INTEGRAÇÃO/output — campos de saída (status, rule_id, expected_a
 
   const items: ItemInput[] = [
     baseItem({ id: "ok", specialty: "Cardiologia", procedure_amount: 220, gross_amount: 220 }),
-    baseItem({ id: "fail", specialty: "Dermatologia", procedure_amount: 0, gross_amount: 0 }),
+    baseItem({ id: "fail", specialty: "Dermatologia" }),
   ];
   const out = analyzePaymentItems(items, [r], CTX);
   const ok = out.find((x) => x.item_id === "ok")!;
@@ -371,8 +371,8 @@ Deno.test("INTEGRAÇÃO/seleção — toggle de specialty descarta uma candidata
   } as any);
 
   const items: ItemInput[] = [
-    baseItem({ id: "cardio", specialty: "Cardiologia", procedure_amount: 0, gross_amount: 0 }),
-    baseItem({ id: "outra", specialty: "Dermatologia", procedure_amount: 0, gross_amount: 0 }),
+    baseItem({ id: "cardio", specialty: "Cardiologia" }),
+    baseItem({ id: "outra", specialty: "Dermatologia" }),
   ];
   const out = analyzePaymentItems(items, [especifica, generica], CTX);
   const byId = Object.fromEntries(out.map((x) => [x.item_id, x]));
