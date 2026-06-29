@@ -1013,7 +1013,7 @@ export function ItemsDataGrid({
   const changeCaseSubtype = async (
     itemIds: string[],
     newTypeId: string,
-    newTypeLabel: "Visita" | "Parecer",
+    newTypeLabel: string,
   ) => {
     if (!itemIds.length) return;
     try {
