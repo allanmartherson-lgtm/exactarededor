@@ -3126,6 +3126,46 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
           <DialogHeader>
             <DialogTitle>Revisar regras extraídas pela IA</DialogTitle>
             <DialogDescription>Confira, edite e selecione quais salvar. {drafts.filter(d => d.active).length} de {drafts.length} marcadas.</DialogDescription>
+            {drafts.filter(d => d.active).length > 1 && (
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const selected = drafts.filter(d => d.active);
+                    if (selected.length < 2) return;
+                    const merged: DraftRule = {
+                      ...selected[0],
+                      name: selected[0].name || "Regra consolidada",
+                      calculations: selected.flatMap((d, idx) => (d.calculations ?? [{
+                        label: d.name || `Cálculo ${idx + 1}`,
+                        calculation_type: d.calculation_type,
+                        fixed_amount: d.fixed_amount,
+                        package_amount: d.package_amount,
+                        bonus_amount: d.bonus_amount,
+                        bonus_pct: d.bonus_pct,
+                        target_amount: d.target_amount,
+                        multiplier: d.multiplier,
+                        deflator_pct: d.deflator_pct,
+                        convenio_percentage: d.convenio_percentage,
+                        procedure_codes: d.procedure_codes.length ? d.procedure_codes : null,
+                        code_match_mode: d.procedure_codes.length ? "whitelist" : "any",
+                        specialties: d.specialties,
+                        sectors: d.sectors,
+                        has_conditions: d.specialties.length > 0 || d.sectors.length > 0,
+                        is_catch_all: false,
+                      }])),
+                    };
+                    const inactive = drafts.filter(d => !d.active);
+                    setDrafts([merged, ...inactive]);
+                    toast({ title: `${selected.length} regras mescladas em 1 com ${merged.calculations?.length ?? 0} cálculos` });
+                  }}
+                >
+                  Mesclar selecionadas em 1 regra ({drafts.filter(d => d.active).length})
+                </Button>
+              </div>
+            )}
           </DialogHeader>
           <div className="space-y-4">
             {drafts.map((d, i) => (
@@ -3133,6 +3173,11 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                 <div className="flex items-start gap-3 mb-3">
                   <Checkbox checked={d.active} onCheckedChange={(v) => updateDraft(i, { active: !!v })} className="mt-1" />
                   <Input value={d.name} onChange={(e) => updateDraft(i, { name: e.target.value })} placeholder="Nome" className="font-medium" />
+                  {(d.calculations?.length ?? 0) > 0 && (
+                    <Badge variant="outline" className="shrink-0 mt-1.5">
+                      {d.calculations!.length} cálculo(s)
+                    </Badge>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="space-y-1"><Label className="text-xs">Tipo de cálculo (motor)</Label>
