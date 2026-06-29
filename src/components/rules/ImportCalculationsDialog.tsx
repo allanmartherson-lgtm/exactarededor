@@ -24,6 +24,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSpecialties } from "@/hooks/useSpecialties";
 import { RULE_CALCULATION_TYPE_LABELS, type RuleCalculationType } from "@/lib/status";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { makeEmptyCalc, type CalcItem } from "./RuleCalculationsEditor";
 
 type AiCalc = Record<string, any>;
@@ -32,6 +34,8 @@ export type ImportCalculationsDialogProps = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   paymentTypes: { id: string; label: string; code?: string | null }[];
+  /** Rótulos dos cálculos já existentes na regra — usado para detectar duplicidade no preview. */
+  existingLabels?: string[];
   onImport: (calcs: CalcItem[]) => void;
 };
 
