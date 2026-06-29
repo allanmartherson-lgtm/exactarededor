@@ -30,6 +30,18 @@ describe("resolvePaymentAmounts", () => {
       expect(result.grossAuthoritative).toBe(true);
     });
 
+    it("preserva repasse 0 quando coluna real do Tasy 'Vl a Repassar' existe (sem mapeamento manual)", () => {
+      // Regressão: cabeçalho Tasy normaliza para "vlarepassar" e não batia
+      // com nenhum alias antigo. A heurística sobrescrevia com "Valor Tot".
+      const row = {
+        "Vl a Repassar": 0,
+        "Valor Tot": 95,
+      };
+      const result = resolvePaymentAmounts(row);
+      expect(result.gross_amount).toBe(0);
+      expect(result.grossAuthoritative).toBe(true);
+    });
+
     it("usa heurística (Valor Tot) apenas quando nenhuma coluna de repasse existe", () => {
       const row = { "Valor Tot": 95 };
       const result = resolvePaymentAmounts(row);

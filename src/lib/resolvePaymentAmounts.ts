@@ -12,8 +12,9 @@ import { applyManualMappingShim, type ManualMapping } from "@/lib/columnMapping"
 import { normalizeNumericValue } from "@/lib/utils";
 
 export const REPASSE_ALIASES = [
-  "vl repasse", "valor repasse", "valor a repassar", "valor repassar",
-  "vlrepasse", "vl. repasse",
+  "vl repasse", "vl a repassar", "vl. a repassar",
+  "valor repasse", "valor a repassar", "valor repassar",
+  "vlrepasse", "vl. repasse", "vlarepassar",
 ];
 
 export const PROC_AMOUNT_ALIASES = [
