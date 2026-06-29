@@ -608,7 +608,13 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       }
     }
 
-    // Cache de especialidades por médico (via doctors.full_name normalizado)
+    // Cache de especialidades por médico — chave NORMALIZADA (trim+lowercase)
+    // para tolerar diferença de caixa entre planilha ("Karimi Da Silva…") e
+    // cadastro ("Karimi da Silva…"). Sem isso, a busca .in() falha em silêncio
+    // e `resolveMedicalSpecialty` devolve null mesmo quando o médico tem
+    // especialidade única cadastrada — fazendo cálculos com match_by_specialty
+    // serem rejeitados por "especialidade_nao_informada".
+    const normDocKey = (s: string) => s.trim().toLowerCase();
     const doctorNamesNorm = Array.from(new Set(
       (itemsRaw ?? [])
         .map((it: any) => String(it.doctor_name ?? "").trim())
@@ -616,13 +622,17 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     ));
     const doctorSpecsByName: Record<string, string[]> = {};
     if (doctorNamesNorm.length > 0) {
+      // Busca todos os médicos ativos e indexa em memória pelo nome normalizado.
+      // Volume típico (< 5k médicos por hospital) cabe sem paginação extra.
       const { data: docs } = await supabase
         .from("doctors")
         .select("full_name,specialties,active")
-        .in("full_name", doctorNamesNorm);
+        .eq("active", true);
+      const wanted = new Set(doctorNamesNorm.map(normDocKey));
       for (const d of (docs ?? []) as any[]) {
-        if (d.active === false) continue;
-        doctorSpecsByName[String(d.full_name)] = Array.isArray(d.specialties) ? d.specialties : [];
+        const key = normDocKey(String(d.full_name ?? ""));
+        if (!wanted.has(key)) continue;
+        doctorSpecsByName[key] = Array.isArray(d.specialties) ? d.specialties : [];
       }
     }
 
@@ -664,7 +674,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       const fromSheet = String(it.specialty ?? "").trim();
       if (fromSheet) return { value: fromSheet, source: "planilha" };
 
-      const docList = doctorSpecsByName[String(it.doctor_name ?? "").trim()] ?? [];
+      const docList = doctorSpecsByName[normDocKey(String(it.doctor_name ?? ""))] ?? [];
       if (docList.length === 1) return { value: docList[0], source: "doctor" };
       if (docList.length > 1) {
         // Médico com múltiplas especialidades e planilha vazia → ambíguo.
