@@ -2437,8 +2437,11 @@ export default function CompanyAnalysis() {
       {id && group?.company_id && <FinancialCompositionStrip comp={composition} mode={compMode} />}
 
       <AutoClassifiedBanner
-        items={items as Array<{ payment_type_id?: string | null; payment_type_source?: string | null }>}
+        items={items as any}
         lotePaymentTypeId={(payment as any)?.payment_type_id ?? null}
+        paymentId={id}
+        canEdit={isAnalista || isAdminOrDiretor || isValidador}
+        onChanged={() => { void (async () => { await load(); await composition.refresh(); })(); }}
       />
 
       {!isConfeccao && !isManual && (
