@@ -238,6 +238,33 @@ export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, exi
     [extracted, checked],
   );
 
+  /* Validações por linha — recalculadas a cada mudança em `extracted`. */
+  const diagnostics = useMemo<ValidationResult[]>(() => {
+    if (!extracted) return [];
+    const importedLabels = new Map<string, number>();
+    extracted.forEach((c, i) => {
+      const lab = String(c?.label ?? "").trim().toLowerCase();
+      if (lab && !importedLabels.has(lab)) importedLabels.set(lab, i);
+    });
+    const ctx: ValidationCtx = {
+      specialties: specialtiesList,
+      paymentTypeCodes: new Set(paymentTypes.map((p) => String((p as any).code ?? "")).filter(Boolean)),
+      existingLabels: new Set(existingLabels.map((l) => l.trim().toLowerCase()).filter(Boolean)),
+      importedLabels,
+    };
+    return extracted.map((c, i) => validateAiCalc(c, i, ctx));
+  }, [extracted, specialtiesList, paymentTypes, existingLabels]);
+
+  const totals = useMemo(() => {
+    let err = 0, warn = 0, blockedSelected = 0;
+    diagnostics.forEach((d, i) => {
+      if (d.errors.length) err++;
+      if (d.warnings.length) warn++;
+      if (d.errors.length && checked.has(i)) blockedSelected++;
+    });
+    return { err, warn, blockedSelected };
+  }, [diagnostics, checked]);
+
   const toggle = (i: number) => {
     const next = new Set(checked);
     next.has(i) ? next.delete(i) : next.add(i);
@@ -246,6 +273,13 @@ export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, exi
   const toggleAll = () => {
     if (!extracted) return;
     setChecked(allChecked ? new Set() : new Set(extracted.map((_, i) => i)));
+  };
+  /** Desmarca rapidamente todas as linhas com erro — atalho para liberar o "Adicionar". */
+  const uncheckErrors = () => {
+    if (!extracted) return;
+    const next = new Set(checked);
+    diagnostics.forEach((d, i) => { if (d.errors.length) next.delete(i); });
+    setChecked(next);
   };
 
   const runExtraction = async () => {
