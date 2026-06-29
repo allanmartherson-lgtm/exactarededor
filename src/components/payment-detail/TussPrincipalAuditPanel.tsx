@@ -70,7 +70,7 @@ export function TussPrincipalAuditPanel({
     else
       q = q.in(
         "applied_calc_method",
-        ["sem_regra", "sem_acordo", "exclusao", "default_geral", "default_hemodinamica"],
+        ["sem_regra", "sem_acordo", "default_geral", "default_hemodinamica"],
       );
 
     const { data: items, error } = await q;
