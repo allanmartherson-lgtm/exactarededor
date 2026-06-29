@@ -69,6 +69,10 @@ interface RequestBody {
   step: "propose" | "execute";
   /** Opcional — quando ausente, só ações sem mutação (navigate/answer) são possíveis. */
   payment_id?: string | null;
+  /** Quando o analista está na tela de UMA empresa do lote, escopa contexto/aggregates. */
+  company_group_id?: string | null;
+  /** Nome da empresa visível na tela — autoritativo sobre qualquer derivação no servidor. */
+  company_name?: string | null;
   /** Rota atual no app (para dar contexto de navegação ao Zeev). */
   current_path?: string | null;
   prompt?: string;
