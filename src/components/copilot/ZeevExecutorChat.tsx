@@ -74,6 +74,9 @@ const FILTER_LABEL: Record<NonNullable<NavPayload["filter"]>, string> = {
 interface Props {
   /** Quando ausente, o chat funciona em modo livre: só navigate + answer. */
   paymentId?: string | null;
+  /** Quando o usuário está na análise de UMA empresa do lote, escopa o contexto do Zeev. */
+  companyGroupId?: string | null;
+  companyName?: string | null;
   onApplied?: () => void;
   /** Aplica filtro do grid quando a página suporta. */
   onApplyFilter?: (filter: NonNullable<NavPayload["filter"]>) => void;
@@ -83,7 +86,7 @@ interface Props {
   initialPrompt?: string;
 }
 
-export function ZeevExecutorChat({ paymentId, onApplied, onApplyFilter, onNavigateUrl, initialPrompt }: Props) {
+export function ZeevExecutorChat({ paymentId, companyGroupId, companyName, onApplied, onApplyFilter, onNavigateUrl, initialPrompt }: Props) {
   const location = useLocation();
   const greeting = paymentId
     ? "Pode me perguntar sobre este pagamento, pedir pra ir a uma seção, ou ações em lote. Ex.: \"quantos itens estão zerados?\", \"me leva pros divergentes\", \"vincula os médicos sem PJ na empresa X\"."
