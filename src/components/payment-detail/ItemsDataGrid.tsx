@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label";
 import { SafeCard } from "@/components/ui/SafeCard";
 import { CalcDuplicityResolverPanel } from "./CalcDuplicityResolverPanel";
+import { PaymentTypeOverrideAction } from "./PaymentTypeOverrideAction";
 import { deriveConfeccaoStatus, CONFECCAO_STATUS_LABEL, CONFECCAO_STATUS_TONE } from "@/lib/itemConfeccaoStatus";
 import {
   AlertTriangle,
@@ -1013,7 +1014,7 @@ export function ItemsDataGrid({
   const changeCaseSubtype = async (
     itemIds: string[],
     newTypeId: string,
-    newTypeLabel: "Visita" | "Parecer",
+    newTypeLabel: string,
   ) => {
     if (!itemIds.length) return;
     try {
@@ -3754,7 +3755,7 @@ function RowMain({
   onChangeCaseSubtype?: (
     itemIds: string[],
     newTypeId: string,
-    newTypeLabel: "Visita" | "Parecer",
+    newTypeLabel: string,
   ) => void;
   onRefresh?: () => void;
 }) {
@@ -4264,6 +4265,10 @@ function RowMain({
           showTipoEntrada={!!colVis.tipo_entrada}
           visitaPaymentTypeId={visitaPaymentTypeId}
           parecerPaymentTypeId={parecerPaymentTypeId}
+          lotePaymentTypeId={lotePaymentTypeId}
+          isParecerPayment={isParecerPayment}
+          canEdit={canEdit}
+          onChangeCaseSubtype={onChangeCaseSubtype}
         />
       )}
     </>
@@ -4281,6 +4286,10 @@ function ItemDetailsRow({
   showTipoEntrada,
   visitaPaymentTypeId,
   parecerPaymentTypeId,
+  lotePaymentTypeId,
+  isParecerPayment,
+  canEdit,
+  onChangeCaseSubtype,
 }: {
   it: PaymentItemRowData;
   allItems: PaymentItemRowData[];
@@ -4292,6 +4301,10 @@ function ItemDetailsRow({
   showTipoEntrada?: boolean;
   visitaPaymentTypeId?: string | null;
   parecerPaymentTypeId?: string | null;
+  lotePaymentTypeId?: string | null;
+  isParecerPayment?: boolean;
+  canEdit?: boolean;
+  onChangeCaseSubtype?: (itemIds: string[], newTypeId: string, newTypeLabel: string) => void;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
   const sectorAliases = useSectorAliases();
@@ -4598,6 +4611,16 @@ function ItemDetailsRow({
               )}
 
               <CalcExceptionItemAction paymentId={it.payment_id} item={it as any} />
+
+              <PaymentTypeOverrideAction
+                item={it as any}
+                allItems={allItems as any}
+                lotePaymentTypeId={lotePaymentTypeId}
+                hidden={isParecerPayment}
+                canEdit={canEdit}
+                onChange={onChangeCaseSubtype}
+              />
+
 
 
               {(it.ai_status === "reprovado" || it.ai_status === "alerta") && (it.ai_status as string) !== "acatado" && (() => {
