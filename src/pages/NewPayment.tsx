@@ -2028,10 +2028,14 @@ const NewPayment = () => {
     }
 
     // 4) Mapeamento incompleto
+    // Importante: passar paymentTypeMeta para summarizeMissing — sem isso,
+    // procedure_code/doctor_role contam como faltando mesmo quando o tipo
+    // injeta TUSS/função default (ex.: Consulta com TUSS 10101012, Clínico),
+    // gerando alerta "X faltando" depois que o usuário já mapeou tudo no modal.
     const mappingProblems = buckets
       .map((b, idx) => {
         const hits = b.mappingHits ?? [];
-        const summary = hits.length ? summarizeMissing(hits) : { missingRequired: [], lowConfidence: [] };
+        const summary = hits.length ? summarizeMissing(hits, paymentTypeMeta) : { missingRequired: [], lowConfidence: [] };
         return { idx, name: b.file.name, missing: summary.missingRequired.length, low: summary.lowConfidence.length };
       })
       .filter((m) => m.missing > 0);
@@ -2049,7 +2053,7 @@ const NewPayment = () => {
     }
 
     return out;
-  }, [buckets, pendingSuspiciousCount]);
+  }, [buckets, pendingSuspiciousCount, paymentTypeMeta]);
 
   const allRows = useMemo(() => {
     return buckets.flatMap((b, bucketIndex) =>
@@ -4003,7 +4007,7 @@ const NewPayment = () => {
                           {/* Botão de revisão do mapeamento de colunas */}
                           {(() => {
                             const hits = b.mappingHits ?? [];
-                            const summary = hits.length ? summarizeMissing(hits) : { missingRequired: [], lowConfidence: [] };
+                            const summary = hits.length ? summarizeMissing(hits, paymentTypeMeta) : { missingRequired: [], lowConfidence: [] };
                             const hasMissing = summary.missingRequired.length > 0;
                             const hasLow = summary.lowConfidence.length > 0;
                             const variant = hasMissing ? "outline" : "ghost";
