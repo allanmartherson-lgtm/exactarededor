@@ -28,12 +28,14 @@ export type ReapplyPhase = "iniciando" | "processando" | "concluido" | "erro";
 export type ReapplyStep =
   | "ler_regras"
   | "rodar_motor"
+  | "ajustes_finais"
   | "persistir_itens"
   | "carregar_ui";
 
 const STEP_ORDER: ReapplyStep[] = [
   "ler_regras",
   "rodar_motor",
+  "ajustes_finais",
   "persistir_itens",
   "carregar_ui",
 ];
@@ -46,6 +48,10 @@ const STEP_LABELS: Record<ReapplyStep, { title: string; hint: string }> = {
   rodar_motor: {
     title: "Rodando motor de cálculo",
     hint: "Recalculando valor esperado e regra vencedora de cada item",
+  },
+  ajustes_finais: {
+    title: "Aplicando ajustes finais",
+    hint: "Deduções, glosas, garantia mínima e reconciliação retroativa",
   },
   persistir_itens: {
     title: "Persistindo itens",
