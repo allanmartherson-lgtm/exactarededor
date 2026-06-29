@@ -130,7 +130,8 @@ type ValidationCtx = {
 
 const KNOWN_TYPES: RuleCalculationType[] = [
   "informativo", "valor_fixo", "percentual_sobre_convenio", "tabela_diferenciada",
-  "pacote", "bonus", "complemento", "exclusao", "regra_vias", "bloqueio",
+  "pacote", "pacote_fechado", "pacote_com_extras", "pacote_por_atendimento",
+  "bonus", "complemento", "exclusao", "regra_vias",
 ];
 
 const isFiniteNum = (v: any) => {
