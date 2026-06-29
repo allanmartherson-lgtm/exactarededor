@@ -73,6 +73,8 @@ interface RequestBody {
   current_path?: string | null;
   prompt?: string;
   proposal?: Proposal;
+  /** Fase 2 — snapshot publicado pela tela ativa (regra em edição, conflitos, filtros). */
+  screen_context?: Record<string, unknown> | null;
 }
 
 // -------------------- LLM prompt --------------------
