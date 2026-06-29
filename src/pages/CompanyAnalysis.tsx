@@ -851,6 +851,18 @@ export default function CompanyAnalysis() {
         ? await waitForJobCompletion(jobId, 120_000, startedAt)
         : await waitForProcessingCompletion(id, startedAt, 120_000);
 
+      // Etapa 2.5 — Aguarda finalize-payment-engine (deduções, glosas, garantia
+      // mínima, retroatividade). Sem isto, o diálogo fechava antes do pipeline
+      // de ajustes tocar nos itens e a UI mostrava expected/gross antigos por
+      // mais alguns segundos — o analista percebia "esperado mudou sozinho
+      // depois". finalize é fire-and-forget após o job concluir; gravamos
+      // updated_at em payment_engine_sources a cada fonte aplicada, então
+      // basta detectar atualização recente + janela de estabilidade.
+      if (done) {
+        setReapplyStep("ajustes_finais");
+        await waitForFinalizeStability(id, startedAt, 45_000);
+      }
+
       // Etapa 3 — Persistir/ler de volta os itens.
       setReapplyStep("persistir_itens");
 
