@@ -259,7 +259,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       apply_access_route,include_auxiliaries,
       auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
       bonus_amount,bonus_pct,target_amount,allowed_access_routes,
-      force_totalized,application_unit,sectors,specialties,
+      force_totalized,application_unit,sectors,specialties,match_by_specialty,
       special_case_filter,
       payment_type_id,
       procedure_codes,code_match_mode,doctor_roles,
@@ -301,7 +301,10 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
             const snapshotHasCalcPaymentTypeField = cachedCalcLists.every((list: any) =>
               !Array.isArray(list) || list.every((c: any) => "payment_type_id" in c),
             );
-            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField && snapshotHasCalcSpecialCaseField && snapshotHasCalcPaymentTypeField) {
+            const snapshotHasCalcSpecialtyToggle = cachedCalcLists.every((list: any) =>
+              !Array.isArray(list) || list.every((c: any) => "match_by_specialty" in c),
+            );
+            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField && snapshotHasCalcSpecialCaseField && snapshotHasCalcPaymentTypeField && snapshotHasCalcSpecialtyToggle) {
               cachedRulesAll = ctxJ.rules;
               cachedCalcsByRule = ctxJ.calcs_by_rule;
               cachedConfigs = ctxJ.configs;
@@ -592,10 +595,10 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     // (Urologia, Ortopedia, ...). O `tipo_item` representa o ato (Cirurgia,
     // Anestesia, ...) e NÃO é usado como especialidade.
     // Resolvemos a especialidade médica de cada item em runtime via:
-    //   1) procedure_specialty_map (status=aprovado) pelo procedure_code
-    //   2) doctors.specialties (intersect com #1 quando ambos disponíveis)
-    //   3) doctors.specialties[0] quando o médico tem só uma
-    //   4) null → regras com whitelist de especialidade são puladas
+    //   1) raw_data da planilha (ex.: "Especialidade Médico") — fonte canônica;
+    //   2) payment_items.specialty, para bases legadas sem raw_data completo;
+    //   3) doctors.specialties[0] quando o médico tem só uma especialidade;
+    //   4) null → cálculos com match_by_specialty=true são pulados e auditados.
     const specMap: Record<string, string> = {};
     if (codes.length > 0) {
       const { data: smRows } = await supabase
@@ -638,6 +641,36 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
 
     const normSpec = (s: string) => s.trim().toLowerCase();
 
+    const normRawHeader = (s: string) => String(s ?? "")
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "");
+    const sheetSpecialtyHeaders = new Set([
+      "especialidade",
+      "especialidade médica",
+      "especialidade medica",
+      "especialidade médico",
+      "especialidade medico",
+      "espec médico",
+      "espec medico",
+      "espec. médico",
+      "espec. medico",
+      "espec destino",
+      "espec. destino",
+      "especialidade destino",
+    ].map(normRawHeader));
+    const sheetSpecialtyFromRaw = (raw: unknown): string | null => {
+      if (!raw || typeof raw !== "object") return null;
+      for (const [header, value] of Object.entries(raw as Record<string, unknown>)) {
+        if (!sheetSpecialtyHeaders.has(normRawHeader(header))) continue;
+        const text = String(value ?? "").trim();
+        if (text) return text;
+      }
+      return null;
+    };
+
     // ---------- 3.16 Especialidade DOMINANTE do lote/empresa ----------
     // Conta a especialidade resolvida (via procedure_specialty_map) de cada
     // item. Se uma concentra > 51% dos itens com especialidade conhecida,
@@ -671,8 +704,14 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       //      do nome do procedimento, nem da especialidade dominante do lote.
       //      Especialidade é informacional (relatório/filtro) e nunca deve
       //      ser "chutada" pelo motor.
-      const fromSheet = String(it.specialty ?? "").trim();
-      if (fromSheet) return { value: fromSheet, source: "planilha" };
+      // Reanálise deve reler a planilha por inteiro via raw_data. Em bases já
+      // importadas, `payment_items.specialty` pode estar nulo ou contaminado por
+      // cadastro antigo; se a coluna existe no arquivo, ela vence sempre.
+      const fromRawSheet = sheetSpecialtyFromRaw(it.raw_data);
+      if (fromRawSheet) return { value: fromRawSheet, source: "planilha" };
+
+      const fromPersistedField = String(it.specialty ?? "").trim();
+      if (fromPersistedField) return { value: fromPersistedField, source: "planilha" };
 
       const docList = doctorSpecsByName[normDocKey(String(it.doctor_name ?? ""))] ?? [];
       if (docList.length === 1) return { value: docList[0], source: "doctor" };
