@@ -4007,7 +4007,7 @@ const NewPayment = () => {
                           {/* Botão de revisão do mapeamento de colunas */}
                           {(() => {
                             const hits = b.mappingHits ?? [];
-                            const summary = hits.length ? summarizeMissing(hits) : { missingRequired: [], lowConfidence: [] };
+                            const summary = hits.length ? summarizeMissing(hits, paymentTypeMeta) : { missingRequired: [], lowConfidence: [] };
                             const hasMissing = summary.missingRequired.length > 0;
                             const hasLow = summary.lowConfidence.length > 0;
                             const variant = hasMissing ? "outline" : "ghost";
