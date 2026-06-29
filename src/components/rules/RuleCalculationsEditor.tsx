@@ -238,6 +238,7 @@ export type RuleCalculationsEditorProps = {
  */
 export function RuleCalculationsEditor({ value, onChange, refTables, specialCaseTypes = [], paymentTypes = [], enabled }: RuleCalculationsEditorProps) {
   const crossErrorsByIndex = useMemo(() => calcCrossItemErrorMessages(value), [value]);
+  const [importOpen, setImportOpen] = useState(false);
 
   const update = (i: number, patch: Partial<CalcItem>) => {
     const next = value.slice();
