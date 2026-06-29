@@ -22,6 +22,7 @@ import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2,
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { CompanyRiskProfileList } from "@/components/payment-detail/CompanyRiskProfile";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
+import { usePaymentTypeCodeSync } from "@/hooks/usePaymentTypeCodeSync";
 import { fetchCompanyRiskProfiles } from "@/lib/companyRiskProfile";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
@@ -903,19 +904,14 @@ const NewPayment = () => {
     return /plant(a|ã)o/.test(blob);
   }, [paymentType, paymentTypeOptions]);
 
-  // Sincroniza o Select visível ("Tipo de pagamento") com o tipo escolhido
-  // no modal pré-wizard (PaymentModeSelectModal grava só o id em sessionStorage).
-  // Roda sempre que paymentTypeId ou a lista carregada mudar — inclusive após
-  // reload de página (quando paymentType começa vazio mas o id vem da URL/storage)
-  // e quando o id muda para outro tipo (mantém o code do Select coerente).
-  useEffect(() => {
-    if (!paymentTypeId) return;
-    if (paymentTypeOptions.length === 0) return;
-    const match = paymentTypeOptions.find((o) => o.id === paymentTypeId);
-    if (match?.code && match.code !== paymentType) {
-      setPaymentType(match.code as PaymentType);
-    }
-  }, [paymentTypeId, paymentTypeOptions, paymentType]);
+  // Sincroniza o Select visível com o id escolhido no pré-wizard. Ver hook
+  // para detalhes — coberto por src/hooks/__tests__/usePaymentTypeCodeSync.test.tsx.
+  usePaymentTypeCodeSync({
+    paymentTypeId,
+    paymentTypeOptions,
+    paymentType,
+    setPaymentType: (code) => setPaymentType(code as PaymentType),
+  });
   const [autoSectors, setAutoSectors] = useState(true);
   const [autoSpecialties, setAutoSpecialties] = useState(true);
   const [autoPaymentKind, setAutoPaymentKind] = useState(true);
