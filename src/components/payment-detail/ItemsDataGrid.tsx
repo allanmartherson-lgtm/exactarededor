@@ -4600,6 +4600,16 @@ function ItemDetailsRow({
 
               <CalcExceptionItemAction paymentId={it.payment_id} item={it as any} />
 
+              <PaymentTypeOverrideAction
+                item={it as any}
+                allItems={allItems as any}
+                lotePaymentTypeId={lotePaymentTypeId}
+                hidden={isParecerPayment}
+                canEdit={canEdit}
+                onChange={onChangeCaseSubtype}
+              />
+
+
 
               {(it.ai_status === "reprovado" || it.ai_status === "alerta") && (it.ai_status as string) !== "acatado" && (() => {
                 const getNextStep = (): string => {
