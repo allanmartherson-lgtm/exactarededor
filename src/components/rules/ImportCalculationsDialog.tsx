@@ -342,6 +342,13 @@ export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, exi
       toast.error("Selecione ao menos um cálculo");
       return;
     }
+    if (totals.blockedSelected > 0) {
+      toast.error(
+        `${totals.blockedSelected} cálculo(s) selecionado(s) com erro de mapeamento`,
+        { description: "Corrija/desmarque as linhas em vermelho antes de adicionar." },
+      );
+      return;
+    }
     const picked = extracted.filter((_, i) => checked.has(i));
     onImport(picked.map((c) => aiCalcToCalcItem(c, paymentTypes)));
     toast.success(`${picked.length} cálculo(s) adicionado(s)`);
