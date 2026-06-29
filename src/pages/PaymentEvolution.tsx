@@ -139,6 +139,7 @@ export default function PaymentEvolution() {
   const [drillLoading, setDrillLoading] = useState(false);
   const [dialogCc, setDialogCc] = useState<{ code: string; month: string } | null>(null);
   const [focusedLine, setFocusedLine] = useState<string | null>(null);
+  const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
   // Mês ancorador para "Último mês" / Variação MoM. "auto" = último fechado (não-corrente).
   const [anchorMonth, setAnchorMonth] = useState<string>("auto");
 
@@ -648,20 +649,108 @@ export default function PaymentEvolution() {
         </div>
 
         <div className="rounded-2xl border bg-card p-6">
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              Série temporal — Top 5 centros de custo
-            </h2>
-            {focusedLine && (
-              <button
-                type="button"
-                onClick={() => setFocusedLine(null)}
-                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-              >
-                Limpar foco ({focusedLine})
-              </button>
-            )}
+          <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Série temporal — Top 5 centros de custo
+              </h2>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Clique no chip para focar uma linha. Use o × ao lado para ocultar e reescalar o eixo.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {hiddenLines.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setHiddenLines(new Set())}
+                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                >
+                  Mostrar todos ({hiddenLines.size} ocultos)
+                </button>
+              )}
+              {focusedLine && (
+                <button
+                  type="button"
+                  onClick={() => setFocusedLine(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                >
+                  Limpar foco
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Chips de série: clique = foco, × = ocultar */}
+          {top5.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {top5.map((r, i) => {
+                const label = ccDisplay(r.cc).label;
+                const color = PALETTE[i % PALETTE.length];
+                const isHidden = hiddenLines.has(label);
+                const isFocused = focusedLine === label;
+                return (
+                  <div
+                    key={r.cc}
+                    className={cn(
+                      "group inline-flex items-center gap-1.5 rounded-full border pl-2.5 pr-1 py-1 text-xs transition-all",
+                      isHidden
+                        ? "opacity-40 border-dashed bg-muted/30"
+                        : isFocused
+                          ? "border-2 shadow-sm"
+                          : "border bg-background hover:bg-muted/50",
+                    )}
+                    style={
+                      isFocused && !isHidden
+                        ? { borderColor: color, background: `${color}14` }
+                        : undefined
+                    }
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFocusedLine((prev) => (prev === label ? null : label))
+                      }
+                      disabled={isHidden}
+                      className="inline-flex items-center gap-1.5 disabled:cursor-not-allowed"
+                    >
+                      <span
+                        className="inline-block h-2 w-2 rounded-full"
+                        style={{ background: color }}
+                      />
+                      <span
+                        className={cn(
+                          "font-medium",
+                          isHidden && "line-through",
+                        )}
+                        style={{ color: isHidden ? undefined : color }}
+                      >
+                        {label}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setHiddenLines((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(label)) next.delete(label);
+                          else {
+                            next.add(label);
+                            if (focusedLine === label) setFocusedLine(null);
+                          }
+                          return next;
+                        })
+                      }
+                      title={isHidden ? "Mostrar no gráfico" : "Ocultar do gráfico"}
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {loading ? (
             <Skeleton className="h-72 w-full" />
           ) : chartData.length === 0 ? (
@@ -686,16 +775,9 @@ export default function PaymentEvolution() {
                     fontSize: 12,
                   }}
                 />
-                <Legend
-                  wrapperStyle={{ fontSize: 12, cursor: "pointer" }}
-                  onClick={(e: any) => {
-                    const label = e?.dataKey ?? e?.value;
-                    if (!label) return;
-                    setFocusedLine((prev) => (prev === label ? null : label));
-                  }}
-                />
                 {top5.map((r, i) => {
                   const label = ccDisplay(r.cc).label;
+                  if (hiddenLines.has(label)) return null;
                   const isFocused = focusedLine === label;
                   const isDimmed = focusedLine !== null && !isFocused;
                   const color = PALETTE[i % PALETTE.length];
