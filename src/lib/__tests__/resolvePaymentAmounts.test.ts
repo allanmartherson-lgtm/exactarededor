@@ -18,6 +18,7 @@ describe("resolvePaymentAmounts", () => {
       const result = resolvePaymentAmounts(row, { gross_amount: "Vl a Repassar" });
       expect(result.gross_amount).toBe(0);
       expect(result.grossAuthoritative).toBe(true);
+    });
 
     it("lê DIRETO do header mapeado, sem depender de alias (header arbitrário escolhido pelo analista)", () => {
       // Mesmo que o header não bata com nenhum alias conhecido, o mapeamento
