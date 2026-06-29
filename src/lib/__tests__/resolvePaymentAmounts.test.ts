@@ -20,6 +20,18 @@ describe("resolvePaymentAmounts", () => {
       expect(result.grossAuthoritative).toBe(true);
     });
 
+    it("lê DIRETO do header mapeado, sem depender de alias (header arbitrário escolhido pelo analista)", () => {
+      // Mesmo que o header não bata com nenhum alias conhecido, o mapeamento
+      // manual é lei: o sistema lê direto da coluna escolhida.
+      const row = {
+        "XYZ Repasse Customizado": 0,
+        "Valor Tot": 95,
+      };
+      const result = resolvePaymentAmounts(row, { gross_amount: "XYZ Repasse Customizado" });
+      expect(result.gross_amount).toBe(0);
+      expect(result.grossAuthoritative).toBe(true);
+    });
+
     it("preserva repasse 0 quando coluna canônica 'Valor Repasse' existe (sem mapeamento manual)", () => {
       const row = {
         "Valor Repasse": 0,
