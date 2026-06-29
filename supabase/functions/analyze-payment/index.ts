@@ -652,38 +652,28 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     }
 
     const resolveMedicalSpecialty = (it: any): { value: string | null; source: string } => {
-      const code = (it.procedure_code ?? "").toString().trim();
-      const fromMap = code ? specMap[code] ?? null : null;
-      const docList = doctorSpecsByName[String(it.doctor_name ?? "").trim()] ?? [];
-      // 0) PRIORIDADE MÁXIMA: especialidade vinda da planilha (coluna
-      // "Especialidade Médico" / "Especialidade"). Se o analista declarou
-      // explicitamente o valor na base, ele vence qualquer inferência —
-      // historicamente o resolver ignorava esse campo e quebrava regras
-      // como "Consulta por especialidade" quando o TUSS 10101012 não tinha
-      // entrada em procedure_specialty_map.
+      // Ordem canônica (definida pelo produto):
+      //   1) Especialidade declarada na planilha (coluna "Especialidade
+      //      Médico" / "Especialidade") — analista é a fonte da verdade.
+      //   2) Cadastro do médico vinculado (doctors.specialties). Se o médico
+      //      tiver uma única especialidade cadastrada, ela é usada.
+      //   3) Nada. NÃO inferimos a partir do TUSS/procedure_specialty_map,
+      //      do nome do procedimento, nem da especialidade dominante do lote.
+      //      Especialidade é informacional (relatório/filtro) e nunca deve
+      //      ser "chutada" pelo motor.
       const fromSheet = String(it.specialty ?? "").trim();
-      if (fromSheet) {
-        // Se o mapa por TUSS também respondeu e bate com a planilha, marca
-        // como confirmado; senão respeita a planilha mesmo assim.
-        if (fromMap && normSpec(fromMap) === normSpec(fromSheet)) {
-          return { value: fromSheet, source: "planilha+map" };
-        }
-        return { value: fromSheet, source: "planilha" };
-      }
-      // 1) mapa + médico → interseção
-      if (fromMap && docList.length > 1) {
-        const inter = docList.find((s) => normSpec(s) === normSpec(fromMap));
-        if (inter) return { value: inter, source: "map+doctor" };
-      }
-      // 2) só mapa
-      if (fromMap) return { value: fromMap, source: "map" };
-      // 3) médico tem só uma especialidade
+      if (fromSheet) return { value: fromSheet, source: "planilha" };
+
+      const docList = doctorSpecsByName[String(it.doctor_name ?? "").trim()] ?? [];
       if (docList.length === 1) return { value: docList[0], source: "doctor" };
-      // 4) fallback: especialidade dominante do lote/empresa (>51%)
-      if (dominantSpecialty) return { value: dominantSpecialty, source: "lote_dominante" };
-      // 5) nada
+      if (docList.length > 1) {
+        // Médico com múltiplas especialidades e planilha vazia → ambíguo.
+        // Preferimos null + alerta a escolher arbitrariamente.
+        return { value: null, source: "doctor_ambiguous" };
+      }
       return { value: null, source: "none" };
     };
+
 
     const items: ItemInput[] = (itemsRaw ?? []).map((it: any) => {
       const code = (it.procedure_code ?? "").toString().trim();
