@@ -1137,7 +1137,7 @@ function CompanyDrill({
   return (
     <div>
       <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-        Quebra por empresa <span className="font-normal normal-case text-muted-foreground/80">· clique para focar a empresa no gráfico</span>
+        Quebra por empresa <span className="font-normal normal-case text-muted-foreground/80">· clique para abrir a evolução em modo foco</span>
       </div>
       <div className="space-y-1">
         {companies.map((c) => {
