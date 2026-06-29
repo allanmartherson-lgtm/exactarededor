@@ -1852,6 +1852,19 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
       return { ok: false, reason: "setor" };
     }
   }
+  // Especialidade — exceção à regra "especialidade é só relatório": quando o
+  // analista declara `specialties[]` no cálculo (ex.: tabela de consultas
+  // tarifada por especialidade), passa a filtrar match. Vazio = sem filtro,
+  // preservando o comportamento histórico para regras de cirurgia/hemo.
+  const cSpecs = Array.isArray(c.specialties) ? c.specialties.filter(Boolean) : [];
+  if (cSpecs.length > 0) {
+    const itemSpec = normName(String(item.specialty ?? ""));
+    if (!itemSpec) return { ok: false, reason: "especialidade_nao_informada" };
+    const normSpecs = cSpecs.map((s) => normName(String(s)));
+    if (!normSpecs.includes(itemSpec)) {
+      return { ok: false, reason: `especialidade (item: ${itemSpec})` };
+    }
+  }
   // Via de acesso
   if (!ruleAcceptsAccessRoute(c, item)) {
     return { ok: false, reason: "via_de_acesso" };
