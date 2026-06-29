@@ -698,41 +698,57 @@ export default function PaymentEvolution() {
                   const label = ccDisplay(r.cc).label;
                   const isFocused = focusedLine === label;
                   const isDimmed = focusedLine !== null && !isFocused;
+                  const color = PALETTE[i % PALETTE.length];
+                  const toggle = () =>
+                    setFocusedLine((prev) => (prev === label ? null : label));
                   return (
-                    <Line
-                      key={r.cc}
-                      type="monotone"
-                      dataKey={label}
-                      stroke={PALETTE[i % PALETTE.length]}
-                      strokeWidth={isFocused ? 3.5 : isDimmed ? 1.5 : 2}
-                      strokeOpacity={isDimmed ? 0.18 : 1}
-                      dot={{ r: isFocused ? 4 : 3, opacity: isDimmed ? 0.25 : 1 }}
-                      activeDot={{ r: 6 }}
-                      style={{ cursor: "pointer" }}
-                      onClick={() =>
-                        setFocusedLine((prev) => (prev === label ? null : label))
-                      }
-                      isAnimationActive={false}
-                    >
-                      <LabelList
+                    <Fragment key={r.cc}>
+                      {/* Hit-area invisível para facilitar o clique na linha */}
+                      <Line
+                        type="monotone"
                         dataKey={label}
-                        position="top"
-                        offset={8}
-                        style={{
-                          fontSize: 10,
-                          fill: PALETTE[i % PALETTE.length],
-                          fontWeight: 600,
-                          opacity: isDimmed ? 0.25 : 1,
-                        }}
-                        formatter={(v: any) => {
-                          const n = Number(v);
-                          if (!n) return "";
-                          if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-                          if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
-                          return String(n);
-                        }}
+                        stroke={color}
+                        strokeWidth={16}
+                        strokeOpacity={0}
+                        dot={false}
+                        activeDot={false}
+                        legendType="none"
+                        tooltipType="none"
+                        style={{ cursor: "pointer" }}
+                        onClick={toggle}
+                        isAnimationActive={false}
                       />
-                    </Line>
+                      <Line
+                        type="monotone"
+                        dataKey={label}
+                        stroke={color}
+                        strokeWidth={isFocused ? 3.5 : isDimmed ? 1.5 : 2}
+                        strokeOpacity={isDimmed ? 0.18 : 1}
+                        dot={{ r: isFocused ? 4 : 3, opacity: isDimmed ? 0.25 : 1 }}
+                        activeDot={{ r: 6, style: { cursor: "pointer" }, onClick: toggle }}
+                        style={{ cursor: "pointer", pointerEvents: "none" }}
+                        isAnimationActive={false}
+                      >
+                        <LabelList
+                          dataKey={label}
+                          position="top"
+                          offset={8}
+                          style={{
+                            fontSize: 10,
+                            fill: color,
+                            fontWeight: 600,
+                            opacity: isDimmed ? 0.25 : 1,
+                          }}
+                          formatter={(v: any) => {
+                            const n = Number(v);
+                            if (!n) return "";
+                            if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+                            if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+                            return String(n);
+                          }}
+                        />
+                      </Line>
+                    </Fragment>
                   );
                 })}
               </LineChart>
