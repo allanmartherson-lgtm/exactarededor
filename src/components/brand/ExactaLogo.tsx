@@ -68,13 +68,17 @@ export const ExactaLogo = ({
               style={{
                 fontSize: Math.max(9, Math.round(resolvedWordmarkSize * 0.42)),
                 textTransform: "uppercase",
-                letterSpacing: "0.18em",
+                letterSpacing: "0.14em",
                 color: taglineColor,
                 marginTop: 4,
                 marginBottom: 0,
                 lineHeight: 1.2,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                maxWidth: "100%",
               }}
+              title="Pagamento Médico · Rede D'Or"
             >
               Pagamento Médico · Rede D'Or
             </p>

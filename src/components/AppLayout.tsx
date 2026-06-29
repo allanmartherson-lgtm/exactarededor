@@ -1069,7 +1069,11 @@ export const AppLayout = () => {
             gap: 8,
           }}
         >
-          {!sidebarCollapsed && <Logo />}
+          {!sidebarCollapsed && (
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <Logo />
+            </div>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
