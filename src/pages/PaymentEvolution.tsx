@@ -683,27 +683,14 @@ export default function PaymentEvolution() {
           <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                {focusedCompany
-                  ? `Foco: ${focusedCompany.name}`
-                  : "Série temporal — Top 5 centros de custo"}
+                Série temporal — Top 5 centros de custo
               </h2>
               <p className="text-[11px] text-muted-foreground mt-1">
-                {focusedCompany
-                  ? `Evolução mensal dentro de ${ccDisplay(focusedCompany.cc).label}.`
-                  : "Clique no chip para focar uma linha. Use o × ao lado para ocultar e reescalar o eixo."}
+                Clique no chip para focar uma linha. Use o × ao lado para ocultar e reescalar o eixo.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {focusedCompany && (
-                <button
-                  type="button"
-                  onClick={() => setFocusedCompany(null)}
-                  className="text-xs font-medium text-primary hover:underline underline-offset-2"
-                >
-                  ← Voltar para top 5
-                </button>
-              )}
-              {!focusedCompany && hiddenLines.size > 0 && (
+              {hiddenLines.size > 0 && (
                 <button
                   type="button"
                   onClick={() => setHiddenLines(new Set())}
@@ -712,7 +699,7 @@ export default function PaymentEvolution() {
                   Mostrar todos ({hiddenLines.size} ocultos)
                 </button>
               )}
-              {!focusedCompany && focusedLine && (
+              {focusedLine && (
                 <button
                   type="button"
                   onClick={() => setFocusedLine(null)}
@@ -726,7 +713,7 @@ export default function PaymentEvolution() {
 
 
           {/* Chips de série: clique = foco, × = ocultar */}
-          {!focusedCompany && top5.length > 0 && (
+          {top5.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5">
               {top5.map((r, i) => {
                 const label = ccDisplay(r.cc).label;
@@ -796,66 +783,12 @@ export default function PaymentEvolution() {
             </div>
           )}
 
-          {focusedCompany && (
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border-2 pl-2.5 pr-3 py-1 text-xs"
-                 style={{ borderColor: PALETTE[0], background: `${PALETTE[0]}14` }}>
-              <span className="inline-block h-2 w-2 rounded-full" style={{ background: PALETTE[0] }} />
-              <span className="font-medium" style={{ color: PALETTE[0] }}>{focusedCompany.name}</span>
-              <span className="text-muted-foreground">em {ccDisplay(focusedCompany.cc).label}</span>
-            </div>
-          )}
-
-
           {loading ? (
             <Skeleton className="h-72 w-full" />
           ) : chartData.length === 0 ? (
             <div className="h-72 grid place-items-center text-sm text-muted-foreground">
               Sem dados no período.
             </div>
-          ) : focusedCompany && companyChartData ? (
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={companyChartData} margin={{ top: 24, right: 16, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
-                />
-                <Tooltip
-                  formatter={(v: any) => BRL2(Number(v))}
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  name={focusedCompany.name}
-                  stroke={PALETTE[0]}
-                  strokeWidth={3}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                  isAnimationActive={false}
-                >
-                  <LabelList
-                    dataKey="value"
-                    position="top"
-                    offset={8}
-                    style={{ fontSize: 10, fill: PALETTE[0], fontWeight: 600 }}
-                    formatter={(v: any) => {
-                      const n = Number(v);
-                      if (!n) return "";
-                      if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-                      if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
-                      return String(n);
-                    }}
-                  />
-                </Line>
-              </LineChart>
-            </ResponsiveContainer>
           ) : (
             <ResponsiveContainer width="100%" height={320}>
               <LineChart data={chartData} margin={{ top: 24, right: 16, left: 0, bottom: 8 }}>
@@ -936,6 +869,7 @@ export default function PaymentEvolution() {
             </ResponsiveContainer>
           )}
         </div>
+
 
 
 
