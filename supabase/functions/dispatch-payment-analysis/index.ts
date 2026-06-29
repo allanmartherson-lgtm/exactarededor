@@ -325,6 +325,24 @@ Deno.serve(async (req) => {
     }
 
 
+    // Phase 2 lote misto: auto-classifica payment_type_id por item ANTES do
+    // orquestrador, para que o motor já calcule as regras com o tipo correto.
+    // Mantém override manual e cruzamento de parecer (gates do edge).
+    try {
+      const acResp = await fetch(`${SUPABASE_URL}/functions/v1/auto-classify-payment-types`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+        body: JSON.stringify({ payment_id }),
+      });
+      if (!acResp.ok) {
+        console.warn("[dispatch] auto-classify falhou", acResp.status, (await acResp.text()).slice(0, 300));
+      } else {
+        const acJson = await acResp.json();
+        console.log(`[dispatch] auto-classify ok auto_tuss=${acJson?.auto_tuss} auto_heuristic=${acJson?.auto_heuristic}`);
+      }
+    } catch (acErr) {
+      console.warn("[dispatch] auto-classify erro:", (acErr as any)?.message ?? acErr);
+    }
 
     // Delega orquestração para `orchestrate-analysis` (página 0).
     // Fire-and-forget: dispatch retorna imediatamente sem aguardar.
