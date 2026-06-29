@@ -622,7 +622,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     // e `resolveMedicalSpecialty` devolve null mesmo quando o médico tem
     // especialidade única cadastrada — fazendo cálculos com match_by_specialty
     // serem rejeitados por "especialidade_nao_informada".
-    const normDocKey = (s: string) => s.trim().toLowerCase();
+    // normDocKey importado de _shared/specialtyResolver.ts
     const doctorNamesNorm = Array.from(new Set(
       (itemsRaw ?? [])
         .map((it: any) => String(it.doctor_name ?? "").trim())
