@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Plus, Trash2, ChevronDown, ChevronRight, Package, Copy } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, Package, Copy, Sparkles } from "lucide-react";
+import { ImportCalculationsDialog } from "./ImportCalculationsDialog";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
@@ -237,6 +238,7 @@ export type RuleCalculationsEditorProps = {
  */
 export function RuleCalculationsEditor({ value, onChange, refTables, specialCaseTypes = [], paymentTypes = [], enabled }: RuleCalculationsEditorProps) {
   const crossErrorsByIndex = useMemo(() => calcCrossItemErrorMessages(value), [value]);
+  const [importOpen, setImportOpen] = useState(false);
 
   const update = (i: number, patch: Partial<CalcItem>) => {
     const next = value.slice();
@@ -290,15 +292,38 @@ export function RuleCalculationsEditor({ value, onChange, refTables, specialCase
           onDuplicate={() => duplicate(i)}
         />
       ))}
-      <Button type="button" variant="outline" size="sm" onClick={add} className="w-full">
-        <Plus className="h-4 w-4 mr-1" /> Adicionar cálculo
-      </Button>
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={add} className="flex-1">
+          <Plus className="h-4 w-4 mr-1" /> Adicionar cálculo
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setImportOpen(true)} className="flex-1">
+          <Sparkles className="h-4 w-4 mr-1" /> Importar cálculos com IA
+        </Button>
+      </div>
       {value.length > 1 && (
         <p className="text-[11px] text-muted-foreground">
           Quando há mais de um cálculo, o motor avalia cada um independentemente
           e <strong>soma</strong> os valores dos cálculos cujas condições baterem.
         </p>
       )}
+      <ImportCalculationsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        paymentTypes={paymentTypes}
+        onImport={(news) => {
+          // Append: pré-visualização já filtrou; mantemos os existentes e
+          // adicionamos os novos no final para o analista revisar/ajustar.
+          // Se o único cálculo atual ainda é o "vazio" default (informativo
+          // sem qualquer dado), substituímos para não poluir a lista.
+          const onlyEmpty = value.length === 1
+            && value[0].calculation_type === "informativo"
+            && !value[0].label
+            && !value[0].fixed_amount
+            && value[0].procedure_codes.length === 0
+            && value[0].specialties.length === 0;
+          onChange(onlyEmpty ? news : [...value, ...news]);
+        }}
+      />
     </div>
   );
 }
