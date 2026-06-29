@@ -1250,6 +1250,7 @@ Deno.serve(async (req) => {
         has_payment_context: !!body.payment_id,
         learned_preferences: learnedPrefs,
         route_context: routeContext,
+        screen_context: body.screen_context ?? null,
       });
 
       // Ações sem mutação — devolve direto pro cliente aplicar.
