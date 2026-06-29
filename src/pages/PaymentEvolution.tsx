@@ -694,7 +694,16 @@ export default function PaymentEvolution() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {hiddenLines.size > 0 && (
+              {focusedCompany && (
+                <button
+                  type="button"
+                  onClick={() => setFocusedCompany(null)}
+                  className="text-xs font-medium text-primary hover:underline underline-offset-2"
+                >
+                  ← Voltar para top 5
+                </button>
+              )}
+              {!focusedCompany && hiddenLines.size > 0 && (
                 <button
                   type="button"
                   onClick={() => setHiddenLines(new Set())}
@@ -703,7 +712,7 @@ export default function PaymentEvolution() {
                   Mostrar todos ({hiddenLines.size} ocultos)
                 </button>
               )}
-              {focusedLine && (
+              {!focusedCompany && focusedLine && (
                 <button
                   type="button"
                   onClick={() => setFocusedLine(null)}
@@ -714,6 +723,7 @@ export default function PaymentEvolution() {
               )}
             </div>
           </div>
+
 
           {/* Chips de série: clique = foco, × = ocultar */}
           {top5.length > 0 && (
