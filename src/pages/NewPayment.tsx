@@ -2028,10 +2028,14 @@ const NewPayment = () => {
     }
 
     // 4) Mapeamento incompleto
+    // Importante: passar paymentTypeMeta para summarizeMissing — sem isso,
+    // procedure_code/doctor_role contam como faltando mesmo quando o tipo
+    // injeta TUSS/função default (ex.: Consulta com TUSS 10101012, Clínico),
+    // gerando alerta "X faltando" depois que o usuário já mapeou tudo no modal.
     const mappingProblems = buckets
       .map((b, idx) => {
         const hits = b.mappingHits ?? [];
-        const summary = hits.length ? summarizeMissing(hits) : { missingRequired: [], lowConfidence: [] };
+        const summary = hits.length ? summarizeMissing(hits, paymentTypeMeta) : { missingRequired: [], lowConfidence: [] };
         return { idx, name: b.file.name, missing: summary.missingRequired.length, low: summary.lowConfidence.length };
       })
       .filter((m) => m.missing > 0);
