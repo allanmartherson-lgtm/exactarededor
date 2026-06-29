@@ -851,6 +851,18 @@ export default function CompanyAnalysis() {
         ? await waitForJobCompletion(jobId, 120_000, startedAt)
         : await waitForProcessingCompletion(id, startedAt, 120_000);
 
+      // Etapa 2.5 — Aguarda finalize-payment-engine (deduções, glosas, garantia
+      // mínima, retroatividade). Sem isto, o diálogo fechava antes do pipeline
+      // de ajustes tocar nos itens e a UI mostrava expected/gross antigos por
+      // mais alguns segundos — o analista percebia "esperado mudou sozinho
+      // depois". finalize é fire-and-forget após o job concluir; gravamos
+      // updated_at em payment_engine_sources a cada fonte aplicada, então
+      // basta detectar atualização recente + janela de estabilidade.
+      if (done) {
+        setReapplyStep("ajustes_finais");
+        await waitForFinalizeStability(id, startedAt, 45_000);
+      }
+
       // Etapa 3 — Persistir/ler de volta os itens.
       setReapplyStep("persistir_itens");
 
@@ -979,6 +991,57 @@ export default function CompanyAnalysis() {
     }
     return false;
   };
+
+  /**
+   * Aguarda o pipeline `finalize-payment-engine` aplicar deduções, glosas,
+   * garantia mínima e reconciliação retroativa após o motor de regras. Esse
+   * pipeline é disparado fire-and-forget pelo orchestrate-analysis quando o
+   * job conclui e pode levar 10–60s (sobretudo sob rate-limit). Sem este wait,
+   * o diálogo "Reanálise concluída" fechava antes do finalize tocar nos itens
+   * e a UI mostrava expected/gross intermediários — o analista percebia que
+   * a coluna esperado/pago "mudava sozinha" segundos depois.
+   *
+   * Estratégia: poll em payment_engine_sources.updated_at; declaramos finalize
+   * estável quando o MAX(updated_at) parou de avançar por `stabilityMs`. Se
+   * nenhuma fonte for atualizada após `since`, encerra cedo (provável caso
+   * sem deduções aplicáveis a este lote).
+   */
+  const waitForFinalizeStability = async (
+    paymentId: string,
+    since: number,
+    timeoutMs = 45_000,
+    stabilityMs = 4_000,
+  ): Promise<void> => {
+    const deadline = Date.now() + timeoutMs;
+    let lastMax = 0;
+    let lastChangeAt = Date.now();
+    let sawActivity = false;
+    // grace inicial: dá tempo do orchestrator disparar a função
+    const earlyExitAt = Date.now() + 8_000;
+    while (Date.now() < deadline) {
+      try {
+        const { data } = await supabase
+          .from("payment_engine_sources")
+          .select("updated_at")
+          .eq("payment_id", paymentId)
+          .order("updated_at", { ascending: false })
+          .limit(1);
+        const top = (data ?? [])[0]?.updated_at;
+        const cur = top ? new Date(top).getTime() : 0;
+        if (cur > lastMax) {
+          lastMax = cur;
+          lastChangeAt = Date.now();
+          if (cur >= since - 2_000) sawActivity = true;
+        }
+        if (sawActivity && Date.now() - lastChangeAt >= stabilityMs) return;
+        if (!sawActivity && Date.now() > earlyExitAt) return; // nada a fazer
+      } catch {
+        // ignora e continua
+      }
+      await new Promise((r) => setTimeout(r, 1_500));
+    }
+  };
+
 
   const sendForValidation = async () => {
     if (!id || !group) return;
