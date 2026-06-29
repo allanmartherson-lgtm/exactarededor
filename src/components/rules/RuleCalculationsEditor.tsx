@@ -296,6 +296,7 @@ export function RuleCalculationsEditor({ value, onChange, refTables, specialCase
           onChange={(patch) => update(i, patch)}
           onRemove={() => remove(i)}
           onDuplicate={() => duplicate(i)}
+          extras={renderCalcExtras?.(c, i)}
         />
       ))}
       <div className="flex gap-2">
