@@ -20,13 +20,17 @@ import { useAmbiguousTussCount } from "@/components/payment-wizard/MixedParecerS
  */
 export function MixedParecerRetroAction({
   paymentId,
+  paymentTypeId,
   paymentTypeCode,
+  paymentTypeCategory,
   competenceMonths,
   hasMixedParecer,
   onApplied,
 }: {
   paymentId: string;
+  paymentTypeId?: string | null;
   paymentTypeCode?: string | null;
+  paymentTypeCategory?: string | null;
   competenceMonths: string[];
   hasMixedParecer: boolean;
   onApplied?: () => void;
@@ -46,9 +50,19 @@ export function MixedParecerRetroAction({
     }
   }, [parecerSubtypes.length, parecerTypeId]);
 
-  // Esconde se o lote já é parecer/visita (esses cruzam por padrão)
+  // Esconde se o lote já é parecer/visita/consulta (esses cruzam por padrão e
+  // não fazem sentido como "lote misto de parecer"). Cobre tanto pelo `code`
+  // quanto pela `category` do payment_type — alguns tenants usam códigos
+  // customizados (ex.: "parecer_adulto") e outros se baseiam só na categoria.
+  // Também esconde enquanto o meta ainda não carregou para evitar flash.
   const code = (paymentTypeCode ?? "").toLowerCase();
-  if (code.startsWith("parecer") || code === "visita") return null;
+  const cat = (paymentTypeCategory ?? "").toLowerCase();
+  if (paymentTypeId && !paymentTypeCode && !paymentTypeCategory) return null;
+  if (
+    code.startsWith("parecer") || code === "visita" || code === "consulta" ||
+    cat === "parecer" || cat === "visita" || cat === "consulta"
+  ) return null;
+
 
   const submit = async () => {
     if (!enabled) {

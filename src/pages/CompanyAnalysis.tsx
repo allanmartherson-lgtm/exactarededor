@@ -2447,12 +2447,15 @@ export default function CompanyAnalysis() {
       {!isConfeccao && !isManual && (
         <MixedParecerRetroAction
           paymentId={id!}
+          paymentTypeId={(payment as any)?.payment_type_id ?? null}
           paymentTypeCode={paymentTypeMeta?.code ?? null}
+          paymentTypeCategory={paymentTypeMeta?.category ?? null}
           competenceMonths={((payment as any)?.competence_months ?? []).map((d: string) => d.slice(0, 7))}
           hasMixedParecer={hasMixedParecer}
           onApplied={() => window.location.reload()}
         />
       )}
+
 
       {id && group?.company_id && (
         <MinimumGuaranteeCard
