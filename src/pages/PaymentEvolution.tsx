@@ -679,14 +679,18 @@ export default function PaymentEvolution() {
           />
         </div>
 
-        <div className="rounded-2xl border bg-card p-6">
+        <div id="evolucao-chart" className="rounded-2xl border bg-card p-6 scroll-mt-4">
           <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Série temporal — Top 5 centros de custo
+                {focusedCompany
+                  ? `Foco: ${focusedCompany.name}`
+                  : "Série temporal — Top 5 centros de custo"}
               </h2>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Clique no chip para focar uma linha. Use o × ao lado para ocultar e reescalar o eixo.
+                {focusedCompany
+                  ? `Evolução mensal dentro de ${ccDisplay(focusedCompany.cc).label}.`
+                  : "Clique no chip para focar uma linha. Use o × ao lado para ocultar e reescalar o eixo."}
               </p>
             </div>
             <div className="flex items-center gap-2">
