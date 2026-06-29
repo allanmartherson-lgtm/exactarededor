@@ -13,6 +13,7 @@ export type PaymentTypeMappingMeta = {
   id: string;
   code: string;
   label: string;
+  category: string | null;
   tuss_default: string | null;
   requires_tuss_in_sheet: boolean;
   default_function: string | null;
@@ -26,7 +27,7 @@ export function usePaymentTypeMeta(paymentTypeId: string | null | undefined): Pa
     (async () => {
       const { data } = await supabase
         .from("payment_types")
-        .select("id,code,label,tuss_default,requires_tuss_in_sheet,default_function")
+        .select("id,code,label,category,tuss_default,requires_tuss_in_sheet,default_function")
         .eq("id", paymentTypeId)
         .maybeSingle();
       if (cancelled || !data) return;
@@ -34,6 +35,7 @@ export function usePaymentTypeMeta(paymentTypeId: string | null | undefined): Pa
         id: (data as any).id,
         code: (data as any).code,
         label: (data as any).label,
+        category: (data as any).category ?? null,
         tuss_default: (data as any).tuss_default ?? null,
         requires_tuss_in_sheet: (data as any).requires_tuss_in_sheet ?? true,
         default_function: (data as any).default_function ?? null,
@@ -43,3 +45,4 @@ export function usePaymentTypeMeta(paymentTypeId: string | null | undefined): Pa
   }, [paymentTypeId]);
   return meta;
 }
+
