@@ -1032,9 +1032,93 @@ export default function PaymentEvolution() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modo foco: evolução da empresa dentro do CC */}
+      <Dialog open={!!focusedCompany} onOpenChange={(o) => !o && setFocusedCompany(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: PALETTE[0] }} />
+              {focusedCompany?.name}
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              Evolução mensal em <span className="font-medium">{focusedCompany ? ccDisplay(focusedCompany.cc).label : ""}</span>
+              {" · "}{mode === "competencia" ? "por competência" : "por caixa"}
+            </p>
+          </DialogHeader>
+          {focusedCompany && companyChartData && (() => {
+            const total = companyChartData.reduce((s, d) => s + d.value, 0);
+            const last = companyChartData[lastClosedIdx]?.value ?? 0;
+            const prev = prevClosedIdx >= 0 ? (companyChartData[prevClosedIdx]?.value ?? 0) : 0;
+            const delta = prev > 0 ? ((last - prev) / prev) * 100 : last > 0 ? 100 : 0;
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg border p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total no período</div>
+                    <div className="text-lg font-semibold tabular-nums">{BRL(total)}</div>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{monthLabel(lastMonth)}</div>
+                    <div className="text-lg font-semibold tabular-nums">{BRL(last)}</div>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Δ MoM</div>
+                    <div className={cn("text-lg font-semibold tabular-nums", delta >= 0 ? "text-success" : "text-destructive")}>{PCT(delta)}</div>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={companyChartData} margin={{ top: 24, right: 16, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <YAxis
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
+                    />
+                    <Tooltip
+                      formatter={(v: any) => BRL2(Number(v))}
+                      contentStyle={{
+                        background: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      name={focusedCompany.name}
+                      stroke={PALETTE[0]}
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                      isAnimationActive={false}
+                    >
+                      <LabelList
+                        dataKey="value"
+                        position="top"
+                        offset={8}
+                        style={{ fontSize: 10, fill: PALETTE[0], fontWeight: 600 }}
+                        formatter={(v: any) => {
+                          const n = Number(v);
+                          if (!n) return "";
+                          if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+                          if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+                          return String(n);
+                        }}
+                      />
+                    </Line>
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function CompanyDrill({
   companies,
