@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type NavLayout = "top" | "side";
 
 const STORAGE_KEY = "nav-layout";
+const userKey = (userId: string) => `nav-layout:${userId}`;
 
 interface NavLayoutContextValue {
   layout: NavLayout;
@@ -13,67 +14,107 @@ interface NavLayoutContextValue {
 
 const NavLayoutContext = createContext<NavLayoutContextValue | undefined>(undefined);
 
+function readLayout(key: string): NavLayout | null {
+  if (typeof window === "undefined") return null;
+  const v = window.localStorage.getItem(key);
+  return v === "top" || v === "side" ? v : null;
+}
+
 function getInitialLayout(): NavLayout {
-  if (typeof window === "undefined") return "side";
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === "top" ? "top" : "side";
+  return readLayout(STORAGE_KEY) ?? "side";
 }
 
 export const NavLayoutProvider = ({ children }: { children: ReactNode }) => {
   const [layout, setLayoutState] = useState<NavLayout>(getInitialLayout);
-  // Evita gravar no banco antes de termos carregado a preferência do usuário.
   const hydratedFromDb = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
-  // Aplica no <html> + localStorage sempre que mudar.
+  // Aplica no <html> + localStorage (global e por-usuário) sempre que mudar.
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.navLayout = layout;
-    window.localStorage.setItem(STORAGE_KEY, layout);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, layout);
+      const uid = currentUserIdRef.current;
+      if (uid) window.localStorage.setItem(userKey(uid), layout);
+    } catch {
+      // ignore
+    }
   }, [layout]);
 
-  // 1) Hidrata do profiles.preferences.nav_layout (sincroniza entre dispositivos).
+  // Hidrata da preferência salva: cache por-usuário (instantâneo) e DB (autoridade).
+  const hydrateForUser = async (userId: string) => {
+    currentUserIdRef.current = userId;
+
+    // 1) Aplicação instantânea via cache por-usuário (evita flicker no refresh/login)
+    const cached = readLayout(userKey(userId));
+    if (cached) setLayoutState(cached);
+
+    // 2) Reconcilia com o banco (fonte da verdade, sincroniza entre dispositivos)
+    const { data } = await supabase
+      .from("profiles")
+      .select("preferences")
+      .eq("id", userId)
+      .maybeSingle();
+    const prefs = (data?.preferences ?? {}) as { nav_layout?: NavLayout };
+    if (prefs.nav_layout === "top" || prefs.nav_layout === "side") {
+      setLayoutState(prefs.nav_layout);
+      try {
+        window.localStorage.setItem(userKey(userId), prefs.nav_layout);
+      } catch {
+        // ignore
+      }
+    }
+    hydratedFromDb.current = true;
+  };
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const { data: auth } = await supabase.auth.getUser();
-      const userId = auth?.user?.id;
-      if (!userId) {
+      const uid = auth?.user?.id;
+      if (cancelled) return;
+      if (uid) {
+        await hydrateForUser(uid);
+      } else {
+        hydratedFromDb.current = true;
+      }
+    })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+      const uid = sess?.user?.id ?? null;
+      if (event === "SIGNED_OUT" || !uid) {
+        currentUserIdRef.current = null;
         hydratedFromDb.current = true;
         return;
       }
-      const { data } = await supabase
-        .from("profiles")
-        .select("preferences")
-        .eq("id", userId)
-        .maybeSingle();
-      if (cancelled) return;
-      const prefs = (data?.preferences ?? {}) as { nav_layout?: NavLayout };
-      if (prefs.nav_layout === "top" || prefs.nav_layout === "side") {
-        setLayoutState(prefs.nav_layout);
+      if (currentUserIdRef.current !== uid) {
+        hydratedFromDb.current = false;
+        void hydrateForUser(uid);
       }
-      hydratedFromDb.current = true;
-    })();
+    });
+
     return () => {
       cancelled = true;
+      sub.subscription.unsubscribe();
     };
   }, []);
 
-  // 2) Persiste mudanças no banco (apenas depois da hidratação inicial).
+  // Persiste mudanças no banco (apenas depois da hidratação inicial).
   useEffect(() => {
     if (!hydratedFromDb.current) return;
+    const uid = currentUserIdRef.current;
+    if (!uid) return;
     let cancelled = false;
     (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const userId = auth?.user?.id;
-      if (!userId || cancelled) return;
       const { data: cur } = await supabase
         .from("profiles")
         .select("preferences")
-        .eq("id", userId)
+        .eq("id", uid)
         .maybeSingle();
       if (cancelled) return;
       const merged = { ...((cur?.preferences ?? {}) as Record<string, unknown>), nav_layout: layout };
-      await supabase.from("profiles").update({ preferences: merged }).eq("id", userId);
+      await supabase.from("profiles").update({ preferences: merged }).eq("id", uid);
     })();
     return () => {
       cancelled = true;
