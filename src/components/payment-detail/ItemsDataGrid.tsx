@@ -817,26 +817,96 @@ export function ItemsDataGrid({
   const expectedColWidth = isConfeccao ? 160 : 110;
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
   const DENSITY_PREFS_KEY = `${storageKey}.density.v1`;
+  const FILTERS_PREFS_KEY = `${storageKey}.filters.v1`;
+
+  // Carrega prefs de filtros persistidas (por storageKey). Limpas via "Limpar filtros".
+  const persistedFilters = useMemo(() => {
+    if (typeof window === "undefined") return {} as Record<string, unknown>;
+    try {
+      const raw = window.localStorage.getItem(FILTERS_PREFS_KEY);
+      return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const pf = persistedFilters as {
+    filter?: string;
+    patientFilter?: string;
+    doctorFilter?: string;
+    statusFilter?: string;
+    convenioFilter?: string;
+    onlyAlerts?: boolean;
+    onlyManualBonus?: boolean;
+    onlyNeedsReview?: boolean;
+    onlyValidationAlerts?: boolean;
+    onlyAdjusted?: boolean;
+    parecerFilter?: "__all__" | "missing" | "weak";
+    onlyZero?: boolean;
+    onlySemRegra?: boolean;
+  };
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const [filter, setFilter] = useState("");
-  const [patientFilter, setPatientFilter] = useState("");
-  const [doctorFilter, setDoctorFilter] = useState<string>("__all__");
-  const [statusFilter, setStatusFilter] = useState<string>("__all__");
-  const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
-  const [onlyAlerts, setOnlyAlerts] = useState(false);
-  const [onlyManualBonus, setOnlyManualBonus] = useState(false);
-  const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
-  const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
-  const [onlyAdjusted, setOnlyAdjusted] = useState(false);
-  const [parecerFilter, setParecerFilter] = useState<"__all__" | "missing" | "weak">("__all__");
+  const [filter, setFilter] = useState(pf.filter ?? "");
+  const [patientFilter, setPatientFilter] = useState(pf.patientFilter ?? "");
+  const [doctorFilter, setDoctorFilter] = useState<string>(pf.doctorFilter ?? "__all__");
+  const [statusFilter, setStatusFilter] = useState<string>(pf.statusFilter ?? "__all__");
+  const [convenioFilter, setConvenioFilter] = useState<string>(pf.convenioFilter ?? "__all__");
+  const [onlyAlerts, setOnlyAlerts] = useState(pf.onlyAlerts ?? false);
+  const [onlyManualBonus, setOnlyManualBonus] = useState(pf.onlyManualBonus ?? false);
+  const [onlyNeedsReview, setOnlyNeedsReview] = useState(pf.onlyNeedsReview ?? false);
+  const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(pf.onlyValidationAlerts ?? false);
+  const [onlyAdjusted, setOnlyAdjusted] = useState(pf.onlyAdjusted ?? false);
+  const [parecerFilter, setParecerFilter] = useState<"__all__" | "missing" | "weak">(pf.parecerFilter ?? "__all__");
   // Filtros disparados pelo Zeev (event bus global). Limpos via "Limpar filtros".
-  const [onlyZero, setOnlyZero] = useState(false);
-  const [onlySemRegra, setOnlySemRegra] = useState(false);
+  const [onlyZero, setOnlyZero] = useState(pf.onlyZero ?? false);
+  const [onlySemRegra, setOnlySemRegra] = useState(pf.onlySemRegra ?? false);
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
+
+  // Persiste filtros sempre que mudarem (debounce simples via microtask).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        FILTERS_PREFS_KEY,
+        JSON.stringify({
+          filter,
+          patientFilter,
+          doctorFilter,
+          statusFilter,
+          convenioFilter,
+          onlyAlerts,
+          onlyManualBonus,
+          onlyNeedsReview,
+          onlyValidationAlerts,
+          onlyAdjusted,
+          parecerFilter,
+          onlyZero,
+          onlySemRegra,
+        }),
+      );
+    } catch {
+      /* ignore quota */
+    }
+  }, [
+    FILTERS_PREFS_KEY,
+    filter,
+    patientFilter,
+    doctorFilter,
+    statusFilter,
+    convenioFilter,
+    onlyAlerts,
+    onlyManualBonus,
+    onlyNeedsReview,
+    onlyValidationAlerts,
+    onlyAdjusted,
+    parecerFilter,
+    onlyZero,
+    onlySemRegra,
+  ]);
 
   // Tipos de pagamento usados pela reclassificação Visita × Parecer dentro do lote.
   // O tipo do lote (geralmente Parecer Adulto/Pediátrico) é lido do primeiro item;
