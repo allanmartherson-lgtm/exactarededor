@@ -1660,10 +1660,11 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
         continue;
       }
 
-      // 2) Save via RPC (batch não aplica correções — pula em conflito)
+      // 2) Save via RPC — inclui cálculos vindos da IA (consolidados em 1 regra).
+      const draftCalcs = (d.calculations ?? []).map((c, idx) => ({ ...c, sort_order: idx }));
       const { data, error } = await supabase.rpc("apply_rule_save_with_corrections", {
         _rule_data: ruleData as any,
-        _calculations: [] as any,
+        _calculations: draftCalcs as any,
         _corrections: [] as any,
       });
       if (error) {
