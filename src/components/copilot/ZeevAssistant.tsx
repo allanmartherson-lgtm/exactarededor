@@ -667,6 +667,8 @@ export function ZeevAssistant({
                 <ZeevExecutorChat
                   key={chatInitialPrompt?.nonce ?? "default"}
                   paymentId={bulkContext?.paymentId ?? null}
+                  companyGroupId={bulkContext?.companyGroupId ?? null}
+                  companyName={bulkContext?.companyName ?? null}
                   initialPrompt={chatInitialPrompt?.text}
                   onApplied={onBulkApplied}
                   onApplyFilter={onApplyFilter}
