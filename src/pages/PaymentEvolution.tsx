@@ -138,6 +138,7 @@ export default function PaymentEvolution() {
   const [drillCompanies, setDrillCompanies] = useState<Record<string, CompanyGroupRow[]>>({});
   const [drillLoading, setDrillLoading] = useState(false);
   const [dialogCc, setDialogCc] = useState<{ code: string; month: string } | null>(null);
+  const [focusedLine, setFocusedLine] = useState<string | null>(null);
   // Mês ancorador para "Último mês" / Variação MoM. "auto" = último fechado (não-corrente).
   const [anchorMonth, setAnchorMonth] = useState<string>("auto");
 
@@ -646,12 +647,20 @@ export default function PaymentEvolution() {
           />
         </div>
 
-        {/* Chart */}
         <div className="rounded-2xl border bg-card p-6">
-          <div className="mb-4">
+          <div className="mb-4 flex items-start justify-between gap-3">
             <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               Série temporal — Top 5 centros de custo
             </h2>
+            {focusedLine && (
+              <button
+                type="button"
+                onClick={() => setFocusedLine(null)}
+                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+              >
+                Limpar foco ({focusedLine})
+              </button>
+            )}
           </div>
           {loading ? (
             <Skeleton className="h-72 w-full" />
@@ -677,35 +686,60 @@ export default function PaymentEvolution() {
                     fontSize: 12,
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                {top5.map((r, i) => (
-                  <Line
-                    key={r.cc}
-                    type="monotone"
-                    dataKey={ccDisplay(r.cc).label}
-                    stroke={PALETTE[i % PALETTE.length]}
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  >
-                    <LabelList
-                      dataKey={ccDisplay(r.cc).label}
-                      position="top"
-                      offset={8}
-                      style={{ fontSize: 10, fill: PALETTE[i % PALETTE.length], fontWeight: 600 }}
-                      formatter={(v: any) => {
-                        const n = Number(v);
-                        if (!n) return "";
-                        if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-                        if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
-                        return String(n);
-                      }}
-                    />
-                  </Line>
-                ))}
+                <Legend
+                  wrapperStyle={{ fontSize: 12, cursor: "pointer" }}
+                  onClick={(e: any) => {
+                    const label = e?.dataKey ?? e?.value;
+                    if (!label) return;
+                    setFocusedLine((prev) => (prev === label ? null : label));
+                  }}
+                />
+                {top5.map((r, i) => {
+                  const label = ccDisplay(r.cc).label;
+                  const isFocused = focusedLine === label;
+                  const isDimmed = focusedLine !== null && !isFocused;
+                  return (
+                    <Line
+                      key={r.cc}
+                      type="monotone"
+                      dataKey={label}
+                      stroke={PALETTE[i % PALETTE.length]}
+                      strokeWidth={isFocused ? 3.5 : isDimmed ? 1.5 : 2}
+                      strokeOpacity={isDimmed ? 0.18 : 1}
+                      dot={{ r: isFocused ? 4 : 3, opacity: isDimmed ? 0.25 : 1 }}
+                      activeDot={{ r: 6 }}
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        setFocusedLine((prev) => (prev === label ? null : label))
+                      }
+                      isAnimationActive={false}
+                    >
+                      <LabelList
+                        dataKey={label}
+                        position="top"
+                        offset={8}
+                        style={{
+                          fontSize: 10,
+                          fill: PALETTE[i % PALETTE.length],
+                          fontWeight: 600,
+                          opacity: isDimmed ? 0.25 : 1,
+                        }}
+                        formatter={(v: any) => {
+                          const n = Number(v);
+                          if (!n) return "";
+                          if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+                          if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+                          return String(n);
+                        }}
+                      />
+                    </Line>
+                  );
+                })}
               </LineChart>
             </ResponsiveContainer>
           )}
         </div>
+
 
         {/* Matriz */}
         <div className="rounded-2xl border bg-card">
