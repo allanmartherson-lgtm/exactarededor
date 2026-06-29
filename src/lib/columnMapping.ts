@@ -181,6 +181,7 @@ export const FIELD_DEFINITIONS: FieldDefinition[] = [
     label: "Especialidade",
     keys: [
       "especialidade", "especialid", "especialidade médica", "especialidade medica",
+      "especialidade médico", "especialidade medico", "espec medico", "espec. medico",
       "espec destino", "espec. dest", "espec dest", "especialidade destino",
     ],
     requirement: "optional",
