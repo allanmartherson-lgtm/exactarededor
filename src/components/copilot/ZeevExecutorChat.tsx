@@ -141,7 +141,7 @@ export function ZeevExecutorChat({ paymentId, companyGroupId, companyName, onApp
         setBusy(false);
       }
     },
-    [paymentId, location.pathname],
+    [paymentId, companyGroupId, companyName, location.pathname],
   );
 
   // Auto-dispara propose quando recebe initialPrompt (via key/nonce do pai).
