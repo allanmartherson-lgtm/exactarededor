@@ -716,7 +716,7 @@ const Dashboard = () => {
             .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
       )
         .order("created_at", { ascending: false })
-        .limit(20),
+        .limit(200),
       supabase.from("profiles").select("id,full_name,email"),
       (hospitalId
         ? supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at").eq("hospital_id", hospitalId)
