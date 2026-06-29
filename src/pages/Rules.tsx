@@ -230,6 +230,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   // com o mesmo payment_type_id (resolve Parecer × Visita com mesmo TUSS).
   const [fPaymentTypeId, setFPaymentTypeId] = useState<string | null>(null);
   const { list: paymentTypesList } = usePaymentTypes({ onlyActive: true });
+  const { specialties: specialtiesList } = useSpecialties();
   
   const [scope, setScope] = useState<RuleScope>("master");
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
