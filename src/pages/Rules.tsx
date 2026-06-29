@@ -159,6 +159,9 @@ type DraftRule = {
   reference_table_id: string | null; procedure_codes: string[];
   sectors: string[]; specialties: string[];
   valid_from: string | null; valid_until: string | null;
+  /** Cálculos prontos para inserção (vindos da IA). Cada item é uma linha
+   *  de rule_calculations sem rule_id/sort_order — preenchidos no save. */
+  calculations?: Record<string, unknown>[];
 };
 
 
