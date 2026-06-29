@@ -4282,6 +4282,10 @@ function ItemDetailsRow({
   showTipoEntrada,
   visitaPaymentTypeId,
   parecerPaymentTypeId,
+  lotePaymentTypeId,
+  isParecerPayment,
+  canEdit,
+  onChangeCaseSubtype,
 }: {
   it: PaymentItemRowData;
   allItems: PaymentItemRowData[];
@@ -4293,6 +4297,10 @@ function ItemDetailsRow({
   showTipoEntrada?: boolean;
   visitaPaymentTypeId?: string | null;
   parecerPaymentTypeId?: string | null;
+  lotePaymentTypeId?: string | null;
+  isParecerPayment?: boolean;
+  canEdit?: boolean;
+  onChangeCaseSubtype?: (itemIds: string[], newTypeId: string, newTypeLabel: string) => void;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
   const sectorAliases = useSectorAliases();
