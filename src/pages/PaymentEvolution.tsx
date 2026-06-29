@@ -812,6 +812,50 @@ export default function PaymentEvolution() {
             <div className="h-72 grid place-items-center text-sm text-muted-foreground">
               Sem dados no período.
             </div>
+          ) : focusedCompany && companyChartData ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={companyChartData} margin={{ top: 24, right: 16, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
+                />
+                <Tooltip
+                  formatter={(v: any) => BRL2(Number(v))}
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  name={focusedCompany.name}
+                  stroke={PALETTE[0]}
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                  isAnimationActive={false}
+                >
+                  <LabelList
+                    dataKey="value"
+                    position="top"
+                    offset={8}
+                    style={{ fontSize: 10, fill: PALETTE[0], fontWeight: 600 }}
+                    formatter={(v: any) => {
+                      const n = Number(v);
+                      if (!n) return "";
+                      if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+                      if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+                      return String(n);
+                    }}
+                  />
+                </Line>
+              </LineChart>
+            </ResponsiveContainer>
           ) : (
             <ResponsiveContainer width="100%" height={320}>
               <LineChart data={chartData} margin={{ top: 24, right: 16, left: 0, bottom: 8 }}>
@@ -892,6 +936,7 @@ export default function PaymentEvolution() {
             </ResponsiveContainer>
           )}
         </div>
+
 
 
         {/* Matriz */}
