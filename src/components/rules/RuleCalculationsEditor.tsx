@@ -1216,13 +1216,14 @@ function WhenApplySection({
  *  Card de UM cálculo (método + parâmetros + condições)
  * ============================================================ */
 function CalcCard({
-  index, total, item, refTables, specialCaseTypes, paymentTypes, extraErrorMessages, onChange, onRemove, onDuplicate,
+  index, total, item, refTables, specialCaseTypes, paymentTypes, extraErrorMessages, onChange, onRemove, onDuplicate, extras,
 }: {
   index: number; total: number; item: CalcItem; refTables: RefTable[];
   specialCaseTypes: { code: string; label: string }[];
   paymentTypes: { id: string; label: string }[];
   extraErrorMessages: string[];
   onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void; onDuplicate: () => void;
+  extras?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
