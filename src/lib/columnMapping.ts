@@ -98,7 +98,8 @@ export const FIELD_DEFINITIONS: FieldDefinition[] = [
     label: "Valor pago (repasse)",
     hint: "Valor que será repassado ao médico após o acordo",
     keys: [
-      "vl repasse", "valor repasse", "valor a repassar", "valor repassar",
+      "vl repasse", "vl a repassar", "vl. a repassar",
+      "valor repasse", "valor a repassar", "valor repassar",
       "vlrepasse", "vl. repasse",
       "r$ a pagar", "rs a pagar", "a pagar", "valor a pagar", "vl a pagar",
       "honorario liquido", "honorário líquido",
