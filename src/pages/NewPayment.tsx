@@ -1029,25 +1029,40 @@ const NewPayment = () => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
       const grossMappedByAnalyst = !!sanitizedMapping?.gross_amount;
       const procMappedByAnalyst = !!sanitizedMapping?.procedure_amount;
-      const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "valor a repassar", "valor repassar", "vlrepasse", "vl. repasse"]));
-      const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
-      // r_gross é heurística genérica (alias "valor") — só consultar se o
-      // analista NÃO mapeou gross_amount explicitamente, senão a coluna mapeada
-      // (mesmo com valor 0 — ex: "não pagar") é silenciosamente sobrescrita
-      // por outra coluna como "Valor Tot".
-      const r_gross = grossMappedByAnalyst
+      // `pick` retorna undefined quando NENHUM header da planilha bate com a
+      // lista de aliases. Detectamos isso para distinguir "coluna existe e
+      // contém 0" (valor autoritativo — ex.: regra de não-pagamento Sul
+      // América) de "coluna não existe na planilha" (precisa fallback).
+      const repasseRaw = pick(row, ["vl repasse", "valor repasse", "valor a repassar", "valor repassar", "vlrepasse", "vl. repasse"]);
+      const repasseFound = repasseRaw !== undefined;
+      const r_repasse = normalizeNumericValue(repasseRaw);
+      const procValRaw = pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]);
+      const procValFound = procValRaw !== undefined;
+      const r_procVal = normalizeNumericValue(procValRaw);
+      // r_gross é heurística genérica (alias "valor") — só consultar se NEM o
+      // analista mapeou gross_amount explicitamente NEM a coluna de repasse
+      // foi encontrada na planilha. Caso contrário, a coluna autoritativa
+      // (mesmo com valor 0 — ex: "não pagar") seria silenciosamente
+      // sobrescrita por outra coluna ambígua como "Valor Tot".
+      const grossAuthoritative = grossMappedByAnalyst || repasseFound;
+      const r_gross = grossAuthoritative
         ? { value: 0, invalid: false }
         : normalizeNumericValue(pick(row, ["valor bruto", "vlrbruto", "bruto", "valor"], ["repasse"]));
       const r_qty = normalizeNumericValue(pick(row, ["qtd", "quantidade", "quant"]));
 
       const repasse = r_repasse.value;
       const procVal = r_procVal.value;
-      // Quando o analista mapeou explicitamente, o valor mapeado é autoritativo
-      // (inclusive 0) — não cai em fallback para outras colunas.
-      const grossFromAny = grossMappedByAnalyst
+      // Repasse é autoritativo (inclusive 0) quando o analista mapeou
+      // gross_amount OU quando a planilha contém coluna de repasse. Só
+      // recorremos a heurística (r_gross/procVal) quando nenhuma das duas
+      // fontes existe — evita override silencioso de zero válido.
+      const grossFromAny = grossAuthoritative
         ? repasse
         : (repasse || r_gross.value || procVal);
-      const procedureAmountFinal = procMappedByAnalyst
+      // procedure_amount segue a mesma regra: valor 0 mapeado/encontrado é
+      // válido e não pode ser substituído por grossFromAny.
+      const procAuthoritative = procMappedByAnalyst || procValFound;
+      const procedureAmountFinal = procAuthoritative
         ? procVal
         : (procVal || grossFromAny || null);
       const quantity = r_qty.value || null;
