@@ -139,6 +139,7 @@ export default function PaymentEvolution() {
   const [drillLoading, setDrillLoading] = useState(false);
   const [dialogCc, setDialogCc] = useState<{ code: string; month: string } | null>(null);
   const [focusedLine, setFocusedLine] = useState<string | null>(null);
+  const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
   // Mês ancorador para "Último mês" / Variação MoM. "auto" = último fechado (não-corrente).
   const [anchorMonth, setAnchorMonth] = useState<string>("auto");
 
