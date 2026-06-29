@@ -4265,6 +4265,10 @@ function RowMain({
           showTipoEntrada={!!colVis.tipo_entrada}
           visitaPaymentTypeId={visitaPaymentTypeId}
           parecerPaymentTypeId={parecerPaymentTypeId}
+          lotePaymentTypeId={lotePaymentTypeId}
+          isParecerPayment={isParecerPayment}
+          canEdit={canEdit}
+          onChangeCaseSubtype={onChangeCaseSubtype}
         />
       )}
     </>
