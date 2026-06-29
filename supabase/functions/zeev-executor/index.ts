@@ -1213,9 +1213,14 @@ Deno.serve(async (req) => {
     // payment_id opcional. Quando presente, busca contexto enriquecido.
     let pay: { id: string; hospital_id: string | null; company_name: string | null; reference: string | null } | null = null;
     let aggregates: Awaited<ReturnType<typeof buildPaymentAggregates>> = null;
+    let companyGroupInfo: {
+      id: string;
+      company_id: string | null;
+      company_name: string | null;
+      items_count: number | null;
+      bruto_total: number | null;
+    } | null = null;
     if (body.payment_id) {
-      // payments não tem company_name (lote multi-empresa). Deriva nome a partir do
-      // primeiro payment_item.company_id apenas para enriquecer o contexto do LLM.
       const { data, error: payErr } = await sb
         .from("payments")
         .select("id, hospital_id, reference")
@@ -1225,25 +1230,51 @@ Deno.serve(async (req) => {
         return jsonResp({ error: `Falha ao carregar pagamento: ${payErr.message}` }, 500);
       }
       if (!data) return jsonResp({ error: "Pagamento não encontrado" }, 404);
-      let companyName: string | null = null;
-      const { data: firstItem } = await sb
-        .from("payment_items")
-        .select("company_id")
-        .eq("payment_id", body.payment_id)
-        .not("company_id", "is", null)
-        .limit(1)
-        .maybeSingle();
-      const firstCompanyId = (firstItem as { company_id?: string | null } | null)?.company_id ?? null;
-      if (firstCompanyId) {
-        const { data: comp } = await sb
-          .from("companies")
-          .select("name")
-          .eq("id", firstCompanyId)
+
+      // Escopo de empresa — autoritativo via company_group_id da tela quando disponível.
+      let scopeCompanyId: string | null = null;
+      let companyName: string | null = body.company_name ?? null;
+      if (body.company_group_id) {
+        const { data: grp } = await sb
+          .from("payment_company_groups")
+          .select("id, company_id, company_name, items_count, bruto_total")
+          .eq("id", body.company_group_id)
+          .eq("payment_id", body.payment_id)
           .maybeSingle();
-        companyName = (comp as { name?: string | null } | null)?.name ?? null;
+        const g = grp as {
+          id: string;
+          company_id: string | null;
+          company_name: string | null;
+          items_count: number | null;
+          bruto_total: number | null;
+        } | null;
+        if (g) {
+          companyGroupInfo = g;
+          scopeCompanyId = g.company_id;
+          companyName = companyName ?? g.company_name;
+        }
+      }
+      // Fallback: deriva nome a partir do primeiro item só se nada veio da tela.
+      if (!companyName) {
+        const { data: firstItem } = await sb
+          .from("payment_items")
+          .select("company_id")
+          .eq("payment_id", body.payment_id)
+          .not("company_id", "is", null)
+          .limit(1)
+          .maybeSingle();
+        const firstCompanyId = (firstItem as { company_id?: string | null } | null)?.company_id ?? null;
+        if (firstCompanyId) {
+          const { data: comp } = await sb
+            .from("companies")
+            .select("name")
+            .eq("id", firstCompanyId)
+            .maybeSingle();
+          companyName = (comp as { name?: string | null } | null)?.name ?? null;
+        }
       }
       pay = { id: data.id, hospital_id: data.hospital_id, reference: data.reference, company_name: companyName };
-      aggregates = await buildPaymentAggregates(sb, body.payment_id);
+      aggregates = await buildPaymentAggregates(sb, body.payment_id, scopeCompanyId);
     }
 
 
