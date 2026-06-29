@@ -967,16 +967,10 @@ export default function PaymentEvolution() {
                                     totalCc={r.total}
                                     focusedName={focusedCompany?.cc === r.cc ? focusedCompany.name : null}
                                     onSelectCompany={(name) => {
-                                      setFocusedCompany((prev) =>
-                                        prev && prev.cc === r.cc && prev.name === name
-                                          ? null
-                                          : { cc: r.cc, name },
-                                      );
-                                      // scroll to chart
-                                      const el = document.getElementById("evolucao-chart");
-                                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                      setFocusedCompany({ cc: r.cc, name });
                                     }}
                                   />
+
                                 )}
                               </div>
                             </TableCell>
