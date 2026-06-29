@@ -1031,9 +1031,13 @@ export default function PaymentEvolution() {
 function CompanyDrill({
   companies,
   totalCc,
+  onSelectCompany,
+  focusedName,
 }: {
   companies: { name: string; total: number; lotes: Set<string> }[];
   totalCc: number;
+  onSelectCompany?: (name: string) => void;
+  focusedName?: string | null;
 }) {
   if (companies.length === 0) {
     return <p className="text-sm text-muted-foreground">Sem empresas neste centro de custo no período.</p>;
@@ -1041,15 +1045,24 @@ function CompanyDrill({
   return (
     <div>
       <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-        Quebra por empresa
+        Quebra por empresa <span className="font-normal normal-case text-muted-foreground/80">· clique para focar a empresa no gráfico</span>
       </div>
       <div className="space-y-1">
         {companies.map((c) => {
           const pct = totalCc > 0 ? (c.total / totalCc) * 100 : 0;
+          const isFocused = focusedName === c.name;
           return (
-            <div key={c.name} className="flex items-center gap-3 text-sm py-1">
+            <button
+              type="button"
+              key={c.name}
+              onClick={() => onSelectCompany?.(c.name)}
+              className={cn(
+                "w-full text-left flex items-center gap-3 text-sm py-1.5 px-2 rounded-md transition-colors",
+                isFocused ? "bg-primary/10 ring-1 ring-primary/40" : "hover:bg-muted/60",
+              )}
+            >
               <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{c.name}</div>
+                <div className={cn("font-medium truncate", isFocused && "text-primary")}>{c.name}</div>
                 <div className="h-1.5 mt-1 rounded-full bg-muted overflow-hidden">
                   <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
                 </div>
@@ -1060,7 +1073,7 @@ function CompanyDrill({
                   {pct.toFixed(1)}% · {c.lotes.size} lote{c.lotes.size > 1 ? "s" : ""}
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
