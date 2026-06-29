@@ -726,7 +726,7 @@ export default function PaymentEvolution() {
 
 
           {/* Chips de série: clique = foco, × = ocultar */}
-          {top5.length > 0 && (
+          {!focusedCompany && top5.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5">
               {top5.map((r, i) => {
                 const label = ccDisplay(r.cc).label;
@@ -795,6 +795,16 @@ export default function PaymentEvolution() {
               })}
             </div>
           )}
+
+          {focusedCompany && (
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border-2 pl-2.5 pr-3 py-1 text-xs"
+                 style={{ borderColor: PALETTE[0], background: `${PALETTE[0]}14` }}>
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: PALETTE[0] }} />
+              <span className="font-medium" style={{ color: PALETTE[0] }}>{focusedCompany.name}</span>
+              <span className="text-muted-foreground">em {ccDisplay(focusedCompany.cc).label}</span>
+            </div>
+          )}
+
 
           {loading ? (
             <Skeleton className="h-72 w-full" />
