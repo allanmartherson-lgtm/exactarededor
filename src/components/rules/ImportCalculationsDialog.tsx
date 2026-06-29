@@ -408,34 +408,105 @@ export function ImportCalculationsDialog({ open, onOpenChange, paymentTypes, exi
               <span className="text-muted-foreground">
                 {extracted.length} cálculo(s) extraído(s) · {checked.size} selecionado(s)
               </span>
-              <Button variant="ghost" size="sm" onClick={toggleAll}>
-                {allChecked ? "Desmarcar todos" : "Marcar todos"}
-              </Button>
+              <div className="flex gap-1">
+                {totals.err > 0 && (
+                  <Button variant="ghost" size="sm" onClick={uncheckErrors}>
+                    Desmarcar com erro
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={toggleAll}>
+                  {allChecked ? "Desmarcar todos" : "Marcar todos"}
+                </Button>
+              </div>
             </div>
-            <ScrollArea className="h-[360px] border rounded-md">
+
+            {/* Resumo da validação automática do preview */}
+            {totals.err > 0 ? (
+              <Alert variant="destructive">
+                <ShieldAlert className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <strong>{totals.err} cálculo(s) com erro de mapeamento</strong>
+                  {totals.warn > 0 ? ` · ${totals.warn} aviso(s)` : ""}
+                  . Corrija ou desmarque essas linhas antes de adicionar.
+                </AlertDescription>
+              </Alert>
+            ) : totals.warn > 0 ? (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Nenhum erro bloqueante. <strong>{totals.warn} aviso(s)</strong> — revise antes de adicionar.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Mapeamento OK — todos os cálculos passaram na validação.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <ScrollArea className="h-[320px] border rounded-md">
               <ul className="divide-y">
                 {extracted.map((c, i) => {
                   const isOn = checked.has(i);
                   const ctLabel = RULE_CALCULATION_TYPE_LABELS[c?.calculation_type as RuleCalculationType] ?? c?.calculation_type ?? "?";
+                  const diag = diagnostics[i] ?? { errors: [], warnings: [] };
+                  const hasErr = diag.errors.length > 0;
+                  const hasWarn = diag.warnings.length > 0;
                   return (
-                    <li key={i} className="flex items-start gap-3 p-3 hover:bg-muted/30">
+                    <li
+                      key={i}
+                      className={
+                        hasErr
+                          ? "flex items-start gap-3 p-3 bg-destructive/5 hover:bg-destructive/10"
+                          : hasWarn
+                          ? "flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 hover:bg-amber-100/60 dark:hover:bg-amber-950/30"
+                          : "flex items-start gap-3 p-3 hover:bg-muted/30"
+                      }
+                    >
                       <Checkbox checked={isOn} onCheckedChange={() => toggle(i)} className="mt-0.5" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium truncate">{c?.label || "(sem rótulo)"}</span>
                           <Badge variant="outline" className="text-[10px]">{ctLabel}</Badge>
+                          {hasErr && (
+                            <Badge variant="destructive" className="text-[10px]">
+                              <ShieldAlert className="h-3 w-3 mr-0.5" /> {diag.errors.length} erro(s)
+                            </Badge>
+                          )}
+                          {!hasErr && hasWarn && (
+                            <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700 dark:text-amber-300">
+                              <AlertTriangle className="h-3 w-3 mr-0.5" /> {diag.warnings.length} aviso(s)
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">{summarize(c) || "—"}</p>
+                        {(hasErr || hasWarn) && (
+                          <ul className="mt-1.5 space-y-0.5 text-[11px]">
+                            {diag.errors.map((m, k) => (
+                              <li key={`e-${k}`} className="text-destructive">• {m}</li>
+                            ))}
+                            {diag.warnings.map((m, k) => (
+                              <li key={`w-${k}`} className="text-amber-700 dark:text-amber-300">• {m}</li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     </li>
                   );
                 })}
               </ul>
             </ScrollArea>
+
             <DialogFooter>
               <Button variant="outline" onClick={() => { setExtracted(null); setChecked(new Set()); }}>Voltar</Button>
-              <Button onClick={confirm} disabled={checked.size === 0}>
-                Adicionar {checked.size} à regra
+              <Button
+                onClick={confirm}
+                disabled={checked.size === 0 || totals.blockedSelected > 0}
+                title={totals.blockedSelected > 0 ? `${totals.blockedSelected} linha(s) selecionada(s) com erro` : undefined}
+              >
+                Adicionar {checked.size - totals.blockedSelected} à regra
               </Button>
             </DialogFooter>
           </div>
