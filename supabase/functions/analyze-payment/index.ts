@@ -674,7 +674,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       const fromSheet = String(it.specialty ?? "").trim();
       if (fromSheet) return { value: fromSheet, source: "planilha" };
 
-      const docList = doctorSpecsByName[String(it.doctor_name ?? "").trim()] ?? [];
+      const docList = doctorSpecsByName[normDocKey(String(it.doctor_name ?? ""))] ?? [];
       if (docList.length === 1) return { value: docList[0], source: "doctor" };
       if (docList.length > 1) {
         // Médico com múltiplas especialidades e planilha vazia → ambíguo.
