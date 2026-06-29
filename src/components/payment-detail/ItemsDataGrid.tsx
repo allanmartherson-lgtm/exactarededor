@@ -3754,7 +3754,7 @@ function RowMain({
   onChangeCaseSubtype?: (
     itemIds: string[],
     newTypeId: string,
-    newTypeLabel: "Visita" | "Parecer",
+    newTypeLabel: string,
   ) => void;
   onRefresh?: () => void;
 }) {
