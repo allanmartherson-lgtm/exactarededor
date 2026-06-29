@@ -2769,40 +2769,46 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                   specialCaseTypes={specialCaseTypes}
                                   paymentTypes={paymentTypesList}
                                   enabled={true}
+                                  renderCalcExtras={(calc, idx) => {
+                                    if (calc.calculation_type !== "exclusao") return null;
+                                    // Config é única por regra: ancora no PRIMEIRO cálculo de exclusão
+                                    // para manter consistência com o estado (fExclusionReason / fAllowsAuthorizedException).
+                                    const firstExclusaoIdx = fCalculations.findIndex((x) => x.calculation_type === "exclusao");
+                                    if (idx !== firstExclusaoIdx) return null;
+                                    return (
+                                      <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                                        <h3 className="text-[13.5px] font-semibold">Configuração da exclusão</h3>
+                                        <div className="space-y-1.5">
+                                          <Label className="text-xs">Motivo da exclusão *</Label>
+                                          <Select value={fExclusionReason || "__none"} onValueChange={(v) => setFExclusionReason(v === "__none" ? "" : v)}>
+                                            <SelectTrigger><SelectValue placeholder="Selecionar motivo" /></SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="convenio_particular">Convênio particular</SelectItem>
+                                              <SelectItem value="codigo_nao_remuneravel">Código não remunerável</SelectItem>
+                                              <SelectItem value="codigo_sem_acordo">Código sem dobra/acordo</SelectItem>
+                                              <SelectItem value="fora_escopo">Procedimento fora do escopo</SelectItem>
+                                              <SelectItem value="duplicidade">Duplicidade</SelectItem>
+                                              <SelectItem value="ja_no_pacote">Já incluído em pacote</SelectItem>
+                                              <SelectItem value="outro">Outro</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                        <label className="flex items-start gap-2 cursor-pointer">
+                                          <Checkbox
+                                            checked={fAllowsAuthorizedException}
+                                            onCheckedChange={(c) => setFAllowsAuthorizedException(!!c)}
+                                          />
+                                          <span className="text-xs">
+                                            Permite exceção autorizada
+                                            <span className="block text-[11px] text-muted-foreground">
+                                              Quando marcado, o analista pode liberar o item informando autorizador, justificativa e (opcionalmente) anexo.
+                                            </span>
+                                          </span>
+                                        </label>
+                                      </div>
+                                    );
+                                  }}
                                 />
-                              </div>
-                            )}
-
-                            {fNature === "calculavel" && fCalculations[0]?.calculation_type === "exclusao" && (
-                              <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
-                                <h3 className="text-[13.5px] font-semibold">Configuração da exclusão</h3>
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs">Motivo da exclusão *</Label>
-                                  <Select value={fExclusionReason || "__none"} onValueChange={(v) => setFExclusionReason(v === "__none" ? "" : v)}>
-                                    <SelectTrigger><SelectValue placeholder="Selecionar motivo" /></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="convenio_particular">Convênio particular</SelectItem>
-                                      <SelectItem value="codigo_nao_remuneravel">Código não remunerável</SelectItem>
-                                      <SelectItem value="codigo_sem_acordo">Código sem dobra/acordo</SelectItem>
-                                      <SelectItem value="fora_escopo">Procedimento fora do escopo</SelectItem>
-                                      <SelectItem value="duplicidade">Duplicidade</SelectItem>
-                                      <SelectItem value="ja_no_pacote">Já incluído em pacote</SelectItem>
-                                      <SelectItem value="outro">Outro</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <label className="flex items-start gap-2 cursor-pointer">
-                                  <Checkbox
-                                    checked={fAllowsAuthorizedException}
-                                    onCheckedChange={(c) => setFAllowsAuthorizedException(!!c)}
-                                  />
-                                  <span className="text-xs">
-                                    Permite exceção autorizada
-                                    <span className="block text-[11px] text-muted-foreground">
-                                      Quando marcado, o analista pode liberar o item informando autorizador, justificativa e (opcionalmente) anexo.
-                                    </span>
-                                  </span>
-                                </label>
                               </div>
                             )}
                           </div>
