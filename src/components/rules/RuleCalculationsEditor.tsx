@@ -1167,7 +1167,7 @@ function WhenApplySection({
 
             {/* Filtro por especialidade — opt-in explícito (default off) */}
             <div>
-              <Label className="text-xs" style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              <Label className="text-xs" style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 10 }}>
                 <Checkbox
                   checked={c.match_by_specialty}
                   onCheckedChange={(v) => onChange({
@@ -1175,8 +1175,9 @@ function WhenApplySection({
                     has_conditions: !!v || c.has_conditions,
                   })}
                 />
-                <span>Filtrar este cálculo por especialidade médica</span>
+                <span style={{ marginLeft: 2 }}>Filtrar este cálculo por especialidade médica</span>
               </Label>
+
               {c.match_by_specialty ? (
                 <>
                   <SpecialtyMultiSelect
