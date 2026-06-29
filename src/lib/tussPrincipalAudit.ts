@@ -116,16 +116,12 @@ export function detectTussMismatch(
     };
   }
   if (method === "exclusao") {
-    return {
-      reason: "exclusao",
-      tuss_item: tussItem || null,
-      tuss_regra: tussCalc,
-      regra_id: ruleId,
-      calc_id: calcId,
-      calc_method: method,
-      detalhe: "Item caiu em uma regra de exclusão.",
-    };
+    // Exclusão é um desfecho válido e intencional do motor: a regra foi
+    // criada justamente para excluir o pagamento daquele TUSS. Não é
+    // divergência de TUSS principal e não deve bloquear aprovação.
+    return null;
   }
+
   if (FALLBACK_METHODS.has(method)) {
     return {
       reason: "fallback_default",
