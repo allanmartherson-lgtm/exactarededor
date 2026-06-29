@@ -140,6 +140,7 @@ export default function PaymentEvolution() {
   const [dialogCc, setDialogCc] = useState<{ code: string; month: string } | null>(null);
   const [focusedLine, setFocusedLine] = useState<string | null>(null);
   const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
+  const [focusedCompany, setFocusedCompany] = useState<{ cc: string; name: string } | null>(null);
   // Mês ancorador para "Último mês" / Variação MoM. "auto" = último fechado (não-corrente).
   const [anchorMonth, setAnchorMonth] = useState<string>("auto");
 
@@ -403,6 +404,36 @@ export default function PaymentEvolution() {
     return row;
   });
 
+  // Payment id → competence/cash month (depends on mode)
+  const paymentMonth = useMemo(() => {
+    const m = new Map<string, string>();
+    payments.forEach((p) => {
+      const ds =
+        mode === "competencia"
+          ? p.competence_month
+          : p.approved_at?.slice(0, 10) ?? p.updated_at.slice(0, 10);
+      if (ds) m.set(p.id, ds.slice(0, 7));
+    });
+    return m;
+  }, [payments, mode]);
+
+  // Company-focus chart series (single line: empresa dentro do CC, mês a mês)
+  const companyChartData = useMemo(() => {
+    if (!focusedCompany) return null;
+    const groups = drillCompanies[focusedCompany.cc] ?? [];
+    const byMonth = new Map<string, number>();
+    groups.forEach((g) => {
+      if (g.company_name !== focusedCompany.name) return;
+      const mk = paymentMonth.get(g.payment_id);
+      if (!mk || !months.includes(mk)) return;
+      const v = g.liquido_total ?? g.bruto_total ?? g.total_amount ?? 0;
+      byMonth.set(mk, (byMonth.get(mk) ?? 0) + v);
+    });
+    return months.map((mk) => ({ month: monthLabel(mk), value: byMonth.get(mk) ?? 0 }));
+  }, [focusedCompany, drillCompanies, paymentMonth, months]);
+
+
+
   // Drill: load companies for a (cc, month) pair
   const loadDrill = async (cc: string) => {
     if (drillCompanies[cc]) {
@@ -648,18 +679,31 @@ export default function PaymentEvolution() {
           />
         </div>
 
-        <div className="rounded-2xl border bg-card p-6">
+        <div id="evolucao-chart" className="rounded-2xl border bg-card p-6 scroll-mt-4">
           <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Série temporal — Top 5 centros de custo
+                {focusedCompany
+                  ? `Foco: ${focusedCompany.name}`
+                  : "Série temporal — Top 5 centros de custo"}
               </h2>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Clique no chip para focar uma linha. Use o × ao lado para ocultar e reescalar o eixo.
+                {focusedCompany
+                  ? `Evolução mensal dentro de ${ccDisplay(focusedCompany.cc).label}.`
+                  : "Clique no chip para focar uma linha. Use o × ao lado para ocultar e reescalar o eixo."}
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {hiddenLines.size > 0 && (
+              {focusedCompany && (
+                <button
+                  type="button"
+                  onClick={() => setFocusedCompany(null)}
+                  className="text-xs font-medium text-primary hover:underline underline-offset-2"
+                >
+                  ← Voltar para top 5
+                </button>
+              )}
+              {!focusedCompany && hiddenLines.size > 0 && (
                 <button
                   type="button"
                   onClick={() => setHiddenLines(new Set())}
@@ -668,7 +712,7 @@ export default function PaymentEvolution() {
                   Mostrar todos ({hiddenLines.size} ocultos)
                 </button>
               )}
-              {focusedLine && (
+              {!focusedCompany && focusedLine && (
                 <button
                   type="button"
                   onClick={() => setFocusedLine(null)}
@@ -680,8 +724,9 @@ export default function PaymentEvolution() {
             </div>
           </div>
 
+
           {/* Chips de série: clique = foco, × = ocultar */}
-          {top5.length > 0 && (
+          {!focusedCompany && top5.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5">
               {top5.map((r, i) => {
                 const label = ccDisplay(r.cc).label;
@@ -751,12 +796,66 @@ export default function PaymentEvolution() {
             </div>
           )}
 
+          {focusedCompany && (
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border-2 pl-2.5 pr-3 py-1 text-xs"
+                 style={{ borderColor: PALETTE[0], background: `${PALETTE[0]}14` }}>
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: PALETTE[0] }} />
+              <span className="font-medium" style={{ color: PALETTE[0] }}>{focusedCompany.name}</span>
+              <span className="text-muted-foreground">em {ccDisplay(focusedCompany.cc).label}</span>
+            </div>
+          )}
+
+
           {loading ? (
             <Skeleton className="h-72 w-full" />
           ) : chartData.length === 0 ? (
             <div className="h-72 grid place-items-center text-sm text-muted-foreground">
               Sem dados no período.
             </div>
+          ) : focusedCompany && companyChartData ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={companyChartData} margin={{ top: 24, right: 16, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
+                />
+                <Tooltip
+                  formatter={(v: any) => BRL2(Number(v))}
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  name={focusedCompany.name}
+                  stroke={PALETTE[0]}
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                  isAnimationActive={false}
+                >
+                  <LabelList
+                    dataKey="value"
+                    position="top"
+                    offset={8}
+                    style={{ fontSize: 10, fill: PALETTE[0], fontWeight: 600 }}
+                    formatter={(v: any) => {
+                      const n = Number(v);
+                      if (!n) return "";
+                      if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+                      if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+                      return String(n);
+                    }}
+                  />
+                </Line>
+              </LineChart>
+            </ResponsiveContainer>
           ) : (
             <ResponsiveContainer width="100%" height={320}>
               <LineChart data={chartData} margin={{ top: 24, right: 16, left: 0, bottom: 8 }}>
@@ -837,6 +936,7 @@ export default function PaymentEvolution() {
             </ResponsiveContainer>
           )}
         </div>
+
 
 
         {/* Matriz */}
@@ -931,6 +1031,17 @@ export default function PaymentEvolution() {
                                   <CompanyDrill
                                     companies={companiesByCc(r.cc)}
                                     totalCc={r.total}
+                                    focusedName={focusedCompany?.cc === r.cc ? focusedCompany.name : null}
+                                    onSelectCompany={(name) => {
+                                      setFocusedCompany((prev) =>
+                                        prev && prev.cc === r.cc && prev.name === name
+                                          ? null
+                                          : { cc: r.cc, name },
+                                      );
+                                      // scroll to chart
+                                      const el = document.getElementById("evolucao-chart");
+                                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                    }}
                                   />
                                 )}
                               </div>
@@ -1000,9 +1111,13 @@ export default function PaymentEvolution() {
 function CompanyDrill({
   companies,
   totalCc,
+  onSelectCompany,
+  focusedName,
 }: {
   companies: { name: string; total: number; lotes: Set<string> }[];
   totalCc: number;
+  onSelectCompany?: (name: string) => void;
+  focusedName?: string | null;
 }) {
   if (companies.length === 0) {
     return <p className="text-sm text-muted-foreground">Sem empresas neste centro de custo no período.</p>;
@@ -1010,15 +1125,24 @@ function CompanyDrill({
   return (
     <div>
       <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-        Quebra por empresa
+        Quebra por empresa <span className="font-normal normal-case text-muted-foreground/80">· clique para focar a empresa no gráfico</span>
       </div>
       <div className="space-y-1">
         {companies.map((c) => {
           const pct = totalCc > 0 ? (c.total / totalCc) * 100 : 0;
+          const isFocused = focusedName === c.name;
           return (
-            <div key={c.name} className="flex items-center gap-3 text-sm py-1">
+            <button
+              type="button"
+              key={c.name}
+              onClick={() => onSelectCompany?.(c.name)}
+              className={cn(
+                "w-full text-left flex items-center gap-3 text-sm py-1.5 px-2 rounded-md transition-colors",
+                isFocused ? "bg-primary/10 ring-1 ring-primary/40" : "hover:bg-muted/60",
+              )}
+            >
               <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{c.name}</div>
+                <div className={cn("font-medium truncate", isFocused && "text-primary")}>{c.name}</div>
                 <div className="h-1.5 mt-1 rounded-full bg-muted overflow-hidden">
                   <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
                 </div>
@@ -1029,7 +1153,7 @@ function CompanyDrill({
                   {pct.toFixed(1)}% · {c.lotes.size} lote{c.lotes.size > 1 ? "s" : ""}
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
