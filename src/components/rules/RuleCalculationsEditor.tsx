@@ -229,6 +229,12 @@ export type RuleCalculationsEditorProps = {
   paymentTypes?: { id: string; label: string }[];
   /** Quando "informativa/bloqueio", o editor fica oculto (regra não calcula). */
   enabled: boolean;
+  /**
+   * Slot opcional para renderizar configuração extra DENTRO do card do cálculo.
+   * Recebe o item e o índice. Usado, por ex., para colar "Configuração da exclusão"
+   * logo abaixo do cálculo do tipo `exclusao` que a originou.
+   */
+  renderCalcExtras?: (item: CalcItem, index: number) => React.ReactNode;
 };
 
 /**
