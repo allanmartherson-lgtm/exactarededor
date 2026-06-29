@@ -83,7 +83,7 @@ const consultasRule = rule({
       label: "Cardiologia",
       calculation_type: "valor_fixo",
       fixed_amount: 250,
-      specialties: ["Cardiologia"],
+      specialties: ["Cardiologia"], match_by_specialty: true,
       code_match_mode: "any",
     },
     {
@@ -92,7 +92,7 @@ const consultasRule = rule({
       label: "Pediatria",
       calculation_type: "valor_fixo",
       fixed_amount: 180,
-      specialties: ["Pediatria"],
+      specialties: ["Pediatria"], match_by_specialty: true,
       code_match_mode: "any",
     },
     {
@@ -101,7 +101,7 @@ const consultasRule = rule({
       label: "Ortopedia / Traumato",
       calculation_type: "valor_fixo",
       fixed_amount: 220,
-      specialties: ["Ortopedia", "Traumatologia"],
+      specialties: ["Ortopedia", "Traumatologia"], match_by_specialty: true,
       code_match_mode: "any",
     },
   ],
@@ -214,6 +214,33 @@ Deno.test("Histórico — calculation.specialties=null NÃO filtra (compatível 
   assertEquals(out[1].expected_amount, 77);
 });
 
+Deno.test("Toggle desligado — specialties[] preenchido mas match_by_specialty=false NÃO filtra", () => {
+  const r = rule({
+    calculations: [
+      {
+        id: "cardio-off",
+        sort_order: 0,
+        label: "Cardio (toggle off)",
+        calculation_type: "valor_fixo",
+        fixed_amount: 88,
+        specialties: ["Cardiologia"],
+        match_by_specialty: false, // explicitamente desligado
+        code_match_mode: "any",
+      },
+    ],
+  } as any);
+  const out = analyzePaymentItems(
+    [item({ specialty: "Dermatologia" }), item({ id: "b", specialty: null })],
+    [r],
+    baseCtx,
+  );
+  // Toggle off → ignora specialties[] e aceita qualquer item.
+  assertEquals(out[0].expected_amount, 88);
+  assertEquals(out[1].expected_amount, 88);
+});
+
+
+
 Deno.test("Histórico — rule.specialties no nível Regra é só informativo (não filtra)", () => {
   const r = rule({
     specialties: ["Cardiologia"], // nível regra — não deve impactar match
@@ -248,7 +275,7 @@ Deno.test("Coexistência — cálculo com specialties[] tem prioridade; fallback
         label: "Cardiologia",
         calculation_type: "valor_fixo",
         fixed_amount: 300,
-        specialties: ["Cardiologia"],
+        specialties: ["Cardiologia"], match_by_specialty: true,
         code_match_mode: "any",
       },
       {
