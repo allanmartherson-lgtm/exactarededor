@@ -19,6 +19,7 @@ import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
+import { useSpecialties } from "@/hooks/useSpecialties";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
@@ -158,6 +159,9 @@ type DraftRule = {
   reference_table_id: string | null; procedure_codes: string[];
   sectors: string[]; specialties: string[];
   valid_from: string | null; valid_until: string | null;
+  /** Cálculos prontos para inserção (vindos da IA). Cada item é uma linha
+   *  de rule_calculations sem rule_id/sort_order — preenchidos no save. */
+  calculations?: Record<string, unknown>[];
 };
 
 
@@ -229,6 +233,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   // com o mesmo payment_type_id (resolve Parecer × Visita com mesmo TUSS).
   const [fPaymentTypeId, setFPaymentTypeId] = useState<string | null>(null);
   const { list: paymentTypesList } = usePaymentTypes({ onlyActive: true });
+  const { specialties: specialtiesList } = useSpecialties();
   
   const [scope, setScope] = useState<RuleScope>("master");
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
@@ -1468,11 +1473,47 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     r.onerror = reject; r.readAsDataURL(file);
   });
 
+  /** Mapeia uma `calculation` retornada pela IA em uma linha pronta para o
+   *  RPC `apply_rule_save_with_corrections._calculations` (sem rule_id/sort_order). */
+  const aiCalcToDbRow = (c: any): Record<string, unknown> => {
+    const num = (v: any) => (v == null || v === "" ? null : Number(String(v).replace(",", ".")));
+    const arr = (v: any) => (Array.isArray(v) ? v.filter(Boolean).map(String) : []);
+    const ptCode: string | null = c?.payment_type_code ?? null;
+    const ptId = ptCode ? (paymentTypesList.find((p: any) => p.code === ptCode)?.id ?? null) : null;
+    const ct = String(c?.calculation_type ?? "informativo");
+    return {
+      label: c?.label ?? null,
+      calculation_type: ct,
+      fixed_amount: ct === "valor_fixo" ? num(c?.fixed_amount) : null,
+      package_amount: ct === "pacote" ? num(c?.package_amount) : null,
+      bonus_amount: ct === "bonus" ? num(c?.bonus_amount) : null,
+      bonus_pct: ct === "bonus" ? num(c?.bonus_pct) : null,
+      target_amount: ct === "complemento" ? num(c?.target_amount) : null,
+      multiplier: ct === "tabela_diferenciada" ? num(c?.multiplier) : null,
+      deflator_pct: ct === "tabela_diferenciada" ? num(c?.deflator_pct) : null,
+      convenio_percentage: ct === "percentual_sobre_convenio" ? num(c?.convenio_percentage) : null,
+      procedure_codes: arr(c?.procedure_codes).length ? arr(c?.procedure_codes) : null,
+      code_match_mode: arr(c?.procedure_codes).length ? "whitelist" : "any",
+      specialties: arr(c?.specialties),
+      sectors: arr(c?.sectors),
+      doctor_roles: arr(c?.doctor_roles).length ? arr(c?.doctor_roles) : null,
+      payment_type_id: ptId,
+      has_conditions: arr(c?.specialties).length > 0 || arr(c?.sectors).length > 0,
+      is_catch_all: false,
+    };
+  };
+
   const importWithAi = async () => {
     if (!importText.trim() && !importFile) return toast({ title: "Adicione texto ou um arquivo", variant: "destructive" });
     setImporting(true);
     try {
-      const body: any = {};
+      const body: any = {
+        inputKind: "auto",
+        context: {
+          paymentTypes: paymentTypesList.map((p: any) => ({ id: p.id, code: p.code, label: p.label })),
+          specialties: specialtiesList,
+        },
+      };
       if (importText.trim()) body.text = importText;
       if (importFile) {
         const ext = importFile.name.toLowerCase().split(".").pop() ?? "";
@@ -1483,6 +1524,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
           const wb = XLSX.read(buf, { type: "array" });
           const sheets = wb.SheetNames.map((n) => `# ${n}\n${XLSX.utils.sheet_to_csv(wb.Sheets[n])}`).join("\n\n");
           body.text = (body.text ? body.text + "\n\n" : "") + sheets;
+          body.inputKind = "table"; // planilha → forçar modo tabela
         } else if (isText) {
           body.text = (body.text ? body.text + "\n\n" : "") + (await importFile.text());
         } else {
@@ -1491,24 +1533,45 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       }
       const { data, error } = await supabase.functions.invoke("convert-rules", { body });
       if (error || !data?.rules) return toast({ title: "Erro", description: error ? await getEdgeFunctionErrorMessage(error) : (data?.error ?? "Falha"), variant: "destructive" });
-      const ds: DraftRule[] = data.rules.map((r: any) => ({
-        active: true,
-        name: r.name ?? "", description: r.description ?? "", rule_text: r.rule_text ?? "",
-        severity: r.severity ?? "aviso", scope: r.scope ?? "master",
-        target_type: r.target_type ?? null, target_identifier: r.target_identifier ?? null, target_name: r.target_name ?? null,
-        calculation_type: (r.calculation_type as RuleCalculationType) ?? "informativo",
-        convenio_percentage: r.convenio_percentage ?? null,
-        fixed_amount: r.fixed_amount ?? r.bonus_amount ?? r.target_amount ?? null,
-        extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes : [],
-        package_amount: r.package_amount ?? null, bonus_amount: r.bonus_amount ?? null, bonus_pct: r.bonus_pct ?? null,
-        target_amount: r.target_amount ?? null, multiplier: r.multiplier ?? null, deflator_pct: r.deflator_pct ?? null,
-        reference_table_id: null, procedure_codes: Array.isArray(r.procedure_codes) ? r.procedure_codes : [],
-        sectors: Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []),
-        specialties: Array.isArray(r.specialties) ? r.specialties : [],
-        valid_from: r.valid_from ?? null,
-        valid_until: r.valid_until ?? null,
-      }));
+      const ds: DraftRule[] = data.rules.map((r: any) => {
+        const calcs: any[] = Array.isArray(r.calculations) ? r.calculations : [];
+        // Tipo de cálculo no nível regra: prioriza primeiro cálculo (compatibilidade UI antiga)
+        const firstCalc = calcs[0] ?? {};
+        const topCalcType: RuleCalculationType = (firstCalc.calculation_type as RuleCalculationType) ?? (r.calculation_type as RuleCalculationType) ?? "informativo";
+        return {
+          active: true,
+          name: r.name ?? "",
+          description: r.description ?? "",
+          rule_text: r.rule_text ?? "",
+          severity: r.severity ?? "aviso",
+          scope: r.scope ?? "master",
+          target_type: r.target_type ?? null,
+          target_identifier: r.target_identifier ?? null,
+          target_name: r.target_name ?? null,
+          calculation_type: topCalcType,
+          convenio_percentage: firstCalc.convenio_percentage ?? r.convenio_percentage ?? null,
+          fixed_amount: firstCalc.fixed_amount ?? r.fixed_amount ?? null,
+          extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes : [],
+          package_amount: firstCalc.package_amount ?? r.package_amount ?? null,
+          bonus_amount: firstCalc.bonus_amount ?? r.bonus_amount ?? null,
+          bonus_pct: firstCalc.bonus_pct ?? r.bonus_pct ?? null,
+          target_amount: firstCalc.target_amount ?? r.target_amount ?? null,
+          multiplier: firstCalc.multiplier ?? r.multiplier ?? null,
+          deflator_pct: firstCalc.deflator_pct ?? r.deflator_pct ?? null,
+          reference_table_id: null,
+          procedure_codes: Array.isArray(r.procedure_codes) ? r.procedure_codes : [],
+          sectors: Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []),
+          specialties: Array.isArray(r.specialties) ? r.specialties : [],
+          valid_from: r.valid_from ?? null,
+          valid_until: r.valid_until ?? null,
+          calculations: calcs.length > 0 ? calcs.map(aiCalcToDbRow) : undefined,
+        };
+      });
       setDrafts(ds); setImportOpen(false); setReviewOpen(true); setImportText(""); setImportFile(null);
+      const totalCalcs = ds.reduce((s, d) => s + (d.calculations?.length ?? 0), 0);
+      if (totalCalcs > 0) {
+        toast({ title: `${ds.length} regra(s) extraída(s) com ${totalCalcs} cálculo(s)`, description: data.detected_kind === "table" ? "Detectada tabela tarifária — consolidado em regra com múltiplos cálculos." : undefined });
+      }
     } catch (e: any) {
       toast({ title: "Erro", description: await getEdgeFunctionErrorMessage(e), variant: "destructive" });
     } finally { setImporting(false); }
@@ -1597,10 +1660,11 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
         continue;
       }
 
-      // 2) Save via RPC (batch não aplica correções — pula em conflito)
+      // 2) Save via RPC — inclui cálculos vindos da IA (consolidados em 1 regra).
+      const draftCalcs = (d.calculations ?? []).map((c, idx) => ({ ...c, sort_order: idx }));
       const { data, error } = await supabase.rpc("apply_rule_save_with_corrections", {
         _rule_data: ruleData as any,
-        _calculations: [] as any,
+        _calculations: draftCalcs as any,
         _corrections: [] as any,
       });
       if (error) {
@@ -3062,6 +3126,46 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
           <DialogHeader>
             <DialogTitle>Revisar regras extraídas pela IA</DialogTitle>
             <DialogDescription>Confira, edite e selecione quais salvar. {drafts.filter(d => d.active).length} de {drafts.length} marcadas.</DialogDescription>
+            {drafts.filter(d => d.active).length > 1 && (
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const selected = drafts.filter(d => d.active);
+                    if (selected.length < 2) return;
+                    const merged: DraftRule = {
+                      ...selected[0],
+                      name: selected[0].name || "Regra consolidada",
+                      calculations: selected.flatMap((d, idx) => (d.calculations ?? [{
+                        label: d.name || `Cálculo ${idx + 1}`,
+                        calculation_type: d.calculation_type,
+                        fixed_amount: d.fixed_amount,
+                        package_amount: d.package_amount,
+                        bonus_amount: d.bonus_amount,
+                        bonus_pct: d.bonus_pct,
+                        target_amount: d.target_amount,
+                        multiplier: d.multiplier,
+                        deflator_pct: d.deflator_pct,
+                        convenio_percentage: d.convenio_percentage,
+                        procedure_codes: d.procedure_codes.length ? d.procedure_codes : null,
+                        code_match_mode: d.procedure_codes.length ? "whitelist" : "any",
+                        specialties: d.specialties,
+                        sectors: d.sectors,
+                        has_conditions: d.specialties.length > 0 || d.sectors.length > 0,
+                        is_catch_all: false,
+                      }])),
+                    };
+                    const inactive = drafts.filter(d => !d.active);
+                    setDrafts([merged, ...inactive]);
+                    toast({ title: `${selected.length} regras mescladas em 1 com ${merged.calculations?.length ?? 0} cálculos` });
+                  }}
+                >
+                  Mesclar selecionadas em 1 regra ({drafts.filter(d => d.active).length})
+                </Button>
+              </div>
+            )}
           </DialogHeader>
           <div className="space-y-4">
             {drafts.map((d, i) => (
@@ -3069,6 +3173,11 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                 <div className="flex items-start gap-3 mb-3">
                   <Checkbox checked={d.active} onCheckedChange={(v) => updateDraft(i, { active: !!v })} className="mt-1" />
                   <Input value={d.name} onChange={(e) => updateDraft(i, { name: e.target.value })} placeholder="Nome" className="font-medium" />
+                  {(d.calculations?.length ?? 0) > 0 && (
+                    <Badge variant="outline" className="shrink-0 mt-1.5">
+                      {d.calculations!.length} cálculo(s)
+                    </Badge>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="space-y-1"><Label className="text-xs">Tipo de cálculo (motor)</Label>

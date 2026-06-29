@@ -3,7 +3,7 @@
 ## Core
 Analista envia base já tratada. Sistema só valida regras, calcula valores e aponta inconsistências — nunca estrutura planilha crua nem corrige formatação de origem.
 Regra de pagamento nunca pode perder cálculos silenciosamente: redução exige confirmação explícita, snapshot e auditoria; delete direto de rule_calculations é proibido.
-Especialidade médica é apenas relatório/busca/filtro — nunca impacta cálculo, status ou análise. Separar campos operacionais (tipo ato, setor, convênio, TUSS, função) de informacionais (especialidade, descrição, paciente).
+Especialidade médica é, por padrão, só relatório/busca/filtro — NÃO impacta cálculo nem status. EXCEÇÃO: quando o analista declara `specialties[]` num `rule_calculation`, o motor passa a filtrar o match por aquela especialidade (caso tabela de consultas, parecer/visita tarifado por especialidade). Vazio = sem filtro (comportamento histórico preservado para cirurgia/hemo). Separar campos operacionais (tipo ato, setor, convênio, TUSS, função) de informacionais (descrição, paciente).
 Motor nunca aplica default hardcoded de repasse. Sem regra cadastrada = sem_regra + alerta, jamais valor inferido.
 Glosa é por médico mas SEMPRE aplicada à PJ vinculada (doctor_companies). Médico sem PJ não pode receber repasse — espelha regra do Tasy.
 Convênio, setor, médico e empresa sempre cruzam com tabela de cadastro (convenios/sectors/doctors/companies). Texto livre só como fallback com aviso.

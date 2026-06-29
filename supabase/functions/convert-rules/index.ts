@@ -5,12 +5,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface ContextHint {
+  paymentTypes?: { id: string; code: string; label: string }[];
+  specialties?: string[];
+  sectors?: string[];
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { text, file } = await req.json();
-    // file: { name, mimeType, dataBase64 }
+    const { text, file, inputKind, context } = await req.json() as {
+      text?: string;
+      file?: { name?: string; mimeType?: string; dataBase64?: string };
+      inputKind?: "table" | "free_text" | "auto";
+      context?: ContextHint;
+    };
     if (!text && !file) {
       return new Response(JSON.stringify({ error: "Envie texto ou arquivo" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -23,25 +33,57 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY missing");
 
+    // -------- Heurística simples de detecção de tabela tarifária --------
+    // Se inputKind="auto" e o texto parece CSV/tabela homogênea (≥5 linhas
+    // com mesmo nº de colunas e ≥1 coluna numérica), tratamos como tabela.
+    const detectKind = (t: string): "table" | "free_text" => {
+      if (!t) return "free_text";
+      const lines = t.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 60);
+      if (lines.length < 5) return "free_text";
+      const sep = lines[0].includes(",") ? "," : lines[0].includes(";") ? ";" : "\t";
+      const widths = lines.map((l) => l.split(sep).length);
+      const baseW = widths[0];
+      if (baseW < 2) return "free_text";
+      const homog = widths.filter((w) => w === baseW).length / widths.length;
+      if (homog < 0.8) return "free_text";
+      const hasNumber = lines.slice(1).some((l) =>
+        l.split(sep).some((cell) => /^[\s\-R$]*\d+[\d.,]*\s*$/.test(cell)),
+      );
+      return hasNumber ? "table" : "free_text";
+    };
+    const effectiveKind: "table" | "free_text" =
+      inputKind === "table" || inputKind === "free_text"
+        ? inputKind
+        : detectKind(text ?? "");
+
+    const ctxLines: string[] = [];
+    if (context?.paymentTypes?.length) {
+      ctxLines.push("Tipos de pagamento disponíveis (use o `code` em `payment_type_code` quando aplicável):");
+      for (const pt of context.paymentTypes.slice(0, 40)) {
+        ctxLines.push(`- ${pt.code} — ${pt.label}`);
+      }
+    }
+    if (context?.specialties?.length) {
+      ctxLines.push("Especialidades cadastradas (use EXATAMENTE estes nomes em `specialties[]` quando reconhecer):");
+      ctxLines.push(context.specialties.slice(0, 80).map((s) => `- ${s}`).join("\n"));
+    }
+    const ctxBlock = ctxLines.length ? `\n\nCONTEXTO DO HOSPITAL:\n${ctxLines.join("\n")}\n` : "";
+
     const userContent: any[] = [];
-    if (text) userContent.push({ type: "text", text: `Converta este conteúdo em regras estruturadas:\n\n${text}` });
+    const kindHint = effectiveKind === "table"
+      ? `\n\n[FORMATO DETECTADO: TABELA TARIFÁRIA] — Esta entrada é uma tabela com linhas homogêneas (mesmas colunas) variando apenas dimensões como especialidade/código/setor e um valor. Gere EXATAMENTE 1 regra com N entradas em \`calculations[]\` (uma por linha de dados). NUNCA gere N regras separadas.`
+      : "";
+    if (text) userContent.push({ type: "text", text: `Converta este conteúdo em regras estruturadas:${kindHint}${ctxBlock}\n\n${text}` });
     if (file) {
-      userContent.push({ type: "text", text: `Extraia e estruture todas as regras de validação de pagamento contidas no arquivo anexo (${file.name ?? "arquivo"}).` });
+      userContent.push({ type: "text", text: `Extraia e estruture todas as regras de validação de pagamento contidas no arquivo anexo (${file.name ?? "arquivo"}).${kindHint}${ctxBlock}` });
       const mt = String(file.mimeType ?? "");
       if (mt === "application/pdf") {
-        userContent.push({
-          type: "document",
-          source: { type: "base64", media_type: "application/pdf", data: file.dataBase64 },
-        });
+        userContent.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: file.dataBase64 } });
       } else if (mt.startsWith("image/")) {
-        userContent.push({
-          type: "image",
-          source: { type: "base64", media_type: mt, data: file.dataBase64 },
-        });
+        userContent.push({ type: "image", source: { type: "base64", media_type: mt, data: file.dataBase64 } });
       } else {
-        // texto/plain ou outros: decodifica base64 e injeta como texto
         try {
-          const decoded = new TextDecoder().decode(Uint8Array.from(atob(file.dataBase64), (c) => c.charCodeAt(0)));
+          const decoded = new TextDecoder().decode(Uint8Array.from(atob(file.dataBase64!), (c) => c.charCodeAt(0)));
           userContent.push({ type: "text", text: `Conteúdo do arquivo:\n${decoded}` });
         } catch {
           return new Response(JSON.stringify({ error: `Tipo de arquivo não suportado: ${mt}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -49,37 +91,83 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = `Você converte texto livre em regras estruturadas para validação de pagamentos médicos.
+    const systemPrompt = `Você converte texto/planilhas em regras estruturadas para validação de pagamentos médicos.
 
-REGRAS CRÍTICAS DE EXTRAÇÃO (LEIA ANTES DE EXTRAIR):
-1. Cada bloco rotulado como "Regra N:", "Regra:", "Cláusula N:" ou equivalente = UMA ÚNICA regra de saída. NUNCA divida uma regra em múltiplas saídas só porque ela tem vários itens numerados (1), 2), 3)) ou múltiplos campos "Condição:". Consolide TODAS as condições e sub-itens daquela regra em um único campo rule_text estruturado (use quebras de linha e numeração dentro do texto).
-2. IGNORE campos vazios, rótulos sem conteúdo (ex: "Condição:" seguido de nada) e linhas de cabeçalho/rodapé (página, código de proposta, assinaturas, "Confidencial").
-3. NÃO duplique regras. Se o mesmo conteúdo aparecer mais de uma vez (ex: repetido em páginas), retorne apenas uma vez. Antes de finalizar, verifique se há regras com rule_text idêntico ou quase idêntico — se sim, mantenha apenas uma.
-4. Se o documento contém apenas 1 regra, retorne EXATAMENTE 1 item no array. Não invente variações nem desmembre.
-5. O campo rule_text deve refletir fielmente o texto do contrato — não parafraseie ao ponto de mudar o sentido, e não invente cláusulas que não estão no documento.
+# ESTRUTURA DE SAÍDA (CRÍTICA)
 
-Cada regra deve ter:
-- name: nome curto
-- description: descrição clara
-- rule_text: texto da regra em português descrevendo a condição
-- severity: 'info' | 'aviso' | 'bloqueio' ('bloqueio' impede pagamento; 'aviso' alerta o validador; 'info' é observação)
-- scope: 'master' (regra geral, vale para todos quando não há específica) ou 'especifica' (vale apenas para um médico ou empresa)
-- sectors: array com um ou mais setores: 'cirurgia' | 'hemodinamica' | 'parecer' | 'visita' | 'procedimento' | 'consulta' | 'outro' — identifique pelo contexto; use ['outro'] se não estiver claro
-- target_type: 'medico' | 'empresa' | null — preencha apenas se scope='especifica'
-- target_identifier: CPF (médico) ou CNPJ (empresa), apenas se scope='especifica' e mencionado
-- target_name: nome do médico ou da empresa, apenas se scope='especifica' e mencionado
+Cada regra TEM uma natureza ("informativo" | "calculavel"). Quando "calculavel", a regra é um CONTAINER com um array \`calculations[]\` — cada cálculo é uma linha tarifária (1 valor, opcionalmente filtrada por especialidade, código, setor, função, etc.). UMA regra pode ter de 1 a N cálculos.
 
-- calculation_type: 'informativo' | 'pacote' | 'tabela_diferenciada' | 'tabela_referencia' | 'bonus' | 'complemento' | 'percentual_fixo'
-    * 'pacote': valor fixo para o procedimento todo. Preencha package_amount (R$).
-    * 'tabela_diferenciada' / 'tabela_referencia': pagamento baseado em tabela de referência. Preencha multiplier e/ou deflator_pct. Se mencionar uma tabela específica, coloque o nome no campo description.
-    * 'bonus': honorário + adicional. Preencha bonus_amount (R$ fixo) OU bonus_pct (%).
-    * 'complemento': completa o valor para chegar ao acordado. Preencha target_amount (R$).
-    * 'percentual_fixo': repasse percentual sobre o valor do procedimento.
-    * 'informativo': qualquer regra que apenas alerta/bloqueia (default).
-- procedure_codes: array de códigos de procedimento (ex: ["31005497","31005470"]) quando a regra cita códigos específicos. Vazio se não houver.
-- package_amount, bonus_amount, bonus_pct, target_amount, multiplier, deflator_pct: numéricos ou null.
+# QUANDO CONSOLIDAR EM UMA REGRA COM VÁRIOS CÁLCULOS (vs. múltiplas regras)
 
-Se o texto cita um médico, hospital ou empresa específica, marque como 'especifica'. Caso contrário, 'master'.`;
+CONSOLIDE em 1 regra com N \`calculations[]\` quando:
+- A entrada é uma TABELA TARIFÁRIA (linhas homogêneas variando 1-2 dimensões + valor).
+- Várias linhas compartilham o mesmo contexto contratual (mesmo hospital, mesmo tipo de pagamento, mesmo escopo) e diferem apenas em valor por especialidade/código/função/etc.
+- O documento descreve "tabela de honorários" / "tabela de consultas" / "valores por especialidade".
+
+SEPARE em regras distintas quando:
+- Cada bloco descreve um contrato/acordo independente (PJ diferente, vigência diferente, severidade diferente).
+- Cláusulas têm naturezas opostas (uma de pacote, outra de exclusão, outra informativa).
+
+# EXEMPLO (TABELA DE CONSULTAS)
+
+Entrada:
+\`\`\`
+Hospital,Especialidade,Valor
+DF Star,Cardiologia,130
+DF Star,Endocrinologia,130
+DF Star,Geriatria,150
+DF Star,Anestesiologia,95
+\`\`\`
+
+Saída CORRETA — UMA regra:
+{
+  "rules": [{
+    "name": "Tabela de Consultas — DF Star",
+    "description": "Valores fixos por especialidade para consultas ambulatoriais",
+    "rule_text": "Pagar valor fixo conforme tabela de consultas vigente, distinto por especialidade",
+    "severity": "aviso",
+    "scope": "master",
+    "sectors": ["consulta"],
+    "payment_type_code": "consulta",
+    "calculations": [
+      { "label": "Cardiologia",      "calculation_type": "valor_fixo", "fixed_amount": 130, "specialties": ["Cardiologia"] },
+      { "label": "Endocrinologia",   "calculation_type": "valor_fixo", "fixed_amount": 130, "specialties": ["Endocrinologia"] },
+      { "label": "Geriatria",        "calculation_type": "valor_fixo", "fixed_amount": 150, "specialties": ["Geriatria"] },
+      { "label": "Anestesiologia",   "calculation_type": "valor_fixo", "fixed_amount": 95,  "specialties": ["Anestesiologia"] }
+    ]
+  }]
+}
+
+Saída ERRADA: 4 regras separadas, cada uma com 1 valor.
+
+# REGRAS GERAIS DE EXTRAÇÃO
+
+1. Cada bloco rotulado como "Regra N:", "Cláusula N:" = 1 regra. Subitens (1), 2), 3)) dentro do mesmo bloco ficam no \`rule_text\`, não viram regras separadas.
+2. IGNORE cabeçalhos/rodapés (página, código de proposta, assinatura, "Confidencial"), campos vazios, e duplicatas (mesma regra repetida em páginas).
+3. NÃO parafraseie ao ponto de mudar o sentido; não invente cláusulas.
+
+# CAMPOS POR REGRA
+
+- name, description, rule_text (em pt-BR).
+- severity: 'info' | 'aviso' | 'bloqueio'.
+- scope: 'master' (vale para todos) | 'especifica' (vinculada a um médico/empresa).
+- sectors: ['cirurgia'|'hemodinamica'|'parecer'|'visita'|'procedimento'|'consulta'|'outro'].
+- payment_type_code: código de payment_type quando reconhecido (ver CONTEXTO).
+- target_type/target_identifier/target_name: só preencher se scope='especifica'.
+- calculations[]: array (pode ser vazio se a regra for puramente informativa).
+
+# CAMPOS POR CÁLCULO (calculations[])
+
+- label: rótulo curto do cálculo (ex.: "Cardiologia", "Pacote Vascular").
+- calculation_type: 'valor_fixo'|'pacote'|'tabela_diferenciada'|'bonus'|'complemento'|'percentual_sobre_convenio'|'exclusao'|'informativo'.
+- fixed_amount, package_amount, bonus_amount, bonus_pct, target_amount, multiplier, deflator_pct, convenio_percentage: numéricos ou null conforme o tipo.
+- procedure_codes: códigos TUSS quando o cálculo se aplica só a procedimentos específicos.
+- specialties: nomes de especialidade quando o cálculo se aplica só a uma especialidade (use os nomes do CONTEXTO).
+- sectors: setores quando o cálculo é restrito a um setor.
+- doctor_roles: ['cirurgiao_principal'|'primeiro_aux'|'segundo_aux'|'anestesista'|'instrumentador'] quando aplicável.
+- payment_type_code: código do payment_type quando o cálculo é restrito a um tipo.
+
+Se não houver cálculos (regra puramente informativa, ex.: "É vedado o pagamento de..."), retorne calculations como array vazio.`;
 
     const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -90,14 +178,12 @@ Se o texto cita um médico, hospital ou empresa específica, marque como 'especi
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
-        max_tokens: 8192,
+        max_tokens: 16384,
         system: systemPrompt,
-        messages: [
-          { role: "user", content: userContent },
-        ],
+        messages: [{ role: "user", content: userContent }],
         tools: [{
           name: "extract_rules",
-          description: "Extrai regras",
+          description: "Extrai regras estruturadas (uma regra pode conter vários cálculos)",
           input_schema: {
             type: "object",
             properties: {
@@ -112,19 +198,37 @@ Se o texto cita um médico, hospital ou empresa específica, marque como 'especi
                     severity: { type: "string", enum: ["info", "aviso", "bloqueio"] },
                     scope: { type: "string", enum: ["master", "especifica"] },
                     sectors: { type: "array", items: { type: "string", enum: ["cirurgia", "hemodinamica", "parecer", "visita", "procedimento", "consulta", "outro"] } },
+                    payment_type_code: { type: ["string", "null"] },
                     target_type: { type: ["string", "null"], enum: ["medico", "empresa", null] },
                     target_identifier: { type: ["string", "null"] },
                     target_name: { type: ["string", "null"] },
-                    calculation_type: { type: "string", enum: ["informativo","pacote","tabela_diferenciada","tabela_referencia","bonus","complemento","percentual_fixo"] },
-                    package_amount: { type: ["number","null"] },
-                    bonus_amount: { type: ["number","null"] },
-                    bonus_pct: { type: ["number","null"] },
-                    target_amount: { type: ["number","null"] },
-                    multiplier: { type: ["number","null"] },
-                    deflator_pct: { type: ["number","null"] },
-                    procedure_codes: { type: "array", items: { type: "string" } },
+                    calculations: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          label: { type: ["string", "null"] },
+                          calculation_type: { type: "string", enum: ["valor_fixo", "pacote", "tabela_diferenciada", "bonus", "complemento", "percentual_sobre_convenio", "exclusao", "informativo"] },
+                          fixed_amount: { type: ["number", "null"] },
+                          package_amount: { type: ["number", "null"] },
+                          bonus_amount: { type: ["number", "null"] },
+                          bonus_pct: { type: ["number", "null"] },
+                          target_amount: { type: ["number", "null"] },
+                          multiplier: { type: ["number", "null"] },
+                          deflator_pct: { type: ["number", "null"] },
+                          convenio_percentage: { type: ["number", "null"] },
+                          procedure_codes: { type: "array", items: { type: "string" } },
+                          specialties: { type: "array", items: { type: "string" } },
+                          sectors: { type: "array", items: { type: "string" } },
+                          doctor_roles: { type: "array", items: { type: "string" } },
+                          payment_type_code: { type: ["string", "null"] },
+                        },
+                        required: ["calculation_type"],
+                        additionalProperties: false,
+                      },
+                    },
                   },
-                  required: ["name", "description", "rule_text", "severity", "scope", "sectors", "calculation_type"],
+                  required: ["name", "rule_text", "severity", "scope", "sectors", "calculations"],
                   additionalProperties: false,
                 },
               },
@@ -138,10 +242,8 @@ Se o texto cita um médico, hospital ou empresa específica, marque como 'especi
     });
 
     if (!aiResp.ok) {
-      // Retorna 200 com flag de erro para evitar que supabase-js trate como exceção
-      // e quebre a UI. O cliente decide como exibir.
       if (aiResp.status === 429) return new Response(JSON.stringify({ error: "Limite de uso da IA atingido. Tente novamente em instantes.", code: "RATE_LIMIT" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (aiResp.status === 402) return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos em Configurações → Workspace.", code: "CREDITS_EXHAUSTED" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (aiResp.status === 402) return new Response(JSON.stringify({ error: "Créditos de IA esgotados.", code: "CREDITS_EXHAUSTED" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       return new Response(JSON.stringify({ error: `Falha na IA (${aiResp.status})`, code: "AI_ERROR" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const data = await aiResp.json();
@@ -149,18 +251,18 @@ Se o texto cita um médico, hospital ou empresa específica, marque como 'especi
     if (!tc) throw new Error("No tool call");
     const parsed = tc.input;
 
-    // Dedup defensivo: remove regras com rule_text idêntico (após normalização)
+    // Dedup defensivo (mesma assinatura: nome + texto + nº de cálculos)
     if (parsed?.rules && Array.isArray(parsed.rules)) {
       const seen = new Set<string>();
       parsed.rules = parsed.rules.filter((r: any) => {
-        const key = (r?.rule_text ?? "").toLowerCase().replace(/\s+/g, " ").trim();
-        if (!key || seen.has(key)) return false;
-        seen.add(key);
+        const sig = `${(r?.name ?? "").toLowerCase()}|${(r?.rule_text ?? "").toLowerCase().replace(/\s+/g, " ").trim()}|${(r?.calculations?.length ?? 0)}`;
+        if (seen.has(sig)) return false;
+        seen.add(sig);
         return true;
       });
     }
 
-    return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ...parsed, detected_kind: effectiveKind }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
