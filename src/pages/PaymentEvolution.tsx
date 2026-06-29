@@ -962,6 +962,19 @@ export default function PaymentEvolution() {
                                   <CompanyDrill
                                     companies={companiesByCc(r.cc)}
                                     totalCc={r.total}
+                                    focusedName={focusedCompany?.cc === r.cc ? focusedCompany.name : null}
+                                    onSelectCompany={(name) => {
+                                      setFocusedCompany((prev) =>
+                                        prev && prev.cc === r.cc && prev.name === name
+                                          ? null
+                                          : { cc: r.cc, name },
+                                      );
+                                      // scroll to chart
+                                      if (typeof window !== "undefined") {
+                                        const el = document.getElementById("evolucao-chart");
+                                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                      }
+                                    }}
                                   />
                                 )}
                               </div>
