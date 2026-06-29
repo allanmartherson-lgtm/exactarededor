@@ -655,6 +655,21 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       const code = (it.procedure_code ?? "").toString().trim();
       const fromMap = code ? specMap[code] ?? null : null;
       const docList = doctorSpecsByName[String(it.doctor_name ?? "").trim()] ?? [];
+      // 0) PRIORIDADE MÁXIMA: especialidade vinda da planilha (coluna
+      // "Especialidade Médico" / "Especialidade"). Se o analista declarou
+      // explicitamente o valor na base, ele vence qualquer inferência —
+      // historicamente o resolver ignorava esse campo e quebrava regras
+      // como "Consulta por especialidade" quando o TUSS 10101012 não tinha
+      // entrada em procedure_specialty_map.
+      const fromSheet = String(it.specialty ?? "").trim();
+      if (fromSheet) {
+        // Se o mapa por TUSS também respondeu e bate com a planilha, marca
+        // como confirmado; senão respeita a planilha mesmo assim.
+        if (fromMap && normSpec(fromMap) === normSpec(fromSheet)) {
+          return { value: fromSheet, source: "planilha+map" };
+        }
+        return { value: fromSheet, source: "planilha" };
+      }
       // 1) mapa + médico → interseção
       if (fromMap && docList.length > 1) {
         const inter = docList.find((s) => normSpec(s) === normSpec(fromMap));
