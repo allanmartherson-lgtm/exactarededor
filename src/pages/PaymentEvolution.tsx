@@ -418,19 +418,24 @@ export default function PaymentEvolution() {
   }, [payments, mode]);
 
   // Company-focus chart series (single line: empresa dentro do CC, mês a mês)
+  // ESTRITO: só lotes cujo cost_center_code === focusedCompany.cc.
   const companyChartData = useMemo(() => {
     if (!focusedCompany) return null;
     const groups = drillCompanies[focusedCompany.cc] ?? [];
+    const ccPaymentIds = new Set(
+      payments.filter((p) => (p.cost_center_code ?? "—") === focusedCompany.cc).map((p) => p.id),
+    );
     const byMonth = new Map<string, number>();
     groups.forEach((g) => {
       if (g.company_name !== focusedCompany.name) return;
+      if (!ccPaymentIds.has(g.payment_id)) return;
       const mk = paymentMonth.get(g.payment_id);
       if (!mk || !months.includes(mk)) return;
       const v = g.liquido_total ?? g.bruto_total ?? g.total_amount ?? 0;
       byMonth.set(mk, (byMonth.get(mk) ?? 0) + v);
     });
     return months.map((mk) => ({ month: monthLabel(mk), value: byMonth.get(mk) ?? 0 }));
-  }, [focusedCompany, drillCompanies, paymentMonth, months]);
+  }, [focusedCompany, drillCompanies, paymentMonth, months, payments]);
 
 
 
