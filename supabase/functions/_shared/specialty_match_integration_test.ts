@@ -178,11 +178,11 @@ Deno.test("INTEGRAÇÃO/consultas — regra de consultas com specialties[] rotei
   const items: ItemInput[] = [
     // Consultas — devem rotear por especialidade
     baseItem({ id: "c1", procedure_code: "10101012", specialty: "Cardiologia" }),
-    baseItem({ id: "c2", procedure_code: "10101012", specialty: "Pediatria",  procedure_amount: 0, gross_amount: 0 }),
-    baseItem({ id: "c3", procedure_code: "10101012", specialty: "Ortopedia",  procedure_amount: 0, gross_amount: 0 }), // não casa nenhum
+    baseItem({ id: "c2", procedure_code: "10101012", specialty: "Pediatria" }),
+    baseItem({ id: "c3", procedure_code: "10101012", specialty: "Ortopedia" }), // não casa nenhum
     // Cirurgia — não deve sofrer interferência da especialidade
     baseItem({ id: "s1", procedure_code: "31001010", specialty: "Cardiologia" }),
-    baseItem({ id: "s2", procedure_code: "31001010", specialty: null,           procedure_amount: 0, gross_amount: 0 }),
+    baseItem({ id: "s2", procedure_code: "31001010", specialty: null }),
   ];
 
   const out = analyzePaymentItems(items, [consultas, cirurgia], CTX);
