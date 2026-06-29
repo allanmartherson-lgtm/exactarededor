@@ -1631,6 +1631,8 @@ function CalcCard({
           {c.calculation_type === "valor_fixo" && (
             <ComplementosBlock c={c} onChange={onChange} />
           )}
+
+          {extras}
         </div>
       )}
     </div>
