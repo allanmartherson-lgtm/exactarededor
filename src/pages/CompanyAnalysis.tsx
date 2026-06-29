@@ -2081,8 +2081,8 @@ export default function CompanyAnalysis() {
                 <Upload className="h-4 w-4 mr-1" /> {reimporting ? "Reimportando…" : "Reimportar base"}
               </Button>
               <AlertDialog open={!!reimportConfirm} onOpenChange={(v) => !v && !reimporting && setReimportConfirm(null)}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
+                <AlertDialogContent className="max-h-[90vh] flex flex-col overflow-hidden">
+                  <AlertDialogHeader className="shrink-0">
                     <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
                     <AlertDialogDescription>
                       Esta ação <strong>substitui apenas os itens desta empresa</strong> ({group.company_name}) pelo conteúdo dos arquivos selecionados e reinicia a análise <strong>somente desta PJ</strong>. As demais empresas do lote não são afetadas. Os arquivos devem conter apenas linhas desta empresa. Não pode ser desfeita.
@@ -2090,7 +2090,7 @@ export default function CompanyAnalysis() {
                   </AlertDialogHeader>
                   {/* Conteúdo bloco-nivel fica FORA do <AlertDialogDescription> (que renderiza como <p>),
                       senão o browser fecha o <p> automaticamente e o conteúdo escapa do container. */}
-                  <div className="space-y-3 min-w-0">
+                  <div className="space-y-3 min-w-0 flex-1 overflow-y-auto">
                     <div className="bg-muted/50 p-2.5 rounded-md border border-border/50 min-w-0 overflow-hidden">
                       <div className="flex items-center justify-between gap-2 mb-1.5 min-w-0">
                         <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate min-w-0">Arquivos para reimportar ({reimportConfirm?.length}):</p>
@@ -2103,7 +2103,7 @@ export default function CompanyAnalysis() {
                           <Plus className="h-3 w-3 mr-1" /> Adicionar mais
                         </Button>
                       </div>
-                      <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
+                      <ul className="text-xs space-y-1 max-h-[40vh] overflow-y-auto pr-1">
                         {reimportConfirm?.map((f, i) => (
                           <li key={i} className="flex items-center justify-between gap-2 group min-w-0">
                             <span className="truncate flex-1 min-w-0" title={f.name}>• {f.name}</span>
@@ -2123,7 +2123,7 @@ export default function CompanyAnalysis() {
                     </p>
                   </div>
 
-                  <AlertDialogFooter>
+                  <AlertDialogFooter className="shrink-0">
                     <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
                       disabled={reimporting}
