@@ -45,9 +45,9 @@ const PARECER_META: PaymentTypeRequirementMeta = {
 };
 
 describe("Zeev × modal — paridade de mapeamento com defaults do payment_type", () => {
-  it("sem meta, procedure_code e doctor_role aparecem como faltando (estado bruto)", () => {
+  it("sem meta (null), procedure_code e doctor_role aparecem como faltando (estado bruto)", () => {
     const hits = inspectColumnMapping(PARECER_HEADERS);
-    const sumNoMeta = summarizeMissing(hits);
+    const sumNoMeta = summarizeMissing(hits, null);
     const missingFields = sumNoMeta.missingRequired.map((h) => h.field);
     expect(missingFields).toEqual(expect.arrayContaining(["procedure_code", "doctor_role"]));
   });
