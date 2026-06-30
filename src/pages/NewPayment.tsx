@@ -908,7 +908,7 @@ const NewPayment = () => {
   // Sincroniza o Select visível com o id escolhido no pré-wizard. Ver hook
   // para detalhes — coberto por src/hooks/__tests__/usePaymentTypeCodeSync.test.tsx.
   usePaymentTypeCodeSync({
-    paymentModelId,
+    paymentTypeId: paymentModelId,
     paymentTypeOptions,
     paymentType,
     setPaymentType: (code) => setPaymentType(code as PaymentType),
@@ -4398,7 +4398,7 @@ const NewPayment = () => {
             hospitalId={hospital?.id ?? null}
             mode={modoConfeccao ? "confeccao" : "analise"}
             compatibleCount={compatibleCount}
-            paymentModelMeta={paymentModelMeta ? {
+            paymentTypeMeta={paymentModelMeta ? {
               tuss_default: paymentModelMeta.tuss_default,
               requires_tuss_in_sheet: paymentModelMeta.requires_tuss_in_sheet,
               default_function: paymentModelMeta.default_function,
