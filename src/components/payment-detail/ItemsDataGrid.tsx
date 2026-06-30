@@ -856,6 +856,18 @@ export function ItemsDataGrid({
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkTypeId, setBulkTypeId] = useState<string | null>(null);
+  const { list: itemTypesForBulk } = useItemTypes({ onlyActive: true });
+  const { list: paymentTypesForBulk } = usePaymentTypes({ onlyActive: true });
+  // Mapeia item_types.code → payment_types.id (escrita canônica em item_type_id usa o id de payment_types correspondente).
+  const itemTypeCodes = useMemo(() => new Set(itemTypesForBulk.map((t) => t.code)), [itemTypesForBulk]);
+  const bulkSelectable = useMemo(
+    () => paymentTypesForBulk.filter((t) => itemTypeCodes.has(t.code)),
+    [paymentTypesForBulk, itemTypeCodes],
+  );
+
 
   const [filter, setFilter] = useState(pf.filter ?? "");
   const [patientFilter, setPatientFilter] = useState(pf.patientFilter ?? "");
