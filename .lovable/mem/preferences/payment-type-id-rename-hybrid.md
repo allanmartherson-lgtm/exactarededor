@@ -26,12 +26,15 @@ Triggers e funções de sync (`sync_payment_items_type_columns`, `sync_rule_calc
 - Colunas canônicas adicionadas e populadas a partir das legadas via JOIN por `code`.
 - Triggers bidirecionais ativos: UI pode continuar gravando na legada (forward sync) ou já migrar para a nova (reverse sync) — ambos lados ficam coerentes.
 - 1 ajuste financeiro (id `f227ef1d…`) tinha `payment_type_ids=[parecer_adulto]` (item type, nunca casava com `payment_model_id` do lote — bug histórico). Mantido como `payment_model_ids = []` (opção 2: preserva comportamento "ajuste morto", explícito no campo novo).
-- Próximo passo (D3.e.2): migrar consumidores da UI para gravar diretamente nas colunas novas; depois D3.e.4 dropa legadas + triggers.
 
-**Status D3.a (no-op de código preservado):** trigger `sync_payments_type_columns` ativo, `payment_model_id` populado, mas frontend ainda usa `usePaymentTypes`. Migração ocorre em D3.e.2.
-
-**Status D3.d (no-op de código preservado):** colunas novas existem (D3.e.3) mas UI ainda usa `usePaymentTypes`. Migração ocorre em D3.e.2.
+**Status D3.e.2 (jun/2026 — consumidores migrados para colunas canônicas):**
+- `CompanyFinancialAdjustmentsDialog` + `CreditosDebitos` + edge `apply-company-deductions`: lê/escreve `payment_model_ids` (fallback `payment_type_ids` na edge para linhas antigas). Picker restrito a `origin='payment_model'`.
+- `MixedParecerSetupCard` (state field `item_type_id`) + `MixedParecerRetroAction` + `NewPayment`: escrevem `mixed_parecer_item_type_id`. Hook trocado para `useItemTypes`. Edge `cross-reference-parecer` lê canônica com fallback.
+- `ItemsDataGrid`: catálogo agora vem de `item_types`; padrão da empresa grava `default_item_type_id`. `NewPayment` lê empresa preferindo `default_item_type_id`.
+- `NewPayment` + `NewManualPayment` + `NewManualPaymentComposicao`: escrevem `payment_model_id` no insert do lote. `ManualPaymentEntry` lê preferindo `payment_model_id`.
+- Helpers em `src/lib/paymentTypeResolvers.ts` ficaram criados (D3.e.1) mas não foram necessários nos consumidores — os triggers de sync + leituras com fallback bastaram.
+- Próximo passo (D3.e.4): após validação em produção, dropar colunas legadas + triggers de sync.
 
 Essas seguem para D3.e. NÃO criar fallback `?? payment_type_id` em código novo que toca payment_items ou rule_calculations — colunas não existem mais.
 
-**How to apply:** Em código novo, ler/escrever sempre `item_type_id` / `item_type_source` para payment_items e rule_calculations. Para `payments`/`companies`/`company_financial_adjustments`, pode ler de qualquer lado (trigger garante coerência), mas escrever na coluna NOVA quando migrar a UI (D3.e.2).
+**How to apply:** Em código novo, ler/escrever sempre `item_type_id` / `item_type_source` para payment_items e rule_calculations. Para `payments`/`companies`/`company_financial_adjustments`, escrever SEMPRE na coluna canônica nova (`payment_model_id`, `mixed_parecer_item_type_id`, `default_item_type_id`, `payment_model_ids`); leituras podem usar fallback `?? <coluna legada>` enquanto D3.e.4 não dropar as legadas.
