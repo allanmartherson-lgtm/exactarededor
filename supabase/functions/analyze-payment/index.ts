@@ -163,9 +163,6 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       specialties: payment?.specialties ?? [],
       payment_type: payment?.payment_type ?? null,
       payment_model: (payment as any)?.payment_model_id ?? null,
-      // @deprecated — alias legado: `rules.payment_type_id` foi descontinuada (Fase D).
-      // O motor não filtra mais regras inteiras por este campo.
-      payment_type_id: (payment as any)?.payment_model_id ?? null,
       // Onda 1 — Regra de competência: a vigência é determinada pela
       // `procedure_date` de CADA item dentro do motor (analyzeItem).
       // `reference_date` aqui é apenas informativo e NÃO é usado para
@@ -740,12 +737,10 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       convenio_value_totalized: it.convenio_value_totalized ?? false,
       special_case_code: it.special_case_code ?? null,
       special_case_status: it.special_case_status ?? null,
-      // Filtro de tipo de item por cálculo (rule_calculations.item_type_id)
-      // — usa o tipo do ITEM quando setado (reclassificação Visita × Parecer no
-      // mesmo lote); cai para o legado `payment_type_id` como fallback.
-      item_type_id: (it as any).item_type_id ?? (it as any).payment_type_id ?? null,
-      // @deprecated — alias legado para retrocompatibilidade.
-      payment_type_id: (it as any).item_type_id ?? (it as any).payment_type_id ?? null,
+      // Filtro de tipo de item por cálculo (rule_calculations.item_type_id).
+      // Lê direto de payment_items.item_type_id (sync trigger da Fase B' garante
+      // que essa coluna está sempre populada).
+      item_type_id: (it as any).item_type_id ?? null,
       // Exceção do cálculo (LEGADO) — substituída por manual_intervention_reason_id.
       calc_exception_skip: (it as any).calc_exception_skip ?? false,
       calc_exception_skipped_calc_id: (it as any).calc_exception_skipped_calc_id ?? null,

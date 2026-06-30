@@ -1759,12 +1759,11 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   }
 
   // ---- Tipo de item (Parecer × Visita × Consulta etc.) ----
-  // Fase D: cálculo restrito a um `item_type_id` só casa se o item tiver o mesmo
-  // tipo. NULL no cálculo = vale para qualquer tipo. NULL no item = sem
-  // classificação → NÃO casa cálculos tipados (evita aplicar regra de Parecer
-  // em base sem classificação). Aceita alias legado `payment_type_id` durante
-  // a transição.
-  const calcItemType = (c.item_type_id ?? c.payment_type_id) ?? null;
+  // Cálculo restrito a um `item_type_id` só casa se o item tiver o mesmo tipo.
+  // NULL no cálculo = vale para qualquer tipo. NULL no item = sem classificação
+  // → NÃO casa cálculos tipados (evita aplicar regra de Parecer em base sem
+  // classificação).
+  const calcItemType = c.item_type_id ?? null;
   if (calcItemType) {
     // Exceção do cálculo: analista marcou o item para pular cálculos tipados
     // desta regra. O item cai no próximo cálculo elegível por prioridade,
@@ -1780,14 +1779,14 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
       }
       // sem skippedId guardado: pula qualquer cálculo tipado igual ao do item
       if (!skippedId) {
-        const itemType = (item.item_type_id ?? item.payment_type_id) ?? null;
+        const itemType = item.item_type_id ?? null;
         if (itemType && itemType === calcItemType) {
           return { ok: false, reason: "item_calc_exception_skip" };
         }
       }
       // demais cálculos: aceitos (ignora restrição de tipo)
     } else {
-      const itemType = (item.item_type_id ?? item.payment_type_id) ?? null;
+      const itemType = item.item_type_id ?? null;
       if (!itemType || itemType !== calcItemType) {
         return { ok: false, reason: "item_type_nao_corresponde" };
       }

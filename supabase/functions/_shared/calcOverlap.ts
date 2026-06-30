@@ -233,8 +233,8 @@ function axisAccessRoutes(a: RuleCalculationItem, b: RuleCalculationItem): AxisR
 // O motor (rulesEngine) já filtra cada cálculo pelo item_type_id do item.
 // Cálculos com item_type_id diferentes NUNCA disputam o mesmo item em runtime.
 function axisItemType(a: RuleCalculationItem, b: RuleCalculationItem): AxisResult {
-  const A = (a as any).item_type_id ?? (a as any).payment_type_id ?? null;
-  const B = (b as any).item_type_id ?? (b as any).payment_type_id ?? null;
+  const A = (a as any).item_type_id ?? null;
+  const B = (b as any).item_type_id ?? null;
   const aRestricts = A != null;
   const bRestricts = B != null;
   if (!aRestricts && !bRestricts) return { empty: false, shared: false };
