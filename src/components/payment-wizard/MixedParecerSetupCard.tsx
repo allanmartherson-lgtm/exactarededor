@@ -87,8 +87,8 @@ export function MixedParecerSetupCard({
             <div>
               <Label className="text-xs">Subtipo de parecer para itens cruzados *</Label>
               <Select
-                value={value.payment_type_id ?? ""}
-                onValueChange={(v) => onChange({ ...value, payment_type_id: v })}
+                value={value.item_type_id ?? ""}
+                onValueChange={(v) => onChange({ ...value, item_type_id: v })}
               >
                 <SelectTrigger className="h-9 mt-1">
                   <SelectValue placeholder="Selecione o subtipo de parecer" />
