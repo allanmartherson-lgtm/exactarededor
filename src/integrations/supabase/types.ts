@@ -8725,6 +8725,7 @@ export type Database = {
           includes_holidays: boolean
           instrumentador_pct: number | null
           is_catch_all: boolean
+          item_type_id: string | null
           label: string | null
           match_by_specialty: boolean
           multiplier: number | null
@@ -8789,6 +8790,7 @@ export type Database = {
           includes_holidays?: boolean
           instrumentador_pct?: number | null
           is_catch_all?: boolean
+          item_type_id?: string | null
           label?: string | null
           match_by_specialty?: boolean
           multiplier?: number | null
@@ -8853,6 +8855,7 @@ export type Database = {
           includes_holidays?: boolean
           instrumentador_pct?: number | null
           is_catch_all?: boolean
+          item_type_id?: string | null
           label?: string | null
           match_by_specialty?: boolean
           multiplier?: number | null
