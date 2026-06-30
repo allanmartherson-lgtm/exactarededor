@@ -6,6 +6,15 @@ import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 
 vi.mock("@/hooks/useSectorAliases", () => ({ useSectorAliases: () => null }));
 
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    user: { id: "u1", email: "admin@example.com" },
+    roles: ["admin", "diretor", "validador", "analista"],
+    hasRole: () => true,
+    signOut: vi.fn(),
+  }),
+}));
+
 vi.mock("@/integrations/supabase/client", () => {
   const chain: any = new Proxy({}, {
     get(_t, prop: string) {
