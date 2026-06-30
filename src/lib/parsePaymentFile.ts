@@ -869,6 +869,7 @@ export const parsePaymentFile = async (
       doctor_email: toStr(pickField(row, "doctor_email", manualMapping)) ?? "",
       description: sanitizeDescription(pickField(row, "description", manualMapping)) ?? "",
       gross_amount: grossFromAny,
+      gross_explicit: grossSourceAuthoritative,
       company_name: resolvedName,
       company_id: resolvedCompany?.id || null,
       attendance_number: toStr(pickField(row, "attendance_number", manualMapping)),
