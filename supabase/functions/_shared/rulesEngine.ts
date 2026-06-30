@@ -2974,7 +2974,7 @@ export function analyzeItem(
   // status = aprovado. Auditoria preserva o motivo via calculation_explanation.
   // IMPORTANTE: `auto_parecer_report` NÃO é valoração nem aceite financeiro.
   // O cruzamento com o relatório de parecer serve apenas para classificar o item
-  // como Parecer ou Visita (`payment_type_id`). O valor esperado deve SEMPRE vir
+  // como Parecer ou Visita (`item_type_id`). O valor esperado deve SEMPRE vir
   // da regra vencedora. Portanto motivos automáticos legados dessa origem não
   // entram neste short-circuit de tratamento manual.
   const isAutoParecerClassification =
