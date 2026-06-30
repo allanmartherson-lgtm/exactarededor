@@ -2767,7 +2767,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                   onChange={setFCalculations}
                                   refTables={refTables}
                                   specialCaseTypes={specialCaseTypes}
-                                  paymentTypes={paymentTypesList}
+                                  paymentTypes={paymentTypesList.filter((p: any) => p.origin !== "payment_model")}
                                   enabled={true}
                                   renderCalcExtras={(calc, idx) => {
                                     if (calc.calculation_type !== "exclusao") return null;
