@@ -1,9 +1,9 @@
 // auto-classify-payment-types
 //
-// Classifica itens de um lote no novo modelo (jun/2026): atribui
-// `payment_items.item_type_id` (tabela `item_types`) e, por compatibilidade
-// com o motor atual, replica em `payment_items.payment_type_id` o id
-// equivalente em `payment_types` (mesmo `code`).
+// Classifica itens de um lote no modelo novo (jun/2026): atribui
+// `payment_items.item_type_id` (tabela `item_types`). A coluna legacy
+// `payment_type_id` é mantida em sync automaticamente pelo trigger da
+// Fase B' enquanto a tabela `payment_types` existir.
 //
 // Regra (decisão do usuário, jun/2026):
 //   1. Se o item tem `procedure_code` (TUSS) e ele bate com
@@ -46,35 +46,20 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // 1. Carrega item_types ativos (com TUSS) e payment_types ativos
-    //    para resolver o id legacy equivalente por code.
-    const [itemTypesRes, paymentTypesRes] = await Promise.all([
-      supabase
-        .from("item_types")
-        .select("id, code, tuss_default, tuss_codes_extra, is_default_when_no_tuss, active")
-        .eq("active", true),
-      supabase
-        .from("payment_types")
-        .select("id, code, active")
-        .eq("active", true),
-    ]);
-    if (itemTypesRes.error) throw itemTypesRes.error;
-    if (paymentTypesRes.error) throw paymentTypesRes.error;
+    // 1. Carrega item_types ativos (com TUSS).
+    const { data: itemTypesData, error: itemTypesErr } = await supabase
+      .from("item_types")
+      .select("id, code, tuss_default, tuss_codes_extra, is_default_when_no_tuss, active")
+      .eq("active", true);
+    if (itemTypesErr) throw itemTypesErr;
 
-    const itemTypes = (itemTypesRes.data ?? []) as Array<{
+    const itemTypes = (itemTypesData ?? []) as Array<{
       id: string;
       code: string;
       tuss_default: string | null;
       tuss_codes_extra: string[] | null;
       is_default_when_no_tuss: boolean;
     }>;
-    const paymentTypes = (paymentTypesRes.data ?? []) as Array<{
-      id: string;
-      code: string;
-    }>;
-
-    const legacyByCode = new Map<string, string>();
-    for (const pt of paymentTypes) legacyByCode.set(pt.code, pt.id);
 
     // TUSS → item_type_id (primeiro match vence; colisões viram warning).
     const tussToItemType = new Map<string, string>();
@@ -111,9 +96,6 @@ Deno.serve(async (req) => {
       console.warn("[auto-classify] Nenhum item_type marcado como is_default_when_no_tuss — itens sem TUSS ficarão sem item_type.");
     }
 
-    const itemTypeCodeById = new Map<string, string>();
-    for (const it of itemTypes) itemTypeCodeById.set(it.id, it.code);
-
     // 2. Varre itens do lote em páginas e classifica
     let totalScanned = 0;
     let autoTuss = 0;
@@ -124,7 +106,7 @@ Deno.serve(async (req) => {
     for (let from = 0; ; from += pageSize) {
       const { data: items, error: itemsErr } = await supabase
         .from("payment_items")
-        .select("id, procedure_code, payment_type_id, payment_type_source, item_type_id, item_type_source")
+        .select("id, procedure_code, item_type_id, item_type_source")
         .eq("payment_id", payment_id)
         .range(from, from + pageSize - 1);
       if (itemsErr) throw itemsErr;
@@ -132,7 +114,7 @@ Deno.serve(async (req) => {
       totalScanned += items.length;
 
       for (const it of items as any[]) {
-        const source = (it.payment_type_source ?? it.item_type_source ?? "") as string;
+        const source = (it.item_type_source ?? "") as string;
         if (PROTECTED_SOURCES.has(source)) continue;
 
         const code = String(it.procedure_code ?? "").trim();
@@ -152,32 +134,21 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const nextCode = itemTypeCodeById.get(nextItemTypeId) ?? null;
-        const nextLegacyId = nextCode ? legacyByCode.get(nextCode) ?? null : null;
-
         // Sem mudança? pula
         if (
           it.item_type_id === nextItemTypeId &&
-          it.item_type_source === nextSource &&
-          it.payment_type_id === nextLegacyId
+          it.item_type_source === nextSource
         ) {
           unchanged++;
           continue;
         }
 
-        const patch: Record<string, any> = {
-          item_type_id: nextItemTypeId,
-          item_type_source: nextSource,
-        };
-        // Replica no campo legacy para o motor atual continuar funcionando
-        if (nextLegacyId) {
-          patch.payment_type_id = nextLegacyId;
-          patch.payment_type_source = nextSource;
-        }
-
         const { error: upErr } = await supabase
           .from("payment_items")
-          .update(patch)
+          .update({
+            item_type_id: nextItemTypeId,
+            item_type_source: nextSource,
+          })
           .eq("id", it.id);
         if (upErr) {
           console.error(`[auto-classify] erro item ${it.id}`, upErr);
