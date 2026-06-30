@@ -329,27 +329,52 @@ describe("parsePaymentFile — Vl a Repassar zero / vazio / fórmula sem cache",
     expectNoValorObrigatorio(b.rows[0].line_issues);
   });
 
-  it("resolve fórmula =Valor*Regra sem cache (=G2*H2) e calcula gross_amount", async () => {
-    // Constrói sheet manualmente para injetar célula com fórmula sem cached value.
-    const aoa = [
-      ["Médico", "CPF", "Procedimento", "Cod. TUSS", "Nr Atendimento", "Paciente", "Valor Tot", "Regra", "Vl a Repassar"],
-      ["Dr. Silva", "111.111.111-11", "Procedimento X", "31002012", "A999", "Maria", 350, 0.7, null],
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    // Substitui a célula I2 (Vl a Repassar) por uma fórmula =G2*H2 sem cached value (.v).
-    ws["I2"] = { t: "n", f: "G2*H2" };
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
-    const file = new File([buf], "Acme Médica LTDA.xlsx");
-    if (!file.arrayBuffer) (file as any).arrayBuffer = async () => buf;
-
-    const b = await parsePaymentFile(file, COMPANIES);
-    expect(b.rows).toHaveLength(1);
-    // resolveSimpleFormulas deve avaliar =G2*H2 → 350*0.7 = 245.
-    expect(b.rows[0].gross_amount).toBeCloseTo(245, 2);
-    expect(b.rows[0].gross_explicit).toBe(true);
-    expectNoValorObrigatorio(b.rows[0].line_issues);
+  it("resolveSimpleFormulas avalia =G2*H2 (fórmula sem cached value)", () => {
+    // Cenário "Excel salvou sem recalcular": célula tem .f mas .v vazio/ausente.
+    // O writer do xlsx descarta cells sem .v, então testamos diretamente o
+    // helper que parsePaymentFile chama no sheet logo após XLSX.read().
+    const sheet: Record<string, any> = {
+      "!ref": "A1:I2",
+      "G2": { t: "n", v: 350 },
+      "H2": { t: "n", v: 0.7 },
+      "I2": { t: "n", f: "G2*H2" }, // sem .v → simula fórmula sem cache
+    };
+    resolveSimpleFormulas(sheet);
+    expect(sheet["I2"].v).toBeCloseTo(245, 5);
   });
+
+  it("resolveSimpleFormulas aceita referência de valor PT-BR ('1.234,56') em célula referida", () => {
+    const sheet: Record<string, any> = {
+      "!ref": "A1:B2",
+      "A2": { t: "s", v: "1.234,56" }, // string PT-BR
+      "B2": { t: "n", f: "A2*2" },
+    };
+    resolveSimpleFormulas(sheet);
+    expect(sheet["B2"].v).toBeCloseTo(2469.12, 2);
+  });
+
+  it("resolveSimpleFormulas NÃO sobrescreve célula que já tem cached value", () => {
+    const sheet: Record<string, any> = {
+      "!ref": "A1:C2",
+      "A2": { t: "n", v: 10 },
+      "B2": { t: "n", v: 5 },
+      "C2": { t: "n", v: 999, f: "A2*B2" }, // cache presente
+    };
+    resolveSimpleFormulas(sheet);
+    expect(sheet["C2"].v).toBe(999);
+  });
+
+  it("resolveSimpleFormulas ignora fórmulas com funções (não-simples) sem quebrar o sheet", () => {
+    const sheet: Record<string, any> = {
+      "!ref": "A1:B2",
+      "A2": { t: "n", v: 10 },
+      "B2": { t: "n", f: "SUM(A1:A2)" }, // contém letras + (), não é safe
+    };
+    resolveSimpleFormulas(sheet);
+    // Não resolve, mas também não joga erro nem corrompe o cell.
+    expect(sheet["B2"].v).toBeUndefined();
+    expect(sheet["B2"].f).toBe("SUM(A1:A2)");
+  });
+});
 });
 
