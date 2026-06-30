@@ -6,6 +6,9 @@ const corsHeaders = {
 };
 
 interface ContextHint {
+  /** Fase D: substitui `paymentTypes`. Lista de tipos de item (Parecer, Visita, Consulta, etc.). */
+  itemTypes?: { id: string; code: string; label: string }[];
+  /** @deprecated — use `itemTypes`. Alias legado aceito durante a transição. */
   paymentTypes?: { id: string; code: string; label: string }[];
   specialties?: string[];
   sectors?: string[];
