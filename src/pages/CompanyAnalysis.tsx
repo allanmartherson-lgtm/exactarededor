@@ -1318,11 +1318,25 @@ export default function CompanyAnalysis() {
     try {
       const { parsePaymentFile, similarity, inspectFileHeaders } = await import("@/lib/parsePaymentFile");
       const { computeHeaderSignature, FIELD_BY_KEY, inspectColumnMapping } = await import("@/lib/columnMapping");
-      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
-      const companiesData = await fetchAllPaginated<any>((from, to) =>
-        supabase.from("companies").select("id,name,aliases").range(from, to),
-      );
-      const companies = companiesData.map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
+      // Reimportação nesta tela é escopada a UMA empresa. Não carregamos mais
+      // todo o cadastro de companies aqui: tabelas grandes + RLS estavam
+      // estourando statement_timeout antes mesmo de limpar/inserir os itens.
+      const companies = [{ id: group.company_id ?? "", name: group.company_name, aliases: [] }]
+        .filter((c) => c.id || c.name);
+
+      // Mesmo fallback usado na importação/reimportação do lote: em lote Consulta,
+      // TUSS fora de 10101012/extras vira Procedimento, não Consulta.
+      let dynamicFallbackItemTypeId: string | null = null;
+      let consultaTussExtras: string[] = [];
+      try {
+        const { data: itemTypes } = await supabase
+          .from("item_types" as any)
+          .select("id,code,tuss_codes_extra");
+        const it = (itemTypes ?? []) as any[];
+        dynamicFallbackItemTypeId = it.find((t) => t.code === "procedimento")?.id ?? null;
+        const consulta = it.find((t) => t.code === "consulta");
+        consultaTussExtras = Array.isArray(consulta?.tuss_codes_extra) ? consulta.tuss_codes_extra : [];
+      } catch { /* noop */ }
 
       // Matching tolerante em três camadas:
       //   1. company_id direto (parser casou pelo CNPJ/alias);
@@ -1403,6 +1417,8 @@ export default function CompanyAnalysis() {
                 tuss_default: paymentTypeMeta.tuss_default,
                 requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
                 default_function: paymentTypeMeta.default_function,
+                tuss_codes_extra: consultaTussExtras,
+                dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
               }
             : null,
         });
@@ -1496,9 +1512,12 @@ export default function CompanyAnalysis() {
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
+        ...(r.payment_type_id_override
+          ? { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" as const }
+          : {}),
       }));
 
-      const chunkSize = 1000;
+      const chunkSize = 200;
       for (let i = 0; i < newItems.length; i += chunkSize) {
         const chunk = newItems.slice(i, i + chunkSize);
         const { error: insErr } = await supabase.from("payment_items").insert(chunk);
