@@ -1,59 +1,62 @@
-## Objetivo
-Concluir a separação **payment_models** (modelos de lote: Produção, Plantão, Remessa, Valor Fixo) vs **item_types** (procedimentos: Consulta, Parecer, Visita, Cirurgia, Bônus, SADT, Cardio), migrando o motor inteiro para ler `item_type_id` / `payment_model_id` e removendo o legacy `payment_types` em segurança.
+# Fase D — Cleanup definitivo do legacy `payment_types`
 
-## Fase A — UI de cadastros (item 1 do plano)
-Já entregue no turno anterior:
-- Rotas `/payment-models` e `/item-types` (e aliases pt-BR) com CRUD completo
-- Hub em `/payment-types` com abas
-- Validações: TUSS único, default único, bloqueio de inativação do padrão
+Hoje o motor inteiro ainda lê `payment_type_id` — os triggers da Fase B' apenas mantêm sincronia com `item_type_id`/`payment_model_id`. Levantamento atual: **42 arquivos**, ~280 referências (top ofensores: `types.ts`, `ItemsDataGrid`, `NewPayment`, `cross-reference-parecer`, `_shared/rulesEngine`, `analyze-payment`).
 
-Nada novo aqui — só confirmação.
+Fazer rename + drop num turno único é alto risco. Proponho dividir em **D1 (refactor reversível)** e **D2 (drop irreversível)**.
 
-## Fase B — Motor: leitura dupla (não-destrutivo)
-Cada consumidor passa a **preferir** `item_type_id`/`payment_model_id` e cai no legacy `payment_type_id` quando o novo estiver nulo. Sem nenhum DROP.
+## Sub-fase D1 — Refactor do motor (não destrutiva)
 
-Edge functions (ordem):
-1. `_shared/rulesEngine.ts` — helper `resolveItemType(item)` e `resolvePaymentModel(payment)`; toda checagem de "é Consulta / é Plantão / é Produção" passa pelo helper
-2. `_shared/calcOverlap.ts` — chaves de overlap usam item_type_id
-3. `analyze-payment` — matching de regra por (payment_model_id, item_type_id)
-4. `validate-payment` — divergências por item_type_id
-5. `dispatch-payment-analysis` — escolha de pipeline por payment_model_id
-6. `simulate-rule` + `simulate-rule-batch`
-7. `recalc-payment-pools` — pool por payment_model_id
-8. `apply-company-deductions` — DRE
-9. `cross-reference-parecer` — preserva manual/cross
-10. `auto-classify-payment-types` — já migrado; revalidar
+Objetivo: zero leitura/escrita de `payment_type_id`/`payment_type_source`/`payment_types` no código. As colunas/tabela continuam vivas, populadas pelos triggers, como rede de segurança.
 
-Frontend (mesma estratégia de leitura dupla):
-- Hooks: `usePaymentTypes` deprecia, `useItemTypes` + novo `usePaymentModels` viram fonte
-- `PaymentDetail`, `ItemsDataGrid`, `PaymentTypeOverrideAction`, `AutoClassifiedReviewSheet`, `AutoClassifiedBanner`, `MixedParecerRetroAction`, `CalcExceptionDialog`
-- `Rules`, `ValidationRules`, `RuleCalculationsEditor`, `ImportCalculationsDialog`
-- `NewPayment`, `NewManualPayment`, `NewManualPaymentComposicao`, `ManualPaymentEntry`
-- `CompanyAnalysis`, `CreditosDebitos`, `CompanyFinancialAdjustmentsDialog`, `ZeevRetroactiveGapsCard`, `MixedParecerSetupCard`
+Mapeamento canônico (decidido item a item, não busca-e-substitui cego):
+- `payment_items.payment_type_id` → `item_type_id`
+- `payment_items.payment_type_source` → `item_type_source`
+- `payments.payment_type_id` → `payment_model_id` (é modelo do LOTE)
+- `rules.payment_type_id` → quando filtra item: `item_type_id`; quando filtra modelo de lote: `payment_model_id` (revisão caso a caso em `rulesEngine.ts`)
+- `procedure_classifications.payment_type_id` → já existe `item_type_id`, remover leitura legacy
+- `rule_calculations.payment_type_id` → `item_type_id` (adicionar coluna nova nessa migration, com backfill + trigger sync)
+- `payout_models.payment_type_id` → `payment_model_id`
 
-Teste de aceite Fase B:
-- Rodar `analyze-payment` em 3 pagamentos representativos (produção, plantão, parecer/visita misto) e comparar `rule_calculations` antes/depois — esperado: idêntico
-- Atualizar `_shared/rulesEngine_test.ts` e `calcOverlap_test.ts`
+Arquivos por bloco (ordem de execução):
 
-## Fase C — Backfill de garantia + monitor
-- Migration que faz `UPDATE` em qualquer `payment_items.item_type_id IS NULL` que ainda exista (já 0 hoje, mas garantir gatilho)
-- Trigger `BEFORE INSERT` em `payment_items` e `payments`: se `item_type_id`/`payment_model_id` nulo, classifica automaticamente
-- View `v_legacy_payment_type_usage` lista qualquer linha onde legacy ≠ novo → alarme
+1. **Edge functions motor** — `_shared/rulesEngine.ts`, `_shared/calcOverlap.ts`, `analyze-payment`, `validate-payment`, `dispatch-payment-analysis`, `simulate-rule`, `simulate-rule-batch`, `recalc-payment-pools`, `apply-company-deductions`, `cross-reference-parecer`, `auto-classify-payment-types`, `convert-rules`, `zeev-executor`
+2. **Hooks/lib frontend** — substituir `usePaymentTypes` por `usePaymentModels` (para lote) ou `useItemTypes` (para item) caso a caso; deprecar `usePaymentTypeMeta`; ajustar `src/lib/status.ts`
+3. **UI pagamento** — `PaymentDetail`, `ItemsDataGrid`, `PaymentTypeOverrideAction`, `AutoClassifiedReviewSheet`, `AutoClassifiedBanner`, `MixedParecerRetroAction`, `MixedParecerSetupCard`, `PaymentModeSelectModal`, `ZeevRetroactiveGapsCard`
+4. **UI regras** — `Rules.tsx`, `RuleCalculationsEditor`, `ImportCalculationsDialog`
+5. **UI lançamento** — `NewPayment`, `NewManualPayment`, `NewManualPaymentComposicao`, `ManualPaymentEntry`
+6. **UI análise** — `CompanyAnalysis`, `CreditosDebitos`, `CompanyFinancialAdjustmentsDialog`, `PayoutModels`
+7. **Testes** — atualizar/remover `usePaymentTypeCodeSync.test`, `rulesEngine_test`, `calcOverlap_test`, `columnMapping.paymentTypeMeta.test`
 
-Aguardar 1 ciclo de uso real (você roda os processos do dia) e confirmar view zerada.
+Migration única no fim de D1:
+- Adiciona `rule_calculations.item_type_id` + backfill + trigger sync bidirecional
+- Mantém `payment_types` e colunas legacy intactas
 
-## Fase D — Cleanup (item 3, irreversível)
-Só depois do "ok" explícito seu, em migration única:
-1. `ALTER TABLE payments DROP COLUMN payment_type_id, DROP COLUMN payment_type_source`
-2. Idem em `payment_items`, `rules`, `procedure_classifications`
-3. `DROP TABLE payment_types CASCADE`
-4. Remover hooks/páginas legacy (`PaymentTypes.tsx` original, `usePaymentTypes`, `usePaymentTypeMeta`, teste `usePaymentTypeCodeSync`)
-5. Limpar campos de leitura dupla nas edge functions
+Critério de saída D1:
+- `rg "payment_type_id|payment_type_source|payment_types|usePaymentTypes|usePaymentTypeMeta" src supabase` retorna apenas `types.ts` (auto-gen) e arquivos de teste removidos
+- Re-rodar `analyze-payment` em 3 pagamentos representativos: `rule_calculations` idêntico ao antes
+- View `v_legacy_payment_type_divergence` continua zerada em `out_of_sync`
 
-## Estratégia de execução
-Vou pedir aprovação **entre cada fase**, não fazer tudo num turno só. Motivos:
-- Fase B sozinha edita ~25 arquivos e 9 edge functions — precisa de janela de teste sua antes de seguir
-- Fase D é destrutiva e só deve rodar quando Fase C ficar limpa por pelo menos um ciclo operacional
+Pausa para você operar 1 ciclo e confirmar que nada quebrou.
 
-## Próximo passo
-Confirma esse encadeamento? Se sim, começo agora pela **Fase B** (leitura dupla no motor) e te devolvo para teste antes de partir pra C e D.
+## Sub-fase D2 — Drop irreversível
+
+Migration única (só após "ok" explícito):
+1. Drop triggers de sincronização da Fase B'
+2. `ALTER TABLE payment_items DROP COLUMN payment_type_id, DROP COLUMN payment_type_source`
+3. `ALTER TABLE payments DROP COLUMN payment_type_id`
+4. `ALTER TABLE rules DROP COLUMN payment_type_id`
+5. `ALTER TABLE rule_calculations DROP COLUMN payment_type_id`
+6. `ALTER TABLE payout_models DROP COLUMN payment_type_id`
+7. `ALTER TABLE procedure_classifications DROP COLUMN payment_type_id` (se ainda existir além de `item_type_id`)
+8. `DROP VIEW v_legacy_payment_type_divergence, v_legacy_payment_type_orphans, v_legacy_payment_type_usage`
+9. `DROP TABLE payment_types CASCADE`
+10. Remove arquivos: `src/pages/PaymentTypes.tsx` (original), `src/hooks/usePaymentTypes.ts`, `src/hooks/usePaymentTypeMeta.ts`, `src/hooks/__tests__/usePaymentTypeCodeSync.test.tsx`, `src/hooks/usePaymentTypeCodeSync.ts`, `src/lib/__tests__/columnMapping.paymentTypeMeta.test.ts`
+
+## Riscos conhecidos
+
+- **38 órfãos** (`v_legacy_payment_type_orphans`): linhas onde o legacy não tem `item_type_id` equivalente claro (ex.: `parecer_adulto`). Em D1 essas linhas continuam funcionando via fallback. Em **D2 elas quebrarão** se não tiverem `item_type_id` resolvido antes. Precisa de decisão sua antes de D2: mapear esses 38 manualmente ou aceitar perda controlada.
+- **100 correções** (`producao` → `consulta`): intencionais, sem ação necessária.
+
+## O que preciso de você agora
+
+Confirma esse encadeamento (D1 agora, pausa, D2 depois com sua aprovação explícita e tratamento dos 38 órfãos)? Se sim, sigo direto pra D1 começando pelas edge functions do motor.
