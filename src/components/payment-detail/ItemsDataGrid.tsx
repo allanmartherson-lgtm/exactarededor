@@ -1336,7 +1336,17 @@ export function ItemsDataGrid({
 
   const getConvenio = getAgreement;
 
-  const selectRow = (itId: string) => setActiveId(itId);
+  const selectRow = (itId: string) => {
+    setActiveId(itId);
+    if (selectionMode) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(itId)) next.delete(itId);
+        else next.add(itId);
+        return next;
+      });
+    }
+  };
   const openDetail = (itId?: string) => {
     const target = itId ?? activeId;
     if (!target) return;
