@@ -1,111 +1,165 @@
-## D3.e — Cutover final do legado `payment_type_id`
+# D3.e.4 — Remoção das colunas legadas `payment_type_id` & afins
 
-Esta é a onda que destrava o que D3.a e D3.d deixaram pendente. Foco em **migrar a UI** e **reescrever os IDs já gravados** antes de dropar colunas.
+Objetivo: encerrar o período híbrido removendo as colunas legadas e os triggers de sincronização criados em D3.e.3. Toda a UI e edges já gravam nas colunas canônicas (D3.e.2); resta limpar o legado.
 
----
+## Escopo
 
-### Problema central
+### Colunas a dropar
+| Tabela | Coluna legada | Canônica (mantida) |
+|---|---|---|
+| `payments` | `payment_type_id` | `payment_model_id` |
+| `payments` | `mixed_parecer_payment_type_id` | `mixed_parecer_item_type_id` |
+| `companies` | `default_payment_type_id` | `default_item_type_id` |
+| `company_financial_adjustments` | `payment_type_ids uuid[]` | `payment_model_ids uuid[]` |
 
-Hoje, três camadas convivem:
+### Triggers / funções a dropar
+- `sync_payments_type_columns` (+ função)
+- `sync_payments_mixed_parecer_columns` (+ função)
+- `sync_companies_default_type_columns` (+ função)
+- `sync_cfa_payment_model_ids` (+ função)
 
-```text
-payment_types  ──code──▶ payment_models   (modelo do LOTE: producao/plantao/remessa/...)
-                └─code──▶ item_types      (tipo do ITEM: parecer/visita/cirurgia/...)
+### Índices / FKs colaterais
+Cada coluna legada terá FK (`*_fkey` para `payment_types`) e possivelmente índice. `DROP COLUMN ... CASCADE` derruba ambos; preferir listagem explícita (`DROP CONSTRAINT`, `DROP INDEX`) antes do `DROP COLUMN` simples para evitar cascata invisível.
+
+## Pré-requisitos (gate antes de migrar)
+
+### 1. Validação de coerência (snapshot pré-drop)
+Query a rodar em produção; se algum retorno > 0, abortar e investigar drift antes de dropar.
+
+```sql
+-- payments.payment_type_id vs payment_model_id
+SELECT count(*) FROM public.payments
+ WHERE coalesce(payment_type_id::text,'') <> coalesce(payment_model_id::text,'');
+
+-- payments.mixed_parecer_*
+SELECT count(*) FROM public.payments p
+ LEFT JOIN public.payment_types pt ON pt.id = p.mixed_parecer_payment_type_id
+ LEFT JOIN public.item_types    it ON it.id = p.mixed_parecer_item_type_id
+ WHERE (p.mixed_parecer_payment_type_id IS NULL) <> (p.mixed_parecer_item_type_id IS NULL)
+    OR (pt.code IS DISTINCT FROM it.code);
+
+-- companies.default_*
+SELECT count(*) FROM public.companies c
+ LEFT JOIN public.payment_types pt ON pt.id = c.default_payment_type_id
+ LEFT JOIN public.item_types    it ON it.id = c.default_item_type_id
+ WHERE (c.default_payment_type_id IS NULL) <> (c.default_item_type_id IS NULL)
+    OR (pt.code IS DISTINCT FROM it.code);
+
+-- company_financial_adjustments.payment_*_ids
+-- Aceita órfãos no legado (ex.: parecer_adulto) sumindo da canônica.
+SELECT id, payment_type_ids, payment_model_ids
+  FROM public.company_financial_adjustments
+ WHERE cardinality(coalesce(payment_model_ids,'{}')) <>
+       cardinality(coalesce(payment_type_ids,'{}'));
 ```
 
-A UI inteira seleciona via `usePaymentTypes` e grava `payment_types.id` em colunas que conceitualmente são "modelo de lote" ou "tipo de item". Trigger de sync esconde a discrepância em `payments` (espelha em `payment_model_id`). Já em `companies.default_payment_type_id`, `payments.mixed_parecer_payment_type_id` e `company_financial_adjustments.payment_type_ids[]` não há espelho — UI e DB seguem em payment_types.
+### 2. Audit de código (sweep `rg`)
+Garantir que nenhum código de produção ainda lê/escreve a coluna legada (fallbacks de leitura podem existir, mas devem ser removidos nesta fase).
 
----
+```bash
+rg -n "\.payment_type_id\b"          src supabase
+rg -n "mixed_parecer_payment_type_id" src supabase
+rg -n "default_payment_type_id"       src supabase
+rg -n "payment_type_ids"              src supabase
+```
 
-### Escopo (4 sub-ondas)
+Esperado após limpeza:
+- `src/lib/paymentTypeResolvers.ts` pode manter referência em comentário/doc.
+- Migrations históricas mantêm; código vivo, nenhum hit.
 
-#### D3.e.1 — Hooks e helpers de leitura
-Trocar os pontos de seleção da UI para as tabelas canônicas, mantendo escrita ainda no campo legado (modo de transição).
+### 3. Backup pontual
+Cloud já tem PITR. Como rede de segurança extra, snapshot leve dentro da própria migration **antes** do drop:
+```sql
+CREATE TABLE _backup_d3e4_payments AS
+  SELECT id, payment_type_id, payment_model_id,
+         mixed_parecer_payment_type_id, mixed_parecer_item_type_id
+    FROM public.payments;
+CREATE TABLE _backup_d3e4_companies AS
+  SELECT id, default_payment_type_id, default_item_type_id
+    FROM public.companies;
+CREATE TABLE _backup_d3e4_cfa AS
+  SELECT id, payment_type_ids, payment_model_ids
+    FROM public.company_financial_adjustments;
+```
+Manter por 30 dias; agendar drop manual depois.
 
-- `src/hooks/usePaymentTypes.ts` → manter, mas marcar deprecated; introduzir helper `resolvePaymentModelIdFromPaymentTypeId(pt_id)` e `resolveItemTypeIdFromPaymentTypeId(pt_id)` (lookup local via `code`).
-- Garantir que `usePaymentModels` e `useItemTypes` retornam `{id, code, label}` no mesmo shape esperado pelos combos atuais.
+## Execução
 
-#### D3.e.2 — Cutover por consumidor
-Trocar combos + reescrever o valor selecionado para o id da tabela alvo.
+### Etapa A — Limpeza de código (PR separado, antes da migration)
+1. Remover do código vivo todo fallback de leitura `?? *_legacy`:
+   - `src/pages/NewPayment.tsx` (loteId do payment, `companyDefaultTypeMap`)
+   - `src/pages/ManualPaymentEntry.tsx` (`setDefaultTypeId`)
+   - `supabase/functions/cross-reference-parecer/index.ts` (mixedParecerTypeId)
+   - `supabase/functions/apply-company-deductions/index.ts` (payment_type_ids)
+2. Apagar `paymentTypeResolvers.ts` (ou esvaziar e marcar deprecated) — não usado em consumidor algum hoje.
+3. Rodar `bunx tsgo --noEmit` + suíte de testes.
+4. Deploy, esperar 24–48h de produção sem regressão.
 
-| Consumidor | Hoje grava em | Alvo D3.e |
-|---|---|---|
-| `NewPayment.tsx` (linha 2493) — `payments.payment_type_id` | `payment_types.id` | `payments.payment_model_id` recebe `payment_models.id` direto |
-| `NewManualPayment.tsx` (linha 88) | idem | idem |
-| `NewManualPaymentComposicao.tsx` (linha 205) | idem | idem |
-| `ManualPaymentEntry.tsx` (linha 118) — leitura | `payment_types.id` | passa a ler `payment_model_id` e expor `payment_models.id` |
-| `MixedParecerSetupCard.tsx` — `payments.mixed_parecer_payment_type_id` | `payment_types.id` (subtipo parecer) | `payments.mixed_parecer_item_type_id` recebe `item_types.id` |
-| `MixedParecerRetroAction.tsx` (linha 86) — idem | idem | idem |
-| `ItemsDataGrid.tsx` (linha 1187) — `companies.default_payment_type_id` | `payment_types.id` | `companies.default_item_type_id` recebe `item_types.id` |
-| `CompanyFinancialAdjustmentsDialog.tsx` + `CreditosDebitos.tsx` — `company_financial_adjustments.payment_type_ids[]` | `payment_types.id[]` | `company_financial_adjustments.payment_model_ids[]` recebe `payment_models.id[]` (memória diz que ids já batem com payment_models) |
+### Etapa B — Migration de drop (uma única migration, transacional)
+Ordem dentro da migration:
+1. Snapshots de backup (acima).
+2. `DROP TRIGGER` + `DROP FUNCTION` dos 4 sincronizadores.
+3. `ALTER TABLE ... DROP CONSTRAINT <fk>` para cada FK legada.
+4. `DROP INDEX IF EXISTS` para índices dedicados às colunas legadas.
+5. `ALTER TABLE ... DROP COLUMN` para cada coluna legada.
+6. `COMMENT ON COLUMN` nas canônicas marcando "coluna única após D3.e.4 (jun/2026)".
 
-Pontos derivados que vão precisar atualizar:
-- `NewPayment.tsx` linha 2673 (`loteId` ← `payment.payment_type_id` é usado como `item_type_id`) — passa a derivar via lookup payment_model→item_type (mesmo `code`).
-- `usePaymentTypeMeta` em `PaymentDetail.tsx` (236) e `CompanyAnalysis.tsx` (267, 2441, 2450) — refatorar para aceitar `payment_model_id` e resolver o meta via JOIN.
-- `cross-reference-parecer/index.ts` (94, 98) — passar a ler `mixed_parecer_item_type_id`.
-- `ZeevRetroactiveGapsCard.tsx` (já tem dual-read; remover fallback ao concluir).
+### Etapa C — Pós-migration
+- Regenerar `src/integrations/supabase/types.ts` (automático).
+- Smoke test manual (checklist abaixo).
+- Atualizar `.lovable/mem/preferences/payment-type-id-rename-hybrid.md` para status "D3.e.4 concluído — colunas legadas removidas".
 
-#### D3.e.3 — Migration DB (add → backfill → swap)
+## Plano de rollback
 
-1. Adicionar colunas novas:
-   - `companies.default_item_type_id uuid REFERENCES item_types(id)`
-   - `payments.mixed_parecer_item_type_id uuid REFERENCES item_types(id)`
-   - `company_financial_adjustments.payment_model_ids uuid[]`
-2. Backfill via JOIN por `code`:
-   - `default_item_type_id ← item_types.id WHERE item_types.code = payment_types.code AND payment_types.id = default_payment_type_id`
-   - `mixed_parecer_item_type_id` análogo
-   - `payment_model_ids ← array de payment_models.id mapeados a partir de payment_type_ids`
-3. Triggers bidirecionais temporários (espelho legacy ↔ novo) para o intervalo D3.e.2 → D3.e.4.
-4. (D3.a complementar) Validar que `payments.payment_model_id` está 100% populado e sem divergência via `v_legacy_payment_type_divergence`.
+Cenário de falha imediata (até 30 dias após cutover):
 
-#### D3.e.4 — Drop final
-Após 1 ciclo de produção sem inserts/updates em colunas legadas (auditável via `pg_stat_user_columns` ou trigger de logging temporário):
+1. **Migration falha no meio**: PostgreSQL faz rollback automático (tudo em transação). Nada a fazer.
+2. **Falha funcional pós-deploy** (regressão descoberta horas/dias depois):
+   - Migration reversa restaura colunas a partir de `_backup_d3e4_*`:
+     ```sql
+     ALTER TABLE public.payments
+       ADD COLUMN payment_type_id uuid REFERENCES public.payment_types(id),
+       ADD COLUMN mixed_parecer_payment_type_id uuid REFERENCES public.payment_types(id);
+     UPDATE public.payments p SET
+       payment_type_id = b.payment_type_id,
+       mixed_parecer_payment_type_id = b.mixed_parecer_payment_type_id
+       FROM _backup_d3e4_payments b WHERE b.id = p.id;
+     -- idem companies, company_financial_adjustments
+     ```
+   - Recriar as 4 funções/triggers de sync (copiar do migration D3.e.3).
+   - Reverter PR de remoção dos fallbacks.
+3. **Rollback profundo** (problema só percebido depois dos 30 dias / backups dropados): usar PITR do Cloud para o ponto imediatamente antes da Etapa B.
 
-- `DROP TRIGGER trg_sync_payments_type_columns` + função `sync_payments_type_columns`
-- `ALTER TABLE payments DROP COLUMN payment_type_id`
-- `ALTER TABLE payments DROP COLUMN mixed_parecer_payment_type_id`
-- `ALTER TABLE companies DROP COLUMN default_payment_type_id`
-- `ALTER TABLE company_financial_adjustments DROP COLUMN payment_type_ids`
-- Drop final da view `v_legacy_payment_type_divergence` (sem alvos).
-- Avaliar drop da própria tabela `payment_types` (se não houver mais nenhum consumidor — provavelmente vira deprecated junto).
+## Checklist de validação (pós-cutover, em produção)
 
----
+Funcional — passar por cada fluxo e conferir no DB que a coluna canônica foi gravada:
 
-### Ações pendentes herdadas (não esquecer)
+- [ ] Criar lote novo via `NewPayment` (analise) → `payments.payment_model_id` preenchido.
+- [ ] Criar lote manual via `NewManualPayment` → idem.
+- [ ] Criar lote de composição via `NewManualPaymentComposicao` → idem + `payout_breakdown` salvo.
+- [ ] Abrir `ManualPaymentEntry` num lote existente → default de item carrega corretamente.
+- [ ] Marcar lote como misto via wizard (`MixedParecerSetupCard`) e via ação retroativa (`MixedParecerRetroAction`) → `mixed_parecer_item_type_id` preenchido; edge `cross-reference-parecer` roda sem erro e classifica itens.
+- [ ] Em `ItemsDataGrid`, salvar padrão da empresa (Visita/Parecer/—) → `companies.default_item_type_id` atualizado; próximo lote dessa PJ entra pré-classificado.
+- [ ] Criar/editar regra financeira em `CompanyFinancialAdjustments` selecionando 1+ modelos → `payment_model_ids` populado; edge `apply-company-deductions` filtra ajustes pela coluna nova num lote real.
 
-Estas ficaram em "no-op" nas ondas anteriores e voltam aqui:
+Técnico:
 
-1. **De D3.a** — refatorar 7 pontos em `NewPayment.tsx`, `NewManualPayment.tsx`, `NewManualPaymentComposicao.tsx`, `ManualPaymentEntry.tsx`, `CompanyAnalysis.tsx`, `PaymentDetail.tsx`, `ZeevRetroactiveGapsCard.tsx` para usar `payment_model_id`.
-2. **De D3.d** — refatorar `ItemsDataGrid` (default da empresa), `MixedParecerSetupCard` + `MixedParecerRetroAction`, `CompanyFinancialAdjustmentsDialog` + `CreditosDebitos`, `cross-reference-parecer`.
-3. Remover dual-reads e fallbacks `?? payment_type_id` que sobrarem após D3.e.2.
-4. Atualizar a memória `payment-type-id-rename-hybrid.md` ao final, marcando todas as colunas como removidas e excluindo o arquivo se virar irrelevante.
+- [ ] `bunx tsgo --noEmit` limpo.
+- [ ] Suíte de testes (`bunx vitest run`) passa.
+- [ ] `supabase--linter` sem warnings novos.
+- [ ] Logs das edges `cross-reference-parecer` e `apply-company-deductions` sem erro de coluna inexistente nas 24h seguintes.
+- [ ] `pg_stat_user_tables` mostra escrita nas canônicas; nenhuma query do app retornando 42703 (undefined column).
 
----
+Observabilidade:
 
-### Riscos
+- [ ] Sentry/console: nenhum erro novo contendo `payment_type_id` ou `mixed_parecer_payment_type_id` ou `default_payment_type_id` ou `payment_type_ids`.
 
-- **Combo migration mistura tabelas:** se `payment_types` e `payment_models` têm `code` divergentes para algum registro, backfill deixa NULL — precisa relatório prévio antes da migration.
-- **Subtipo parecer (`mixed_parecer_*`)** aponta para item_types específicos (`parecer`, `visita`) — confirmar que `item_types` tem todos os subtipos cadastrados.
-- `company_financial_adjustments.payment_type_ids` é array — backfill exige `unnest` + `array_agg`. Comportamento atual do filtro em `apply-company-deductions` já assume "ids unificados com payment_models.id" (comentário do código), então o mapping deve ser direto.
-- Triggers bidirecionais durante a transição: cuidado com loops — usar guarda `WHEN OLD IS DISTINCT FROM NEW` ou flag de origem.
+## Cronograma sugerido
 
----
-
-### Ordem sugerida de execução
-
-1. Relatório prévio: listar `payment_types` sem equivalente em `item_types`/`payment_models` por `code` (bloqueio pré-migration).
-2. D3.e.3 (add colunas + backfill + triggers de espelho).
-3. D3.e.1 (hooks/helpers).
-4. D3.e.2 por consumidor — começar pelos de menor impacto (`CompanyFinancialAdjustmentsDialog`, `MixedParecerSetupCard`) antes de tocar `NewPayment`.
-5. Janela de observação (≥ 1 ciclo de uso real).
-6. D3.e.4 (drop final).
-
----
-
-### Estimativa
-
-- 1 migration de adição + backfill + triggers.
-- ~10 arquivos frontend tocados.
-- 2 edge functions ajustadas.
-- 1 migration final de drop.
-- Janela de observação: o tempo que o usuário definir.
+| Dia | Ação |
+|---|---|
+| D+0 | Etapa A (PR de limpeza de fallbacks) merged + deploy |
+| D+2 | Rodar queries de coerência da seção "Pré-requisitos #1"; se OK, abrir migration |
+| D+3 | Etapa B (migration de drop) em janela de baixa carga |
+| D+3 (mesmo dia) | Checklist de validação |
+| D+30 | Drop manual das tabelas `_backup_d3e4_*` |
