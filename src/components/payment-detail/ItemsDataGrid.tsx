@@ -1038,7 +1038,15 @@ export function ItemsDataGrid({
           newTypeLabel === "Visita"
             ? "Reclassificado manualmente como Visita."
             : null,
+        // Reset de estado obsoleto: força o motor a recomputar do zero.
+        // Sem isso, ai_status/ai_findings antigos podem "vencer" o resultado
+        // novo se a reanálise não reescrever explicitamente esses campos.
+        ai_status: null,
+        ai_findings: null,
+        package_absorbed: false,
+        package_absorbed_calc_id: null,
       };
+
 
       const { error } = await supabase
         .from("payment_items")
