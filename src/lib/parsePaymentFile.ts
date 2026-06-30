@@ -54,7 +54,13 @@ export interface ParsedRow {
   raw_data: Record<string, unknown>;
   tipo_linha: LineType;
   line_issues: LineIssue[];
+  /** Override de item_type aplicado pelo parser (ex.: lote Consulta com TUSS
+   * que não bate com consulta.tuss_default/extras → reclassifica para
+   * Procedimento). Consumido por NewPayment/PaymentDetail ao montar
+   * payment_items.item_type_id. */
+  payment_type_id_override?: string | null;
 }
+
 
 export interface CompanyRow { id: string; name: string; aliases: string[] }
 
