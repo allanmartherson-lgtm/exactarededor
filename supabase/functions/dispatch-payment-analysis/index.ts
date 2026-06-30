@@ -325,7 +325,7 @@ Deno.serve(async (req) => {
     }
 
 
-    // Phase 2 lote misto: auto-classifica payment_type_id por item ANTES do
+    // Phase 2 lote misto: auto-classifica item_type_id por item ANTES do
     // orquestrador, para que o motor já calcule as regras com o tipo correto.
     // Mantém override manual e cruzamento de parecer (gates do edge).
     try {
