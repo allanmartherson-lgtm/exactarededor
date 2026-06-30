@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, FileText, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { usePaymentTypes } from "@/hooks/usePaymentTypes";
+import { useItemTypes } from "@/hooks/useItemTypes";
 import { ParecerReportWizardCard, type ParecerWizardPayload } from "@/components/payment-wizard/ParecerReportWizardCard";
 import { useAmbiguousTussCount } from "@/components/payment-wizard/MixedParecerSetupCard";
 
@@ -40,8 +40,8 @@ export function MixedParecerRetroAction({
   const [parecerTypeId, setParecerTypeId] = useState<string | null>(null);
   const [parecerPayload, setParecerPayload] = useState<ParecerWizardPayload | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const { list: types } = usePaymentTypes();
-  const parecerSubtypes = types.filter((t) => t.code.startsWith("parecer"));
+  const { list: itemTypes } = useItemTypes({ onlyActive: true });
+  const parecerSubtypes = itemTypes.filter((t) => t.code.startsWith("parecer"));
   const ambiguousCount = useAmbiguousTussCount();
 
   useEffect(() => {
