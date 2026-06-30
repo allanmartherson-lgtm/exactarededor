@@ -2306,7 +2306,7 @@ export default function CompanyAnalysis() {
               )}
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <Stat
               label="Itens"
               value={String(group.items_count ?? items.length)}
