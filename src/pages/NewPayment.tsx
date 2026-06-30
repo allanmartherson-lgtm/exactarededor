@@ -183,7 +183,10 @@ const validateLine = (
   const issues: LineIssue[] = [];
   const modoConfeccao = !!opts?.modoConfeccao;
   const hasDoctor = !!r.doctor_name?.trim();
-  const hasValue = Math.abs(r.gross_amount ?? 0) > 0;
+  // 0 explícito (coluna de repasse mapeada com valor 0 — ex.: Retorno não pago)
+  // é legítimo: não bloqueia. Só consideramos "sem valor" quando não há repasse
+  // explícito e a coluna estava vazia/ausente.
+  const hasValue = Math.abs(r.gross_amount ?? 0) > 0 || !!r.gross_explicit;
   const hasAtt = !!r.attendance_number?.trim() || !!r.patient_name?.trim();
   const hasCode = !!r.procedure_code?.trim();
   const hasDesc = !!(r.description?.trim() || r.procedure_name?.trim());
