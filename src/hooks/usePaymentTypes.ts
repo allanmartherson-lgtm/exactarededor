@@ -22,10 +22,8 @@ export type PaymentTypeRow = {
   sort_order: number;
   active: boolean;
   origin: "item_type" | "payment_model";
-  /** @deprecated Não vem mais da view unificada — sempre null. Mantido por compat de UI. */
-  description?: string | null;
-  /** @deprecated Não vem mais da view unificada — sempre null. */
-  color?: string | null;
+  description: string | null;
+  color: string | null;
 };
 
 export function usePaymentTypes(opts: { onlyActive?: boolean; origin?: "item_type" | "payment_model" } = { onlyActive: true }) {
@@ -37,7 +35,7 @@ export function usePaymentTypes(opts: { onlyActive?: boolean; origin?: "item_typ
     // Cast `as any` necessário enquanto a view não está nos types gerados.
     // O contrato da view é fixo (ver migration `payment_types_unified`).
     let q = (supabase.from as any)("payment_types_unified")
-      .select("id, code, label, sort_order, active, origin")
+      .select("id, code, label, sort_order, active, origin, description, color")
       .order("sort_order")
       .order("label");
     if (opts.onlyActive) q = q.eq("active", true);
