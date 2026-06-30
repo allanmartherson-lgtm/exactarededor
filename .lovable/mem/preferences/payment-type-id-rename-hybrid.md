@@ -4,11 +4,15 @@ description: Convenções de naming após o cutover D2; payment_items e rule_cal
 type: preference
 ---
 
-**Status (Fase D2, jun/2026):** colunas `payment_type_id` / `payment_type_source` foram REMOVIDAS de:
-- `payment_items` (substituídas por `item_type_id` / `item_type_source`)
-- `rule_calculations` (substituída por `item_type_id`)
+**Status (D3.e.4, jun/2026 — período híbrido encerrado):** todas as colunas legadas foram REMOVIDAS:
+- `payment_items.payment_type_id` / `payment_type_source` → use `item_type_id` / `item_type_source`
+- `rule_calculations.payment_type_id` → use `item_type_id`
+- `payments.payment_type_id` → use `payment_model_id`
+- `payments.mixed_parecer_payment_type_id` → use `mixed_parecer_item_type_id`
+- `companies.default_payment_type_id` → use `default_item_type_id`
+- `company_financial_adjustments.payment_type_ids` → use `payment_model_ids`
 
-Triggers e funções de sync (`sync_payment_items_type_columns`, `sync_rule_calculations_item_type`, `_resolve_*`) também foram removidos.
+Todos os triggers/funções de sync (`sync_payment_items_type_columns`, `sync_rule_calculations_item_type`, `sync_payments_mixed_parecer_columns`, `sync_companies_default_type_columns`, `sync_cfa_payment_model_ids`, `_resolve_*`) também foram removidos. Snapshots de rollback em `_backup_d3e4_*` (drop manual após 30 dias).
 
 **Regra de naming canônica:**
 - Variável/coluna que representa **tipo do ITEM** (Parecer/Visita/Cirurgia/Consulta/Bônus/Exames) → `item_type_id` / `itemTypeId`.
