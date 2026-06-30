@@ -8,10 +8,13 @@ type Item = {
   id?: string;
   attendance_number?: string | null;
   procedure_code?: string | null;
+  procedure_name?: string | null;
   procedure_description?: string | null;
+  description?: string | null;
   company_name?: string | null;
   item_type_id?: string | null;
   item_type_source?: string | null;
+  raw_data?: Record<string, unknown> | null;
 };
 
 /**
