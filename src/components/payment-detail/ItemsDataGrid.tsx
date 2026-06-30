@@ -2400,27 +2400,24 @@ export function ItemsDataGrid({
                   )}
                   {expandedId === it.id && !isBonus && (
                     <li key={`exp-${it.id}`} className="bg-muted/20 p-0">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <tbody>
-                            <ItemDetailsRow
-                              it={it}
-                              allItems={items}
-                              rulesIndex={rulesIndex}
-                              rulesByName={rulesByName}
-                              observations={observations}
-                              profiles={profiles}
-                              colSpan={1}
-                              showTipoEntrada={!!colVis.tipo_entrada}
-                              visitaPaymentTypeId={visitaPaymentTypeId}
-                              parecerPaymentTypeId={parecerPaymentTypeId}
-                              lotePaymentTypeId={lotePaymentTypeId}
-                              isParecerPayment={isParecerPayment}
-                              canEdit={canEdit}
-                              onChangeCaseSubtype={changeCaseSubtype}
-                            />
-                          </tbody>
-                        </table>
+                      <div className="px-3 py-4 space-y-3">
+                        <ItemDetailsRow
+                          it={it}
+                          allItems={items}
+                          rulesIndex={rulesIndex}
+                          rulesByName={rulesByName}
+                          observations={observations}
+                          profiles={profiles}
+                          colSpan={1}
+                          showTipoEntrada={!!colVis.tipo_entrada}
+                          visitaPaymentTypeId={visitaPaymentTypeId}
+                          parecerPaymentTypeId={parecerPaymentTypeId}
+                          lotePaymentTypeId={lotePaymentTypeId}
+                          isParecerPayment={isParecerPayment}
+                          canEdit={canEdit}
+                          onChangeCaseSubtype={changeCaseSubtype}
+                          renderAsDiv
+                        />
                       </div>
                     </li>
                   )}
