@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { AlertTriangle, Info } from "lucide-react";
-import { usePaymentTypes } from "@/hooks/usePaymentTypes";
+import { useItemTypes } from "@/hooks/useItemTypes";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Select,
@@ -21,10 +21,15 @@ import {
  * relatório do Tasy. A edge `cross-reference-parecer` cruza SÓ os itens cujo
  * TUSS está cadastrado como Parecer/Visita/Consulta — procedimentos puros
  * (cirurgia/exame) ficam intocados.
+ *
+ * D3.e.2: passa a ler do catálogo canônico `item_types` (antes lia de
+ * `payment_types` filtrando por `code`). O id selecionado é gravado em
+ * `payments.mixed_parecer_item_type_id`; o trigger de sync mantém a coluna
+ * legada `mixed_parecer_payment_type_id` em paralelo durante a transição.
  */
 export type MixedParecerSetup = {
   enabled: boolean;
-  payment_type_id: string | null; // subtipo parecer destino
+  item_type_id: string | null; // subtipo parecer destino (item_types.id)
 };
 
 export function MixedParecerSetupCard({
@@ -36,13 +41,13 @@ export function MixedParecerSetupCard({
   onChange: (v: MixedParecerSetup) => void;
   ambiguousTussCount?: number;
 }) {
-  const { list: types } = usePaymentTypes();
-  const parecerSubtypes = types.filter((t) => t.code.startsWith("parecer"));
+  const { list: itemTypes } = useItemTypes({ onlyActive: true });
+  const parecerSubtypes = itemTypes.filter((t) => t.code.startsWith("parecer"));
 
   // Default — primeiro parecer ativo
   useEffect(() => {
-    if (value.enabled && !value.payment_type_id && parecerSubtypes.length > 0) {
-      onChange({ ...value, payment_type_id: parecerSubtypes[0].id });
+    if (value.enabled && !value.item_type_id && parecerSubtypes.length > 0) {
+      onChange({ ...value, item_type_id: parecerSubtypes[0].id });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.enabled, parecerSubtypes.length]);
