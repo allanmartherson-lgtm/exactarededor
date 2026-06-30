@@ -41,8 +41,9 @@ export function AutoClassifiedBanner({
     let manual = 0;
     for (const it of items) {
       const src = String(it.payment_type_source ?? "");
-      const ptid = it.payment_type_id ?? null;
-      if (!ptid || ptid === lotePaymentTypeId) continue;
+      // itemTypeId vem da coluna legacy payment_items.payment_type_id (renomeio futuro — Wave 5)
+      const itemTypeId = it.payment_type_id ?? null;
+      if (!itemTypeId || itemTypeId === lotePaymentTypeId) continue;
       if (src === "auto_tuss") autoTuss++;
       else if (src === "auto_heuristic") autoHeur++;
       else if (src === "manual") manual++;
