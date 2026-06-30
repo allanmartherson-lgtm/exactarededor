@@ -51,11 +51,14 @@ export interface RuleInput {
   severity: string;
   scope: "master" | "especifica" | "grupo";
   /**
-   * FK opcional para payment_types.id. Quando setada, a regra só é considerada
-   * em pagamentos cujo `payment_type_id` bate. NULL = regra universal (legacy).
-   * Usado para diferenciar Parecer × Visita (mesmo TUSS, regras distintas).
+   * @deprecated — Fase D: substituído por filtro no nível do cálculo
+   * (`rule_calculations.item_type_id`). A coluna `rules.payment_type_id` é legado
+   * e o motor não filtra mais regras inteiras por tipo. Mantido apenas para
+   * compatibilidade de leitura durante a transição.
    */
   payment_type_id?: string | null;
+  /** @deprecated alias futuro — não é usado pelo motor neste nível. */
+  item_type_id?: string | null;
   sectors: string[] | null;
   specialties: string[] | null;
   target_type: "medico" | "empresa" | null;
