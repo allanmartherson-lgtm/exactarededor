@@ -1852,7 +1852,10 @@ const PaymentDetail = () => {
             tuss_default: paymentTypeMeta.tuss_default,
             requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
             default_function: paymentTypeMeta.default_function,
+            tuss_codes_extra: consultaTussExtras,
+            dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
           } : null,
+
         });
 
         if (bucket.rows.length > 0) {
