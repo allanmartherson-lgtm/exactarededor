@@ -2591,11 +2591,14 @@ const NewPayment = () => {
       return slug ?? (String(raw).trim().toLowerCase() || null);
     };
 
-    // Pré-carrega o default_payment_type_id de cada empresa vinculada ao lote.
+    // Pré-carrega o default da empresa (item_type) de cada empresa vinculada ao lote.
     // Permite, p.ex., uma PJ marcada como "sempre Visita" entrar pré-classificada
     // mesmo num lote criado como Parecer Adulto — sem o analista reclassificar
     // toda vez. NÃO usa allow_mixed_subtypes como gate: se a empresa tem default,
     // respeita.
+    // D3.e.2: lê coluna canônica `default_item_type_id` com fallback para a legada
+    // `default_payment_type_id`. O trigger de sync mantém as duas em paralelo, mas
+    // o fallback cobre empresas escritas antes do backfill.
     const companyDefaultTypeMap = new Map<string, string | null>();
     {
       const ids = new Set<string>();
@@ -2606,10 +2609,10 @@ const NewPayment = () => {
       if (ids.size > 0) {
         const { data } = await supabase
           .from("companies")
-          .select("id, default_payment_type_id")
+          .select("id, default_item_type_id, default_payment_type_id")
           .in("id", Array.from(ids));
         for (const c of ((data ?? []) as any[])) {
-          companyDefaultTypeMap.set(c.id, c.default_payment_type_id ?? null);
+          companyDefaultTypeMap.set(c.id, c.default_item_type_id ?? c.default_payment_type_id ?? null);
         }
       }
     }
