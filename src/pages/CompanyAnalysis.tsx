@@ -264,7 +264,7 @@ export default function CompanyAnalysis() {
     load,
     setItems,
   } = usePaymentDetailData(id, { groupId });
-  const paymentTypeMeta = usePaymentTypeMeta((payment as any)?.payment_type_id ?? null);
+  const paymentTypeMeta = usePaymentTypeMeta((payment as any)?.payment_model_id ?? null);
 
 
   // Pool é soberano: lote de pool NÃO usa a tela por-PJ. Redireciona para a
@@ -2438,7 +2438,7 @@ export default function CompanyAnalysis() {
 
       <AutoClassifiedBanner
         items={items as any}
-        lotePaymentTypeId={(payment as any)?.payment_type_id ?? null}
+        lotePaymentTypeId={(payment as any)?.payment_model_id ?? null}
         paymentId={id}
         canEdit={isAnalista || isAdminOrDiretor || isValidador}
         onChanged={() => { void (async () => { await load(); await composition.refresh(); })(); }}
@@ -2447,7 +2447,7 @@ export default function CompanyAnalysis() {
       {!isConfeccao && !isManual && (
         <MixedParecerRetroAction
           paymentId={id!}
-          paymentTypeId={(payment as any)?.payment_type_id ?? null}
+          paymentTypeId={(payment as any)?.payment_model_id ?? null}
           paymentTypeCode={paymentTypeMeta?.code ?? null}
           paymentTypeCategory={paymentTypeMeta?.category ?? null}
           competenceMonths={((payment as any)?.competence_months ?? []).map((d: string) => d.slice(0, 7))}

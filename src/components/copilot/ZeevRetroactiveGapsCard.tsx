@@ -10,10 +10,8 @@ type PayRow = {
   reference: string | null;
   competence_month: string | null;
   payment_type: string | null;
-  // Fonte canônica: payment_model_id. Mantém alias legado payment_type_id como
-  // fallback enquanto a coluna antiga não é dropada na Sub-fase D2.
+  // Fonte canônica única (D3.e.4 — coluna legada removida).
   payment_model_id: string | null;
-  payment_type_id: string | null;
 };
 
 type Gap = {
@@ -53,7 +51,7 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
       cutoff.setDate(1);
       const { data, error } = await supabase
         .from("payments")
-        .select("id, reference, competence_month, payment_type, payment_model_id, payment_type_id, status")
+        .select("id, reference, competence_month, payment_type, payment_model_id, status")
         .eq("hospital_id", hospital.id)
         .gte("competence_month", cutoff.toISOString().slice(0, 10))
         .not("status", "eq", "cancelado")
@@ -79,7 +77,7 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
       const t = (r.payment_type ?? "").trim();
       if (!t || !r.competence_month) continue;
       const monthKey = r.competence_month.slice(0, 7) + "-01";
-      const modelId = r.payment_model_id ?? r.payment_type_id ?? null;
+      const modelId = r.payment_model_id ?? null;
       const entry = byType.get(t);
       if (entry) {
         entry.months.add(monthKey);

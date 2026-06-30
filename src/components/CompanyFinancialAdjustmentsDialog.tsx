@@ -26,10 +26,8 @@ type Adjustment = {
   origem: string | null;
   ativo: boolean;
   created_at: string;
-  /** Canônico (D3.e). Restringe aplicação a payment_models específicos. */
+  /** Canônico (D3.e.4). Restringe aplicação a payment_models específicos. */
   payment_model_ids: string[] | null;
-  /** Legado — trigger sync_cfa_payment_model_ids mantém alinhado; remoção em D3.f. */
-  payment_type_ids: string[] | null;
 };
 
 const TIPOS = [
@@ -97,7 +95,6 @@ export function CompanyFinancialAdjustmentsDialog({
       origem: form.origem.trim() || null,
       ativo: true,
       created_by: user?.id ?? null,
-      // Canônico — trigger mantém payment_type_ids legado em sincronia até D3.f.
       payment_model_ids: form.payment_model_ids.length > 0 ? form.payment_model_ids : null,
     } as any);
     if (error) {
@@ -233,10 +230,8 @@ export function CompanyFinancialAdjustmentsDialog({
                           </Badge>
                           {!a.ativo && <Badge variant="outline">Inativo</Badge>}
                           {(() => {
-                            const ids = (a.payment_model_ids && a.payment_model_ids.length > 0)
-                              ? a.payment_model_ids
-                              : (a.payment_type_ids ?? []);
-                            if (!ids || ids.length === 0) return null;
+                            const ids = a.payment_model_ids ?? [];
+                            if (ids.length === 0) return null;
                             return (
                               <Badge variant="outline" className="text-[10px]">
                                 Só em: {ids

@@ -28,10 +28,8 @@ type Adjustment = {
   data_inicio: string;
   ativo: boolean;
   origem: string | null;
-  /** Canônico (D3.e). */
+  /** Canônico (D3.e.4). */
   payment_model_ids: string[] | null;
-  /** Legado — trigger sync mantém alinhado; remoção em D3.f. */
-  payment_type_ids: string[] | null;
   recorrente: boolean;
   data_fim: string | null;
   _company_name?: string;
@@ -168,7 +166,7 @@ export default function CreditosDebitos() {
     setEditingAdj(a ? { ...a } : {
       tipo: "credito", descricao: "", valor_total: 0, parcelas_total: 1,
       parcelas_pagas: 0, data_inicio: new Date().toISOString().slice(0, 10), ativo: true, origem: "",
-      payment_model_ids: null, payment_type_ids: null, recorrente: false, data_fim: null,
+      payment_model_ids: null, recorrente: false, data_fim: null,
     });
     setAdjDialogOpen(true);
   };
@@ -447,10 +445,8 @@ export default function CreditosDebitos() {
                         {a.recorrente && <Badge variant="outline" className="text-[10px]">Fixo mensal</Badge>}
                         {!a.ativo && <Badge variant="outline">Inativo</Badge>}
                         {(() => {
-                          const ids = (a.payment_model_ids && a.payment_model_ids.length > 0)
-                            ? a.payment_model_ids
-                            : (a.payment_type_ids ?? []);
-                          if (!ids || ids.length === 0) return null;
+                          const ids = a.payment_model_ids ?? [];
+                          if (ids.length === 0) return null;
                           return (
                             <Badge variant="outline" className="text-[10px]">
                               Só em: {ids
