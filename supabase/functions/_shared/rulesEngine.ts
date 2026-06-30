@@ -403,8 +403,11 @@ export interface ItemInput {
 export interface PaymentContext {
   sectors: string[];
   specialties: string[];
+  /** @deprecated — preservado durante a transição. Em Fase D o motor não filtra por este campo. */
   payment_type: string | null;
-  /** FK para payment_types.id — usado para filtrar regras com payment_type_id setado. */
+  /** Modelo do lote (producao/remessa/parecer histórico) — informativo no contexto. */
+  payment_model?: string | null;
+  /** @deprecated — `rules.payment_type_id` foi descontinuada (Fase D). Mantido apenas para retrocompatibilidade. */
   payment_type_id?: string | null;
   reference_date: string;
   globalExceptionTableIds?: string[];
