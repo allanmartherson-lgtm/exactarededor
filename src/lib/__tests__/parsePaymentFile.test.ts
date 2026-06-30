@@ -11,7 +11,7 @@
  */
 import { describe, it, expect } from "vitest";
 import * as XLSX from "xlsx";
-import { parsePaymentFile, type CompanyRow } from "../parsePaymentFile";
+import { parsePaymentFile, resolveSimpleFormulas, type CompanyRow } from "../parsePaymentFile";
 
 const COMPANIES: CompanyRow[] = [
   { id: "c-acme", name: "Acme Médica LTDA", aliases: ["Acme"] },
