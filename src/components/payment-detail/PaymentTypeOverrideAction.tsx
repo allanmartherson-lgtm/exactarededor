@@ -124,7 +124,7 @@ export function PaymentTypeOverrideAction({
               <SelectItem key={t.id} value={t.id} className="text-xs">
                 <div className="flex items-center gap-2">
                   <span>{t.label}</span>
-                  {t.id === lotePaymentTypeId && (
+                  {t.id === loteItemTypeId && (
                     <span className="text-[10px] text-muted-foreground">(padrão do lote)</span>
                   )}
                 </div>
