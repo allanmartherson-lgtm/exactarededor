@@ -592,6 +592,21 @@ const NewPayment = () => {
         .maybeSingle();
       if (cancelled || !data) return;
       const hint = (data as any).subtype_split_hint ?? null;
+
+      // Carrega catálogo de item_types para reclassificação Consulta → Procedimento
+      // quando o TUSS da planilha não casar com consulta.tuss_default/extras.
+      let dynamicFallbackItemTypeId: string | null = null;
+      let consultaTussExtras: string[] = [];
+      try {
+        const { data: itemTypes } = await supabase
+          .from("item_types" as any)
+          .select("id,code,tuss_codes_extra");
+        const it = (itemTypes ?? []) as any[];
+        dynamicFallbackItemTypeId = it.find((t) => t.code === "procedimento")?.id ?? null;
+        const consulta = it.find((t) => t.code === "consulta");
+        consultaTussExtras = Array.isArray(consulta?.tuss_codes_extra) ? consulta.tuss_codes_extra : [];
+      } catch { /* noop */ }
+
       const meta: PaymentTypeMeta = {
         id: data.id,
         code: data.code,
@@ -603,8 +618,11 @@ const NewPayment = () => {
         expected_headers: Array.isArray((data as any).expected_headers) ? (data as any).expected_headers : [],
         allow_mixed_subtypes: !!(data as any).allow_mixed_subtypes,
         subtype_split_hint: hint && hint.column && Array.isArray(hint.patterns) ? hint as SubtypeSplitHint : null,
+        consulta_tuss_extras: consultaTussExtras,
+        dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
       };
       setPaymentModelMeta(meta);
+
       // Carrega labels dos tipos referenciados + o próprio
       const ids = new Set<string>([meta.id]);
       meta.subtype_split_hint?.patterns.forEach((p) => p.target_payment_type_id && ids.add(p.target_payment_type_id));
