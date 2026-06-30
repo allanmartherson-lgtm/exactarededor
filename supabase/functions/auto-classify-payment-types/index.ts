@@ -9,7 +9,7 @@
 //      item_types.tuss_default ou item_types.tuss_codes_extra → usa esse
 //      item_type. source = 'auto_tuss'.
 //   2. Se o item tem `procedure_code` mas ele NÃO bate com nenhum TUSS
-//      cadastrado → usa o tipo dinâmico "Procedimento". source = 'auto_dynamic'.
+//      cadastrado → usa o tipo dinâmico "Procedimento". source = 'auto_heuristic'.
 //   3. Só quando NÃO há TUSS → cai no item_type marcado como
 //      `is_default_when_no_tuss` (Consulta). source = 'auto_default'.
 //
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     // 2. Varre itens do lote em páginas e classifica
     let totalScanned = 0;
     let autoTuss = 0;
-    let autoDynamic = 0;
+    let autoHeuristic = 0;
     let autoDefault = 0;
     let unchanged = 0;
     const pageSize = 500;
@@ -130,14 +130,14 @@ Deno.serve(async (req) => {
 
         const code = String(it.procedure_code ?? "").trim();
         let nextItemTypeId: string | null = null;
-        let nextSource: "auto_tuss" | "auto_dynamic" | "auto_default" | null = null;
+        let nextSource: "auto_tuss" | "auto_heuristic" | "auto_default" | null = null;
 
         if (code && tussToItemType.has(code)) {
           nextItemTypeId = tussToItemType.get(code)!;
           nextSource = "auto_tuss";
         } else if (code && dynamicFallbackItemTypeId) {
           nextItemTypeId = dynamicFallbackItemTypeId;
-          nextSource = "auto_dynamic";
+          nextSource = "auto_heuristic";
         } else if (defaultItemTypeId) {
           nextItemTypeId = defaultItemTypeId;
           nextSource = "auto_default";
@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
           continue;
         }
         if (nextSource === "auto_tuss") autoTuss++;
-        else if (nextSource === "auto_dynamic") autoDynamic++;
+        else if (nextSource === "auto_heuristic") autoHeuristic++;
         else autoDefault++;
       }
 
@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_dynamic=${autoDynamic} auto_default=${autoDefault} unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
+      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
     );
 
     return new Response(
@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
         payment_id,
         scanned: totalScanned,
         auto_tuss: autoTuss,
-        auto_dynamic: autoDynamic,
+        auto_heuristic: autoHeuristic,
         auto_default: autoDefault,
         unchanged,
         default_item_type: defaultItemTypeCode,
