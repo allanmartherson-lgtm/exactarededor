@@ -2596,9 +2596,7 @@ const NewPayment = () => {
     // mesmo num lote criado como Parecer Adulto — sem o analista reclassificar
     // toda vez. NÃO usa allow_mixed_subtypes como gate: se a empresa tem default,
     // respeita.
-    // D3.e.2: lê coluna canônica `default_item_type_id` com fallback para a legada
-    // `default_payment_type_id`. O trigger de sync mantém as duas em paralelo, mas
-    // o fallback cobre empresas escritas antes do backfill.
+    // D3.e.4: coluna canônica única `default_item_type_id` (legada removida).
     const companyDefaultTypeMap = new Map<string, string | null>();
     {
       const ids = new Set<string>();
@@ -2609,10 +2607,10 @@ const NewPayment = () => {
       if (ids.size > 0) {
         const { data } = await supabase
           .from("companies")
-          .select("id, default_item_type_id, default_payment_type_id")
+          .select("id, default_item_type_id")
           .in("id", Array.from(ids));
         for (const c of ((data ?? []) as any[])) {
-          companyDefaultTypeMap.set(c.id, c.default_item_type_id ?? c.default_payment_type_id ?? null);
+          companyDefaultTypeMap.set(c.id, c.default_item_type_id ?? null);
         }
       }
     }
@@ -2663,17 +2661,17 @@ const NewPayment = () => {
         convenio_matched_by: cRes.matched_by,
         sector_slug: sRes.sector?.slug ?? null,
         sector_matched_by: sRes.matched_by,
-        // Herda o tipo de pagamento na seguinte ordem de precedência:
+      // Herda o tipo de pagamento na seguinte ordem de precedência:
         //   1) override por linha do parser (subtype_split_hint) — fonte 'base'
-        //   2) default da empresa (companies.default_payment_type_id) — fonte 'company_override'
-        //   3) tipo do lote (payment.payment_type_id) — fonte 'default'
+        //   2) default da empresa (companies.default_item_type_id) — fonte 'company_override'
+        //   3) tipo do lote (payment.payment_model_id) — fonte 'default'
         // Motor usa este campo para filtrar regras com item_type_id setado.
         ...(() => {
           const cid = (currentBucket?.manualOverride
             ? currentBucket?.matchedCompany?.id
             : r.company_id) ?? currentBucket?.matchedCompany?.id ?? null;
           const companyDefault = cid ? companyDefaultTypeMap.get(cid) ?? null : null;
-          const loteId = (payment as any).payment_model_id ?? (payment as any).payment_type_id ?? null;
+          const loteId = (payment as any).payment_model_id ?? null;
           if (r.payment_type_id_override) {
             return { item_type_id: r.payment_type_id_override, item_type_source: "base" };
           }

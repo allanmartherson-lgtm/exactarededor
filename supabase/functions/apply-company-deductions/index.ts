@@ -52,14 +52,10 @@ Deno.serve(async (req) => {
       .eq("company_id", company_id)
       .eq("ativo", true);
 
-    // Filtro canônico: payment_model_ids (D3.e). Fallback para payment_type_ids legado
-    // (trigger sync_cfa_payment_model_ids mantém ambas as colunas alinhadas, este fallback
-    // só cobre linhas históricas que escaparam do backfill).
+    // Filtro canônico: payment_model_ids (D3.e.4 — coluna única após drop de payment_type_ids).
     // NULL/vazio = qualquer lote; senão exige match com o modelo do lote.
     const adjustments = (adjustmentsRaw ?? []).filter((a: any) => {
-      const canonical: string[] | null = a.payment_model_ids ?? null;
-      const legacy: string[] | null = a.payment_type_ids ?? null;
-      const ids = (canonical && canonical.length > 0) ? canonical : legacy;
+      const ids: string[] | null = a.payment_model_ids ?? null;
       if (!ids || ids.length === 0) return true;
       return lotePaymentModelId ? ids.includes(lotePaymentModelId) : false;
     });
