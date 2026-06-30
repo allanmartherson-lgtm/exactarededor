@@ -1112,6 +1112,7 @@ const NewPayment = () => {
         doctor_email: toStr(pick(row, ["email", "e-mail"])) ?? "",
         description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "produto", "descricao", "descrição", "servico", "serviço"])) ?? "",
         gross_amount: grossFromAny,
+        gross_explicit: amounts.grossAuthoritative,
         valor_invalido,
         company_name: resolvedName,
         company_id: resolvedCompany?.id ?? null,
