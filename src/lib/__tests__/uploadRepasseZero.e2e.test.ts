@@ -58,7 +58,7 @@ describe("E2E upload — Vl a Repassar = 0 permanece R$ 0,00 sem fallback", () =
       },
     ]);
 
-    const bucket = await parsePaymentFile(file, COMPANIES, {
+    const bucket = await parsePaymentFile(file, COMPANIES, null, {
       manualMapping: { gross_amount: "Vl a Repassar" },
     });
 
@@ -88,7 +88,7 @@ describe("E2E upload — Vl a Repassar = 0 permanece R$ 0,00 sem fallback", () =
       "Vl a Repassar": 0,
     }));
 
-    const bucket = await parsePaymentFile(buildFile(rows), COMPANIES, {
+    const bucket = await parsePaymentFile(buildFile(rows), COMPANIES, null, {
       manualMapping: { gross_amount: "Vl a Repassar" },
     });
 
@@ -117,7 +117,7 @@ describe("E2E upload — Vl a Repassar = 0 permanece R$ 0,00 sem fallback", () =
       },
     ]);
 
-    const bucket = await parsePaymentFile(file, COMPANIES, {
+    const bucket = await parsePaymentFile(file, COMPANIES, null, {
       manualMapping: { gross_amount: "Vl a Repassar" },
     });
 
