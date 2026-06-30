@@ -202,7 +202,7 @@ Se não houver cálculos (regra puramente informativa, ex.: "É vedado o pagamen
                     severity: { type: "string", enum: ["info", "aviso", "bloqueio"] },
                     scope: { type: "string", enum: ["master", "especifica"] },
                     sectors: { type: "array", items: { type: "string", enum: ["cirurgia", "hemodinamica", "parecer", "visita", "procedimento", "consulta", "outro"] } },
-                    payment_type_code: { type: ["string", "null"] },
+                    item_type_code: { type: ["string", "null"] },
                     target_type: { type: ["string", "null"], enum: ["medico", "empresa", null] },
                     target_identifier: { type: ["string", "null"] },
                     target_name: { type: ["string", "null"] },
