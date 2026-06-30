@@ -2310,7 +2310,7 @@ const NewPayment = () => {
       });
       return;
     }
-    if (mixedParecer.enabled && !mixedParecer.payment_type_id) {
+    if (mixedParecer.enabled && !mixedParecer.item_type_id) {
       toast({
         title: "Selecione o subtipo de parecer",
         description: "No lote misto, escolha qual subtipo de parecer aplicar aos itens cruzados.",
