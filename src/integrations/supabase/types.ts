@@ -3675,6 +3675,8 @@ export type Database = {
           label: string
           requires_tuss: boolean
           sort_order: number
+          tuss_codes_extra: string[] | null
+          tuss_default: string | null
           updated_at: string
         }
         Insert: {
@@ -3689,6 +3691,8 @@ export type Database = {
           label: string
           requires_tuss?: boolean
           sort_order?: number
+          tuss_codes_extra?: string[] | null
+          tuss_default?: string | null
           updated_at?: string
         }
         Update: {
@@ -3703,6 +3707,8 @@ export type Database = {
           label?: string
           requires_tuss?: boolean
           sort_order?: number
+          tuss_codes_extra?: string[] | null
+          tuss_default?: string | null
           updated_at?: string
         }
         Relationships: []
