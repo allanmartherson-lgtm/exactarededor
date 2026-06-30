@@ -14,6 +14,7 @@ import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PA
 import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, ChevronsUpDown, Stethoscope, Trash2, SlidersHorizontal, Receipt, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, EyeOff } from "lucide-react";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
+import { useItemTypes } from "@/hooks/useItemTypes";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 import { PriorityBadge } from "@/components/payment-detail/PriorityBadge";
 import { calcPriorityScore } from "@/lib/paymentPriority";
@@ -187,6 +188,7 @@ type PersistedPaymentsState = Partial<{
   doctorFilter: { id: string; full_name: string; crm: string | null; crm_uf: string | null } | null;
   analystFilter: string;
   typeFilter: string;
+  itemTypeFilter: string;
   trackFilter: string;
   statusFilter: string[];
   competenceFilter: string;
@@ -239,6 +241,8 @@ const Payments = () => {
   const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
   const [analystFilter, setAnalystFilter] = useState<string>(persisted.analystFilter ?? "all");
   const [typeFilter, setTypeFilter] = useState<string>(persisted.typeFilter ?? "all");
+  const [itemTypeFilter, setItemTypeFilter] = useState<string>(persisted.itemTypeFilter ?? "all");
+  const { list: itemTypesList } = useItemTypes({ onlyActive: true });
   const [trackFilter, setTrackFilter] = useState<string>(persisted.trackFilter ?? "all");
   const [statusFilter, setStatusFilter] = useState<string[]>(() => {
     const raw: any = persisted.statusFilter;
@@ -337,7 +341,7 @@ const Payments = () => {
     const snapshot: PersistedPaymentsState = {
       page, pageSize, q,
       companyFilter, doctorFilter,
-      analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
+      analystFilter, typeFilter, itemTypeFilter, trackFilter, statusFilter, competenceFilter,
       view, sortBy, colSort,
       divergenceFilter, questionedFilter,
       poolFilter, importModeFilter, emptyOnly,
@@ -352,7 +356,7 @@ const Payments = () => {
   }, [
     page, pageSize, q,
     companyFilter, doctorFilter,
-    analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
+    analystFilter, typeFilter, itemTypeFilter, trackFilter, statusFilter, competenceFilter,
     view, sortBy, colSort,
     divergenceFilter, questionedFilter,
     poolFilter, importModeFilter, emptyOnly,
@@ -445,7 +449,7 @@ const Payments = () => {
   useEffect(() => {
     setPage(0);
   }, [
-    debouncedQ, companyFilter?.id, doctorFilter?.id, analystFilter, typeFilter, trackFilter,
+    debouncedQ, companyFilter?.id, doctorFilter?.id, analystFilter, typeFilter, itemTypeFilter, trackFilter,
     statusFilter, competenceFilter, delayedOnly, ownerGroup, onlyMine,
     divergenceFilter, questionedFilter, openQuestionOnly, archivedView, pageSize, sortBy,
     poolFilter, importModeFilter, emptyOnly,
@@ -496,6 +500,7 @@ const Payments = () => {
     const f: Record<string, any> = {};
     if (serverStatuses) f.statuses = serverStatuses;
     if (typeFilter !== "all") f.payment_types = [typeFilter];
+    if (itemTypeFilter !== "all") f.item_type_ids = [itemTypeFilter];
     if (trackFilter !== "all") f.payment_tracks = [trackFilter];
     if (analystFilter !== "all") f.created_by_ids = [analystFilter];
     if (companyFilter?.id) f.company_ids = [companyFilter.id];
@@ -517,7 +522,7 @@ const Payments = () => {
     if (importModeFilter !== "all") f.import_modes = [importModeFilter];
     if (emptyOnly) f.only_empty = true;
     return f;
-  }, [serverStatuses, typeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
+  }, [serverStatuses, typeFilter, itemTypeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
       competenceFilter, debouncedQ, delayedOnly, openQuestionOnly,
       divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly]);
 
@@ -1243,6 +1248,7 @@ const Payments = () => {
           const advancedCount = [
             analystFilter !== "all",
             typeFilter !== "all",
+            itemTypeFilter !== "all",
             trackFilter !== "all",
             competenceFilter !== "all",
             ownerGroup !== "all",
@@ -1266,12 +1272,22 @@ const Payments = () => {
                 </Select>
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tipo</label>
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tipo (lote)</label>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="Tipo" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos tipos</SelectItem>
                     {Object.entries(PAYMENT_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tipo de item</label>
+                <Select value={itemTypeFilter} onValueChange={setItemTypeFilter}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Tipo de item" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os itens</SelectItem>
+                    {itemTypesList.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -1476,6 +1492,7 @@ const Payments = () => {
                         onClick={() => {
                           setAnalystFilter("all");
                           setTypeFilter("all");
+                          setItemTypeFilter("all");
                           setTrackFilter("all");
                           setCompetenceFilter("all");
                           setOwnerGroup("all");
@@ -1521,6 +1538,7 @@ const Payments = () => {
                       setOwnerGroup("all");
                       setAnalystFilter("all");
                       setTypeFilter("all");
+                      setItemTypeFilter("all");
                       setTrackFilter("all");
                       setCompetenceFilter("all");
                       setDivergenceFilter("all");
@@ -1577,10 +1595,10 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || trackFilter !== "all" || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly) && (
+              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || itemTypeFilter !== "all" || trackFilter !== "all" || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly) && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
-                  setAnalystFilter("all"); setTypeFilter("all"); setTrackFilter("all"); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
+                  setAnalystFilter("all"); setTypeFilter("all"); setItemTypeFilter("all"); setTrackFilter("all"); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
                   setOwnerGroup("all"); setOnlyMine(false);
                   setDivergenceFilter("all"); setQuestionedFilter("all");
                   setPoolFilter("all"); setImportModeFilter("all"); setEmptyOnly(false);
