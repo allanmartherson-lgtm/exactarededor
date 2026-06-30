@@ -18,7 +18,7 @@ Triggers e funções de sync (`sync_payment_items_type_columns`, `sync_rule_calc
 - `payments.payment_type_id` (modelo do lote — alias do payment_model_id; trigger `sync_payments_type_columns` mantém em sincronia)
 - `payments.mixed_parecer_payment_type_id` (subtipo parecer destino)
 - `rules.payment_type_id` (filtro de regra)
-- `payout_models.payment_type_id`
+- ~~`payout_models.payment_type_id`~~ — REMOVIDA na D3.c (jun/2026). Usar `payout_models.payment_model_id`.
 - `companies.default_payment_type_id` (padrão da empresa)
 - `company_financial_adjustments.payment_type_ids[]` (array de filtros)
 

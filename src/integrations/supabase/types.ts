@@ -6798,7 +6798,6 @@ export type Database = {
           id: string
           name: string
           payment_model_id: string | null
-          payment_type_id: string | null
           updated_at: string
           version: number
         }
@@ -6814,7 +6813,6 @@ export type Database = {
           id?: string
           name: string
           payment_model_id?: string | null
-          payment_type_id?: string | null
           updated_at?: string
           version?: number
         }
@@ -6830,7 +6828,6 @@ export type Database = {
           id?: string
           name?: string
           payment_model_id?: string | null
-          payment_type_id?: string | null
           updated_at?: string
           version?: number
         }
@@ -6854,13 +6851,6 @@ export type Database = {
             columns: ["payment_model_id"]
             isOneToOne: false
             referencedRelation: "payment_models"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payout_models_payment_type_id_fkey"
-            columns: ["payment_type_id"]
-            isOneToOne: false
-            referencedRelation: "payment_types"
             referencedColumns: ["id"]
           },
         ]
