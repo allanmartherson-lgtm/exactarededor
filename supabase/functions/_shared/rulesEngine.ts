@@ -51,11 +51,14 @@ export interface RuleInput {
   severity: string;
   scope: "master" | "especifica" | "grupo";
   /**
-   * FK opcional para payment_types.id. Quando setada, a regra só é considerada
-   * em pagamentos cujo `payment_type_id` bate. NULL = regra universal (legacy).
-   * Usado para diferenciar Parecer × Visita (mesmo TUSS, regras distintas).
+   * @deprecated — Fase D: substituído por filtro no nível do cálculo
+   * (`rule_calculations.item_type_id`). A coluna `rules.payment_type_id` é legado
+   * e o motor não filtra mais regras inteiras por tipo. Mantido apenas para
+   * compatibilidade de leitura durante a transição.
    */
   payment_type_id?: string | null;
+  /** @deprecated alias futuro — não é usado pelo motor neste nível. */
+  item_type_id?: string | null;
   sectors: string[] | null;
   specialties: string[] | null;
   target_type: "medico" | "empresa" | null;
@@ -283,9 +286,12 @@ export interface RuleCalculationItem {
   match_by_specialty?: boolean | null;
   /** Caso especial aplicável neste cálculo. Vazio = padrão; códigos ou '*' exigem caso especial aprovado. */
   special_case_filter?: string[] | null;
-  /** Tipo de pagamento aplicável neste cálculo (Parecer, Visita, etc.).
+  /** Tipo do item aplicável neste cálculo (Parecer, Visita, Consulta, etc.).
    *  NULL = vale para qualquer tipo. Quando setado, só casa se o item
-   *  pertencer a um pagamento com o mesmo `payment_type_id`. */
+   *  tiver o mesmo `item_type_id`. Fase D: renomeado de `payment_type_id`
+   *  (alias legado mantido durante transição). */
+  item_type_id?: string | null;
+  /** @deprecated — use item_type_id. Mantido para retrocompatibilidade. */
   payment_type_id?: string | null;
   /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
   procedure_keywords?: string[] | null;
@@ -369,8 +375,11 @@ export interface ItemInput {
   special_case_code?: string | null;
   /** Status da marcação: 'pending' | 'approved' | 'rejected' | 'revoked' | null. */
   special_case_status?: string | null;
-  /** payment_type_id do pagamento a que o item pertence — usado pelo filtro
-   *  de tipo no nível do cálculo (`rule_calculations.payment_type_id`). */
+  /** item_type_id do item (Parecer, Visita, Consulta, etc.) — usado pelo filtro
+   *  de tipo no nível do cálculo (`rule_calculations.item_type_id`).
+   *  Fase D: renomeado de `payment_type_id`. */
+  item_type_id?: string | null;
+  /** @deprecated — use item_type_id. Mantido para retrocompatibilidade durante a transição. */
   payment_type_id?: string | null;
   /** @deprecated — substituído por manual_intervention_reason_id. Mantido para
    *  itens ainda não migrados. */
@@ -394,8 +403,11 @@ export interface ItemInput {
 export interface PaymentContext {
   sectors: string[];
   specialties: string[];
+  /** @deprecated — preservado durante a transição. Em Fase D o motor não filtra por este campo. */
   payment_type: string | null;
-  /** FK para payment_types.id — usado para filtrar regras com payment_type_id setado. */
+  /** Modelo do lote (producao/remessa/parecer histórico) — informativo no contexto. */
+  payment_model?: string | null;
+  /** @deprecated — `rules.payment_type_id` foi descontinuada (Fase D). Mantido apenas para retrocompatibilidade. */
   payment_type_id?: string | null;
   reference_date: string;
   globalExceptionTableIds?: string[];
@@ -1054,11 +1066,11 @@ export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInp
     // de cada item (regra de competência fiscal — Onda 1). Filtro de vigência
     // ocorre por item dentro de `analyzeItem`. ctx.reference_date é informativo.
 
-    // TIPO DE PAGAMENTO: o filtro foi MOVIDO para o nível do cálculo
-    // (`rule_calculations.payment_type_id`). A coluna `rules.payment_type_id`
-    // foi descontinuada — a UI não grava mais nela e o motor não filtra
-    // regras inteiras por tipo. Cada cálculo individualmente decide via
-    // `calcItemMatches` se aplica ao contexto.
+    // TIPO DE ITEM: o filtro foi MOVIDO para o nível do cálculo
+    // (`rule_calculations.item_type_id`). A coluna `rules.payment_type_id`
+    // foi descontinuada (Fase D) — a UI não grava mais nela e o motor não
+    // filtra regras inteiras por tipo. Cada cálculo individualmente decide
+    // via `calcItemMatches` se aplica ao item.
 
     // SEGUNDA CAMADA: Filtro por setor do lote (payments.sectors).
     // REGRA DE PROJETO: Se a regra é vinculada (específica ou grupo), ela IGNRORA
@@ -1746,13 +1758,14 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
     }
   }
 
-  // ---- Tipo de pagamento (Parecer × Visita etc.) ----
-  // Cálculo restrito a um payment_type_id só casa se o item pertencer a um
-  // pagamento com o mesmo tipo. NULL no cálculo = vale para qualquer tipo.
-  // NULL no item = pagamento sem tipo definido → NÃO casa cálculos tipados
-  // (evita aplicar regra de Parecer em base sem classificação).
-  const calcPaymentType = c.payment_type_id ?? null;
-  if (calcPaymentType) {
+  // ---- Tipo de item (Parecer × Visita × Consulta etc.) ----
+  // Fase D: cálculo restrito a um `item_type_id` só casa se o item tiver o mesmo
+  // tipo. NULL no cálculo = vale para qualquer tipo. NULL no item = sem
+  // classificação → NÃO casa cálculos tipados (evita aplicar regra de Parecer
+  // em base sem classificação). Aceita alias legado `payment_type_id` durante
+  // a transição.
+  const calcItemType = (c.item_type_id ?? c.payment_type_id) ?? null;
+  if (calcItemType) {
     // Exceção do cálculo: analista marcou o item para pular cálculos tipados
     // desta regra. O item cai no próximo cálculo elegível por prioridade,
     // mesmo que esse próximo cálculo seja tipado de outra forma (ex.: regra
@@ -1767,19 +1780,20 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
       }
       // sem skippedId guardado: pula qualquer cálculo tipado igual ao do item
       if (!skippedId) {
-        const itemPaymentType = item.payment_type_id ?? null;
-        if (itemPaymentType && itemPaymentType === calcPaymentType) {
+        const itemType = (item.item_type_id ?? item.payment_type_id) ?? null;
+        if (itemType && itemType === calcItemType) {
           return { ok: false, reason: "item_calc_exception_skip" };
         }
       }
-      // demais cálculos: aceitos (ignora restrição de payment_type)
+      // demais cálculos: aceitos (ignora restrição de tipo)
     } else {
-      const itemPaymentType = item.payment_type_id ?? null;
-      if (!itemPaymentType || itemPaymentType !== calcPaymentType) {
-        return { ok: false, reason: "payment_type_nao_corresponde" };
+      const itemType = (item.item_type_id ?? item.payment_type_id) ?? null;
+      if (!itemType || itemType !== calcItemType) {
+        return { ok: false, reason: "item_type_nao_corresponde" };
       }
     }
   }
+
 
 
 
@@ -2960,7 +2974,7 @@ export function analyzeItem(
   // status = aprovado. Auditoria preserva o motivo via calculation_explanation.
   // IMPORTANTE: `auto_parecer_report` NÃO é valoração nem aceite financeiro.
   // O cruzamento com o relatório de parecer serve apenas para classificar o item
-  // como Parecer ou Visita (`payment_type_id`). O valor esperado deve SEMPRE vir
+  // como Parecer ou Visita (`item_type_id`). O valor esperado deve SEMPRE vir
   // da regra vencedora. Portanto motivos automáticos legados dessa origem não
   // entram neste short-circuit de tratamento manual.
   const isAutoParecerClassification =
