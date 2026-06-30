@@ -206,7 +206,7 @@ function CalcExceptionItemAction({
         <Button
           size="sm"
           variant={isMarked ? "ghost" : "outline"}
-          className="h-7 text-xs whitespace-nowrap self-start sm:self-auto shrink-0"
+          className="h-7 text-xs whitespace-nowrap self-start shrink-0"
 
           onClick={() => setOpen(true)}
         >
