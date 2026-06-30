@@ -43,7 +43,7 @@ interface Props {
   onChanged?: () => void;
 }
 
-const AUTO_SOURCES = new Set(["auto_tuss", "auto_heuristic"]);
+const AUTO_SOURCES = new Set(["auto_tuss", "auto_dynamic", "auto_heuristic"]);
 
 /**
  * Painel de revisão dos itens auto-reclassificados (lote misto).
@@ -84,7 +84,7 @@ export function AutoClassifiedReviewSheet({
     let tuss = 0, heur = 0;
     for (const r of rows) {
       if (r.item_type_source === "auto_tuss") tuss++;
-      else if (r.item_type_source === "auto_heuristic") heur++;
+      else if (r.item_type_source === "auto_dynamic" || r.item_type_source === "auto_heuristic") heur++;
     }
     return { tuss, heur, total: rows.length };
   }, [rows]);
@@ -223,7 +223,7 @@ export function AutoClassifiedReviewSheet({
             {rows.map((it) => {
               const suggested = ptLabel(it.item_type_id);
               const lote = ptLabel(lotePaymentTypeId);
-              const srcLabel = it.item_type_source === "auto_tuss" ? "TUSS" : "heurística";
+              const srcLabel = it.item_type_source === "auto_tuss" ? "TUSS" : "TUSS fora do lote";
               const isBusy = busyId === it.id;
               return (
                 <div

@@ -8,8 +8,10 @@
 //   1. Se o item tem `procedure_code` (TUSS) e ele bate com
 //      item_types.tuss_default ou item_types.tuss_codes_extra → usa esse
 //      item_type. source = 'auto_tuss'.
-//   2. Senão → cai no item_type marcado como `is_default_when_no_tuss`
-//      (Consulta). source = 'auto_default'.
+//   2. Se o item tem `procedure_code` mas ele NÃO bate com nenhum TUSS
+//      cadastrado → usa o tipo dinâmico "Procedimento". source = 'auto_heuristic'.
+//   3. Só quando NÃO há TUSS → cai no item_type marcado como
+//      `is_default_when_no_tuss` (Consulta). source = 'auto_default'.
 //
 // Nunca sobrescreve itens com source = 'manual' (override do analista) ou
 // vínculos de parecer/cross-reference.
@@ -65,6 +67,8 @@ Deno.serve(async (req) => {
     const collisions: string[] = [];
     let defaultItemTypeId: string | null = null;
     let defaultItemTypeCode: string | null = null;
+    let dynamicFallbackItemTypeId: string | null = null;
+    let dynamicFallbackItemTypeCode: string | null = null;
 
     for (const it of itemTypes) {
       const codes = new Set<string>();
@@ -84,6 +88,10 @@ Deno.serve(async (req) => {
         defaultItemTypeId = it.id;
         defaultItemTypeCode = it.code;
       }
+      if (it.code === "procedimento" && !dynamicFallbackItemTypeId) {
+        dynamicFallbackItemTypeId = it.id;
+        dynamicFallbackItemTypeCode = it.code;
+      }
     }
 
     if (collisions.length) {
@@ -94,10 +102,14 @@ Deno.serve(async (req) => {
     if (!defaultItemTypeId) {
       console.warn("[auto-classify] Nenhum item_type marcado como is_default_when_no_tuss — itens sem TUSS ficarão sem item_type.");
     }
+    if (!dynamicFallbackItemTypeId) {
+      console.warn("[auto-classify] Nenhum item_type code=procedimento — TUSS sem match não será reclassificado dinamicamente.");
+    }
 
     // 2. Varre itens do lote em páginas e classifica
     let totalScanned = 0;
     let autoTuss = 0;
+    let autoHeuristic = 0;
     let autoDefault = 0;
     let unchanged = 0;
     const pageSize = 500;
@@ -118,11 +130,14 @@ Deno.serve(async (req) => {
 
         const code = String(it.procedure_code ?? "").trim();
         let nextItemTypeId: string | null = null;
-        let nextSource: "auto_tuss" | "auto_default" | null = null;
+        let nextSource: "auto_tuss" | "auto_heuristic" | "auto_default" | null = null;
 
         if (code && tussToItemType.has(code)) {
           nextItemTypeId = tussToItemType.get(code)!;
           nextSource = "auto_tuss";
+        } else if (code && dynamicFallbackItemTypeId) {
+          nextItemTypeId = dynamicFallbackItemTypeId;
+          nextSource = "auto_heuristic";
         } else if (defaultItemTypeId) {
           nextItemTypeId = defaultItemTypeId;
           nextSource = "auto_default";
@@ -154,6 +169,7 @@ Deno.serve(async (req) => {
           continue;
         }
         if (nextSource === "auto_tuss") autoTuss++;
+        else if (nextSource === "auto_heuristic") autoHeuristic++;
         else autoDefault++;
       }
 
@@ -161,7 +177,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_default=${autoDefault} unchanged=${unchanged} default_item_type=${defaultItemTypeCode}`,
+      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
     );
 
     return new Response(
@@ -170,9 +186,11 @@ Deno.serve(async (req) => {
         payment_id,
         scanned: totalScanned,
         auto_tuss: autoTuss,
+        auto_heuristic: autoHeuristic,
         auto_default: autoDefault,
         unchanged,
         default_item_type: defaultItemTypeCode,
+        dynamic_fallback_item_type: dynamicFallbackItemTypeCode,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

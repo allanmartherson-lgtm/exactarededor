@@ -1723,7 +1723,7 @@ const PaymentDetail = () => {
         // → reclassifica para "Procedimento" já na importação. Sem override,
         // mantém o tipo padrão do lote (resolvido pelo motor).
         ...(r.payment_type_id_override
-          ? { item_type_id: r.payment_type_id_override, item_type_source: "base" as const }
+          ? { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" as const }
           : {}),
       }));
 
@@ -1976,7 +1976,7 @@ const PaymentDetail = () => {
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
         ...(r.payment_type_id_override
-          ? { item_type_id: r.payment_type_id_override, item_type_source: "base" as const }
+          ? { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" as const }
           : {}),
       }));
 
