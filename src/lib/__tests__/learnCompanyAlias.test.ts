@@ -121,12 +121,23 @@ describe("learnCompanyAlias", () => {
  */
 describe("shouldLearnAlias", () => {
   it("retorna true quando o rawName não é o nome nem alias da empresa (confirmação ainda aprende)", () => {
+    // Nome bruto realmente distinto (não é só name + sufixo de arquivo, que
+    // seria filtrado pela guarda anti-contaminação de extractCompanyFromFilename).
     expect(
-      shouldLearnAlias("CHAIN VILLAR LTDA - CC", {
+      shouldLearnAlias("CV Atendimentos Médicos", {
         name: "Chain Villar LTDA",
         aliases: ["Chain Villar"],
       }),
     ).toBe(true);
+  });
+
+  it("retorna false quando rawName é só nome + sufixo de arquivo (guarda anti-contaminação)", () => {
+    expect(
+      shouldLearnAlias("CHAIN VILLAR LTDA - CC", {
+        name: "Chain Villar LTDA",
+        aliases: [],
+      }),
+    ).toBe(false);
   });
 
   it("retorna false quando o rawName == name (case/whitespace insensitive)", () => {

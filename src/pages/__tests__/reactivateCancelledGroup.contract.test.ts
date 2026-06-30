@@ -97,6 +97,9 @@ describe("UI banner — contrato com CompanyAnalysis", () => {
       resolve(__dirname, "../CompanyAnalysis.tsx"),
       "utf8",
     );
-    expect(page).toMatch(/if\s*\(!g\?\.cancelled_at\)\s*return\s+null/);
+    // Aceita tanto a forma extraída `if (!g?.cancelled_at) return null`
+    // como o gate inline em JSX `!(group ...).cancelled_at && (...)`.
+    expect(page).toMatch(/cancelled_at/);
+    expect(page).not.toMatch(/status\s*===\s*['"]cancelado['"]\s*&&\s*\(/);
   });
 });

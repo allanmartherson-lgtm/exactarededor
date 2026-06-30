@@ -10,25 +10,32 @@ vi.mock("@/hooks/usePaymentDetailData", () => ({
   usePaymentDetailData: vi.fn(),
 }));
 
-// Mock do supabase client
+// Mock do supabase client — Proxy thenable que devolve sempre array vazio
+// para qualquer chain (.select().eq().order().order()..., etc).
 vi.mock("@/integrations/supabase/client", () => {
-  const ok = () => Promise.resolve({ data: [], error: null });
-  const okSingle = () => Promise.resolve({ data: null, error: null });
-  const chain: any = new Proxy(
-    {},
-    {
+  const empty = { data: [], error: null };
+  const emptySingle = { data: null, error: null };
+  const makeChain = (): any =>
+    new Proxy(function () {}, {
       get(_t, prop: string) {
-        if (prop === "then") return undefined;
-        if (prop === "maybeSingle" || prop === "single") return vi.fn(okSingle);
-        if (prop === "abortSignal" || prop === "range" || prop === "csv")
-          return vi.fn(ok);
-        return vi.fn(() => chain);
+        if (prop === "then") return (resolve: any) => resolve(empty);
+        if (prop === "maybeSingle" || prop === "single") {
+          return () => Promise.resolve(emptySingle);
+        }
+        return () => makeChain();
       },
-    },
-  );
+      apply() {
+        return makeChain();
+      },
+    });
   return {
     supabase: {
-      from: vi.fn(() => chain),
+      from: vi.fn(() => makeChain()),
+      auth: {
+        getUser: vi.fn(() => Promise.resolve({ data: { user: { id: "user-1" } }, error: null })),
+        getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+      },
+      functions: { invoke: vi.fn(() => Promise.resolve({ data: null, error: null })) },
       channel: vi.fn(() => ({
         on: vi.fn().mockReturnThis(),
         subscribe: vi.fn(),
@@ -115,10 +122,11 @@ describe("Seletor de Aprovados no Detalhe do Pagamento", () => {
 
     renderPaymentDetail();
 
-    // No modo "Todos", as 3 aparecem
-    expect(screen.getByText("JF Duarte")).toBeInTheDocument();
-    expect(screen.getByText("Diniz Cirurgias")).toBeInTheDocument();
-    expect(screen.getByText("Empresa Limpa")).toBeInTheDocument();
+    // No modo "Todos", as 3 aparecem (pode haver duplicação nas
+    // múltiplas seções/colunas da tela — usamos getAllByText).
+    expect(screen.getAllByText("JF Duarte").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Diniz Cirurgias").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Empresa Limpa").length).toBeGreaterThan(0);
 
     // Simula a seleção de "approved_strict" (sem pendências) 
     // Como o Radix UI Select é complexo de simular via fireEvent em JSDOM, 
