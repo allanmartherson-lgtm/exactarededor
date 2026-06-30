@@ -276,22 +276,40 @@ export const formatDate = (value: string | null | undefined) => {
 // fallback síncrono de label/descrição em badges e snapshots de auditoria. Para
 // listagens dinâmicas, ler de `payment_models` via `usePaymentModels()` (LOTE)
 // ou da view `payment_types_unified` via `usePaymentTypes()` (LOTE+ITEM).
+//
+// LEGADO: o code `producao` foi descontinuado em favor de `procedimento` (catch-all).
+// Registros antigos no banco continuam com `producao` para preservar histórico,
+// mas o runtime trata os dois como equivalentes via `normalizePaymentTypeCode`.
 export type PaymentType = string;
 export type PaymentKind = Database["public"]["Enums"]["payment_kind"];
 
+/**
+ * Mapeia codes legados para o code canônico atual.
+ * Use sempre que filtrar/agrupar/rotear por tipo no runtime — preserva
+ * compatibilidade com lotes antigos sem precisar migrar dados.
+ */
+export const normalizePaymentTypeCode = (code: string | null | undefined): string => {
+  if (!code) return "";
+  if (code === "producao") return "procedimento";
+  return code;
+};
+
 export const PAYMENT_TYPE_LABELS: Record<string, string> = {
-  producao: "Produção",
+  producao: "Procedimento",
+  procedimento: "Procedimento",
   remessa: "Remessa",
   valor_fixo: "Valor fixo",
   plantao: "Plantão",
 };
 
 export const PAYMENT_TYPE_DESCRIPTIONS: Record<string, string> = {
-  producao: "Mês seguinte ao mês em que houve a produção",
+  producao: "Procedimentos médicos (registro legado, mantido para histórico)",
+  procedimento: "Procedimentos médicos genéricos — catch-all para itens fora das categorias específicas.",
   remessa: "Pago só após faturamento e envio da cobrança ao convênio",
   valor_fixo: "Coordenação, assessoria e similares",
   plantao: "Pagamento por hora ou período",
 };
+
 
 export const PAYMENT_KIND_LABELS: Record<PaymentKind, string> = {
   atual: "Pagamento atual",
