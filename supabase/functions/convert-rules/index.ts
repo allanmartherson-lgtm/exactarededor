@@ -156,7 +156,7 @@ Saída ERRADA: 4 regras separadas, cada uma com 1 valor.
 - severity: 'info' | 'aviso' | 'bloqueio'.
 - scope: 'master' (vale para todos) | 'especifica' (vinculada a um médico/empresa).
 - sectors: ['cirurgia'|'hemodinamica'|'parecer'|'visita'|'procedimento'|'consulta'|'outro'].
-- payment_type_code: código de payment_type quando reconhecido (ver CONTEXTO).
+- item_type_code: código de item_type quando reconhecido (ex.: "parecer", "visita", "consulta" — ver CONTEXTO).
 - target_type/target_identifier/target_name: só preencher se scope='especifica'.
 - calculations[]: array (pode ser vazio se a regra for puramente informativa).
 
