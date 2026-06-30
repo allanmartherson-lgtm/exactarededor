@@ -5136,8 +5136,6 @@ export type Database = {
           parecer_report_row_id: string | null
           patient_name: string | null
           payment_id: string
-          payment_type_id: string | null
-          payment_type_source: string | null
           procedure_amount: number | null
           procedure_code: string | null
           procedure_date: string | null
@@ -5264,8 +5262,6 @@ export type Database = {
           parecer_report_row_id?: string | null
           patient_name?: string | null
           payment_id: string
-          payment_type_id?: string | null
-          payment_type_source?: string | null
           procedure_amount?: number | null
           procedure_code?: string | null
           procedure_date?: string | null
@@ -5392,8 +5388,6 @@ export type Database = {
           parecer_report_row_id?: string | null
           patient_name?: string | null
           payment_id?: string
-          payment_type_id?: string | null
-          payment_type_source?: string | null
           procedure_amount?: number | null
           procedure_code?: string | null
           procedure_date?: string | null
@@ -5537,13 +5531,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
-          },
-          {
-            foreignKeyName: "payment_items_payment_type_id_fkey"
-            columns: ["payment_type_id"]
-            isOneToOne: false
-            referencedRelation: "payment_types"
-            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "payment_items_reconciliation_run_id_fkey"
@@ -8739,7 +8726,6 @@ export type Database = {
           package_roles_distribution: Json | null
           package_subtype: string | null
           package_visits_count: boolean
-          payment_type_id: string | null
           procedure_codes: string[] | null
           procedure_keywords: string[] | null
           reference_table_id: string | null
@@ -8804,7 +8790,6 @@ export type Database = {
           package_roles_distribution?: Json | null
           package_subtype?: string | null
           package_visits_count?: boolean
-          payment_type_id?: string | null
           procedure_codes?: string[] | null
           procedure_keywords?: string[] | null
           reference_table_id?: string | null
@@ -8869,7 +8854,6 @@ export type Database = {
           package_roles_distribution?: Json | null
           package_subtype?: string | null
           package_visits_count?: boolean
-          payment_type_id?: string | null
           procedure_codes?: string[] | null
           procedure_keywords?: string[] | null
           reference_table_id?: string | null
@@ -8892,13 +8876,6 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rule_calculations_payment_type_id_fkey"
-            columns: ["payment_type_id"]
-            isOneToOne: false
-            referencedRelation: "payment_types"
             referencedColumns: ["id"]
           },
           {
@@ -10703,34 +10680,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_legacy_payment_type_divergence: {
-        Row: {
-          context_id: string | null
-          divergence_kind: string | null
-          legacy_code: string | null
-          legacy_has_new_equivalent: boolean | null
-          legacy_id: string | null
-          new_code: string | null
-          new_id: string | null
-          row_id: string | null
-          table_name: string | null
-        }
-        Relationships: []
-      }
-      v_legacy_payment_type_orphans: {
-        Row: {
-          context_id: string | null
-          divergence_kind: string | null
-          legacy_code: string | null
-          legacy_has_new_equivalent: boolean | null
-          legacy_id: string | null
-          new_code: string | null
-          new_id: string | null
-          row_id: string | null
-          table_name: string | null
-        }
-        Relationships: []
-      }
       v_payment_items_registration_issues: {
         Row: {
           company_id: string | null
@@ -10889,16 +10838,8 @@ export type Database = {
         Args: { _competence?: string; _pool_id: string }
         Returns: string[]
       }
-      _resolve_item_type_from_payment_type: {
-        Args: { _pt_id: string }
-        Returns: string
-      }
       _resolve_payment_model_from_payment_type: {
         Args: { _pt_id: string }
-        Returns: string
-      }
-      _resolve_payment_type_from_item_type: {
-        Args: { _it_id: string }
         Returns: string
       }
       _resolve_payment_type_from_payment_model: {
