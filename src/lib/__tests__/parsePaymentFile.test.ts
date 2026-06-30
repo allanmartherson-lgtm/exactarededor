@@ -58,6 +58,63 @@ describe("parsePaymentFile — planilha padrão", () => {
     expect(r.patient_name).toBe("João");
     expect(r.procedure_date).toMatch(/^2026-05-10/);
   });
+
+  it("preserva Vl a Repassar = 0 como repasse autoritativo e não cai em Valor Tot", async () => {
+    const f = makeFile([
+      {
+        "Médico": "Dra. Sul América",
+        "Vl a Repassar": 0,
+        "Valor Tot": 95,
+        "Operadora": "Sul América",
+        "Código TUSS": "10101012",
+        "Atendimento": "8837539",
+      },
+    ]);
+
+    const b = await parsePaymentFile(f, COMPANIES);
+
+    expect(b.rows).toHaveLength(1);
+    expect(b.rows[0].gross_amount).toBe(0);
+    expect(b.rows[0].procedure_amount).toBe(95);
+  });
+
+  it("preserva mapeamento manual de repasse = 0 e ignora Valor Tot", async () => {
+    const f = makeFile([
+      {
+        "Médico": "Dra. Manual",
+        "Header Repasse Escolhido": 0,
+        "Vl a Repassar": 1234,
+        "Valor Tot": 95,
+      },
+    ]);
+
+    const b = await parsePaymentFile(f, COMPANIES, null, {
+      manualMapping: { gross_amount: "Header Repasse Escolhido" },
+    });
+
+    expect(b.rows[0].gross_amount).toBe(0);
+  });
+
+  it("preserva procedure_amount manual = 0 e não troca por repasse ou Valor Tot", async () => {
+    const f = makeFile([
+      {
+        "Médico": "Dra. Procedimento",
+        "Vl a Repassar": 300,
+        "Header Procedimento Escolhido": 0,
+        "Valor Tot": 95,
+      },
+    ]);
+
+    const b = await parsePaymentFile(f, COMPANIES, null, {
+      manualMapping: {
+        gross_amount: "Vl a Repassar",
+        procedure_amount: "Header Procedimento Escolhido",
+      },
+    });
+
+    expect(b.rows[0].gross_amount).toBe(300);
+    expect(b.rows[0].procedure_amount).toBe(0);
+  });
 });
 
 describe("parsePaymentFile — planilha de Parecer Adulto", () => {
