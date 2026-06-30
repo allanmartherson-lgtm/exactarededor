@@ -668,6 +668,54 @@ const isParecerPaymentType = (meta: ParseOptions["paymentTypeMeta"]): boolean =>
   return /parecer/i.test(text.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
 };
 
+/**
+ * Resolve fórmulas Excel simples cujo valor cached está ausente.
+ * Suporta apenas operadores +, -, *, / com operandos = número literal ou
+ * referência A1 da MESMA aba. Qualquer coisa fora disso é ignorada (mantém
+ * o comportamento atual de devolver vazio + alerta).
+ */
+function resolveSimpleFormulas(sheet: Record<string, any>): void {
+  const ref = sheet["!ref"];
+  if (!ref) return;
+  const SAFE = /^[\s+\-*/().0-9A-Z$]+$/i; // só refs + números + operadores
+  const REF_RE = /\$?([A-Z]+)\$?(\d+)/gi;
+  const resolveCell = (addr: string): number | null => {
+    const c = sheet[addr.replace(/\$/g, "").toUpperCase()];
+    if (!c) return null;
+    if (typeof c.v === "number") return c.v;
+    if (typeof c.v === "string") {
+      const s = c.v.replace(/\./g, "").replace(",", ".");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  };
+  for (const addr of Object.keys(sheet)) {
+    if (addr.startsWith("!")) continue;
+    const cell = sheet[addr];
+    if (!cell || !cell.f) continue;
+    if (cell.v !== undefined && cell.v !== null && cell.v !== "") continue;
+    const formula = String(cell.f).trim().replace(/^=/, "");
+    if (!SAFE.test(formula)) continue;
+    let bad = false;
+    const replaced = formula.replace(REF_RE, (_, col: string, rowStr: string) => {
+      const v = resolveCell(`${col.toUpperCase()}${rowStr}`);
+      if (v == null) { bad = true; return "0"; }
+      return `(${v})`;
+    });
+    if (bad) continue;
+    try {
+      // eslint-disable-next-line no-new-func
+      const val = Function(`"use strict";return (${replaced});`)();
+      if (typeof val === "number" && Number.isFinite(val)) {
+        cell.v = val;
+        cell.t = "n";
+      }
+    } catch { /* ignora */ }
+  }
+}
+
+
 export const parsePaymentFile = async (
   f: File,
   companies: CompanyRow[],
@@ -677,8 +725,13 @@ export const parsePaymentFile = async (
   const { manualMapping, paymentTypeMeta } = options;
 
   const buf = await f.arrayBuffer();
-  const wb = XLSX.read(buf, { cellDates: false });
+  const wb = XLSX.read(buf, { cellDates: false, cellFormula: true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
+  // Resolve fórmulas simples (=A1*B1, =A1*0.7, +, -, /) cujo valor cached não
+  // foi salvo no arquivo — acontece quando o Excel/LibreOffice grava sem
+  // recalcular. Sem isso, "Vl a Repassar" computado como =N3*O3 chega vazio
+  // no parser, gerando falso "Valor obrigatório (gross_amount)".
+  resolveSimpleFormulas(sheet);
   // Lê como matriz para localizar a linha de cabeçalho real — algumas
   // planilhas trazem metadados (empresa, CNPJ, vigência) antes dos dados.
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
