@@ -1,170 +1,61 @@
-# D3.e.4 — Remoção das colunas legadas `payment_type_id` & afins
+## Status atual
 
-Objetivo: encerrar o período híbrido removendo as colunas legadas e os triggers de sincronização criados em D3.e.3. Toda a UI e edges já gravam nas colunas canônicas (D3.e.2); resta limpar o legado.
+- ✅ 4 tabelas `_backup_d3e4_*` removidas
+- ⏳ 516 avisos restantes, agrupados em 3 categorias
 
-## Escopo
+## Fase 1 — RLS Policy Always True (14 avisos) — BAIXO RISCO
 
-### Colunas a dropar
-| Tabela | Coluna legada | Canônica (mantida) |
-|---|---|---|
-| `payments` | `payment_type_id` | `payment_model_id` |
-| `payments` | `mixed_parecer_payment_type_id` | `mixed_parecer_item_type_id` |
-| `companies` | `default_payment_type_id` | `default_item_type_id` |
-| `company_financial_adjustments` | `payment_type_ids uuid[]` | `payment_model_ids uuid[]` |
+Políticas que usam `USING (true)` ou `WITH CHECK (true)` em INSERT/UPDATE/DELETE (SELECT com `true` é intencional e está excluído pelo linter).
 
-### Triggers / funções a dropar
-- `sync_payments_type_columns` (+ função)
-- `sync_payments_mixed_parecer_columns` (+ função)
-- `sync_companies_default_type_columns` (+ função)
-- `sync_cfa_payment_model_ids` (+ função)
+**Plano:**
+1. Listar as 14 políticas via `pg_policies` (nome da tabela, comando, expressão)
+2. Para cada uma, decidir caso a caso:
+   - Se a tabela já tem outra policy restritiva → remover a `true`
+   - Se é tabela administrativa (audit_log, etc.) → trocar por `has_role(auth.uid(),'admin')`
+   - Se for legítima (ex: log de telemetria que qualquer usuário autenticado pode inserir) → manter e ignorar o finding com justificativa em `@security-memory`
+3. Migration única por tabela afetada
 
-### Índices / FKs colaterais
-Cada coluna legada terá FK (`*_fkey` para `payment_types`) e possivelmente índice. `DROP COLUMN ... CASCADE` derruba ambos; preferir listagem explícita (`DROP CONSTRAINT`, `DROP INDEX`) antes do `DROP COLUMN` simples para evitar cascata invisível.
+**Risco:** baixo, mexe só em policies pontuais. Cada mudança é reversível.
 
-## Pré-requisitos (gate antes de migrar)
+## Fase 2 — SECURITY DEFINER executable by Public/Signed-In (498 avisos) — MÉDIO RISCO
 
-### 1. Validação de coerência (snapshot pré-drop)
-Query a rodar em produção; se algum retorno > 0, abortar e investigar drift antes de dropar.
+Funções `SECURITY DEFINER` em que `PUBLIC` ou `authenticated` ainda têm `EXECUTE`. Algumas são RPCs intencionais (chamadas pelo front via `supabase.rpc(...)`), outras são internas (triggers, helpers) que não deveriam ser expostas.
 
-```sql
--- payments.payment_type_id vs payment_model_id
-SELECT count(*) FROM public.payments
- WHERE coalesce(payment_type_id::text,'') <> coalesce(payment_model_id::text,'');
+**Plano:**
+1. Listar todas as 498 funções (`proname`, `pronargs`, schema, acl)
+2. Cruzar com uso real no código:
+   - `rg "supabase.rpc\(" src/ supabase/functions/` → conjunto A (intencionalmente expostas)
+   - Triggers (`information_schema.triggers`) → conjunto B (não precisam de EXECUTE público)
+   - Restante → conjunto C (helpers chamados só por outras funções)
+3. Para B e C: `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` + `GRANT EXECUTE ... TO service_role`
+4. Para A: manter e marcar finding como aceito em `@security-memory` com a lista
+5. Migration em blocos de ~50 funções para reduzir blast radius e facilitar rollback
 
--- payments.mixed_parecer_*
-SELECT count(*) FROM public.payments p
- LEFT JOIN public.payment_types pt ON pt.id = p.mixed_parecer_payment_type_id
- LEFT JOIN public.item_types    it ON it.id = p.mixed_parecer_item_type_id
- WHERE (p.mixed_parecer_payment_type_id IS NULL) <> (p.mixed_parecer_item_type_id IS NULL)
-    OR (pt.code IS DISTINCT FROM it.code);
+**Risco:** médio. Mitigação:
+- Lote pequeno + suíte de testes (796 testes) entre cada lote
+- Smoke test manual das principais telas após cada lote
+- Se algo quebrar, `GRANT EXECUTE` pontual restaura
 
--- companies.default_*
-SELECT count(*) FROM public.companies c
- LEFT JOIN public.payment_types pt ON pt.id = c.default_payment_type_id
- LEFT JOIN public.item_types    it ON it.id = c.default_item_type_id
- WHERE (c.default_payment_type_id IS NULL) <> (c.default_item_type_id IS NULL)
-    OR (pt.code IS DISTINCT FROM it.code);
+## Fase 3 — Extension in Public (4 avisos) — ALTO RISCO, ADIAR
 
--- company_financial_adjustments.payment_*_ids
--- Aceita órfãos no legado (ex.: parecer_adulto) sumindo da canônica.
-SELECT id, payment_type_ids, payment_model_ids
-  FROM public.company_financial_adjustments
- WHERE cardinality(coalesce(payment_model_ids,'{}')) <>
-       cardinality(coalesce(payment_type_ids,'{}'));
-```
+`btree_gist`, `pg_net`, `pg_trgm`, `unaccent` no schema `public`.
 
-### 2. Audit de código (sweep `rg`)
-Garantir que nenhum código de produção ainda lê/escreve a coluna legada (fallbacks de leitura podem existir, mas devem ser removidos nesta fase).
+**Por que adiar:**
+- Usadas sem schema-qualify em dezenas de funções, índices e triggers (`unaccent(...)` no `registryLookup`, `pg_trgm` em índices GIN, `pg_net` em hooks de notificação)
+- Mover para schema `extensions` exige `ALTER EXTENSION ... SET SCHEMA extensions` + `ALTER ROLE postgres SET search_path = public, extensions` + reescrever todas as referências
+- Qualquer função esquecida quebra silenciosamente em runtime (não em build/test)
 
-```bash
-rg -n "\.payment_type_id\b"          src supabase
-rg -n "mixed_parecer_payment_type_id" src supabase
-rg -n "default_payment_type_id"       src supabase
-rg -n "payment_type_ids"              src supabase
-```
+**Recomendação:** manter no `public` e marcar os 4 findings como aceitos em `@security-memory` com justificativa. São warnings de configuração, não vulnerabilidade explorável.
 
-Esperado após limpeza:
-- `src/lib/paymentTypeResolvers.ts` pode manter referência em comentário/doc.
-- Migrations históricas mantêm; código vivo, nenhum hit.
+## Ordem de execução proposta
 
-### 3. Backup pontual
-Cloud já tem PITR. Como rede de segurança extra, snapshot leve dentro da própria migration **antes** do drop:
-```sql
-CREATE TABLE _backup_d3e4_payments AS
-  SELECT id, payment_type_id, payment_model_id,
-         mixed_parecer_payment_type_id, mixed_parecer_item_type_id
-    FROM public.payments;
-CREATE TABLE _backup_d3e4_companies AS
-  SELECT id, default_payment_type_id, default_item_type_id
-    FROM public.companies;
-CREATE TABLE _backup_d3e4_cfa AS
-  SELECT id, payment_type_ids, payment_model_ids
-    FROM public.company_financial_adjustments;
-```
-Manter por 30 dias; agendar drop manual depois.
+1. **Hoje:** Fase 1 (14 policies `true`)
+2. **Próxima sessão:** Fase 2 lote 1 (~50 funções, conjunto B/C mais óbvio: triggers)
+3. **Sessões seguintes:** Fase 2 lotes 2-10
+4. **Final:** Ignorar formalmente Fase 3 + RPCs legítimas da Fase 2 no `@security-memory`
 
-## Execução
+## Critério de pronto
 
-### Etapa A — Limpeza de código (PR separado, antes da migration)
-1. Remover do código vivo todo fallback de leitura `?? *_legacy`:
-   - `src/pages/NewPayment.tsx` (loteId do payment, `companyDefaultTypeMap`)
-   - `src/pages/ManualPaymentEntry.tsx` (`setDefaultTypeId`)
-   - `supabase/functions/cross-reference-parecer/index.ts` (mixedParecerTypeId)
-   - `supabase/functions/apply-company-deductions/index.ts` (payment_type_ids)
-2. Apagar `paymentTypeResolvers.ts` (ou esvaziar e marcar deprecated) — não usado em consumidor algum hoje.
-3. Rodar `bunx tsgo --noEmit` + suíte de testes.
-4. Deploy, esperar 24–48h de produção sem regressão.
-
-### Etapa B — Migration de drop (uma única migration, transacional)
-Ordem dentro da migration:
-1. Snapshots de backup (acima).
-2. `DROP TRIGGER` + `DROP FUNCTION` dos 4 sincronizadores.
-3. `ALTER TABLE ... DROP CONSTRAINT <fk>` para cada FK legada.
-4. `DROP INDEX IF EXISTS` para índices dedicados às colunas legadas.
-5. `ALTER TABLE ... DROP COLUMN` para cada coluna legada.
-6. `COMMENT ON COLUMN` nas canônicas marcando "coluna única após D3.e.4 (jun/2026)".
-
-### Etapa C — Pós-migration
-- Regenerar `src/integrations/supabase/types.ts` (automático).
-- Smoke test manual (checklist abaixo).
-- Atualizar `.lovable/mem/preferences/payment-type-id-rename-hybrid.md` para status "D3.e.4 concluído — colunas legadas removidas".
-
-## Plano de rollback
-
-Cenário de falha imediata (até 30 dias após cutover):
-
-1. **Migration falha no meio**: PostgreSQL faz rollback automático (tudo em transação). Nada a fazer.
-2. **Falha funcional pós-deploy** (regressão descoberta horas/dias depois):
-   - Migration reversa restaura colunas a partir de `_backup_d3e4_*`:
-     ```sql
-     ALTER TABLE public.payments
-       ADD COLUMN payment_type_id uuid REFERENCES public.payment_types(id),
-       ADD COLUMN mixed_parecer_payment_type_id uuid REFERENCES public.payment_types(id);
-     UPDATE public.payments p SET
-       payment_type_id = b.payment_type_id,
-       mixed_parecer_payment_type_id = b.mixed_parecer_payment_type_id
-       FROM _backup_d3e4_payments b WHERE b.id = p.id;
-     -- idem companies, company_financial_adjustments
-     ```
-   - Recriar as 4 funções/triggers de sync (copiar do migration D3.e.3).
-   - Reverter PR de remoção dos fallbacks.
-3. **Rollback profundo** (problema só percebido depois dos 30 dias / backups dropados): usar PITR do Cloud para o ponto imediatamente antes da Etapa B.
-
-## Checklist de validação (pós-cutover, em produção) — ✅ CONCLUÍDO 30/jun/2026
-
-Funcional:
-
-- [x] `NewPayment` / `NewManualPayment` / `NewManualPaymentComposicao` → `payments.payment_model_id` preenchido.
-- [x] `ManualPaymentEntry` carrega default de item corretamente.
-- [x] Wizard misto (`MixedParecerSetupCard`) + ação retroativa (`MixedParecerRetroAction`) → `mixed_parecer_item_type_id` ok; edge `cross-reference-parecer` sem erro.
-- [x] `ItemsDataGrid` grava `companies.default_item_type_id`.
-- [x] `CompanyFinancialAdjustments` → INSERT/UPDATE/DELETE em `payment_model_ids` validados em smoke real-write 30/jun.
-
-Técnico:
-
-- [x] `bunx tsgo --noEmit` limpo.
-- [x] `bunx vitest run` passa.
-- [x] `supabase--linter` sem ERROR novo (backup `_backup_d3e4_payments_model_fix` recebeu RLS em 30/jun).
-- [x] Edges `cross-reference-parecer` e `apply-company-deductions` sem `42703` nas 24h+.
-- [x] Console Playwright: zero erros mencionando `payment_type_id`/`mixed_parecer_payment_type_id`/`default_payment_type_id`/`payment_type_ids`.
-
-## Cronograma — executado
-
-| Dia | Ação | Status |
-|---|---|---|
-| D+0 (30/jun) | Etapa A — limpeza de fallbacks | ✅ |
-| D+0 (30/jun) | Etapa B — drop das colunas legadas | ✅ |
-| D+0 (30/jun) | Checklist + smoke real-write | ✅ |
-| **D+30 (~30/jul/2026)** | **Drop manual das tabelas `_backup_d3e4_*`** | ⏳ agendado |
-
-### Ação pendente única — D+30 (~30/jul/2026)
-
-Se nenhum rollback for necessário em 4 semanas, abrir migration:
-
-```sql
-DROP TABLE IF EXISTS public._backup_d3e4_payments;
-DROP TABLE IF EXISTS public._backup_d3e4_companies;
-DROP TABLE IF EXISTS public._backup_d3e4_cfa;
-DROP TABLE IF EXISTS public._backup_d3e4_payments_model_fix;
-```
-
+- `supabase--linter` reporta apenas findings explicitamente aceitos
+- `bun test` continua 796/796
+- Smoke test: login, importar planilha, abrir conciliação, aprovar pagamento
