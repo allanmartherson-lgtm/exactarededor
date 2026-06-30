@@ -1728,8 +1728,11 @@ const PaymentDetail = () => {
       }));
 
 
-      // Inserção em lotes de 1000 para evitar limites do Supabase
-      const chunkSize = 1000;
+      // Inserção em chunks menores: cada INSERT dispara triggers FOR EACH ROW
+      // (hash, competência, financials) e FOR EACH STATEMENT (sync_company_groups
+      // que chama sync_payment_company_group por (payment_id, company_id) distinto).
+      // 200 é um meio-termo que evita statement_timeout em lotes médios/grandes.
+      const chunkSize = 200;
       for (let i = 0; i < itemsToInsert.length; i += chunkSize) {
         const chunk = itemsToInsert.slice(i, i + chunkSize);
         const { error: insErr } = await supabase.from("payment_items").insert(chunk);
