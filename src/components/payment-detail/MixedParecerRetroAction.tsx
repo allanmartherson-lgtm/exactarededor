@@ -83,7 +83,9 @@ export function MixedParecerRetroAction({
         .from("payments")
         .update({
           has_mixed_parecer: true,
-          mixed_parecer_payment_type_id: parecerTypeId,
+          // D3.e.2: grava na coluna canônica. O trigger sync_payments_mixed_parecer_columns
+          // mantém `mixed_parecer_payment_type_id` (legada) em paralelo durante a transição.
+          mixed_parecer_item_type_id: parecerTypeId,
         })
         .eq("id", paymentId);
       if (updErr) throw updErr;

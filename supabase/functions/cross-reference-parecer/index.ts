@@ -88,14 +88,20 @@ Deno.serve(async (req) => {
 
 
     // Tipo do lote (parecer_adulto, normalmente) e tipo Visita (alvo da reclassificação).
-    // UUIDs unificados entre payment_types e item_types (Fase D, passo 0) — lemos direto de item_types.
+    // D3.e.2: lê da coluna canônica `mixed_parecer_item_type_id` (item_types.id);
+    // mantém fallback para a legada `mixed_parecer_payment_type_id` durante a transição
+    // — o trigger de sync garante que as duas colunas batem, mas linhas escritas por
+    // versões antigas do cliente antes do backfill podem ter só a legada preenchida.
     const { data: paymentRow } = await supabase
       .from("payments")
-      .select("has_mixed_parecer, mixed_parecer_payment_type_id")
+      .select("has_mixed_parecer, mixed_parecer_item_type_id, mixed_parecer_payment_type_id")
       .eq("id", payment_id)
       .maybeSingle();
     const isMixed = !!(paymentRow as any)?.has_mixed_parecer;
-    const mixedParecerTypeId = (paymentRow as any)?.mixed_parecer_payment_type_id ?? null;
+    const mixedParecerTypeId =
+      (paymentRow as any)?.mixed_parecer_item_type_id ??
+      (paymentRow as any)?.mixed_parecer_payment_type_id ??
+      null;
 
     // Default do lote = parecer_adulto (único item_type de parecer cadastrado).
     // Em lote misto, o analista escolheu explicitamente o subtipo via wizard.

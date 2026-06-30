@@ -621,7 +621,7 @@ const NewPayment = () => {
   const isVisitaType = paymentModelMeta?.code === "visita";
   // Lote MISTO: produção que também tem parecer/visita misturados nos TUSS.
   // Esconde a opção quando o lote já é puro parecer/visita (esses já cruzam por padrão).
-  const [mixedParecer, setMixedParecer] = useState<MixedParecerSetup>({ enabled: false, payment_type_id: null });
+  const [mixedParecer, setMixedParecer] = useState<MixedParecerSetup>({ enabled: false, item_type_id: null });
   const showMixedParecerOption = !!paymentModelMeta && !isParecerType && !isVisitaType;
   const ambiguousTussCount = useAmbiguousTussCount();
   const requiresParecerReport = (modoConfeccao && isParecerType) || (showMixedParecerOption && mixedParecer.enabled);
@@ -2310,7 +2310,7 @@ const NewPayment = () => {
       });
       return;
     }
-    if (mixedParecer.enabled && !mixedParecer.payment_type_id) {
+    if (mixedParecer.enabled && !mixedParecer.item_type_id) {
       toast({
         title: "Selecione o subtipo de parecer",
         description: "No lote misto, escolha qual subtipo de parecer aplicar aos itens cruzados.",
@@ -2492,7 +2492,7 @@ const NewPayment = () => {
         analysis_mode: analysisMode,
         payment_type_id: paymentModelId,
         has_mixed_parecer: mixedParecer.enabled,
-        mixed_parecer_payment_type_id: mixedParecer.enabled ? mixedParecer.payment_type_id : null,
+        mixed_parecer_item_type_id: mixedParecer.enabled ? mixedParecer.item_type_id : null,
         import_mode: isHistoricoImport ? "historico" : "normal",
         payment_mode: paymentMode,
         competence_regime: competenceRegime,
@@ -4357,7 +4357,7 @@ const NewPayment = () => {
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.payment_type_id)}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.item_type_id)}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             {pendingSuspiciousCount > 0
 
