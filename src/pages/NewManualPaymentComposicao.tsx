@@ -43,7 +43,7 @@ import {
 interface PayoutModelRow {
   id: string;
   hospital_id: string;
-  payment_type_id: string | null;
+  payment_model_id: string | null;
   company_id: string | null;
   name: string;
   version: number;
@@ -81,11 +81,11 @@ export default function NewManualPaymentComposicao() {
     (async () => {
       let q = supabase
         .from("payout_models" as any)
-        .select("id,hospital_id,payment_type_id,company_id,name,version,description")
+        .select("id,hospital_id,payment_model_id,company_id,name,version,description")
         .eq("hospital_id", hospital.id)
         .eq("active", true);
-      if (paymentModelId) q = q.or(`payment_type_id.eq.${paymentModelId},payment_type_id.is.null`);
-      else q = q.is("payment_type_id", null);
+      if (paymentModelId) q = q.or(`payment_model_id.eq.${paymentModelId},payment_model_id.is.null`);
+      else q = q.is("payment_model_id", null);
       const { data } = await q.order("name");
       let list = ((data ?? []) as unknown) as PayoutModelRow[];
       // Prioriza match exato por empresa; depois empresa nula (genérico)

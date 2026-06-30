@@ -6797,6 +6797,7 @@ export type Database = {
           hospital_id: string
           id: string
           name: string
+          payment_model_id: string | null
           payment_type_id: string | null
           updated_at: string
           version: number
@@ -6812,6 +6813,7 @@ export type Database = {
           hospital_id: string
           id?: string
           name: string
+          payment_model_id?: string | null
           payment_type_id?: string | null
           updated_at?: string
           version?: number
@@ -6827,6 +6829,7 @@ export type Database = {
           hospital_id?: string
           id?: string
           name?: string
+          payment_model_id?: string | null
           payment_type_id?: string | null
           updated_at?: string
           version?: number
@@ -6844,6 +6847,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_models_payment_model_id_fkey"
+            columns: ["payment_model_id"]
+            isOneToOne: false
+            referencedRelation: "payment_models"
             referencedColumns: ["id"]
           },
           {

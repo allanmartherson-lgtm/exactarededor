@@ -96,7 +96,7 @@ type IncideSobre = "bruto" | "subtotal_anterior" | "rubrica_especifica";
 interface PayoutModel {
   id: string;
   hospital_id: string;
-  payment_type_id: string | null;
+  payment_model_id: string | null;
   company_id: string | null;
   name: string;
   description: string | null;
@@ -229,7 +229,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
     setEditing({
       id: "",
       hospital_id: hospital.id,
-      payment_type_id: null,
+      payment_model_id: null,
       company_id: null,
       name: "",
       description: "",
@@ -275,7 +275,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
         .from("payout_models" as any)
         .insert({
           hospital_id: editing.hospital_id,
-          payment_type_id: editing.payment_type_id,
+          payment_model_id: editing.payment_model_id,
           company_id: editing.company_id,
           name: editing.name.trim(),
           description: editing.description?.trim() || null,
@@ -295,7 +295,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
       const { error } = await supabase
         .from("payout_models" as any)
         .update({
-          payment_type_id: editing.payment_type_id,
+          payment_model_id: editing.payment_model_id,
           company_id: editing.company_id,
           name: editing.name.trim(),
           description: editing.description?.trim() || null,
@@ -566,7 +566,7 @@ export default function PayoutModels({ embedded = false }: { embedded?: boolean 
                 {models.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell className="font-medium">{m.name}</TableCell>
-                    <TableCell>{paymentTypeLabel(m.payment_type_id)}</TableCell>
+                    <TableCell>{paymentTypeLabel(m.payment_model_id)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {m.company_id ? "específico" : "qualquer empresa"}
                     </TableCell>
@@ -1103,9 +1103,9 @@ function BasesStep({
           <div className="space-y-1.5">
             <Label>Tipo de pagamento</Label>
             <Select
-              value={editing.payment_type_id ?? "none"}
+              value={editing.payment_model_id ?? "none"}
               onValueChange={(v) =>
-                setEditing({ ...editing, payment_type_id: v === "none" ? null : v })
+                setEditing({ ...editing, payment_model_id: v === "none" ? null : v })
               }
             >
               <SelectTrigger>
@@ -1495,7 +1495,7 @@ function ReusoStep({
         <h3 className="text-sm font-semibold">Revisão final</h3>
         <div className="rounded-md border p-3 text-xs space-y-1 bg-muted/20">
           <div><span className="text-muted-foreground">Nome:</span> <span className="font-medium">{editing.name || "—"}</span></div>
-          <div><span className="text-muted-foreground">Tipo de pagamento:</span> {paymentTypeLabel(editing.payment_type_id)}</div>
+          <div><span className="text-muted-foreground">Tipo de pagamento:</span> {paymentTypeLabel(editing.payment_model_id)}</div>
           <div><span className="text-muted-foreground">Empresa:</span> {editingCompany?.name ?? "qualquer empresa"}</div>
           <div><span className="text-muted-foreground">Rubricas:</span> {rubrics.length}</div>
         </div>
