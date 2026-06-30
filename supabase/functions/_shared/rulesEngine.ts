@@ -50,14 +50,7 @@ export interface RuleInput {
   active: boolean;
   severity: string;
   scope: "master" | "especifica" | "grupo";
-  /**
-   * @deprecated — Fase D: substituído por filtro no nível do cálculo
-   * (`rule_calculations.item_type_id`). A coluna `rules.payment_type_id` é legado
-   * e o motor não filtra mais regras inteiras por tipo. Mantido apenas para
-   * compatibilidade de leitura durante a transição.
-   */
-  payment_type_id?: string | null;
-  /** @deprecated alias futuro — não é usado pelo motor neste nível. */
+  /** @deprecated alias futuro — não é usado pelo motor neste nível (filtro por tipo vive em `rule_calculations.item_type_id`). */
   item_type_id?: string | null;
   sectors: string[] | null;
   specialties: string[] | null;
@@ -401,8 +394,6 @@ export interface PaymentContext {
   payment_type: string | null;
   /** Modelo do lote (producao/remessa/parecer histórico) — informativo no contexto. */
   payment_model?: string | null;
-  /** @deprecated — `rules.payment_type_id` foi descontinuada (Fase D). Mantido apenas para retrocompatibilidade. */
-  payment_type_id?: string | null;
   reference_date: string;
   globalExceptionTableIds?: string[];
 }

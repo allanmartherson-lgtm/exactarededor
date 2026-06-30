@@ -17,7 +17,7 @@ Triggers e funções de sync (`sync_payment_items_type_columns`, `sync_rule_calc
 **Colunas DB que AINDA usam `payment_type_id` (não migradas):**
 - `payments.payment_type_id` (modelo do lote — coluna `payment_model_id` já existe e é mantida em sincronia pelo trigger `sync_payments_type_columns`)
 - `payments.mixed_parecer_payment_type_id` (subtipo parecer destino)
-- `rules.payment_type_id` (filtro de regra; `rules.payment_model_id` existe via trigger `sync_rules_type_columns`)
+- ~~`rules.payment_type_id`~~ — REMOVIDA na D3.b (jun/2026). Junto saíram `rules.payment_model_id` e o trigger `sync_rules_type_columns` (ambas eram não-usadas; filtro por tipo vive em `rule_calculations.item_type_id`).
 - ~~`payout_models.payment_type_id`~~ — REMOVIDA na D3.c (jun/2026). Usar `payout_models.payment_model_id`.
 - `companies.default_payment_type_id` (padrão da empresa)
 - `company_financial_adjustments.payment_type_ids[]` (array de filtros)
