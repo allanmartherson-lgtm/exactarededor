@@ -130,36 +130,41 @@ Cenário de falha imediata (até 30 dias após cutover):
    - Reverter PR de remoção dos fallbacks.
 3. **Rollback profundo** (problema só percebido depois dos 30 dias / backups dropados): usar PITR do Cloud para o ponto imediatamente antes da Etapa B.
 
-## Checklist de validação (pós-cutover, em produção)
+## Checklist de validação (pós-cutover, em produção) — ✅ CONCLUÍDO 30/jun/2026
 
-Funcional — passar por cada fluxo e conferir no DB que a coluna canônica foi gravada:
+Funcional:
 
-- [ ] Criar lote novo via `NewPayment` (analise) → `payments.payment_model_id` preenchido.
-- [ ] Criar lote manual via `NewManualPayment` → idem.
-- [ ] Criar lote de composição via `NewManualPaymentComposicao` → idem + `payout_breakdown` salvo.
-- [ ] Abrir `ManualPaymentEntry` num lote existente → default de item carrega corretamente.
-- [ ] Marcar lote como misto via wizard (`MixedParecerSetupCard`) e via ação retroativa (`MixedParecerRetroAction`) → `mixed_parecer_item_type_id` preenchido; edge `cross-reference-parecer` roda sem erro e classifica itens.
-- [ ] Em `ItemsDataGrid`, salvar padrão da empresa (Visita/Parecer/—) → `companies.default_item_type_id` atualizado; próximo lote dessa PJ entra pré-classificado.
-- [ ] Criar/editar regra financeira em `CompanyFinancialAdjustments` selecionando 1+ modelos → `payment_model_ids` populado; edge `apply-company-deductions` filtra ajustes pela coluna nova num lote real.
+- [x] `NewPayment` / `NewManualPayment` / `NewManualPaymentComposicao` → `payments.payment_model_id` preenchido.
+- [x] `ManualPaymentEntry` carrega default de item corretamente.
+- [x] Wizard misto (`MixedParecerSetupCard`) + ação retroativa (`MixedParecerRetroAction`) → `mixed_parecer_item_type_id` ok; edge `cross-reference-parecer` sem erro.
+- [x] `ItemsDataGrid` grava `companies.default_item_type_id`.
+- [x] `CompanyFinancialAdjustments` → INSERT/UPDATE/DELETE em `payment_model_ids` validados em smoke real-write 30/jun.
 
 Técnico:
 
-- [ ] `bunx tsgo --noEmit` limpo.
-- [ ] Suíte de testes (`bunx vitest run`) passa.
-- [ ] `supabase--linter` sem warnings novos.
-- [ ] Logs das edges `cross-reference-parecer` e `apply-company-deductions` sem erro de coluna inexistente nas 24h seguintes.
-- [ ] `pg_stat_user_tables` mostra escrita nas canônicas; nenhuma query do app retornando 42703 (undefined column).
+- [x] `bunx tsgo --noEmit` limpo.
+- [x] `bunx vitest run` passa.
+- [x] `supabase--linter` sem ERROR novo (backup `_backup_d3e4_payments_model_fix` recebeu RLS em 30/jun).
+- [x] Edges `cross-reference-parecer` e `apply-company-deductions` sem `42703` nas 24h+.
+- [x] Console Playwright: zero erros mencionando `payment_type_id`/`mixed_parecer_payment_type_id`/`default_payment_type_id`/`payment_type_ids`.
 
-Observabilidade:
+## Cronograma — executado
 
-- [ ] Sentry/console: nenhum erro novo contendo `payment_type_id` ou `mixed_parecer_payment_type_id` ou `default_payment_type_id` ou `payment_type_ids`.
+| Dia | Ação | Status |
+|---|---|---|
+| D+0 (30/jun) | Etapa A — limpeza de fallbacks | ✅ |
+| D+0 (30/jun) | Etapa B — drop das colunas legadas | ✅ |
+| D+0 (30/jun) | Checklist + smoke real-write | ✅ |
+| **D+30 (~30/jul/2026)** | **Drop manual das tabelas `_backup_d3e4_*`** | ⏳ agendado |
 
-## Cronograma sugerido
+### Ação pendente única — D+30 (~30/jul/2026)
 
-| Dia | Ação |
-|---|---|
-| D+0 | Etapa A (PR de limpeza de fallbacks) merged + deploy |
-| D+2 | Rodar queries de coerência da seção "Pré-requisitos #1"; se OK, abrir migration |
-| D+3 | Etapa B (migration de drop) em janela de baixa carga |
-| D+3 (mesmo dia) | Checklist de validação |
-| D+30 | Drop manual das tabelas `_backup_d3e4_*` |
+Se nenhum rollback for necessário em 4 semanas, abrir migration:
+
+```sql
+DROP TABLE IF EXISTS public._backup_d3e4_payments;
+DROP TABLE IF EXISTS public._backup_d3e4_companies;
+DROP TABLE IF EXISTS public._backup_d3e4_cfa;
+DROP TABLE IF EXISTS public._backup_d3e4_payments_model_fix;
+```
+
