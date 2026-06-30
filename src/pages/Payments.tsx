@@ -187,6 +187,7 @@ type PersistedPaymentsState = Partial<{
   doctorFilter: { id: string; full_name: string; crm: string | null; crm_uf: string | null } | null;
   analystFilter: string;
   typeFilter: string;
+  itemTypeFilter: string;
   trackFilter: string;
   statusFilter: string[];
   competenceFilter: string;
