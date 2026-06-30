@@ -10,13 +10,16 @@ type PayRow = {
   reference: string | null;
   competence_month: string | null;
   payment_type: string | null;
+  // Fonte canônica: payment_model_id. Mantém alias legado payment_type_id como
+  // fallback enquanto a coluna antiga não é dropada na Sub-fase D2.
+  payment_model_id: string | null;
   payment_type_id: string | null;
 };
 
 type Gap = {
   key: string;
   payment_type: string;
-  payment_type_id: string | null;
+  payment_model_id: string | null;
   month: string; // YYYY-MM-01
   monthLabel: string;
 };
@@ -50,7 +53,7 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
       cutoff.setDate(1);
       const { data, error } = await supabase
         .from("payments")
-        .select("id, reference, competence_month, payment_type, payment_type_id, status")
+        .select("id, reference, competence_month, payment_type, payment_model_id, payment_type_id, status")
         .eq("hospital_id", hospital.id)
         .gte("competence_month", cutoff.toISOString().slice(0, 10))
         .not("status", "eq", "cancelado")
@@ -71,16 +74,17 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
   const gaps: Gap[] = useMemo(() => {
     if (!rows || rows.length === 0) return [];
     // agrupa por payment_type (string legível). Só considera tipos com ≥2 lotes históricos.
-    const byType = new Map<string, { type_id: string | null; months: Set<string> }>();
+    const byType = new Map<string, { model_id: string | null; months: Set<string> }>();
     for (const r of rows) {
       const t = (r.payment_type ?? "").trim();
       if (!t || !r.competence_month) continue;
       const monthKey = r.competence_month.slice(0, 7) + "-01";
+      const modelId = r.payment_model_id ?? r.payment_type_id ?? null;
       const entry = byType.get(t);
       if (entry) {
         entry.months.add(monthKey);
       } else {
-        byType.set(t, { type_id: r.payment_type_id, months: new Set([monthKey]) });
+        byType.set(t, { model_id: modelId, months: new Set([monthKey]) });
       }
     }
     const out: Gap[] = [];
@@ -102,7 +106,7 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
           out.push({
             key: `${type}::${key}`,
             payment_type: type,
-            payment_type_id: entry.type_id,
+            payment_model_id: entry.model_id,
             month: key,
             monthLabel: fmt(key),
           });
@@ -135,7 +139,9 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
 
   const handleCreate = (g: Gap) => {
     const params = new URLSearchParams();
-    if (g.payment_type_id) params.set("payment_type_id", g.payment_type_id);
+    // NewManualPayment ainda lê `payment_type_id` da query (alias legado);
+    // passa o `payment_model_id` no mesmo slot — IDs são unificados.
+    if (g.payment_model_id) params.set("payment_type_id", g.payment_model_id);
     params.set("competence_month", g.month);
     params.set("import_mode", "historico");
     navigate(`/pagamentos/novo-manual?${params.toString()}`);
