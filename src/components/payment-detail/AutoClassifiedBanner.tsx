@@ -47,7 +47,7 @@ export function AutoClassifiedBanner({
       const itemTypeId = it.item_type_id ?? null;
       if (!itemTypeId || itemTypeId === lotePaymentTypeId) continue;
       if (src === "auto_tuss") autoTuss++;
-      else if (src === "auto_heuristic") autoHeur++;
+      else if (src === "auto_dynamic" || src === "auto_heuristic") autoHeur++;
       else if (src === "manual") manual++;
     }
     return { autoTuss, autoHeur, manual, total: autoTuss + autoHeur + manual };
