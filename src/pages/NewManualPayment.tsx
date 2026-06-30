@@ -48,7 +48,7 @@ export default function NewManualPayment() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
-  const [paymentTypeId, setPaymentTypeId] = useState<string>(prefillTypeId ?? "");
+  const [paymentModelId, setPaymentModelId] = useState<string>(prefillTypeId ?? "");
   const [paymentDueDate, setPaymentDueDate] = useState("");
   const [costCenterCode, setCostCenterCode] = useState<string | null>(null);
   const [competenceRegime, setCompetenceRegime] = useState<"producao" | "remessa">("producao");
@@ -66,7 +66,7 @@ export default function NewManualPayment() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentTypes.length]);
 
-  const canSubmit = !!reference.trim() && !!paymentTypeId && !!competence && !!hospital?.id && !!costCenterCode;
+  const canSubmit = !!reference.trim() && !!paymentModelId && !!competence && !!hospital?.id && !!costCenterCode;
 
   const handleCreate = async () => {
     if (!canSubmit || !user) return;
@@ -85,7 +85,7 @@ export default function NewManualPayment() {
         competence_months: [`${competence}-01`],
         payment_due_date: paymentDueDate || null,
         analysis_mode: "manual" as any,
-        payment_type_id: paymentTypeId,
+        payment_type_id: paymentModelId,
         cost_center_code: costCenterCode,
         competence_regime: competenceRegime,
         import_mode: prefillImportMode,
@@ -139,7 +139,7 @@ export default function NewManualPayment() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="tipo">Tipo de pagamento *</Label>
-              <Select value={paymentTypeId} onValueChange={setPaymentTypeId} disabled={typesLoading}>
+              <Select value={paymentModelId} onValueChange={setPaymentModelId} disabled={typesLoading}>
                 <SelectTrigger id="tipo">
                   <SelectValue placeholder={typesLoading ? "Carregando…" : "Selecionar tipo"} />
                 </SelectTrigger>

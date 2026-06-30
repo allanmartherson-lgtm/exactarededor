@@ -71,8 +71,9 @@ export function AutoClassifiedReviewSheet({
     return items.filter((it) => {
       const src = String(it.payment_type_source ?? "");
       if (!AUTO_SOURCES.has(src)) return false;
-      const ptid = it.payment_type_id ?? null;
-      return !!ptid && ptid !== lotePaymentTypeId;
+      // itemTypeId vem da coluna legacy payment_items.payment_type_id (Wave 5 renomeia)
+      const itemTypeId = it.payment_type_id ?? null;
+      return !!itemTypeId && itemTypeId !== lotePaymentTypeId;
     });
   }, [items, lotePaymentTypeId]);
 

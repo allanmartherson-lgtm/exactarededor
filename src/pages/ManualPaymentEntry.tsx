@@ -61,7 +61,7 @@ type DraftRow = {
   dbId?: string;
   company: CompanyOption | null;
   doctor: DoctorOption | null;
-  paymentTypeId: string | null;
+  itemTypeId: string | null;
   specialty: string;
   attendance: string;
   patient: string;
@@ -79,7 +79,7 @@ const newDraft = (): DraftRow => ({
   key: `draft_${Math.random().toString(36).slice(2)}`,
   company: null,
   doctor: null,
-  paymentTypeId: null,
+  itemTypeId: null,
   specialty: "",
   attendance: "",
   patient: "",
@@ -137,7 +137,7 @@ export default function ManualPaymentEntry() {
       doctor: it.doctor_id
         ? { id: it.doctor_id, name: it.doctor_name ?? "", crm: null, crm_uf: null }
         : null,
-      paymentTypeId: it.payment_type_id ?? null,
+      itemTypeId: it.payment_type_id ?? null,
       specialty: it.specialty ?? "",
       attendance: it.attendance_number ?? "",
       patient: it.patient_name ?? "",
@@ -188,7 +188,7 @@ export default function ManualPaymentEntry() {
     }
   };
 
-  const addRow = () => setRows((prev) => [...prev, { ...newDraft(), paymentTypeId: defaultTypeId }]);
+  const addRow = () => setRows((prev) => [...prev, { ...newDraft(), itemTypeId: defaultTypeId }]);
   const duplicateRow = (key: string) =>
     setRows((prev) => {
       const idx = prev.findIndex((r) => r.key === key);
@@ -250,7 +250,7 @@ export default function ManualPaymentEntry() {
     // é NOT NULL no banco, então usamos empresa como fallback para preservar
     // rastreabilidade sem quebrar o constraint.
     doctor_name: row.doctor?.name ?? row.company?.name ?? "—",
-    payment_type_id: row.paymentTypeId ?? defaultTypeId,
+    payment_type_id: row.itemTypeId ?? defaultTypeId,
     specialty: row.specialty || null,
     attendance_number: row.attendance || null,
     patient_name: row.patient || null,
@@ -628,8 +628,8 @@ export default function ManualPaymentEntry() {
                         </TableCell>
                         <TableCell className="py-2.5">
                           <Select
-                            value={r.paymentTypeId ?? defaultTypeId ?? ""}
-                            onValueChange={(v) => updateRow(r.key, { paymentTypeId: v })}
+                            value={r.itemTypeId ?? defaultTypeId ?? ""}
+                            onValueChange={(v) => updateRow(r.key, { itemTypeId: v })}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="—" />

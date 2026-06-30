@@ -56,7 +56,7 @@ export default function NewManualPaymentComposicao() {
   const { hospital } = useHospital();
   const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
 
-  const [paymentTypeId, setPaymentTypeId] = useState<string>("");
+  const [paymentModelId, setPaymentModelId] = useState<string>("");
   const [company, setCompany] = useState<CompanyOption | null>(null);
   const [competence, setCompetence] = useState(() => {
     const d = new Date();
@@ -84,7 +84,7 @@ export default function NewManualPaymentComposicao() {
         .select("id,hospital_id,payment_type_id,company_id,name,version,description")
         .eq("hospital_id", hospital.id)
         .eq("active", true);
-      if (paymentTypeId) q = q.or(`payment_type_id.eq.${paymentTypeId},payment_type_id.is.null`);
+      if (paymentModelId) q = q.or(`payment_type_id.eq.${paymentModelId},payment_type_id.is.null`);
       else q = q.is("payment_type_id", null);
       const { data } = await q.order("name");
       let list = ((data ?? []) as unknown) as PayoutModelRow[];
@@ -98,7 +98,7 @@ export default function NewManualPaymentComposicao() {
       setMatchingModels(list);
       if (list.length === 1) setSelectedModelId(list[0].id);
     })();
-  }, [hospital?.id, paymentTypeId, company?.id]);
+  }, [hospital?.id, paymentModelId, company?.id]);
 
   // Carrega rubricas + faixas + params do modelo selecionado
   useEffect(() => {
@@ -170,7 +170,7 @@ export default function NewManualPaymentComposicao() {
   const canSave =
     !!hospital?.id &&
     !!user &&
-    !!paymentTypeId &&
+    !!paymentModelId &&
     !!costCenterCode &&
     !!reference.trim() &&
     !!selectedModelId &&
@@ -202,7 +202,7 @@ export default function NewManualPaymentComposicao() {
         competence_months: [`${competence}-01`],
         payment_due_date: paymentDueDate || null,
         analysis_mode: "manual" as any,
-        payment_type_id: paymentTypeId,
+        payment_type_id: paymentModelId,
         cost_center_code: costCenterCode,
         payout_model_id: selectedModel.id,
         payout_model_version: selectedModel.version,
@@ -249,7 +249,7 @@ export default function NewManualPaymentComposicao() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Tipo de pagamento *</Label>
-                <Select value={paymentTypeId} onValueChange={setPaymentTypeId}>
+                <Select value={paymentModelId} onValueChange={setPaymentModelId}>
                   <SelectTrigger><SelectValue placeholder="Selecionar tipo" /></SelectTrigger>
                   <SelectContent>
                     {paymentTypes.map((p) => (

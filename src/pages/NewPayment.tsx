@@ -543,7 +543,7 @@ const NewPayment = () => {
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>(initialMode);
   // Tipo de pagamento escolhido no modal pré-wizard (Parecer/Visita/Cirurgia/etc.).
   // Persistido em payments.payment_type_id no insert e propagado para payment_items.
-  const initialPaymentTypeId: string | null = (() => {
+  const initialPaymentModelId: string | null = (() => {
     const fromUrl = searchParams.get("tipo");
     if (fromUrl) return fromUrl;
     try {
@@ -552,7 +552,7 @@ const NewPayment = () => {
     } catch { /* ignore */ }
     return null;
   })();
-  const [paymentTypeId, setPaymentTypeId] = useState<string | null>(initialPaymentTypeId);
+  const [paymentModelId, setPaymentModelId] = useState<string | null>(initialPaymentModelId);
   // Metadados do tipo escolhido — usados pelo parser para injetar TUSS padrão,
   // função padrão e marcar quando a planilha não precisa trazer TUSS.
   type SubtypePattern = { match: string; target_payment_type_id: string };
@@ -569,20 +569,20 @@ const NewPayment = () => {
     allow_mixed_subtypes: boolean;
     subtype_split_hint: SubtypeSplitHint;
   };
-  const [paymentTypeMeta, setPaymentTypeMeta] = useState<PaymentTypeMeta | null>(null);
+  const [paymentModelMeta, setPaymentModelMeta] = useState<PaymentTypeMeta | null>(null);
   const paymentTypeMetaRef = useRef<PaymentTypeMeta | null>(null);
-  useEffect(() => { paymentTypeMetaRef.current = paymentTypeMeta; }, [paymentTypeMeta]);
+  useEffect(() => { paymentTypeMetaRef.current = paymentModelMeta; }, [paymentModelMeta]);
   // Cache de labels dos subtipos referenciados em subtype_split_hint — usado
   // no resumo "187 Parecer + 2 Visita" do preview.
   const [subtypeLabels, setSubtypeLabels] = useState<Record<string, string>>({});
   useEffect(() => {
-    if (!paymentTypeId) { setPaymentTypeMeta(null); return; }
+    if (!paymentModelId) { setPaymentModelMeta(null); return; }
     let cancelled = false;
     (async () => {
       const { data } = await supabase
         .from("payment_types")
         .select("id,code,label,tuss_default,requires_tuss_in_sheet,default_function,default_value_column_hint,expected_headers,allow_mixed_subtypes,subtype_split_hint")
-        .eq("id", paymentTypeId)
+        .eq("id", paymentModelId)
         .maybeSingle();
       if (cancelled || !data) return;
       const hint = (data as any).subtype_split_hint ?? null;
@@ -598,7 +598,7 @@ const NewPayment = () => {
         allow_mixed_subtypes: !!(data as any).allow_mixed_subtypes,
         subtype_split_hint: hint && hint.column && Array.isArray(hint.patterns) ? hint as SubtypeSplitHint : null,
       };
-      setPaymentTypeMeta(meta);
+      setPaymentModelMeta(meta);
       // Carrega labels dos tipos referenciados + o próprio
       const ids = new Set<string>([meta.id]);
       meta.subtype_split_hint?.patterns.forEach((p) => p.target_payment_type_id && ids.add(p.target_payment_type_id));
@@ -613,16 +613,16 @@ const NewPayment = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [paymentTypeId]);
+  }, [paymentModelId]);
   const [importMode, setImportMode] = useState<"normal" | "historico">("normal");
   // Relatório de pareceres anexado no wizard (modo confecção + tipo parecer).
   const [parecerPayload, setParecerPayload] = useState<ParecerWizardPayload | null>(null);
-  const isParecerType = !!paymentTypeMeta?.code?.startsWith("parecer");
-  const isVisitaType = paymentTypeMeta?.code === "visita";
+  const isParecerType = !!paymentModelMeta?.code?.startsWith("parecer");
+  const isVisitaType = paymentModelMeta?.code === "visita";
   // Lote MISTO: produção que também tem parecer/visita misturados nos TUSS.
   // Esconde a opção quando o lote já é puro parecer/visita (esses já cruzam por padrão).
   const [mixedParecer, setMixedParecer] = useState<MixedParecerSetup>({ enabled: false, payment_type_id: null });
-  const showMixedParecerOption = !!paymentTypeMeta && !isParecerType && !isVisitaType;
+  const showMixedParecerOption = !!paymentModelMeta && !isParecerType && !isVisitaType;
   const ambiguousTussCount = useAmbiguousTussCount();
   const requiresParecerReport = (modoConfeccao && isParecerType) || (showMixedParecerOption && mixedParecer.enabled);
   // Gate de especialidade só vale em confecção parecer puro (decide Parecer vs Visita por especialidade).
@@ -908,7 +908,7 @@ const NewPayment = () => {
   // Sincroniza o Select visível com o id escolhido no pré-wizard. Ver hook
   // para detalhes — coberto por src/hooks/__tests__/usePaymentTypeCodeSync.test.tsx.
   usePaymentTypeCodeSync({
-    paymentTypeId,
+    paymentTypeId: paymentModelId,
     paymentTypeOptions,
     paymentType,
     setPaymentType: (code) => setPaymentType(code as PaymentType),
@@ -1807,7 +1807,7 @@ const NewPayment = () => {
     if (draftLoadedRef.current) return;
     if (!hospital?.id) return; // espera hospital resolver
     draftLoadedRef.current = true;
-    const draft = loadDraft(hospital.id, analysisMode, paymentTypeId);
+    const draft = loadDraft(hospital.id, analysisMode, paymentModelId);
     if (!isDraftMeaningful(draft) || !draft) return;
     const f = draft.form ?? {};
     if (f.reference) setReference((cur) => cur || f.reference!);
@@ -1837,7 +1837,7 @@ const NewPayment = () => {
         ? `Campos do formulário reaplicados. Re-anexe ${filesPending} arquivo(s) para restaurar setor/PJ/mapeamento.`
         : "Campos do formulário reaplicados.",
     });
-  }, [hospital?.id, analysisMode, paymentTypeId]);
+  }, [hospital?.id, analysisMode, paymentModelId]);
 
   // ===== Autosave (debounced) =====
   useEffect(() => {
@@ -1860,7 +1860,7 @@ const NewPayment = () => {
           columnMapping: b.columnMapping as Record<string, unknown> | undefined,
         };
       }
-      saveDraft(hospital.id, analysisMode, paymentTypeId, {
+      saveDraft(hospital.id, analysisMode, paymentModelId, {
         form: {
           reference, description, competenceMonths, paymentDueDate,
           paymentKind: paymentKind || undefined,
@@ -1875,7 +1875,7 @@ const NewPayment = () => {
     }, 800);
     return () => clearTimeout(t);
   }, [
-    hospital?.id, analysisMode, paymentTypeId,
+    hospital?.id, analysisMode, paymentModelId,
     reference, description, competenceMonths, paymentDueDate,
     paymentKind, paymentTrack, costCenterCode, pSectors, pSpecialties,
     autoSectors, autoSpecialties, autoPaymentKind, importMode,
@@ -1884,13 +1884,13 @@ const NewPayment = () => {
 
   const discardDraft = useCallback(() => {
     if (!hospital?.id) return;
-    clearDraft(hospital.id, analysisMode, paymentTypeId);
+    clearDraft(hospital.id, analysisMode, paymentModelId);
     pendingFileDecisionsRef.current = {};
     setDraftRestoredAt(null);
     draftClearedRef.current = true;
     setTimeout(() => { draftClearedRef.current = false; }, 1500);
     toast({ title: "Rascunho descartado" });
-  }, [hospital?.id, analysisMode, paymentTypeId]);
+  }, [hospital?.id, analysisMode, paymentModelId]);
 
 
   const suspiciousByBucket = useMemo(() => {
@@ -2029,14 +2029,14 @@ const NewPayment = () => {
     }
 
     // 4) Mapeamento incompleto
-    // Importante: passar paymentTypeMeta para summarizeMissing — sem isso,
+    // Importante: passar paymentModelMeta para summarizeMissing — sem isso,
     // procedure_code/doctor_role contam como faltando mesmo quando o tipo
     // injeta TUSS/função default (ex.: Consulta com TUSS 10101012, Clínico),
     // gerando alerta "X faltando" depois que o usuário já mapeou tudo no modal.
     const mappingProblems = buckets
       .map((b, idx) => {
         const hits = b.mappingHits ?? [];
-        const summary = hits.length ? summarizeMissing(hits, paymentTypeMeta) : { missingRequired: [], lowConfidence: [] };
+        const summary = hits.length ? summarizeMissing(hits, paymentModelMeta) : { missingRequired: [], lowConfidence: [] };
         return { idx, name: b.file.name, missing: summary.missingRequired.length, low: summary.lowConfidence.length };
       })
       .filter((m) => m.missing > 0);
@@ -2054,7 +2054,7 @@ const NewPayment = () => {
     }
 
     return out;
-  }, [buckets, pendingSuspiciousCount, paymentTypeMeta]);
+  }, [buckets, pendingSuspiciousCount, paymentModelMeta]);
 
   const allRows = useMemo(() => {
     return buckets.flatMap((b, bucketIndex) =>
@@ -2123,7 +2123,7 @@ const NewPayment = () => {
   const sectorForRow = (r: ParsedRow & { source_bucket_index?: number }): string | null => {
     // Tipos de pagamento por evento (parecer, visita...) não têm dimensão de setor.
     // Ignora qualquer valor capturado/override para não cair em Resolução de cadastros.
-    if (paymentTypeMeta?.default_function) return null;
+    if (paymentModelMeta?.default_function) return null;
     const bIdx = (r as any).source_bucket_index;
     const override = typeof bIdx === "number" ? buckets[bIdx]?.sectorMapping : null;
     if (override && override.trim()) return override;
@@ -2490,7 +2490,7 @@ const NewPayment = () => {
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
-        payment_type_id: paymentTypeId,
+        payment_type_id: paymentModelId,
         has_mixed_parecer: mixedParecer.enabled,
         mixed_parecer_payment_type_id: mixedParecer.enabled ? mixedParecer.payment_type_id : null,
         import_mode: isHistoricoImport ? "historico" : "normal",
@@ -3141,7 +3141,7 @@ const NewPayment = () => {
     // do detalhe leve à lista de pagamentos, e não de volta ao formulário de criação.
     // Submissão concluída: rascunho não é mais necessário.
     if (hospital?.id) {
-      clearDraft(hospital.id, analysisMode, paymentTypeId);
+      clearDraft(hospital.id, analysisMode, paymentModelId);
       draftClearedRef.current = true;
     }
     navigate(`/pagamentos/${payment.id}`, { replace: true, state: { backTo: "/pagamentos" } });
@@ -3176,35 +3176,35 @@ const NewPayment = () => {
             </button>
           </div>
         )}
-        {paymentTypeMeta && (
+        {paymentModelMeta && (
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm flex items-start gap-3">
             <div className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary uppercase tracking-wide">
-              Tipo: {paymentTypeMeta.label}
+              Tipo: {paymentModelMeta.label}
             </div>
             <div className="text-xs text-muted-foreground flex-1 leading-relaxed">
-              {paymentTypeMeta.tuss_default && !paymentTypeMeta.requires_tuss_in_sheet && (
-                <div>TUSS <span className="font-mono">{paymentTypeMeta.tuss_default}</span> será aplicado automaticamente às linhas sem código.</div>
+              {paymentModelMeta.tuss_default && !paymentModelMeta.requires_tuss_in_sheet && (
+                <div>TUSS <span className="font-mono">{paymentModelMeta.tuss_default}</span> será aplicado automaticamente às linhas sem código.</div>
               )}
-              {paymentTypeMeta.default_function && (
-                <div>Função padrão: <span className="font-medium">{paymentTypeMeta.default_function}</span> (preenche linhas sem função).</div>
+              {paymentModelMeta.default_function && (
+                <div>Função padrão: <span className="font-medium">{paymentModelMeta.default_function}</span> (preenche linhas sem função).</div>
               )}
-              {!paymentTypeMeta.tuss_default && paymentTypeMeta.requires_tuss_in_sheet && !paymentTypeMeta.default_function && !paymentTypeMeta.allow_mixed_subtypes && (
+              {!paymentModelMeta.tuss_default && paymentModelMeta.requires_tuss_in_sheet && !paymentModelMeta.default_function && !paymentModelMeta.allow_mixed_subtypes && (
                 <div>Sem defaults — a planilha precisa trazer TUSS e função para cada linha.</div>
               )}
-              {paymentTypeMeta.allow_mixed_subtypes && paymentTypeMeta.subtype_split_hint && (() => {
+              {paymentModelMeta.allow_mixed_subtypes && paymentModelMeta.subtype_split_hint && (() => {
                 const counts: Record<string, number> = {};
                 let mixed = 0;
                 for (const r of allRows) {
-                  const tid = r.payment_type_id_override ?? paymentTypeMeta.id;
+                  const tid = r.payment_type_id_override ?? paymentModelMeta.id;
                   counts[tid] = (counts[tid] ?? 0) + 1;
-                  if (r.payment_type_id_override && r.payment_type_id_override !== paymentTypeMeta.id) mixed++;
+                  if (r.payment_type_id_override && r.payment_type_id_override !== paymentModelMeta.id) mixed++;
                 }
                 const parts = Object.entries(counts).map(([id, n]) =>
-                  `${n} ${subtypeLabels[id] ?? (id === paymentTypeMeta.id ? paymentTypeMeta.label : id.slice(0, 6))}`
+                  `${n} ${subtypeLabels[id] ?? (id === paymentModelMeta.id ? paymentModelMeta.label : id.slice(0, 6))}`
                 );
                 return (
                   <div>
-                    Subtipos mistos ativos via coluna <span className="font-mono">{paymentTypeMeta.subtype_split_hint.column}</span>.
+                    Subtipos mistos ativos via coluna <span className="font-mono">{paymentModelMeta.subtype_split_hint.column}</span>.
                     {allRows.length > 0 && (
                       <span> {allRows.length} linha(s) → {parts.join(" + ")}{mixed > 0 ? ` (${mixed} reclassificada${mixed === 1 ? "" : "s"})` : ""}.</span>
                     )}
@@ -3215,7 +3215,7 @@ const NewPayment = () => {
             </div>
             <button
               type="button"
-              onClick={() => { setPaymentTypeId(null); try { sessionStorage.removeItem("newPaymentTypeId"); } catch {} }}
+              onClick={() => { setPaymentModelId(null); try { sessionStorage.removeItem("newPaymentTypeId"); } catch {} }}
               className="text-xs text-muted-foreground hover:text-foreground underline shrink-0"
             >
               Remover
@@ -4008,7 +4008,7 @@ const NewPayment = () => {
                           {/* Botão de revisão do mapeamento de colunas */}
                           {(() => {
                             const hits = b.mappingHits ?? [];
-                            const summary = hits.length ? summarizeMissing(hits, paymentTypeMeta) : { missingRequired: [], lowConfidence: [] };
+                            const summary = hits.length ? summarizeMissing(hits, paymentModelMeta) : { missingRequired: [], lowConfidence: [] };
                             const hasMissing = summary.missingRequired.length > 0;
                             const hasLow = summary.lowConfidence.length > 0;
                             const variant = hasMissing ? "outline" : "ghost";
@@ -4398,10 +4398,10 @@ const NewPayment = () => {
             hospitalId={hospital?.id ?? null}
             mode={modoConfeccao ? "confeccao" : "analise"}
             compatibleCount={compatibleCount}
-            paymentTypeMeta={paymentTypeMeta ? {
-              tuss_default: paymentTypeMeta.tuss_default,
-              requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
-              default_function: paymentTypeMeta.default_function,
+            paymentTypeMeta={paymentModelMeta ? {
+              tuss_default: paymentModelMeta.tuss_default,
+              requires_tuss_in_sheet: paymentModelMeta.requires_tuss_in_sheet,
+              default_function: paymentModelMeta.default_function,
             } : null}
             onApply={(mapping, applyToCompatible) => {
               applyColumnMappingOverride(mappingDialog.bucketIdx!, mapping, applyToCompatible);
