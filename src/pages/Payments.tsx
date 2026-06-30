@@ -14,6 +14,7 @@ import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PA
 import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, ChevronsUpDown, Stethoscope, Trash2, SlidersHorizontal, Receipt, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, EyeOff } from "lucide-react";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
+import { useItemTypes } from "@/hooks/useItemTypes";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 import { PriorityBadge } from "@/components/payment-detail/PriorityBadge";
 import { calcPriorityScore } from "@/lib/paymentPriority";
