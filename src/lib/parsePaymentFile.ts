@@ -680,7 +680,7 @@ const isParecerPaymentType = (meta: ParseOptions["paymentTypeMeta"]): boolean =>
  * referência A1 da MESMA aba. Qualquer coisa fora disso é ignorada (mantém
  * o comportamento atual de devolver vazio + alerta).
  */
-function resolveSimpleFormulas(sheet: Record<string, any>): void {
+export function resolveSimpleFormulas(sheet: Record<string, any>): void {
   const ref = sheet["!ref"];
   if (!ref) return;
   const SAFE = /^[\s+\-*/().0-9A-Z$]+$/i; // só refs + números + operadores
