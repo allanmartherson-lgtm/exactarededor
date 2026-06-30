@@ -38,13 +38,13 @@ Deno.serve(async (req) => {
     };
 
     // ============ DÉBITOS (company_financial_adjustments) ============
-    // Carrega payment_type_id deste lote para filtrar ajustes restritos a tipos específicos.
-    const { data: paymentTypeRow } = await supabase
+    // Carrega payment_model_id deste lote para filtrar ajustes restritos a modelos específicos.
+    const { data: paymentModelRow } = await supabase
       .from("payments")
-      .select("payment_type_id")
+      .select("payment_model_id")
       .eq("id", payment_id)
       .maybeSingle();
-    const lotePaymentTypeId: string | null = (paymentTypeRow?.payment_type_id as string) ?? null;
+    const lotePaymentModelId: string | null = (paymentModelRow?.payment_model_id as string) ?? null;
 
     const { data: adjustmentsRaw } = await supabase
       .from("company_financial_adjustments")
@@ -52,11 +52,12 @@ Deno.serve(async (req) => {
       .eq("company_id", company_id)
       .eq("ativo", true);
 
-    // Filtro payment_type_ids: NULL/vazio = qualquer lote; senão exige match com o tipo do lote.
+    // Filtro payment_type_ids (legado, array contém UUIDs unificados com payment_models.id):
+    // NULL/vazio = qualquer lote; senão exige match com o modelo do lote.
     const adjustments = (adjustmentsRaw ?? []).filter((a: any) => {
       const ids: string[] | null = a.payment_type_ids ?? null;
       if (!ids || ids.length === 0) return true;
-      return lotePaymentTypeId ? ids.includes(lotePaymentTypeId) : false;
+      return lotePaymentModelId ? ids.includes(lotePaymentModelId) : false;
     });
 
     const { data: existingCaa } = await supabase
