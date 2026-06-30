@@ -2210,22 +2210,34 @@ const NewPayment = () => {
   // (linhas sem médico no Excel) é ignorado para evitar falsos positivos.
   const unresolvedGroups = useMemo<UnresolvedGroup[]>(() => {
     if (!doctorReg || !convenioReg || !sectorReg) return [];
+    const SAMPLE_LIMIT = 25;
     const map = new Map<string, UnresolvedGroup>();
-    const bump = (kind: UnresolvedGroup["kind"], raw: string) => {
+    const bump = (kind: UnresolvedGroup["kind"], raw: string, r: any) => {
       const text = (raw ?? "").trim();
       if (!text) return;
       const key = `${kind}::${text.toLowerCase()}`;
+      const sample = {
+        attendance: r.attendance_number ?? null,
+        patient: r.patient_name ?? null,
+        doctor: r.doctor_name ?? null,
+        date: r.procedure_date ?? null,
+        procedure: r.procedure_name ?? r.procedure_code ?? null,
+      };
       const existing = map.get(key);
-      if (existing) existing.count += 1;
-      else map.set(key, { kind, raw: text, count: 1 });
+      if (existing) {
+        existing.count += 1;
+        if ((existing.samples?.length ?? 0) < SAMPLE_LIMIT) existing.samples!.push(sample);
+      } else {
+        map.set(key, { kind, raw: text, count: 1, samples: [sample] });
+      }
     };
     for (const r of resolvedRows) {
       const res = (r as any)._resolution;
       if (!res) continue;
-      if (!res.doctor_id && r.doctor_name?.trim()) bump("doctor", r.doctor_name);
-      if (!res.convenio_slug && r.agreement_text?.trim()) bump("convenio", r.agreement_text);
+      if (!res.doctor_id && r.doctor_name?.trim()) bump("doctor", r.doctor_name, r);
+      if (!res.convenio_slug && r.agreement_text?.trim()) bump("convenio", r.agreement_text, r);
       const sectorRaw = sectorForRow(r as any);
-      if (!res.sector_slug && sectorRaw?.trim()) bump("sector", sectorRaw);
+      if (!res.sector_slug && sectorRaw?.trim()) bump("sector", sectorRaw, r);
     }
     return Array.from(map.values()).sort((a, b) => b.count - a.count);
   }, [resolvedRows, doctorReg, convenioReg, sectorReg, buckets]);
