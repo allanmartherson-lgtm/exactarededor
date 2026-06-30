@@ -43,7 +43,7 @@ describe("parsePaymentFile — regra híbrida Consulta", () => {
     const file = makeFile([{
       ...BASE_ROW,
       "Código TUSS": "40901130",
-      "Produto": "CONSULTA EM PRONTO SOCORRO",
+      "Procedimento": "CONSULTA EM PRONTO SOCORRO",
     }]);
     const bucket = await parsePaymentFile(file, [], "consulta", { paymentTypeMeta: CONSULTA_META });
     expect(bucket.rows.length).toBeGreaterThan(0);
@@ -78,7 +78,7 @@ describe("parsePaymentFile — regra híbrida Consulta", () => {
   });
 
   it("planilha SÓ com Produto: nome vem da planilha, tuss usa default", async () => {
-    const file = makeFile([{ ...BASE_ROW, "Produto": "CONSULTA AMBULATORIAL" }]);
+    const file = makeFile([{ ...BASE_ROW, "Procedimento": "CONSULTA AMBULATORIAL" }]);
     const bucket = await parsePaymentFile(file, [], "consulta", { paymentTypeMeta: CONSULTA_META });
     const r = bucket.rows[0];
     expect(r.procedure_code).toBe(CONSULTA_META.tuss_default);
