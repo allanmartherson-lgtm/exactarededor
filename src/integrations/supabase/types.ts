@@ -10647,6 +10647,19 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_types_unified: {
+        Row: {
+          active: boolean | null
+          code: string | null
+          created_at: string | null
+          id: string | null
+          label: string | null
+          origin: string | null
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       portal_links_health: {
         Row: {
           accepted_at: string | null
