@@ -1043,8 +1043,34 @@ export function ItemsDataGrid({
         }
       }
 
-      // Escrita canônica em item_type_id (coluna legacy payment_type_id removida na D2).
-      const reclassPatch: Record<string, unknown> = {
+      // Resolve metadata do tipo destino para decidir TUSS/nome do procedimento.
+      //  - Tipo FIXO (tuss_default preenchido): força procedure_code = tuss_default
+      //    e procedure_name = "{label} - {Espec dest}" (mesma lógica da importação).
+      //  - Tipo DINÂMICO (Procedimento/SADT/Cirurgia/Exames): se o item carrega
+      //    códigos imputados pela importação (flags __tuss_default_applied /
+      //    __procedure_name_defaulted no raw_data), restaura procedure_code/nome
+      //    a partir das colunas originais ("Código TUSS" / "Produto") — caso
+      //    contrário o item permanece exibindo o TUSS de Consulta mesmo após
+      //    o usuário marcar como Procedimento.
+      const targetType = itemTypesForBulk.find((t) => t.id === newTypeId);
+      const targetTuss = targetType?.tuss_default ?? null;
+      const targetLabel = targetType?.label ?? newTypeLabel;
+      const targetIsFixed = !!targetTuss;
+
+      const pickRaw = (raw: any, regexes: RegExp[]): string | null => {
+        if (!raw || typeof raw !== "object") return null;
+        for (const k of Object.keys(raw)) {
+          if (regexes.some((r) => r.test(k))) {
+            const v = (raw as any)[k];
+            if (v == null) continue;
+            const s = String(v).trim();
+            if (s) return s;
+          }
+        }
+        return null;
+      };
+
+      const baseReclassPatch: Record<string, unknown> = {
         item_type_id: newTypeId,
         item_type_source: "manual",
         reclassified_from_parecer: newTypeLabel === "Visita",
@@ -1053,22 +1079,41 @@ export function ItemsDataGrid({
             ? "Reclassificado manualmente como Visita."
             : null,
         // Reset de estado obsoleto: força o motor a recomputar do zero.
-        // Sem isso, ai_status/ai_findings antigos podem "vencer" o resultado
-        // novo se a reanálise não reescrever explicitamente esses campos.
         ai_status: "pendente",
         ai_findings: null,
         package_absorbed: false,
         package_absorbed_calc_id: null,
       };
 
+      const targetItems = items.filter((i) => itemIds.includes(i.id));
+      const perItemUpdates = targetItems.map((it) => {
+        const raw = ((it as any).raw_data ?? {}) as Record<string, any>;
+        const patch: Record<string, unknown> = { ...baseReclassPatch };
+        if (targetIsFixed) {
+          patch.procedure_code = targetTuss;
+          const especDest = pickRaw(raw, [/espec.*dest/i, /^especialidade$/i, /especialidade\s*m[eé]dico/i]);
+          patch.procedure_name = especDest ? `${targetLabel} - ${especDest}` : targetLabel;
+        } else {
+          const wasImputed = !!(raw.__tuss_default_applied || raw.__procedure_name_defaulted);
+          if (wasImputed) {
+            const rawCode = pickRaw(raw, [/c[oó]digo\s*tuss/i, /^tuss$/i, /^procedure_code$/i]);
+            const rawName = pickRaw(raw, [/^produto$/i, /^procedimento$/i, /^descri[cç][aã]o$/i, /^procedure_name$/i]);
+            if (rawCode) patch.procedure_code = rawCode;
+            if (rawName) patch.procedure_name = rawName;
+          }
+        }
+        return { id: it.id, patch };
+      });
 
-      const { error } = await supabase
-        .from("payment_items")
-        .update(reclassPatch as any)
-        .in("id", itemIds);
-      if (error) {
-        console.error("Erro ao reclassificar:", error);
-        toast.error(`Não foi possível reclassificar: ${error.message}`);
+      const results = await Promise.all(
+        perItemUpdates.map((u) =>
+          supabase.from("payment_items").update(u.patch as any).eq("id", u.id),
+        ),
+      );
+      const firstErr = results.find((r) => r.error)?.error;
+      if (firstErr) {
+        console.error("Erro ao reclassificar:", firstErr);
+        toast.error(`Não foi possível reclassificar: ${firstErr.message}`);
         return;
       }
 
