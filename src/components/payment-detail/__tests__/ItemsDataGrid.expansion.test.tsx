@@ -16,13 +16,14 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 vi.mock("@/integrations/supabase/client", () => {
-  const chain: any = new Proxy({}, {
+  const chain: any = new Proxy(function () {}, {
     get(_t, prop: string) {
-      if (prop === "then") return undefined;
+      if (prop === "then") return (resolve: any) => resolve({ data: [], error: null });
       if (prop === "single" || prop === "maybeSingle")
         return vi.fn(() => Promise.resolve({ data: null, error: null }));
       return vi.fn(() => chain);
     },
+    apply() { return chain; },
   });
   return {
     supabase: {
