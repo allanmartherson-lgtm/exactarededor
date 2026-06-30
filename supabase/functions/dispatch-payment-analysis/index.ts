@@ -338,7 +338,7 @@ Deno.serve(async (req) => {
         console.warn("[dispatch] auto-classify falhou", acResp.status, (await acResp.text()).slice(0, 300));
       } else {
         const acJson = await acResp.json();
-        console.log(`[dispatch] auto-classify ok auto_tuss=${acJson?.auto_tuss} auto_dynamic=${acJson?.auto_dynamic} auto_default=${acJson?.auto_default}`);
+        console.log(`[dispatch] auto-classify ok auto_tuss=${acJson?.auto_tuss} auto_heuristic=${acJson?.auto_heuristic} auto_default=${acJson?.auto_default}`);
       }
     } catch (acErr) {
       console.warn("[dispatch] auto-classify erro:", (acErr as any)?.message ?? acErr);
