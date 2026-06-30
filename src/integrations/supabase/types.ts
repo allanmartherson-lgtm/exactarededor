@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      _backup_d3e4_cfa: {
+        Row: {
+          backed_up_at: string | null
+          id: string | null
+          payment_model_ids: string[] | null
+          payment_type_ids: string[] | null
+        }
+        Insert: {
+          backed_up_at?: string | null
+          id?: string | null
+          payment_model_ids?: string[] | null
+          payment_type_ids?: string[] | null
+        }
+        Update: {
+          backed_up_at?: string | null
+          id?: string | null
+          payment_model_ids?: string[] | null
+          payment_type_ids?: string[] | null
+        }
+        Relationships: []
+      }
+      _backup_d3e4_companies: {
+        Row: {
+          backed_up_at: string | null
+          default_item_type_id: string | null
+          default_payment_type_id: string | null
+          id: string | null
+        }
+        Insert: {
+          backed_up_at?: string | null
+          default_item_type_id?: string | null
+          default_payment_type_id?: string | null
+          id?: string | null
+        }
+        Update: {
+          backed_up_at?: string | null
+          default_item_type_id?: string | null
+          default_payment_type_id?: string | null
+          id?: string | null
+        }
+        Relationships: []
+      }
+      _backup_d3e4_payments: {
+        Row: {
+          backed_up_at: string | null
+          id: string | null
+          mixed_parecer_item_type_id: string | null
+          mixed_parecer_payment_type_id: string | null
+          payment_model_id: string | null
+          payment_type_id: string | null
+        }
+        Insert: {
+          backed_up_at?: string | null
+          id?: string | null
+          mixed_parecer_item_type_id?: string | null
+          mixed_parecer_payment_type_id?: string | null
+          payment_model_id?: string | null
+          payment_type_id?: string | null
+        }
+        Update: {
+          backed_up_at?: string | null
+          id?: string | null
+          mixed_parecer_item_type_id?: string | null
+          mixed_parecer_payment_type_id?: string | null
+          payment_model_id?: string | null
+          payment_type_id?: string | null
+        }
+        Relationships: []
+      }
       _backup_d3e4_payments_model_fix: {
         Row: {
           backed_up_at: string | null
@@ -173,20 +242,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_analysis_versions_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "ai_analysis_versions_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "ai_analysis_versions_payment_id_fkey"
@@ -633,7 +688,6 @@ export type Database = {
           created_by: string | null
           deactivated_at: string | null
           default_item_type_id: string | null
-          default_payment_type_id: string | null
           document: string | null
           id: string
           invoice_emails: string[]
@@ -651,7 +705,6 @@ export type Database = {
           created_by?: string | null
           deactivated_at?: string | null
           default_item_type_id?: string | null
-          default_payment_type_id?: string | null
           document?: string | null
           id?: string
           invoice_emails?: string[]
@@ -669,7 +722,6 @@ export type Database = {
           created_by?: string | null
           deactivated_at?: string | null
           default_item_type_id?: string | null
-          default_payment_type_id?: string | null
           document?: string | null
           id?: string
           invoice_emails?: string[]
@@ -685,13 +737,6 @@ export type Database = {
             columns: ["default_item_type_id"]
             isOneToOne: false
             referencedRelation: "item_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "companies_default_payment_type_id_fkey"
-            columns: ["default_payment_type_id"]
-            isOneToOne: false
-            referencedRelation: "payment_types"
             referencedColumns: ["id"]
           },
         ]
@@ -892,7 +937,6 @@ export type Database = {
           parcelas_pagas: number
           parcelas_total: number
           payment_model_ids: string[] | null
-          payment_type_ids: string[] | null
           recorrente: boolean
           tipo: string
           updated_at: string
@@ -912,7 +956,6 @@ export type Database = {
           parcelas_pagas?: number
           parcelas_total?: number
           payment_model_ids?: string[] | null
-          payment_type_ids?: string[] | null
           recorrente?: boolean
           tipo: string
           updated_at?: string
@@ -932,7 +975,6 @@ export type Database = {
           parcelas_pagas?: number
           parcelas_total?: number
           payment_model_ids?: string[] | null
-          payment_type_ids?: string[] | null
           recorrente?: boolean
           tipo?: string
           updated_at?: string
@@ -1480,20 +1522,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "company_threads_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "company_threads_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "company_threads_payment_id_fkey"
@@ -2180,20 +2208,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "doctor_messages_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "doctor_messages_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "doctor_messages_payment_id_fkey"
@@ -2913,20 +2927,6 @@ export type Database = {
             foreignKeyName: "glosa_debts_last_payment_id_fkey"
             columns: ["last_payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "glosa_debts_last_payment_id_fkey"
-            columns: ["last_payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "glosa_debts_last_payment_id_fkey"
-            columns: ["last_payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -2943,20 +2943,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "glosa_debts_target_payment_id_fkey"
-            columns: ["target_payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "glosa_debts_target_payment_id_fkey"
-            columns: ["target_payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "glosa_debts_target_payment_id_fkey"
@@ -3146,20 +3132,6 @@ export type Database = {
             foreignKeyName: "glosa_items_applied_payment_id_fkey"
             columns: ["applied_payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "glosa_items_applied_payment_id_fkey"
-            columns: ["applied_payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "glosa_items_applied_payment_id_fkey"
-            columns: ["applied_payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -3197,20 +3169,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "glosa_items_matched_payment_id_fkey"
-            columns: ["matched_payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "glosa_items_matched_payment_id_fkey"
-            columns: ["matched_payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "glosa_items_matched_payment_id_fkey"
@@ -3656,20 +3614,6 @@ export type Database = {
             foreignKeyName: "invoice_questions_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "invoice_questions_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "invoice_questions_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -3798,20 +3742,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invoices_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "invoices_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "invoices_payment_id_fkey"
@@ -4248,20 +4178,6 @@ export type Database = {
             foreignKeyName: "minimum_guarantee_applications_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "minimum_guarantee_applications_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "minimum_guarantee_applications_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -4472,20 +4388,6 @@ export type Database = {
             foreignKeyName: "notification_queue_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "notification_queue_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "notification_queue_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -4549,20 +4451,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_assignments_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_assignments_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "payment_assignments_payment_id_fkey"
@@ -4665,20 +4553,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_company_financials_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_company_financials_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "payment_company_financials_payment_id_fkey"
@@ -4903,20 +4777,6 @@ export type Database = {
             foreignKeyName: "payment_company_groups_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_company_groups_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_company_groups_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -4975,20 +4835,6 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_director_notifications_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: true
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_director_notifications_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: true
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "payment_director_notifications_payment_id_fkey"
@@ -5108,20 +4954,6 @@ export type Database = {
             foreignKeyName: "payment_email_approvals_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_email_approvals_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_email_approvals_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -5175,20 +5007,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_engine_sources_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_engine_sources_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "payment_engine_sources_payment_id_fkey"
@@ -5801,20 +5619,6 @@ export type Database = {
             foreignKeyName: "payment_items_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_items_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_items_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -6022,20 +5826,6 @@ export type Database = {
             foreignKeyName: "payment_observations_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_observations_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_observations_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -6172,20 +5962,6 @@ export type Database = {
             foreignKeyName: "payment_parecer_reports_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_parecer_reports_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_parecer_reports_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -6237,20 +6013,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_pivot_cache_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_pivot_cache_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "payment_pivot_cache_payment_id_fkey"
@@ -6331,20 +6093,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_processing_jobs_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_processing_jobs_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "payment_processing_jobs_payment_id_fkey"
@@ -6500,20 +6248,6 @@ export type Database = {
             foreignKeyName: "payment_questions_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_questions_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_questions_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -6575,20 +6309,6 @@ export type Database = {
             foreignKeyName: "payment_recompute_failures_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_recompute_failures_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_recompute_failures_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -6643,20 +6363,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_status_history_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_status_history_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "payment_status_history_payment_id_fkey"
@@ -6896,7 +6602,6 @@ export type Database = {
           manual_general_attachment_name: string | null
           manual_general_attachment_path: string | null
           mixed_parecer_item_type_id: string | null
-          mixed_parecer_payment_type_id: string | null
           origem: string
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
@@ -6904,7 +6609,6 @@ export type Database = {
           payment_model_id: string | null
           payment_track: Database["public"]["Enums"]["payment_track"] | null
           payment_type: string | null
-          payment_type_id: string | null
           payout_breakdown: Json | null
           payout_model_id: string | null
           payout_model_version: number | null
@@ -6956,7 +6660,6 @@ export type Database = {
           manual_general_attachment_name?: string | null
           manual_general_attachment_path?: string | null
           mixed_parecer_item_type_id?: string | null
-          mixed_parecer_payment_type_id?: string | null
           origem?: string
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
@@ -6964,7 +6667,6 @@ export type Database = {
           payment_model_id?: string | null
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
-          payment_type_id?: string | null
           payout_breakdown?: Json | null
           payout_model_id?: string | null
           payout_model_version?: number | null
@@ -7016,7 +6718,6 @@ export type Database = {
           manual_general_attachment_name?: string | null
           manual_general_attachment_path?: string | null
           mixed_parecer_item_type_id?: string | null
-          mixed_parecer_payment_type_id?: string | null
           origem?: string
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
@@ -7024,7 +6725,6 @@ export type Database = {
           payment_model_id?: string | null
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
-          payment_type_id?: string | null
           payout_breakdown?: Json | null
           payout_model_id?: string | null
           payout_model_version?: number | null
@@ -7061,24 +6761,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "payments_mixed_parecer_payment_type_id_fkey"
-            columns: ["mixed_parecer_payment_type_id"]
-            isOneToOne: false
-            referencedRelation: "payment_types"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "payments_payment_model_id_fkey"
             columns: ["payment_model_id"]
             isOneToOne: false
             referencedRelation: "payment_models"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_payment_type_id_fkey"
-            columns: ["payment_type_id"]
-            isOneToOne: false
-            referencedRelation: "payment_types"
             referencedColumns: ["id"]
           },
           {
@@ -7528,20 +7214,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pendencias_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "pendencias_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "pendencias_payment_id_fkey"
@@ -8251,20 +7923,6 @@ export type Database = {
             foreignKeyName: "production_validations_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "production_validations_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "production_validations_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -8430,20 +8088,6 @@ export type Database = {
             foreignKeyName: "reconciliation_company_mappings_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "reconciliation_company_mappings_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "reconciliation_company_mappings_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -8585,20 +8229,6 @@ export type Database = {
             foreignKeyName: "reconciliation_items_applied_payment_id_fkey"
             columns: ["applied_payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "reconciliation_items_applied_payment_id_fkey"
-            columns: ["applied_payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "reconciliation_items_applied_payment_id_fkey"
-            columns: ["applied_payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -8719,20 +8349,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reconciliation_runs_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "reconciliation_runs_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "reconciliation_runs_payment_id_fkey"
@@ -9034,20 +8650,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "retroactive_reconciliation_items_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "retroactive_reconciliation_items_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "retroactive_reconciliation_items_payment_id_fkey"
@@ -9528,20 +9130,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rule_suggestions_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "rule_suggestions_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "rule_suggestions_payment_id_fkey"
@@ -10210,20 +9798,6 @@ export type Database = {
             foreignKeyName: "special_case_marks_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "special_case_marks_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "special_case_marks_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -10425,20 +9999,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "status_anomalies_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "status_anomalies_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "status_anomalies_payment_id_fkey"
@@ -10869,20 +10429,6 @@ export type Database = {
             foreignKeyName: "user_company_notes_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "user_company_notes_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "user_company_notes_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -11194,64 +10740,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_legacy_payment_type_divergence: {
-        Row: {
-          context_id: string | null
-          divergence_kind: string | null
-          legacy_code: string | null
-          legacy_has_new_equivalent: boolean | null
-          legacy_id: string | null
-          new_code: string | null
-          new_id: string | null
-          row_id: string | null
-          table_name: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payments_payment_model_id_fkey"
-            columns: ["new_id"]
-            isOneToOne: false
-            referencedRelation: "payment_models"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_payment_type_id_fkey"
-            columns: ["legacy_id"]
-            isOneToOne: false
-            referencedRelation: "payment_types"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_legacy_payment_type_orphans: {
-        Row: {
-          context_id: string | null
-          divergence_kind: string | null
-          legacy_code: string | null
-          legacy_has_new_equivalent: boolean | null
-          legacy_id: string | null
-          new_code: string | null
-          new_id: string | null
-          row_id: string | null
-          table_name: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payments_payment_model_id_fkey"
-            columns: ["new_id"]
-            isOneToOne: false
-            referencedRelation: "payment_models"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_payment_type_id_fkey"
-            columns: ["legacy_id"]
-            isOneToOne: false
-            referencedRelation: "payment_types"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       v_payment_items_registration_issues: {
         Row: {
           company_id: string | null
@@ -11325,20 +10813,6 @@ export type Database = {
             foreignKeyName: "payment_items_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_items_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_items_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
           },
@@ -11399,20 +10873,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_company_groups_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_divergence"
-            referencedColumns: ["row_id"]
-          },
-          {
-            foreignKeyName: "payment_company_groups_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_legacy_payment_type_orphans"
-            referencedColumns: ["row_id"]
           },
           {
             foreignKeyName: "payment_company_groups_payment_id_fkey"
