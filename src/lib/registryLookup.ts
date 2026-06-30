@@ -279,11 +279,22 @@ async function insertAliasIgnoreDup(
   table: "doctor_aliases" | "convenio_aliases" | "sector_aliases",
   payload: Record<string, unknown>,
 ) {
-  const res = await supabase.from(table as any).insert(payload as any);
-  if (res.error && /duplicate|unique|conflict/i.test(res.error.message ?? "")) {
-    return { data: null, error: null } as typeof res;
+  // Retry simples para statement_timeout (57014) — o banco às vezes está sob
+  // carga pesada (queries longas em payment_company_groups) e um INSERT
+  // trivial estoura o limite do PostgREST. Uma 2ª/3ª tentativa quase sempre
+  // passa. Duplicidade segue sendo tratada como sucesso silencioso.
+  let lastErr: any = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await supabase.from(table as any).insert(payload as any);
+    if (!res.error) return res;
+    const msg = res.error.message ?? "";
+    if (/duplicate|unique|conflict/i.test(msg)) return { data: null, error: null } as typeof res;
+    lastErr = res.error;
+    const isTimeout = /statement timeout|canceling statement|57014/i.test(msg);
+    if (!isTimeout) return res;
+    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
   }
-  return res;
+  return { data: null, error: { ...lastErr, message: `${lastErr?.message ?? "timeout"} — tente novamente em alguns segundos (banco sob carga).` } } as any;
 }
 
 export async function createDoctorAlias(doctor_id: string, alias_text: string, source: AliasSource = "manual") {
