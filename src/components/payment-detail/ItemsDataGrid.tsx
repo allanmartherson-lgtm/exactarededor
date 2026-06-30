@@ -19,6 +19,7 @@ import { useItemTypes } from "@/hooks/useItemTypes";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { X as XIcon } from "lucide-react";
 import { deriveConfeccaoStatus, CONFECCAO_STATUS_LABEL, CONFECCAO_STATUS_TONE } from "@/lib/itemConfeccaoStatus";
+import { buildReclassifyPatch } from "@/lib/reclassifyItemType";
 import {
   AlertTriangle,
   Columns3,
