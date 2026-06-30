@@ -242,6 +242,7 @@ const Payments = () => {
   const [analystFilter, setAnalystFilter] = useState<string>(persisted.analystFilter ?? "all");
   const [typeFilter, setTypeFilter] = useState<string>(persisted.typeFilter ?? "all");
   const [itemTypeFilter, setItemTypeFilter] = useState<string>(persisted.itemTypeFilter ?? "all");
+  const { list: itemTypesList } = useItemTypes({ onlyActive: true });
   const [trackFilter, setTrackFilter] = useState<string>(persisted.trackFilter ?? "all");
   const [statusFilter, setStatusFilter] = useState<string[]>(() => {
     const raw: any = persisted.statusFilter;
