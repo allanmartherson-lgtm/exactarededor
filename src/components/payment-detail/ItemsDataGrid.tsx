@@ -1041,7 +1041,7 @@ export function ItemsDataGrid({
         // Reset de estado obsoleto: força o motor a recomputar do zero.
         // Sem isso, ai_status/ai_findings antigos podem "vencer" o resultado
         // novo se a reanálise não reescrever explicitamente esses campos.
-        ai_status: null,
+        ai_status: "pendente",
         ai_findings: null,
         package_absorbed: false,
         package_absorbed_calc_id: null,
