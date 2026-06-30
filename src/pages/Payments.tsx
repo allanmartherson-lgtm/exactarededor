@@ -1538,6 +1538,7 @@ const Payments = () => {
                       setOwnerGroup("all");
                       setAnalystFilter("all");
                       setTypeFilter("all");
+                      setItemTypeFilter("all");
                       setTrackFilter("all");
                       setCompetenceFilter("all");
                       setDivergenceFilter("all");
