@@ -78,7 +78,7 @@ const setViewport = (w: number, h: number) => {
 const clickFirstRow = (id: string) => {
   const row = document.querySelector(`tr[data-row-id="${id}"]`) as HTMLElement;
   expect(row).toBeTruthy();
-  fireEvent.click(row);
+  fireEvent.doubleClick(row);
 };
 
 describe("ItemsDataGrid — expansão inline e altura adaptativa", () => {
