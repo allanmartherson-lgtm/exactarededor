@@ -231,3 +231,159 @@ describe("E2E: procedure_amount=0 mapeado manualmente é autoritativo", () => {
   });
 });
 
+describe("E2E: campos vazios/nulos no header mapeado NÃO acionam heurística", () => {
+  // Regressão: mapeamento explícito é lei. Se o analista mapeou o header e
+  // a célula vier vazia/nula, o sistema deve gravar 0 (autoritativo) — JAMAIS
+  // cair em "Valor Tot"/"Valor Bruto" como se o header não existisse.
+
+  it("gross_amount: célula undefined no header mapeado → 0 autoritativo (não puxa 'Valor Tot')", () => {
+    const rawRow: Record<string, unknown> = {
+      "Vl a Repassar": undefined,
+      "Valor Tot": 95,
+      "Valor Bruto": 200,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      gross_amount: "Vl a Repassar",
+    });
+    expect(result.gross_amount).toBe(0);
+    expect(result.grossAuthoritative).toBe(true);
+    expect(result.gross_amount).not.toBe(95);
+  });
+
+  it("gross_amount: célula null no header mapeado → 0 autoritativo", () => {
+    const rawRow: Record<string, unknown> = {
+      "Repasse Custom": null,
+      "Valor Tot": 95,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      gross_amount: "Repasse Custom",
+    });
+    expect(result.gross_amount).toBe(0);
+    expect(result.grossAuthoritative).toBe(true);
+  });
+
+  it("gross_amount: célula string vazia '' no header mapeado → 0 autoritativo", () => {
+    const rawRow = {
+      "Repasse Custom": "",
+      "Valor Tot": 95,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      gross_amount: "Repasse Custom",
+    });
+    expect(result.gross_amount).toBe(0);
+    expect(result.grossAuthoritative).toBe(true);
+  });
+
+  it("gross_amount: célula com só espaços '   ' no header mapeado → 0 autoritativo", () => {
+    const rawRow = {
+      "Repasse Custom": "   ",
+      "Valor Tot": 95,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      gross_amount: "Repasse Custom",
+    });
+    expect(result.gross_amount).toBe(0);
+    expect(result.grossAuthoritative).toBe(true);
+  });
+
+  it("procedure_amount: célula undefined no header mapeado → 0 autoritativo (não puxa 'Valor Convênio')", () => {
+    const rawRow: Record<string, unknown> = {
+      "Tabela Custom": undefined,
+      "Valor Convênio": 850,
+      "Valor Procedimento": 900,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      procedure_amount: "Tabela Custom",
+    });
+    expect(result.procedure_amount).toBe(0);
+    expect(result.procAuthoritative).toBe(true);
+    expect(result.procedure_amount).not.toBe(850);
+  });
+
+  it("procedure_amount: célula null no header mapeado → 0 autoritativo", () => {
+    const rawRow: Record<string, unknown> = {
+      "Tabela Custom": null,
+      "Valor Convênio": 850,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      procedure_amount: "Tabela Custom",
+    });
+    expect(result.procedure_amount).toBe(0);
+    expect(result.procAuthoritative).toBe(true);
+  });
+
+  it("procedure_amount: célula '' no header mapeado → 0 autoritativo", () => {
+    const rawRow = {
+      "Tabela Custom": "",
+      "Valor Convênio": 850,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      procedure_amount: "Tabela Custom",
+    });
+    expect(result.procedure_amount).toBe(0);
+    expect(result.procAuthoritative).toBe(true);
+  });
+
+  it("ambos mapeados e ambos vazios → 0/0 autoritativos, valor_invalido=false", () => {
+    const rawRow: Record<string, unknown> = {
+      "Repasse Custom": null,
+      "Tabela Custom": "",
+      "Valor Tot": 95,
+      "Valor Convênio": 850,
+      "Valor Bruto": 1000,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      gross_amount: "Repasse Custom",
+      procedure_amount: "Tabela Custom",
+    });
+    expect(result.gross_amount).toBe(0);
+    expect(result.procedure_amount).toBe(0);
+    expect(result.grossAuthoritative).toBe(true);
+    expect(result.procAuthoritative).toBe(true);
+    expect(result.valor_invalido).toBe(false);
+  });
+
+  it("gross vazio mapeado + procedure>0 mapeado → não contamina entre si", () => {
+    const rawRow: Record<string, unknown> = {
+      "Repasse Custom": undefined,
+      "Tabela Custom": 300,
+      "Valor Tot": 95,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      gross_amount: "Repasse Custom",
+      procedure_amount: "Tabela Custom",
+    });
+    expect(result.gross_amount).toBe(0);
+    expect(result.procedure_amount).toBe(300);
+  });
+
+  it("valor inválido ('abc') no header mapeado → 0 + valor_invalido=true (não puxa heurística)", () => {
+    const rawRow = {
+      "Repasse Custom": "abc",
+      "Valor Tot": 95,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      gross_amount: "Repasse Custom",
+    });
+    expect(result.gross_amount).toBe(0);
+    expect(result.grossAuthoritative).toBe(true);
+    expect(result.valor_invalido).toBe(true);
+  });
+
+  it("contraste — SEM mapeamento manual e header canônico vazio → heurística PODE atuar", () => {
+    // Documenta que o comportamento "vazio = 0 autoritativo" é EXCLUSIVO do
+    // mapeamento manual. Sem mapeamento, célula vazia em alias canônico
+    // significa "coluna não detectada" e a heurística é legítima.
+    const rawRow: Record<string, unknown> = {
+      "Vl a Repassar": undefined, // ausente em valor, mas existe a chave
+      "Valor Tot": 95,
+    };
+    const result = resolvePaymentAmounts(rawRow); // sem manualMapping
+    // pick() acha a chave canônica; repasseFound=true via "!== undefined" → false.
+    // Como undefined, repasseFound vira false e cai pra heurística.
+    // Este teste blinda contra mudanças não intencionais nesse fallback.
+    expect(result.gross_amount).toBe(95);
+    expect(result.grossAuthoritative).toBe(false);
+  });
+});
+
