@@ -286,9 +286,12 @@ export interface RuleCalculationItem {
   match_by_specialty?: boolean | null;
   /** Caso especial aplicável neste cálculo. Vazio = padrão; códigos ou '*' exigem caso especial aprovado. */
   special_case_filter?: string[] | null;
-  /** Tipo de pagamento aplicável neste cálculo (Parecer, Visita, etc.).
+  /** Tipo do item aplicável neste cálculo (Parecer, Visita, Consulta, etc.).
    *  NULL = vale para qualquer tipo. Quando setado, só casa se o item
-   *  pertencer a um pagamento com o mesmo `payment_type_id`. */
+   *  tiver o mesmo `item_type_id`. Fase D: renomeado de `payment_type_id`
+   *  (alias legado mantido durante transição). */
+  item_type_id?: string | null;
+  /** @deprecated — use item_type_id. Mantido para retrocompatibilidade. */
   payment_type_id?: string | null;
   /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
   procedure_keywords?: string[] | null;
