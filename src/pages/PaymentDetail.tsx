@@ -1697,7 +1697,14 @@ const PaymentDetail = () => {
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
+        // Override do parser: lote Consulta com TUSS fora dos códigos da Consulta
+        // → reclassifica para "Procedimento" já na importação. Sem override,
+        // mantém o tipo padrão do lote (resolvido pelo motor).
+        ...(r.payment_type_id_override
+          ? { item_type_id: r.payment_type_id_override, item_type_source: "base" as const }
+          : {}),
       }));
+
 
       // Inserção em lotes de 1000 para evitar limites do Supabase
       const chunkSize = 1000;
