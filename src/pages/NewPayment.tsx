@@ -2664,7 +2664,7 @@ const NewPayment = () => {
         //   1) override por linha do parser (subtype_split_hint) — fonte 'base'
         //   2) default da empresa (companies.default_payment_type_id) — fonte 'company_override'
         //   3) tipo do lote (payment.payment_type_id) — fonte 'default'
-        // Motor usa este campo para filtrar regras com payment_type_id setado.
+        // Motor usa este campo para filtrar regras com item_type_id setado.
         ...(() => {
           const cid = (currentBucket?.manualOverride
             ? currentBucket?.matchedCompany?.id
@@ -2672,12 +2672,12 @@ const NewPayment = () => {
           const companyDefault = cid ? companyDefaultTypeMap.get(cid) ?? null : null;
           const loteId = (payment as any).payment_type_id ?? null;
           if (r.payment_type_id_override) {
-            return { payment_type_id: r.payment_type_id_override, payment_type_source: "base" };
+            return { item_type_id: r.payment_type_id_override, item_type_source: "base" };
           }
           if (companyDefault && companyDefault !== loteId) {
-            return { payment_type_id: companyDefault, payment_type_source: "company_override" };
+            return { item_type_id: companyDefault, item_type_source: "company_override" };
           }
-          return { payment_type_id: loteId, payment_type_source: loteId ? "default" : null };
+          return { item_type_id: loteId, item_type_source: loteId ? "default" : null };
         })(),
       });
     };

@@ -607,8 +607,8 @@ function CaseSubtypeBadge({
   ) => void;
   canEdit: boolean;
 }) {
-  const itemTypeId = ((item as any).item_type_id ?? (item as any).payment_type_id ?? null) as string | null;
-  const source = ((item as any).item_type_source ?? (item as any).payment_type_source ?? null) as string | null;
+  const itemTypeId = ((item as any).item_type_id ?? null) as string | null;
+  const source = ((item as any).item_type_source ?? null) as string | null;
   const effectiveTypeId = itemTypeId ?? lotePaymentTypeId;
   const isVisita = !!visitaPaymentTypeId && effectiveTypeId === visitaPaymentTypeId;
   const isParecer = !!parecerPaymentTypeId && effectiveTypeId === parecerPaymentTypeId;
@@ -923,8 +923,8 @@ export function ItemsDataGrid({
   }>({ lote: null, visita: null, parecer: null });
   useEffect(() => {
     if (!isParecerPayment) return;
-    const firstWithType = items.find((i: any) => i.item_type_id ?? i.payment_type_id);
-    const loteId = ((firstWithType as any)?.item_type_id ?? (firstWithType as any)?.payment_type_id ?? null) as string | null;
+    const firstWithType = items.find((i: any) => i.item_type_id);
+    const loteId = ((firstWithType as any)?.item_type_id ?? null) as string | null;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -1026,17 +1026,14 @@ export function ItemsDataGrid({
       const beforeById = new Map<string, string | null>();
       for (const it of items) {
         if (itemIds.includes(it.id)) {
-          beforeById.set(it.id, ((it as any).item_type_id ?? (it as any).payment_type_id ?? null) as string | null);
+          beforeById.set(it.id, ((it as any).item_type_id ?? null) as string | null);
         }
       }
 
-      // Escrita canônica em item_type_id; trigger sync_payment_items_type_columns
-      // espelha para payment_type_id (legacy) automaticamente.
+      // Escrita canônica em item_type_id (coluna legacy payment_type_id removida na D2).
       const reclassPatch: Record<string, unknown> = {
         item_type_id: newTypeId,
         item_type_source: "manual",
-        payment_type_id: newTypeId,
-        payment_type_source: "manual",
         reclassified_from_parecer: newTypeLabel === "Visita",
         manual_intervention_notes:
           newTypeLabel === "Visita"
@@ -1778,7 +1775,7 @@ export function ItemsDataGrid({
     let parecer = 0;
     let visita = 0;
     for (const it of items) {
-      const tid = (((it as any).item_type_id ?? (it as any).payment_type_id) ?? lotePaymentTypeId) as string | null;
+      const tid = ((it as any).item_type_id ?? lotePaymentTypeId) as string | null;
       if (tid === visitaPaymentTypeId) visita += 1;
       else if (tid === parecerPaymentTypeId || tid === lotePaymentTypeId) parecer += 1;
     }
@@ -4402,7 +4399,7 @@ function ItemDetailsRow({
     };
   }, [(it as any).applied_calc_id]);
 
-  const itemTypeIdLocal = (((it as any).item_type_id ?? (it as any).payment_type_id) ?? null) as string | null;
+  const itemTypeIdLocal = ((it as any).item_type_id ?? null) as string | null;
   const isItemParecer = !!parecerPaymentTypeId && itemTypeIdLocal === parecerPaymentTypeId;
   const isItemVisita = !!visitaPaymentTypeId && itemTypeIdLocal === visitaPaymentTypeId;
   const calcItemTypeId = appliedCalcTypeMeta?.item_type_id ?? null;

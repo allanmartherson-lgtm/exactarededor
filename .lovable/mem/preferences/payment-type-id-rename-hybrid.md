@@ -1,22 +1,27 @@
 ---
-name: Rename híbrido payment_type_id (Caso D, Wave 4)
-description: Convenção de nomes camelCase pós-split item_types/payment_models; colunas DB ainda payment_type_id até Wave 5
+name: Naming pós-Fase D — item_type_id vs payment_model_id
+description: Convenções de naming após o cutover D2; payment_items e rule_calculations não têm mais coluna legacy
 type: preference
 ---
 
-**Regra de naming (UI/camelCase apenas):**
-- Variável/estado/prop que representa **tipo do ITEM** (Parecer/Visita/Cirurgia/Consulta/Bônus/Exames) → `itemTypeId`.
-- Variável/estado/prop que representa **modelo de pagamento do LOTE** (Produção/Plantão/Remessa/Valor fixo) → `paymentModelId` (e `paymentModelMeta`).
-- `paymentTypeId` (camelCase) está deprecado — não usar em código novo.
+**Status (Fase D2, jun/2026):** colunas `payment_type_id` / `payment_type_source` foram REMOVIDAS de:
+- `payment_items` (substituídas por `item_type_id` / `item_type_source`)
+- `rule_calculations` (substituída por `item_type_id`)
 
-**Colunas do DB continuam `payment_type_id`** em:
-- `payment_items.payment_type_id` (override item)
-- `payments.payment_type_id` (tipo/modelo do lote)
-- `rule_calculations.payment_type_id` (matcher de regra)
-- `companies.default_payment_type_id`
+Triggers e funções de sync (`sync_payment_items_type_columns`, `sync_rule_calculations_item_type`, `_resolve_*`) também foram removidos.
 
-Não renomear coluna em snake_case até Wave 5 (migração coordenada + view de compat). A leitura/escrita do banco SEMPRE usa o nome legacy `payment_type_id`.
+**Regra de naming canônica:**
+- Variável/coluna que representa **tipo do ITEM** (Parecer/Visita/Cirurgia/Consulta/Bônus/Exames) → `item_type_id` / `itemTypeId`.
+- Variável/coluna que representa **modelo de pagamento do LOTE** (Produção/Plantão/Remessa/Valor fixo) → `payment_model_id` / `paymentModelId`.
 
-**Why:** Evita ambiguidade na UI sem quebrar 100+ pontos de acesso ao banco. Migração de coluna é wave separada.
+**Colunas DB que AINDA usam `payment_type_id` (não migradas):**
+- `payments.payment_type_id` (modelo do lote — alias do payment_model_id; trigger `sync_payments_type_columns` mantém em sincronia)
+- `payments.mixed_parecer_payment_type_id` (subtipo parecer destino)
+- `rules.payment_type_id` (filtro de regra)
+- `payout_models.payment_type_id`
+- `companies.default_payment_type_id` (padrão da empresa)
+- `company_financial_adjustments.payment_type_ids[]` (array de filtros)
 
-**How to apply:** Em código novo: nomear pela natureza (item vs lote). Ao tocar arquivos antigos: oportunisticamente renomear locais quando estiver editando por outro motivo; não fazer pass dedicado.
+Essas seguem para ondas futuras (D3+). NÃO criar fallback `?? payment_type_id` em código novo que toca payment_items ou rule_calculations — colunas não existem mais.
+
+**How to apply:** Em código novo, ler/escrever sempre `item_type_id` / `item_type_source` para payment_items e rule_calculations. Para as demais tabelas, manter `payment_type_id` até a onda equivalente.

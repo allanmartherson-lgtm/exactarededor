@@ -95,7 +95,7 @@ function aiCalcToCalcItem(
     match_by_specialty: specs.length > 0,
     sectors: sects,
     doctor_roles: roles,
-    payment_type_id: ptId,
+    item_type_id: ptId,
     has_conditions: specs.length > 0 || sects.length > 0,
   };
 }

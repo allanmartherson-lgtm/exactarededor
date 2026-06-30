@@ -118,7 +118,7 @@ export type CalcItem = {
   /** Tipos de caso especial aplicáveis a este cálculo. Vazio = cálculo padrão. */
   special_case_filter: string[];
   /** Tipo de pagamento aplicável (Parecer, Visita, etc.). null = qualquer tipo. */
-  payment_type_id: string | null;
+  item_type_id: string | null;
 
   /** Condições de contexto (somente para valor_fixo). */
   context_conditions: ContextConditionItem[];
@@ -169,7 +169,7 @@ export function makeEmptyCalc(): CalcItem {
     agreement_match_mode: "whitelist",
     doctor_roles: [],
     special_case_filter: [],
-    payment_type_id: null,
+    item_type_id: null,
     context_conditions: [],
     adicional_fds_pct: "",
     adicional_feriado_pct: "",
@@ -890,7 +890,7 @@ function WhenApplySection({
   const hasConvenioFilter = c.agreement_aliases.length > 0;
   const hasFuncaoFilter = c.doctor_roles.length > 0;
   const hasSpecialCaseFilter = c.special_case_filter.length > 0;
-  const hasPaymentTypeFilter = !!c.payment_type_id;
+  const hasPaymentTypeFilter = !!c.item_type_id;
   const hasTemporalSurcharge = !!(c.adicional_fds_pct || c.adicional_feriado_pct || c.adicional_noturno_pct || c.noturno_inicio || c.noturno_fim);
   const hasPeriodoFilter = (c.has_conditions && (
     c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays ||
@@ -1029,12 +1029,12 @@ function WhenApplySection({
 
         <FilterBtn id="tipo-pagamento" label="Tipo de pagamento" active={hasPaymentTypeFilter} openSection={openSection} onToggle={toggle}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "8px 10px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: !c.payment_type_id ? "hsl(var(--accent))" : "transparent" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "8px 10px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: !c.item_type_id ? "hsl(var(--accent))" : "transparent" }}>
               <input
                 type="radio"
                 name={`payment-type-${c.id ?? "new"}`}
-                checked={!c.payment_type_id}
-                onChange={() => onChange({ payment_type_id: null })}
+                checked={!c.item_type_id}
+                onChange={() => onChange({ item_type_id: null })}
                 style={{ margin: 0, flexShrink: 0 }}
               />
               <span style={{ fontSize: 12, lineHeight: 1.35, marginLeft: 2 }}>Qualquer tipo (cálculo universal)</span>
@@ -1046,14 +1046,14 @@ function WhenApplySection({
               </p>
             ) : (
               paymentTypes.map((pt) => {
-                const checked = c.payment_type_id === pt.id;
+                const checked = c.item_type_id === pt.id;
                 return (
                   <label key={pt.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "8px 10px", border: "1px solid hsl(var(--border))", borderRadius: 6, background: checked ? "hsl(var(--accent))" : "transparent" }}>
                     <input
                       type="radio"
                       name={`payment-type-${c.id ?? "new"}`}
                       checked={checked}
-                      onChange={() => onChange({ payment_type_id: pt.id })}
+                      onChange={() => onChange({ item_type_id: pt.id })}
                       style={{ margin: 0, flexShrink: 0 }}
                     />
                     <span style={{ fontSize: 12, fontWeight: 500, lineHeight: 1.35, marginLeft: 2 }}>{pt.label}</span>
@@ -1715,7 +1715,7 @@ export function calcFromDb(r: any): CalcItem {
     agreement_match_mode: r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist",
     doctor_roles: Array.isArray(r.doctor_roles) ? r.doctor_roles : [],
     special_case_filter: Array.isArray(r.special_case_filter) ? r.special_case_filter : [],
-    payment_type_id: (r as any).payment_type_id ?? null,
+    item_type_id: (r as any).item_type_id ?? null,
     context_conditions: Array.isArray(r.context_conditions)
       ? r.context_conditions.map((cc: any) => ({
           trigger_codes: Array.isArray(cc?.trigger_codes) ? cc.trigger_codes.map((x: any) => String(x)) : [],
@@ -1821,7 +1821,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     agreement_match_mode: c.agreement_aliases.length > 0 ? c.agreement_match_mode : null,
     doctor_roles: c.doctor_roles.length > 0 ? c.doctor_roles : null,
     special_case_filter: c.special_case_filter.length > 0 ? c.special_case_filter : null,
-    payment_type_id: c.payment_type_id ?? null,
+    item_type_id: c.item_type_id ?? null,
     context_conditions: c.calculation_type === "valor_fixo"
       ? c.context_conditions
           .filter((cc) => cc.trigger_codes.length > 0)

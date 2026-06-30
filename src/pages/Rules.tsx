@@ -1497,7 +1497,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       specialties: arr(c?.specialties),
       sectors: arr(c?.sectors),
       doctor_roles: arr(c?.doctor_roles).length ? arr(c?.doctor_roles) : null,
-      payment_type_id: ptId,
+      item_type_id: ptId,
       has_conditions: arr(c?.specialties).length > 0 || arr(c?.sectors).length > 0,
       is_catch_all: false,
     };
