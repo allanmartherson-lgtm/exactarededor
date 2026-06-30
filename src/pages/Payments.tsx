@@ -1595,10 +1595,10 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || trackFilter !== "all" || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly) && (
+              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || itemTypeFilter !== "all" || trackFilter !== "all" || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly) && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
-                  setAnalystFilter("all"); setTypeFilter("all"); setTrackFilter("all"); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
+                  setAnalystFilter("all"); setTypeFilter("all"); setItemTypeFilter("all"); setTrackFilter("all"); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
                   setOwnerGroup("all"); setOnlyMine(false);
                   setDivergenceFilter("all"); setQuestionedFilter("all");
                   setPoolFilter("all"); setImportModeFilter("all"); setEmptyOnly(false);
