@@ -1,22 +1,19 @@
 // auto-classify-payment-types
-// Phase 2 do Lote Misto: ao receber um payment_id, varre payment_items que
-// ainda não têm override manual (`payment_type_source` ∈ {null, 'inherit',
-// 'auto_tuss', 'auto_heuristic'}) e tenta inferir o `payment_type_id` real
-// quando o item diverge do tipo do lote.
 //
-// Fontes da inferência, nessa ordem:
-//   1. TUSS cadastrado: bate `procedure_code` do item contra
-//      `payment_types.tuss_default` + `tuss_codes_extra`. Match → override
-//      com source='auto_tuss'.
-//   2. Heurística de texto: se o blob (procedure_name + description +
-//      doctor_role) contém 'procedimento|cirurgia|exame' E o tipo do lote
-//      tem categoria de consulta/parecer/visita, e existe ao menos um
-//      payment_type com categoria 'procedimento' (preferindo o que casar
-//      o TUSS por prefixo), aplica como source='auto_heuristic'.
+// Classifica itens de um lote no novo modelo (jun/2026): atribui
+// `payment_items.item_type_id` (tabela `item_types`) e, por compatibilidade
+// com o motor atual, replica em `payment_items.payment_type_id` o id
+// equivalente em `payment_types` (mesmo `code`).
 //
-// Nunca toca itens com source='manual' nem com vínculo de parecer
-// (`report_cross*`). Não cria/edita regras. Não dispara reanálise — quem
-// chama (dispatch-payment-analysis) já segue para o orquestrador.
+// Regra (decisão do usuário, jun/2026):
+//   1. Se o item tem `procedure_code` (TUSS) e ele bate com
+//      item_types.tuss_default ou item_types.tuss_codes_extra → usa esse
+//      item_type. source = 'auto_tuss'.
+//   2. Senão → cai no item_type marcado como `is_default_when_no_tuss`
+//      (Consulta). source = 'auto_default'.
+//
+// Nunca sobrescreve itens com source = 'manual' (override do analista) ou
+// vínculos de parecer/cross-reference.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -26,23 +23,22 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const norm = (s: any) =>
-  String(s ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-
-const HEURISTIC_PROCEDURE = /\b(procedimento|cirurgia|cirurgico|cirurgica|exame|endoscopia|bi[oó]psia|puncao|drenagem)\b/i;
-
-const PROTECTED_SOURCES = new Set(["manual", "report_cross", "report_cross_dedup"]);
+const PROTECTED_SOURCES = new Set([
+  "manual",
+  "report_cross",
+  "report_cross_dedup",
+]);
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
   try {
     const { payment_id } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -50,68 +46,85 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    const { data: paymentRow, error: payErr } = await supabase
-      .from("payments")
-      .select("id, payment_type_id, has_mixed_parecer")
-      .eq("id", payment_id)
-      .single();
-    if (payErr) throw payErr;
-    const lotePaymentTypeId = (paymentRow as any)?.payment_type_id ?? null;
+    // 1. Carrega item_types ativos (com TUSS) e payment_types ativos
+    //    para resolver o id legacy equivalente por code.
+    const [itemTypesRes, paymentTypesRes] = await Promise.all([
+      supabase
+        .from("item_types")
+        .select("id, code, tuss_default, tuss_codes_extra, is_default_when_no_tuss, active")
+        .eq("active", true),
+      supabase
+        .from("payment_types")
+        .select("id, code, active")
+        .eq("active", true),
+    ]);
+    if (itemTypesRes.error) throw itemTypesRes.error;
+    if (paymentTypesRes.error) throw paymentTypesRes.error;
 
-    const { data: types, error: typesErr } = await supabase
-      .from("payment_types")
-      .select("id, code, label, category, tuss_default, tuss_codes_extra, active")
-      .eq("active", true);
-    if (typesErr) throw typesErr;
+    const itemTypes = (itemTypesRes.data ?? []) as Array<{
+      id: string;
+      code: string;
+      tuss_default: string | null;
+      tuss_codes_extra: string[] | null;
+      is_default_when_no_tuss: boolean;
+    }>;
+    const paymentTypes = (paymentTypesRes.data ?? []) as Array<{
+      id: string;
+      code: string;
+    }>;
 
-    // Index TUSS → payment_type_id (primeiro match vence — analista não deve
-    // cadastrar o mesmo TUSS em dois tipos; se cadastrar, registramos warning).
-    const tussToType = new Map<string, string>();
+    const legacyByCode = new Map<string, string>();
+    for (const pt of paymentTypes) legacyByCode.set(pt.code, pt.id);
+
+    // TUSS → item_type_id (primeiro match vence; colisões viram warning).
+    const tussToItemType = new Map<string, string>();
     const collisions: string[] = [];
-    let procedureTypeId: string | null = null;
-    let loteCategory: string | null = null;
+    let defaultItemTypeId: string | null = null;
+    let defaultItemTypeCode: string | null = null;
 
-    for (const t of (types ?? []) as any[]) {
+    for (const it of itemTypes) {
       const codes = new Set<string>();
-      if (t.tuss_default) codes.add(String(t.tuss_default).trim());
-      for (const c of (t.tuss_codes_extra ?? []) as string[]) {
+      if (it.tuss_default) codes.add(String(it.tuss_default).trim());
+      for (const c of it.tuss_codes_extra ?? []) {
         if (c) codes.add(String(c).trim());
       }
       for (const c of codes) {
         if (!c) continue;
-        if (tussToType.has(c) && tussToType.get(c) !== t.id) {
-          collisions.push(`${c}: ${tussToType.get(c)} vs ${t.id}`);
+        if (tussToItemType.has(c) && tussToItemType.get(c) !== it.id) {
+          collisions.push(`${c}: ${tussToItemType.get(c)} vs ${it.id}`);
         } else {
-          tussToType.set(c, t.id);
+          tussToItemType.set(c, it.id);
         }
       }
-      const cat = String(t.category ?? "").toLowerCase();
-      if (cat === "procedimento" && !procedureTypeId) procedureTypeId = t.id;
-      if (t.id === lotePaymentTypeId) loteCategory = cat;
+      if (it.is_default_when_no_tuss && !defaultItemTypeId) {
+        defaultItemTypeId = it.id;
+        defaultItemTypeCode = it.code;
+      }
     }
 
     if (collisions.length) {
-      console.warn(`[auto-classify] TUSS duplicados em payment_types: ${collisions.slice(0, 5).join("; ")}`);
+      console.warn(
+        `[auto-classify] TUSS duplicados em item_types: ${collisions.slice(0, 5).join("; ")}`,
+      );
+    }
+    if (!defaultItemTypeId) {
+      console.warn("[auto-classify] Nenhum item_type marcado como is_default_when_no_tuss — itens sem TUSS ficarão sem item_type.");
     }
 
-    // Heurística só faz sentido quando o lote é consulta-like (consulta/parecer/visita)
-    // e existe um tipo "procedimento" cadastrado para receber os ambíguos.
-    const heuristicEnabled =
-      !!procedureTypeId &&
-      !!loteCategory &&
-      /(consulta|parecer|visita)/.test(loteCategory) &&
-      procedureTypeId !== lotePaymentTypeId;
+    const itemTypeCodeById = new Map<string, string>();
+    for (const it of itemTypes) itemTypeCodeById.set(it.id, it.code);
 
+    // 2. Varre itens do lote em páginas e classifica
     let totalScanned = 0;
     let autoTuss = 0;
-    let autoHeuristic = 0;
-    let cleared = 0; // voltou para inherit
+    let autoDefault = 0;
+    let unchanged = 0;
     const pageSize = 500;
 
     for (let from = 0; ; from += pageSize) {
       const { data: items, error: itemsErr } = await supabase
         .from("payment_items")
-        .select("id, procedure_code, procedure_name, description, doctor_role, payment_type_id, payment_type_source")
+        .select("id, procedure_code, payment_type_id, payment_type_source, item_type_id, item_type_source")
         .eq("payment_id", payment_id)
         .range(from, from + pageSize - 1);
       if (itemsErr) throw itemsErr;
@@ -119,54 +132,66 @@ Deno.serve(async (req) => {
       totalScanned += items.length;
 
       for (const it of items as any[]) {
-        const source = (it.payment_type_source ?? "") as string;
+        const source = (it.payment_type_source ?? it.item_type_source ?? "") as string;
         if (PROTECTED_SOURCES.has(source)) continue;
 
         const code = String(it.procedure_code ?? "").trim();
-        let suggestedId: string | null = null;
-        let suggestedSource: "auto_tuss" | "auto_heuristic" | null = null;
+        let nextItemTypeId: string | null = null;
+        let nextSource: "auto_tuss" | "auto_default" | null = null;
 
-        if (code && tussToType.has(code)) {
-          suggestedId = tussToType.get(code)!;
-          suggestedSource = "auto_tuss";
-        } else if (heuristicEnabled) {
-          const blob = `${it.procedure_name ?? ""} ${it.description ?? ""} ${it.doctor_role ?? ""}`;
-          if (HEURISTIC_PROCEDURE.test(blob) || (code && !/^1010/.test(code))) {
-            // Code não vazio que NÃO é família 1010* (consulta TUSS) reforça a heurística.
-            if (HEURISTIC_PROCEDURE.test(blob)) {
-              suggestedId = procedureTypeId;
-              suggestedSource = "auto_heuristic";
-            }
-          }
+        if (code && tussToItemType.has(code)) {
+          nextItemTypeId = tussToItemType.get(code)!;
+          nextSource = "auto_tuss";
+        } else if (defaultItemTypeId) {
+          nextItemTypeId = defaultItemTypeId;
+          nextSource = "auto_default";
         }
 
-        const currentId = it.payment_type_id ?? null;
-
-        if (suggestedId && suggestedId !== lotePaymentTypeId) {
-          // Override divergente do lote — patch só se ainda não está nesse estado.
-          if (currentId !== suggestedId || source !== suggestedSource) {
-            await supabase
-              .from("payment_items")
-              .update({ payment_type_id: suggestedId, payment_type_source: suggestedSource })
-              .eq("id", it.id);
-            if (suggestedSource === "auto_tuss") autoTuss++;
-            else autoHeuristic++;
-          }
-        } else if (currentId && (source === "auto_tuss" || source === "auto_heuristic")) {
-          // Antes inferimos override e agora a regra/cadastro mudou — limpa para inherit.
-          await supabase
-            .from("payment_items")
-            .update({ payment_type_id: null, payment_type_source: null })
-            .eq("id", it.id);
-          cleared++;
+        if (!nextItemTypeId || !nextSource) {
+          unchanged++;
+          continue;
         }
+
+        const nextCode = itemTypeCodeById.get(nextItemTypeId) ?? null;
+        const nextLegacyId = nextCode ? legacyByCode.get(nextCode) ?? null : null;
+
+        // Sem mudança? pula
+        if (
+          it.item_type_id === nextItemTypeId &&
+          it.item_type_source === nextSource &&
+          it.payment_type_id === nextLegacyId
+        ) {
+          unchanged++;
+          continue;
+        }
+
+        const patch: Record<string, any> = {
+          item_type_id: nextItemTypeId,
+          item_type_source: nextSource,
+        };
+        // Replica no campo legacy para o motor atual continuar funcionando
+        if (nextLegacyId) {
+          patch.payment_type_id = nextLegacyId;
+          patch.payment_type_source = nextSource;
+        }
+
+        const { error: upErr } = await supabase
+          .from("payment_items")
+          .update(patch)
+          .eq("id", it.id);
+        if (upErr) {
+          console.error(`[auto-classify] erro item ${it.id}`, upErr);
+          continue;
+        }
+        if (nextSource === "auto_tuss") autoTuss++;
+        else autoDefault++;
       }
 
       if (items.length < pageSize) break;
     }
 
     console.log(
-      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} cleared=${cleared}`,
+      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_default=${autoDefault} unchanged=${unchanged} default_item_type=${defaultItemTypeCode}`,
     );
 
     return new Response(
@@ -175,16 +200,17 @@ Deno.serve(async (req) => {
         payment_id,
         scanned: totalScanned,
         auto_tuss: autoTuss,
-        auto_heuristic: autoHeuristic,
-        cleared,
-        lote_payment_type_id: lotePaymentTypeId,
+        auto_default: autoDefault,
+        unchanged,
+        default_item_type: defaultItemTypeCode,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e: any) {
     console.error("[auto-classify-payment-types] error", e);
     return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
