@@ -641,8 +641,15 @@ export interface ParseOptions {
     tuss_default?: string | null;
     requires_tuss_in_sheet?: boolean;
     default_function?: string | null;
+    /** Códigos TUSS extras aceitos como "ainda é Consulta" (além do tuss_default). */
+    tuss_codes_extra?: string[] | null;
+    /** item_types.id para onde reclassificar quando o lote é Consulta e o
+     * TUSS da planilha não casa com {tuss_default} ∪ tuss_codes_extra.
+     * Tipicamente o id de "Procedimento". */
+    dynamic_fallback_item_type_id?: string | null;
   } | null;
 }
+
 
 const PARECER_RESPONSE_DATE_KEYS = [
   "dt resposta parecer", "dt. resposta parecer", "data resposta parecer",
