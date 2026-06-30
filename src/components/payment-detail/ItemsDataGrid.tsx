@@ -1167,10 +1167,11 @@ export function ItemsDataGrid({
 
 
   /**
-   * Persiste o tipo padrão da empresa em companies.default_payment_type_id.
-   * NÃO altera os itens deste lote — só passa a valer dos próximos lotes em
-   * diante (na importação). Quem quer mudar o atual também → usa o botão
-   * "Marcar todos" acima antes.
+   * Persiste o tipo padrão da empresa em companies.default_item_type_id (canônico).
+   * O trigger sync_companies_default_type_columns mantém `default_payment_type_id`
+   * (legada) em paralelo durante a transição. NÃO altera os itens deste lote — só
+   * passa a valer dos próximos lotes em diante (na importação). Quem quer mudar o
+   * atual também → usa o botão "Marcar todos" acima antes.
    */
   const saveCompanyDefaultType = async (
     typeId: string | null,
@@ -1185,7 +1186,7 @@ export function ItemsDataGrid({
       }
       const { error } = await supabase
         .from("companies")
-        .update({ default_payment_type_id: typeId } as any)
+        .update({ default_item_type_id: typeId } as any)
         .eq("id", companyId);
       if (error) {
         toast.error(`Não foi possível salvar padrão: ${error.message}`);
@@ -1204,11 +1205,11 @@ export function ItemsDataGrid({
           await supabase.from("audit_log").insert([{
             entity_type: "company",
             entity_id: companyId,
-            action: "set_default_payment_type",
+            action: "set_default_item_type",
             actor_id: actorId,
             company_id: companyId,
             company_name: companyName,
-            diff: { default_payment_type_id: typeId, label } as any,
+            diff: { default_item_type_id: typeId, label } as any,
           }] as any);
         }
       } catch (e) {
