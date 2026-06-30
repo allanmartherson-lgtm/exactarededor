@@ -1,6 +1,6 @@
 // cross-reference-parecer
 // Cruza payment_items de um lote 'parecer' contra payment_parecer_report_rows
-// importados. Marca parecer_evidence e ajusta payment_type_id para classificar
+// importados. Marca parecer_evidence e ajusta item_type_id para classificar
 // cada item como Parecer ou Visita.
 //
 // Após o cruzamento, dispara reanalise via dispatch-payment-analysis para

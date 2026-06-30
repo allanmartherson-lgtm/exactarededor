@@ -2,8 +2,7 @@
 //
 // Classifica itens de um lote no modelo novo (jun/2026): atribui
 // `payment_items.item_type_id` (tabela `item_types`). A coluna legacy
-// `payment_type_id` é mantida em sync automaticamente pelo trigger da
-// Fase B' enquanto a tabela `payment_types` existir.
+// `payment_type_id` foi removida na Fase D2.
 //
 // Regra (decisão do usuário, jun/2026):
 //   1. Se o item tem `procedure_code` (TUSS) e ele bate com
