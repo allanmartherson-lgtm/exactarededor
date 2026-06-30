@@ -59,6 +59,10 @@ export interface ParsedRow {
    * Procedimento). Consumido por NewPayment/PaymentDetail ao montar
    * payment_items.item_type_id. */
   payment_type_id_override?: string | null;
+  /** true quando a coluna de repasse (gross_amount) foi explicitamente
+   *  mapeada/encontrada na planilha — mesmo que o valor seja 0. Permite
+   *  diferenciar "0 legítimo" (ex.: Retorno) de "valor ausente". */
+  gross_explicit?: boolean;
 }
 
 
