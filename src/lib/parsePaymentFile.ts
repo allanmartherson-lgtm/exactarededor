@@ -677,8 +677,13 @@ export const parsePaymentFile = async (
   const { manualMapping, paymentTypeMeta } = options;
 
   const buf = await f.arrayBuffer();
-  const wb = XLSX.read(buf, { cellDates: false });
+  const wb = XLSX.read(buf, { cellDates: false, cellFormula: true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
+  // Resolve fórmulas simples (=A1*B1, =A1*0.7, +, -, /) cujo valor cached não
+  // foi salvo no arquivo — acontece quando o Excel/LibreOffice grava sem
+  // recalcular. Sem isso, "Vl a Repassar" computado como =N3*O3 chega vazio
+  // no parser, gerando falso "Valor obrigatório (gross_amount)".
+  resolveSimpleFormulas(sheet);
   // Lê como matriz para localizar a linha de cabeçalho real — algumas
   // planilhas trazem metadados (empresa, CNPJ, vigência) antes dos dados.
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
