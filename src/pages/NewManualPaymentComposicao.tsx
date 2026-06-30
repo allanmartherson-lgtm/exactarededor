@@ -202,7 +202,7 @@ export default function NewManualPaymentComposicao() {
         competence_months: [`${competence}-01`],
         payment_due_date: paymentDueDate || null,
         analysis_mode: "manual" as any,
-        payment_type_id: paymentModelId,
+        payment_model_id: paymentModelId,
         cost_center_code: costCenterCode,
         payout_model_id: selectedModel.id,
         payout_model_version: selectedModel.version,
