@@ -1492,6 +1492,7 @@ const Payments = () => {
                         onClick={() => {
                           setAnalystFilter("all");
                           setTypeFilter("all");
+                          setItemTypeFilter("all");
                           setTrackFilter("all");
                           setCompetenceFilter("all");
                           setOwnerGroup("all");
