@@ -40,7 +40,7 @@ const buildTrapRow = (mappedHeader: string, mappedValue: unknown) => {
 const valueCases: Array<{ label: string; raw: unknown; expected: number; invalid?: boolean }> = [
   { label: "número 0", raw: 0, expected: 0 },
   { label: "número positivo", raw: 1500.5, expected: 1500.5 },
-  { label: "número negativo (inválido)", raw: -100, expected: 0, invalid: true },
+  { label: "número negativo (inválido — preserva valor + flag)", raw: -100, expected: -100, invalid: true },
   { label: "string '0'", raw: "0", expected: 0 },
   { label: "string BR '1.234,56'", raw: "1.234,56", expected: 1234.56 },
   { label: "string US '1500.50'", raw: "1500.50", expected: 1500.5 },
