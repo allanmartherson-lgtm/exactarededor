@@ -520,7 +520,7 @@ const Payments = () => {
     if (importModeFilter !== "all") f.import_modes = [importModeFilter];
     if (emptyOnly) f.only_empty = true;
     return f;
-  }, [serverStatuses, typeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
+  }, [serverStatuses, typeFilter, itemTypeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
       competenceFilter, debouncedQ, delayedOnly, openQuestionOnly,
       divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly]);
 
