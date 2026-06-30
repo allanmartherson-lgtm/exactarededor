@@ -60,9 +60,10 @@ serve(async (req) => {
         : detectKind(text ?? "");
 
     const ctxLines: string[] = [];
-    if (context?.paymentTypes?.length) {
-      ctxLines.push("Tipos de pagamento disponíveis (use o `code` em `payment_type_code` quando aplicável):");
-      for (const pt of context.paymentTypes.slice(0, 40)) {
+    const itemTypes = context?.itemTypes ?? context?.paymentTypes ?? [];
+    if (itemTypes.length) {
+      ctxLines.push("Tipos de item disponíveis (use o `code` em `item_type_code` quando aplicável):");
+      for (const pt of itemTypes.slice(0, 40)) {
         ctxLines.push(`- ${pt.code} — ${pt.label}`);
       }
     }
