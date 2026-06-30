@@ -447,7 +447,7 @@ const Payments = () => {
   useEffect(() => {
     setPage(0);
   }, [
-    debouncedQ, companyFilter?.id, doctorFilter?.id, analystFilter, typeFilter, trackFilter,
+    debouncedQ, companyFilter?.id, doctorFilter?.id, analystFilter, typeFilter, itemTypeFilter, trackFilter,
     statusFilter, competenceFilter, delayedOnly, ownerGroup, onlyMine,
     divergenceFilter, questionedFilter, openQuestionOnly, archivedView, pageSize, sortBy,
     poolFilter, importModeFilter, emptyOnly,
