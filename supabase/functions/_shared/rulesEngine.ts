@@ -394,8 +394,6 @@ export interface PaymentContext {
   payment_type: string | null;
   /** Modelo do lote (producao/remessa/parecer histórico) — informativo no contexto. */
   payment_model?: string | null;
-  /** @deprecated — `rules.payment_type_id` foi descontinuada (Fase D). Mantido apenas para retrocompatibilidade. */
-  payment_type_id?: string | null;
   reference_date: string;
   globalExceptionTableIds?: string[];
 }
