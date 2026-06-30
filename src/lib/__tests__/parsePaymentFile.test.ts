@@ -268,3 +268,88 @@ describe("parsePaymentFile — header não está na primeira linha", () => {
     expect(b.rows[0].procedure_date).toMatch(/^2026-04-10/);
   });
 });
+
+/**
+ * Regressão: "Vl a Repassar = 0" é legítimo (ex.: Regra "Retorno" — atendimento
+ * não pago). NÃO pode virar "Valor obrigatório (gross_amount)". Cobre também
+ * "0,00" (string PT-BR), célula vazia (coluna existe mas blank) e fórmula sem
+ * cache (=N3*O3 salvo sem recalcular pelo Excel/LibreOffice).
+ */
+describe("parsePaymentFile — Vl a Repassar zero / vazio / fórmula sem cache", () => {
+  const baseRow = {
+    "Médico": "Dr. Silva",
+    "CPF": "111.111.111-11",
+    "Procedimento": "Em Consultório (No Horário Normal Ou Preestabelecido)",
+    "Cod. TUSS": "10101012",
+    "Nr Atendimento": "A123",
+    "Paciente": "João",
+    "Valor Tot": 95,
+    "Regra": "Retorno",
+  };
+
+  const expectNoValorObrigatorio = (issues: { message: string }[]) => {
+    const blocking = issues.filter((i) => /Valor obrigatório|Valor total obrigatório/.test(i.message));
+    expect(blocking).toEqual([]);
+  };
+
+  it("aceita Vl a Repassar = 0 numérico (Retorno não pago) sem bloquear", async () => {
+    const f = makeFile([{ ...baseRow, "Vl a Repassar": 0 }]);
+    const b = await parsePaymentFile(f, COMPANIES);
+    expect(b.rows).toHaveLength(1);
+    expect(b.rows[0].gross_amount).toBe(0);
+    expect(b.rows[0].gross_explicit).toBe(true);
+    expectNoValorObrigatorio(b.rows[0].line_issues);
+  });
+
+  it('aceita Vl a Repassar = "0,00" (string PT-BR) sem bloquear', async () => {
+    const f = makeFile([{ ...baseRow, "Vl a Repassar": "0,00" }]);
+    const b = await parsePaymentFile(f, COMPANIES);
+    expect(b.rows[0].gross_amount).toBe(0);
+    expect(b.rows[0].gross_explicit).toBe(true);
+    expectNoValorObrigatorio(b.rows[0].line_issues);
+  });
+
+  it("aceita célula vazia quando a coluna Vl a Repassar existe no cabeçalho", async () => {
+    // AOA garante que a coluna existe mesmo com célula em branco.
+    const aoa = [
+      ["Médico", "CPF", "Procedimento", "Cod. TUSS", "Nr Atendimento", "Paciente", "Valor Tot", "Regra", "Vl a Repassar"],
+      ["Dr. Silva", "111.111.111-11", "Em Consultório", "10101012", "A123", "João", 95, "Retorno", ""],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const file = new File([buf], "Acme Médica LTDA.xlsx");
+    if (!file.arrayBuffer) (file as any).arrayBuffer = async () => buf;
+
+    const b = await parsePaymentFile(file, COMPANIES);
+    expect(b.rows).toHaveLength(1);
+    expect(b.rows[0].gross_amount).toBe(0);
+    expect(b.rows[0].gross_explicit).toBe(true);
+    expectNoValorObrigatorio(b.rows[0].line_issues);
+  });
+
+  it("resolve fórmula =Valor*Regra sem cache (=G2*H2) e calcula gross_amount", async () => {
+    // Constrói sheet manualmente para injetar célula com fórmula sem cached value.
+    const aoa = [
+      ["Médico", "CPF", "Procedimento", "Cod. TUSS", "Nr Atendimento", "Paciente", "Valor Tot", "Regra", "Vl a Repassar"],
+      ["Dr. Silva", "111.111.111-11", "Procedimento X", "31002012", "A999", "Maria", 350, 0.7, null],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    // Substitui a célula I2 (Vl a Repassar) por uma fórmula =G2*H2 sem cached value (.v).
+    ws["I2"] = { t: "n", f: "G2*H2" };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const file = new File([buf], "Acme Médica LTDA.xlsx");
+    if (!file.arrayBuffer) (file as any).arrayBuffer = async () => buf;
+
+    const b = await parsePaymentFile(file, COMPANIES);
+    expect(b.rows).toHaveLength(1);
+    // resolveSimpleFormulas deve avaliar =G2*H2 → 350*0.7 = 245.
+    expect(b.rows[0].gross_amount).toBeCloseTo(245, 2);
+    expect(b.rows[0].gross_explicit).toBe(true);
+    expectNoValorObrigatorio(b.rows[0].line_issues);
+  });
+});
+
