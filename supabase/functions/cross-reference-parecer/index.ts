@@ -87,39 +87,45 @@ Deno.serve(async (req) => {
     }
 
 
-    // Tipo do lote (parecer_adulto, normalmente) e tipo Visita (alvo da reclassificação)
+    // Tipo do lote (parecer_adulto, normalmente) e tipo Visita (alvo da reclassificação).
+    // UUIDs unificados entre payment_types e item_types (Fase D, passo 0) — lemos direto de item_types.
     const { data: paymentRow } = await supabase
       .from("payments")
-      .select("payment_type_id, has_mixed_parecer, mixed_parecer_payment_type_id")
+      .select("has_mixed_parecer, mixed_parecer_payment_type_id")
       .eq("id", payment_id)
       .maybeSingle();
-    const lotePaymentTypeIdRaw = (paymentRow as any)?.payment_type_id ?? null;
     const isMixed = !!(paymentRow as any)?.has_mixed_parecer;
     const mixedParecerTypeId = (paymentRow as any)?.mixed_parecer_payment_type_id ?? null;
-    // Em lote misto, o "tipo parecer destino" não é o tipo do lote (que é produção);
-    // é o subtipo escolhido pelo analista no wizard / na ação de retro-marcação.
-    const lotePaymentTypeId = isMixed ? mixedParecerTypeId : lotePaymentTypeIdRaw;
+
+    // Default do lote = parecer_adulto (único item_type de parecer cadastrado).
+    // Em lote misto, o analista escolheu explicitamente o subtipo via wizard.
+    const { data: defaultParecerType } = await supabase
+      .from("item_types")
+      .select("id")
+      .eq("code", "parecer_adulto")
+      .maybeSingle();
+    const defaultParecerItemTypeId = (defaultParecerType as any)?.id ?? null;
+    const lotePaymentTypeId = isMixed ? mixedParecerTypeId : defaultParecerItemTypeId;
+
     const { data: visitaType } = await supabase
-      .from("payment_types")
+      .from("item_types")
       .select("id")
       .eq("code", "visita")
       .maybeSingle();
     const visitaPaymentTypeId = (visitaType as any)?.id ?? null;
 
     // Em lote misto, monta o conjunto de TUSS "ambíguos" (Parecer/Visita/Consulta)
-    // a partir dos payment_types cadastrados. Itens fora desse conjunto NÃO
+    // a partir dos item_types cadastrados. Itens fora desse conjunto NÃO
     // entram no cruzamento — permanecem com o tipo de produção do lote.
     let ambiguousTussSet: Set<string> | null = null;
     if (isMixed) {
       const { data: ambTypes } = await supabase
-        .from("payment_types")
-        .select("tuss_default, tuss_codes_extra, category, code");
+        .from("item_types")
+        .select("tuss_default, tuss_codes_extra, code");
       const set = new Set<string>();
       for (const t of (ambTypes ?? []) as any[]) {
-        const cat = String(t.category ?? "").toLowerCase();
         const code = String(t.code ?? "").toLowerCase();
         const isAmb =
-          cat === "parecer" || cat === "visita" || cat === "consulta" ||
           code.startsWith("parecer") || code === "visita" || code === "consulta";
         if (!isAmb) continue;
         if (t.tuss_default) set.add(String(t.tuss_default).trim());
@@ -208,7 +214,7 @@ Deno.serve(async (req) => {
       const { data: page, error } = await supabase
         .from("payment_items")
         .select(
-          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, procedure_code, manual_intervention_reason_id, manual_intervention_source, payment_type_id, payment_type_source, patient_name, specialty, convenio_slug, hospital_id",
+          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, procedure_code, manual_intervention_reason_id, manual_intervention_source, item_type_id, item_type_source, patient_name, specialty, convenio_slug, hospital_id",
         )
         .eq("payment_id", payment_id)
         .range(from, from + pageSize - 1);
@@ -404,7 +410,7 @@ Deno.serve(async (req) => {
 
     // 2) Lookback cross-lote — janela = consecutive_days_to_visita.
     const { data: parecerTypes } = await supabase
-      .from("payment_types")
+      .from("item_types")
       .select("id, code")
       .ilike("code", "parecer%");
     const parecerTypeIds = (parecerTypes ?? []).map((t: any) => t.id).filter(Boolean);
@@ -425,7 +431,7 @@ Deno.serve(async (req) => {
         .toISOString().slice(0, 10);
       let query = supabase
         .from("payment_items")
-        .select("id, payment_id, procedure_date, parecer_evidence, payment_type_id, specialty, doctor_id, doctor_name")
+        .select("id, payment_id, procedure_date, parecer_evidence, item_type_id, specialty, doctor_id, doctor_name")
         .eq("hospital_id", it.hospital_id)
         .eq("attendance_number", it.attendance_number)
         .eq("reclassified_from_parecer", false)
@@ -440,7 +446,7 @@ Deno.serve(async (req) => {
       }
       if (parecerTypeIds.length > 0) {
         query = query.or(
-          `parecer_evidence.eq.confirmed,payment_type_id.in.(${parecerTypeIds.join(",")})`,
+          `parecer_evidence.eq.confirmed,item_type_id.in.(${parecerTypeIds.join(",")})`,
         );
       } else {
         query = query.eq("parecer_evidence", "confirmed");
@@ -450,7 +456,7 @@ Deno.serve(async (req) => {
         .limit(1);
       if (prior && prior.length > 0) {
         reclassifiedIds.add(it.id);
-        const viaType = prior[0].payment_type_id && parecerTypeIds.includes(prior[0].payment_type_id)
+        const viaType = prior[0].item_type_id && parecerTypeIds.includes(prior[0].item_type_id)
           ? " (tipo Parecer em lote anterior)"
           : " (relatório do Tasy)";
         reclassifyReason.set(
@@ -512,24 +518,24 @@ Deno.serve(async (req) => {
         parecer_checked_at: now,
       };
       const current = itemById.get(u.id) as any;
-      const currentSource = current?.payment_type_source ?? null;
+      const currentSource = current?.item_type_source ?? null;
       const protectedType = PROTECTED_SOURCES.has(currentSource);
       if (!protectedType && lotePaymentTypeId && visitaPaymentTypeId) {
         patch.reclassified_from_parecer = isReclassified;
         if (isReclassified) {
           // Era candidato a Parecer mas dedup/lookback rebaixou para Visita
-          patch.payment_type_id = visitaPaymentTypeId;
-          patch.payment_type_source = "report_cross_dedup";
+          patch.item_type_id = visitaPaymentTypeId;
+          patch.item_type_source = "report_cross_dedup";
           patch.manual_intervention_notes =
             reclassifyReason.get(u.id) ?? "Reclassificado por dedup parecer/visita.";
           subtypeVisita++;
         } else if (u.evidence === "confirmed") {
-          patch.payment_type_id = lotePaymentTypeId;
-          patch.payment_type_source = "report_cross";
+          patch.item_type_id = lotePaymentTypeId;
+          patch.item_type_source = "report_cross";
           subtypeParecer++;
         } else if (u.evidence === "not_found") {
-          patch.payment_type_id = visitaPaymentTypeId;
-          patch.payment_type_source = "report_cross";
+          patch.item_type_id = visitaPaymentTypeId;
+          patch.item_type_source = "report_cross";
           subtypeVisita++;
         }
       } else if (!protectedType) {
@@ -540,7 +546,7 @@ Deno.serve(async (req) => {
         // Se o analista/base protegeu o subtipo, o relatório não troca o tipo,
         // mas o flag auxiliar não pode ficar contraditório (ex.: badge Parecer
         // com `reclassified_from_parecer=true`).
-        const currentType = current?.payment_type_id ?? null;
+        const currentType = current?.item_type_id ?? null;
         if (currentType === visitaPaymentTypeId) {
           patch.reclassified_from_parecer = true;
         } else if (currentType === lotePaymentTypeId) {
