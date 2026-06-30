@@ -2174,6 +2174,27 @@ export function ItemsDataGrid({
               Limpar
             </Button>
           )}
+          {canEdit && (
+            <Button
+              size="sm"
+              variant={selectionMode ? "default" : "outline"}
+              className="h-8 text-xs"
+              onClick={() => {
+                setSelectionMode((on) => {
+                  if (on) setSelectedIds(new Set());
+                  return !on;
+                });
+              }}
+              title="Ativar seleção múltipla para reclassificar vários itens de uma vez"
+            >
+              {selectionMode ? "Sair da seleção" : "Selecionar"}
+              {selectionMode && selectedIds.size > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-background/20 px-1.5 text-[10px]">
+                  {selectedIds.size}
+                </span>
+              )}
+            </Button>
+          )}
           <Popover>
             <PopoverTrigger asChild>
               <Button size="sm" variant="outline" className="h-8 text-xs ml-auto">
