@@ -1519,8 +1519,24 @@ const PaymentDetail = () => {
       );
       const companies = companiesData.map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
 
+      // Pré-carrega catálogo de item_types para (a) achar id de "procedimento"
+      // como fallback dinâmico quando o lote é Consulta e (b) extras de TUSS
+      // aceitos pela Consulta.
+      let dynamicFallbackItemTypeId: string | null = null;
+      let consultaTussExtras: string[] = [];
+      try {
+        const { data: itemTypes } = await supabase
+          .from("item_types" as any)
+          .select("id,code,tuss_codes_extra");
+        const it = (itemTypes ?? []) as any[];
+        dynamicFallbackItemTypeId = it.find((t) => t.code === "procedimento")?.id ?? null;
+        const consulta = it.find((t) => t.code === "consulta");
+        consultaTussExtras = Array.isArray(consulta?.tuss_codes_extra) ? consulta.tuss_codes_extra : [];
+      } catch { /* noop — fallback ausente apenas desativa reclassificação */ }
+
       let allRows: any[] = [];
       let fileNames: string[] = [];
+
 
       for (const file of files) {
         // Tenta achar template salvo cuja assinatura bata com os headers desta planilha
