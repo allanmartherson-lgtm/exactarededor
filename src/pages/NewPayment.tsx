@@ -114,6 +114,10 @@ interface ParsedRow {
    * (ex.: planilha de Parecer com algumas linhas de Visita). Preenchido pelo
    * parser via `subtype_split_hint` do tipo escolhido na criação da base. */
   payment_type_id_override?: string | null;
+  /** true quando a coluna de repasse (gross_amount) foi mapeada/canônica —
+   *  inclusive com valor 0 (ex.: Retorno não pago). Permite distinguir
+   *  "0 legítimo" de "valor ausente" na validação. */
+  gross_explicit?: boolean;
 }
 
 // === Classificação de tipo_linha (pré-validação) ===
@@ -183,7 +187,10 @@ const validateLine = (
   const issues: LineIssue[] = [];
   const modoConfeccao = !!opts?.modoConfeccao;
   const hasDoctor = !!r.doctor_name?.trim();
-  const hasValue = Math.abs(r.gross_amount ?? 0) > 0;
+  // 0 explícito (coluna de repasse mapeada com valor 0 — ex.: Retorno não pago)
+  // é legítimo: não bloqueia. Só consideramos "sem valor" quando não há repasse
+  // explícito e a coluna estava vazia/ausente.
+  const hasValue = Math.abs(r.gross_amount ?? 0) > 0 || !!r.gross_explicit;
   const hasAtt = !!r.attendance_number?.trim() || !!r.patient_name?.trim();
   const hasCode = !!r.procedure_code?.trim();
   const hasDesc = !!(r.description?.trim() || r.procedure_name?.trim());
@@ -1105,6 +1112,7 @@ const NewPayment = () => {
         doctor_email: toStr(pick(row, ["email", "e-mail"])) ?? "",
         description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "produto", "descricao", "descrição", "servico", "serviço"])) ?? "",
         gross_amount: grossFromAny,
+        gross_explicit: amounts.grossAuthoritative,
         valor_invalido,
         company_name: resolvedName,
         company_id: resolvedCompany?.id ?? null,

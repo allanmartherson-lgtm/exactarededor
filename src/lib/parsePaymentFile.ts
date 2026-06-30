@@ -59,6 +59,10 @@ export interface ParsedRow {
    * Procedimento). Consumido por NewPayment/PaymentDetail ao montar
    * payment_items.item_type_id. */
   payment_type_id_override?: string | null;
+  /** true quando a coluna de repasse (gross_amount) foi explicitamente
+   *  mapeada/encontrada na planilha — mesmo que o valor seja 0. Permite
+   *  diferenciar "0 legítimo" (ex.: Retorno) de "valor ausente". */
+  gross_explicit?: boolean;
 }
 
 
@@ -178,7 +182,9 @@ export const classifyLine = (
 export const validateLine = (r: Omit<ParsedRow, "line_issues">): LineIssue[] => {
   const issues: LineIssue[] = [];
   const hasDoctor = !!r.doctor_name?.trim();
-  const hasValue = Math.abs(r.gross_amount ?? 0) > 0;
+  // 0 explícito (coluna de repasse mapeada/canônica com valor 0 — ex.: Retorno
+  // não pago) NÃO conta como "valor ausente" e não bloqueia.
+  const hasValue = Math.abs(r.gross_amount ?? 0) > 0 || !!r.gross_explicit;
   const hasAtt = !!r.attendance_number?.trim() || !!r.patient_name?.trim();
   const hasCode = !!r.procedure_code?.trim();
   const hasDesc = !!(r.description?.trim() || r.procedure_name?.trim());
@@ -863,6 +869,7 @@ export const parsePaymentFile = async (
       doctor_email: toStr(pickField(row, "doctor_email", manualMapping)) ?? "",
       description: sanitizeDescription(pickField(row, "description", manualMapping)) ?? "",
       gross_amount: grossFromAny,
+      gross_explicit: grossSourceAuthoritative,
       company_name: resolvedName,
       company_id: resolvedCompany?.id || null,
       attendance_number: toStr(pickField(row, "attendance_number", manualMapping)),
