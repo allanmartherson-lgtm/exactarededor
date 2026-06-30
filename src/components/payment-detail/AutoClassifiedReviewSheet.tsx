@@ -25,8 +25,9 @@ type ReviewableItem = {
   procedure_code?: string | null;
   procedure_description?: string | null;
   company_name?: string | null;
-  payment_type_id?: string | null;
-  payment_type_source?: string | null;
+  /** Tipo do item (Parecer/Visita/etc) — coluna canônica `item_type_id`. */
+  item_type_id?: string | null;
+  item_type_source?: string | null;
 };
 
 interface Props {
@@ -69,10 +70,9 @@ export function AutoClassifiedReviewSheet({
 
   const rows = useMemo(() => {
     return items.filter((it) => {
-      const src = String(it.payment_type_source ?? "");
+      const src = String(it.item_type_source ?? "");
       if (!AUTO_SOURCES.has(src)) return false;
-      // itemTypeId vem da coluna legacy payment_items.payment_type_id (Wave 5 renomeia)
-      const itemTypeId = it.payment_type_id ?? null;
+      const itemTypeId = it.item_type_id ?? null;
       return !!itemTypeId && itemTypeId !== lotePaymentTypeId;
     });
   }, [items, lotePaymentTypeId]);
@@ -80,8 +80,8 @@ export function AutoClassifiedReviewSheet({
   const counts = useMemo(() => {
     let tuss = 0, heur = 0;
     for (const r of rows) {
-      if (r.payment_type_source === "auto_tuss") tuss++;
-      else if (r.payment_type_source === "auto_heuristic") heur++;
+      if (r.item_type_source === "auto_tuss") tuss++;
+      else if (r.item_type_source === "auto_heuristic") heur++;
     }
     return { tuss, heur, total: rows.length };
   }, [rows]);
@@ -110,16 +110,19 @@ export function AutoClassifiedReviewSheet({
     if (!canEdit || busyId) return;
     setBusyId(it.id);
     try {
+      // Escrita dupla (item_type_source canônico + payment_type_source legacy)
+      // — o trigger sync_payment_items_type_columns mirroring uma direção só,
+      // garantimos a consistência explícita por aqui.
       const { error } = await supabase
         .from("payment_items")
-        .update({ payment_type_source: "manual" } as any)
+        .update({ item_type_source: "manual", payment_type_source: "manual" } as any)
         .eq("id", it.id);
       if (error) {
         toast({ title: "Falha ao confirmar", description: error.message, variant: "destructive" });
         return;
       }
       await logJustification(it.id, justifById[it.id] ?? "");
-      toast({ title: "Reclassificação confirmada", description: ptLabel(it.payment_type_id) });
+      toast({ title: "Reclassificação confirmada", description: ptLabel(it.item_type_id) });
       setTouched(true);
       onChanged?.();
     } finally {
@@ -131,9 +134,17 @@ export function AutoClassifiedReviewSheet({
     if (!canEdit || busyId) return;
     setBusyId(it.id);
     try {
+      // IMPORTANTE: limpar BOTH item_type_id e payment_type_id no mesmo UPDATE.
+      // O trigger sync_payment_items_type_columns re-preenche payment_type_id
+      // a partir de item_type_id se só um for setado como null — bug sutil.
       const { error } = await supabase
         .from("payment_items")
-        .update({ payment_type_id: null, payment_type_source: null } as any)
+        .update({
+          item_type_id: null,
+          item_type_source: null,
+          payment_type_id: null,
+          payment_type_source: null,
+        } as any)
         .eq("id", it.id);
       if (error) {
         toast({ title: "Falha ao reverter", description: error.message, variant: "destructive" });
@@ -215,9 +226,9 @@ export function AutoClassifiedReviewSheet({
               </div>
             )}
             {rows.map((it) => {
-              const suggested = ptLabel(it.payment_type_id);
+              const suggested = ptLabel(it.item_type_id);
               const lote = ptLabel(lotePaymentTypeId);
-              const srcLabel = it.payment_type_source === "auto_tuss" ? "TUSS" : "heurística";
+              const srcLabel = it.item_type_source === "auto_tuss" ? "TUSS" : "heurística";
               const isBusy = busyId === it.id;
               return (
                 <div
