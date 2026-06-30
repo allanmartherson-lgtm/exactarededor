@@ -15,6 +15,9 @@ import { Label } from "@/components/ui/label";
 import { SafeCard } from "@/components/ui/SafeCard";
 import { CalcDuplicityResolverPanel } from "./CalcDuplicityResolverPanel";
 import { PaymentTypeOverrideAction } from "./PaymentTypeOverrideAction";
+import { useItemTypes } from "@/hooks/useItemTypes";
+import { usePaymentTypes } from "@/hooks/usePaymentTypes";
+import { X as XIcon } from "lucide-react";
 import { deriveConfeccaoStatus, CONFECCAO_STATUS_LABEL, CONFECCAO_STATUS_TONE } from "@/lib/itemConfeccaoStatus";
 import {
   AlertTriangle,
@@ -853,6 +856,18 @@ export function ItemsDataGrid({
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkTypeId, setBulkTypeId] = useState<string | null>(null);
+  const { list: itemTypesForBulk } = useItemTypes({ onlyActive: true });
+  const { list: paymentTypesForBulk } = usePaymentTypes({ onlyActive: true });
+  // Mapeia item_types.code → payment_types.id (escrita canônica em item_type_id usa o id de payment_types correspondente).
+  const itemTypeCodes = useMemo(() => new Set(itemTypesForBulk.map((t) => t.code)), [itemTypesForBulk]);
+  const bulkSelectable = useMemo(
+    () => paymentTypesForBulk.filter((t) => itemTypeCodes.has(t.code)),
+    [paymentTypesForBulk, itemTypeCodes],
+  );
+
 
   const [filter, setFilter] = useState(pf.filter ?? "");
   const [patientFilter, setPatientFilter] = useState(pf.patientFilter ?? "");
@@ -1321,7 +1336,17 @@ export function ItemsDataGrid({
 
   const getConvenio = getAgreement;
 
-  const selectRow = (itId: string) => setActiveId(itId);
+  const selectRow = (itId: string) => {
+    setActiveId(itId);
+    if (selectionMode) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(itId)) next.delete(itId);
+        else next.add(itId);
+        return next;
+      });
+    }
+  };
   const openDetail = (itId?: string) => {
     const target = itId ?? activeId;
     if (!target) return;
@@ -1917,6 +1942,59 @@ export function ItemsDataGrid({
         height: `min(calc(100vh - 40px), max(640px, ${estimatedHeight}px))`,
       }}
     >
+      {selectionMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full border bg-background shadow-lg px-4 py-2">
+          <span className="text-xs font-medium">
+            {selectedIds.size} item(ns) selecionado(s)
+          </span>
+          <span className="text-[11px] text-muted-foreground">Reclassificar para:</span>
+          <Select
+            value={bulkTypeId ?? undefined}
+            onValueChange={(v) => setBulkTypeId(v)}
+          >
+            <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectValue placeholder="Escolher tipo…" />
+            </SelectTrigger>
+            <SelectContent>
+              {bulkSelectable.map((t) => (
+                <SelectItem key={t.id} value={t.id} className="text-xs">
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            className="h-8 text-xs"
+            disabled={!bulkTypeId}
+            onClick={async () => {
+              if (!bulkTypeId) return;
+              const t = bulkSelectable.find((x) => x.id === bulkTypeId);
+              if (!t) return;
+              const ids = Array.from(selectedIds);
+              await changeCaseSubtype(ids, bulkTypeId, t.label);
+              setSelectedIds(new Set());
+              setBulkTypeId(null);
+            }}
+          >
+            Aplicar
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => {
+              setSelectedIds(new Set());
+              setBulkTypeId(null);
+            }}
+            title="Limpar seleção"
+          >
+            <XIcon className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+
 
 
       {showToolbar && (
@@ -2147,6 +2225,27 @@ export function ItemsDataGrid({
               }}
             >
               Limpar
+            </Button>
+          )}
+          {canEdit && (
+            <Button
+              size="sm"
+              variant={selectionMode ? "default" : "outline"}
+              className="h-8 text-xs"
+              onClick={() => {
+                setSelectionMode((on) => {
+                  if (on) setSelectedIds(new Set());
+                  return !on;
+                });
+              }}
+              title="Ativar seleção múltipla para reclassificar vários itens de uma vez"
+            >
+              {selectionMode ? "Sair da seleção" : "Selecionar"}
+              {selectionMode && selectedIds.size > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-background/20 px-1.5 text-[10px]">
+                  {selectedIds.size}
+                </span>
+              )}
             </Button>
           )}
           <Popover>
