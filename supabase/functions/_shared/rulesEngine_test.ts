@@ -582,13 +582,13 @@ Deno.test("auto_parecer_report apenas classifica Parecer/Visita; valor vem da re
         label: "Parecer",
         calculation_type: "valor_fixo",
         fixed_amount: 250,
-        payment_type_id: parecerTypeId,
+        item_type_id: parecerTypeId,
       },
     ],
   } as Partial<RuleInput>);
 
   const item = makeItem({
-    payment_type_id: parecerTypeId,
+    item_type_id: parecerTypeId,
     procedure_name: "Parecer médico",
     procedure_amount: 400,
     gross_amount: 250,

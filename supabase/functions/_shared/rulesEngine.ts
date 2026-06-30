@@ -288,11 +288,8 @@ export interface RuleCalculationItem {
   special_case_filter?: string[] | null;
   /** Tipo do item aplicável neste cálculo (Parecer, Visita, Consulta, etc.).
    *  NULL = vale para qualquer tipo. Quando setado, só casa se o item
-   *  tiver o mesmo `item_type_id`. Fase D: renomeado de `payment_type_id`
-   *  (alias legado mantido durante transição). */
+   *  tiver o mesmo `item_type_id`. */
   item_type_id?: string | null;
-  /** @deprecated — use item_type_id. Mantido para retrocompatibilidade. */
-  payment_type_id?: string | null;
   /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
   procedure_keywords?: string[] | null;
   /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
@@ -376,11 +373,8 @@ export interface ItemInput {
   /** Status da marcação: 'pending' | 'approved' | 'rejected' | 'revoked' | null. */
   special_case_status?: string | null;
   /** item_type_id do item (Parecer, Visita, Consulta, etc.) — usado pelo filtro
-   *  de tipo no nível do cálculo (`rule_calculations.item_type_id`).
-   *  Fase D: renomeado de `payment_type_id`. */
+   *  de tipo no nível do cálculo (`rule_calculations.item_type_id`). */
   item_type_id?: string | null;
-  /** @deprecated — use item_type_id. Mantido para retrocompatibilidade durante a transição. */
-  payment_type_id?: string | null;
   /** @deprecated — substituído por manual_intervention_reason_id. Mantido para
    *  itens ainda não migrados. */
   calc_exception_skip?: boolean | null;
